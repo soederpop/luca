@@ -1,5 +1,5 @@
 import Websocket from 'isomorphic-ws'
-import { Client, clients, ClientState, ClientOptions } from '../../client'
+import { Client, clients, type ClientState, type ClientOptions } from '../../client'
 
 declare module '../../client' {
   interface AvailableClients {
@@ -17,12 +17,14 @@ export interface SocketOptions extends ClientOptions {
 
 export class SocketClient<T extends SocketState = SocketState, K extends SocketOptions = SocketOptions> extends Client<T,K> {
   ws?: Websocket
+
+  static override shortcut = 'clients.websocket' as const
   
-  static attach(...args: any[]) {
+  static override attach(...args: any[]) {
     clients.register('websocket', SocketClient)
   }
 
-  afterInitialize(): void {
+  override afterInitialize(): void {
     const { reconnect } = this.options
 
     this.on('close', () => {
