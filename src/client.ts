@@ -11,6 +11,7 @@ export interface ClientOptions extends HelperOptions {
 export interface AvailableClients {
   rest: typeof RestClient;
   graph: typeof GraphClient;
+  openai: typeof import("./ai/openai-client.js").OpenAIClient;
 }
 
 export interface ClientState extends HelperState {
@@ -19,10 +20,10 @@ export interface ClientState extends HelperState {
 
 export interface ClientsInterface {
   clients: ClientsRegistry;
-  client: (
-    key: keyof AvailableClients,
-    options?: ConstructorParameters<AvailableClients[keyof AvailableClients]>[0]
-  ) => InstanceType<AvailableClients[keyof AvailableClients]>;
+  client<T extends keyof AvailableClients>(
+    key: T,
+    options?: ConstructorParameters<AvailableClients[T]>[0]
+  ): InstanceType<AvailableClients[T]>;
 }
 
 export class Client<
@@ -263,6 +264,11 @@ export const clients = new ClientsRegistry();
 clients.register("rest", RestClient);
 clients.register("graph", GraphClient);
 clients.register("websocket", WebSocketClient);
+
+// Register OpenAI client
+import("./ai/openai-client.js").then(({ OpenAIClient }) => {
+  clients.register("openai", OpenAIClient);
+});
 
 export const helperCache = new Map();
 
