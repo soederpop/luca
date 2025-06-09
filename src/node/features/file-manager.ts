@@ -56,15 +56,29 @@ export class FileManager<
     return Array.from(this.files.values());
   }
 
+  /** 
+   * Matches the file IDs against the pattern(s) provided
+   * @param {string | string[]} patterns - The patterns to match against the file IDs
+   * @returns {string[]} The file IDs that match the patterns
+  */
   match(patterns: string | string[]) {
     return micromatch(this.files.keys(), patterns);
   }
 
+  /** 
+   * Matches the file IDs against the pattern(s) provided and returns the file objects for each.
+   * 
+   * @param {string | string[]} patterns - The patterns to match against the file IDs
+   * @returns {File[]} The file objects that match the patterns
+  */
   matchFiles(patterns: string | string[]) {
     const fileIds = this.match(Array.isArray(patterns) ? patterns : [patterns]);
     return fileIds.map((fileId) => this.files.get(fileId));
   }
 
+  /** 
+   * Returns the directory IDs for all of the files in the project.
+  */
   get directoryIds() {
     return Array.from(
       new Set(
@@ -88,6 +102,12 @@ export class FileManager<
     return !!this.state.get("watching");
   }
 
+  /** 
+   * Starts the file manager and scans the files in the project.
+   * @param {object} [options={}] - Options for the file manager
+   * @param {string | string[]} [options.exclude] - The patterns to exclude from the scan
+   * @returns {Promise<FileManager>} The file manager instance
+  */
   async start(options: { exclude?: string | string[] } = {}) {
     if (this.isStarted) {
       return this;
@@ -113,6 +133,12 @@ export class FileManager<
     return this;
   }
 
+  /** 
+   * Scans the files in the project and updates the file manager state.
+   * @param {object} [options={}] - Options for the file manager
+   * @param {string | string[]} [options.exclude] - The patterns to exclude from the scan
+   * @returns {Promise<FileManager>} The file manager instance
+  */
   async scanFiles(options: { exclude?: string | string[] } = {}) {
     const { cwd, git, fs } = this.container;
 
@@ -164,6 +190,12 @@ export class FileManager<
     return this.watcher?.getWatched() || {};
   }
 
+  /** 
+   * Watches the files in the project and updates the file manager state.
+   * @param {object} [options={}] - Options for the file manager
+   * @param {string | string[]} [options.exclude] - The patterns to exclude from the watch
+   * @returns {Promise<void>} The file manager instance
+  */
   async watch(options: { exclude?: string | string[] } = {}) {
     if (this.isWatching) {
       return;

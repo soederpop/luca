@@ -11,6 +11,28 @@ export interface VaultOptions extends FeatureOptions {
   secret?: Buffer | string
 }
 
+/**
+ * The Vault feature provides encryption and decryption capabilities using AES-256-GCM.
+ * 
+ * This feature allows you to securely encrypt and decrypt sensitive data using
+ * industry-standard encryption. It manages secret keys and provides a simple
+ * interface for cryptographic operations.
+ * 
+ * @example
+ * ```typescript
+ * const vault = container.feature('vault')
+ * 
+ * // Encrypt sensitive data
+ * const encrypted = vault.encrypt('sensitive information')
+ * console.log(encrypted) // Base64 encoded encrypted data
+ * 
+ * // Decrypt the data
+ * const decrypted = vault.decrypt(encrypted)
+ * console.log(decrypted) // 'sensitive information'
+ * ```
+ * 
+ * @extends Feature
+ */
 export class Vault extends Feature<VaultState, VaultOptions> {
   static override shortcut = 'features.vault' as const
 
@@ -30,10 +52,23 @@ export class Vault extends Feature<VaultState, VaultOptions> {
     this.state.set('secret', secret)
   }
   
+  /**
+   * Gets the secret key as a base64-encoded string.
+   * 
+   * @returns {string | undefined} The secret key encoded as base64, or undefined if no secret is set
+   */
   get secretText() {
     return this.state.get('secret')!?.toString('base64')
   }
 
+  /**
+   * Gets or generates a secret key for encryption operations.
+   * 
+   * @param {object} [options={}] - Options for secret key handling
+   * @param {boolean} [options.refresh=false] - Whether to generate a new secret key
+   * @param {boolean} [options.set=true] - Whether to store the generated key in state
+   * @returns {Buffer} The secret key as a Buffer
+   */
   secret({ refresh = false, set = true } = {}) : Buffer {
     if (!refresh && this.state.get('secret')) {
       return this.state.get('secret')!
@@ -48,11 +83,24 @@ export class Vault extends Feature<VaultState, VaultOptions> {
     return val
   }
  
+  /**
+   * Decrypts an encrypted payload that was created by the encrypt method.
+   * 
+   * @param {string} payload - The encrypted payload to decrypt (base64 encoded with delimiters)
+   * @returns {string} The decrypted plaintext
+   * @throws {Error} Throws an error if decryption fails or the payload is malformed
+   */
   decrypt(payload: string) {
     const [iv, ciphertext, authTag] = payload.split('\n------\n').map((v) => Buffer.from(v, 'base64'))
     return this._decrypt(ciphertext!, iv!, authTag!)
   }
 
+  /**
+   * Encrypts a plaintext string using AES-256-GCM encryption.
+   * 
+   * @param {string} payload - The plaintext string to encrypt
+   * @returns {string} The encrypted payload as a base64 encoded string with delimiters
+   */
   encrypt(payload: string) {
     const { iv, ciphertext, authTag } = this._encrypt(payload)
     
