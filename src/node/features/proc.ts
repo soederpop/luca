@@ -13,9 +13,64 @@ interface SpawnOptions {
   onExit?: (code: number) => void;
 }
 
+/**
+ * The ChildProcess feature provides utilities for executing external processes and commands.
+ * 
+ * This feature wraps Node.js child process functionality to provide convenient methods
+ * for executing shell commands, spawning processes, and capturing their output.
+ * It supports both synchronous and asynchronous execution with various options.
+ * 
+ * @example
+ * ```typescript
+ * const proc = container.feature('proc')
+ * 
+ * // Execute a simple command synchronously
+ * const result = proc.exec('echo "Hello World"')
+ * console.log(result) // 'Hello World'
+ * 
+ * // Execute and capture output asynchronously
+ * const { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])
+ * console.log(`npm version: ${stdout}`)
+ * 
+ * // Execute with callbacks for real-time output
+ * await proc.spawnAndCapture('npm', ['install'], {
+ *   onOutput: (data) => console.log('OUT:', data),
+ *   onError: (data) => console.log('ERR:', data)
+ * })
+ * ```
+ * 
+ * @extends Feature
+ */
 export class ChildProcess extends Feature {
   static override shortcut = "features.proc" as const
 
+  /**
+   * Executes a command string and captures its output asynchronously.
+   * 
+   * This method takes a complete command string, splits it into command and arguments,
+   * and executes it using the spawnAndCapture method. It's a convenient wrapper
+   * for simple command execution.
+   * 
+   * @param {string} cmd - The complete command string to execute (e.g., "git status --porcelain")
+   * @param {any} [options] - Options to pass to the underlying spawn process
+   * @returns {Promise<object>} Promise resolving to execution result with stdout, stderr, exitCode, pid, and error
+   * 
+   * @example
+   * ```typescript
+   * // Execute a git command
+   * const result = await proc.execAndCapture('git status --porcelain')
+   * if (result.exitCode === 0) {
+   *   console.log('Git status:', result.stdout)
+   * } else {
+   *   console.error('Git error:', result.stderr)
+   * }
+   * 
+   * // Execute with options
+   * const result = await proc.execAndCapture('npm list --depth=0', {
+   *   cwd: '/path/to/project'
+   * })
+   * ```
+   */
   async execAndCapture(
     cmd: string,
     options?: any
@@ -29,11 +84,46 @@ export class ChildProcess extends Feature {
     const [command, ...args] = cmd.split(" ");
     return this.spawnAndCapture(command!, args, options);
   }
+
   /**
-   * This will spawn a process and capture the output for you.
+   * Spawns a process and captures its output with real-time monitoring capabilities.
    *
-   * For long running processes where you want to capture the output as it happens,
-   * you can pass onOutput, onError callbacks.
+   * This method provides comprehensive process execution with the ability to capture
+   * output, monitor real-time data streams, and handle process lifecycle events.
+   * It's ideal for long-running processes where you need to capture output as it happens.
+   * 
+   * @param {string} command - The command to execute (e.g., 'node', 'npm', 'git')
+   * @param {string[]} args - Array of arguments to pass to the command
+   * @param {SpawnOptions} [options] - Options for process execution and monitoring
+   * @param {string} [options.cwd] - Working directory for the process
+   * @param {Function} [options.onOutput] - Callback for stdout data
+   * @param {Function} [options.onError] - Callback for stderr data  
+   * @param {Function} [options.onExit] - Callback for process exit
+   * @returns {Promise<object>} Promise resolving to complete execution result
+   * 
+   * @example
+   * ```typescript
+   * // Basic usage
+   * const result = await proc.spawnAndCapture('node', ['--version'])
+   * console.log(`Node version: ${result.stdout}`)
+   * 
+   * // With real-time output monitoring
+   * const result = await proc.spawnAndCapture('npm', ['install'], {
+   *   onOutput: (data) => console.log('📦 ', data.trim()),
+   *   onError: (data) => console.error('❌ ', data.trim()),
+   *   onExit: (code) => console.log(`Process exited with code ${code}`)
+   * })
+   * 
+   * // Long-running process with custom working directory
+   * const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
+   *   cwd: '/path/to/project',
+   *   onOutput: (data) => {
+   *     if (data.includes('error')) {
+   *       console.error('Build error detected:', data)
+   *     }
+   *   }
+   * })
+   * ```
    */
   async spawnAndCapture(
     command: string,
@@ -103,6 +193,42 @@ export class ChildProcess extends Feature {
     };
   }
 
+  /**
+   * Executes a command synchronously and returns its output.
+   * 
+   * This method runs a command and waits for it to complete before returning.
+   * It's useful for simple commands where you need the result immediately
+   * and don't require real-time output monitoring.
+   * 
+   * @param {string} command - The command to execute
+   * @param {any} [options] - Options for command execution (cwd, encoding, etc.)
+   * @returns {string} The trimmed stdout from the command execution
+   * @throws {Error} Throws an error if the command fails or returns non-zero exit code
+   * 
+   * @example
+   * ```typescript
+   * // Get current git branch
+   * const branch = proc.exec('git branch --show-current')
+   * console.log(`Current branch: ${branch}`)
+   * 
+   * // Get Node.js version
+   * const nodeVersion = proc.exec('node --version')
+   * console.log(`Node.js: ${nodeVersion}`)
+   * 
+   * // Execute in specific directory
+   * const packageName = proc.exec('node -p "require(\'./package.json\').name"', {
+   *   cwd: '/path/to/project'
+   * })
+   * 
+   * // Handle potential errors
+   * try {
+   *   const output = proc.exec('some-command-that-might-fail')
+   *   console.log(output)
+   * } catch (error) {
+   *   console.error('Command failed:', error.message)
+   * }
+   * ```
+   */
   exec(command: string, options?: any): string {
     return execSync(command, {
       cwd: this.container.cwd,
