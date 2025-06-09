@@ -1,21 +1,16 @@
 import container from "../src/node"
+import { OpenAIClient } from "../src/ai/openai-client"
 
-const socket = container.server("websocket", {
-	port: 8081
-})
+// Use container.use() which works for anything with an attach method
+container.use(OpenAIClient)
 
-const client = container.client("websocket", {
-	baseURL: `ws://localhost:${socket.port}`
+const openai = container.client("openai", {
+	apiKey: process.env.OPENAI_API_KEY
 })
 
 async function main() {
-	await socket.start()
-	console.log("Server started on port", socket.port)
-
-	await client.connect()
-
-	console.log("Client connected")
-
+	const response = await openai.ask("What is the capital of France?")
+	console.log(response)
 }
 
 main()
