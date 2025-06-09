@@ -27,6 +27,19 @@ export interface FileManagerOptions extends FeatureOptions {
   exclude?: string | string[];
 }
 
+/** 
+ * The FileManager feature creates a database like index of all of the files in the project,
+ * and provides metadata about these files, and also provides a way to watch for changes to the files.
+ *
+ * @example
+ * ```typescript
+ * const fileManager = container.feature('fileManager')
+ * await fileManager.start()
+ * 
+ * const fileIds = fileManager.fileIds
+ * const typescriptFiles = fileManager.matchFiles("**ts")
+ * ```
+*/
 export class FileManager<
   T extends FileManagerState = FileManagerState,
   K extends FileManagerOptions = FileManagerOptions

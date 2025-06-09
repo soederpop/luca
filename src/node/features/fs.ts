@@ -17,6 +17,10 @@ type WalkOptions = {
   include?: string | string[];
 };
 
+/** 
+ * The FS features provides methods for interacting with the file system, relative to the 
+ * container's cwd. 
+*/
 export class FS extends Feature {
   static override shortcut = "features.fs" as const
 

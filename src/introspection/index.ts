@@ -18,7 +18,8 @@
  * populate the registry with the information we need.
  * 
  * Each Helper class will have a method that will return information about itself found in the 
- * central introspection registry.
+ * central introspection registry.  This registry can be loaded at runtime from a remote source,
+ * depending on the container.  In node, we can load it from a file, or from a URL. 
  */
 
 export type MethodIntrospection = {

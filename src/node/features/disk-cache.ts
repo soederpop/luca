@@ -1,3 +1,7 @@
+/** 
+ * The diskCache feature provides a wrapper on top of the cacache library, which is a simple key-value store for files,
+ * used to power npm. It is used to be a file backed way to store arbitrary data, including very large blobs if necessary.  
+*/
 import cacache from "cacache";
 import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
@@ -26,9 +30,18 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     return this._cache
   }
   
-  /** 
+  /**
    * Retrieve a file from the disk cache and save it to the local disk
-  */
+   * @param key - The cache key to retrieve
+   * @param outputPath - The local path where the file should be saved
+   * @param isBase64 - Whether the cached content is base64 encoded
+   * @returns Promise that resolves to the file data as Buffer
+   * @example
+   * ```typescript
+   * await diskCache.saveFile('myFile', './output/file.txt')
+   * await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
+   * ```
+   */
   async saveFile(key: string, outputPath: string, isBase64 = false) {
     const outPath = this.container.paths.resolve(outputPath)
     const content = await this.get(key)  
@@ -36,7 +49,17 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     await this.container.fs.writeFileAsync(outPath, data)
     return data
   }
- 
+
+  /**
+   * Ensure a key exists in the cache, setting it with the provided content if it doesn't exist
+   * @param key - The cache key to check/set
+   * @param content - The content to set if the key doesn't exist
+   * @returns Promise that resolves to the key
+   * @example
+   * ```typescript
+   * await diskCache.ensure('config', JSON.stringify(defaultConfig))
+   * ```
+   */
   async ensure(key: string, content: string) {
     const exists = await this.has(key)
     
@@ -47,6 +70,19 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     return key 
   }
 
+  /**
+   * Copy a cached item from one key to another
+   * @param source - The source cache key
+   * @param destination - The destination cache key
+   * @param overwrite - Whether to overwrite if destination exists (default: false)
+   * @returns Promise that resolves to the destination key
+   * @throws Error if destination exists and overwrite is false
+   * @example
+   * ```typescript
+   * await diskCache.copy('original', 'backup')
+   * await diskCache.copy('file1', 'file2', true) // force overwrite
+   * ```
+   */
   async copy(source: string, destination: string, overwrite: boolean = false) {
     if(!overwrite && (await this.has(destination))) {
       throw new Error('Destination already exists')
@@ -57,6 +93,19 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     return destination
   }
 
+  /**
+   * Move a cached item from one key to another (copy then delete source)
+   * @param source - The source cache key
+   * @param destination - The destination cache key  
+   * @param overwrite - Whether to overwrite if destination exists (default: false)
+   * @returns Promise that resolves to the destination key
+   * @throws Error if destination exists and overwrite is false
+   * @example
+   * ```typescript
+   * await diskCache.move('temp', 'permanent')
+   * await diskCache.move('old_key', 'new_key', true) // force overwrite
+   * ```
+   */
   async move(source: string, destination: string, overwrite: boolean = false) {
     if(!overwrite && (await this.has(destination))) {
       throw new Error('Destination already exists')
@@ -64,14 +113,36 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     
     const content = await this.get(source)
     await this.set(destination, content)
+    await this.rm(source)
     return destination
   }
 
-
+  /**
+   * Check if a key exists in the cache
+   * @param key - The cache key to check
+   * @returns Promise that resolves to true if key exists, false otherwise
+   * @example
+   * ```typescript
+   * if (await diskCache.has('myKey')) {
+   *   console.log('Key exists!')
+   * }
+   * ```
+   */
   async has(key: string) {
     return this.cache.get.info(key).then((r:any) => r != null)
   }
- 
+
+  /**
+   * Retrieve a value from the cache
+   * @param key - The cache key to retrieve
+   * @param json - Whether to parse the value as JSON (default: false)
+   * @returns Promise that resolves to the cached value (string or parsed JSON)
+   * @example
+   * ```typescript
+   * const text = await diskCache.get('myText')
+   * const data = await diskCache.get('myData', true) // parse as JSON
+   * ```
+   */
   async get(key: string, json = false) {
     const val = this.options.encrypt 
       ? await this.securely.get(key) 
@@ -88,6 +159,19 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     }
   }
   
+  /**
+   * Store a value in the cache
+   * @param key - The cache key to store under
+   * @param value - The value to store (string, object, or any serializable data)
+   * @param meta - Optional metadata to associate with the cached item
+   * @returns Promise that resolves when the value is stored
+   * @example
+   * ```typescript
+   * await diskCache.set('myKey', 'Hello World')
+   * await diskCache.set('userData', { name: 'John', age: 30 })
+   * await diskCache.set('file', content, { size: 1024, type: 'image' })
+   * ```
+   */
   async set(key: string, value: any, meta?: any) {
     if (this.options.encrypt) {
       return this.securely.set(key, value, meta)
@@ -104,10 +188,29 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     }
   }
 
+  /**
+   * Remove a cached item
+   * @param key - The cache key to remove
+   * @returns Promise that resolves when the item is removed
+   * @example
+   * ```typescript
+   * await diskCache.rm('obsoleteKey')
+   * ```
+   */
   async rm(key: string) {
     return this.cache.rm.entry(key)
   }
   
+  /**
+   * Clear all cached items
+   * @param confirm - Must be set to true to confirm the operation
+   * @returns Promise that resolves to this instance for chaining
+   * @throws Error if confirm is not true
+   * @example
+   * ```typescript
+   * await diskCache.clearAll(true) // Must explicitly confirm
+   * ```
+   */
   async clearAll(confirm = false) {
     if(confirm !== true) {
       throw new Error('Must confirm with clearAll(true)')
@@ -116,14 +219,49 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     return this
   }
 
+  /**
+   * Get all cache keys
+   * @returns Promise that resolves to an array of all cache keys
+   * @example
+   * ```typescript
+   * const allKeys = await diskCache.keys()
+   * console.log(`Cache contains ${allKeys.length} items`)
+   * ```
+   */
   async keys() : Promise<string[]> {
     return this.cache.ls().then((results: Record<string,any>) => Object.keys(results))
   }
 
+  /**
+   * List all cache keys (alias for keys())
+   * @returns Promise that resolves to an array of all cache keys
+   * @example
+   * ```typescript
+   * const keyList = await diskCache.listKeys()
+   * ```
+   */
   async listKeys() : Promise<string[]> {
     return this.cache.ls().then((results: Record<string,any>) => Object.keys(results))
   }
   
+  /**
+   * Get encrypted cache operations interface
+   * Requires encryption to be enabled and a secret to be provided
+   * @returns Object with encrypted get/set operations
+   * @throws Error if encryption is not enabled or no secret is provided
+   * @example
+   * ```typescript
+   * // Initialize with encryption
+   * const cache = container.feature('diskCache', { 
+   *   encrypt: true, 
+   *   secret: Buffer.from('my-secret-key') 
+   * })
+   * 
+   * // Use encrypted operations
+   * await cache.securely.set('sensitive', 'secret data')
+   * const decrypted = await cache.securely.get('sensitive')
+   * ```
+   */
   get securely() {
     const { secret, encrypt } = this.options
     
@@ -142,6 +280,13 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     const { cache } = this
 
     return {
+      /**
+       * Store an encrypted value in the cache
+       * @param name - The cache key
+       * @param payload - The data to encrypt and store
+       * @param meta - Optional metadata (will also be encrypted)
+       * @returns Promise that resolves when stored
+       */
       async set(name: string, payload: any, meta?: any) {
         const encrypted = vault.encrypt(payload)
         return cache.put(name, Buffer.from(encrypted), {
@@ -150,6 +295,11 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
           }}) 
         })
       },
+      /**
+       * Retrieve and decrypt a value from the cache
+       * @param name - The cache key
+       * @returns Promise that resolves to the decrypted data
+       */
       async get(name: string) {
         const value = await cache.get(name).then((data: any) => data.data.toString())
         return vault.decrypt(value)
@@ -159,6 +309,15 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
  
   _cache!: ReturnType<typeof this.create>
  
+  /**
+   * Create a cacache instance with the specified path
+   * @param path - Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)
+   * @returns Configured cacache instance with all methods bound to the path
+   * @example
+   * ```typescript
+   * const customCache = diskCache.create('/custom/cache/path')
+   * ```
+   */
   create(path?: string) {
     path = path || this.options.path || this.container.paths.resolve('node_modules', '.cache', 'luca-disk-cache')
     mkdirSync(path, { recursive: true })
