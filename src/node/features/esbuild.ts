@@ -2,13 +2,23 @@ import * as esbuild from 'esbuild'
 import { Feature, features } from '../feature.js'
 import { NodeContainer } from '../container.js'
 
+/** 
+ * A Feature for compiling typescript / esm modules, etc to JavaScript
+ * that the container can run at runtime.  
+*/
 export class ESBuild extends Feature {
   static override shortcut = 'features.esbuild' as const
 
   static attach(c: NodeContainer) {
-    c.features.register('esbuild', ESBuild)
+    return c
   }
 
+  /**
+   * Transform code synchronously
+   * @param code - The code to transform
+   * @param options - The options to pass to esbuild
+   * @returns The transformed code
+   */
    transformSync(code: string, options?: esbuild.TransformOptions) {
     return esbuild.transformSync(code, {
       loader: 'ts',
@@ -19,7 +29,12 @@ export class ESBuild extends Feature {
       ...options 
     })
   }
- 
+  /**
+   * Transform code asynchronously
+   * @param code - The code to transform
+   * @param options - The options to pass to esbuild
+   * @returns The transformed code
+   */
   async transform(code: string, options?: esbuild.TransformOptions) {
     return esbuild.transform(code, {
       loader: 'ts',
