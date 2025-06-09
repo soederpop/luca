@@ -11,6 +11,7 @@ export class Network<
   T extends NetworkState = NetworkState,
   K extends NetworkOptions = NetworkOptions
 > extends Feature<T, K> {
+  static override shortcut = "features.network" as const
   
   static attach(container: Container & { network?: Network }) {
     container.features.register("network", Network);
@@ -19,10 +20,6 @@ export class Network<
   constructor(options: K, context: ContainerContext) {
     super(options, context);
     this.state.set("offline", !navigator.onLine);
-  }
-
-  get shortcut() {
-    return "network" as const;
   }
 
   get isOffline() {

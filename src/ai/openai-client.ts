@@ -26,8 +26,9 @@ export interface OpenAIClientOptions extends ClientOptions {
 export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions> {
   private openai!: OpenAI;
 
+  static override shortcut = "clients.openai" as const
+
   static override attach(container: Container & ClientsInterface): any {
-    container.clients.register("openai", OpenAIClient)
     return container;
   }
 

@@ -2,9 +2,7 @@ import { Feature, features } from '../feature.js'
 import detectPort from 'detect-port'
 
 export class Networking extends Feature {
-  override get shortcut() {
-    return 'networking' as const
-  }
+  static override shortcut = 'features.networking' as const
   
   async findOpenPort(startAt = 0) {
     const nextPort = await detectPort(Number(startAt))

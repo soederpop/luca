@@ -1,8 +1,9 @@
 import { Bus } from "./bus.js";
-import { SetStateValue, State } from "./state.js";
+import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
+import { introspect, type HelperIntrospection } from "./introspection/index.js";
 
 // @ts-ignore-next-line
 export interface HelperState { }
@@ -20,6 +21,8 @@ export interface HelperOptions {
  * provides dependency injection and injects a context object into the Helper constructor.
  */
 export abstract class Helper<T extends HelperState = HelperState, K extends HelperOptions = any> {
+  static shortcut: string = "unspecified"
+
   protected readonly _context: ContainerContext
   protected readonly _events = new Bus()
   protected readonly _options: K 
@@ -30,6 +33,10 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
   get initialState() : T {
     return {} as T
+  }
+
+  introspect() : HelperIntrospection | undefined {
+    return introspect((this.constructor as any).shortcut || '')
   }
   
   constructor(options: K, context: ContainerContext) {

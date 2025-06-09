@@ -1,5 +1,5 @@
 import vm from 'vm'
-import { Feature, FeatureOptions, FeatureState, features } from "../feature.js";
+import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
 
 export interface VMState extends FeatureState { }
 
@@ -11,6 +11,8 @@ export class VM<
   T extends VMState = VMState,
   K extends VMOptions = VMOptions
 > extends Feature<T, K> {
+  static override shortcut = "features.vm" as const
+
   createScript(code: string, options?: vm.ScriptOptions) {
     return new vm.Script(code, {
       ...options

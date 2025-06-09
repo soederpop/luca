@@ -1,4 +1,4 @@
-import { Feature, FeatureState, FeatureOptions, features } from '../feature.js'
+import { Feature, type FeatureState, type FeatureOptions, features } from '../feature.js'
 import { WebContainer} from '../container.js'
 
 export interface WebVaultState extends FeatureState {
@@ -10,13 +10,7 @@ export interface WebVaultOptions extends FeatureOptions {
 }
 
 export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
-  static attach(c: WebContainer ) {
-
-  }
-
-  override get shortcut() {
-    return 'vault' as const
-  }
+  static override shortcut = "features.vault" as const
   
   async secret({ refresh = false, set = true } = {}) : Promise<ArrayBuffer> {
     if (!this.state.get('secret') && this.options.secret) {
@@ -39,8 +33,8 @@ export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
  
   async decrypt(payload: string) {
     const parts = payload.split("\n------\n")
-    const iv = base64ToUint8Array(parts[1])
-    const ciphertext = base64ToArrayBuffer(parts[0])
+    const iv = base64ToUint8Array(parts[1]!)
+    const ciphertext = base64ToArrayBuffer(parts[0]!)
     const secret = await this.secret()
     
     console.log(ciphertext, secret, iv)
@@ -126,8 +120,8 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
     const index1 = a >> 2;
     const index2 = ((a & 0x03) << 4) | (b >> 4);
-    const index3 = isNaN(b) ? 64 : ((b & 0x0f) << 2) | (c >> 6);
-    const index4 = isNaN(b) || isNaN(c) ? 64 : c & 0x3f;
+    const index3 = isNaN(b!) ? 64 : ((b & 0x0f) << 2) | (c >> 6);
+    const index4 = isNaN(b!) || isNaN(c!) ? 64 : c & 0x3f;
 
     base64 += chars[index1] + chars[index2] + chars[index3] + chars[index4];
   }
@@ -146,18 +140,18 @@ function uint8ArrayToBase64(u: Uint8Array): string {
 
     const index1 = a >> 2;
     const index2 = ((a & 0x03) << 4) | (b >> 4);
-    const index3 = isNaN(b) ? 64 : ((b & 0x0f) << 2) | (c >> 6);
-    const index4 = isNaN(b) || isNaN(c) ? 64 : c & 0x3f;
+    const index3 = isNaN(b!) ? 64 : ((b & 0x0f) << 2) | (c >> 6);
+    const index4 = isNaN(b!) || isNaN(c!) ? 64 : c & 0x3f;
 
-    base64 += chars[index1] + chars[index2] + chars[index3] + chars[index4];
+    base64 += chars[index1]! + chars[index2]! + chars[index3]! + chars[index4]!;
   }
 
   return base64;
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const uint8Array = base64ToUint8Array(base64);
-  return uint8Array.buffer;
+  const uint8Array = base64ToUint8Array(base64)!;
+  return uint8Array.buffer as ArrayBuffer;
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {

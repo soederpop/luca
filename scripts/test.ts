@@ -9,8 +9,7 @@ const openai = container.client("openai", {
 })
 
 async function main() {
-	const response = await openai.ask("What is the capital of France?")
-	console.log(response)
+	console.log(container.feature('proc'))
 }
 
 main()

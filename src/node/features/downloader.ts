@@ -3,9 +3,7 @@ import fetch from 'cross-fetch'
 import { writeFile } from 'fs/promises'
 
 export class Downloader extends Feature {
-  override get shortcut() {
-    return 'downloader' as const
-  }
+  static override shortcut = 'features.downloader' as const
   
   async download(url: string, targetPath: string) {
     const buffer = await fetch(url).then(res => res.arrayBuffer())

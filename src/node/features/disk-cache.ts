@@ -12,6 +12,8 @@ export interface DiskCacheOptions extends FeatureOptions {
 }
 
 export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
+  static override shortcut = "features.diskCache" as const
+
   static attach(c: NodeContainer) {}
 
   constructor(options: DiskCacheOptions, context: ContainerContext) {
@@ -22,10 +24,6 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   
   get cache() {
     return this._cache
-  }
-
-  override get shortcut() {
-    return "diskCache" as const;
   }
   
   /** 

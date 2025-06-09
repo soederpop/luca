@@ -2,7 +2,7 @@ import type { NodeContainer } from '../node/container.js'
 import express from 'express'
 import type { Express } from 'express'
 import cors from 'cors'
-import { servers, StartOptions, Server, ServersInterface, ServerState, ServerOptions } from './server.js';
+import { servers, type StartOptions, Server, type ServersInterface, type ServerState, type ServerOptions } from './server.js';
 
 declare module './index' {
   interface AvailableServers {
@@ -20,8 +20,9 @@ export interface ExpressServerOptions extends ServerOptions {
 const defaultCreate = (app: Express, server: Server) => app
 
 export class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T,K> {
-    static attach(container: NodeContainer & ServersInterface) {
-      container.servers.register('express', ExpressServer)
+    static override shortcut = 'servers.express' as const
+    
+    static override attach(container: NodeContainer & ServersInterface) {
       return container
     }
   
@@ -63,7 +64,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this.hooks.create(app, server)
     }
   
-    async start(options?: StartOptions) {
+    override async start(options?: StartOptions) {
       if (this.isListening) {
         return this
       }
@@ -87,10 +88,12 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this
     }
     
-    async configure() {
+    override async configure() {
       this.state.set('configured', true)
       return this
     }
 }
 
-export default servers.register('express', ExpressServer)
+servers.register('express', ExpressServer)
+
+export default ExpressServer

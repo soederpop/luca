@@ -14,9 +14,7 @@ interface SpawnOptions {
 }
 
 export class ChildProcess extends Feature {
-  override get shortcut() {
-    return "proc" as const;
-  }
+  static override shortcut = "features.proc" as const
 
   async execAndCapture(
     cmd: string,
@@ -29,7 +27,7 @@ export class ChildProcess extends Feature {
     pid: number | null;
   }> {
     const [command, ...args] = cmd.split(" ");
-    return this.spawnAndCapture(command, args, options);
+    return this.spawnAndCapture(command!, args, options);
   }
   /**
    * This will spawn a process and capture the output for you.

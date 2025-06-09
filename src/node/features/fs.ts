@@ -18,9 +18,7 @@ type WalkOptions = {
 };
 
 export class FS extends Feature {
-  override get shortcut() {
-    return "fs" as const;
-  }
+  static override shortcut = "features.fs" as const
 
   async readFileAsync(path: string) {
     return await readFile(this.container.paths.resolve(path)) 

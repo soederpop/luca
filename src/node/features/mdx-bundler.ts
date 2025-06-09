@@ -7,9 +7,7 @@ type CompileOptions = {
 }
 
 export class MdxBundler extends Feature {
-  override get shortcut() {
-    return 'mdxBundler' as const
-  }
+  static override shortcut = 'features.mdxBundler' as const
   
   async compile(source: string, options: CompileOptions = {}) {
     const { files = {} } = options

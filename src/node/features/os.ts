@@ -2,9 +2,7 @@ import { Feature, features } from '../feature.js'
 import os from 'os'
 
 export class OS extends Feature {
-  override get shortcut() {
-    return 'os' as const
-  }
+  static override shortcut = 'features.os' as const
   
   get arch() {
     return os.arch()

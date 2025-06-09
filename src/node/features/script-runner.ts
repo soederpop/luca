@@ -1,9 +1,7 @@
 import { Feature, features } from '../feature.js'
 
 export class ScriptRunner extends Feature {
-  get shortcut() {
-    return 'scriptRunner' as const
-  }
+  static override shortcut = 'features.scriptRunner' as const
   
   get scripts() {
     const { proc } = this.container

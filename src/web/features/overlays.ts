@@ -1,5 +1,5 @@
 import { WebContainer } from "../container.js";
-import { features, Feature, FeatureState } from "../feature.js";
+import { features, Feature, type FeatureState } from "../feature.js";
 
 interface OverlayConfig {
   title: string;
@@ -20,7 +20,9 @@ export class OverlayManager extends Feature<OverlayManagerState> {
     return container;
   }
 
-  afterInitialize() {
+  static override shortcut = "features.overlays" as const
+
+  override afterInitialize() {
     this.state.set('config', null)
     this.state.set('show', false)
   }

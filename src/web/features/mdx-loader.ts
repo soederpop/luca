@@ -7,9 +7,7 @@ export class MdxLoader extends Feature {
     container.features.register('mdxLoader', MdxLoader)
   }
 
-  get shortcut() {
-    return 'mdxLoader' as const
-  }
+  static override shortcut = 'features.mdxLoader' as const
 
   load(source: string) {
     const Component = getMDXComponent(source)
