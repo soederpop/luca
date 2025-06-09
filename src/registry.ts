@@ -2,8 +2,15 @@ import type { Helper, HelperOptions } from './helper.js';
 import type { ContainerContext } from './container.js';
 import { Bus } from './bus.js';
 
+import { introspect, interceptRegistration } from './introspection/index.js';
+import type { HelperIntrospection } from './introspection/index.js';
+
+export type { HelperIntrospection }
+
 abstract class Registry<T extends Helper> {
-  members = new Map<string, new (options: HelperOptions, context: ContainerContext) => T>();
+  scope: string = "unspecified"
+  
+  private members = new Map<string, new (options: HelperOptions, context: ContainerContext) => T>();
 
   private readonly _events = new Bus();
 
@@ -20,7 +27,7 @@ abstract class Registry<T extends Helper> {
 
   register(id: string, constructor: new (options: HelperOptions, context: ContainerContext) => T) {
     this.members.set(id, constructor);
-  
+    interceptRegistration(this, constructor)
     return constructor
   }
   
@@ -34,6 +41,10 @@ abstract class Registry<T extends Helper> {
     }
 
     return this.members.get(id)!;
+  }
+ 
+  introspect(id: string) : HelperIntrospection | undefined {
+    return introspect(id)
   }
   
   get available() {

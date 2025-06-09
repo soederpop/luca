@@ -1,5 +1,5 @@
 import type { WebContainer } from './container.js'
-import { FeatureOptions, FeatureState, AvailableFeatures, features, Feature as UniversalFeature } from '../feature.js'
+import { type FeatureOptions, type FeatureState, AvailableFeatures, features, Feature as UniversalFeature } from '../feature.js'
 
 export { features }
 

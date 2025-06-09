@@ -12,9 +12,7 @@ export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
     container.features.register("esbuild", Esbuild);
   }
 
-  override get shortcut() {
-    return "esbuild" as const;
-  }
+  static override shortcut = "features.esbuild" as const
   
   get assetLoader() {
     return this.container.feature("assetLoader");

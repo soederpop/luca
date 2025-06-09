@@ -13,8 +13,8 @@ export interface SocketServerOptions extends ServerOptions {
 }
 
 export class WebsocketServer<T extends ServerState = ServerState, K extends SocketServerOptions = SocketServerOptions> extends Server<T,K> {
+    static override shortcut = 'servers.websocket' as const
     static override attach(container: NodeContainer & ServersInterface) {
-      container.servers.register('websocket', WebsocketServer)
       return container
     }
     
@@ -71,4 +71,6 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     }
 }
 
-export default servers.register('websocket', WebsocketServer)
+servers.register('websocket', WebsocketServer)
+
+export default WebsocketServer

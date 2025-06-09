@@ -3,12 +3,10 @@ import { Feature, features } from '../feature.js'
 import { NodeContainer } from '../container.js'
 
 export class YAML extends Feature {
+  static override shortcut = 'features.yaml' as const
+
   static attach(c: NodeContainer) {
     c.feature('yaml', { enable: true })  
-  }
-
-  override get shortcut() {
-    return 'yaml' as const
   }
   
   stringify(data: any) : string {

@@ -1,5 +1,5 @@
-import { Feature, FeatureOptions, FeatureState, features } from "../../feature.js";
-import { WebFeatures, Container, ContainerContext } from '../container.js'
+import { Feature, type FeatureOptions, type FeatureState, features } from "../../feature.js";
+import { type WebFeatures, type Container, type ContainerContext } from '../container.js'
 
 export interface VoiceRecognitionOptions extends FeatureOptions {
   language?: string;
@@ -16,15 +16,13 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   // @ts-ignore-next-line
   private recognition: SpeechRecognition | null = null;
 
-  static attach(container: Container<WebFeatures> & { voice?: VoiceRecognition }, options?: VoiceRecognitionOptions) {
+  static override attach(container: Container<WebFeatures> & { voice?: VoiceRecognition }, options?: VoiceRecognitionOptions) {
     container.features.register('voice', VoiceRecognition)
     container.feature('voice', { enable: true })
     return container
   }
 
-  get shortcut() {
-    return "voice" as const;
-  }
+  static override shortcut = "features.voice" as const
 
   constructor(options: K, context: ContainerContext) {
     super(options, context);

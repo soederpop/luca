@@ -30,6 +30,8 @@ export class Client<
   T extends ClientState = ClientState,
   K extends ClientOptions = ClientOptions
 > extends Helper<T, K> {
+  static override shortcut = "clients.base" 
+
   static attach(container: Container & ClientsInterface): any {
     return Object.assign(container, {
       get clients() {
@@ -107,6 +109,8 @@ export class RestClient<
   K extends ClientOptions = ClientOptions
 > extends Client<T, K> {
   axios!: AxiosInstance;
+
+  static override shortcut = "clients.rest" as const
 
   static override attach(container: Container & ClientsInterface): any {
     return container
@@ -239,7 +243,9 @@ export class RestClient<
 export class GraphClient<
   T extends ClientState = ClientState,
   K extends ClientOptions = ClientOptions
-> extends Client<T, K> {}
+> extends Client<T, K> {
+  static override shortcut = "clients.graph" as const
+}
 
 /** 
  * The Websocket Client accepts a websocket URL as its baseURL and establishes a connection to it, 
@@ -250,6 +256,8 @@ export class WebSocketClient<
 > extends Client<T, K> {
   ws!: WebSocket
 
+  static override shortcut = "clients.websocket" as const
+
   override async connect() {
     this.ws = new WebSocket(this.baseURL)
     return this
@@ -257,7 +265,9 @@ export class WebSocketClient<
 }
 
 
-export class ClientsRegistry extends Registry<Client<any>> {}
+export class ClientsRegistry extends Registry<Client<any>> {
+  override scope = "clients"
+}
 
 export const clients = new ClientsRegistry();
 

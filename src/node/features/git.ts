@@ -19,10 +19,8 @@ interface GitState extends FeatureState {
 }
 
 export class Git extends Feature {
+    static override shortcut = 'features.git' as const
     override state: State<GitState> = new State()
-    override get shortcut() {
-        return 'git' as const
-    }
 
     async lsFiles(options: LsFilesOptions = {}) {
         const { 
@@ -59,7 +57,8 @@ export class Git extends Feature {
             flags.push(...['--exclude-from', gitIgnorePath])
         }
         
-        return this.container.proc.exec(`git ls-files ${baseDir} ${flags.join(' ')}`, { 
+        
+        return this.container.feature('proc').exec(`git ls-files ${baseDir} ${flags.join(' ')}`, { 
             cwd: this.repoRoot,
             maxBuffer: 1024 * 1024 * 100,
         }).trim().split("\n")
@@ -67,7 +66,7 @@ export class Git extends Feature {
     
     get branch() {
         if(!this.isRepo) { return null }
-        return this.container.proc.exec('git branch').split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
+        return this.container.feature('proc').exec('git branch').split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
     }
     
     get sha() {

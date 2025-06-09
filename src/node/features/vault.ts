@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
-import { FeatureState, FeatureOptions, Feature, features } from '../feature.js'
-import { NodeContainer } from '../container.js'
-import { ContainerContext } from '../../container.js'
+import { type FeatureState, type FeatureOptions, Feature, features } from '../feature.js'
+import { type NodeContainer } from '../container.js'
+import { type ContainerContext } from '../../container.js'
 
 export interface VaultState extends FeatureState {
   secret?: Buffer 
@@ -12,12 +12,10 @@ export interface VaultOptions extends FeatureOptions {
 }
 
 export class Vault extends Feature<VaultState, VaultOptions> {
+  static override shortcut = 'features.vault' as const
+
   static attach(c: NodeContainer) {
 
-  }
-
-  override get shortcut() {
-    return 'vault' as const
   }
   
   constructor(options: VaultOptions, context: ContainerContext) {
@@ -52,7 +50,7 @@ export class Vault extends Feature<VaultState, VaultOptions> {
  
   decrypt(payload: string) {
     const [iv, ciphertext, authTag] = payload.split('\n------\n').map((v) => Buffer.from(v, 'base64'))
-    return this._decrypt(ciphertext, iv, authTag)
+    return this._decrypt(ciphertext!, iv!, authTag!)
   }
 
   encrypt(payload: string) {

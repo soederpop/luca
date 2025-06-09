@@ -7,16 +7,13 @@ export interface IpcState extends FeatureState {
 }
 
 export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
+  static override shortcut = "features.ipcSocket" as const
   server?: Server;
   protected sockets: Set<Socket> = new Set();
 
   static attach(container: NodeContainer & { ipcSocket?: IpcSocket }) {
     container.features.register("ipcSocket", IpcSocket);
     container.ipcSocket = container.feature("ipcSocket", { enable: true });
-  }
-
-  override get shortcut() {
-    return "ipcSocket" as const;
   }
   
   get isClient() {

@@ -19,6 +19,8 @@ export class Repl<
   T extends ReplState = ReplState,
   K extends ReplOptions = ReplOptions
 > extends Feature<T, K> {
+  static override shortcut = "features.repl" as const
+
   get isStarted() {
     return !!this.state.get("started");
   }

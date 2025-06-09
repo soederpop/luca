@@ -1,7 +1,7 @@
 // @ts-nocheck
 //
 import vm from '../shims/isomorphic-vm'
-import { Feature, FeatureOptions, FeatureState, features } from "../feature.js";
+import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
 import { Container } from '../../container.js';
 
 export interface VMState extends FeatureState { }
@@ -18,6 +18,8 @@ export class VM<
   static attach(container: Container) {
     container.features.register('vm', VM)    
   }
+
+  static override shortcut = "features.vm" as const
 
   createScript(code: string) {
     return new vm.Script(code)

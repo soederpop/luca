@@ -1,5 +1,5 @@
-import { Feature, features, FeatureState, FeatureOptions } from "../feature.js";
-import { Container, ContainerContext } from "../container.js";
+import { Feature, features, type FeatureState, type FeatureOptions } from "../feature.js";
+import { Container, type ContainerContext } from "../container.js";
 
 interface SpeechOptions extends FeatureOptions {
   voice?: string;
@@ -16,7 +16,7 @@ type Voice = {
   lang: string;
   localService: boolean;
   default: boolean;
-};
+};  
 
 export class Speech<
   T extends SpeechState = SpeechState,
@@ -27,9 +27,7 @@ export class Speech<
     container.features.register("speech", Speech);
   }
 
-  override get shortcut() {
-    return "speech" as const;
-  }
+  static override shortcut = "features.speech" as const
   
   constructor(options: K, context: ContainerContext) {
     super(options,context)  

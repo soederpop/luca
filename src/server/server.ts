@@ -42,7 +42,7 @@ const makeFactory = (container: NodeContainer & ServersInterface) : ServerFactor
 }
 
 export class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
-    get initialState() : T {
+    override get initialState() : T {
       return ({
         port: this.options.port || 3000,
         listening: false,
@@ -51,7 +51,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       } as unknown) as T
     }
     
-    get options() : K {
+    override get options() : K {
       return {
         port: 3000,
         host: '0.0.0.0',
@@ -145,7 +145,9 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
     }
 }
 
-export class ServersRegistry extends Registry<Server<any>> { }
+export class ServersRegistry extends Registry<Server<any>> { 
+  override scope = "servers"
+}
 
 export const servers = new ServersRegistry()
 

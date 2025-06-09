@@ -20,13 +20,15 @@ export interface DrawerManagerState extends FeatureState {
 }
 
 export class DrawerManager extends Feature<DrawerManagerState> {
-  static attach(container: WebContainer & { drawers: DrawerManager }) {
+  static override shortcut = "features.drawers" as const
+  
+  static override attach(container: WebContainer & { drawers: DrawerManager }) {
     container.features.register('drawers', DrawerManager)
     container.feature('drawers', { enable: true })
     return container;
   }
 
-  afterInitialize() {
+  override afterInitialize() {
     this.state
       .set("drawers", {})
       .set("right", null)

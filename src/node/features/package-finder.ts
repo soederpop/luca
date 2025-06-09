@@ -32,6 +32,8 @@ export class PackageFinder<
   K extends PackageFinderOptions = PackageFinderOptions
 > extends Feature<T, K> {
 
+  static override shortcut = "features.packageFinder" as const
+
   packages: PackageIndex = {}
 
   override afterInitialize() {

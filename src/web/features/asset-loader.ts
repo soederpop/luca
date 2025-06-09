@@ -6,9 +6,7 @@ export class AssetLoader extends Feature {
     container.features.register("assetLoader", AssetLoader);
   }
 
-  override get shortcut() {
-    return "assetLoader" as const;
-  }
+  static override shortcut = "features.assetLoader" as const
 
   static loadStylesheet(href: string) {
     return new Promise((resolve, reject) => {

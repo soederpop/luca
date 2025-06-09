@@ -1,4 +1,4 @@
-import { features, Feature, FeatureState } from "../feature.js";
+import { features, Feature, type FeatureState } from "../feature.js";
 import colors from "chalk";
 import figlet from "figlet";
 import type { Fonts } from "figlet";
@@ -28,7 +28,9 @@ type ColoredPrintFunction = PrintFunction & {
  * prompts based on inquirer
  */
 export class UI<T extends UIState = UIState> extends Feature<T> {
-  get initialState() : T {
+  static override shortcut = "features.ui" as const
+  
+  override get initialState() : T {
     return ({
       enabled: true,
       colorPalette: ASSIGNABLE_COLORS,
@@ -38,7 +40,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
 
   print!: ColoredPrintFunction
 
-  afterInitialize() {
+  override afterInitialize() {
     this.hide("_assignedColors");
 
     // @ts-ignore-next-line
@@ -72,8 +74,8 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     } else {
       const pickedColor =
         this.colorPalette[assignedCount % this.colorPalette.length];
-      _assignedColors[name] = pickedColor;
-      return this.colors.hex(pickedColor);
+      _assignedColors[name] = pickedColor!;
+      return this.colors.hex(pickedColor!);
     }
   }
 
@@ -171,7 +173,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     const lines = text.split("");
 
     const colored = lines.map((line, index) => {
-      const colorFn = gColors[lineColors[index % lineColors.length]]!;
+      const colorFn = gColors[lineColors[index % lineColors.length]!]!;
       // @ts-ignore-next-line
       return colorFn(line);
     });
@@ -188,7 +190,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     );
     const lines = text.split("\n");
     const colored = lines.map((line, index) => {
-      const colorFn = gColors[lineColors[index % lineColors.length]]!;
+      const colorFn = gColors[lineColors[index % lineColors.length]!]!;
       // @ts-ignore-next-line
       return colorFn(line);
     });

@@ -1,4 +1,4 @@
-import { Feature, FeatureState, features } from "../feature.js";
+import { Feature, type FeatureState, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { camelCase, omit, set } from 'lodash-es'
 
@@ -7,19 +7,17 @@ export interface YamlTreeState extends FeatureState {
 }
 
 export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T> {
+  static override shortcut = "features.yamlTree" as const
+
   static attach(container: NodeContainer & { yamlTree?: YamlTree }) {
     container.features.register("yamlTree", YamlTree);
     container.yamlTree = container.feature("yamlTree", { enable: true });
   }
 
-  override get shortcut() {
-    return "yamlTree" as const;
-  }
-
-  async loadTree(basePath: string, key: string = basePath.split('/')[0]) {
+  async loadTree(basePath: string, key: string = basePath.split('/')[0]!  ) {
     const { container } = this;
     const yamlFeature = container.feature("yaml");
-    const fileManager = container.feature("fileManager");
+    const fileManager = container.feature("fileManager")
     const fileSystem = container.feature("fs");
 
     await fileManager.start()

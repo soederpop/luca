@@ -7,12 +7,10 @@ export interface JsonTreeState extends FeatureState {
 }
 
 export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T> {
+  static override shortcut = "features.jsonTree" as const
+
   static attach(container: NodeContainer & { jsonTree?: JsonTree }) {
     container.features.register("jsonTree", JsonTree);
-  }
-
-  override get shortcut() {
-    return "jsonTree" as const;
   }
 
   async loadTree(basePath: string, key: string = basePath.split('/')[0]!) {

@@ -3,12 +3,10 @@ import { Feature, features } from '../feature.js'
 import { NodeContainer } from '../container.js'
 
 export class ESBuild extends Feature {
+  static override shortcut = 'features.esbuild' as const
+
   static attach(c: NodeContainer) {
     c.features.register('esbuild', ESBuild)
-  }
-
-  override get shortcut() {
-    return 'esbuild' as const
   }
 
    transformSync(code: string, options?: esbuild.TransformOptions) {

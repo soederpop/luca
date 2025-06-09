@@ -9,7 +9,6 @@ import type { AssetLoader } from './features/asset-loader.js'
 import type { VoiceRecognition } from './features/voice-recognition.js'
 import type { Speech } from './features/speech.js'
 import type { Network } from './features/network.js'
-import type { WindowManager } from './features/window-manager.js'
 import type { DrawerManager } from './features/drawers.js'
 import type { OverlayManager } from './features/overlays.js'
 import type { WebVault } from './features/vault.js'
@@ -25,7 +24,6 @@ export interface WebFeatures extends AvailableFeatures {
   assetLoader: typeof AssetLoader
   voice: typeof VoiceRecognition
   speech: typeof Speech
-  windowManager: typeof WindowManager
   drawers: typeof DrawerManager
   overlays: typeof OverlayManager
   vault: typeof WebVault
@@ -38,7 +36,6 @@ export interface WebContainer extends ClientsInterface {
   assetLoader?: AssetLoader
   voice?: VoiceRecognition
   speech?: Speech
-  windowManager?: WindowManager
   drawers?: DrawerManager
   overlays?: OverlayManager
   network?: Network
