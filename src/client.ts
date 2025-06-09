@@ -1,6 +1,6 @@
-import { Helper, HelperOptions, HelperState } from "./helper.js";
+import { Helper, type HelperOptions, type HelperState } from "./helper.js";
 import type { Container, ContainerContext } from "./container.js";
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Registry } from "./registry.js";
 
 export interface ClientOptions extends HelperOptions {
@@ -79,7 +79,11 @@ export class Client<
     this.state.set("connected", false);
   }
 
-  get options() {
+  get baseURL() {
+    return this.options.baseURL || ''
+  }
+
+  override get options() {
     return this._options as K;
   }
 
@@ -103,7 +107,7 @@ export class RestClient<
 > extends Client<T, K> {
   axios!: AxiosInstance;
 
-  static attach(container: Container & ClientsInterface): any {
+  static override attach(container: Container & ClientsInterface): any {
     return container
   }
 
@@ -129,7 +133,8 @@ export class RestClient<
   get useJSON() {
     return !!this.options.json
   }
-  get baseURL() {
+  
+  override get baseURL() {
     return this.options.baseURL || '/'  
   }
 
@@ -235,13 +240,29 @@ export class GraphClient<
   K extends ClientOptions = ClientOptions
 > extends Client<T, K> {}
 
+/** 
+ * The Websocket Client accepts a websocket URL as its baseURL and establishes a connection to it, 
+*/
+export class WebSocketClient<
+  T extends ClientState = ClientState,
+  K extends ClientOptions = ClientOptions
+> extends Client<T, K> {
+  ws!: WebSocket
+
+  override async connect() {
+    this.ws = new WebSocket(this.baseURL)
+    return this
+  }
+}
+
+
 export class ClientsRegistry extends Registry<Client<any>> {}
 
 export const clients = new ClientsRegistry();
 
-// @ts-ignore-next-line
 clients.register("rest", RestClient);
 clients.register("graph", GraphClient);
+clients.register("websocket", WebSocketClient);
 
 export const helperCache = new Map();
 
