@@ -52,7 +52,7 @@ export type HelperIntrospection = {
 	state: Record<string, { type: string, description: string }>
 }
 
-const __MAIN_INTROSPECTION_REGISTRY__ = new Map<string, HelperIntrospection>()
+export const __MAIN_INTROSPECTION_REGISTRY__ = new Map<string, HelperIntrospection>()
 
 export function introspect(id: string) : HelperIntrospection | undefined {
 	return __MAIN_INTROSPECTION_REGISTRY__.get(id)

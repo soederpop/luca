@@ -1,10 +1,10 @@
 export * from './server.js'
-export * from './express.js'
-export * from './socket.js'
+export * from '../servers/express.js'
+export * from '../servers/socket.js'
 
-import { servers as registry } from './server.js'
-import { ExpressServer } from './express.js'
-import { WebsocketServer } from './socket.js'
+import { servers as registry } from './server'
+import { ExpressServer } from '../servers/express'
+import { WebsocketServer } from '../servers/socket'
 
 registry.register('express', ExpressServer)
 registry.register('websocket', WebsocketServer)

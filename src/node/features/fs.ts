@@ -33,11 +33,6 @@ export class FS extends Feature {
    * @returns {Promise<Buffer>} A promise that resolves to the file contents as a Buffer
    * @throws {Error} Throws an error if the file doesn't exist or cannot be read
    * 
-   * @example
-   * ```typescript
-   * const content = await fs.readFileAsync('config.json')
-   * console.log(content.toString())
-   * ```
    */
   async readFileAsync(path: string) {
     return await readFile(this.container.paths.resolve(path)) 
@@ -49,12 +44,6 @@ export class FS extends Feature {
    * @param {string} path - The directory path relative to the container's working directory
    * @returns {Promise<string[]>} A promise that resolves to an array of file and directory names
    * @throws {Error} Throws an error if the directory doesn't exist or cannot be read
-   * 
-   * @example
-   * ```typescript
-   * const files = await fs.readdir('src')
-   * console.log(files) // ['index.ts', 'utils.ts', 'components/']
-   * ```
    */
   async readdir(path: string) {
     return await readdir(this.container.paths.resolve(path))
