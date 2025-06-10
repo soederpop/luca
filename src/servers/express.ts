@@ -2,9 +2,9 @@ import type { NodeContainer } from '../node/container.js'
 import express from 'express'
 import type { Express } from 'express'
 import cors from 'cors'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState, type ServerOptions } from './server.js';
+import { servers, type StartOptions, Server, type ServersInterface, type ServerState, type ServerOptions } from '../server/server.js';
 
-declare module './index' {
+declare module '../server/index' {
   interface AvailableServers {
     express: typeof ExpressServer 
   }

@@ -1,8 +1,8 @@
 import type { NodeContainer } from '../node/container.js'
-import { type StartOptions, servers, Server, type ServersInterface, type ServerState, type ServerOptions } from './server.js';
+import { type StartOptions, servers, Server, type ServersInterface, type ServerState, type ServerOptions } from '../server/server';
 import { WebSocketServer as BaseServer } from 'ws'
 
-declare module './index' {
+declare module '../server/index' {
   interface AvailableServers {
     websocket: typeof WebsocketServer
   }
