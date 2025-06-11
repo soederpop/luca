@@ -1,6 +1,7 @@
-#!/usr/bin/env bun 
-
 import container, { ui } from '@/node'
 import '@/introspection/generated'
 
-console.log(ui)
+ui.print.green('Hello')
+
+
+
