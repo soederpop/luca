@@ -41,6 +41,19 @@ export interface ContainerContext<T extends AvailableFeatures = any> {
   container: Container<T> 
 }
 
+/** 
+ * Containers are single objects that contain state, an event bus, and registries of helpers such as:
+ * 
+ * - features
+ * - clients
+ * - servers
+ * 
+ * A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something.
+ * 
+ * A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events.
+ * 
+ * You can design your own containers and load them up with the helpers you want for that environment.
+*/
 export class Container<Features extends AvailableFeatures = AvailableFeatures, ContainerState extends ContainerState = ContainerState > {
   readonly uuid = v4()
   private readonly _events = new Bus()
@@ -104,6 +117,11 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return this
   }
 
+  /** 
+   * The Container's context is an object that contains the enabled features, the container itself, and any additional context that has been added to the container.
+   * 
+   * All helper instances that are created by the container will have access to the shared context.
+  */
   get context(): ContainerContext<Features> & Partial<AvailableInstanceTypes<AvailableFeatures>> {
     const contexts = contextMap.get(this) || new Map()
 
@@ -113,11 +131,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       container: this as Container<Features>,
     }
   }
-  
+
+  /** 
+   * The current state of the container.
+   * 
+   * This is a snapshot of the container's state at the time this method is called.
+   * 
+   * @returns The current state of the container.
+  */
   get currentState() {
     return this.state.current
   }
 
+  /** 
+   * Sets the state of the container.
+   * 
+   * @param newState - The new state of the container.
+   * @returns The container instance.
+  */
   setState(newState: SetStateValue<ContainerState>) {
     this.state.setState(newState)
     return this
@@ -147,14 +178,31 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     })
   }
   
+  /** 
+   * Convenience method for creating a new event bus instance.
+  */
   bus() {
     return new Bus()
   }
   
+  /** 
+   * Convenience method for creating a new observable State object.
+  */
   newState<T extends object = any>(initialState: T = {} as T) {
     return new State<T>({ initialState })
   }
 
+  /** 
+   * Creates a new instance of a feature.
+   * 
+   * If you pass the same arguments, it will return the same instance as last time you created that.
+   * 
+   * If you need the ability to create fresh instances, it is up to you how you define your options to support that.
+   * 
+   * @param id - The id of the feature to create.
+   * @param options - The options to pass to the feature constructor.
+   * @returns The new feature instance.
+  */
   feature<T extends keyof Features>(
     id: T,
     options?: ConstructorParameters<Features[T]>[0]
@@ -179,38 +227,74 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return instance
   }
   
+  /** 
+   * TODO:
+   * 
+   * A container should be able to container.use(plugin) and that plugin should be able to define
+   * an asynchronous method that will be run when the container is started.  Right now there's nothing
+   * to do with starting / stopping a container but that might be neat.
+  */
   async start() {
     this.emit('started')
     this.state.set('started', true)
     return this  
   }
   
+  /** 
+   * ENVIRONMENT DETECTION METHODS
+   * 
+   * One of the ideas of the container is that it can detect what kind of environment it is running in and
+   * e.g. perhaps load different versions of features to provide the same API with different implementations.
+   * 
+  */
+
+  /**
+   * Returns true if the container is running in a browser.
+   */ 
   get isBrowser() {
     return typeof window !== 'undefined' && typeof document !== 'undefined'
   }
-  
+ 
+  /** 
+   * Returns true if the container is running in Bun.
+   */
   get isBun() {
     return this.isNode && typeof Bun !== 'undefined'
   }
 
+  /** 
+   * Returns true if the container is running in Node.
+   */
   get isNode() {
     return typeof process !== 'undefined' && typeof process.versions !== 'undefined' && typeof process.versions.node !== 'undefined'
   }
   
+  /** 
+   * Returns true if the container is running in Electron.
+   */
   get isElectron() {
     return typeof process !== 'undefined' && typeof process.versions !== 'undefined' && typeof process.versions.electron !== 'undefined'
   }
   
+  /** 
+   * Returns true if the container is running in development mode.
+   */
   get isDevelopment() {
     return process.env.NODE_ENV === 'development'
   }
   
+  /** 
+   * Returns true if the container is running in production mode.
+   */
   get isProduction() {
     return process.env.NODE_ENV === 'production'
   }
   
+  /** 
+   * Returns true if the container is running in a CI environment.
+   */
   get isCI() {
-    return process.env.CI === 'true'
+    return process.env.CI !== undefined && String(process.env.CI).length > 0
   }
 
   emit(event: string, ...args: any[]) {
@@ -258,12 +342,14 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   use<T = {}>(plugin: Extension<T>, options: any = {}) : this & T {
     const container = this
 
-    if(typeof plugin === 'string') {
+    if(typeof plugin === 'string' && features.has(plugin)) {
       const featureId = plugin as keyof AvailableFeatures
       this.feature(featureId, {
         ...options,
         enable: true
       })
+    } else if (typeof plugin === 'string' && !features.has(plugin)) { 
+      throw new Error(`Feature ${plugin} is not available.`)
     } else if ((typeof plugin === 'object' || typeof plugin === 'function') && typeof plugin?.attach === 'function') {
       // This is like using a Helper or Feature subclass which declares a static attach method
       plugin.attach(container as this & T, options)  

@@ -1,7 +1,7 @@
 import { __MAIN_INTROSPECTION_REGISTRY__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2025-06-10T04:36:27.678Z
+// Generated at: 2025-06-11T03:43:19.980Z
 
 __MAIN_INTROSPECTION_REGISTRY__.set('features.yamlTree', {
   "id": "features.yamlTree",
@@ -1213,6 +1213,124 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.diskCache', {
   "state": {}
 });
 
+__MAIN_INTROSPECTION_REGISTRY__.set('features.python', {
+  "id": "features.python",
+  "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
+  "shortcut": "features.python",
+  "methods": {
+    "enable": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "detectEnvironment": {
+      "description": "Detects the Python environment type and sets the appropriate Python path. This method checks for various Python environment managers in order of preference: uv, conda, venv, then falls back to system Python. It sets the pythonPath and environmentType in the state.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "installDependencies": {
+      "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+    },
+    "execute": {
+      "description": "Executes Python code and returns the result. This method creates a temporary Python script with the provided code and variables, executes it using the detected Python environment, and captures the output.",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "The Python code to execute"
+        },
+        "variables": {
+          "type": "Record<string, any>",
+          "description": "Parameter variables"
+        },
+        "options": {
+          "type": "{ captureLocals?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>"
+    },
+    "executeFile": {
+      "description": "Executes a Python file and returns the result.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Path to the Python file to execute"
+        },
+        "variables": {
+          "type": "Record<string, any>",
+          "description": "Parameter variables"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+    },
+    "getEnvironmentInfo": {
+      "description": "Gets information about the current Python environment.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ version: string; path: string; packages: string[] }>"
+    }
+  },
+  "events": {
+    "ready": {
+      "name": "ready",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "environmentDetected": {
+      "name": "environmentDetected",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "installingDependencies": {
+      "name": "installingDependencies",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "dependenciesInstalled": {
+      "name": "dependenciesInstalled",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "dependencyInstallFailed": {
+      "name": "dependencyInstallFailed",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "localsParseError": {
+      "name": "localsParseError",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "codeExecuted": {
+      "name": "codeExecuted",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "fileExecuted": {
+      "name": "fileExecuted",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
 __MAIN_INTROSPECTION_REGISTRY__.set('features.jsonTree', {
   "id": "features.jsonTree",
   "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
@@ -1396,6 +1514,71 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.mdxBundler', {
   "state": {}
 });
 
+__MAIN_INTROSPECTION_REGISTRY__.set('features.secureShell', {
+  "id": "features.secureShell",
+  "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+  "shortcut": "features.secureShell",
+  "methods": {
+    "testConnection": {
+      "description": "Test the SSH connection",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "exec": {
+      "description": "Executes a command on the remote host.",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "Parameter command"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "returns": "Promise<string>"
+    },
+    "download": {
+      "description": "Downloads a file from the remote host.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Parameter source"
+        },
+        "target": {
+          "type": "string",
+          "description": "Parameter target"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "returns": "Promise<string>"
+    },
+    "upload": {
+      "description": "Uploads a file to the remote host.",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Parameter source"
+        },
+        "target": {
+          "type": "string",
+          "description": "Parameter target"
+        }
+      },
+      "required": [
+        "source",
+        "target"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
 __MAIN_INTROSPECTION_REGISTRY__.set('features.fileManager', {
   "id": "features.fileManager",
   "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
@@ -1500,6 +1683,29 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.fileManager', {
       "arguments": {}
     }
   },
+  "state": {}
+});
+
+__MAIN_INTROSPECTION_REGISTRY__.set('features.ai', {
+  "id": "features.ai",
+  "description": "AI helper",
+  "shortcut": "features.ai",
+  "methods": {
+    "attach": {
+      "description": "",
+      "parameters": {
+        "container": {
+          "type": "Container & ClientsInterface",
+          "description": "Parameter container"
+        }
+      },
+      "required": [
+        "container"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
   "state": {}
 });
 
@@ -1668,6 +1874,46 @@ __MAIN_INTROSPECTION_REGISTRY__.set('clients.openai', {
       "arguments": {}
     }
   },
+  "state": {}
+});
+
+__MAIN_INTROSPECTION_REGISTRY__.set('servers.mcp', {
+  "id": "servers.mcp",
+  "description": "McpServer helper",
+  "shortcut": "servers.mcp",
+  "methods": {
+    "attach": {
+      "description": "",
+      "parameters": {
+        "container": {
+          "type": "NodeContainer & ServersInterface",
+          "description": "Parameter container"
+        }
+      },
+      "required": [
+        "container"
+      ],
+      "returns": "void"
+    },
+    "start": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "StartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "configure": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {},
   "state": {}
 });
 
@@ -2982,6 +3228,123 @@ export const introspectionData = [
     "state": {}
   },
   {
+    "id": "features.python",
+    "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
+    "shortcut": "features.python",
+    "methods": {
+      "enable": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "detectEnvironment": {
+        "description": "Detects the Python environment type and sets the appropriate Python path. This method checks for various Python environment managers in order of preference: uv, conda, venv, then falls back to system Python. It sets the pythonPath and environmentType in the state.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "installDependencies": {
+        "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      },
+      "execute": {
+        "description": "Executes Python code and returns the result. This method creates a temporary Python script with the provided code and variables, executes it using the detected Python environment, and captures the output.",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "The Python code to execute"
+          },
+          "variables": {
+            "type": "Record<string, any>",
+            "description": "Parameter variables"
+          },
+          "options": {
+            "type": "{ captureLocals?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>"
+      },
+      "executeFile": {
+        "description": "Executes a Python file and returns the result.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Path to the Python file to execute"
+          },
+          "variables": {
+            "type": "Record<string, any>",
+            "description": "Parameter variables"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      },
+      "getEnvironmentInfo": {
+        "description": "Gets information about the current Python environment.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ version: string; path: string; packages: string[] }>"
+      }
+    },
+    "events": {
+      "ready": {
+        "name": "ready",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "environmentDetected": {
+        "name": "environmentDetected",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "installingDependencies": {
+        "name": "installingDependencies",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "dependenciesInstalled": {
+        "name": "dependenciesInstalled",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "dependencyInstallFailed": {
+        "name": "dependencyInstallFailed",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "localsParseError": {
+        "name": "localsParseError",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "codeExecuted": {
+        "name": "codeExecuted",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "fileExecuted": {
+        "name": "fileExecuted",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
     "id": "features.jsonTree",
     "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
     "shortcut": "features.jsonTree",
@@ -3162,6 +3525,70 @@ export const introspectionData = [
     "state": {}
   },
   {
+    "id": "features.secureShell",
+    "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+    "shortcut": "features.secureShell",
+    "methods": {
+      "testConnection": {
+        "description": "Test the SSH connection",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "exec": {
+        "description": "Executes a command on the remote host.",
+        "parameters": {
+          "command": {
+            "type": "string",
+            "description": "Parameter command"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "returns": "Promise<string>"
+      },
+      "download": {
+        "description": "Downloads a file from the remote host.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "Parameter source"
+          },
+          "target": {
+            "type": "string",
+            "description": "Parameter target"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ],
+        "returns": "Promise<string>"
+      },
+      "upload": {
+        "description": "Uploads a file to the remote host.",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "Parameter source"
+          },
+          "target": {
+            "type": "string",
+            "description": "Parameter target"
+          }
+        },
+        "required": [
+          "source",
+          "target"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
     "id": "features.fileManager",
     "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
     "shortcut": "features.fileManager",
@@ -3265,6 +3692,28 @@ export const introspectionData = [
         "arguments": {}
       }
     },
+    "state": {}
+  },
+  {
+    "id": "features.ai",
+    "description": "AI helper",
+    "shortcut": "features.ai",
+    "methods": {
+      "attach": {
+        "description": "",
+        "parameters": {
+          "container": {
+            "type": "Container & ClientsInterface",
+            "description": "Parameter container"
+          }
+        },
+        "required": [
+          "container"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
     "state": {}
   },
   {
@@ -3432,6 +3881,45 @@ export const introspectionData = [
         "arguments": {}
       }
     },
+    "state": {}
+  },
+  {
+    "id": "servers.mcp",
+    "description": "McpServer helper",
+    "shortcut": "servers.mcp",
+    "methods": {
+      "attach": {
+        "description": "",
+        "parameters": {
+          "container": {
+            "type": "NodeContainer & ServersInterface",
+            "description": "Parameter container"
+          }
+        },
+        "required": [
+          "container"
+        ],
+        "returns": "void"
+      },
+      "start": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "StartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "configure": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {},
     "state": {}
   },
   {

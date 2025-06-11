@@ -25,6 +25,7 @@ import "./features/networking.js";
 import "./features/os.js";
 import "./features/package-finder.js";
 import "./features/package-finder.js";
+import "./features/python.js";
 import "./features/proc.js";
 import "./features/repl.js";
 import "./features/script-runner.js";
@@ -48,6 +49,7 @@ import type { MdxBundler } from "./features/mdx-bundler.js";
 import type { Networking } from "./features/networking.js";
 import type { OS } from "./features/os.js";
 import type { PackageFinder } from "./features/package-finder.js";
+import type { Python } from "./features/python.js";
 import type { Repl } from "./features/repl.js";
 import type { ScriptRunner } from "./features/script-runner.js";
 import type { UI } from "./features/ui.js";
@@ -115,6 +117,7 @@ export interface NodeFeatures extends AvailableFeatures {
   jsonTree: typeof JsonTree;
   mdxBundler: typeof MdxBundler;
   downloader: typeof Downloader;
+  python: typeof Python;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface;
@@ -143,6 +146,7 @@ export class NodeContainer<
   esbuild?: ESBuild;
   diskCache?: DiskCache;
   vault?: Vault;
+  python?: Python;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
