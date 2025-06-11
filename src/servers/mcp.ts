@@ -1,4 +1,40 @@
-import { McpServer as McpServerBase, ResourceTemplate, type PromptCallback, type ReadResourceCallback, type ReadResourceTemplateCallback, type ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server as McpServerBase } from "@modelcontextprotocol/sdk/server/index.js";
+import {
+  CallToolRequestSchema,
+  type CallToolResult,
+  type CallToolRequest,
+  CompleteRequestSchema,
+  type CompleteResult,
+  type CompleteRequest,
+  type CreateMessageRequest,
+  CreateMessageResultSchema,
+  GetPromptRequestSchema,
+  type GetPromptRequest,
+  ListPromptsRequestSchema,
+  type ListPromptsResult,
+  type ListPromptsRequest,
+  ListResourcesRequestSchema,
+  type ListResourcesResult,
+  type ListResourcesRequest,
+  ListResourceTemplatesRequestSchema,
+  type ListResourceTemplatesRequest,
+  ListToolsRequestSchema,
+  type ListToolsRequest,
+  type LoggingLevel,
+  ReadResourceRequestSchema,
+  type ReadResourceResult,
+  type ReadResourceRequest,
+  type Resource,
+  SetLevelRequestSchema,
+  type SetLevelRequest,
+  SubscribeRequestSchema,
+  type SubscribeRequest,
+  type Tool,
+  ToolSchema,
+  UnsubscribeRequestSchema,
+  type UnsubscribeRequest,
+} from "@modelcontextprotocol/sdk/types.js";
+
 import type { ZodRawShape } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -47,52 +83,164 @@ export class McpServer<T extends McpServerState = McpServerState, K extends McpS
 			return z
 		}
 
-		get ResourceTemplate() {
-			return ResourceTemplate
-		}
-
 		_server?: McpServerBase
 
 		get server() : McpServerBase {
 			if (this._server) {
 				return this._server
 			}	
-			// Create an MCP server
-			const server = this._server = new McpServerBase({
-				name: this.options.serverName || "MCP Server",
-				version: this.options.version || "1.0.0"
-			}, {
-				instructions: this.options.instructions || "This is a demo MCP server"
-			});
+
+			const server = this._server = new McpServerBase(
+				{
+					name: this.options.serverName || "luca2-mcp-server",
+					version: this.options.version || "1.0.0",
+				},
+				{
+					capabilities: {
+						prompts: {},
+						resources: { subscribe: true },
+						tools: {},
+						logging: {},
+						completions: {},
+					},
+				}
+			);
+
+			// Set up all request handlers
+			server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+				return this.handleListResources(request)
+			})
+
+			server.setRequestHandler(ListResourceTemplatesRequestSchema, async (request) => {
+				return this.handleListResourceTemplates(request)
+			})
+
+			server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+				return this.handleReadResource(request)
+			})
+
+			server.setRequestHandler(SubscribeRequestSchema, async (request) => {
+				return this.handleSubscribe(request)
+			})
+
+			server.setRequestHandler(UnsubscribeRequestSchema, async (request) => {
+				return this.handleUnsubscribe(request)
+			})
+
+			server.setRequestHandler(ListPromptsRequestSchema, async (request) => {
+				return this.handleListPrompts(request)
+			})
+
+			server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+				return this.handleGetPrompt(request)
+			})
+
+			server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+				return this.handleListTools(request)
+			})
+
+			server.setRequestHandler(CallToolRequestSchema, async (request) => {
+				return this.handleCallTool(request)
+			})
+
+			server.setRequestHandler(CompleteRequestSchema, async (request) => {
+				return this.handleComplete(request)
+			})
+
+			server.setRequestHandler(SetLevelRequestSchema, async (request) => {
+				return this.handleSetLevel(request)
+			})
 
 			return server
 		}
 
-		// Overloads to match the underlying MCP server's resource method
-		resource(name: string, uri: string, readCallback: ReadResourceCallback): this;
-		resource(name: string, template: ResourceTemplate, readCallback: ReadResourceTemplateCallback): this;
-		resource(name: string, uriOrTemplate: string | ResourceTemplate, callback: ReadResourceCallback | ReadResourceTemplateCallback): this {
-			this.server.resource(name, uriOrTemplate as any, callback as any)
-			return this
+		async handleListResources(request: ListResourcesRequest) : Promise<ListResourcesResult> {
+			return {
+				resources: [],
+				nextCursor: undefined
+			}
 		}
 
-		// Overloads to match the underlying MCP server's tool method
-		tool(name: string, description: string, callback: ToolCallback): this;
-		tool(name: string, paramsSchema: ZodRawShape, callback: ToolCallback): this;
-		tool(name: string, descriptionOrSchema: string | ZodRawShape, callback: ToolCallback): this {
-			this.server.tool(name, descriptionOrSchema as any, callback as any)
-			return this
+		async handleListResourceTemplates(request: ListResourceTemplatesRequest) {
+			return {
+				resourceTemplates: []
+			}
 		}
 
-		prompt(name: string, description: string, callback: PromptCallback): this;
-		prompt(name: string, paramsSchema: ZodRawShape, callback: PromptCallback): this;
-		prompt(name: string, descriptionOrSchema: string | ZodRawShape, callback: PromptCallback): this {
-			this.server.prompt(name, descriptionOrSchema as any, callback as any)
-			return this
+		async handleReadResource(request: ReadResourceRequest) : Promise<ReadResourceResult> {
+			return {
+				contents: []
+			}
 		}
 
-		override async configure() {
-			return this
+		async handleSubscribe(request: SubscribeRequest) {
+			return {}
+		}
+
+		async handleUnsubscribe(request: UnsubscribeRequest) {
+			return {}
+		}
+
+		async handleListPrompts(request: ListPromptsRequest) : Promise<ListPromptsResult> {
+			return {
+				prompts: []
+			}
+		}
+
+		async handleGetPrompt(request: GetPromptRequest) {
+			return {
+				messages: []
+			}
+		}
+
+		async handleListTools(request: ListToolsRequest) {
+			return {
+				tools: []
+			}
+		}
+
+		async handleCallTool(request: CallToolRequest) : Promise<CallToolResult> {
+			return {
+				content: []
+			}
+		}
+
+		async handleComplete(request: CompleteRequest) : Promise<CompleteResult> {
+			return {
+				completion: {
+					values: [],
+				}
+			}
+		}
+
+		async handleSetLevel(request: SetLevelRequest) {
+			return {}
+		}
+
+		// Helper methods for tool and resource registration
+		tool<T extends ZodRawShape>(
+			name: string,
+			inputSchema: z.ZodObject<T>,
+			description: string,
+			handler: (args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>
+		) {
+			// TODO: Store tool registration for handleListTools and handleCallTool
+		}
+
+		resource(
+			name: string,
+			uri: string,
+			handler: () => Promise<Resource>
+		) {
+			// TODO: Store resource registration for handleListResources and handleReadResource  
+		}
+
+		prompt(
+			name: string,
+			description: string,
+			handler: (args?: any) => Promise<any>
+		) {
+			// TODO: Store prompt registration for handleListPrompts and handleGetPrompt
 		}
 }
 
