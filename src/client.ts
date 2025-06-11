@@ -11,7 +11,6 @@ export interface ClientOptions extends HelperOptions {
 export interface AvailableClients {
   rest: typeof RestClient;
   graph: typeof GraphClient;
-  openai: typeof import("./ai/openai-client.js").OpenAIClient;
 }
 
 export interface ClientState extends HelperState {
