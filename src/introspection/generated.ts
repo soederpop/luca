@@ -1,7 +1,7 @@
 import { __MAIN_INTROSPECTION_REGISTRY__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2025-06-10T04:18:47.832Z
+// Generated at: 2025-06-10T04:36:27.678Z
 
 __MAIN_INTROSPECTION_REGISTRY__.set('features.yamlTree', {
   "id": "features.yamlTree",
@@ -1393,6 +1393,113 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.mdxBundler', {
     }
   },
   "events": {},
+  "state": {}
+});
+
+__MAIN_INTROSPECTION_REGISTRY__.set('features.fileManager', {
+  "id": "features.fileManager",
+  "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
+  "shortcut": "features.fileManager",
+  "methods": {
+    "match": {
+      "description": "Matches the file IDs against the pattern(s) provided",
+      "parameters": {
+        "patterns": {
+          "type": "string | string[]",
+          "description": "The patterns to match against the file IDs"
+        }
+      },
+      "required": [
+        "patterns"
+      ],
+      "returns": "void"
+    },
+    "matchFiles": {
+      "description": "Matches the file IDs against the pattern(s) provided and returns the file objects for each.",
+      "parameters": {
+        "patterns": {
+          "type": "string | string[]",
+          "description": "The patterns to match against the file IDs"
+        }
+      },
+      "required": [
+        "patterns"
+      ],
+      "returns": "void"
+    },
+    "start": {
+      "description": "Starts the file manager and scans the files in the project.",
+      "parameters": {
+        "options": {
+          "type": "{ exclude?: string | string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "scanFiles": {
+      "description": "Scans the files in the project and updates the file manager state.",
+      "parameters": {
+        "options": {
+          "type": "{ exclude?: string | string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "watch": {
+      "description": "Watches the files in the project and updates the file manager state.",
+      "parameters": {
+        "options": {
+          "type": "{ exclude?: string | string[] }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "stopWatching": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "updateFile": {
+      "description": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    },
+    "removeFile": {
+      "description": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {
+    "file:change": {
+      "name": "file:change",
+      "description": "Event emitted by FileManager",
+      "arguments": {}
+    }
+  },
   "state": {}
 });
 
@@ -3052,6 +3159,112 @@ export const introspectionData = [
       }
     },
     "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.fileManager",
+    "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
+    "shortcut": "features.fileManager",
+    "methods": {
+      "match": {
+        "description": "Matches the file IDs against the pattern(s) provided",
+        "parameters": {
+          "patterns": {
+            "type": "string | string[]",
+            "description": "The patterns to match against the file IDs"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "returns": "void"
+      },
+      "matchFiles": {
+        "description": "Matches the file IDs against the pattern(s) provided and returns the file objects for each.",
+        "parameters": {
+          "patterns": {
+            "type": "string | string[]",
+            "description": "The patterns to match against the file IDs"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "returns": "void"
+      },
+      "start": {
+        "description": "Starts the file manager and scans the files in the project.",
+        "parameters": {
+          "options": {
+            "type": "{ exclude?: string | string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "scanFiles": {
+        "description": "Scans the files in the project and updates the file manager state.",
+        "parameters": {
+          "options": {
+            "type": "{ exclude?: string | string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "watch": {
+        "description": "Watches the files in the project and updates the file manager state.",
+        "parameters": {
+          "options": {
+            "type": "{ exclude?: string | string[] }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "stopWatching": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "updateFile": {
+        "description": "",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      },
+      "removeFile": {
+        "description": "",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {
+      "file:change": {
+        "name": "file:change",
+        "description": "Event emitted by FileManager",
+        "arguments": {}
+      }
+    },
     "state": {}
   },
   {

@@ -44,6 +44,9 @@ export class FileManager<
   T extends FileManagerState = FileManagerState,
   K extends FileManagerOptions = FileManagerOptions
 > extends Feature<T, K> {
+
+  static override shortcut = 'features.fileManager' as const
+  
   files: State<Record<string, File>> = new State<Record<string, File>>({
     initialState: {},
   });

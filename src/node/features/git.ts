@@ -152,7 +152,7 @@ export class Git extends Feature {
      */
     get sha() {
         if(!this.isRepo) { return null }
-        return this.container.proc.exec('git rev-parse HEAD', { cwd: this.repoRoot })
+        return this.container.feature('proc').exec('git rev-parse HEAD', { cwd: this.repoRoot })
     }
     
     /**
