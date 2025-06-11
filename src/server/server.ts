@@ -21,10 +21,10 @@ export type StartOptions = {
   host?: string;
 }
 
-export type ServerFactory = (
-      key: keyof AvailableServers, 
-      options?: ConstructorParameters<AvailableServers[keyof AvailableServers]>[0]
-) => NonNullable<InstanceType<AvailableServers[keyof AvailableServers]>>
+export type ServerFactory = <T extends keyof AvailableServers>(
+      key: T, 
+      options?: ConstructorParameters<AvailableServers[T]>[0]
+) => NonNullable<InstanceType<AvailableServers[T]>>
 
 export interface ServersInterface {
   servers: ServersRegistry;
@@ -32,10 +32,10 @@ export interface ServersInterface {
 }
 
 const makeFactory = (container: NodeContainer & ServersInterface) : ServerFactory => {
-  const factory : ServerFactory = (key: keyof AvailableServers, options) => {
-    const Server = container.servers.lookup(key as keyof AvailableServers)
+  const factory : ServerFactory = <T extends keyof AvailableServers>(key: T, options?: ConstructorParameters<AvailableServers[T]>[0]) => {
+    const Server = container.servers.lookup(key)
     const server = new Server(options!, container.context)
-    return server as NonNullable<InstanceType<AvailableServers[keyof AvailableServers]>>
+    return server as NonNullable<InstanceType<AvailableServers[T]>>
   }
   
   return factory
@@ -66,22 +66,22 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
         server<T extends keyof AvailableServers>(
           id: T,
           options?: ConstructorParameters<AvailableServers[T]>[0]
-        ): InstanceType<AvailableServers[T]> {
+        ): NonNullable<InstanceType<AvailableServers[T]>> {
           const { hashObject } = container.utils
-          const BaseClass = servers.lookup(id as keyof AvailableServers) as AvailableServers[T]
+          const BaseClass = servers.lookup(id) as AvailableServers[T]
       
           const cacheKey = hashObject({ __type: "server", id, options, uuid: container.uuid })
           const cached = helperCache.get(cacheKey)
       
           if (cached) {
-            return cached as InstanceType<AvailableServers[T]>
+            return cached as NonNullable<InstanceType<AvailableServers[T]>>
           }
       
           const helperOptions = options as ConstructorParameters<AvailableServers[T]>[0]
           
-          const instance = new (BaseClass as any)(helperOptions, container.context) as InstanceType<
+          const instance = new (BaseClass as any)(helperOptions, container.context) as NonNullable<InstanceType<
             AvailableServers[T]
-          >
+          >>
       
           helperCache.set(cacheKey, instance)
       
@@ -147,6 +147,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
 
 export class ServersRegistry extends Registry<Server<any>> { 
   override scope = "servers"
+  override baseClass = Server
 }
 
 export const servers = new ServersRegistry()

@@ -52,10 +52,11 @@ export type HelperIntrospection = {
 	state: Record<string, { type: string, description: string }>
 }
 
-export const __MAIN_INTROSPECTION_REGISTRY__ = new Map<string, HelperIntrospection>()
+export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
+
 
 export function introspect(id: string) : HelperIntrospection | undefined {
-	return __MAIN_INTROSPECTION_REGISTRY__.get(id)
+	return __INTROSPECTION__.get(id)
 }
 
 export function interceptRegistration(registry: any, helperConstructor: any) {
@@ -67,7 +68,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 
 	const key = helperConstructor.shortcut
 
-	if (__MAIN_INTROSPECTION_REGISTRY__.has(key)) {
+	if (__INTROSPECTION__.has(key)) {
 		return	
 	}
 
@@ -80,7 +81,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		state: {}
 	}
 
-	__MAIN_INTROSPECTION_REGISTRY__.set(key, introspection)
+	__INTROSPECTION__.set(key, introspection)
 
 	return introspection
 }	

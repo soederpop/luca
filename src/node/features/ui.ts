@@ -25,11 +25,11 @@ const _assignedColors: Record<string, string> = {};
 type Color = keyof typeof colors;
 
 /** Basic print function signature */
-type PrintFunction = (text: string) => void;
+type PrintFunction = (...args: any[]) => void;
 
 /** Enhanced print function with color methods attached */
 type ColoredPrintFunction = PrintFunction & {
-  [color in Color]: (text: string) => void;
+  [color in Color]: (...args: any[]) => void;
 }
 
 /**
@@ -123,25 +123,29 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   }
 
   /** Enhanced print function with color methods for convenient terminal output */
-  print!: ColoredPrintFunction
+  print: ColoredPrintFunction = Object.assign((...args: any[]) => {
+    return console.log(...args)
+  }, {
+    red: (text: string) => console.log(colors.red(text)),
+    green: (text: string) => console.log(colors.green(text)),
+    blue: (text: string) => console.log(colors.blue(text)),
+    yellow: (text: string) => console.log(colors.yellow(text)),
+    cyan: (text: string) => console.log(colors.cyan(text)),
+    dim: (text: string) => console.log(colors.dim(text)),
+    bold: (text: string) => console.log(colors.bold(text)),
+    italic: (text: string) => console.log(colors.italic(text)),
+    underline: (text: string) => console.log(colors.underline(text)),
+    strikethrough: (text: string) => console.log(colors.strikethrough(text)),
+    inverse: (text: string) => console.log(colors.inverse(text)),
+    bgRed: (text: string) => console.log(colors.bgRed(text)),
+    bgGreen: (text: string) => console.log(colors.bgGreen(text)),
+    bgBlue: (text: string) => console.log(colors.bgBlue(text)),
+    bgYellow: (text: string) => console.log(colors.bgYellow(text)),
+    bgCyan: (text: string) => console.log(colors.bgCyan(text)),
+    bgMagenta: (text: string) => console.log(colors.bgMagenta(text)),
+    bgWhite: (text: string) => console.log(colors.bgWhite(text)),
+  }) as ColoredPrintFunction
 
-  /**
-   * Initializes the UI feature after construction.
-   * Sets up the enhanced print function with color methods and hides internal state.
-   */
-  override afterInitialize() {
-    this.hide("_assignedColors");
-
-    // @ts-ignore-next-line
-    this.print = (text: string) => console.log(text)
-
-    for(let color of ['red','blue','green','yellow','cyan','magenta','dim']) {
-      Object.assign(this.print, {
-        // @ts-ignore-next-line
-        [color]: (str: string) => this.print(colors[color](str)),
-      })
-    }
-  }
   
   /**
    * Provides access to the full chalk colors API.

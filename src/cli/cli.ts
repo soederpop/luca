@@ -14,17 +14,16 @@ async function main() {
 	})
 
 	server.start()
-	console.log('Server Started')
 
 	const portExposer = container.feature('portExposer', {
 		port: 9000,
-		authToken: process.env.NGROK_AUTHTOKEN!
+		authToken: process.env.NGROK_AUTHTOKEN!,
+		domain: process.env.NGROK_DOMAIN || 'soederpop-local.ngrok.dev'
 	})
 
 	await portExposer.expose()
-	console.log(portExposer.getConnectionInfo())
-	console.log(portExposer.isConnected())
-	console.log("Port Exposed", portExposer.getPublicUrl())
+
+	ui.print.green(`Server is running at ${portExposer.getPublicUrl()}`)
 }
 
 main()

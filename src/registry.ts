@@ -9,6 +9,8 @@ export type { HelperIntrospection }
 
 abstract class Registry<T extends Helper> {
   scope: string = "unspecified"
+ 
+  baseClass?: new (options: HelperOptions, context: ContainerContext) => T
   
   private members = new Map<string, new (options: HelperOptions, context: ContainerContext) => T>();
 

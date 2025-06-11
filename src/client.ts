@@ -266,6 +266,7 @@ export class WebSocketClient<
 
 export class ClientsRegistry extends Registry<Client<any>> {
   override scope = "clients"
+  override baseClass = Client
 }
 
 export const clients = new ClientsRegistry();

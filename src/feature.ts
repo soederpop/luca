@@ -77,6 +77,7 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
 
 export class FeaturesRegistry extends Registry<Feature<any, any>> { 
     override scope = "features"
+    override baseClass = Feature as any
 }
 
 export const features = new FeaturesRegistry()
