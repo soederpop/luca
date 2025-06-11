@@ -404,11 +404,11 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
   }
 
   private createRegistryScript(results: HelperIntrospection[]): string {
-    const imports = `import { __MAIN_INTROSPECTION_REGISTRY__ } from './index.js';\n\n`;
+    const imports = `import { __INTROSPECTION__ } from './index.js';\n\n`;
     
     const registrations = results.map(result => {
       const data = JSON.stringify(result, null, 2);
-      return `__MAIN_INTROSPECTION_REGISTRY__.set('${result.id}', ${data});`;
+      return `__INTROSPECTION__.set('${result.id}', ${data});`;
     }).join('\n\n');
 
     const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;

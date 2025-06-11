@@ -61,7 +61,11 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       
       // @ts-ignore-next-line
       const server : Server = this
-      return this.hooks.create(app, server)
+      this.hooks.create(app, server)
+
+      this._app = this.hooks.create(app, server) || app
+
+      return app
     }
   
     override async start(options?: StartOptions) {

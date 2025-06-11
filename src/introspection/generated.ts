@@ -1,9 +1,9 @@
-import { __MAIN_INTROSPECTION_REGISTRY__ } from './index.js';
+import { __INTROSPECTION__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2025-06-11T03:43:19.980Z
+// Generated at: 2025-06-11T05:12:25.984Z
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.yamlTree', {
+__INTROSPECTION__.set('features.yamlTree', {
   "id": "features.yamlTree",
   "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
   "shortcut": "features.yamlTree",
@@ -43,7 +43,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.yamlTree', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.git', {
+__INTROSPECTION__.set('features.git', {
   "id": "features.git",
   "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
   "shortcut": "features.git",
@@ -64,7 +64,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.git', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.esbuild', {
+__INTROSPECTION__.set('features.esbuild', {
   "id": "features.esbuild",
   "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
   "shortcut": "features.esbuild",
@@ -121,7 +121,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.esbuild', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.downloader', {
+__INTROSPECTION__.set('features.downloader', {
   "id": "features.downloader",
   "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
   "shortcut": "features.downloader",
@@ -149,7 +149,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.downloader', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.proc', {
+__INTROSPECTION__.set('features.proc', {
   "id": "features.proc",
   "description": "The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.",
   "shortcut": "features.proc",
@@ -215,7 +215,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.proc', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.vm', {
+__INTROSPECTION__.set('features.vm', {
   "id": "features.vm",
   "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
   "shortcut": "features.vm",
@@ -270,17 +270,11 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.vm', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.ui', {
+__INTROSPECTION__.set('features.ui', {
   "id": "features.ui",
   "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
   "shortcut": "features.ui",
   "methods": {
-    "afterInitialize": {
-      "description": "Initializes the UI feature after construction. Sets up the enhanced print function with color methods and hides internal state.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
     "assignColor": {
       "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
       "parameters": {
@@ -468,7 +462,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.ui', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.repl', {
+__INTROSPECTION__.set('features.repl', {
   "id": "features.repl",
   "description": "Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server This feature provides a fully-featured REPL server with support for: - Custom evaluation context with container access - Persistent command history - Promise-aware evaluation (async/await support) - Customizable prompts and settings - Integration with the container's context and features The REPL runs in a sandboxed VM context but provides access to the container and all its features, making it perfect for interactive debugging and exploration. **Key Features:** - VM-based evaluation for security - Automatic promise resolution in REPL output - Persistent history across sessions - Full container context access - Colored terminal output support **Usage Example:** ```typescript const repl = container.feature('repl'); await repl.start({ historyPath: '.repl_history', context: { customVar: 'value' } }); // REPL is now running and accessible ```",
   "shortcut": "features.repl",
@@ -495,7 +489,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.repl', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.scriptRunner', {
+__INTROSPECTION__.set('features.scriptRunner', {
   "id": "features.scriptRunner",
   "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
   "shortcut": "features.scriptRunner",
@@ -504,7 +498,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.scriptRunner', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.os', {
+__INTROSPECTION__.set('features.os', {
   "id": "features.os",
   "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
   "shortcut": "features.os",
@@ -513,7 +507,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.os', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.yaml', {
+__INTROSPECTION__.set('features.yaml', {
   "id": "features.yaml",
   "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
   "shortcut": "features.yaml",
@@ -562,7 +556,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.yaml', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.networking', {
+__INTROSPECTION__.set('features.networking', {
   "id": "features.networking",
   "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
   "shortcut": "features.networking",
@@ -594,7 +588,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.networking', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.vault', {
+__INTROSPECTION__.set('features.vault', {
   "id": "features.vault",
   "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
   "shortcut": "features.vault",
@@ -654,7 +648,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.vault', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.fs', {
+__INTROSPECTION__.set('features.fs', {
   "id": "features.fs",
   "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
   "shortcut": "features.fs",
@@ -911,7 +905,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.fs', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.ipcSocket', {
+__INTROSPECTION__.set('features.ipcSocket', {
   "id": "features.ipcSocket",
   "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
   "shortcut": "features.ipcSocket",
@@ -1007,7 +1001,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.ipcSocket', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.diskCache', {
+__INTROSPECTION__.set('features.diskCache', {
   "id": "features.diskCache",
   "description": "DiskCache helper",
   "shortcut": "features.diskCache",
@@ -1213,7 +1207,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.diskCache', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.python', {
+__INTROSPECTION__.set('features.python', {
   "id": "features.python",
   "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
   "shortcut": "features.python",
@@ -1331,7 +1325,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.python', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.jsonTree', {
+__INTROSPECTION__.set('features.jsonTree', {
   "id": "features.jsonTree",
   "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
   "shortcut": "features.jsonTree",
@@ -1371,7 +1365,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.jsonTree', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.packageFinder', {
+__INTROSPECTION__.set('features.packageFinder', {
   "id": "features.packageFinder",
   "description": "PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. It recursively scans all node_modules directories and builds a comprehensive index of packages, enabling: **Core Functionality:** - Recursive node_modules scanning across the workspace - Package manifest parsing and indexing - Duplicate package detection and analysis - Dependency relationship mapping - Scoped package organization (@scope/package) - Package count and statistics **Use Cases:** - Dependency auditing and analysis - Duplicate package identification - Package version conflict detection - Dependency tree analysis - Workspace package inventory **Performance Features:** - Parallel manifest reading for fast scanning - Efficient duplicate detection using unique paths - Lazy initialization - only scans when started - In-memory indexing for fast queries **Usage Example:** ```typescript const finder = container.feature('packageFinder'); await finder.start(); // Find duplicates console.log('Duplicate packages:', finder.duplicates); // Find package by name const lodash = finder.findByName('lodash'); // Find dependents of a package const dependents = finder.findDependentsOf('react'); ```",
   "shortcut": "features.packageFinder",
@@ -1487,7 +1481,85 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.packageFinder', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.mdxBundler', {
+__INTROSPECTION__.set('portExposer', {
+  "id": "portExposer",
+  "description": "Port Exposer Feature Exposes local HTTP services via ngrok with SSL-enabled public URLs. Perfect for development, testing, and sharing local services securely. Features: - SSL-enabled public URLs for local services - Custom subdomains and domains (with paid plans) - Authentication options (basic auth, OAuth) - Regional endpoint selection - Connection state management",
+  "shortcut": "portExposer",
+  "methods": {
+    "expose": {
+      "description": "Expose the local port via ngrok",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "Parameter port"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "close": {
+      "description": "Stop exposing the port and close the ngrok tunnel",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "getPublicUrl": {
+      "description": "Get the current public URL if connected",
+      "parameters": {},
+      "required": [],
+      "returns": "string | undefined"
+    },
+    "isConnected": {
+      "description": "Check if currently connected",
+      "parameters": {},
+      "required": [],
+      "returns": "boolean"
+    },
+    "getConnectionInfo": {
+      "description": "Get connection information",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "reconnect": {
+      "description": "Reconnect with new options",
+      "parameters": {
+        "newOptions": {
+          "type": "Partial<PortExposerOptions>",
+          "description": "Parameter newOptions"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "disable": {
+      "description": "Override disable to ensure cleanup",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "events": {
+    "exposed": {
+      "name": "exposed",
+      "description": "Event emitted by PortExposer",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by PortExposer",
+      "arguments": {}
+    },
+    "closed": {
+      "name": "closed",
+      "description": "Event emitted by PortExposer",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.mdxBundler', {
   "id": "features.mdxBundler",
   "description": "The MdxBundler feature provides MDX compilation capabilities. This feature wraps the mdx-bundler library to compile MDX content into executable JavaScript. MDX allows you to use JSX components within Markdown files, making it ideal for documentation and content that needs interactive elements.",
   "shortcut": "features.mdxBundler",
@@ -1514,7 +1586,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.mdxBundler', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.secureShell', {
+__INTROSPECTION__.set('features.secureShell', {
   "id": "features.secureShell",
   "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
   "shortcut": "features.secureShell",
@@ -1579,7 +1651,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.secureShell', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.fileManager', {
+__INTROSPECTION__.set('features.fileManager', {
   "id": "features.fileManager",
   "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
   "shortcut": "features.fileManager",
@@ -1686,7 +1758,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.fileManager', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('features.ai', {
+__INTROSPECTION__.set('features.ai', {
   "id": "features.ai",
   "description": "AI helper",
   "shortcut": "features.ai",
@@ -1709,7 +1781,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('features.ai', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('clients.openai', {
+__INTROSPECTION__.set('clients.openai', {
   "id": "clients.openai",
   "description": "OpenAIClient helper",
   "shortcut": "clients.openai",
@@ -1877,7 +1949,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('clients.openai', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('servers.mcp', {
+__INTROSPECTION__.set('servers.mcp', {
   "id": "servers.mcp",
   "description": "McpServer helper",
   "shortcut": "servers.mcp",
@@ -1917,7 +1989,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('servers.mcp', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('servers.express', {
+__INTROSPECTION__.set('servers.express', {
   "id": "servers.express",
   "description": "ExpressServer helper",
   "shortcut": "servers.express",
@@ -1957,7 +2029,7 @@ __MAIN_INTROSPECTION_REGISTRY__.set('servers.express', {
   "state": {}
 });
 
-__MAIN_INTROSPECTION_REGISTRY__.set('servers.websocket', {
+__INTROSPECTION__.set('servers.websocket', {
   "id": "servers.websocket",
   "description": "WebsocketServer helper",
   "shortcut": "servers.websocket",
@@ -2299,12 +2371,6 @@ export const introspectionData = [
     "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
     "shortcut": "features.ui",
     "methods": {
-      "afterInitialize": {
-        "description": "Initializes the UI feature after construction. Sets up the enhanced print function with color methods and hides internal state.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
       "assignColor": {
         "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
         "parameters": {
@@ -3496,6 +3562,83 @@ export const introspectionData = [
       }
     },
     "events": {},
+    "state": {}
+  },
+  {
+    "id": "portExposer",
+    "description": "Port Exposer Feature Exposes local HTTP services via ngrok with SSL-enabled public URLs. Perfect for development, testing, and sharing local services securely. Features: - SSL-enabled public URLs for local services - Custom subdomains and domains (with paid plans) - Authentication options (basic auth, OAuth) - Regional endpoint selection - Connection state management",
+    "shortcut": "portExposer",
+    "methods": {
+      "expose": {
+        "description": "Expose the local port via ngrok",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "Parameter port"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "close": {
+        "description": "Stop exposing the port and close the ngrok tunnel",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "getPublicUrl": {
+        "description": "Get the current public URL if connected",
+        "parameters": {},
+        "required": [],
+        "returns": "string | undefined"
+      },
+      "isConnected": {
+        "description": "Check if currently connected",
+        "parameters": {},
+        "required": [],
+        "returns": "boolean"
+      },
+      "getConnectionInfo": {
+        "description": "Get connection information",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "reconnect": {
+        "description": "Reconnect with new options",
+        "parameters": {
+          "newOptions": {
+            "type": "Partial<PortExposerOptions>",
+            "description": "Parameter newOptions"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "disable": {
+        "description": "Override disable to ensure cleanup",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "events": {
+      "exposed": {
+        "name": "exposed",
+        "description": "Event emitted by PortExposer",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by PortExposer",
+        "arguments": {}
+      },
+      "closed": {
+        "name": "closed",
+        "description": "Event emitted by PortExposer",
+        "arguments": {}
+      }
+    },
     "state": {}
   },
   {
