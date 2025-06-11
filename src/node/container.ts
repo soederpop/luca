@@ -24,7 +24,7 @@ import "./features/mdx-bundler.js";
 import "./features/networking.js";
 import "./features/os.js";
 import "./features/package-finder.js";
-import "./features/package-finder.js";
+import "./features/port-exposer.js";
 import "./features/python.js";
 import "./features/proc.js";
 import "./features/repl.js";
@@ -33,7 +33,6 @@ import "./features/ui.js";
 import "./features/vault.js";
 import "./features/vm.js";
 import "./features/yaml-tree.js";
-import "./features/yaml.js";
 import "./features/yaml.js";
 
 import type { ChildProcess } from "./features/proc.js";
@@ -57,6 +56,7 @@ import type { Vault } from "./features/vault.js";
 import type { VM } from "./features/vm.js";
 import type { YAML } from "./features/yaml.js";
 import type { YamlTree } from "./features/yaml-tree.js";
+import type { PortExposer } from "./features/port-exposer.js";
 
 export { State };
 
@@ -74,7 +74,8 @@ export {
   type Vault,
   type ScriptRunner,
   type MdxBundler,
-  type Downloader
+  type Downloader,
+  type PortExposer
 };
 
 export type { FeatureOptions };
@@ -118,6 +119,7 @@ export interface NodeFeatures extends AvailableFeatures {
   mdxBundler: typeof MdxBundler;
   downloader: typeof Downloader;
   python: typeof Python;
+  portExposer: typeof PortExposer;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface;
@@ -147,6 +149,7 @@ export class NodeContainer<
   diskCache?: DiskCache;
   vault?: Vault;
   python?: Python;
+  portExposer?: PortExposer;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

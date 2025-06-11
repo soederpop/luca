@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Bus } from './bus.js'
 import { SetStateValue, State } from './state.js'
-import { AvailableFeatures, features, Feature } from './feature.js'
+import { AvailableFeatures, features, Feature, FeaturesRegistry } from './feature.js'
 import { Helper } from './helper.js'
 import uuid from 'node-uuid'
 import hashObject from 'object-hash'
@@ -75,7 +75,10 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       
     this._hide('options', '_state', '_events', 'uuid', '_plugins')
     
-    this.on('featureEnabled', (featureId: string) => {
+    this.on('featureEnabled', (featureId: string, feature: any) => {
+      const featureKey = featureId.replace(/^features\./,'')
+      const mapKey = `${this.uuid}/${featureKey}`
+      featureIdToHelperCacheKeyMap.set(mapKey, feature.cacheKey)
       this.state.set('enabledFeatures', uniq([
         ...this.state.get('enabledFeatures')!,
         featureId
@@ -166,16 +169,23 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return State
   }
 
-  get features() {
-    return Object.assign(features, {
-      cached<K = Feature>(key?: string) {
-        if (!key) {
-          return Array.from(helperCache.values()) as Feature[] 
-        }
+  get features(): FeaturesRegistry & AvailableInstanceTypes<Features> {
+    const container = this
 
-        return helperCache.get(key) as K
+    return new Proxy(features, {
+      get(target, prop) {
+        if (prop in target) {
+          return target[prop]
+        } else {
+          const cached = helperCache.get(featureIdToHelperCacheKeyMap.get(`${container.uuid}/${prop}`))
+          if (cached) {
+            return cached
+          } else {
+            return container.feature(prop)
+          }
+        }
       }
-    })
+    }) as FeaturesRegistry & AvailableInstanceTypes<Features>
   }
   
   /** 
@@ -361,4 +371,6 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
 const helperCache = new Map()
 
+
+const featureIdToHelperCacheKeyMap= new Map()
 const contextMap = new WeakMap()

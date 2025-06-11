@@ -33,7 +33,7 @@ export interface FeatureState extends HelperState {
 
 export abstract class Feature<T extends FeatureState = FeatureState, K extends FeatureOptions = FeatureOptions> extends Helper<T, K> {
     get shortcut() {
-        return camelCase(kebabCase(this.constructor.name.replace(/^_/,'')))
+        return (this.constructor as any).shortcut as string
     }
 
     get isEnabled() {
