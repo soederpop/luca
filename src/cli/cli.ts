@@ -4,26 +4,9 @@ import container, { ui } from '@/node'
 import '@/introspection/generated'
 
 async function main() {
-	const server = container.server('express', { 
-		port: 9000,
-		create(app) {
-			return app.get('/', (req,res) => {
-				res.send('Hello!')
-			})
-		}
-	})
+	const featureDef = container.features.lookup('vm')	
 
-	server.start()
-
-	const portExposer = container.feature('portExposer', {
-		port: 9000,
-		authToken: process.env.NGROK_AUTHTOKEN!,
-		domain: process.env.NGROK_DOMAIN || 'soederpop-local.ngrok.dev'
-	})
-
-	await portExposer.expose()
-
-	ui.print.green(`Server is running at ${portExposer.getPublicUrl()}`)
+	console.log(featureDef)
 }
 
 main()
