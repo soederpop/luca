@@ -6,8 +6,8 @@ The `container` object provides access to a comprehensive set of features for No
 
 ### Core System Features
 
-#### File System (`features.fs`)
-**Usage:** `container.feature('features.fs')`
+#### File System (`fs`)
+**Usage:** `container.feature('fs')`
 
 Provides methods for interacting with the file system relative to the container's working directory.
 
@@ -23,8 +23,8 @@ Provides methods for interacting with the file system relative to the container'
 - `findUp(fileName, options?)` / `findUpAsync(fileName, options?)` - Find file by walking up directory tree
 - `readJson(path)` - Read and parse JSON file
 
-#### Process Management (`features.proc`)
-**Usage:** `container.feature('features.proc')`
+#### Process Management (`proc`)
+**Usage:** `container.feature('proc')`
 
 Execute external processes and commands with comprehensive output capture.
 
@@ -35,15 +35,15 @@ Execute external processes and commands with comprehensive output capture.
 
 **Returns:** `{ stdout, stderr, error, exitCode, pid }`
 
-#### Operating System (`features.os`)
-**Usage:** `container.feature('features.os')`
+#### Operating System (`os`)
+**Usage:** `container.feature('os')`
 
 Access to operating system utilities and information via Node.js's built-in `os` module.
 
 ### File Management & Discovery
 
-#### File Manager (`features.fileManager`)
-**Usage:** `container.feature('features.fileManager')`
+#### File Manager (`fileManager`)
+**Usage:** `container.feature('fileManager')`
 
 Database-like indexing of project files with change watching capabilities.
 
@@ -57,8 +57,8 @@ Database-like indexing of project files with change watching capabilities.
 
 **Events:** `file:change`
 
-#### Git Integration (`features.git`)
-**Usage:** `container.feature('features.git')`
+#### Git Integration (`git`)
+**Usage:** `container.feature('git')`
 
 Git repository utilities for status, file listing, and metadata access.
 
@@ -67,8 +67,8 @@ Git repository utilities for status, file listing, and metadata access.
 
 ### Data Processing
 
-#### JSON Tree (`features.jsonTree`)
-**Usage:** `container.feature('features.jsonTree')`
+#### JSON Tree (`jsonTree`)
+**Usage:** `container.feature('jsonTree')`
 
 Recursively load JSON files from directory structures into hierarchical objects.
 
@@ -77,16 +77,16 @@ Recursively load JSON files from directory structures into hierarchical objects.
 
 **Path Processing:** Converts `config/database/production.json` → `tree.config.database.production`
 
-#### YAML Tree (`features.yamlTree`)
-**Usage:** `container.feature('features.yamlTree')`
+#### YAML Tree (`yamlTree`)
+**Usage:** `container.feature('yamlTree')`
 
 Similar to JSON Tree but for YAML files (.yml/.yaml extensions).
 
 **Key Methods:**
 - `loadTree(basePath, key?)` - Load YAML files into tree structure
 
-#### YAML Parser (`features.yaml`)
-**Usage:** `container.feature('features.yaml')`
+#### YAML Parser (`yaml`)
+**Usage:** `container.feature('yaml')`
 
 Parse and stringify YAML data using js-yaml library.
 
@@ -96,8 +96,8 @@ Parse and stringify YAML data using js-yaml library.
 
 ### Caching & Storage
 
-#### Disk Cache (`features.diskCache`)
-**Usage:** `container.feature('features.diskCache')`
+#### Disk Cache (`diskCache`)
+**Usage:** `container.feature('diskCache')`
 
 DiskCache helper using cacache for persistent caching.
 
@@ -114,8 +114,8 @@ DiskCache helper using cacache for persistent caching.
 - `saveFile(key, outputPath, isBase64?)` - Save cached file to disk
 - `create(path?)` - Create cacache instance
 
-#### Vault (`features.vault`)
-**Usage:** `container.feature('features.vault')`
+#### Vault (`vault`)
+**Usage:** `container.feature('vault')`
 
 Encryption and decryption using AES-256-GCM.
 
@@ -126,8 +126,8 @@ Encryption and decryption using AES-256-GCM.
 
 ### Development Tools
 
-#### ESBuild (`features.esbuild`)
-**Usage:** `container.feature('features.esbuild')`
+#### ESBuild (`esbuild`)
+**Usage:** `container.feature('esbuild')`
 
 TypeScript/ESM compilation to JavaScript.
 
@@ -135,8 +135,8 @@ TypeScript/ESM compilation to JavaScript.
 - `transform(code, options?)` - Transform code asynchronously
 - `transformSync(code, options?)` - Transform code synchronously
 
-#### REPL (`features.repl`)
-**Usage:** `container.feature('features.repl')`
+#### REPL (`repl`)
+**Usage:** `container.feature('repl')`
 
 Interactive Node.js REPL server with container context access.
 
@@ -146,8 +146,8 @@ Interactive Node.js REPL server with container context access.
 
 **Options:** `{ historyPath?, context?, exclude? }`
 
-#### Virtual Machine (`features.vm`)
-**Usage:** `container.feature('features.vm')`
+#### Virtual Machine (`vm`)
+**Usage:** `container.feature('vm')`
 
 Secure JavaScript execution in isolated contexts.
 
@@ -156,8 +156,8 @@ Secure JavaScript execution in isolated contexts.
 - `createContext(ctx?)` - Create execution context
 - `run(code, ctx?)` - Execute JavaScript code safely
 
-#### Python Integration (`features.python`)
-**Usage:** `container.feature('features.python')`
+#### Python Integration (`python`)
+**Usage:** `container.feature('python')`
 
 Python virtual machine with automatic environment detection.
 
@@ -172,8 +172,8 @@ Python virtual machine with automatic environment detection.
 
 ### Package Management
 
-#### Package Finder (`features.packageFinder`)
-**Usage:** `container.feature('features.packageFinder')`
+#### Package Finder (`packageFinder`)
+**Usage:** `container.feature('packageFinder')`
 
 Comprehensive npm package discovery and analysis across workspace.
 
@@ -188,8 +188,8 @@ Comprehensive npm package discovery and analysis across workspace.
 
 **Properties:** `packages`, `duplicates` (detected during scan)
 
-#### Script Runner (`features.scriptRunner`)
-**Usage:** `container.feature('features.scriptRunner')`
+#### Script Runner (`scriptRunner`)
+**Usage:** `container.feature('scriptRunner')`
 
 Execute npm scripts from package.json with programmatic access.
 
@@ -197,8 +197,8 @@ Automatically generates camelCase methods for each script in package.json.
 
 ### Networking & Services
 
-#### Networking (`features.networking`)
-**Usage:** `container.feature('features.networking')`
+#### Networking (`networking`)
+**Usage:** `container.feature('networking')`
 
 Network utilities for port detection and availability.
 
@@ -221,8 +221,8 @@ Expose local services via ngrok with SSL-enabled public URLs.
 
 **Events:** `exposed`, `error`, `closed`
 
-#### Downloader (`features.downloader`)
-**Usage:** `container.feature('features.downloader')`
+#### Downloader (`downloader`)
+**Usage:** `container.feature('downloader')`
 
 Download files from URLs to local filesystem.
 
@@ -231,8 +231,8 @@ Download files from URLs to local filesystem.
 
 ### Communication
 
-#### IPC Socket (`features.ipcSocket`)
-**Usage:** `container.feature('features.ipcSocket')`
+#### IPC Socket (`ipcSocket`)
+**Usage:** `container.feature('ipcSocket')`
 
 Inter-process communication via Unix domain sockets.
 
@@ -249,8 +249,8 @@ Inter-process communication via Unix domain sockets.
 
 ### User Interface
 
-#### UI (`features.ui`)
-**Usage:** `container.feature('features.ui')`
+#### UI (`ui`)
+**Usage:** `container.feature('ui')`
 
 Interactive terminal UI with colors, ASCII art, and prompts.
 
@@ -276,8 +276,8 @@ Interactive terminal UI with colors, ASCII art, and prompts.
 
 ### Documentation Processing
 
-#### MDX Bundler (`features.mdxBundler`)
-**Usage:** `container.feature('features.mdxBundler')`
+#### MDX Bundler (`mdxBundler`)
+**Usage:** `container.feature('mdxBundler')`
 
 Compile MDX content into executable JavaScript.
 
@@ -289,8 +289,8 @@ Compile MDX content into executable JavaScript.
 ### Basic Feature Access
 ```javascript
 // Get a feature instance
-const fs = container.feature('features.fs');
-const ui = container.feature('features.ui');
+const fs = container.feature('fs');
+const ui = container.feature('ui');
 
 // Use feature methods
 const content = fs.readFile('package.json');
@@ -300,7 +300,7 @@ ui.print.green('File read successfully!');
 ### Feature with Options
 ```javascript
 // Start REPL with custom configuration
-const repl = container.feature('features.repl');
+const repl = container.feature('repl');
 await repl.start({
   historyPath: '.custom_history',
   context: { myVar: 'value' }
@@ -310,7 +310,7 @@ await repl.start({
 ### Event Handling
 ```javascript
 // Listen to file changes
-const fileManager = container.feature('features.fileManager');
+const fileManager = container.feature('fileManager');
 fileManager.on('file:change', (data) => {
   console.log('File changed:', data);
 });
@@ -320,9 +320,9 @@ await fileManager.start();
 ### Chaining Operations
 ```javascript
 // Complex workflow example
-const fs = container.feature('features.fs');
-const vault = container.feature('features.vault');
-const cache = container.feature('features.diskCache');
+const fs = container.feature('fs');
+const vault = container.feature('vault');
+const cache = container.feature('diskCache');
 
 // Read, encrypt, and cache data
 const data = fs.readFile('sensitive.txt');

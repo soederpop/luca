@@ -3,6 +3,12 @@ import colors from "chalk";
 import figlet from "figlet";
 import type { Fonts } from "figlet";
 import inquirer from "inquirer";
+import { marked } from 'marked';
+import { markedTerminal } from 'marked-terminal';
+import endent from 'endent';
+
+// @ts-ignore
+marked.use(markedTerminal({ }));
 
 /**
  * State interface for the UI feature.
@@ -145,6 +151,10 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     bgMagenta: (text: string) => console.log(colors.bgMagenta(text)),
     bgWhite: (text: string) => console.log(colors.bgWhite(text)),
   }) as ColoredPrintFunction
+
+  markdown(text: string) {
+    return marked.parse(text)
+  }
 
   
   /**
@@ -513,6 +523,11 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     const colored = this.applyGradient(art, options.colors);
 
     return colored;
+  }
+
+  endent(...args: any[]) {
+    // @ts-ignore 
+    return endent(...args)
   }
 
   /**

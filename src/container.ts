@@ -89,7 +89,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       this.emit('stateChange', this.state.current)
     })
   }
-  
+
   get state() {
     return this._state
   }

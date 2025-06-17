@@ -59,7 +59,7 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
      * can use this method to attach the feature to the container.
     */
     protected attachToContainer() {
-        Object.defineProperty(this.container, this.shortcut, {
+        Object.defineProperty(this.container, this.shortcut.split('.').pop()!, {
             get: () => this
         })        
     }

@@ -1,26 +1,13 @@
 import { __INTROSPECTION__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2025-06-11T05:12:25.984Z
+// Generated at: 2025-06-17T20:42:34.096Z
 
 __INTROSPECTION__.set('features.yamlTree', {
   "id": "features.yamlTree",
   "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
   "shortcut": "features.yamlTree",
   "methods": {
-    "attach": {
-      "description": "Attaches the YamlTree feature to a NodeContainer instance. Registers the feature and creates an auto-enabled instance.",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & { yamlTree?: YamlTree }",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "loadTree": {
       "description": "Loads a tree of YAML files from the specified base path and stores them in state. This method recursively scans the provided directory for YAML files (.yml and .yaml), processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Path Processing:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes file extensions (.yml/.yaml) **Example:** ``` config/ database/ production.yml  -> tree.config.database.production staging.yml     -> tree.config.database.staging api/ endpoints.yaml  -> tree.config.api.endpoints ```",
       "parameters": {
@@ -69,19 +56,6 @@ __INTROSPECTION__.set('features.esbuild', {
   "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
   "shortcut": "features.esbuild",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "c": {
-          "type": "NodeContainer",
-          "description": "Parameter c"
-        }
-      },
-      "required": [
-        "c"
-      ],
-      "returns": "void"
-    },
     "transformSync": {
       "description": "Transform code synchronously",
       "parameters": {
@@ -509,22 +483,123 @@ __INTROSPECTION__.set('features.os', {
 
 __INTROSPECTION__.set('features.yaml', {
   "id": "features.yaml",
-  "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+  "description": "Zod-based YAML feature with runtime validation. This feature provides utilities for parsing and stringifying YAML data with enhanced runtime validation and state tracking.",
   "shortcut": "features.yaml",
   "methods": {
-    "attach": {
-      "description": "Automatically attaches the YAML feature to Node containers. This static method ensures the YAML feature is automatically available on Node containers without needing manual registration.",
+    "attachToContainer": {
+      "description": "For features where there only needs to be a single instance, you can use this method to attach the feature to the container.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "enable": {
+      "description": "Enable the feature with optional configuration",
       "parameters": {
-        "c": {
-          "type": "NodeContainer",
-          "description": "The Node container to attach to"
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stringify": {
+      "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format with validation and state tracking.",
+      "parameters": {
+        "data": {
+          "type": "any",
+          "description": "The data to convert to YAML format"
         }
       },
       "required": [
-        "c"
+        "data"
       ],
+      "returns": "string"
+    },
+    "parse": {
+      "description": "Parses a YAML string into a JavaScript object with Zod validation.",
+      "parameters": {
+        "yamlStr": {
+          "type": "string",
+          "description": "The YAML string to parse"
+        },
+        "schema": {
+          "type": "T",
+          "description": "Parameter schema"
+        }
+      },
+      "required": [
+        "yamlStr"
+      ],
+      "returns": "T extends z.ZodType ? z.infer<T> : any"
+    },
+    "parseWithSchema": {
+      "description": "Parse with explicit type validation",
+      "parameters": {
+        "yamlStr": {
+          "type": "string",
+          "description": "Parameter yamlStr"
+        },
+        "schema": {
+          "type": "T",
+          "description": "Parameter schema"
+        }
+      },
+      "required": [
+        "yamlStr",
+        "schema"
+      ],
+      "returns": "z.infer<T>"
+    },
+    "getStats": {
+      "description": "Get parsing statistics",
+      "parameters": {},
+      "required": [],
       "returns": "void"
     },
+    "resetStats": {
+      "description": "Reset statistics",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "introspect": {
+      "description": "Enhanced introspection for YAML feature",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {
+    "enabled": {
+      "name": "enabled",
+      "description": "Event emitted by ZodYAML",
+      "arguments": {}
+    },
+    "stringify": {
+      "name": "stringify",
+      "description": "Event emitted by ZodYAML",
+      "arguments": {}
+    },
+    "parse": {
+      "name": "parse",
+      "description": "Event emitted by ZodYAML",
+      "arguments": {}
+    },
+    "statsReset": {
+      "name": "statsReset",
+      "description": "Event emitted by ZodYAML",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.yaml', {
+  "id": "features.yaml",
+  "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+  "shortcut": "features.yaml",
+  "methods": {
     "stringify": {
       "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
       "parameters": {
@@ -593,19 +668,6 @@ __INTROSPECTION__.set('features.vault', {
   "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
   "shortcut": "features.vault",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "c": {
-          "type": "NodeContainer",
-          "description": "Parameter c"
-        }
-      },
-      "required": [
-        "c"
-      ],
-      "returns": "void"
-    },
     "secret": {
       "description": "Gets or generates a secret key for encryption operations.",
       "parameters": {
@@ -910,19 +972,6 @@ __INTROSPECTION__.set('features.ipcSocket', {
   "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
   "shortcut": "features.ipcSocket",
   "methods": {
-    "attach": {
-      "description": "Attaches the IpcSocket feature to a NodeContainer instance. Registers the feature and creates an auto-enabled instance.",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & { ipcSocket?: IpcSocket }",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "listen": {
       "description": "Starts the IPC server listening on the specified socket path. This method sets up a Unix domain socket server that can accept multiple client connections. Each connected client is tracked, and the server automatically handles connection lifecycle events. Messages received from clients are JSON-parsed and emitted as 'message' events. **Server Behavior:** - Tracks all connected clients in the sockets Set - Automatically removes clients when they disconnect - JSON-parses incoming messages and emits 'message' events - Emits 'connection' events when clients connect - Prevents starting multiple servers on the same instance **Socket File Management:** - Resolves the socket path relative to the container's working directory - Optionally removes existing socket files to prevent \"address in use\" errors - Throws error if socket file exists and removeLock is false",
       "parameters": {
@@ -1006,19 +1055,6 @@ __INTROSPECTION__.set('features.diskCache', {
   "description": "DiskCache helper",
   "shortcut": "features.diskCache",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "c": {
-          "type": "NodeContainer",
-          "description": "Parameter c"
-        }
-      },
-      "required": [
-        "c"
-      ],
-      "returns": "void"
-    },
     "saveFile": {
       "description": "Retrieve a file from the disk cache and save it to the local disk",
       "parameters": {
@@ -1330,19 +1366,6 @@ __INTROSPECTION__.set('features.jsonTree', {
   "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
   "shortcut": "features.jsonTree",
   "methods": {
-    "attach": {
-      "description": "Attaches the JsonTree feature to a NodeContainer instance. Registers the feature in the container's feature registry for later use.",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & { jsonTree?: JsonTree }",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "loadTree": {
       "description": "Loads a tree of JSON files from the specified base path and stores them in state. This method recursively scans the provided directory for JSON files, processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Processing Steps:** 1. Uses FileManager to discover all .json files recursively 2. Reads each file's content using the file system feature 3. Parses JSON content using native JSON.parse() 4. Converts file paths to nested object properties 5. Stores the complete tree in feature state **Path Transformation:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes .json file extension **Example Transformation:** ``` config/ database/ production.json  -> tree.config.database.production staging.json     -> tree.config.database.staging api/ endpoints.json   -> tree.config.api.endpoints ```",
       "parameters": {
@@ -1758,215 +1781,11 @@ __INTROSPECTION__.set('features.fileManager', {
   "state": {}
 });
 
-__INTROSPECTION__.set('features.ai', {
-  "id": "features.ai",
-  "description": "AI helper",
-  "shortcut": "features.ai",
-  "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "container": {
-          "type": "Container & ClientsInterface",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('clients.openai', {
-  "id": "clients.openai",
-  "description": "OpenAIClient helper",
-  "shortcut": "clients.openai",
-  "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "container": {
-          "type": "Container & ClientsInterface",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "any"
-    },
-    "connect": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "createChatCompletion": {
-      "description": "",
-      "parameters": {
-        "messages": {
-          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-          "description": "Parameter messages"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "messages"
-      ],
-      "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>"
-    },
-    "createCompletion": {
-      "description": "",
-      "parameters": {
-        "prompt": {
-          "type": "string",
-          "description": "Parameter prompt"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<OpenAI.Completions.Completion>"
-    },
-    "createEmbedding": {
-      "description": "",
-      "parameters": {
-        "input": {
-          "type": "string | string[]",
-          "description": "Parameter input"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "input"
-      ],
-      "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>"
-    },
-    "createImage": {
-      "description": "",
-      "parameters": {
-        "prompt": {
-          "type": "string",
-          "description": "Parameter prompt"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Images.ImageGenerateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<OpenAI.Images.ImagesResponse>"
-    },
-    "listModels": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<OpenAI.Models.ModelsPage>"
-    },
-    "ask": {
-      "description": "",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "Parameter question"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "question"
-      ],
-      "returns": "Promise<string>"
-    },
-    "chat": {
-      "description": "",
-      "parameters": {
-        "messages": {
-          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-          "description": "Parameter messages"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "messages"
-      ],
-      "returns": "Promise<string>"
-    }
-  },
-  "events": {
-    "connected": {
-      "name": "connected",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "completion": {
-      "name": "completion",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "embedding": {
-      "name": "embedding",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "image": {
-      "name": "image",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "models": {
-      "name": "models",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    }
-  },
-  "state": {}
-});
-
 __INTROSPECTION__.set('servers.mcp', {
   "id": "servers.mcp",
   "description": "McpServer helper",
   "shortcut": "servers.mcp",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & ServersInterface",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "start": {
       "description": "",
       "parameters": {
@@ -1978,10 +1797,282 @@ __INTROSPECTION__.set('servers.mcp', {
       "required": [],
       "returns": "void"
     },
-    "configure": {
+    "log": {
       "description": "",
-      "parameters": {},
-      "required": [],
+      "parameters": {
+        "message": {
+          "type": "any",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "returns": "void"
+    },
+    "completion": {
+      "description": "",
+      "parameters": {
+        "ref": {
+          "type": "string",
+          "description": "Parameter ref"
+        },
+        "handler": {
+          "type": "(argName: string, argValue: string) => Promise<string[]>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "ref",
+        "handler"
+      ],
+      "returns": "void"
+    },
+    "handleListResources": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListResourcesRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ListResourcesResult>"
+    },
+    "handleListResourceTemplates": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListResourceTemplatesRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleReadResource": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ReadResourceRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ReadResourceResult>"
+    },
+    "handleSubscribe": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "SubscribeRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleUnsubscribe": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "UnsubscribeRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleListPrompts": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListPromptsRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ListPromptsResult>"
+    },
+    "handleGetPrompt": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "GetPromptRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleListTools": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListToolsRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleCallTool": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "CallToolRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<CallToolResult>"
+    },
+    "handleComplete": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "CompleteRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<CompleteResult>"
+    },
+    "handleSetLevel": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "SetLevelRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "tool": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "inputSchema": {
+          "type": "z.ZodObject<T>",
+          "description": "Parameter inputSchema"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description"
+        },
+        "handler": {
+          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "name",
+        "inputSchema",
+        "description",
+        "handler"
+      ],
+      "returns": "void"
+    },
+    "resource": {
+      "description": "",
+      "parameters": {
+        "uri": {
+          "type": "string",
+          "description": "Parameter uri"
+        },
+        "nameOrHandler": {
+          "type": "string | (() => Promise<Resource>)",
+          "description": "Parameter nameOrHandler"
+        },
+        "handler": {
+          "type": "() => Promise<Resource>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "uri",
+        "nameOrHandler"
+      ],
+      "returns": "void"
+    },
+    "resourceTemplate": {
+      "description": "",
+      "parameters": {
+        "uriTemplate": {
+          "type": "string",
+          "description": "Parameter uriTemplate"
+        },
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "descriptionOrHandler": {
+          "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
+          "description": "Parameter descriptionOrHandler"
+        },
+        "handler": {
+          "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "uriTemplate",
+        "name",
+        "descriptionOrHandler"
+      ],
+      "returns": "void"
+    },
+    "prompt": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description"
+        },
+        "schemaOrHandler": {
+          "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
+          "description": "Parameter schemaOrHandler"
+        },
+        "handler": {
+          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "schemaOrHandler"
+      ],
       "returns": "void"
     }
   },
@@ -1994,19 +2085,6 @@ __INTROSPECTION__.set('servers.express', {
   "description": "ExpressServer helper",
   "shortcut": "servers.express",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & ServersInterface",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "start": {
       "description": "",
       "parameters": {
@@ -2034,19 +2112,6 @@ __INTROSPECTION__.set('servers.websocket', {
   "description": "WebsocketServer helper",
   "shortcut": "servers.websocket",
   "methods": {
-    "attach": {
-      "description": "",
-      "parameters": {
-        "container": {
-          "type": "NodeContainer & ServersInterface",
-          "description": "Parameter container"
-        }
-      },
-      "required": [
-        "container"
-      ],
-      "returns": "void"
-    },
     "broadcast": {
       "description": "",
       "parameters": {
@@ -2110,19 +2175,6 @@ export const introspectionData = [
     "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
     "shortcut": "features.yamlTree",
     "methods": {
-      "attach": {
-        "description": "Attaches the YamlTree feature to a NodeContainer instance. Registers the feature and creates an auto-enabled instance.",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & { yamlTree?: YamlTree }",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "loadTree": {
         "description": "Loads a tree of YAML files from the specified base path and stores them in state. This method recursively scans the provided directory for YAML files (.yml and .yaml), processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Path Processing:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes file extensions (.yml/.yaml) **Example:** ``` config/ database/ production.yml  -> tree.config.database.production staging.yml     -> tree.config.database.staging api/ endpoints.yaml  -> tree.config.api.endpoints ```",
         "parameters": {
@@ -2169,19 +2221,6 @@ export const introspectionData = [
     "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
     "shortcut": "features.esbuild",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "c": {
-            "type": "NodeContainer",
-            "description": "Parameter c"
-          }
-        },
-        "required": [
-          "c"
-        ],
-        "returns": "void"
-      },
       "transformSync": {
         "description": "Transform code synchronously",
         "parameters": {
@@ -2601,22 +2640,122 @@ export const introspectionData = [
   },
   {
     "id": "features.yaml",
-    "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+    "description": "Zod-based YAML feature with runtime validation. This feature provides utilities for parsing and stringifying YAML data with enhanced runtime validation and state tracking.",
     "shortcut": "features.yaml",
     "methods": {
-      "attach": {
-        "description": "Automatically attaches the YAML feature to Node containers. This static method ensures the YAML feature is automatically available on Node containers without needing manual registration.",
+      "attachToContainer": {
+        "description": "For features where there only needs to be a single instance, you can use this method to attach the feature to the container.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "enable": {
+        "description": "Enable the feature with optional configuration",
         "parameters": {
-          "c": {
-            "type": "NodeContainer",
-            "description": "The Node container to attach to"
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stringify": {
+        "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format with validation and state tracking.",
+        "parameters": {
+          "data": {
+            "type": "any",
+            "description": "The data to convert to YAML format"
           }
         },
         "required": [
-          "c"
+          "data"
         ],
+        "returns": "string"
+      },
+      "parse": {
+        "description": "Parses a YAML string into a JavaScript object with Zod validation.",
+        "parameters": {
+          "yamlStr": {
+            "type": "string",
+            "description": "The YAML string to parse"
+          },
+          "schema": {
+            "type": "T",
+            "description": "Parameter schema"
+          }
+        },
+        "required": [
+          "yamlStr"
+        ],
+        "returns": "T extends z.ZodType ? z.infer<T> : any"
+      },
+      "parseWithSchema": {
+        "description": "Parse with explicit type validation",
+        "parameters": {
+          "yamlStr": {
+            "type": "string",
+            "description": "Parameter yamlStr"
+          },
+          "schema": {
+            "type": "T",
+            "description": "Parameter schema"
+          }
+        },
+        "required": [
+          "yamlStr",
+          "schema"
+        ],
+        "returns": "z.infer<T>"
+      },
+      "getStats": {
+        "description": "Get parsing statistics",
+        "parameters": {},
+        "required": [],
         "returns": "void"
       },
+      "resetStats": {
+        "description": "Reset statistics",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "introspect": {
+        "description": "Enhanced introspection for YAML feature",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {
+      "enabled": {
+        "name": "enabled",
+        "description": "Event emitted by ZodYAML",
+        "arguments": {}
+      },
+      "stringify": {
+        "name": "stringify",
+        "description": "Event emitted by ZodYAML",
+        "arguments": {}
+      },
+      "parse": {
+        "name": "parse",
+        "description": "Event emitted by ZodYAML",
+        "arguments": {}
+      },
+      "statsReset": {
+        "name": "statsReset",
+        "description": "Event emitted by ZodYAML",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
+    "id": "features.yaml",
+    "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+    "shortcut": "features.yaml",
+    "methods": {
       "stringify": {
         "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
         "parameters": {
@@ -2683,19 +2822,6 @@ export const introspectionData = [
     "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
     "shortcut": "features.vault",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "c": {
-            "type": "NodeContainer",
-            "description": "Parameter c"
-          }
-        },
-        "required": [
-          "c"
-        ],
-        "returns": "void"
-      },
       "secret": {
         "description": "Gets or generates a secret key for encryption operations.",
         "parameters": {
@@ -2998,19 +3124,6 @@ export const introspectionData = [
     "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
     "shortcut": "features.ipcSocket",
     "methods": {
-      "attach": {
-        "description": "Attaches the IpcSocket feature to a NodeContainer instance. Registers the feature and creates an auto-enabled instance.",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & { ipcSocket?: IpcSocket }",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "listen": {
         "description": "Starts the IPC server listening on the specified socket path. This method sets up a Unix domain socket server that can accept multiple client connections. Each connected client is tracked, and the server automatically handles connection lifecycle events. Messages received from clients are JSON-parsed and emitted as 'message' events. **Server Behavior:** - Tracks all connected clients in the sockets Set - Automatically removes clients when they disconnect - JSON-parses incoming messages and emits 'message' events - Emits 'connection' events when clients connect - Prevents starting multiple servers on the same instance **Socket File Management:** - Resolves the socket path relative to the container's working directory - Optionally removes existing socket files to prevent \"address in use\" errors - Throws error if socket file exists and removeLock is false",
         "parameters": {
@@ -3093,19 +3206,6 @@ export const introspectionData = [
     "description": "DiskCache helper",
     "shortcut": "features.diskCache",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "c": {
-            "type": "NodeContainer",
-            "description": "Parameter c"
-          }
-        },
-        "required": [
-          "c"
-        ],
-        "returns": "void"
-      },
       "saveFile": {
         "description": "Retrieve a file from the disk cache and save it to the local disk",
         "parameters": {
@@ -3415,19 +3515,6 @@ export const introspectionData = [
     "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
     "shortcut": "features.jsonTree",
     "methods": {
-      "attach": {
-        "description": "Attaches the JsonTree feature to a NodeContainer instance. Registers the feature in the container's feature registry for later use.",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & { jsonTree?: JsonTree }",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "loadTree": {
         "description": "Loads a tree of JSON files from the specified base path and stores them in state. This method recursively scans the provided directory for JSON files, processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Processing Steps:** 1. Uses FileManager to discover all .json files recursively 2. Reads each file's content using the file system feature 3. Parses JSON content using native JSON.parse() 4. Converts file paths to nested object properties 5. Stores the complete tree in feature state **Path Transformation:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes .json file extension **Example Transformation:** ``` config/ database/ production.json  -> tree.config.database.production staging.json     -> tree.config.database.staging api/ endpoints.json   -> tree.config.api.endpoints ```",
         "parameters": {
@@ -3838,212 +3925,10 @@ export const introspectionData = [
     "state": {}
   },
   {
-    "id": "features.ai",
-    "description": "AI helper",
-    "shortcut": "features.ai",
-    "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "container": {
-            "type": "Container & ClientsInterface",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "clients.openai",
-    "description": "OpenAIClient helper",
-    "shortcut": "clients.openai",
-    "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "container": {
-            "type": "Container & ClientsInterface",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "any"
-      },
-      "connect": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "createChatCompletion": {
-        "description": "",
-        "parameters": {
-          "messages": {
-            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-            "description": "Parameter messages"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "messages"
-        ],
-        "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>"
-      },
-      "createCompletion": {
-        "description": "",
-        "parameters": {
-          "prompt": {
-            "type": "string",
-            "description": "Parameter prompt"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<OpenAI.Completions.Completion>"
-      },
-      "createEmbedding": {
-        "description": "",
-        "parameters": {
-          "input": {
-            "type": "string | string[]",
-            "description": "Parameter input"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>"
-      },
-      "createImage": {
-        "description": "",
-        "parameters": {
-          "prompt": {
-            "type": "string",
-            "description": "Parameter prompt"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Images.ImageGenerateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<OpenAI.Images.ImagesResponse>"
-      },
-      "listModels": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<OpenAI.Models.ModelsPage>"
-      },
-      "ask": {
-        "description": "",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "Parameter question"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "returns": "Promise<string>"
-      },
-      "chat": {
-        "description": "",
-        "parameters": {
-          "messages": {
-            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-            "description": "Parameter messages"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "messages"
-        ],
-        "returns": "Promise<string>"
-      }
-    },
-    "events": {
-      "connected": {
-        "name": "connected",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "completion": {
-        "name": "completion",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "embedding": {
-        "name": "embedding",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "image": {
-        "name": "image",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "models": {
-        "name": "models",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      }
-    },
-    "state": {}
-  },
-  {
     "id": "servers.mcp",
     "description": "McpServer helper",
     "shortcut": "servers.mcp",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & ServersInterface",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "start": {
         "description": "",
         "parameters": {
@@ -4055,10 +3940,282 @@ export const introspectionData = [
         "required": [],
         "returns": "void"
       },
-      "configure": {
+      "log": {
         "description": "",
-        "parameters": {},
-        "required": [],
+        "parameters": {
+          "message": {
+            "type": "any",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "returns": "void"
+      },
+      "completion": {
+        "description": "",
+        "parameters": {
+          "ref": {
+            "type": "string",
+            "description": "Parameter ref"
+          },
+          "handler": {
+            "type": "(argName: string, argValue: string) => Promise<string[]>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "ref",
+          "handler"
+        ],
+        "returns": "void"
+      },
+      "handleListResources": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListResourcesRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ListResourcesResult>"
+      },
+      "handleListResourceTemplates": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListResourceTemplatesRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleReadResource": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ReadResourceRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ReadResourceResult>"
+      },
+      "handleSubscribe": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "SubscribeRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleUnsubscribe": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "UnsubscribeRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleListPrompts": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListPromptsRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ListPromptsResult>"
+      },
+      "handleGetPrompt": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "GetPromptRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleListTools": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListToolsRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleCallTool": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "CallToolRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<CallToolResult>"
+      },
+      "handleComplete": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "CompleteRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<CompleteResult>"
+      },
+      "handleSetLevel": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "SetLevelRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "tool": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "inputSchema": {
+            "type": "z.ZodObject<T>",
+            "description": "Parameter inputSchema"
+          },
+          "description": {
+            "type": "string",
+            "description": "Parameter description"
+          },
+          "handler": {
+            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "name",
+          "inputSchema",
+          "description",
+          "handler"
+        ],
+        "returns": "void"
+      },
+      "resource": {
+        "description": "",
+        "parameters": {
+          "uri": {
+            "type": "string",
+            "description": "Parameter uri"
+          },
+          "nameOrHandler": {
+            "type": "string | (() => Promise<Resource>)",
+            "description": "Parameter nameOrHandler"
+          },
+          "handler": {
+            "type": "() => Promise<Resource>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "uri",
+          "nameOrHandler"
+        ],
+        "returns": "void"
+      },
+      "resourceTemplate": {
+        "description": "",
+        "parameters": {
+          "uriTemplate": {
+            "type": "string",
+            "description": "Parameter uriTemplate"
+          },
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "descriptionOrHandler": {
+            "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
+            "description": "Parameter descriptionOrHandler"
+          },
+          "handler": {
+            "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "uriTemplate",
+          "name",
+          "descriptionOrHandler"
+        ],
+        "returns": "void"
+      },
+      "prompt": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Parameter description"
+          },
+          "schemaOrHandler": {
+            "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
+            "description": "Parameter schemaOrHandler"
+          },
+          "handler": {
+            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "schemaOrHandler"
+        ],
         "returns": "void"
       }
     },
@@ -4070,19 +4227,6 @@ export const introspectionData = [
     "description": "ExpressServer helper",
     "shortcut": "servers.express",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & ServersInterface",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "start": {
         "description": "",
         "parameters": {
@@ -4109,19 +4253,6 @@ export const introspectionData = [
     "description": "WebsocketServer helper",
     "shortcut": "servers.websocket",
     "methods": {
-      "attach": {
-        "description": "",
-        "parameters": {
-          "container": {
-            "type": "NodeContainer & ServersInterface",
-            "description": "Parameter container"
-          }
-        },
-        "required": [
-          "container"
-        ],
-        "returns": "void"
-      },
       "broadcast": {
         "description": "",
         "parameters": {

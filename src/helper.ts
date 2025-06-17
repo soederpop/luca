@@ -32,6 +32,8 @@ export interface HelperOptions {
 export abstract class Helper<T extends HelperState = HelperState, K extends HelperOptions = any> {
   static shortcut: string = "unspecified"
 
+  static description: string = "No description provided"
+
   protected readonly _context: ContainerContext
   protected readonly _events = new Bus()
   protected readonly _options: K 
@@ -44,6 +46,17 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return {} as T
   }
 
+  static introspect() : HelperIntrospection | undefined {
+    return introspect((this as any).shortcut || '')
+  }
+
+  static introspectAsText(startHeadingDepth: number = 1) : string {
+    const introspection = this.introspect()
+    if (!introspection) return ''
+    return presentIntrospectionJSONAsMarkdown(introspection, startHeadingDepth)
+  }
+
+
   /** 
    * All Helpers can be introspect()ed and, assuming the introspection data has been loaded into the registry,
    * will report information about the Helper that can only get extracted by reading the code, e.g. the type interfaces
@@ -51,7 +64,13 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * each of the methods and properties.
   */
   introspect() : HelperIntrospection | undefined {
-    return introspect((this.constructor as any).shortcut || '')
+    return (this.constructor as any).introspect()
+  }
+
+  introspectAsText(startHeadingDepth: number = 1) : string {
+    const introspection = this.introspect()
+    if (!introspection) return ''
+    return presentIntrospectionJSONAsMarkdown(introspection, startHeadingDepth)
   }
   
   constructor(options: K, context: ContainerContext) {
@@ -158,4 +177,92 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     const resp = await this._events.waitFor(event)
     return resp
   }
+}
+
+function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1) {
+  const sections: string[] = []
+  
+  // Helper function to generate heading markers based on depth
+  const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
+  
+  // Header
+  sections.push(`${heading(1)} ${introspection.id}\n\n${introspection.description}`)
+
+  // Methods section
+  if (introspection.methods && Object.keys(introspection.methods).length > 0) {
+    sections.push(`${heading(2)} Methods`)
+    
+    for (const [methodName, methodInfo] of Object.entries(introspection.methods)) {
+      sections.push(`${heading(3)} ${methodName}`)
+      
+      if (methodInfo.description) {
+        sections.push(methodInfo.description)
+      }
+      
+      // Parameters table
+      if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
+        sections.push(`**Parameters:**`)
+        sections.push(`| Name | Type | Required | Description |`)
+        sections.push(`|------|------|----------|-------------|`)
+        
+        for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
+          const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
+          const type = paramInfo.type || 'any'
+          const description = paramInfo.description || ''
+          sections.push(`| \`${paramName}\` | \`${type}\` | ${isRequired} | ${description} |`)
+        }
+      }
+      
+      // Return type
+      if (methodInfo.returns) {
+        sections.push(`**Returns:** \`${methodInfo.returns}\``)
+      }
+      
+      sections.push('') // Empty line between methods
+    }
+  }
+  
+  // Events section
+  if (introspection.events && Object.keys(introspection.events).length > 0) {
+    sections.push(`${heading(2)} Events`)
+    
+    for (const [eventName, eventInfo] of Object.entries(introspection.events)) {
+      sections.push(`${heading(3)} ${eventName}`)
+      
+      if (eventInfo.description) {
+        sections.push(eventInfo.description)
+      }
+      
+      // Event arguments if any
+      if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
+        sections.push(`**Event Arguments:**`)
+        sections.push(`| Name | Type | Description |`)
+        sections.push(`|------|------|-------------|`)
+        
+        for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
+          const type = argInfo.type || 'any'
+          const description = argInfo.description || ''
+          sections.push(`| \`${argName}\` | \`${type}\` | ${description} |`)
+        }
+      }
+      
+      sections.push('') // Empty line between events
+    }
+  }
+  
+  // State section
+  if (introspection.state && Object.keys(introspection.state).length > 0) {
+    sections.push(`${heading(2)} State`)
+    
+    sections.push(`| Property | Type | Description |`)
+    sections.push(`|----------|------|-------------|`)
+    
+    for (const [stateName, stateInfo] of Object.entries(introspection.state)) {
+      const type = stateInfo.type || 'any'
+      const description = stateInfo.description || ''
+      sections.push(`| \`${stateName}\` | \`${type}\` | ${description} |`)
+    }
+  }
+  
+  return sections.join('\n\n')
 }
