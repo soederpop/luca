@@ -17,6 +17,7 @@
     // Path mapping for absolute imports
     "baseUrl": ".",
     "paths": {
+      "@/identities/*": ["identities/*"],
       "@/*": ["src/*"],
       "@/web/*": ["src/web/*"],
       "@/node/*": ["src/node/*"]

@@ -20,7 +20,7 @@ export interface IntrospectionScannerOptions extends FeatureOptions {
 
 export class IntrospectionScannerFeature extends Feature<IntrospectionScannerState, IntrospectionScannerOptions> {
   static override shortcut = 'introspectionScanner';
-  static description = 'Scans TypeScript files for Helper classes and generates introspection data using AST analysis';
+  static override description = 'Scans TypeScript files for Helper classes and generates introspection data using AST analysis';
 
   override get initialState(): IntrospectionScannerState {
     return {
@@ -201,7 +201,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
             // For cases like "features.fs" as const, extract the string part
             const text = member.initializer.getText();
             const match = text.match(/^"([^"]+)"/);
-            if (match) {
+            if (match && match[1]) {
               return match[1];
             }
           }
@@ -223,6 +223,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       // Find the last JSDoc comment (the one immediately before the node)
       for (let i = ranges.length - 1; i >= 0; i--) {
         const range = ranges[i];
+        if (!range) continue;
         const commentText = fullText.substring(range.pos, range.end);
         
         // Check if it's a JSDoc comment (starts with /**)
@@ -308,6 +309,10 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
         if (isPrivate && !this.options.includePrivate) continue;
 
+        // Skip static methods (like attach)
+        const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+        if (isStatic) continue;
+
         const description = this.extractJSDocDescription(member) || '';
         const parameters = this.extractParameters(member);
         const required = this.extractRequiredParameters(member);
@@ -364,6 +369,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     const visit = (node: ts.Node) => {
       if (ts.isCallExpression(node) && 
           ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.expression &&
           node.expression.expression.kind === ts.SyntaxKind.ThisKeyword &&
           node.expression.name.text === 'emit') {
         

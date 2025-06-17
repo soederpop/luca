@@ -276,7 +276,7 @@ clients.register("graph", GraphClient);
 clients.register("websocket", WebSocketClient);
 
 // Register OpenAI client
-import("./ai/openai-client.js").then(({ OpenAIClient }) => {
+import("./agi/openai-client.js").then(({ OpenAIClient }) => {
   clients.register("openai", OpenAIClient);
 });
 
