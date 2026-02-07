@@ -1,7 +1,7 @@
 import { __INTROSPECTION__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2025-06-17T20:42:34.096Z
+// Generated at: 2026-02-07T07:26:50.984Z
 
 __INTROSPECTION__.set('features.yamlTree', {
   "id": "features.yamlTree",
@@ -237,7 +237,7 @@ __INTROSPECTION__.set('features.vm', {
       "required": [
         "code"
       ],
-      "returns": "void"
+      "returns": "Promise<T>"
     }
   },
   "events": {},
@@ -249,6 +249,19 @@ __INTROSPECTION__.set('features.ui', {
   "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
   "shortcut": "features.ui",
   "methods": {
+    "markdown": {
+      "description": "",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "void"
+    },
     "assignColor": {
       "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
       "parameters": {
@@ -276,6 +289,19 @@ __INTROSPECTION__.set('features.ui', {
       },
       "required": [
         "questions"
+      ],
+      "returns": "void"
+    },
+    "askQuestion": {
+      "description": "",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        }
+      },
+      "required": [
+        "question"
       ],
       "returns": "void"
     },
@@ -329,6 +355,19 @@ __INTROSPECTION__.set('features.ui', {
       "required": [
         "text",
         "options"
+      ],
+      "returns": "void"
+    },
+    "endent": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "any[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
       ],
       "returns": "void"
     },
@@ -592,6 +631,217 @@ __INTROSPECTION__.set('features.yaml', {
       "arguments": {}
     }
   },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.docker', {
+  "id": "features.docker",
+  "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
+  "shortcut": "features.docker",
+  "methods": {
+    "checkDockerAvailability": {
+      "description": "Check if Docker is available and working",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "listContainers": {
+      "description": "List all containers (running and stopped)",
+      "parameters": {
+        "options": {
+          "type": "{ all?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<DockerContainer[]>"
+    },
+    "listImages": {
+      "description": "List all images",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<DockerImage[]>"
+    },
+    "startContainer": {
+      "description": "Start a container",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Parameter containerIdOrName"
+        }
+      },
+      "required": [
+        "containerIdOrName"
+      ],
+      "returns": "Promise<void>"
+    },
+    "stopContainer": {
+      "description": "Stop a container",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Parameter containerIdOrName"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Parameter timeout"
+        }
+      },
+      "required": [
+        "containerIdOrName"
+      ],
+      "returns": "Promise<void>"
+    },
+    "removeContainer": {
+      "description": "Remove a container",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Parameter containerIdOrName"
+        },
+        "options": {
+          "type": "{ force?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "containerIdOrName"
+      ],
+      "returns": "Promise<void>"
+    },
+    "runContainer": {
+      "description": "Create and run a new container",
+      "parameters": {
+        "image": {
+          "type": "string",
+          "description": "Parameter image"
+        },
+        "options": {
+          "type": "{\n      name?: string\n      ports?: string[]\n      volumes?: string[]\n      environment?: Record<string, string>\n      detach?: boolean\n      interactive?: boolean\n      tty?: boolean\n      command?: string[]\n      workdir?: string\n      user?: string\n      entrypoint?: string\n      network?: string\n      restart?: string\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "returns": "Promise<string>"
+    },
+    "execCommand": {
+      "description": "Execute a command inside a running container",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Parameter containerIdOrName"
+        },
+        "command": {
+          "type": "string[]",
+          "description": "Parameter command"
+        },
+        "options": {
+          "type": "{\n      interactive?: boolean\n      tty?: boolean\n      user?: string\n      workdir?: string\n      detach?: boolean\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "containerIdOrName",
+        "command"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+    },
+    "pullImage": {
+      "description": "Pull an image from a registry",
+      "parameters": {
+        "image": {
+          "type": "string",
+          "description": "Parameter image"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "returns": "Promise<void>"
+    },
+    "removeImage": {
+      "description": "Remove an image",
+      "parameters": {
+        "imageIdOrName": {
+          "type": "string",
+          "description": "Parameter imageIdOrName"
+        },
+        "options": {
+          "type": "{ force?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "imageIdOrName"
+      ],
+      "returns": "Promise<void>"
+    },
+    "buildImage": {
+      "description": "Build an image from a Dockerfile",
+      "parameters": {
+        "contextPath": {
+          "type": "string",
+          "description": "Parameter contextPath"
+        },
+        "options": {
+          "type": "{\n      tag?: string\n      dockerfile?: string\n      buildArgs?: Record<string, string>\n      target?: string\n      nocache?: boolean\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "contextPath"
+      ],
+      "returns": "Promise<void>"
+    },
+    "getLogs": {
+      "description": "Get container logs",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Parameter containerIdOrName"
+        },
+        "options": {
+          "type": "{\n      follow?: boolean\n      tail?: number\n      since?: string\n      timestamps?: boolean\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "containerIdOrName"
+      ],
+      "returns": "Promise<string>"
+    },
+    "getSystemInfo": {
+      "description": "Get Docker system information",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "prune": {
+      "description": "Prune unused Docker resources",
+      "parameters": {
+        "options": {
+          "type": "{\n    containers?: boolean\n    images?: boolean\n    volumes?: boolean\n    networks?: boolean\n    all?: boolean\n    force?: boolean\n  }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "enable": {
+      "description": "Initialize the Docker feature",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "events": {},
   "state": {}
 });
 
@@ -1674,6 +1924,72 @@ __INTROSPECTION__.set('features.secureShell', {
   "state": {}
 });
 
+__INTROSPECTION__.set('features.runpod', {
+  "id": "features.runpod",
+  "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+  "shortcut": "features.runpod",
+  "methods": {
+    "createRemoteShell": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "getPodHttpURLs": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "listPods": {
+      "description": "",
+      "parameters": {
+        "detailed": {
+          "type": "any",
+          "description": "Parameter detailed"
+        }
+      },
+      "required": [],
+      "returns": "Promise<PodInfo[]>"
+    },
+    "getPodInfo": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "Promise<PodInfo>"
+    },
+    "listSecureGPUs": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
 __INTROSPECTION__.set('features.fileManager', {
   "id": "features.fileManager",
   "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
@@ -2399,7 +2715,7 @@ export const introspectionData = [
         "required": [
           "code"
         ],
-        "returns": "void"
+        "returns": "Promise<T>"
       }
     },
     "events": {},
@@ -2410,6 +2726,19 @@ export const introspectionData = [
     "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
     "shortcut": "features.ui",
     "methods": {
+      "markdown": {
+        "description": "",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "void"
+      },
       "assignColor": {
         "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
         "parameters": {
@@ -2437,6 +2766,19 @@ export const introspectionData = [
         },
         "required": [
           "questions"
+        ],
+        "returns": "void"
+      },
+      "askQuestion": {
+        "description": "",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          }
+        },
+        "required": [
+          "question"
         ],
         "returns": "void"
       },
@@ -2490,6 +2832,19 @@ export const introspectionData = [
         "required": [
           "text",
           "options"
+        ],
+        "returns": "void"
+      },
+      "endent": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "any[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
         ],
         "returns": "void"
       },
@@ -2749,6 +3104,216 @@ export const introspectionData = [
         "arguments": {}
       }
     },
+    "state": {}
+  },
+  {
+    "id": "features.docker",
+    "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
+    "shortcut": "features.docker",
+    "methods": {
+      "checkDockerAvailability": {
+        "description": "Check if Docker is available and working",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "listContainers": {
+        "description": "List all containers (running and stopped)",
+        "parameters": {
+          "options": {
+            "type": "{ all?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<DockerContainer[]>"
+      },
+      "listImages": {
+        "description": "List all images",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<DockerImage[]>"
+      },
+      "startContainer": {
+        "description": "Start a container",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Parameter containerIdOrName"
+          }
+        },
+        "required": [
+          "containerIdOrName"
+        ],
+        "returns": "Promise<void>"
+      },
+      "stopContainer": {
+        "description": "Stop a container",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Parameter containerIdOrName"
+          },
+          "timeout": {
+            "type": "number",
+            "description": "Parameter timeout"
+          }
+        },
+        "required": [
+          "containerIdOrName"
+        ],
+        "returns": "Promise<void>"
+      },
+      "removeContainer": {
+        "description": "Remove a container",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Parameter containerIdOrName"
+          },
+          "options": {
+            "type": "{ force?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "containerIdOrName"
+        ],
+        "returns": "Promise<void>"
+      },
+      "runContainer": {
+        "description": "Create and run a new container",
+        "parameters": {
+          "image": {
+            "type": "string",
+            "description": "Parameter image"
+          },
+          "options": {
+            "type": "{\n      name?: string\n      ports?: string[]\n      volumes?: string[]\n      environment?: Record<string, string>\n      detach?: boolean\n      interactive?: boolean\n      tty?: boolean\n      command?: string[]\n      workdir?: string\n      user?: string\n      entrypoint?: string\n      network?: string\n      restart?: string\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "returns": "Promise<string>"
+      },
+      "execCommand": {
+        "description": "Execute a command inside a running container",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Parameter containerIdOrName"
+          },
+          "command": {
+            "type": "string[]",
+            "description": "Parameter command"
+          },
+          "options": {
+            "type": "{\n      interactive?: boolean\n      tty?: boolean\n      user?: string\n      workdir?: string\n      detach?: boolean\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "containerIdOrName",
+          "command"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      },
+      "pullImage": {
+        "description": "Pull an image from a registry",
+        "parameters": {
+          "image": {
+            "type": "string",
+            "description": "Parameter image"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "returns": "Promise<void>"
+      },
+      "removeImage": {
+        "description": "Remove an image",
+        "parameters": {
+          "imageIdOrName": {
+            "type": "string",
+            "description": "Parameter imageIdOrName"
+          },
+          "options": {
+            "type": "{ force?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "imageIdOrName"
+        ],
+        "returns": "Promise<void>"
+      },
+      "buildImage": {
+        "description": "Build an image from a Dockerfile",
+        "parameters": {
+          "contextPath": {
+            "type": "string",
+            "description": "Parameter contextPath"
+          },
+          "options": {
+            "type": "{\n      tag?: string\n      dockerfile?: string\n      buildArgs?: Record<string, string>\n      target?: string\n      nocache?: boolean\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "contextPath"
+        ],
+        "returns": "Promise<void>"
+      },
+      "getLogs": {
+        "description": "Get container logs",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Parameter containerIdOrName"
+          },
+          "options": {
+            "type": "{\n      follow?: boolean\n      tail?: number\n      since?: string\n      timestamps?: boolean\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "containerIdOrName"
+        ],
+        "returns": "Promise<string>"
+      },
+      "getSystemInfo": {
+        "description": "Get Docker system information",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "prune": {
+        "description": "Prune unused Docker resources",
+        "parameters": {
+          "options": {
+            "type": "{\n    containers?: boolean\n    images?: boolean\n    volumes?: boolean\n    networks?: boolean\n    all?: boolean\n    force?: boolean\n  }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "enable": {
+        "description": "Initialize the Docker feature",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "events": {},
     "state": {}
   },
   {
@@ -3813,6 +4378,71 @@ export const introspectionData = [
           "target"
         ],
         "returns": "Promise<string>"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.runpod",
+    "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+    "shortcut": "features.runpod",
+    "methods": {
+      "createRemoteShell": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "getPodHttpURLs": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "listPods": {
+        "description": "",
+        "parameters": {
+          "detailed": {
+            "type": "any",
+            "description": "Parameter detailed"
+          }
+        },
+        "required": [],
+        "returns": "Promise<PodInfo[]>"
+      },
+      "getPodInfo": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "Promise<PodInfo>"
+      },
+      "listSecureGPUs": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       }
     },
     "events": {},

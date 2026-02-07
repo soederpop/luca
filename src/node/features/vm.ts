@@ -127,16 +127,11 @@ export class VM<
    * }
    * ```
    */
-  run(code: string, ctx: any = {}) {
+  async run<T extends any>(code: string, ctx: any = {}): Promise<T> {
     const script = this.createScript(code)
     const context = this.createContext(ctx)
-    
-    try {
-      return script.runInContext(context)
-    } catch(error) {
-      console.error(`Error running code`, error)
-      return error
-    }
+     
+    return (await script.runInContext(context)) as T
   }
 }
 

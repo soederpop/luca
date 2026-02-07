@@ -3,13 +3,13 @@ import {
   type FeatureState,
   type FeatureOptions,
   Feature,
-} from "../node/feature.js";
-// @ts-ignore-next-line
-import type { PuppeteerHar } from "puppeteer-har";
-import { Container } from "../container.js";
-import { devices } from "./devices.js";
+} from "../node/feature";
+import { Container } from "../container";
+import { devices } from "./devices";
 import { load } from 'cheerio'
 
+// @ts-ignore-next-line
+import type { PuppeteerHar } from "puppeteer-har";
 import type { connect, launch, Browser, HTTPRequest, HTTPResponse, Page } from "puppeteer";
 
 const DeviceDescriptors = devices;
@@ -379,3 +379,9 @@ export class Crawler extends Feature<FeatureState, CrawlerOptions> {
 
 // @ts-ignore-next-line
 export default features.register("crawler", Crawler);
+
+declare module '@/node' {
+  interface NodeFeatures {
+    crawler: typeof Crawler 
+  }
+}

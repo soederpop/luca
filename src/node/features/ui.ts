@@ -373,6 +373,14 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     return inquirer.createPromptModule()(questions, initialAnswers);
   }
 
+  askQuestion(question: string) {
+    return inquirer.createPromptModule()([{
+      type: 'input',
+      name: 'question',
+      message: question
+    }])
+  }
+
   /**
    * Opens text in the user's external editor for editing.
    * 

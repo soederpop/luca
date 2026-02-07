@@ -1,7 +1,7 @@
 import type { Container } from '@/container';
 import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
 import { features, Feature } from '@/feature'
-import { type DiskCache } from '@/node/container'
+import { NodeContainer, type DiskCache, type NodeFeatures } from '@/node/container'
 
 declare module '@/feature' {
 	interface AvailableFeatures {
@@ -22,8 +22,9 @@ export interface IdentityState extends FeatureState {
 }
 
 export interface IdentityOptions extends FeatureOptions {
-	memoryFilePath?: string;
-	systemPromptPath?: string;
+	basePath?: string;
+	name?: string;
+	description?: string;	
 }
 
 /** 
@@ -42,22 +43,43 @@ export class Identity extends Feature<IdentityState, IdentityOptions> {
 	override get initialState(): IdentityState {
 		return {
 			systemPrompt: '',
-			enabled: false,
+			enabled: true,
 			memories: []
 		}
 	}
 
-	toChatCompletionMessages() {
-		return [
-			{
-				role: 'system',
-				content: this.state.get('systemPrompt'),
-			},
-		]
+	generatePrompt() {
+		return this.state.get('systemPrompt') + '\n\n' + this.buildMemoryText(['biographical', 'procedural', 'longterm-goal', 'shortterm-goal', 'notes', 'capability'])
+	}
+
+	buildMemoryText(memoryTypes: Memory['type'][]) {
+		return this.state.get('memories')!.filter(m => memoryTypes.includes(m.type)).map(m => `
+			# ${m.type}
+			${m.content}
+		`).join('\n\n')
 	}
 
 	get diskCache() {
 		return this.container.feature('diskCache') as DiskCache
+	}
+
+	override get container() {
+		return super.container as NodeContainer<NodeFeatures, any>
+	}
+
+	async load() {
+		const systemPrompt = await this.container.fs.readFileAsync(
+			this.container.paths.resolve(this.options.basePath!, 'SYSTEM-PROMPT.md')
+		)
+
+		const memories = await this.container.fs.readJson(
+			this.container.paths.resolve(this.options.basePath!, 'memories.json')
+		)
+
+		this.state.set('systemPrompt', systemPrompt.toString())
+		this.state.set('memories', memories as any)
+
+		return this
 	}
 
 }

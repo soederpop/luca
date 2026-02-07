@@ -37,10 +37,12 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 * Validate that required options are provided
 	 */
 	private validateOptions(): void {
-		const { host, username } = this.options
+		const { host, username, key } = this.options
+		
 		if (!host) {
 			throw new Error('SecureShell feature requires "host" option')
 		}
+		
 		if (!username) {
 			throw new Error('SecureShell feature requires "username" option')
 		}
