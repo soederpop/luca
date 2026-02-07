@@ -131,7 +131,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     
     try {
       const response = await this.openai.completions.create({
-        model: options.model || 'gpt-4o-mini',
+        model: options.model || 'gpt-5',
         prompt,
         stream: false, // Ensure non-streaming response
         ...options

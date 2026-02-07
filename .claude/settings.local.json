@@ -6,7 +6,11 @@
       "WebFetch(domain:active-mdx.soederpop.com)",
       "Bash(claude:*)",
       "Bash(bun scripts/claude-code-harness.ts:*)",
-      "Bash(bun -e \"const p = Bun.spawn\\([''which'', ''claude''], { stdout: ''pipe'', stderr: ''pipe'' }\\); const t = await new Response\\(p.stdout\\).text\\(\\); const e = await new Response\\(p.stderr\\).text\\(\\); console.log\\(''stdout:'', t\\); console.log\\(''stderr:'', e\\); console.log\\(''exit:'', await p.exited\\)\")"
+      "Bash(bun -e \"const p = Bun.spawn\\([''which'', ''claude''], { stdout: ''pipe'', stderr: ''pipe'' }\\); const t = await new Response\\(p.stdout\\).text\\(\\); const e = await new Response\\(p.stderr\\).text\\(\\); console.log\\(''stdout:'', t\\); console.log\\(''stderr:'', e\\); console.log\\(''exit:'', await p.exited\\)\")",
+      "Bash(bun run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(bun build:*)",
+      "Bash(bun scripts/examples/using-conversations.ts:*)"
     ]
   }
 }

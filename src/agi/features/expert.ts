@@ -11,12 +11,14 @@ declare module '@/feature' {
 	}
 }
 
+export type Skills = Record<string, (...args: any[]) => Promise<any>>
+
 // 1. State interface
 export interface ExpertState extends FeatureState {
 	name: string
 	folder: string
 	started: boolean
-	messages: any[]	
+	messages: any[]
 }
 
 // 2. Options interface
@@ -39,7 +41,8 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 	static override shortcut = 'features.expert' as const
 
 	openai!: OpenAIClient
-	
+	skills: Skills = {}
+
 	static attach(container: Container<AvailableFeatures, any>) {
 		features.register('expert', Expert)
 		return container
@@ -67,12 +70,36 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 	async start() {
 		this.openai = (this.container as any).client('openai') as OpenAIClient
 		await this.identity.load()
+		await this.loadSkills()
 		this.state.set('started', true)
 		this.state.set('messages', [{
 			role: 'system',
 			content: this.identity.generatePrompt()
 		}])
 		return this
+	}
+
+	/**
+	 * Loads the skills.ts file from the expert's folder if it exists.
+	 * Skills are transformed from TypeScript/ESM to CJS and executed in the VM
+	 * with the container in scope, exposing exported async functions as this.skills.
+	 *
+	 * @returns {Promise<void>}
+	 */
+	async loadSkills() {
+		const c = this.container as any
+		const basePath = c.paths.resolve('experts', this.options.folder)
+		const skillsPath = c.paths.resolve(basePath, 'skills.ts')
+
+		if (!c.fs.exists(skillsPath)) return
+
+		const source = await c.fs.readFileAsync(skillsPath)
+		const transformed = await c.feature('esbuild').transform(source.toString(), { format: 'cjs' })
+
+		const mod = { exports: {} as Skills }
+		await c.feature('vm').run(transformed.code, { container: c, module: mod, exports: mod.exports })
+
+		this.skills = mod.exports
 	}
 
 	async ask(question: string) {
