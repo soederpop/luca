@@ -4,18 +4,22 @@ import { __INTROSPECTION__ } from '@/introspection'
 import '@/introspection/generated'
 
 import container from '@/identities/bootstrapper'
+import type OpenAIClient from '@/agi/openai-client'
 
 async function main() {
 	await container.start()
-	const chat = container.feature('helperChat', {
-		host: container.feature('proc')
-	})
+	const snippets = container.feature('snippets')
+	const containerChat = container.feature('containerChat')	
 
-	await chat.start()
+	const response = await containerChat.generateSnippet('I want a script which will display a tree of the directories in the projects file manager.', ['fileManager', 'ui'])
 
-	const response = await chat.ask('What is your purpose? What methods are available on the ui feature?')
+	const ui = await container.feature('ui').enable()
+	const fileManager = await container.feature('fileManager').enable()
+	const vm = container.feature('vm')
 
-	container.ui.print(container.ui.markdown(response))
+	const result = await vm.run(response, { fileManager, ui })
+
+	console.log(result)
 }
 
 main()

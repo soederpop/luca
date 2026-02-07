@@ -1,15 +1,15 @@
 import {
   Client,
-  ClientOptions,
-  ClientState,
-  ClientsInterface,
+  type ClientOptions,
+  type ClientState,
+  type ClientsInterface,
   RestClient,
-} from "../../client.js";
-import { Container, ContainerContext } from "../../container.js";
+} from "@/client";
+import { Container, type ContainerContext } from "@/container";
 import { isEmpty, maxBy, omitBy } from "lodash-es";
-import { NodeContainer } from "../../node/container.js";
+import { NodeContainer } from "@/node/container";
 
-declare module "../../client.js" {
+declare module "@/client" {
   interface AvailableClients {
     civitai: typeof CivitaiClient;
   }
@@ -20,10 +20,10 @@ export interface CivitaiClientState extends ClientState {
 }
 
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
+  // @ts-ignore
   static attach(container: Container & ClientsInterface, options?: any) {
-    container.use(Client);
-    // @ts-ignore-next-line
     container.clients.register("civitai", CivitaiClient);
+    return container
   }
 
   constructor(options: ClientOptions, context: ContainerContext) {
@@ -91,7 +91,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     return this.get(`/api/v1/models/${modelId}`);
   }
 
-  get container() {
+  override get container() {
     return this.context.container as NodeContainer;
   }
 

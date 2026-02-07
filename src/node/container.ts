@@ -1,63 +1,68 @@
 import url from 'node:url'
 
-import { Container, type ContainerState } from "../container.js";
-import { State } from "../state.js";
+import { Container, type ContainerState } from "../container";
+import { State } from "../state";
 import type { FeatureOptions } from "./feature.ts";
 import { features, Feature } from "./feature.ts";
-import type { AvailableFeatures } from "../feature.js";
-import { Client, type ClientsInterface } from "../client.js";
-import { Server, type ServersInterface } from "../server/index.js";
+import type { AvailableFeatures } from "../feature";
+import { Client, type ClientsInterface } from "../client";
+import { Server, type ServersInterface } from "../server/index";
 
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
 
-import "./features/disk-cache.js";
-import "./features/downloader.js";
-import "./features/esbuild.js";
-import "./features/file-manager.js";
-import "./features/fs.js";
-import "./features/git.js";
-import "./features/ipc-socket.js";
-import "./features/json-tree.js";
-import "./features/mdx-bundler.js";
-import "./features/networking.js";
-import "./features/os.js";
-import "./features/package-finder.js";
-import "./features/port-exposer.js";
-import "./features/python.js";
-import "./features/proc.js";
-import "./features/repl.js";
-import "./features/script-runner.js";
-import "./features/ui.js";
-import "./features/vault.js";
-import "./features/vm.js";
-import "./features/yaml-tree.js";
-import "./features/yaml.js";
+import "./features/disk-cache";
+import "./features/downloader";
+import "./features/esbuild";
+import "./features/file-manager";
+import "./features/fs";
+import "./features/git";
+import "./features/ipc-socket";
+import "./features/json-tree";
+import "./features/mdx-bundler";
+import "./features/networking";
+import "./features/os";
+import "./features/package-finder";
+import "./features/port-exposer";
+import "./features/python";
+import "./features/proc";
+import "./features/repl";
+import "./features/script-runner";
+import "./features/ui";
+import "./features/vault";
+import "./features/vm";
+import "./features/yaml-tree";
+import "./features/yaml";
+import "./features/docker";
+import "./features/runpod";
+import "./features/secure-shell";
 
-import type { ChildProcess } from "./features/proc.js";
-import type { DiskCache } from "./features/disk-cache.js";
-import type { Downloader } from "./features/downloader.js";
-import type { ESBuild } from "./features/esbuild.js";
-import type { FileManager } from "./features/file-manager.js";
-import type { FS } from "./features/fs.js";
-import type { Git } from "./features/git.js";
-import type { IpcSocket } from "./features/ipc-socket.js";
-import type { JsonTree } from "./features/json-tree.js";
-import type { MdxBundler } from "./features/mdx-bundler.js";
-import type { Networking } from "./features/networking.js";
-import type { OS } from "./features/os.js";
-import type { PackageFinder } from "./features/package-finder.js";
-import type { Python } from "./features/python.js";
-import type { Repl } from "./features/repl.js";
-import type { ScriptRunner } from "./features/script-runner.js";
-import type { UI } from "./features/ui.js";
-import type { Vault } from "./features/vault.js";
-import type { VM } from "./features/vm.js";
-import type { YAML } from "./features/yaml.js";
-import type { YamlTree } from "./features/yaml-tree.js";
-import type { PortExposer } from "./features/port-exposer.js";
-
+import type { ChildProcess } from "./features/proc";
+import type { DiskCache } from "./features/disk-cache";
+import type { Downloader } from "./features/downloader";
+import type { ESBuild } from "./features/esbuild";
+import type { FileManager } from "./features/file-manager";
+import type { FS } from "./features/fs";
+import type { Git } from "./features/git";
+import type { IpcSocket } from "./features/ipc-socket";
+import type { JsonTree } from "./features/json-tree";
+import type { MdxBundler } from "./features/mdx-bundler";
+import type { Networking } from "./features/networking";
+import type { OS } from "./features/os";
+import type { PackageFinder } from "./features/package-finder";
+import type { Python } from "./features/python";
+import type { Repl } from "./features/repl";
+import type { ScriptRunner } from "./features/script-runner";
+import type { UI } from "./features/ui";
+import type { Vault } from "./features/vault";
+import type { VM } from "./features/vm";
+import type { YAML } from "./features/yaml";
+import type { YamlTree } from "./features/yaml-tree";
+import type { PortExposer } from "./features/port-exposer";
+import type { Docker } from './features/docker.ts';
+import type { Runpod } from './features/runpod.ts';
+import type { SecureShell } from './features/secure-shell.ts';
 export { State };
 
 export {
@@ -75,7 +80,10 @@ export {
   type ScriptRunner,
   type MdxBundler,
   type Downloader,
-  type PortExposer
+  type PortExposer,
+  type Docker,
+  type Runpod,
+  type SecureShell
 };
 
 export type { FeatureOptions };
@@ -89,7 +97,7 @@ const argv = {
   ...mapKeys(omit(baseArgv, "_"), (_, key) => camelCase(kebabCase(key))),
 };
 
-declare module "../container.js" {
+declare module "../container" {
   interface ContainerArgv {
     cwd?: string;
     _?: string[];
@@ -103,6 +111,7 @@ export interface NodeFeatures extends AvailableFeatures {
   proc: typeof ChildProcess;
   git: typeof Git;
   os: typeof OS;
+  docker: typeof Docker;
   networking: typeof Networking;
   ui: typeof UI;
   vm: typeof VM;
@@ -120,6 +129,8 @@ export interface NodeFeatures extends AvailableFeatures {
   downloader: typeof Downloader;
   python: typeof Python;
   portExposer: typeof PortExposer;
+  runpod: typeof Runpod;
+  secureShell: typeof SecureShell;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface;
@@ -185,10 +196,10 @@ export class NodeContainer<
 
   get manifest() {
     try {
-      const packageJson = this.fs.findUp("package.json");
+      const packageJson = this.fs.findUp("packageon");
 
       if (!packageJson) {
-        throw new Error("No package.json found");
+        throw new Error("No packageon found");
       }
 
       const manifest = this.fs.readJson(packageJson);

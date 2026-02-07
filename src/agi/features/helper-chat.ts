@@ -86,6 +86,8 @@ export class HelperChat extends Feature<HelperChatState, HelperChatOptions> {
 
 		const response = await this.openai.createChatCompletion(this.state.get('messages')!)
 	
+		this.state.set('messages', [...this.state.get('messages')!, response.choices[0]!.message])
+		
 		return response.choices[0]!.message.content || ''
 	}
 

@@ -28,18 +28,18 @@ abstract class Registry<T extends Helper> {
   async discover(options: any) {}
 
   register(id: string, constructor: new (options: HelperOptions, context: ContainerContext) => T) {
-    this.members.set(id, constructor);
+    this.members.set(id.replace(`${this.scope}.`, ''), constructor);
     interceptRegistration(this, constructor)
     return constructor
   }
   
   has(id: string) {
-    return this.members.has(id)
+    return this.members.has(id) || this.members.has([this.scope, id].join('.'))
   }
 
   lookup(id: string) {
-    if (!this.members.has(id)) {
-      throw new Error(`No such member: ${id}`);
+    if (!this.members.has(id) && this.members.has([this.scope, id].join('.'))) {
+      id = [this.scope, id].join(".")
     }
 
     return this.members.get(id)!;
@@ -50,7 +50,7 @@ abstract class Registry<T extends Helper> {
   }
   
   get available() {
-    return Array.from(this.members.keys()) 
+    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, '')) 
   }
   
   emit(event: string, ...args: any[]) {

@@ -1,3 +1,7 @@
+/** 
+ * The purpose of this script is to generate metadata about the vrious components of LUCA
+ * and save them to a file that can be loaded at runtime to make this information available to the AGI
+*/
 import '../src/introspection/scan.js';
 import { NodeContainer } from '../src/node/container.js';
 
