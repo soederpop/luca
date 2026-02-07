@@ -6,6 +6,7 @@ import { HelperChat } from './features/helper-chat'
 import { ContainerChat } from './features/container-chat'
 import { Snippets } from './features/snippets'
 import { ClaudeCode } from './features/claude-code'
+import { Conversation } from './features/conversation'
 
 export class AGIContainer extends NodeContainer {
 	identity!: Identity
@@ -27,5 +28,6 @@ const container = new AGIContainer()
 	.use(ContainerChat)
 	.use(Snippets)
 	.use(ClaudeCode)
+	.use(Conversation)
 
 export default container

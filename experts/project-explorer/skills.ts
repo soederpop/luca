@@ -11,8 +11,3 @@ declare global {
 	}
 	const container: AGIContainer
 }
-
-export async function displayDirectoryTree(directory: string) {
-	const tree = await container.fs.walk(directory)
-	console.log(tree)
-}
