@@ -1,6 +1,8 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { dirname } from 'path';
 import { State } from '../../state.js';
-import { features, type FeatureState, Feature } from '../feature.js'
+import { features, Feature } from '../feature.js'
 
 type LsFilesOptions = {
     cached?: boolean;
@@ -14,9 +16,11 @@ type LsFilesOptions = {
     baseDir?: string;
 }
 
-interface GitState extends FeatureState {
-    repoRoot?: string;
-}
+const GitStateSchema = FeatureStateSchema.extend({
+    repoRoot: z.string().optional(),
+})
+
+type GitState = z.infer<typeof GitStateSchema>
 
 /**
  * The Git feature provides utilities for interacting with Git repositories.
@@ -41,6 +45,8 @@ interface GitState extends FeatureState {
  */
 export class Git extends Feature {
     static override shortcut = 'features.git' as const
+    static override stateSchema = GitStateSchema
+    static override optionsSchema = FeatureOptionsSchema
     override state: State<GitState> = new State()
 
     /**

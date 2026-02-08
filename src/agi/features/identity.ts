@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container';
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import { NodeContainer, type DiskCache, type NodeFeatures } from '@/node/container'
 
@@ -16,24 +18,29 @@ export interface Memory {
 	metadata?: Record<string, any>
 }
 
-export interface IdentityState extends FeatureState {
-	systemPrompt: string
-	memories: Memory[]
+export const IdentityStateSchema = FeatureStateSchema.extend({
+	systemPrompt: z.string(),
+	memories: z.array(z.any()),
 	/** Memories loaded from memories.json (read-only seed data) */
-	hardcodedMemories: Memory[]
-}
+	hardcodedMemories: z.array(z.any()),
+})
 
-export interface IdentityOptions extends FeatureOptions {
-	basePath?: string;
-	name?: string;
-	description?: string;	
-}
+export const IdentityOptionsSchema = FeatureOptionsSchema.extend({
+	basePath: z.string().optional(),
+	name: z.string().optional(),
+	description: z.string().optional(),
+})
+
+export type IdentityState = z.infer<typeof IdentityStateSchema>
+export type IdentityOptions = z.infer<typeof IdentityOptionsSchema>
 
 /** 
  * This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any
  * accumulated memories it stores over its lifetime.
 */
 export class Identity extends Feature<IdentityState, IdentityOptions> {
+	static override stateSchema = IdentityStateSchema
+	static override optionsSchema = IdentityOptionsSchema
 	static override shortcut = "features.identity" as const
 
 	static attach(container: Container<AvailableFeatures, any>) {

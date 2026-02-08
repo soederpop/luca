@@ -1,34 +1,40 @@
-import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from '../feature.js'
 
-export interface DockerContainer {
-  id: string
-  name: string
-  image: string
-  status: string
-  ports: string[]
-  created: string
-}
+export const DockerContainerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  image: z.string(),
+  status: z.string(),
+  ports: z.array(z.string()),
+  created: z.string(),
+})
+export type DockerContainer = z.infer<typeof DockerContainerSchema>
 
-export interface DockerImage {
-  id: string
-  repository: string
-  tag: string
-  size: string
-  created: string
-}
+export const DockerImageSchema = z.object({
+  id: z.string(),
+  repository: z.string(),
+  tag: z.string(),
+  size: z.string(),
+  created: z.string(),
+})
+export type DockerImage = z.infer<typeof DockerImageSchema>
 
-export interface DockerState extends FeatureState {
-  containers: DockerContainer[]
-  images: DockerImage[]
-  isDockerAvailable: boolean
-  lastError?: string
-}
+export const DockerStateSchema = FeatureStateSchema.extend({
+  containers: z.array(DockerContainerSchema),
+  images: z.array(DockerImageSchema),
+  isDockerAvailable: z.boolean(),
+  lastError: z.string().optional(),
+})
+export type DockerState = z.infer<typeof DockerStateSchema>
 
-export interface DockerOptions extends FeatureOptions {
-  dockerPath?: string // Path to docker executable
-  timeout?: number // Command timeout in ms
-  autoRefresh?: boolean // Auto refresh containers/images on operations
-}
+export const DockerOptionsSchema = FeatureOptionsSchema.extend({
+  dockerPath: z.string().optional(), // Path to docker executable
+  timeout: z.number().optional(), // Command timeout in ms
+  autoRefresh: z.boolean().optional(), // Auto refresh containers/images on operations
+})
+export type DockerOptions = z.infer<typeof DockerOptionsSchema>
 
 /**
  * Docker CLI interface feature for managing containers, images, and executing Docker commands.
@@ -41,6 +47,8 @@ export interface DockerOptions extends FeatureOptions {
  */
 export class Docker extends Feature<DockerState, DockerOptions> {
   static override shortcut = 'features.docker' as const
+  static override stateSchema = DockerStateSchema
+  static override optionsSchema = DockerOptionsSchema
 
   override get initialState(): DockerState {
     return {

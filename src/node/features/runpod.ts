@@ -1,8 +1,12 @@
-import { Feature, features, type FeatureOptions, type FeatureState } from '../feature'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from '../feature'
 
-export interface RunpodState extends FeatureState { }
+export const RunpodStateSchema = FeatureStateSchema.extend({})
+export type RunpodState = z.infer<typeof RunpodStateSchema>
 
-export interface RunpodOptions extends FeatureOptions { }
+export const RunpodOptionsSchema = FeatureOptionsSchema.extend({})
+export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>
 
 /**
  * Uses ssh to run commands, or scp to transfer files between a remote host. 
@@ -10,6 +14,8 @@ export interface RunpodOptions extends FeatureOptions { }
  */
 export class Runpod extends Feature<RunpodState, RunpodOptions> {
   static override shortcut = 'features.runpod' as const
+  static override stateSchema = RunpodStateSchema
+  static override optionsSchema = RunpodOptionsSchema
 
 	/**
 	 * Get the proc feature for executing shell commands

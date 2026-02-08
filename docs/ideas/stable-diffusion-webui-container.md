@@ -12,3 +12,8 @@ Stable Diffusion WebUi exposes an API.  Would be great to be able to silently st
 
 - To be able to generate stable diffusion images with Lora models from civitai
 - Use StableDiffusion generation as a way for the AGIContainer to express itself
+
+## Status
+
+Currently I've used claude code to create a script in the stable-diffusion-webui repo to generate an image from the CLI.
+

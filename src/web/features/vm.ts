@@ -1,14 +1,19 @@
 // @ts-nocheck
 //
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from '../shims/isomorphic-vm'
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { Feature, features } from "../feature.js";
 import { Container } from '../../container.js';
 
-export interface VMState extends FeatureState { }
+export const VMStateSchema = FeatureStateSchema.extend({})
 
-export interface VMOptions extends FeatureOptions {
-  context?: any
-}
+export const VMOptionsSchema = FeatureOptionsSchema.extend({
+  context: z.any().describe('VM context object').optional(),
+})
+
+export type VMState = z.infer<typeof VMStateSchema>
+export type VMOptions = z.infer<typeof VMOptionsSchema>
 
 export class VM<
   T extends VMState = VMState,
@@ -19,6 +24,8 @@ export class VM<
     container.features.register('vm', VM)    
   }
 
+  static override stateSchema = VMStateSchema
+  static override optionsSchema = VMOptionsSchema
   static override shortcut = "features.vm" as const
 
   createScript(code: string) {

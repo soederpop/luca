@@ -1,3 +1,6 @@
+import { z } from 'zod'
+import { describeZodShape } from '../schemas/base.js'
+
 /**
  * Inspection is a feature that is available to all containers, its purpose is to provide
  * runtime inspection of a particular helper's public API:
@@ -69,10 +72,10 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 	const key = helperConstructor.shortcut
 
 	if (__INTROSPECTION__.has(key)) {
-		return	
+		return
 	}
 
-	const introspection = {
+	const introspection: HelperIntrospection = {
 		id: key,
 		description: helperConstructor.description || '',
 		shortcut: helperConstructor.shortcut,
@@ -81,9 +84,14 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		state: {}
 	}
 
+	// Auto-populate state info from Zod schema if available
+	if (helperConstructor.stateSchema && helperConstructor.stateSchema instanceof z.ZodObject) {
+		introspection.state = describeZodShape(helperConstructor.stateSchema)
+	}
+
 	__INTROSPECTION__.set(key, introspection)
 
 	return introspection
-}	
+}
 
 	

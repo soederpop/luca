@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { State } from "../../state.js";
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { Feature, features } from "../feature.js";
 import { parse } from "path";
 import { statSync } from "fs";
 import micromatch from "micromatch";
@@ -16,16 +18,19 @@ type File = {
   size: number;
 };
 
-export interface FileManagerState extends FeatureState {
-  started?: boolean;
-  starting?: boolean;
-  watching?: boolean;
-  failed?: boolean;
-}
+export const FileManagerStateSchema = FeatureStateSchema.extend({
+  started: z.boolean().optional(),
+  starting: z.boolean().optional(),
+  watching: z.boolean().optional(),
+  failed: z.boolean().optional(),
+})
 
-export interface FileManagerOptions extends FeatureOptions {
-  exclude?: string | string[];
-}
+export const FileManagerOptionsSchema = FeatureOptionsSchema.extend({
+  exclude: z.union([z.string(), z.array(z.string())]).optional(),
+})
+
+export type FileManagerState = z.infer<typeof FileManagerStateSchema>
+export type FileManagerOptions = z.infer<typeof FileManagerOptionsSchema>
 
 /** 
  * The FileManager feature creates a database like index of all of the files in the project,
@@ -46,6 +51,8 @@ export class FileManager<
 > extends Feature<T, K> {
 
   static override shortcut = 'features.fileManager' as const
+  static override stateSchema = FileManagerStateSchema
+  static override optionsSchema = FileManagerOptionsSchema
   
   files: State<Record<string, File>> = new State<Record<string, File>>({
     initialState: {},

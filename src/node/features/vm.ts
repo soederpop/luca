@@ -1,11 +1,15 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { Feature, features } from "../feature.js";
 
-export interface VMState extends FeatureState { }
+export const VMStateSchema = FeatureStateSchema.extend({})
+export type VMState = z.infer<typeof VMStateSchema>
 
-export interface VMOptions extends FeatureOptions {
-  context?: any
-}
+export const VMOptionsSchema = FeatureOptionsSchema.extend({
+  context: z.any(),
+})
+export type VMOptions = z.infer<typeof VMOptionsSchema>
 
 /**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
@@ -37,6 +41,8 @@ export class VM<
   K extends VMOptions = VMOptions
 > extends Feature<T, K> {
   static override shortcut = "features.vm" as const
+  static override stateSchema = VMStateSchema
+  static override optionsSchema = VMOptionsSchema
 
   /**
    * Creates a new VM script from the provided code.

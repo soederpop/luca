@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container';
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { Identity } from './identity'
 import type { OpenAIClient } from '../openai-client';
@@ -13,21 +15,22 @@ declare module '@/feature' {
 
 export type Skills = Record<string, (...args: any[]) => Promise<any>>
 
-// 1. State interface
-export interface ExpertState extends FeatureState {
-	name: string
-	folder: string
-	started: boolean
-	messages: any[]
-}
+export const ExpertStateSchema = FeatureStateSchema.extend({
+	name: z.string(),
+	folder: z.string(),
+	started: z.boolean(),
+	messages: z.array(z.any()),
+})
 
-// 2. Options interface
-export interface ExpertOptions extends FeatureOptions {
+export const ExpertOptionsSchema = FeatureOptionsSchema.extend({
 	/** Name of this expert, used as an identifier */
-	name?: string
+	name: z.string().optional(),
 	/** Path to the expert's identity folder (e.g. experts/core) */
-	folder?: string
-}
+	folder: z.string().optional(),
+})
+
+export type ExpertState = z.infer<typeof ExpertStateSchema>
+export type ExpertOptions = z.infer<typeof ExpertOptionsSchema>
 
 /**
  * An Expert is a chat agent backed by an Identity loaded from a folder on disk.
@@ -38,6 +41,8 @@ export interface ExpertOptions extends FeatureOptions {
  * @extends Feature
  */
 export class Expert extends Feature<ExpertState, ExpertOptions> {
+	static override stateSchema = ExpertStateSchema
+	static override optionsSchema = ExpertOptionsSchema
 	static override shortcut = 'features.expert' as const
 
 	openai!: OpenAIClient

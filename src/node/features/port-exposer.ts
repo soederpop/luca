@@ -1,49 +1,53 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import * as ngrok from '@ngrok/ngrok'
-import { Feature, features, type FeatureOptions, type FeatureState } from '../../feature.js'
+import { Feature, features } from '../../feature.js'
 
 /**
- * State interface for the Port Exposer feature
+ * Zod schema for the Port Exposer feature state
  */
-export interface PortExposerState extends FeatureState {
+export const PortExposerStateSchema = FeatureStateSchema.extend({
 	/** Whether ngrok is currently connected */
-	connected: boolean
+	connected: z.boolean(),
 	/** The public URL provided by ngrok */
-	publicUrl?: string
+	publicUrl: z.string().optional(),
 	/** The local port being exposed */
-	localPort?: number
+	localPort: z.number().optional(),
 	/** Ngrok session information */
-	sessionInfo?: {
-		authToken?: string
-		region?: string
-		subdomain?: string
-	}
+	sessionInfo: z.object({
+		authToken: z.string().optional(),
+		region: z.string().optional(),
+		subdomain: z.string().optional(),
+	}).optional(),
 	/** Connection timestamp */
-	connectedAt?: Date
+	connectedAt: z.coerce.date().optional(),
 	/** Any error that occurred */
-	lastError?: string
-}
+	lastError: z.string().optional(),
+})
+export type PortExposerState = z.infer<typeof PortExposerStateSchema>
 
 /**
- * Options for configuring the Port Exposer feature
+ * Zod schema for Port Exposer feature options
  */
-export interface PortExposerOptions extends FeatureOptions {
+export const PortExposerOptionsSchema = FeatureOptionsSchema.extend({
 	/** Local port to expose */
-	port?: number
+	port: z.number().optional(),
 	/** Optional ngrok auth token for premium features */
-	authToken?: string
+	authToken: z.string().optional(),
 	/** Preferred region (us, eu, ap, au, sa, jp, in) */
-	region?: string
+	region: z.string().optional(),
 	/** Custom subdomain (requires paid plan) */
-	subdomain?: string
+	subdomain: z.string().optional(),
 	/** Domain to use (requires paid plan) */
-	domain?: string
+	domain: z.string().optional(),
 	/** Basic auth for the tunnel */
-	basicAuth?: string
+	basicAuth: z.string().optional(),
 	/** OAuth provider for authentication */
-	oauth?: string
+	oauth: z.string().optional(),
 	/** Additional ngrok configuration */
-	config?: any
-}
+	config: z.any(),
+})
+export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
 
 /**
  * Port Exposer Feature
@@ -75,6 +79,8 @@ export interface PortExposerOptions extends FeatureOptions {
  */
 export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	static override shortcut = 'portExposer' as const
+	static override stateSchema = PortExposerStateSchema
+	static override optionsSchema = PortExposerOptionsSchema
 
 	private ngrokListener?: ngrok.Listener
 

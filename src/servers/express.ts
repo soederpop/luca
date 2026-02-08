@@ -2,25 +2,30 @@ import type { NodeContainer } from '../node/container.js'
 import express from 'express'
 import type { Express } from 'express'
 import cors from 'cors'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState, type ServerOptions } from '../server/server.js';
+import { z } from 'zod'
+import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
+import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server/server.js';
 
 declare module '../server/index' {
   interface AvailableServers {
-    express: typeof ExpressServer 
+    express: typeof ExpressServer
   }
 }
 
-export interface ExpressServerOptions extends ServerOptions {
-  cors?: boolean;
-  static?: string;
-  create?: (app: Express, server: Server) => Express
-  beforeStart?: (options: StartOptions, server: Server) => Promise<any>
-}
+export const ExpressServerOptionsSchema = ServerOptionsSchema.extend({
+  cors: z.boolean().optional(),
+  static: z.string().optional(),
+  create: z.any().optional().describe('(app: Express, server: Server) => Express'),
+  beforeStart: z.any().optional().describe('(options: StartOptions, server: Server) => Promise<any>'),
+})
+export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>
 
 const defaultCreate = (app: Express, server: Server) => app
 
 export class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.express' as const
+    static override stateSchema = ServerStateSchema
+    static override optionsSchema = ExpressServerOptionsSchema
     
     static override attach(container: NodeContainer & ServersInterface) {
       return container

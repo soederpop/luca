@@ -1,5 +1,7 @@
 import type { NodeContainer } from '../node/container.js'
-import { type StartOptions, servers, Server, type ServersInterface, type ServerState, type ServerOptions } from '../server/server';
+import { z } from 'zod'
+import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
+import { type StartOptions, servers, Server, type ServersInterface, type ServerState } from '../server/server';
 import { WebSocketServer as BaseServer } from 'ws'
 
 declare module '../server/index' {
@@ -8,12 +10,16 @@ declare module '../server/index' {
   }
 }
 
-export interface SocketServerOptions extends ServerOptions {
-  json?: boolean;
-}
+export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
+  json: z.boolean().optional(),
+})
+export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
 
 export class WebsocketServer<T extends ServerState = ServerState, K extends SocketServerOptions = SocketServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.websocket' as const
+    static override stateSchema = ServerStateSchema
+    static override optionsSchema = SocketServerOptionsSchema
+
     static override attach(container: NodeContainer & ServersInterface) {
       return container
     }

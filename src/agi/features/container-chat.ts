@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container';
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { HelperIntrospection } from '@/introspection';
 import type { OpenAIClient } from '../openai-client';
@@ -7,18 +9,21 @@ import type OpenAI from 'openai';
 
 declare module '@/feature' {
 	interface AvailableFeatures {
-		ContainerChat: typeof ContainerChat 
+		ContainerChat: typeof ContainerChat
 	}
 }
 
-export interface ContainerChatOptions extends FeatureOptions { }
+export const ContainerChatOptionsSchema = FeatureOptionsSchema.extend({})
 
-export interface ContainerChatState extends FeatureState {
-	description: string;
-	started: boolean;
-	messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-	systemPrompt: string;
-}
+export const ContainerChatStateSchema = FeatureStateSchema.extend({
+	description: z.string(),
+	started: z.boolean(),
+	messages: z.array(z.any()),
+	systemPrompt: z.string(),
+})
+
+export type ContainerChatOptions = z.infer<typeof ContainerChatOptionsSchema>
+export type ContainerChatState = z.infer<typeof ContainerChatStateSchema>
 
 /** 
  * The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server 
@@ -27,6 +32,8 @@ export interface ContainerChatState extends FeatureState {
  * expose mechanisms to trigger capabilities that it offers.
 */
 export class ContainerChat extends Feature<ContainerChatState, ContainerChatOptions> {
+	static override stateSchema = ContainerChatStateSchema
+	static override optionsSchema = ContainerChatOptionsSchema
 	static override shortcut = "features.containerChat" as const
 
 	static attach(container: Container<AvailableFeatures, any>) {

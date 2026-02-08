@@ -1,17 +1,23 @@
-import { FeatureOptions, Feature, FeatureState, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, type FeatureState, features } from "../feature.js";
 import { Container } from "../container.js";
 import type * as esbuild from 'esbuild-wasm';
 
-export interface EsbuildWebOptions extends FeatureOptions {
-  transformOptions?: Partial<esbuild.TransformOptions>,
-  tsconfig?: string;
-}
+export const EsbuildWebOptionsSchema = FeatureOptionsSchema.extend({
+  transformOptions: z.any().describe('Partial<esbuild.TransformOptions>').optional(),
+  tsconfig: z.string().optional(),
+})
+
+export type EsbuildWebOptions = z.infer<typeof EsbuildWebOptionsSchema>
 
 export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
   static attach(container: Container & { assetLoader?: Esbuild}) {
     container.features.register("esbuild", Esbuild);
   }
 
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = EsbuildWebOptionsSchema
   static override shortcut = "features.esbuild" as const
   
   get assetLoader() {

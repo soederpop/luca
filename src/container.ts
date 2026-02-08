@@ -4,7 +4,7 @@ import { SetStateValue, State } from './state.js'
 import { AvailableFeatures, features, Feature, FeaturesRegistry } from './feature.js'
 import { Helper } from './helper.js'
 import uuid from 'node-uuid'
-import hashObject from 'object-hash'
+import hashObject from './hash-object'
 import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, uniq, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
 import { pluralize, singularize } from 'inflect'
 
@@ -105,7 +105,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   }
   
   utils = {
-    hashObject: (obj: any) => hashObject(obj, { ignoreUnknown: true }),
+    hashObject: (obj: any) => hashObject(obj),
     get stringUtils() { return stringUtils },
     uuid: () => v4(),
     lodash: {

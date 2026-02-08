@@ -1,6 +1,7 @@
 import { bundleMDX } from 'mdx-bundler'
 
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 type CompileOptions = {
   files?: Record<string, string>
@@ -38,6 +39,8 @@ type CompileOptions = {
  */
 export class MdxBundler extends Feature {
   static override shortcut = 'features.mdxBundler' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   
   /**
    * Compiles MDX source code into executable JavaScript.

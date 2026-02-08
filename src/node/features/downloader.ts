@@ -1,4 +1,5 @@
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import fetch from 'cross-fetch'
 import { writeFile } from 'fs/promises'
 
@@ -28,12 +29,14 @@ export class Downloader extends Feature {
   /**
    * The shortcut path for accessing this feature through the container.
    * Allows access via `container.features.downloader`.
-   * 
+   *
    * @static
    * @readonly
    * @type {string}
    */
   static override shortcut = 'features.downloader' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   
   /**
    * Downloads a file from a URL and saves it to the specified local path.

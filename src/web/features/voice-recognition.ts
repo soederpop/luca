@@ -1,16 +1,21 @@
-import { Feature, type FeatureOptions, type FeatureState, features } from "../../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from "../../feature.js";
 import { type WebFeatures, type Container, type ContainerContext } from '../container.js'
 
-export interface VoiceRecognitionOptions extends FeatureOptions {
-  language?: string;
-  continuous?: boolean;
-  autoListen?: boolean;
-}
+export const VoiceRecognitionOptionsSchema = FeatureOptionsSchema.extend({
+  language: z.string().optional(),
+  continuous: z.boolean().optional(),
+  autoListen: z.boolean().optional(),
+})
 
-export interface VoiceRecognitionState extends FeatureState {
-  listening: boolean;
-  transcript: string;
-}
+export const VoiceRecognitionStateSchema = FeatureStateSchema.extend({
+  listening: z.boolean(),
+  transcript: z.string(),
+})
+
+export type VoiceRecognitionOptions = z.infer<typeof VoiceRecognitionOptionsSchema>
+export type VoiceRecognitionState = z.infer<typeof VoiceRecognitionStateSchema>
 
 export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognitionState, K extends VoiceRecognitionOptions = VoiceRecognitionOptions> extends Feature<T, K> {
   // @ts-ignore-next-line
@@ -22,6 +27,8 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
     return container
   }
 
+  static override stateSchema = VoiceRecognitionStateSchema
+  static override optionsSchema = VoiceRecognitionOptionsSchema
   static override shortcut = "features.voice" as const
 
   constructor(options: K, context: ContainerContext) {

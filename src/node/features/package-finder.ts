@@ -1,4 +1,6 @@
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from "../feature.js";
 import { readdir, readFile } from 'fs/promises'
 import { resolve, join, basename } from 'path'
 import { mapValues, pickBy, uniqBy } from 'lodash-es'
@@ -17,27 +19,23 @@ type PackageIndex = {
 };
 
 /**
- * State interface for the PackageFinder feature.
+ * Zod schema for the PackageFinder feature state.
  * Tracks the initialization status of the package scanning process.
- * 
- * @interface PackageFinderState
- * @extends {FeatureState}
  */
-export interface PackageFinderState extends FeatureState {
+export const PackageFinderStateSchema = FeatureStateSchema.extend({
   /** Whether the package finder has been started and initial scan completed */
-  started?: boolean;
-}
+  started: z.boolean().optional(),
+})
+export type PackageFinderState = z.infer<typeof PackageFinderStateSchema>
 
 /**
- * Configuration options for the PackageFinder feature.
- * 
- * @interface PackageFinderOptions
- * @extends {FeatureOptions}
+ * Zod schema for the PackageFinder feature options.
  */
-export interface PackageFinderOptions extends FeatureOptions {
+export const PackageFinderOptionsSchema = FeatureOptionsSchema.extend({
   /** Optional configuration parameter (currently unused) */
-  option?: string
-}
+  option: z.string().optional(),
+})
+export type PackageFinderOptions = z.infer<typeof PackageFinderOptionsSchema>
 
 /**
  * Partial representation of a package.json manifest file.
@@ -116,6 +114,8 @@ export class PackageFinder<
 
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.packageFinder" as const
+  static override stateSchema = PackageFinderStateSchema
+  static override optionsSchema = PackageFinderOptionsSchema
 
   /** Internal package index mapping names to manifest arrays */
   packages: PackageIndex = {}

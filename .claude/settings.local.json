@@ -11,7 +11,14 @@
       "Bash(npx tsc:*)",
       "Bash(bun build:*)",
       "Bash(bun scripts/examples/using-conversations.ts:*)",
-      "Bash(bun install:*)"
+      "Bash(bun install:*)",
+      "Bash(curl:*)",
+      "Bash(bun --version:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(bunx --bun typescript tsc:*)",
+      "Bash(tsc:*)",
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(bunx --bun tsc@latest:*)"
     ]
   }
 }

@@ -1,25 +1,30 @@
-import { features, Feature, type FeatureOptions, type FeatureState } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { features, Feature } from "../feature.js";
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 
-export interface PythonState extends FeatureState {
-  pythonPath: string | null;
-  projectDir: string | null;
-  environmentType: 'uv' | 'conda' | 'venv' | 'system' | null;
-  isReady: boolean;
-  lastExecutedScript: string | null;
-}
+export const PythonStateSchema = FeatureStateSchema.extend({
+  pythonPath: z.string().nullable().default(null),
+  projectDir: z.string().nullable().default(null),
+  environmentType: z.enum(['uv', 'conda', 'venv', 'system']).nullable().default(null),
+  isReady: z.boolean().default(false),
+  lastExecutedScript: z.string().nullable().default(null),
+})
 
-export interface PythonOptions extends FeatureOptions {
+export const PythonOptionsSchema = FeatureOptionsSchema.extend({
   /** Directory containing the Python project */
-  dir?: string;
+  dir: z.string().optional(),
   /** Custom install command to override auto-detection */
-  installCommand?: string;
+  installCommand: z.string().optional(),
   /** Path to Python script that will populate locals/context */
-  contextScript?: string;
+  contextScript: z.string().optional(),
   /** Specific Python executable to use */
-  pythonPath?: string;
-}
+  pythonPath: z.string().optional(),
+})
+
+export type PythonState = z.infer<typeof PythonStateSchema>
+export type PythonOptions = z.infer<typeof PythonOptionsSchema>
 
 /**
  * The Python VM feature provides Python virtual machine capabilities for executing Python code.
@@ -52,6 +57,8 @@ export class Python<
   K extends PythonOptions = PythonOptions
 > extends Feature<T, K> {
   static override shortcut = "features.python" as const
+  static override stateSchema = PythonStateSchema
+  static override optionsSchema = PythonOptionsSchema
 
   override get initialState(): T {
     return {

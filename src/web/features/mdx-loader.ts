@@ -1,5 +1,6 @@
 import { getMDXComponent } from 'mdx-bundler/client'
 
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature'
 
 export class MdxLoader extends Feature {
@@ -7,6 +8,8 @@ export class MdxLoader extends Feature {
     container.features.register('mdxLoader', MdxLoader)
   }
 
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   static override shortcut = 'features.mdxLoader' as const
 
   load(source: string) {

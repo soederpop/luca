@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container';
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { OpenAIClient } from '../openai-client';
 import type OpenAI from 'openai';
@@ -18,33 +20,36 @@ export interface ConversationTool {
 	parameters: Record<string, any>
 }
 
-export interface ConversationOptions extends FeatureOptions {
+export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** A unique identifier for the conversation */
-	id?: string
+	id: z.string().optional(),
 	/** A unique identifier for threads, an arbitrary grouping mechanism */
-	thread?: string
+	thread: z.string().optional(),
 	/** Any available OpenAI model */
-	model?: string
+	model: z.string().optional(),
 	/** Initial message history to seed the conversation */
-	history?: Message[]
+	history: z.array(z.any()).optional(),
 	/** Tools the model can call during conversation */
-	tools?: Record<string, ConversationTool>
-}
+	tools: z.record(z.any()).optional(),
+})
 
-export interface ConversationState extends FeatureState {
-	id: string
-	thread: string
-	model: string
-	messages: Message[]
-	streaming: boolean
-	lastResponse: string
-	toolCalls: number
-	tokenUsage: {
-		prompt: number
-		completion: number
-		total: number
-	}
-}
+export const ConversationStateSchema = FeatureStateSchema.extend({
+	id: z.string(),
+	thread: z.string(),
+	model: z.string(),
+	messages: z.array(z.any()),
+	streaming: z.boolean(),
+	lastResponse: z.string(),
+	toolCalls: z.number(),
+	tokenUsage: z.object({
+		prompt: z.number(),
+		completion: z.number(),
+		total: z.number(),
+	}),
+})
+
+export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
+export type ConversationState = z.infer<typeof ConversationStateSchema>
 
 /**
  * A self-contained conversation with OpenAI that supports streaming,
@@ -53,6 +58,8 @@ export interface ConversationState extends FeatureState {
  * @extends Feature
  */
 export class Conversation extends Feature<ConversationState, ConversationOptions> {
+	static override stateSchema = ConversationStateSchema
+	static override optionsSchema = ConversationOptionsSchema
 	static override shortcut = 'features.conversation' as const
 
 	private get _tools(): Record<string, ConversationTool> {

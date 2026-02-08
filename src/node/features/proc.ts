@@ -1,4 +1,5 @@
 import { features, Feature } from "../feature.js";
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { execSync } from "child_process";
 import * as asyncProc from "child-process-promise";
 
@@ -43,6 +44,8 @@ interface SpawnOptions {
  */
 export class ChildProcess extends Feature {
   static override shortcut = "features.proc" as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
 
   /**
    * Executes a command string and captures its output asynchronously.

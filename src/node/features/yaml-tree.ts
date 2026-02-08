@@ -1,18 +1,15 @@
-import { Feature, type FeatureState, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema } from '../../schemas/base.js'
+import { Feature, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { camelCase, omit, set } from 'lodash-es'
 
 /**
- * State interface for the YamlTree feature.
- * Extends FeatureState and allows any additional string-keyed properties for tree data.
- * 
- * @interface YamlTreeState
- * @extends {FeatureState}
+ * Zod schema for the YamlTree feature state.
+ * Extends FeatureStateSchema and allows any additional string-keyed properties for tree data.
  */
-export interface YamlTreeState extends FeatureState {
-  /** Dynamic tree data stored as key-value pairs */
-  [k: string] : any
-}
+export const YamlTreeStateSchema = FeatureStateSchema.extend({}).catchall(z.any())
+export type YamlTreeState = z.infer<typeof YamlTreeStateSchema>
 
 /**
  * YamlTree Feature - A powerful YAML file tree loader and processor
@@ -41,6 +38,7 @@ export interface YamlTreeState extends FeatureState {
 export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.yamlTree" as const
+  static override stateSchema = YamlTreeStateSchema
 
   /**
    * Attaches the YamlTree feature to a NodeContainer instance.

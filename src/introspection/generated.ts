@@ -1,7 +1,7 @@
 import { __INTROSPECTION__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-07T07:26:50.984Z
+// Generated at: 2026-02-08T08:10:15.087Z
 
 __INTROSPECTION__.set('features.yamlTree', {
   "id": "features.yamlTree",
@@ -2097,6 +2097,567 @@ __INTROSPECTION__.set('features.fileManager', {
   "state": {}
 });
 
+__INTROSPECTION__.set('features.expert', {
+  "id": "features.expert",
+  "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
+  "shortcut": "features.expert",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "loadSkills": {
+      "description": "Loads the skills.ts file from the expert's folder if it exists. Skills are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope, exposing exported async functions as this.skills.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "ask": {
+      "description": "",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.conversation', {
+  "id": "features.conversation",
+  "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
+  "shortcut": "features.conversation",
+  "methods": {
+    "ask": {
+      "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
+      "parameters": {
+        "content": {
+          "type": "string",
+          "description": "The user message"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "events": {
+    "userMessage": {
+      "name": "userMessage",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "streamStart": {
+      "name": "streamStart",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "chunk": {
+      "name": "chunk",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "streamEnd": {
+      "name": "streamEnd",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolCallsStart": {
+      "name": "toolCallsStart",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolResult": {
+      "name": "toolResult",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "toolCallsEnd": {
+      "name": "toolCallsEnd",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "response": {
+      "name": "response",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.containerChat', {
+  "id": "features.containerChat",
+  "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
+  "shortcut": "features.containerChat",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "buildFeatureDocumentation": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "generateSnippet": {
+      "description": "",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        },
+        "usingFeatures": {
+          "type": "string[]",
+          "description": "Parameter usingFeatures"
+        }
+      },
+      "required": [
+        "question",
+        "usingFeatures"
+      ],
+      "returns": "void"
+    },
+    "ask": {
+      "description": "",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.claudeCode', {
+  "id": "features.claudeCode",
+  "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
+  "shortcut": "features.claudeCode",
+  "methods": {
+    "checkAvailability": {
+      "description": "Check if the Claude CLI is available and capture its version.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "run": {
+      "description": "Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON events, and resolves when the session completes.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "The instruction/prompt to send"
+        },
+        "options": {
+          "type": "RunOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<ClaudeSession>"
+    },
+    "start": {
+      "description": "Run a prompt without waiting for completion. Returns the session ID immediately so you can subscribe to events.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "The instruction/prompt to send"
+        },
+        "options": {
+          "type": "RunOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "string"
+    },
+    "abort": {
+      "description": "Kill a running session's subprocess.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The local session ID to abort"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get a session by its local ID.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The local session ID"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "ClaudeSession | undefined"
+    },
+    "waitForSession": {
+      "description": "Wait for a running session to complete.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "The local session ID"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "returns": "Promise<ClaudeSession>"
+    },
+    "enable": {
+      "description": "Initialize the feature.",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "events": {
+    "session:event": {
+      "name": "session:event",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:init": {
+      "name": "session:init",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:delta": {
+      "name": "session:delta",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:stream": {
+      "name": "session:stream",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:message": {
+      "name": "session:message",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:result": {
+      "name": "session:result",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:start": {
+      "name": "session:start",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:parse-error": {
+      "name": "session:parse-error",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:error": {
+      "name": "session:error",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
+    "session:abort": {
+      "name": "session:abort",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.helperChat', {
+  "id": "features.helperChat",
+  "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
+  "shortcut": "features.helperChat",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "ask": {
+      "description": "",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.snippets', {
+  "id": "features.snippets",
+  "description": "Snippets helper",
+  "shortcut": "features.snippets",
+  "methods": {
+    "addSnippet": {
+      "description": "",
+      "parameters": {
+        "snippet": {
+          "type": "Omit<Snippet, 'id' | 'createdAt' | 'updatedAt'>",
+          "description": "Parameter snippet"
+        }
+      },
+      "required": [
+        "snippet"
+      ],
+      "returns": "Promise<string>"
+    },
+    "getSnippet": {
+      "description": "",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "Snippet | undefined"
+    },
+    "updateSnippet": {
+      "description": "",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        },
+        "updates": {
+          "type": "Partial<Omit<Snippet, 'id' | 'createdAt'>>",
+          "description": "Parameter updates"
+        }
+      },
+      "required": [
+        "id",
+        "updates"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "removeSnippet": {
+      "description": "",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "searchSnippets": {
+      "description": "",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{\n    searchFields?: ('title' | 'content' | 'description' | 'tags')[]\n    category?: string\n    language?: string\n  }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Snippet[]"
+    },
+    "getSnippetsByCategory": {
+      "description": "",
+      "parameters": {
+        "category": {
+          "type": "string",
+          "description": "Parameter category"
+        }
+      },
+      "required": [
+        "category"
+      ],
+      "returns": "Snippet[]"
+    },
+    "getCategories": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "string[]"
+    },
+    "save": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "load": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "events": {
+    "snippetAdded": {
+      "name": "snippetAdded",
+      "description": "Event emitted by Snippets",
+      "arguments": {}
+    },
+    "snippetUpdated": {
+      "name": "snippetUpdated",
+      "description": "Event emitted by Snippets",
+      "arguments": {}
+    },
+    "snippetRemoved": {
+      "name": "snippetRemoved",
+      "description": "Event emitted by Snippets",
+      "arguments": {}
+    },
+    "save": {
+      "name": "save",
+      "description": "Event emitted by Snippets",
+      "arguments": {}
+    },
+    "load": {
+      "name": "load",
+      "description": "Event emitted by Snippets",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.identity', {
+  "id": "features.identity",
+  "description": "This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any accumulated memories it stores over its lifetime.",
+  "shortcut": "features.identity",
+  "methods": {
+    "generatePrompt": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "buildMemoryText": {
+      "description": "",
+      "parameters": {
+        "memoryTypes": {
+          "type": "Memory['type'][]",
+          "description": "Parameter memoryTypes"
+        }
+      },
+      "required": [
+        "memoryTypes"
+      ],
+      "returns": "void"
+    },
+    "load": {
+      "description": "Load the identity from disk. Reads the system prompt and hardcoded memories from the basePath, then loads any saved memories from diskCache and merges them together.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "loadSavedMemories": {
+      "description": "Load saved memories from diskCache.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Memory[]>"
+    },
+    "remember": {
+      "description": "Save a new memory. Persists to diskCache and updates state.",
+      "parameters": {
+        "memory": {
+          "type": "Memory",
+          "description": "The memory to save"
+        }
+      },
+      "required": [
+        "memory"
+      ],
+      "returns": "Promise<Memory[]>"
+    },
+    "forget": {
+      "description": "Remove memories that match a predicate. Only affects saved memories (not hardcoded ones). Persists the change to diskCache and updates state.",
+      "parameters": {
+        "predicate": {
+          "type": "(memory: Memory) => boolean",
+          "description": "Function that returns true for memories to remove"
+        }
+      },
+      "required": [
+        "predicate"
+      ],
+      "returns": "Promise<Memory[]>"
+    },
+    "recall": {
+      "description": "Recall memories, optionally filtered by type.",
+      "parameters": {
+        "type": {
+          "type": "Memory['type']",
+          "description": "Parameter type"
+        }
+      },
+      "required": [],
+      "returns": "Memory[]"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
 __INTROSPECTION__.set('servers.mcp', {
   "id": "servers.mcp",
   "description": "McpServer helper",
@@ -2483,6 +3044,354 @@ __INTROSPECTION__.set('servers.websocket', {
       "arguments": {}
     }
   },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.esbuild', {
+  "id": "features.esbuild",
+  "description": "Esbuild helper",
+  "shortcut": "features.esbuild",
+  "methods": {
+    "compile": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "options": {
+          "type": "esbuild.TransformOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "void"
+    },
+    "clearCache": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.voice', {
+  "id": "features.voice",
+  "description": "VoiceRecognition helper",
+  "shortcut": "features.voice",
+  "methods": {
+    "whenFinished": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "abort": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "clearTranscript": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {
+    "start": {
+      "name": "start",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    },
+    "stop": {
+      "name": "stop",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    },
+    "abort": {
+      "name": "abort",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.vm', {
+  "id": "features.vm",
+  "description": "VM helper",
+  "shortcut": "features.vm",
+  "methods": {
+    "createScript": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "void"
+    },
+    "createContext": {
+      "description": "",
+      "parameters": {
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "run": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.assetLoader', {
+  "id": "features.assetLoader",
+  "description": "AssetLoader helper",
+  "shortcut": "features.assetLoader",
+  "methods": {
+    "removeStylesheet": {
+      "description": "",
+      "parameters": {
+        "href": {
+          "type": "string",
+          "description": "Parameter href"
+        }
+      },
+      "required": [
+        "href"
+      ],
+      "returns": "void"
+    },
+    "loadScript": {
+      "description": "",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Parameter url"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<void>"
+    },
+    "unpkg": {
+      "description": "",
+      "parameters": {
+        "packageName": {
+          "type": "string",
+          "description": "Parameter packageName"
+        },
+        "globalName": {
+          "type": "string",
+          "description": "Parameter globalName"
+        }
+      },
+      "required": [
+        "packageName",
+        "globalName"
+      ],
+      "returns": "Promise<any>"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.vault', {
+  "id": "features.vault",
+  "description": "WebVault helper",
+  "shortcut": "features.vault",
+  "methods": {
+    "secret": {
+      "description": "",
+      "parameters": {
+        "{ refresh = false, set = true }": {
+          "type": "any",
+          "description": "Parameter { refresh = false, set = true }"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ArrayBuffer>"
+    },
+    "decrypt": {
+      "description": "",
+      "parameters": {
+        "payload": {
+          "type": "string",
+          "description": "Parameter payload"
+        }
+      },
+      "required": [
+        "payload"
+      ],
+      "returns": "void"
+    },
+    "encrypt": {
+      "description": "",
+      "parameters": {
+        "payload": {
+          "type": "string",
+          "description": "Parameter payload"
+        }
+      },
+      "required": [
+        "payload"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.network', {
+  "id": "features.network",
+  "description": "Network helper",
+  "shortcut": "features.network",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disable": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.speech', {
+  "id": "features.speech",
+  "description": "Speech helper",
+  "shortcut": "features.speech",
+  "methods": {
+    "loadVoices": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "setDefaultVoice": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "cancel": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "say": {
+      "description": "",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "options": {
+          "type": "{ voice?: Voice }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('features.mdxLoader', {
+  "id": "features.mdxLoader",
+  "description": "MdxLoader helper",
+  "shortcut": "features.mdxLoader",
+  "methods": {
+    "load": {
+      "description": "",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Parameter source"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
   "state": {}
 });
 export const introspectionData = [
@@ -4555,6 +5464,560 @@ export const introspectionData = [
     "state": {}
   },
   {
+    "id": "features.expert",
+    "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
+    "shortcut": "features.expert",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "loadSkills": {
+        "description": "Loads the skills.ts file from the expert's folder if it exists. Skills are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope, exposing exported async functions as this.skills.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "ask": {
+        "description": "",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.conversation",
+    "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
+    "shortcut": "features.conversation",
+    "methods": {
+      "ask": {
+        "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
+        "parameters": {
+          "content": {
+            "type": "string",
+            "description": "The user message"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "events": {
+      "userMessage": {
+        "name": "userMessage",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "streamStart": {
+        "name": "streamStart",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "chunk": {
+        "name": "chunk",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "streamEnd": {
+        "name": "streamEnd",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolCallsStart": {
+        "name": "toolCallsStart",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolResult": {
+        "name": "toolResult",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "toolCallsEnd": {
+        "name": "toolCallsEnd",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "response": {
+        "name": "response",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
+    "id": "features.containerChat",
+    "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
+    "shortcut": "features.containerChat",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "buildFeatureDocumentation": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "generateSnippet": {
+        "description": "",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          },
+          "usingFeatures": {
+            "type": "string[]",
+            "description": "Parameter usingFeatures"
+          }
+        },
+        "required": [
+          "question",
+          "usingFeatures"
+        ],
+        "returns": "void"
+      },
+      "ask": {
+        "description": "",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.claudeCode",
+    "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
+    "shortcut": "features.claudeCode",
+    "methods": {
+      "checkAvailability": {
+        "description": "Check if the Claude CLI is available and capture its version.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "run": {
+        "description": "Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON events, and resolves when the session completes.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The instruction/prompt to send"
+          },
+          "options": {
+            "type": "RunOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<ClaudeSession>"
+      },
+      "start": {
+        "description": "Run a prompt without waiting for completion. Returns the session ID immediately so you can subscribe to events.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The instruction/prompt to send"
+          },
+          "options": {
+            "type": "RunOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "string"
+      },
+      "abort": {
+        "description": "Kill a running session's subprocess.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The local session ID to abort"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get a session by its local ID.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The local session ID"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "ClaudeSession | undefined"
+      },
+      "waitForSession": {
+        "description": "Wait for a running session to complete.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "The local session ID"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "returns": "Promise<ClaudeSession>"
+      },
+      "enable": {
+        "description": "Initialize the feature.",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "events": {
+      "session:event": {
+        "name": "session:event",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:init": {
+        "name": "session:init",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:delta": {
+        "name": "session:delta",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:stream": {
+        "name": "session:stream",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:message": {
+        "name": "session:message",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:result": {
+        "name": "session:result",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:start": {
+        "name": "session:start",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:parse-error": {
+        "name": "session:parse-error",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:error": {
+        "name": "session:error",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
+      "session:abort": {
+        "name": "session:abort",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
+    "id": "features.helperChat",
+    "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
+    "shortcut": "features.helperChat",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "ask": {
+        "description": "",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.snippets",
+    "description": "Snippets helper",
+    "shortcut": "features.snippets",
+    "methods": {
+      "addSnippet": {
+        "description": "",
+        "parameters": {
+          "snippet": {
+            "type": "Omit<Snippet, 'id' | 'createdAt' | 'updatedAt'>",
+            "description": "Parameter snippet"
+          }
+        },
+        "required": [
+          "snippet"
+        ],
+        "returns": "Promise<string>"
+      },
+      "getSnippet": {
+        "description": "",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "Snippet | undefined"
+      },
+      "updateSnippet": {
+        "description": "",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          },
+          "updates": {
+            "type": "Partial<Omit<Snippet, 'id' | 'createdAt'>>",
+            "description": "Parameter updates"
+          }
+        },
+        "required": [
+          "id",
+          "updates"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "removeSnippet": {
+        "description": "",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "searchSnippets": {
+        "description": "",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{\n    searchFields?: ('title' | 'content' | 'description' | 'tags')[]\n    category?: string\n    language?: string\n  }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Snippet[]"
+      },
+      "getSnippetsByCategory": {
+        "description": "",
+        "parameters": {
+          "category": {
+            "type": "string",
+            "description": "Parameter category"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "returns": "Snippet[]"
+      },
+      "getCategories": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "string[]"
+      },
+      "save": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "load": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "events": {
+      "snippetAdded": {
+        "name": "snippetAdded",
+        "description": "Event emitted by Snippets",
+        "arguments": {}
+      },
+      "snippetUpdated": {
+        "name": "snippetUpdated",
+        "description": "Event emitted by Snippets",
+        "arguments": {}
+      },
+      "snippetRemoved": {
+        "name": "snippetRemoved",
+        "description": "Event emitted by Snippets",
+        "arguments": {}
+      },
+      "save": {
+        "name": "save",
+        "description": "Event emitted by Snippets",
+        "arguments": {}
+      },
+      "load": {
+        "name": "load",
+        "description": "Event emitted by Snippets",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
+    "id": "features.identity",
+    "description": "This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any accumulated memories it stores over its lifetime.",
+    "shortcut": "features.identity",
+    "methods": {
+      "generatePrompt": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "buildMemoryText": {
+        "description": "",
+        "parameters": {
+          "memoryTypes": {
+            "type": "Memory['type'][]",
+            "description": "Parameter memoryTypes"
+          }
+        },
+        "required": [
+          "memoryTypes"
+        ],
+        "returns": "void"
+      },
+      "load": {
+        "description": "Load the identity from disk. Reads the system prompt and hardcoded memories from the basePath, then loads any saved memories from diskCache and merges them together.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "loadSavedMemories": {
+        "description": "Load saved memories from diskCache.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Memory[]>"
+      },
+      "remember": {
+        "description": "Save a new memory. Persists to diskCache and updates state.",
+        "parameters": {
+          "memory": {
+            "type": "Memory",
+            "description": "The memory to save"
+          }
+        },
+        "required": [
+          "memory"
+        ],
+        "returns": "Promise<Memory[]>"
+      },
+      "forget": {
+        "description": "Remove memories that match a predicate. Only affects saved memories (not hardcoded ones). Persists the change to diskCache and updates state.",
+        "parameters": {
+          "predicate": {
+            "type": "(memory: Memory) => boolean",
+            "description": "Function that returns true for memories to remove"
+          }
+        },
+        "required": [
+          "predicate"
+        ],
+        "returns": "Promise<Memory[]>"
+      },
+      "recall": {
+        "description": "Recall memories, optionally filtered by type.",
+        "parameters": {
+          "type": {
+            "type": "Memory['type']",
+            "description": "Parameter type"
+          }
+        },
+        "required": [],
+        "returns": "Memory[]"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
     "id": "servers.mcp",
     "description": "McpServer helper",
     "shortcut": "servers.mcp",
@@ -4938,6 +6401,346 @@ export const introspectionData = [
         "arguments": {}
       }
     },
+    "state": {}
+  },
+  {
+    "id": "features.esbuild",
+    "description": "Esbuild helper",
+    "shortcut": "features.esbuild",
+    "methods": {
+      "compile": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "options": {
+            "type": "esbuild.TransformOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "void"
+      },
+      "clearCache": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.voice",
+    "description": "VoiceRecognition helper",
+    "shortcut": "features.voice",
+    "methods": {
+      "whenFinished": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "abort": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "clearTranscript": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {
+      "start": {
+        "name": "start",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      },
+      "stop": {
+        "name": "stop",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      },
+      "abort": {
+        "name": "abort",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
+    "id": "features.vm",
+    "description": "VM helper",
+    "shortcut": "features.vm",
+    "methods": {
+      "createScript": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "void"
+      },
+      "createContext": {
+        "description": "",
+        "parameters": {
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "run": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.assetLoader",
+    "description": "AssetLoader helper",
+    "shortcut": "features.assetLoader",
+    "methods": {
+      "removeStylesheet": {
+        "description": "",
+        "parameters": {
+          "href": {
+            "type": "string",
+            "description": "Parameter href"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "returns": "void"
+      },
+      "loadScript": {
+        "description": "",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Parameter url"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<void>"
+      },
+      "unpkg": {
+        "description": "",
+        "parameters": {
+          "packageName": {
+            "type": "string",
+            "description": "Parameter packageName"
+          },
+          "globalName": {
+            "type": "string",
+            "description": "Parameter globalName"
+          }
+        },
+        "required": [
+          "packageName",
+          "globalName"
+        ],
+        "returns": "Promise<any>"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.vault",
+    "description": "WebVault helper",
+    "shortcut": "features.vault",
+    "methods": {
+      "secret": {
+        "description": "",
+        "parameters": {
+          "{ refresh = false, set = true }": {
+            "type": "any",
+            "description": "Parameter { refresh = false, set = true }"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ArrayBuffer>"
+      },
+      "decrypt": {
+        "description": "",
+        "parameters": {
+          "payload": {
+            "type": "string",
+            "description": "Parameter payload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "returns": "void"
+      },
+      "encrypt": {
+        "description": "",
+        "parameters": {
+          "payload": {
+            "type": "string",
+            "description": "Parameter payload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.network",
+    "description": "Network helper",
+    "shortcut": "features.network",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disable": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.speech",
+    "description": "Speech helper",
+    "shortcut": "features.speech",
+    "methods": {
+      "loadVoices": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "setDefaultVoice": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "cancel": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "say": {
+        "description": "",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "options": {
+            "type": "{ voice?: Voice }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "features.mdxLoader",
+    "description": "MdxLoader helper",
+    "shortcut": "features.mdxLoader",
+    "methods": {
+      "load": {
+        "description": "",
+        "parameters": {
+          "source": {
+            "type": "string",
+            "description": "Parameter source"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
     "state": {}
   }
 ];

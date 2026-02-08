@@ -1,4 +1,6 @@
-import { Feature, type FeatureState, type FeatureOptions, features } from '../../feature.js'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from '../../feature.js'
 
 // Define the snippet data structure
 export interface Snippet {
@@ -13,24 +15,29 @@ export interface Snippet {
   description?: string
 }
 
-// Define the feature's state interface
-export interface SnippetsState extends FeatureState {
-  snippets: Snippet[]
-  categories: string[]
-  totalCount: number
-  lastUpdated?: Date
-}
+// Define the feature's state schema
+export const SnippetsStateSchema = FeatureStateSchema.extend({
+  snippets: z.array(z.any()),
+  categories: z.array(z.string()),
+  totalCount: z.number(),
+  lastUpdated: z.any().optional(),
+})
 
-// Define the feature's options interface  
-export interface SnippetsOptions extends FeatureOptions {
-  maxSnippets?: number
-  autoSave?: boolean
-  storageKey?: string
-  defaultCategory?: string
-}
+// Define the feature's options schema
+export const SnippetsOptionsSchema = FeatureOptionsSchema.extend({
+  maxSnippets: z.number().optional(),
+  autoSave: z.boolean().optional(),
+  storageKey: z.string().optional(),
+  defaultCategory: z.string().optional(),
+})
+
+export type SnippetsState = z.infer<typeof SnippetsStateSchema>
+export type SnippetsOptions = z.infer<typeof SnippetsOptionsSchema>
 
 // Implement the Snippets feature class
 export class Snippets extends Feature<SnippetsState, SnippetsOptions> {
+  static override stateSchema = SnippetsStateSchema
+  static override optionsSchema = SnippetsOptionsSchema
   // Required: Define the shortcut path for container access
   static override shortcut = 'features.snippets' as const
   
