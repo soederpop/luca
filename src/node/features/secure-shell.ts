@@ -1,16 +1,20 @@
-import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from '../feature.js'
 
-export interface SecureShellState extends FeatureState {
-	connected: boolean	
-}
+export const SecureShellStateSchema = FeatureStateSchema.extend({
+	connected: z.boolean(),
+})
+export type SecureShellState = z.infer<typeof SecureShellStateSchema>
 
-export interface SecureShellOptions extends FeatureOptions {
-	host?: string
-	port?: number
-	username?: string
-	password?: string
-	key?: string
-}
+export const SecureShellOptionsSchema = FeatureOptionsSchema.extend({
+	host: z.string().optional(),
+	port: z.number().optional(),
+	username: z.string().optional(),
+	password: z.string().optional(),
+	key: z.string().optional(),
+})
+export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
 
 /**
  * Uses ssh to run commands, or scp to transfer files between a remote host. 
@@ -18,6 +22,8 @@ export interface SecureShellOptions extends FeatureOptions {
  */
 export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
   static override shortcut = 'features.secureShell' as const
+  static override stateSchema = SecureShellStateSchema
+  static override optionsSchema = SecureShellOptionsSchema
 
 	override get initialState(): SecureShellState {
 		return {

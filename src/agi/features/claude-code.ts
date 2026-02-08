@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container'
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { Subprocess } from 'bun'
 
@@ -94,35 +96,38 @@ export interface ClaudeSession {
 
 // --- Feature state and options ---
 
-export interface ClaudeCodeState extends FeatureState {
-  sessions: Record<string, ClaudeSession>
-  activeSessions: string[]
-  claudeAvailable: boolean
-  claudeVersion?: string
-}
+export const ClaudeCodeStateSchema = FeatureStateSchema.extend({
+  sessions: z.record(z.any()),
+  activeSessions: z.array(z.string()),
+  claudeAvailable: z.boolean(),
+  claudeVersion: z.string().optional(),
+})
 
-export interface ClaudeCodeOptions extends FeatureOptions {
+export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   /** Path to the claude CLI binary. Defaults to 'claude'. */
-  claudePath?: string
+  claudePath: z.string().optional(),
   /** Default model to use for sessions. */
-  model?: string
+  model: z.string().optional(),
   /** Default working directory for sessions. */
-  cwd?: string
+  cwd: z.string().optional(),
   /** Default system prompt prepended to all sessions. */
-  systemPrompt?: string
+  systemPrompt: z.string().optional(),
   /** Default append system prompt for all sessions. */
-  appendSystemPrompt?: string
+  appendSystemPrompt: z.string().optional(),
   /** Default permission mode. */
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional(),
   /** Default allowed tools. */
-  allowedTools?: string[]
+  allowedTools: z.array(z.string()).optional(),
   /** Default disallowed tools. */
-  disallowedTools?: string[]
+  disallowedTools: z.array(z.string()).optional(),
   /** Whether to stream partial messages (token-by-token). Defaults to false. */
-  streaming?: boolean
+  streaming: z.boolean().optional(),
   /** MCP config paths or JSON strings to pass to sessions. */
-  mcpConfig?: string[]
-}
+  mcpConfig: z.array(z.string()).optional(),
+})
+
+export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
+export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>
 
 export interface RunOptions {
   /** Override model for this session. */
@@ -180,6 +185,8 @@ export interface RunOptions {
  * ```
  */
 export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
+  static override stateSchema = ClaudeCodeStateSchema
+  static override optionsSchema = ClaudeCodeOptionsSchema
   static override shortcut = 'features.claudeCode' as const
 
   static attach(container: Container<AvailableFeatures, any>) {

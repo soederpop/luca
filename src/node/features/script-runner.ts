@@ -1,4 +1,5 @@
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 /**
  * The ScriptRunner feature provides convenient access to npm scripts defined in package.json.
@@ -21,6 +22,8 @@ import { Feature, features } from '../feature.js'
  */
 export class ScriptRunner extends Feature {
   static override shortcut = 'features.scriptRunner' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   
   /**
    * Gets an object containing executable functions for each npm script.

@@ -1,4 +1,5 @@
 import { features, Feature } from "../feature.js";
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import {
   mkdirSync,
   writeFileSync,
@@ -25,6 +26,8 @@ type WalkOptions = {
  */
 export class FS extends Feature {
   static override shortcut = "features.fs" as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
 
   /**
    * Asynchronously reads a file and returns its contents as a string.

@@ -1,9 +1,11 @@
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from "../feature.js";
 import vm from 'vm'
 
 /**
  * Starts a Node.js REPL server with the provided options.
- * 
+ *
  * @param options - Configuration options for the REPL server
  * @returns Promise resolving to the started REPL server instance
  */
@@ -13,29 +15,25 @@ async function start(options: any) {
 }
 
 /**
- * State interface for the Repl feature.
+ * Zod schema for the Repl feature state.
  * Tracks whether the REPL server has been started.
- * 
- * @interface ReplState
- * @extends {FeatureState}
  */
-export interface ReplState extends FeatureState {
+export const ReplStateSchema = FeatureStateSchema.extend({
   /** Whether the REPL server has been started */
-  started?: boolean;
-}
+  started: z.boolean().optional(),
+})
+export type ReplState = z.infer<typeof ReplStateSchema>
 
 /**
- * Configuration options for the Repl feature.
- * 
- * @interface ReplOptions
- * @extends {FeatureOptions}
+ * Zod schema for the Repl feature options.
  */
-export interface ReplOptions extends FeatureOptions {
+export const ReplOptionsSchema = FeatureOptionsSchema.extend({
   /** The prompt string to display in the REPL (default: "> ") */
-  prompt?: string;
+  prompt: z.string().optional(),
   /** Path to the REPL history file for command persistence */
-  historyPath?: string;
-}
+  historyPath: z.string().optional(),
+})
+export type ReplOptions = z.infer<typeof ReplOptionsSchema>
 
 /**
  * Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server
@@ -77,6 +75,8 @@ export class Repl<
 > extends Feature<T, K> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.repl" as const
+  static override stateSchema = ReplStateSchema
+  static override optionsSchema = ReplOptionsSchema
 
   /**
    * Checks if the REPL server has been started.

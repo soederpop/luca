@@ -1,5 +1,7 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@/container';
-import { type AvailableFeatures, type FeatureOptions, type FeatureState } from '@/feature'
+import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { HelperIntrospection } from '@/introspection';
 import type { OpenAIClient } from '../openai-client';
@@ -7,20 +9,23 @@ import type OpenAI from 'openai';
 
 declare module '@/feature' {
 	interface AvailableFeatures {
-		helperChat: typeof HelperChat 
+		helperChat: typeof HelperChat
 	}
 }
 
-export interface HelperChatOptions extends FeatureOptions {
-	host?: IntrospectableHelper
-}
+export const HelperChatOptionsSchema = FeatureOptionsSchema.extend({
+	host: z.any().optional(),
+})
 
-export interface HelperChatState extends FeatureState {
-	description: string;
-	started: boolean;
-	messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-	systemPrompt: string;
-}
+export const HelperChatStateSchema = FeatureStateSchema.extend({
+	description: z.string(),
+	started: z.boolean(),
+	messages: z.array(z.any()),
+	systemPrompt: z.string(),
+})
+
+export type HelperChatOptions = z.infer<typeof HelperChatOptionsSchema>
+export type HelperChatState = z.infer<typeof HelperChatStateSchema>
 
 /** 
  * The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server 
@@ -29,6 +34,8 @@ export interface HelperChatState extends FeatureState {
  * expose mechanisms to trigger capabilities that it offers.
 */
 export class HelperChat extends Feature<HelperChatState, HelperChatOptions> {
+	static override stateSchema = HelperChatStateSchema
+	static override optionsSchema = HelperChatOptionsSchema
 	static override shortcut = "features.helperChat" as const
 
 	static attach(container: Container<AvailableFeatures, any>) {

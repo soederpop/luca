@@ -1,4 +1,6 @@
-import { features, Feature, type FeatureState } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema } from '../../schemas/base.js'
+import { features, Feature } from "../feature.js";
 import colors from "chalk";
 import figlet from "figlet";
 import type { Fonts } from "figlet";
@@ -11,18 +13,16 @@ import endent from 'endent';
 marked.use(markedTerminal({ }));
 
 /**
- * State interface for the UI feature.
+ * Zod schema for the UI feature state.
  * Manages terminal UI configuration and cached data.
- * 
- * @interface UIState
- * @extends {FeatureState}
  */
-interface UIState extends FeatureState {
+export const UIStateSchema = FeatureStateSchema.extend({
   /** Array of available fonts for ASCII art generation */
-  fonts?: Fonts[];
+  fonts: z.array(z.string()).optional(),
   /** Color palette for automatic color assignment */
-  colorPalette?: string[];
-}
+  colorPalette: z.array(z.string()).optional(),
+})
+type UIState = z.infer<typeof UIStateSchema>
 
 /** Global registry tracking assigned colors to prevent duplicates */
 const _assignedColors: Record<string, string> = {};
@@ -113,6 +113,7 @@ type ColoredPrintFunction = PrintFunction & {
 export class UI<T extends UIState = UIState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ui" as const
+  static override stateSchema = UIStateSchema
   
   /**
    * Gets the initial state configuration for the UI feature.

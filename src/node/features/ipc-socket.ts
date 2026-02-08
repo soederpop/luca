@@ -1,18 +1,18 @@
-import { type FeatureState, Feature, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema } from '../../schemas/base.js'
+import { Feature, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { Server, Socket } from "net";
 
 /**
- * State interface for the IpcSocket feature.
+ * Zod schema for the IpcSocket feature state.
  * Tracks the operational mode of the IPC socket (server or client).
- * 
- * @interface IpcState
- * @extends {FeatureState}
  */
-export interface IpcState extends FeatureState {
+export const IpcStateSchema = FeatureStateSchema.extend({
   /** The current mode of the IPC socket - either 'server' or 'client' */
-  mode?: 'server' | 'client'
-}
+  mode: z.enum(['server', 'client']).optional(),
+})
+export type IpcState = z.infer<typeof IpcStateSchema>
 
 /**
  * IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets
@@ -77,6 +77,7 @@ export interface IpcState extends FeatureState {
 export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
+  static override stateSchema = IpcStateSchema
   
   /** The Node.js net Server instance (when in server mode) */
   server?: Server;

@@ -1,15 +1,22 @@
-import { Feature, type FeatureState, type FeatureOptions, features } from '../feature.js'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { Feature, features } from '../feature.js'
 import { WebContainer} from '../container.js'
 
-export interface WebVaultState extends FeatureState {
-  secret?: string 
-}
+export const WebVaultStateSchema = FeatureStateSchema.extend({
+  secret: z.string().optional(),
+})
 
-export interface WebVaultOptions extends FeatureOptions {
-  secret?: string 
-}
+export const WebVaultOptionsSchema = FeatureOptionsSchema.extend({
+  secret: z.string().optional(),
+})
+
+export type WebVaultState = z.infer<typeof WebVaultStateSchema>
+export type WebVaultOptions = z.infer<typeof WebVaultOptionsSchema>
 
 export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
+  static override stateSchema = WebVaultStateSchema
+  static override optionsSchema = WebVaultOptionsSchema
   static override shortcut = "features.vault" as const
   
   async secret({ refresh = false, set = true } = {}) : Promise<ArrayBuffer> {

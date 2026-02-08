@@ -1,15 +1,19 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import crypto from 'node:crypto'
-import { type FeatureState, type FeatureOptions, Feature, features } from '../feature.js'
+import { Feature, features } from '../feature.js'
 import { type NodeContainer } from '../container.js'
 import { type ContainerContext } from '../../container.js'
 
-export interface VaultState extends FeatureState {
-  secret?: Buffer 
-}
+export const VaultStateSchema = FeatureStateSchema.extend({
+  secret: z.custom<Buffer>().optional(),
+})
+export type VaultState = z.infer<typeof VaultStateSchema>
 
-export interface VaultOptions extends FeatureOptions {
-  secret?: Buffer | string
-}
+export const VaultOptionsSchema = FeatureOptionsSchema.extend({
+  secret: z.union([z.custom<Buffer>(), z.string()]).optional(),
+})
+export type VaultOptions = z.infer<typeof VaultOptionsSchema>
 
 /**
  * The Vault feature provides encryption and decryption capabilities using AES-256-GCM.
@@ -35,6 +39,8 @@ export interface VaultOptions extends FeatureOptions {
  */
 export class Vault extends Feature<VaultState, VaultOptions> {
   static override shortcut = 'features.vault' as const
+  static override stateSchema = VaultStateSchema
+  static override optionsSchema = VaultOptionsSchema
 
   static attach(c: NodeContainer) {
 

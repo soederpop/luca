@@ -50,7 +50,20 @@ abstract class Registry<T extends Helper> {
   }
   
   get available() {
-    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, '')) 
+    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, ''))
+  }
+
+  describeAll() {
+    return this.available.map(id => {
+      const Constructor = this.lookup(id) as any
+      return {
+        id,
+        shortcut: Constructor?.shortcut,
+        description: Constructor?.description,
+        stateSchema: Constructor?.stateSchema,
+        optionsSchema: Constructor?.optionsSchema,
+      }
+    })
   }
   
   emit(event: string, ...args: any[]) {

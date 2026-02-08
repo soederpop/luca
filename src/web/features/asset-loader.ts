@@ -1,3 +1,4 @@
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import { Container } from "../container.js";
 
@@ -6,6 +7,8 @@ export class AssetLoader extends Feature {
     container.features.register("assetLoader", AssetLoader);
   }
 
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   static override shortcut = "features.assetLoader" as const
 
   static loadStylesheet(href: string) {

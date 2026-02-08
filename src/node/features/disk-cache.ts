@@ -1,22 +1,28 @@
-/** 
+/**
  * The diskCache feature provides a wrapper on top of the cacache library, which is a simple key-value store for files,
- * used to power npm. It is used to be a file backed way to store arbitrary data, including very large blobs if necessary.  
+ * used to power npm. It is used to be a file backed way to store arbitrary data, including very large blobs if necessary.
 */
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import cacache from "cacache";
-import { Feature, type FeatureOptions, type FeatureState, features } from "../feature.js";
+import { Feature, type FeatureState, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { partial } from "lodash-es";
 import type { ContainerContext } from "../../container.js";
 import { mkdirSync } from "fs";
 
-export interface DiskCacheOptions extends FeatureOptions {
-  encrypt?: boolean;
-  secret?: Buffer;
-  path?: string;
-}
+export const DiskCacheOptionsSchema = FeatureOptionsSchema.extend({
+  encrypt: z.boolean().optional(),
+  secret: z.custom<Buffer>().optional(),
+  path: z.string().optional(),
+})
+
+export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
 
 export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   static override shortcut = "features.diskCache" as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = DiskCacheOptionsSchema
 
   static attach(c: NodeContainer) {}
 

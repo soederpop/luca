@@ -1,18 +1,15 @@
-import { Feature, type FeatureState, features } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema } from '../../schemas/base.js'
+import { Feature, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { camelCase, omit, set } from 'lodash-es';
 
 /**
- * State interface for the JsonTree feature.
- * Extends FeatureState and allows any additional string-keyed properties for tree data.
- * 
- * @interface JsonTreeState
- * @extends {FeatureState}
+ * Zod schema for the JsonTree feature state.
+ * Extends FeatureStateSchema and allows any additional string-keyed properties for tree data.
  */
-export interface JsonTreeState extends FeatureState {
-  /** Dynamic tree data stored as key-value pairs */
-  [k: string]: any;
-}
+export const JsonTreeStateSchema = FeatureStateSchema.extend({}).catchall(z.any())
+export type JsonTreeState = z.infer<typeof JsonTreeStateSchema>
 
 /**
  * JsonTree Feature - A powerful JSON file tree loader and processor
@@ -57,6 +54,7 @@ export interface JsonTreeState extends FeatureState {
 export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.jsonTree" as const
+  static override stateSchema = JsonTreeStateSchema
 
   /**
    * Attaches the JsonTree feature to a NodeContainer instance.

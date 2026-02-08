@@ -38,28 +38,33 @@ import {
 import type { ZodRawShape } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
 
 import type { NodeContainer } from '../node/container.js'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState, type ServerOptions } from '../server/server.js';
+import { servers, type StartOptions, Server, type ServersInterface } from '../server/server.js';
 
 declare module '../server/index' {
   interface AvailableServers {
-    mcp: typeof McpServer 
+    mcp: typeof McpServer
   }
 }
 
-export interface McpServerOptions extends ServerOptions {
-	serverName?: string;
-	version?: string;	
-	instructions?: string;
-}
+export const McpServerOptionsSchema = ServerOptionsSchema.extend({
+	serverName: z.string().optional(),
+	version: z.string().optional(),
+	instructions: z.string().optional(),
+})
+export type McpServerOptions = z.infer<typeof McpServerOptionsSchema>
 
-export interface McpServerState extends ServerState {
-	started: boolean;
-}
+export const McpServerStateSchema = ServerStateSchema.extend({
+	started: z.boolean().default(false),
+})
+export type McpServerState = z.infer<typeof McpServerStateSchema>
 
 export class McpServer<T extends McpServerState = McpServerState, K extends McpServerOptions = McpServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.mcp' as const
+    static override stateSchema = McpServerStateSchema
+    static override optionsSchema = McpServerOptionsSchema
 
 		static override attach(container: NodeContainer & ServersInterface) {
 			servers.register('mcp', McpServer)	

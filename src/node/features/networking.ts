@@ -1,4 +1,5 @@
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import detectPort from 'detect-port'
 
 /**
@@ -26,6 +27,8 @@ import detectPort from 'detect-port'
  */
 export class Networking extends Feature {
   static override shortcut = 'features.networking' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   
   /**
    * Finds the next available port starting from the specified port number.

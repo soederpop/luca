@@ -1,16 +1,23 @@
-import { features, Feature, FeatureOptions, FeatureState } from "../feature.js";
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { features, Feature } from "../feature.js";
 import type { Container, ContainerContext } from "../container.js";
 
-interface NetworkState extends FeatureState {
-  offline: boolean;
-}
+export const NetworkStateSchema = FeatureStateSchema.extend({
+  offline: z.boolean(),
+})
 
-interface NetworkOptions extends FeatureOptions {}
+export const NetworkOptionsSchema = FeatureOptionsSchema.extend({})
+
+export type NetworkState = z.infer<typeof NetworkStateSchema>
+export type NetworkOptions = z.infer<typeof NetworkOptionsSchema>
 
 export class Network<
   T extends NetworkState = NetworkState,
   K extends NetworkOptions = NetworkOptions
 > extends Feature<T, K> {
+  static override stateSchema = NetworkStateSchema
+  static override optionsSchema = NetworkOptionsSchema
   static override shortcut = "features.network" as const
   
   static attach(container: Container & { network?: Network }) {

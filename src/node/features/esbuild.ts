@@ -1,5 +1,6 @@
 import * as esbuild from 'esbuild'
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { NodeContainer } from '../container.js'
 
 /** 
@@ -8,6 +9,8 @@ import { NodeContainer } from '../container.js'
 */
 export class ESBuild extends Feature {
   static override shortcut = 'features.esbuild' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
 
   static attach(c: NodeContainer) {
     return c

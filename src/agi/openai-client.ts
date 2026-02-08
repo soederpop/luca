@@ -1,32 +1,38 @@
-import { clients, Client, type ClientState, type ClientOptions } from "../client.js";
+import { z } from 'zod'
+import { ClientStateSchema, ClientOptionsSchema } from '../schemas/base.js'
+import { clients, Client } from "../client.js";
 import type { Container, ContainerContext } from "../container.js";
 import type { ClientsInterface } from "../client.js";
 import OpenAI from "openai";
 
-export interface OpenAIClientState extends ClientState {
-  requestCount: number;
-  lastRequestTime: number | null;
-  tokenUsage: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
-}
+export const OpenAIClientStateSchema = ClientStateSchema.extend({
+  requestCount: z.number().default(0),
+  lastRequestTime: z.number().nullable().default(null),
+  tokenUsage: z.object({
+    prompt: z.number().default(0),
+    completion: z.number().default(0),
+    total: z.number().default(0),
+  }).default({ prompt: 0, completion: 0, total: 0 }),
+})
+export type OpenAIClientState = z.infer<typeof OpenAIClientStateSchema>
 
-export interface OpenAIClientOptions extends ClientOptions {
-  apiKey?: string;
-  organization?: string;
-  project?: string;
-  dangerouslyAllowBrowser?: boolean;
-  defaultModel?: string;
-  timeout?: number;
-  maxRetries?: number;
-}
+export const OpenAIClientOptionsSchema = ClientOptionsSchema.extend({
+  apiKey: z.string().optional(),
+  organization: z.string().optional(),
+  project: z.string().optional(),
+  dangerouslyAllowBrowser: z.boolean().optional(),
+  defaultModel: z.string().optional(),
+  timeout: z.number().optional(),
+  maxRetries: z.number().optional(),
+})
+export type OpenAIClientOptions = z.infer<typeof OpenAIClientOptionsSchema>
 
 export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions> {
   private openai!: OpenAI;
 
   static override shortcut = "clients.openai" as const
+  static override stateSchema = OpenAIClientStateSchema
+  static override optionsSchema = OpenAIClientOptionsSchema
 
   static override attach(container: Container & ClientsInterface): any {
     return container;

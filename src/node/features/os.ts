@@ -1,4 +1,5 @@
 import { Feature, features } from '../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import os from 'os'
 
 /**
@@ -22,6 +23,8 @@ import os from 'os'
  */
 export class OS extends Feature {
   static override shortcut = 'features.os' as const
+  static override stateSchema = FeatureStateSchema
+  static override optionsSchema = FeatureOptionsSchema
   
   /**
    * Gets the operating system CPU architecture.

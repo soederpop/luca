@@ -4,6 +4,8 @@ import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
 import { introspect, type HelperIntrospection } from "./introspection/index.js";
+import { z } from 'zod'
+import { HelperStateSchema, HelperOptionsSchema } from './schemas/base.js'
 
 // @ts-ignore-next-line
 export interface HelperState { }
@@ -34,6 +36,9 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
   static description: string = "No description provided"
 
+  static stateSchema: z.ZodType = HelperStateSchema
+  static optionsSchema: z.ZodType = HelperOptionsSchema
+
   protected readonly _context: ContainerContext
   protected readonly _events = new Bus()
   protected readonly _options: K 
@@ -57,14 +62,27 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 
 
-  /** 
+  /**
    * All Helpers can be introspect()ed and, assuming the introspection data has been loaded into the registry,
    * will report information about the Helper that can only get extracted by reading the code, e.g. the type interfaces
    * for the helper's options, state, and the events it emits, as well as the documentation from the helpers code for
    * each of the methods and properties.
   */
-  introspect() : HelperIntrospection | undefined {
-    return (this.constructor as any).introspect()
+  introspect() : (HelperIntrospection & { schemas?: { state: z.ZodType, options: z.ZodType } }) | undefined {
+    const base = (this.constructor as any).introspect()
+    const ctor = this.constructor as typeof Helper
+
+    if (base && ctor.stateSchema) {
+      return {
+        ...base,
+        schemas: {
+          state: ctor.stateSchema,
+          options: ctor.optionsSchema,
+        }
+      }
+    }
+
+    return base
   }
 
   introspectAsText(startHeadingDepth: number = 1) : string {
