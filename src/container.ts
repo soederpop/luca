@@ -5,7 +5,7 @@ import { AvailableFeatures, features, Feature, FeaturesRegistry } from './featur
 import { Helper } from './helper.js'
 import uuid from 'node-uuid'
 import hashObject from './hash-object'
-import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, uniq, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
+import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
 import { pluralize, singularize } from 'inflect'
 
 const { v4 } = uuid

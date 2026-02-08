@@ -3,7 +3,7 @@ import type { HelperOptions, HelperState } from './helper.js'
 import { Registry } from './registry.js'
 import type { ContainerContext } from './container.js'
 import { kebabCase, camelCase } from 'lodash-es'
-import { YAML } from './node/features/yaml.js';
+import type { YAML } from './node/features/yaml.js';
 import { FeatureStateSchema, FeatureOptionsSchema } from './schemas/base.js'
 
 /** 
