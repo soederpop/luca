@@ -10,7 +10,8 @@
       "Bash(bun run:*)",
       "Bash(npx tsc:*)",
       "Bash(bun build:*)",
-      "Bash(bun scripts/examples/using-conversations.ts:*)"
+      "Bash(bun scripts/examples/using-conversations.ts:*)",
+      "Bash(bun install:*)"
     ]
   }
 }

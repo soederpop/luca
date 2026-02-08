@@ -14,7 +14,7 @@ async function main() {
   try {
     // Create the introspection scanner feature
     const scanner = container.feature('introspectionScanner', {
-      src: ['src/node/features', 'src/ai', 'src/servers', 'src/mdx'],
+      src: ['src/node/features', 'src/agi', 'src/servers'],
       outputPath: 'src/introspection/generated.ts',
       enable: true
     });

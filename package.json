@@ -106,6 +106,7 @@
     "unist-util-select": "^4.0.3",
     "unist-util-visit": "^4.1.2",
     "ws": "^8.13.0",
+    "contentbase": "file:../@projects/contentbase",
     "zod": "^3.25.57"
   }
 }
