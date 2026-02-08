@@ -18,7 +18,9 @@
       "Bash(bunx --bun typescript tsc:*)",
       "Bash(tsc:*)",
       "Bash(node_modules/.bin/tsc:*)",
-      "Bash(bunx --bun tsc@latest:*)"
+      "Bash(bunx --bun tsc@latest:*)",
+      "Bash(bun add:*)",
+      "Bash(bunx vitest run:*)"
     ]
   }
 }
