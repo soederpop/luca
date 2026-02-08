@@ -20,7 +20,8 @@
       "Bash(node_modules/.bin/tsc:*)",
       "Bash(bunx --bun tsc@latest:*)",
       "Bash(bun add:*)",
-      "Bash(bunx vitest run:*)"
+      "Bash(bunx vitest run:*)",
+      "Bash(bun -e:*)"
     ]
   }
 }
