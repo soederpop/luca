@@ -9,9 +9,7 @@ import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, p
 import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
 import { zodToJsonSchema } from 'zod-to-json-schema'
-import { zodToTs, printNode, createAuxiliaryTypeStore} from 'zod-to-ts'
 
-const auxilaryTypeStore = createAuxiliaryTypeStore()
 
 export { z }
 
@@ -115,10 +113,6 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   
   utils = {
     zodToJsonSchema: (schema: z.ZodType) => zodToJsonSchema(schema),
-    zodToTs: (schema: z.ZodType) => {
-      const node = zodToTs(schema, { auxilaryTypeStore })
-      return printNode(node.node, { auxiliaryTypeStore })
-    },
     hashObject: (obj: any) => hashObject(obj),
     get stringUtils() { return stringUtils },
     uuid: () => v4(),

@@ -14,12 +14,6 @@ export class AGIContainer extends NodeContainer {
 	openai!: OpenAIClient
 	snippets!: Snippets
 	claudeCode?: ClaudeCode
-
-	expert(name: string) {
-		return this.container.feature('identity', {
-			name
-		})
-	}
 }
 
 const container = new AGIContainer()
