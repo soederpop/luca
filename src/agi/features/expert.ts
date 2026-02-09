@@ -120,10 +120,13 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		await this.identity.load()
 		await this.loadSkills()
 		await this.loadHooks()
+
 		this.bindHooks()
 
 		this.conversation = this.createConversation()
 		this.state.set('started', true)
+
+		this.emit('start')
 	
 		return this
 	}
@@ -171,7 +174,7 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		const transformed = await c.feature('esbuild').transform(source.toString(), { format: 'cjs' })
 
 		const mod = { exports: {} as Record<string, any> }
-		await c.feature('vm').run(transformed.code, { container: c, module: mod, exports: mod.exports })
+		await c.feature('vm').run(transformed.code, { container: c, module: mod, exports: mod.exports, console })
 
 		this.hooks = mod.exports
 	}
@@ -186,13 +189,19 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		for (const [eventName, hook] of Object.entries(this.hooks)) {
 			if (typeof hook === 'function') {
 				this.on(eventName as any, (...args: any[]) => {
-					hook(this, ...args)
+					Promise.resolve(hook(this, ...args)).then(() => {
+						console.log('hook done')
+					})
 				})
 			}
 		}
 	}
 
 	async ask(question: string) {
+		const questionId = this.container.utils.uuid()
+
+		this.emit('asked', questionId, question)
+
 		if(!this.isStarted) {
 			await this.start()
 		}
@@ -205,7 +214,11 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 			this.emit('preview', chunk)
 		})
 
-		return this.conversation.ask(question)
+		const result = this.conversation.ask(question)
+
+		this.emit('answered', questionId, result)
+
+		return result
 	}
 	
 }

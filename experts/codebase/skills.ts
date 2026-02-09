@@ -17,10 +17,19 @@ export const schemas = {
 	getLatestChanges: z.object({
 		number: z.number().describe('The number of changes to return'),
 	}).describe('Get the latest changes from the codebase'),
+	describeFeature: z.object({
+		feature: z.string().describe('The feature to describe'),
+	}).describe('Describe a feature'),
+}
+
+export async function describeFeature(options: any) {
+	const feature = container.features.lookup(options.feature) as any
+	return feature.introspectAsText(3)
 }
 
 export async function getLatestChanges(options:any) {
 	const git = container.feature('git')
+
 	const numberOfChanges = options.number || 10
 
 	return await git.getLatestChanges(numberOfChanges)
