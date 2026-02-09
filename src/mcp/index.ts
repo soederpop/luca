@@ -1,5 +1,4 @@
 import container, { ui } from '@/node'
-import '@/introspection/generated'
 import { McpServer } from '@/servers/mcp'
 import { __INTROSPECTION__ } from '@/introspection'
 

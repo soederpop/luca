@@ -1,7 +1,7 @@
 import { __INTROSPECTION__ } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-08T08:10:15.087Z
+// Generated at: 2026-02-09T00:11:33.797Z
 
 __INTROSPECTION__.set('features.yamlTree', {
   "id": "features.yamlTree",
@@ -517,120 +517,6 @@ __INTROSPECTION__.set('features.os', {
   "shortcut": "features.os",
   "methods": {},
   "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.yaml', {
-  "id": "features.yaml",
-  "description": "Zod-based YAML feature with runtime validation. This feature provides utilities for parsing and stringifying YAML data with enhanced runtime validation and state tracking.",
-  "shortcut": "features.yaml",
-  "methods": {
-    "attachToContainer": {
-      "description": "For features where there only needs to be a single instance, you can use this method to attach the feature to the container.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "enable": {
-      "description": "Enable the feature with optional configuration",
-      "parameters": {
-        "options": {
-          "type": "any",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "stringify": {
-      "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format with validation and state tracking.",
-      "parameters": {
-        "data": {
-          "type": "any",
-          "description": "The data to convert to YAML format"
-        }
-      },
-      "required": [
-        "data"
-      ],
-      "returns": "string"
-    },
-    "parse": {
-      "description": "Parses a YAML string into a JavaScript object with Zod validation.",
-      "parameters": {
-        "yamlStr": {
-          "type": "string",
-          "description": "The YAML string to parse"
-        },
-        "schema": {
-          "type": "T",
-          "description": "Parameter schema"
-        }
-      },
-      "required": [
-        "yamlStr"
-      ],
-      "returns": "T extends z.ZodType ? z.infer<T> : any"
-    },
-    "parseWithSchema": {
-      "description": "Parse with explicit type validation",
-      "parameters": {
-        "yamlStr": {
-          "type": "string",
-          "description": "Parameter yamlStr"
-        },
-        "schema": {
-          "type": "T",
-          "description": "Parameter schema"
-        }
-      },
-      "required": [
-        "yamlStr",
-        "schema"
-      ],
-      "returns": "z.infer<T>"
-    },
-    "getStats": {
-      "description": "Get parsing statistics",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "resetStats": {
-      "description": "Reset statistics",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "introspect": {
-      "description": "Enhanced introspection for YAML feature",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {
-    "enabled": {
-      "name": "enabled",
-      "description": "Event emitted by ZodYAML",
-      "arguments": {}
-    },
-    "stringify": {
-      "name": "stringify",
-      "description": "Event emitted by ZodYAML",
-      "arguments": {}
-    },
-    "parse": {
-      "name": "parse",
-      "description": "Event emitted by ZodYAML",
-      "arguments": {}
-    },
-    "statsReset": {
-      "name": "statsReset",
-      "description": "Event emitted by ZodYAML",
-      "arguments": {}
-    }
-  },
   "state": {}
 });
 
@@ -2097,6 +1983,395 @@ __INTROSPECTION__.set('features.fileManager', {
   "state": {}
 });
 
+__INTROSPECTION__.set('servers.mcp', {
+  "id": "servers.mcp",
+  "description": "McpServer helper",
+  "shortcut": "servers.mcp",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "StartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "log": {
+      "description": "",
+      "parameters": {
+        "message": {
+          "type": "any",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "returns": "void"
+    },
+    "completion": {
+      "description": "",
+      "parameters": {
+        "ref": {
+          "type": "string",
+          "description": "Parameter ref"
+        },
+        "handler": {
+          "type": "(argName: string, argValue: string) => Promise<string[]>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "ref",
+        "handler"
+      ],
+      "returns": "void"
+    },
+    "handleListResources": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListResourcesRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ListResourcesResult>"
+    },
+    "handleListResourceTemplates": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListResourceTemplatesRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleReadResource": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ReadResourceRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ReadResourceResult>"
+    },
+    "handleSubscribe": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "SubscribeRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleUnsubscribe": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "UnsubscribeRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleListPrompts": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListPromptsRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<ListPromptsResult>"
+    },
+    "handleGetPrompt": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "GetPromptRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleListTools": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "ListToolsRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "handleCallTool": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "CallToolRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<CallToolResult>"
+    },
+    "handleComplete": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "CompleteRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "Promise<CompleteResult>"
+    },
+    "handleSetLevel": {
+      "description": "",
+      "parameters": {
+        "request": {
+          "type": "SetLevelRequest",
+          "description": "Parameter request"
+        }
+      },
+      "required": [
+        "request"
+      ],
+      "returns": "void"
+    },
+    "tool": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "inputSchema": {
+          "type": "z.ZodObject<T>",
+          "description": "Parameter inputSchema"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description"
+        },
+        "handler": {
+          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "name",
+        "inputSchema",
+        "description",
+        "handler"
+      ],
+      "returns": "void"
+    },
+    "resource": {
+      "description": "",
+      "parameters": {
+        "uri": {
+          "type": "string",
+          "description": "Parameter uri"
+        },
+        "nameOrHandler": {
+          "type": "string | (() => Promise<Resource>)",
+          "description": "Parameter nameOrHandler"
+        },
+        "handler": {
+          "type": "() => Promise<Resource>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "uri",
+        "nameOrHandler"
+      ],
+      "returns": "void"
+    },
+    "resourceTemplate": {
+      "description": "",
+      "parameters": {
+        "uriTemplate": {
+          "type": "string",
+          "description": "Parameter uriTemplate"
+        },
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "descriptionOrHandler": {
+          "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
+          "description": "Parameter descriptionOrHandler"
+        },
+        "handler": {
+          "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "uriTemplate",
+        "name",
+        "descriptionOrHandler"
+      ],
+      "returns": "void"
+    },
+    "prompt": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Parameter description"
+        },
+        "schemaOrHandler": {
+          "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
+          "description": "Parameter schemaOrHandler"
+        },
+        "handler": {
+          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "schemaOrHandler"
+      ],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('servers.express', {
+  "id": "servers.express",
+  "description": "ExpressServer helper",
+  "shortcut": "servers.express",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "StartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "configure": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {},
+  "state": {}
+});
+
+__INTROSPECTION__.set('servers.websocket', {
+  "id": "servers.websocket",
+  "description": "WebsocketServer helper",
+  "shortcut": "servers.websocket",
+  "methods": {
+    "broadcast": {
+      "description": "",
+      "parameters": {
+        "message": {
+          "type": "any",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "returns": "void"
+    },
+    "send": {
+      "description": "",
+      "parameters": {
+        "ws": {
+          "type": "any",
+          "description": "Parameter ws"
+        },
+        "message": {
+          "type": "any",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "ws",
+        "message"
+      ],
+      "returns": "void"
+    },
+    "start": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "StartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "events": {
+    "connection": {
+      "name": "connection",
+      "description": "Event emitted by WebsocketServer",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
+      "description": "Event emitted by WebsocketServer",
+      "arguments": {}
+    }
+  },
+  "state": {}
+});
+
 __INTROSPECTION__.set('features.expert', {
   "id": "features.expert",
   "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
@@ -2657,743 +2932,6 @@ __INTROSPECTION__.set('features.identity', {
   "events": {},
   "state": {}
 });
-
-__INTROSPECTION__.set('servers.mcp', {
-  "id": "servers.mcp",
-  "description": "McpServer helper",
-  "shortcut": "servers.mcp",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {
-        "options": {
-          "type": "StartOptions",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    },
-    "log": {
-      "description": "",
-      "parameters": {
-        "message": {
-          "type": "any",
-          "description": "Parameter message"
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "returns": "void"
-    },
-    "completion": {
-      "description": "",
-      "parameters": {
-        "ref": {
-          "type": "string",
-          "description": "Parameter ref"
-        },
-        "handler": {
-          "type": "(argName: string, argValue: string) => Promise<string[]>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "ref",
-        "handler"
-      ],
-      "returns": "void"
-    },
-    "handleListResources": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListResourcesRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ListResourcesResult>"
-    },
-    "handleListResourceTemplates": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListResourceTemplatesRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleReadResource": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ReadResourceRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ReadResourceResult>"
-    },
-    "handleSubscribe": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "SubscribeRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleUnsubscribe": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "UnsubscribeRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleListPrompts": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListPromptsRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ListPromptsResult>"
-    },
-    "handleGetPrompt": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "GetPromptRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleListTools": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListToolsRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleCallTool": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "CallToolRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<CallToolResult>"
-    },
-    "handleComplete": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "CompleteRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<CompleteResult>"
-    },
-    "handleSetLevel": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "SetLevelRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "tool": {
-      "description": "",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "inputSchema": {
-          "type": "z.ZodObject<T>",
-          "description": "Parameter inputSchema"
-        },
-        "description": {
-          "type": "string",
-          "description": "Parameter description"
-        },
-        "handler": {
-          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "name",
-        "inputSchema",
-        "description",
-        "handler"
-      ],
-      "returns": "void"
-    },
-    "resource": {
-      "description": "",
-      "parameters": {
-        "uri": {
-          "type": "string",
-          "description": "Parameter uri"
-        },
-        "nameOrHandler": {
-          "type": "string | (() => Promise<Resource>)",
-          "description": "Parameter nameOrHandler"
-        },
-        "handler": {
-          "type": "() => Promise<Resource>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "uri",
-        "nameOrHandler"
-      ],
-      "returns": "void"
-    },
-    "resourceTemplate": {
-      "description": "",
-      "parameters": {
-        "uriTemplate": {
-          "type": "string",
-          "description": "Parameter uriTemplate"
-        },
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "descriptionOrHandler": {
-          "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
-          "description": "Parameter descriptionOrHandler"
-        },
-        "handler": {
-          "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "uriTemplate",
-        "name",
-        "descriptionOrHandler"
-      ],
-      "returns": "void"
-    },
-    "prompt": {
-      "description": "",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "description": {
-          "type": "string",
-          "description": "Parameter description"
-        },
-        "schemaOrHandler": {
-          "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
-          "description": "Parameter schemaOrHandler"
-        },
-        "handler": {
-          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "name",
-        "description",
-        "schemaOrHandler"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('servers.express', {
-  "id": "servers.express",
-  "description": "ExpressServer helper",
-  "shortcut": "servers.express",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {
-        "options": {
-          "type": "StartOptions",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    },
-    "configure": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('servers.websocket', {
-  "id": "servers.websocket",
-  "description": "WebsocketServer helper",
-  "shortcut": "servers.websocket",
-  "methods": {
-    "broadcast": {
-      "description": "",
-      "parameters": {
-        "message": {
-          "type": "any",
-          "description": "Parameter message"
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "returns": "void"
-    },
-    "send": {
-      "description": "",
-      "parameters": {
-        "ws": {
-          "type": "any",
-          "description": "Parameter ws"
-        },
-        "message": {
-          "type": "any",
-          "description": "Parameter message"
-        }
-      },
-      "required": [
-        "ws",
-        "message"
-      ],
-      "returns": "void"
-    },
-    "start": {
-      "description": "",
-      "parameters": {
-        "options": {
-          "type": "StartOptions",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {
-    "connection": {
-      "name": "connection",
-      "description": "Event emitted by WebsocketServer",
-      "arguments": {}
-    },
-    "message": {
-      "name": "message",
-      "description": "Event emitted by WebsocketServer",
-      "arguments": {}
-    }
-  },
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.esbuild', {
-  "id": "features.esbuild",
-  "description": "Esbuild helper",
-  "shortcut": "features.esbuild",
-  "methods": {
-    "compile": {
-      "description": "",
-      "parameters": {
-        "code": {
-          "type": "string",
-          "description": "Parameter code"
-        },
-        "options": {
-          "type": "esbuild.TransformOptions",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "returns": "void"
-    },
-    "clearCache": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.voice', {
-  "id": "features.voice",
-  "description": "VoiceRecognition helper",
-  "shortcut": "features.voice",
-  "methods": {
-    "whenFinished": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "stop": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "abort": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "clearTranscript": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {
-    "start": {
-      "name": "start",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    },
-    "stop": {
-      "name": "stop",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    },
-    "abort": {
-      "name": "abort",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    }
-  },
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.vm', {
-  "id": "features.vm",
-  "description": "VM helper",
-  "shortcut": "features.vm",
-  "methods": {
-    "createScript": {
-      "description": "",
-      "parameters": {
-        "code": {
-          "type": "string",
-          "description": "Parameter code"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "returns": "void"
-    },
-    "createContext": {
-      "description": "",
-      "parameters": {
-        "ctx": {
-          "type": "any",
-          "description": "Parameter ctx"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    },
-    "run": {
-      "description": "",
-      "parameters": {
-        "code": {
-          "type": "string",
-          "description": "Parameter code"
-        },
-        "ctx": {
-          "type": "any",
-          "description": "Parameter ctx"
-        },
-        "options": {
-          "type": "any",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.assetLoader', {
-  "id": "features.assetLoader",
-  "description": "AssetLoader helper",
-  "shortcut": "features.assetLoader",
-  "methods": {
-    "removeStylesheet": {
-      "description": "",
-      "parameters": {
-        "href": {
-          "type": "string",
-          "description": "Parameter href"
-        }
-      },
-      "required": [
-        "href"
-      ],
-      "returns": "void"
-    },
-    "loadScript": {
-      "description": "",
-      "parameters": {
-        "url": {
-          "type": "string",
-          "description": "Parameter url"
-        }
-      },
-      "required": [
-        "url"
-      ],
-      "returns": "Promise<void>"
-    },
-    "unpkg": {
-      "description": "",
-      "parameters": {
-        "packageName": {
-          "type": "string",
-          "description": "Parameter packageName"
-        },
-        "globalName": {
-          "type": "string",
-          "description": "Parameter globalName"
-        }
-      },
-      "required": [
-        "packageName",
-        "globalName"
-      ],
-      "returns": "Promise<any>"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.vault', {
-  "id": "features.vault",
-  "description": "WebVault helper",
-  "shortcut": "features.vault",
-  "methods": {
-    "secret": {
-      "description": "",
-      "parameters": {
-        "{ refresh = false, set = true }": {
-          "type": "any",
-          "description": "Parameter { refresh = false, set = true }"
-        }
-      },
-      "required": [],
-      "returns": "Promise<ArrayBuffer>"
-    },
-    "decrypt": {
-      "description": "",
-      "parameters": {
-        "payload": {
-          "type": "string",
-          "description": "Parameter payload"
-        }
-      },
-      "required": [
-        "payload"
-      ],
-      "returns": "void"
-    },
-    "encrypt": {
-      "description": "",
-      "parameters": {
-        "payload": {
-          "type": "string",
-          "description": "Parameter payload"
-        }
-      },
-      "required": [
-        "payload"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.network', {
-  "id": "features.network",
-  "description": "Network helper",
-  "shortcut": "features.network",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disable": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.speech', {
-  "id": "features.speech",
-  "description": "Speech helper",
-  "shortcut": "features.speech",
-  "methods": {
-    "loadVoices": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "setDefaultVoice": {
-      "description": "",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "cancel": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "say": {
-      "description": "",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "Parameter text"
-        },
-        "options": {
-          "type": "{ voice?: Voice }",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
-
-__INTROSPECTION__.set('features.mdxLoader', {
-  "id": "features.mdxLoader",
-  "description": "MdxLoader helper",
-  "shortcut": "features.mdxLoader",
-  "methods": {
-    "load": {
-      "description": "",
-      "parameters": {
-        "source": {
-          "type": "string",
-          "description": "Parameter source"
-        }
-      },
-      "required": [
-        "source"
-      ],
-      "returns": "void"
-    }
-  },
-  "events": {},
-  "state": {}
-});
 export const introspectionData = [
   {
     "id": "features.yamlTree",
@@ -3900,119 +3438,6 @@ export const introspectionData = [
     "shortcut": "features.os",
     "methods": {},
     "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.yaml",
-    "description": "Zod-based YAML feature with runtime validation. This feature provides utilities for parsing and stringifying YAML data with enhanced runtime validation and state tracking.",
-    "shortcut": "features.yaml",
-    "methods": {
-      "attachToContainer": {
-        "description": "For features where there only needs to be a single instance, you can use this method to attach the feature to the container.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "enable": {
-        "description": "Enable the feature with optional configuration",
-        "parameters": {
-          "options": {
-            "type": "any",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "stringify": {
-        "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format with validation and state tracking.",
-        "parameters": {
-          "data": {
-            "type": "any",
-            "description": "The data to convert to YAML format"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "returns": "string"
-      },
-      "parse": {
-        "description": "Parses a YAML string into a JavaScript object with Zod validation.",
-        "parameters": {
-          "yamlStr": {
-            "type": "string",
-            "description": "The YAML string to parse"
-          },
-          "schema": {
-            "type": "T",
-            "description": "Parameter schema"
-          }
-        },
-        "required": [
-          "yamlStr"
-        ],
-        "returns": "T extends z.ZodType ? z.infer<T> : any"
-      },
-      "parseWithSchema": {
-        "description": "Parse with explicit type validation",
-        "parameters": {
-          "yamlStr": {
-            "type": "string",
-            "description": "Parameter yamlStr"
-          },
-          "schema": {
-            "type": "T",
-            "description": "Parameter schema"
-          }
-        },
-        "required": [
-          "yamlStr",
-          "schema"
-        ],
-        "returns": "z.infer<T>"
-      },
-      "getStats": {
-        "description": "Get parsing statistics",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "resetStats": {
-        "description": "Reset statistics",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "introspect": {
-        "description": "Enhanced introspection for YAML feature",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {
-      "enabled": {
-        "name": "enabled",
-        "description": "Event emitted by ZodYAML",
-        "arguments": {}
-      },
-      "stringify": {
-        "name": "stringify",
-        "description": "Event emitted by ZodYAML",
-        "arguments": {}
-      },
-      "parse": {
-        "name": "parse",
-        "description": "Event emitted by ZodYAML",
-        "arguments": {}
-      },
-      "statsReset": {
-        "name": "statsReset",
-        "description": "Event emitted by ZodYAML",
-        "arguments": {}
-      }
-    },
     "state": {}
   },
   {
@@ -5464,6 +4889,392 @@ export const introspectionData = [
     "state": {}
   },
   {
+    "id": "servers.mcp",
+    "description": "McpServer helper",
+    "shortcut": "servers.mcp",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "StartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "log": {
+        "description": "",
+        "parameters": {
+          "message": {
+            "type": "any",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "returns": "void"
+      },
+      "completion": {
+        "description": "",
+        "parameters": {
+          "ref": {
+            "type": "string",
+            "description": "Parameter ref"
+          },
+          "handler": {
+            "type": "(argName: string, argValue: string) => Promise<string[]>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "ref",
+          "handler"
+        ],
+        "returns": "void"
+      },
+      "handleListResources": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListResourcesRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ListResourcesResult>"
+      },
+      "handleListResourceTemplates": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListResourceTemplatesRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleReadResource": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ReadResourceRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ReadResourceResult>"
+      },
+      "handleSubscribe": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "SubscribeRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleUnsubscribe": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "UnsubscribeRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleListPrompts": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListPromptsRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<ListPromptsResult>"
+      },
+      "handleGetPrompt": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "GetPromptRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleListTools": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "ListToolsRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "handleCallTool": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "CallToolRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<CallToolResult>"
+      },
+      "handleComplete": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "CompleteRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "Promise<CompleteResult>"
+      },
+      "handleSetLevel": {
+        "description": "",
+        "parameters": {
+          "request": {
+            "type": "SetLevelRequest",
+            "description": "Parameter request"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "returns": "void"
+      },
+      "tool": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "inputSchema": {
+            "type": "z.ZodObject<T>",
+            "description": "Parameter inputSchema"
+          },
+          "description": {
+            "type": "string",
+            "description": "Parameter description"
+          },
+          "handler": {
+            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "name",
+          "inputSchema",
+          "description",
+          "handler"
+        ],
+        "returns": "void"
+      },
+      "resource": {
+        "description": "",
+        "parameters": {
+          "uri": {
+            "type": "string",
+            "description": "Parameter uri"
+          },
+          "nameOrHandler": {
+            "type": "string | (() => Promise<Resource>)",
+            "description": "Parameter nameOrHandler"
+          },
+          "handler": {
+            "type": "() => Promise<Resource>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "uri",
+          "nameOrHandler"
+        ],
+        "returns": "void"
+      },
+      "resourceTemplate": {
+        "description": "",
+        "parameters": {
+          "uriTemplate": {
+            "type": "string",
+            "description": "Parameter uriTemplate"
+          },
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "descriptionOrHandler": {
+            "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
+            "description": "Parameter descriptionOrHandler"
+          },
+          "handler": {
+            "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "uriTemplate",
+          "name",
+          "descriptionOrHandler"
+        ],
+        "returns": "void"
+      },
+      "prompt": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Parameter description"
+          },
+          "schemaOrHandler": {
+            "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
+            "description": "Parameter schemaOrHandler"
+          },
+          "handler": {
+            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "schemaOrHandler"
+        ],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "servers.express",
+    "description": "ExpressServer helper",
+    "shortcut": "servers.express",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "StartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "configure": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {},
+    "state": {}
+  },
+  {
+    "id": "servers.websocket",
+    "description": "WebsocketServer helper",
+    "shortcut": "servers.websocket",
+    "methods": {
+      "broadcast": {
+        "description": "",
+        "parameters": {
+          "message": {
+            "type": "any",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "returns": "void"
+      },
+      "send": {
+        "description": "",
+        "parameters": {
+          "ws": {
+            "type": "any",
+            "description": "Parameter ws"
+          },
+          "message": {
+            "type": "any",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "ws",
+          "message"
+        ],
+        "returns": "void"
+      },
+      "start": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "StartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "events": {
+      "connection": {
+        "name": "connection",
+        "description": "Event emitted by WebsocketServer",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
+        "description": "Event emitted by WebsocketServer",
+        "arguments": {}
+      }
+    },
+    "state": {}
+  },
+  {
     "id": "features.expert",
     "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
     "shortcut": "features.expert",
@@ -6012,732 +5823,6 @@ export const introspectionData = [
         },
         "required": [],
         "returns": "Memory[]"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "servers.mcp",
-    "description": "McpServer helper",
-    "shortcut": "servers.mcp",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {
-          "options": {
-            "type": "StartOptions",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      },
-      "log": {
-        "description": "",
-        "parameters": {
-          "message": {
-            "type": "any",
-            "description": "Parameter message"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "returns": "void"
-      },
-      "completion": {
-        "description": "",
-        "parameters": {
-          "ref": {
-            "type": "string",
-            "description": "Parameter ref"
-          },
-          "handler": {
-            "type": "(argName: string, argValue: string) => Promise<string[]>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "ref",
-          "handler"
-        ],
-        "returns": "void"
-      },
-      "handleListResources": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListResourcesRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ListResourcesResult>"
-      },
-      "handleListResourceTemplates": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListResourceTemplatesRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleReadResource": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ReadResourceRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ReadResourceResult>"
-      },
-      "handleSubscribe": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "SubscribeRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleUnsubscribe": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "UnsubscribeRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleListPrompts": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListPromptsRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ListPromptsResult>"
-      },
-      "handleGetPrompt": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "GetPromptRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleListTools": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListToolsRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleCallTool": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "CallToolRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<CallToolResult>"
-      },
-      "handleComplete": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "CompleteRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<CompleteResult>"
-      },
-      "handleSetLevel": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "SetLevelRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "tool": {
-        "description": "",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "inputSchema": {
-            "type": "z.ZodObject<T>",
-            "description": "Parameter inputSchema"
-          },
-          "description": {
-            "type": "string",
-            "description": "Parameter description"
-          },
-          "handler": {
-            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "name",
-          "inputSchema",
-          "description",
-          "handler"
-        ],
-        "returns": "void"
-      },
-      "resource": {
-        "description": "",
-        "parameters": {
-          "uri": {
-            "type": "string",
-            "description": "Parameter uri"
-          },
-          "nameOrHandler": {
-            "type": "string | (() => Promise<Resource>)",
-            "description": "Parameter nameOrHandler"
-          },
-          "handler": {
-            "type": "() => Promise<Resource>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "uri",
-          "nameOrHandler"
-        ],
-        "returns": "void"
-      },
-      "resourceTemplate": {
-        "description": "",
-        "parameters": {
-          "uriTemplate": {
-            "type": "string",
-            "description": "Parameter uriTemplate"
-          },
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "descriptionOrHandler": {
-            "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
-            "description": "Parameter descriptionOrHandler"
-          },
-          "handler": {
-            "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "uriTemplate",
-          "name",
-          "descriptionOrHandler"
-        ],
-        "returns": "void"
-      },
-      "prompt": {
-        "description": "",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "description": {
-            "type": "string",
-            "description": "Parameter description"
-          },
-          "schemaOrHandler": {
-            "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
-            "description": "Parameter schemaOrHandler"
-          },
-          "handler": {
-            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "name",
-          "description",
-          "schemaOrHandler"
-        ],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "servers.express",
-    "description": "ExpressServer helper",
-    "shortcut": "servers.express",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {
-          "options": {
-            "type": "StartOptions",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      },
-      "configure": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "servers.websocket",
-    "description": "WebsocketServer helper",
-    "shortcut": "servers.websocket",
-    "methods": {
-      "broadcast": {
-        "description": "",
-        "parameters": {
-          "message": {
-            "type": "any",
-            "description": "Parameter message"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "returns": "void"
-      },
-      "send": {
-        "description": "",
-        "parameters": {
-          "ws": {
-            "type": "any",
-            "description": "Parameter ws"
-          },
-          "message": {
-            "type": "any",
-            "description": "Parameter message"
-          }
-        },
-        "required": [
-          "ws",
-          "message"
-        ],
-        "returns": "void"
-      },
-      "start": {
-        "description": "",
-        "parameters": {
-          "options": {
-            "type": "StartOptions",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {
-      "connection": {
-        "name": "connection",
-        "description": "Event emitted by WebsocketServer",
-        "arguments": {}
-      },
-      "message": {
-        "name": "message",
-        "description": "Event emitted by WebsocketServer",
-        "arguments": {}
-      }
-    },
-    "state": {}
-  },
-  {
-    "id": "features.esbuild",
-    "description": "Esbuild helper",
-    "shortcut": "features.esbuild",
-    "methods": {
-      "compile": {
-        "description": "",
-        "parameters": {
-          "code": {
-            "type": "string",
-            "description": "Parameter code"
-          },
-          "options": {
-            "type": "esbuild.TransformOptions",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "returns": "void"
-      },
-      "clearCache": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.voice",
-    "description": "VoiceRecognition helper",
-    "shortcut": "features.voice",
-    "methods": {
-      "whenFinished": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "stop": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "abort": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "clearTranscript": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {
-      "start": {
-        "name": "start",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      },
-      "stop": {
-        "name": "stop",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      },
-      "abort": {
-        "name": "abort",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      }
-    },
-    "state": {}
-  },
-  {
-    "id": "features.vm",
-    "description": "VM helper",
-    "shortcut": "features.vm",
-    "methods": {
-      "createScript": {
-        "description": "",
-        "parameters": {
-          "code": {
-            "type": "string",
-            "description": "Parameter code"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "returns": "void"
-      },
-      "createContext": {
-        "description": "",
-        "parameters": {
-          "ctx": {
-            "type": "any",
-            "description": "Parameter ctx"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      },
-      "run": {
-        "description": "",
-        "parameters": {
-          "code": {
-            "type": "string",
-            "description": "Parameter code"
-          },
-          "ctx": {
-            "type": "any",
-            "description": "Parameter ctx"
-          },
-          "options": {
-            "type": "any",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.assetLoader",
-    "description": "AssetLoader helper",
-    "shortcut": "features.assetLoader",
-    "methods": {
-      "removeStylesheet": {
-        "description": "",
-        "parameters": {
-          "href": {
-            "type": "string",
-            "description": "Parameter href"
-          }
-        },
-        "required": [
-          "href"
-        ],
-        "returns": "void"
-      },
-      "loadScript": {
-        "description": "",
-        "parameters": {
-          "url": {
-            "type": "string",
-            "description": "Parameter url"
-          }
-        },
-        "required": [
-          "url"
-        ],
-        "returns": "Promise<void>"
-      },
-      "unpkg": {
-        "description": "",
-        "parameters": {
-          "packageName": {
-            "type": "string",
-            "description": "Parameter packageName"
-          },
-          "globalName": {
-            "type": "string",
-            "description": "Parameter globalName"
-          }
-        },
-        "required": [
-          "packageName",
-          "globalName"
-        ],
-        "returns": "Promise<any>"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.vault",
-    "description": "WebVault helper",
-    "shortcut": "features.vault",
-    "methods": {
-      "secret": {
-        "description": "",
-        "parameters": {
-          "{ refresh = false, set = true }": {
-            "type": "any",
-            "description": "Parameter { refresh = false, set = true }"
-          }
-        },
-        "required": [],
-        "returns": "Promise<ArrayBuffer>"
-      },
-      "decrypt": {
-        "description": "",
-        "parameters": {
-          "payload": {
-            "type": "string",
-            "description": "Parameter payload"
-          }
-        },
-        "required": [
-          "payload"
-        ],
-        "returns": "void"
-      },
-      "encrypt": {
-        "description": "",
-        "parameters": {
-          "payload": {
-            "type": "string",
-            "description": "Parameter payload"
-          }
-        },
-        "required": [
-          "payload"
-        ],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.network",
-    "description": "Network helper",
-    "shortcut": "features.network",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disable": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.speech",
-    "description": "Speech helper",
-    "shortcut": "features.speech",
-    "methods": {
-      "loadVoices": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "setDefaultVoice": {
-        "description": "",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "cancel": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "say": {
-        "description": "",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "Parameter text"
-          },
-          "options": {
-            "type": "{ voice?: Voice }",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "void"
-      }
-    },
-    "events": {},
-    "state": {}
-  },
-  {
-    "id": "features.mdxLoader",
-    "description": "MdxLoader helper",
-    "shortcut": "features.mdxLoader",
-    "methods": {
-      "load": {
-        "description": "",
-        "parameters": {
-          "source": {
-            "type": "string",
-            "description": "Parameter source"
-          }
-        },
-        "required": [
-          "source"
-        ],
-        "returns": "void"
       }
     },
     "events": {},
