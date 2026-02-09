@@ -4,11 +4,11 @@ import { Feature, features } from '../feature.js'
 import { WebContainer} from '../container.js'
 
 export const WebVaultStateSchema = FeatureStateSchema.extend({
-  secret: z.string().optional(),
+  secret: z.string().optional().describe('Base64-encoded AES-GCM encryption secret key'),
 })
 
 export const WebVaultOptionsSchema = FeatureOptionsSchema.extend({
-  secret: z.string().optional(),
+  secret: z.string().optional().describe('Pre-existing base64-encoded secret key to use'),
 })
 
 export type WebVaultState = z.infer<typeof WebVaultStateSchema>

@@ -14,14 +14,14 @@ declare module '@/feature' {
 }
 
 export const HelperChatOptionsSchema = FeatureOptionsSchema.extend({
-	host: z.any().optional(),
+	host: z.any().optional().describe('The host helper instance to chat about'),
 })
 
 export const HelperChatStateSchema = FeatureStateSchema.extend({
-	description: z.string(),
-	started: z.boolean(),
-	messages: z.array(z.any()),
-	systemPrompt: z.string(),
+	description: z.string().describe('Introspection text describing the host helper'),
+	started: z.boolean().describe('Whether the chat session has been started'),
+	messages: z.array(z.any()).describe('Chat message history'),
+	systemPrompt: z.string().describe('Generated system prompt for the chat'),
 })
 
 export type HelperChatOptions = z.infer<typeof HelperChatOptionsSchema>

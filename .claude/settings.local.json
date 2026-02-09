@@ -21,7 +21,8 @@
       "Bash(bunx --bun tsc@latest:*)",
       "Bash(bun add:*)",
       "Bash(bunx vitest run:*)",
-      "Bash(bun -e:*)"
+      "Bash(bun -e:*)",
+      "Bash(ls:*)"
     ]
   }
 }

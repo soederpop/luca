@@ -10,7 +10,7 @@ import { Server, Socket } from "net";
  */
 export const IpcStateSchema = FeatureStateSchema.extend({
   /** The current mode of the IPC socket - either 'server' or 'client' */
-  mode: z.enum(['server', 'client']).optional(),
+  mode: z.enum(['server', 'client']).optional().describe('The current mode of the IPC socket - either server or client'),
 })
 export type IpcState = z.infer<typeof IpcStateSchema>
 

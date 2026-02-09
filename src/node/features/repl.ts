@@ -20,7 +20,7 @@ async function start(options: any) {
  */
 export const ReplStateSchema = FeatureStateSchema.extend({
   /** Whether the REPL server has been started */
-  started: z.boolean().optional(),
+  started: z.boolean().optional().describe('Whether the REPL server has been started'),
 })
 export type ReplState = z.infer<typeof ReplStateSchema>
 
@@ -29,9 +29,9 @@ export type ReplState = z.infer<typeof ReplStateSchema>
  */
 export const ReplOptionsSchema = FeatureOptionsSchema.extend({
   /** The prompt string to display in the REPL (default: "> ") */
-  prompt: z.string().optional(),
+  prompt: z.string().optional().describe('The prompt string to display in the REPL (default: "> ")'),
   /** Path to the REPL history file for command persistence */
-  historyPath: z.string().optional(),
+  historyPath: z.string().optional().describe('Path to the REPL history file for command persistence'),
 })
 export type ReplOptions = z.infer<typeof ReplOptionsSchema>
 

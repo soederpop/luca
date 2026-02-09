@@ -1,11 +1,11 @@
-import { Bus } from "./bus.js";
+import { Bus, type EventMap } from "./bus.js";
 import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
 import { introspect, type HelperIntrospection } from "./introspection/index.js";
 import { z } from 'zod'
-import { HelperStateSchema, HelperOptionsSchema } from './schemas/base.js'
+import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
 // @ts-ignore-next-line
 export interface HelperState { }
@@ -31,17 +31,18 @@ export interface HelperOptions {
  * A helper is connected to the container and can access the container's state, events, shared context, or 
  * other helpers and features in the container's registry.
  */
-export abstract class Helper<T extends HelperState = HelperState, K extends HelperOptions = any> {
+export abstract class Helper<T extends HelperState = HelperState, K extends HelperOptions = any, E extends EventMap = EventMap> {
   static shortcut: string = "unspecified"
 
   static description: string = "No description provided"
 
   static stateSchema: z.ZodType = HelperStateSchema
   static optionsSchema: z.ZodType = HelperOptionsSchema
+  static eventsSchema: z.ZodType = HelperEventsSchema
 
   protected readonly _context: ContainerContext
-  protected readonly _events = new Bus()
-  protected readonly _options: K 
+  protected readonly _events = new Bus<E>()
+  protected readonly _options: K
 
   readonly state: State<T>
 
@@ -159,27 +160,27 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return this.context.container;
   }
 
-  emit(event: string, ...args: any[]) {
+  emit<Ev extends string & keyof E>(event: Ev, ...args: E[Ev]) {
     this._events.emit(event, ...args)
     return this
   }
-  
-  on(event: string, listener: (...args: any[]) => void) {
+
+  on<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void) {
     this._events.on(event, listener)
     return this
   }
-  
-  off(event: string, listener?: (...args: any[]) => void) {
+
+  off<Ev extends string & keyof E>(event: Ev, listener?: (...args: E[Ev]) => void) {
     this._events.off(event, listener)
     return this
   }
-  
-  once(event: string, listener: (...args: any[]) => void) {
+
+  once<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void) {
       this._events.once(event, listener)
       return this
   }
 
-  async waitFor(event:string) {
+  async waitFor<Ev extends string & keyof E>(event: Ev) {
     const resp = await this._events.waitFor(event)
     return resp
   }

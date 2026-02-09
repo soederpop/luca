@@ -3,16 +3,22 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'
 
 export const SecureShellStateSchema = FeatureStateSchema.extend({
-	connected: z.boolean(),
+	/** Whether an SSH connection is currently active */
+	connected: z.boolean().describe('Whether an SSH connection is currently active'),
 })
 export type SecureShellState = z.infer<typeof SecureShellStateSchema>
 
 export const SecureShellOptionsSchema = FeatureOptionsSchema.extend({
-	host: z.string().optional(),
-	port: z.number().optional(),
-	username: z.string().optional(),
-	password: z.string().optional(),
-	key: z.string().optional(),
+	/** Remote host address */
+	host: z.string().optional().describe('Remote host address'),
+	/** SSH port number (default: 22) */
+	port: z.number().optional().describe('SSH port number (default: 22)'),
+	/** Username for SSH authentication */
+	username: z.string().optional().describe('Username for SSH authentication'),
+	/** Password for SSH authentication */
+	password: z.string().optional().describe('Password for SSH authentication'),
+	/** Path to SSH private key file */
+	key: z.string().optional().describe('Path to SSH private key file'),
 })
 export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
 

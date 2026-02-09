@@ -7,7 +7,8 @@ export const VMStateSchema = FeatureStateSchema.extend({})
 export type VMState = z.infer<typeof VMStateSchema>
 
 export const VMOptionsSchema = FeatureOptionsSchema.extend({
-  context: z.any(),
+  /** Default context object to inject into the VM execution environment */
+  context: z.any().describe('Default context object to inject into the VM execution environment'),
 })
 export type VMOptions = z.infer<typeof VMOptionsSchema>
 
@@ -92,7 +93,16 @@ export class VM<
    * const containerContext = vm.createContext()
    * ```
    */
+  /**
+   * Returns true if the given object has already been contextified by `vm.createContext()`.
+   * Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.
+   */
+  isContext(ctx: unknown): ctx is vm.Context {
+    return typeof ctx === 'object' && ctx !== null && vm.isContext(ctx as vm.Context)
+  }
+
   createContext(ctx: any = {}) {
+    if (this.isContext(ctx)) return ctx
     return vm.createContext({
       ...this.container.context,
       ...ctx
@@ -135,9 +145,16 @@ export class VM<
    */
   async run<T extends any>(code: string, ctx: any = {}): Promise<T> {
     const script = this.createScript(code)
-    const context = this.createContext(ctx)
-     
+    const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
+
     return (await script.runInContext(context)) as T
+  }
+
+  async perform<T extends any>(code: string, ctx: any = {}): Promise<{ result: T, context: vm.Context }> {
+    const script = this.createScript(code)
+    const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
+
+    return { result: (await script.runInContext(context)) as T, context }
   }
 }
 

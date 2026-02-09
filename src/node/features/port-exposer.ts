@@ -8,21 +8,21 @@ import { Feature, features } from '../../feature.js'
  */
 export const PortExposerStateSchema = FeatureStateSchema.extend({
 	/** Whether ngrok is currently connected */
-	connected: z.boolean(),
+	connected: z.boolean().describe('Whether ngrok is currently connected'),
 	/** The public URL provided by ngrok */
-	publicUrl: z.string().optional(),
+	publicUrl: z.string().optional().describe('The public URL provided by ngrok'),
 	/** The local port being exposed */
-	localPort: z.number().optional(),
+	localPort: z.number().optional().describe('The local port being exposed'),
 	/** Ngrok session information */
 	sessionInfo: z.object({
-		authToken: z.string().optional(),
-		region: z.string().optional(),
-		subdomain: z.string().optional(),
-	}).optional(),
+		authToken: z.string().optional().describe('Ngrok authentication token'),
+		region: z.string().optional().describe('Ngrok region'),
+		subdomain: z.string().optional().describe('Ngrok subdomain'),
+	}).optional().describe('Ngrok session information'),
 	/** Connection timestamp */
-	connectedAt: z.coerce.date().optional(),
+	connectedAt: z.coerce.date().optional().describe('Timestamp when the connection was established'),
 	/** Any error that occurred */
-	lastError: z.string().optional(),
+	lastError: z.string().optional().describe('Last error message from an ngrok operation'),
 })
 export type PortExposerState = z.infer<typeof PortExposerStateSchema>
 
@@ -31,21 +31,21 @@ export type PortExposerState = z.infer<typeof PortExposerStateSchema>
  */
 export const PortExposerOptionsSchema = FeatureOptionsSchema.extend({
 	/** Local port to expose */
-	port: z.number().optional(),
+	port: z.number().optional().describe('Local port to expose'),
 	/** Optional ngrok auth token for premium features */
-	authToken: z.string().optional(),
+	authToken: z.string().optional().describe('Ngrok auth token for premium features'),
 	/** Preferred region (us, eu, ap, au, sa, jp, in) */
-	region: z.string().optional(),
+	region: z.string().optional().describe('Preferred ngrok region (us, eu, ap, au, sa, jp, in)'),
 	/** Custom subdomain (requires paid plan) */
-	subdomain: z.string().optional(),
+	subdomain: z.string().optional().describe('Custom subdomain (requires paid plan)'),
 	/** Domain to use (requires paid plan) */
-	domain: z.string().optional(),
+	domain: z.string().optional().describe('Domain to use (requires paid plan)'),
 	/** Basic auth for the tunnel */
-	basicAuth: z.string().optional(),
+	basicAuth: z.string().optional().describe('Basic auth credentials for the tunnel'),
 	/** OAuth provider for authentication */
-	oauth: z.string().optional(),
+	oauth: z.string().optional().describe('OAuth provider for authentication'),
 	/** Additional ngrok configuration */
-	config: z.any(),
+	config: z.any().describe('Additional ngrok configuration'),
 })
 export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
 

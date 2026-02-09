@@ -6,12 +6,14 @@ import { type NodeContainer } from '../container.js'
 import { type ContainerContext } from '../../container.js'
 
 export const VaultStateSchema = FeatureStateSchema.extend({
-  secret: z.custom<Buffer>().optional(),
+  /** Secret key buffer used for encryption/decryption */
+  secret: z.custom<Buffer>().optional().describe('Secret key buffer used for encryption/decryption'),
 })
 export type VaultState = z.infer<typeof VaultStateSchema>
 
 export const VaultOptionsSchema = FeatureOptionsSchema.extend({
-  secret: z.union([z.custom<Buffer>(), z.string()]).optional(),
+  /** Secret key as Buffer or base64 string for encryption */
+  secret: z.union([z.custom<Buffer>(), z.string()]).optional().describe('Secret key as Buffer or base64 string for encryption'),
 })
 export type VaultOptions = z.infer<typeof VaultOptionsSchema>
 

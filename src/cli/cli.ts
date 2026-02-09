@@ -1,17 +1,18 @@
 #!/usr/bin/env bun
-
-import { __INTROSPECTION__ } from '@/introspection'
-import container from '@/node'
-import { z } from 'zod'
-import { zodToTs, printNode, createAuxiliaryTypeStore } from 'zod-to-ts'
-
-const { ui } = container
-
-const store = createAuxiliaryTypeStore()
+import container from '@/agi'
+import * as commands from './commands'
 
 async function main() {
-	const vm = container.feature('vm')
-	console.log(ui.markdown(vm.introspectAsText()))
+	const command = container.argv._[0] as keyof typeof commands;
+	const arg = container.argv._[1];
+
+	if (command && typeof commands[command] === 'function') {
+		await commands[command]()
+	} else {
+		console.error(`Unknown command: ${String(command)}`);
+		process.exit(1);
+	}
 }
+
 
 main()

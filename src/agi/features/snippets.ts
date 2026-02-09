@@ -17,18 +17,18 @@ export interface Snippet {
 
 // Define the feature's state schema
 export const SnippetsStateSchema = FeatureStateSchema.extend({
-  snippets: z.array(z.any()),
-  categories: z.array(z.string()),
-  totalCount: z.number(),
-  lastUpdated: z.any().optional(),
+  snippets: z.array(z.any()).describe('Array of all stored snippet objects'),
+  categories: z.array(z.string()).describe('List of all snippet categories'),
+  totalCount: z.number().describe('Total number of stored snippets'),
+  lastUpdated: z.any().optional().describe('Timestamp of the last snippet modification'),
 })
 
 // Define the feature's options schema
 export const SnippetsOptionsSchema = FeatureOptionsSchema.extend({
-  maxSnippets: z.number().optional(),
-  autoSave: z.boolean().optional(),
-  storageKey: z.string().optional(),
-  defaultCategory: z.string().optional(),
+  maxSnippets: z.number().optional().describe('Maximum number of snippets to store'),
+  autoSave: z.boolean().optional().describe('Whether to automatically persist on changes'),
+  storageKey: z.string().optional().describe('Key used for persistent storage'),
+  defaultCategory: z.string().optional().describe('Default category for new snippets'),
 })
 
 export type SnippetsState = z.infer<typeof SnippetsStateSchema>

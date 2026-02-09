@@ -17,7 +17,8 @@ type LsFilesOptions = {
 }
 
 const GitStateSchema = FeatureStateSchema.extend({
-    repoRoot: z.string().optional(),
+    /** Absolute path to the Git repository root directory */
+    repoRoot: z.string().optional().describe('Absolute path to the Git repository root directory'),
 })
 
 type GitState = z.infer<typeof GitStateSchema>
@@ -217,15 +218,52 @@ export class Git extends Feature {
         if (this.state.has('repoRoot')) {
             return this.state.get('repoRoot')
         }
-        
+
         const repoRoot = this.container.fs.findUp('.git')
-       
+
         if(typeof repoRoot === 'string') {
             this.state.set('repoRoot', dirname(repoRoot))
             return dirname(repoRoot)
         }
 
-        return null 
+        return null
+    }
+
+    /**
+     * Gets the latest commits from the repository.
+     *
+     * Returns an array of commit objects containing the title (first line of commit message),
+     * full message body, and author name for each commit.
+     *
+     * @param {number} [numberOfChanges=10] - The number of recent commits to return
+     * @returns {Promise<Array<{ title: string, message: string, author: string }>>} Array of commit objects
+     *
+     * @example
+     * ```typescript
+     * const changes = await git.getLatestChanges(5)
+     * for (const commit of changes) {
+     *   console.log(`${commit.author}: ${commit.title}`)
+     * }
+     * ```
+     */
+    async getLatestChanges(numberOfChanges: number = 10) {
+        if (!this.isRepo) return []
+
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+
+        const output = this.container.feature('proc').exec(
+            `git log -n ${numberOfChanges} --pretty=format:"%s${fieldSep}%b${fieldSep}%an${separator}"`,
+            { cwd: this.repoRoot }
+        )
+
+        return output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [title = '', message = '', author = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { title, message, author }
+            })
     }
 }
 

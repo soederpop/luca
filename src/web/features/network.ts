@@ -4,7 +4,7 @@ import { features, Feature } from "../feature.js";
 import type { Container, ContainerContext } from "../container.js";
 
 export const NetworkStateSchema = FeatureStateSchema.extend({
-  offline: z.boolean(),
+  offline: z.boolean().describe('Whether the browser is currently offline'),
 })
 
 export const NetworkOptionsSchema = FeatureOptionsSchema.extend({})

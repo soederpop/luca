@@ -1,0 +1,100 @@
+import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
+import { Collection, defineModel, section, hasMany, belongsTo, type ModelDefinition } from 'contentbase'
+
+/**
+ * State interface for the ContentDb feature.
+ *
+ * @interface ContentDbState
+ * @extends {FeatureState}
+ */
+export interface ContentDbState extends FeatureState {
+  loaded: boolean
+}
+
+/**
+ * Options interface for the ContentDb feature.
+ *
+ * @interface ContentDbOptions
+ * @extends {FeatureOptions}
+ */
+export interface ContentDbOptions extends FeatureOptions {
+  rootPath: string
+}
+
+/**
+ * Turns an organized folder of structured markdown files into an ORM like database
+ * 
+ * This is a wrapper around the Contentbase library essentially.
+ * 
+ * You can access raw document objects and query them, without having to define models or anything.
+ *
+ * @extends Feature
+ */
+export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
+  static override shortcut = 'features.contentDb' as const
+
+  get library() {
+    return {
+      Collection,
+      defineModel,
+      section,
+      hasMany,
+      belongsTo
+    }
+  }
+
+  override get initialState(): ContentDbState {
+    return {
+      ...super.initialState,
+      loaded: false
+    }
+  }
+
+  /**
+   * TODO: describe this method.
+   *
+   * @returns {Promise<void>}
+   */
+
+  modelDefinitions: Map<string, ModelDefinition> = new Map()
+
+  get models() {
+    return Object.fromEntries(this.modelDefinitions.entries())
+  }
+
+  get isLoaded() {
+    return this.state.get('loaded')
+  }
+
+  get modelNames() {
+    return Array.from(this.modelDefinitions.keys())
+  }
+
+  _collection?: Collection
+
+  get collection() {
+    if (this._collection) return this._collection
+    return this._collection = new Collection({ rootPath: this.options.rootPath })
+  }
+
+  async load(): Promise<ContentDb> {
+    if (this.isLoaded) {
+      return this;
+    }
+
+    await this.collection.load()
+    this.state.set('loaded', true)
+
+    return this
+  }
+
+  defineModel(definerFunction: (library: typeof this.library) => ModelDefinition) {
+    const model = definerFunction(this.library)
+
+    this.modelDefinitions.set(model.name, model)
+
+    return model
+  } 
+}
+
+export default features.register('contentDb', ContentDb)

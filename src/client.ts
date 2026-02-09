@@ -2,7 +2,7 @@ import { Helper, type HelperOptions, type HelperState } from "./helper.js";
 import type { Container, ContainerContext } from "./container.js";
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Registry } from "./registry.js";
-import { ClientStateSchema, ClientOptionsSchema } from './schemas/base.js'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from './schemas/base.js'
 
 export interface ClientOptions extends HelperOptions {
   baseURL?: string;
@@ -33,6 +33,7 @@ export class Client<
   static override shortcut = "clients.base"
   static override stateSchema = ClientStateSchema
   static override optionsSchema = ClientOptionsSchema
+  static override eventsSchema = ClientEventsSchema
 
   static attach(container: Container & ClientsInterface): any {
     return Object.assign(container, {

@@ -11,7 +11,7 @@ declare module '../server/index' {
 }
 
 export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
-  json: z.boolean().optional(),
+  json: z.boolean().optional().describe('Whether to automatically JSON parse/stringify messages'),
 })
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
 

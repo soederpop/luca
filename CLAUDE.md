@@ -2,6 +2,12 @@
 
 Lightweight Universal Conversational Architecture. Runtime is bun.
 
+## Important Tips
+
+- Read docs/codebase-explainer.md if you need a quick summary of the codebase.  For speed's sake I'd rather you do this than glob my entire tree and call dozens of tools to read it.  I will promise to keep it up to date if things change.
+
+- Read the scripts/examples/*.ts files to get some examples of using the node features in scripts
+
 ## Vision
 
 Luca philosophically is inspired by the beauty of docker layers and their cacheability, and how when you order your dockerfile properly based on how frequently each line changes, you can save tons and tons of time and space.  

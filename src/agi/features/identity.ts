@@ -19,16 +19,16 @@ export interface Memory {
 }
 
 export const IdentityStateSchema = FeatureStateSchema.extend({
-	systemPrompt: z.string(),
-	memories: z.array(z.any()),
+	systemPrompt: z.string().describe('The system prompt loaded from disk'),
+	memories: z.array(z.any()).describe('All memories (hardcoded + saved) merged together'),
 	/** Memories loaded from memories.json (read-only seed data) */
-	hardcodedMemories: z.array(z.any()),
+	hardcodedMemories: z.array(z.any()).describe('Memories loaded from memories.json (read-only seed data)'),
 })
 
 export const IdentityOptionsSchema = FeatureOptionsSchema.extend({
-	basePath: z.string().optional(),
-	name: z.string().optional(),
-	description: z.string().optional(),
+	basePath: z.string().optional().describe('Base directory path for the identity files'),
+	name: z.string().optional().describe('Name identifier for this identity'),
+	description: z.string().optional().describe('Human-readable description of this identity'),
 })
 
 export type IdentityState = z.infer<typeof IdentityStateSchema>

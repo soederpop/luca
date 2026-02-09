@@ -5,22 +5,27 @@ import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 
 export const PythonStateSchema = FeatureStateSchema.extend({
-  pythonPath: z.string().nullable().default(null),
-  projectDir: z.string().nullable().default(null),
-  environmentType: z.enum(['uv', 'conda', 'venv', 'system']).nullable().default(null),
-  isReady: z.boolean().default(false),
-  lastExecutedScript: z.string().nullable().default(null),
+  /** Path to the detected Python executable */
+  pythonPath: z.string().nullable().default(null).describe('Path to the detected Python executable'),
+  /** Root directory of the Python project */
+  projectDir: z.string().nullable().default(null).describe('Root directory of the Python project'),
+  /** Detected Python environment type */
+  environmentType: z.enum(['uv', 'conda', 'venv', 'system']).nullable().default(null).describe('Detected Python environment type (uv, conda, venv, or system)'),
+  /** Whether the Python environment is ready for execution */
+  isReady: z.boolean().default(false).describe('Whether the Python environment is ready for execution'),
+  /** Path to the last executed Python script */
+  lastExecutedScript: z.string().nullable().default(null).describe('Path to the last executed Python script'),
 })
 
 export const PythonOptionsSchema = FeatureOptionsSchema.extend({
   /** Directory containing the Python project */
-  dir: z.string().optional(),
+  dir: z.string().optional().describe('Directory containing the Python project'),
   /** Custom install command to override auto-detection */
-  installCommand: z.string().optional(),
+  installCommand: z.string().optional().describe('Custom install command to override auto-detection'),
   /** Path to Python script that will populate locals/context */
-  contextScript: z.string().optional(),
+  contextScript: z.string().optional().describe('Path to Python script that will populate locals/context'),
   /** Specific Python executable to use */
-  pythonPath: z.string().optional(),
+  pythonPath: z.string().optional().describe('Specific Python executable path to use'),
 })
 
 export type PythonState = z.infer<typeof PythonStateSchema>
