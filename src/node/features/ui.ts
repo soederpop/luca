@@ -18,9 +18,9 @@ marked.use(markedTerminal({ }));
  */
 export const UIStateSchema = FeatureStateSchema.extend({
   /** Array of available fonts for ASCII art generation */
-  fonts: z.array(z.string()).optional(),
+  fonts: z.array(z.string()).optional().describe('Array of available fonts for ASCII art generation'),
   /** Color palette for automatic color assignment */
-  colorPalette: z.array(z.string()).optional(),
+  colorPalette: z.array(z.string()).optional().describe('Color palette of hex colors for automatic color assignment'),
 })
 type UIState = z.infer<typeof UIStateSchema>
 

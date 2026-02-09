@@ -3,36 +3,54 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'
 
 export const DockerContainerSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  image: z.string(),
-  status: z.string(),
-  ports: z.array(z.string()),
-  created: z.string(),
+  /** Container ID */
+  id: z.string().describe('Container ID'),
+  /** Container name */
+  name: z.string().describe('Container name'),
+  /** Image used to create the container */
+  image: z.string().describe('Image used to create the container'),
+  /** Current container status (e.g. running, exited) */
+  status: z.string().describe('Current container status (e.g. running, exited)'),
+  /** Published port mappings */
+  ports: z.array(z.string()).describe('Published port mappings'),
+  /** Container creation timestamp */
+  created: z.string().describe('Container creation timestamp'),
 })
 export type DockerContainer = z.infer<typeof DockerContainerSchema>
 
 export const DockerImageSchema = z.object({
-  id: z.string(),
-  repository: z.string(),
-  tag: z.string(),
-  size: z.string(),
-  created: z.string(),
+  /** Image ID */
+  id: z.string().describe('Image ID'),
+  /** Image repository name */
+  repository: z.string().describe('Image repository name'),
+  /** Image tag */
+  tag: z.string().describe('Image tag'),
+  /** Image size */
+  size: z.string().describe('Image size'),
+  /** Image creation timestamp */
+  created: z.string().describe('Image creation timestamp'),
 })
 export type DockerImage = z.infer<typeof DockerImageSchema>
 
 export const DockerStateSchema = FeatureStateSchema.extend({
-  containers: z.array(DockerContainerSchema),
-  images: z.array(DockerImageSchema),
-  isDockerAvailable: z.boolean(),
-  lastError: z.string().optional(),
+  /** List of known Docker containers */
+  containers: z.array(DockerContainerSchema).describe('List of known Docker containers'),
+  /** List of known Docker images */
+  images: z.array(DockerImageSchema).describe('List of known Docker images'),
+  /** Whether Docker CLI is available on this system */
+  isDockerAvailable: z.boolean().describe('Whether Docker CLI is available on this system'),
+  /** Last error message from a Docker operation */
+  lastError: z.string().optional().describe('Last error message from a Docker operation'),
 })
 export type DockerState = z.infer<typeof DockerStateSchema>
 
 export const DockerOptionsSchema = FeatureOptionsSchema.extend({
-  dockerPath: z.string().optional(), // Path to docker executable
-  timeout: z.number().optional(), // Command timeout in ms
-  autoRefresh: z.boolean().optional(), // Auto refresh containers/images on operations
+  /** Path to docker executable */
+  dockerPath: z.string().optional().describe('Path to docker executable'),
+  /** Command timeout in ms */
+  timeout: z.number().optional().describe('Command timeout in milliseconds'),
+  /** Auto refresh containers/images on operations */
+  autoRefresh: z.boolean().optional().describe('Auto refresh containers/images after operations'),
 })
 export type DockerOptions = z.infer<typeof DockerOptionsSchema>
 

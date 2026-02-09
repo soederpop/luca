@@ -8,8 +8,8 @@ export const SpeechOptionsSchema = FeatureOptionsSchema.extend({
 })
 
 export const SpeechStateSchema = FeatureStateSchema.extend({
-  defaultVoice: z.string(),
-  voices: z.array(z.any().describe('Voice object')).optional(),
+  defaultVoice: z.string().describe('Name of the currently selected default voice'),
+  voices: z.array(z.any().describe('Voice object')).optional().describe('Available speech synthesis voices'),
 })
 
 export type SpeechOptions = z.infer<typeof SpeechOptionsSchema>

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { describeZodShape } from '../schemas/base.js'
+import { describeZodShape, describeEventsSchema } from '../schemas/base.js'
 
 /**
  * Inspection is a feature that is available to all containers, its purpose is to provide
@@ -112,6 +112,11 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 
 	if (helperConstructor.optionsSchema && helperConstructor.optionsSchema instanceof z.ZodObject) {
 		introspection.options = describeZodShape(helperConstructor.optionsSchema)
+	}
+
+	// Merge event argument types from Zod eventsSchema, preserving build-time AST descriptions
+	if (helperConstructor.eventsSchema && helperConstructor.eventsSchema instanceof z.ZodObject) {
+		introspection.events = describeEventsSchema(helperConstructor.eventsSchema, introspection.events)
 	}
 
 	__INTROSPECTION__.set(key, introspection)

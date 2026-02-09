@@ -13,8 +13,8 @@ declare module '../server/index' {
 }
 
 export const ExpressServerOptionsSchema = ServerOptionsSchema.extend({
-  cors: z.boolean().optional(),
-  static: z.string().optional(),
+  cors: z.boolean().optional().describe('Whether to enable CORS middleware'),
+  static: z.string().optional().describe('Path to serve static files from'),
   create: z.any().optional().describe('(app: Express, server: Server) => Express'),
   beforeStart: z.any().optional().describe('(options: StartOptions, server: Server) => Promise<any>'),
 })

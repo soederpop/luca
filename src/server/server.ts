@@ -3,7 +3,7 @@ import type { HelperOptions, HelperState } from '../helper.js'
 import { Helper } from '../helper.js'
 import { Registry } from '../registry.js'
 import type { AvailableServers } from './index.js'
-import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
 
 export interface ServerState extends HelperState {
   port?: number;
@@ -45,6 +45,7 @@ const makeFactory = (container: NodeContainer & ServersInterface) : ServerFactor
 export class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
     static override stateSchema = ServerStateSchema
     static override optionsSchema = ServerOptionsSchema
+    static override eventsSchema = ServerEventsSchema
 
     override get initialState() : T {
       return ({

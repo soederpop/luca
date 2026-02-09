@@ -13,6 +13,7 @@ import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
 
 import "./features/disk-cache";
+import "./features/content-db";
 import "./features/downloader";
 import "./features/esbuild";
 import "./features/file-manager";
@@ -40,6 +41,7 @@ import "./features/secure-shell";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
+import type { ContentDb } from "./features/content-db";
 import type { Downloader } from "./features/downloader";
 import type { ESBuild } from "./features/esbuild";
 import type { FileManager } from "./features/file-manager";
@@ -69,6 +71,7 @@ export {
   features,
   Feature,
   type FS,
+  type ContentDb,
   type ChildProcess,
   type Git,
   type OS,
@@ -131,6 +134,7 @@ export interface NodeFeatures extends AvailableFeatures {
   portExposer: typeof PortExposer;
   runpod: typeof Runpod;
   secureShell: typeof SecureShell;
+  contentDb: typeof ContentDb;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface;

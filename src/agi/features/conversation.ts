@@ -22,30 +22,30 @@ export interface ConversationTool {
 
 export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** A unique identifier for the conversation */
-	id: z.string().optional(),
+	id: z.string().optional().describe('A unique identifier for the conversation'),
 	/** A unique identifier for threads, an arbitrary grouping mechanism */
-	thread: z.string().optional(),
+	thread: z.string().optional().describe('A unique identifier for threads, an arbitrary grouping mechanism'),
 	/** Any available OpenAI model */
-	model: z.string().optional(),
+	model: z.string().optional().describe('Any available OpenAI model'),
 	/** Initial message history to seed the conversation */
-	history: z.array(z.any()).optional(),
+	history: z.array(z.any()).optional().describe('Initial message history to seed the conversation'),
 	/** Tools the model can call during conversation */
-	tools: z.record(z.any()).optional(),
+	tools: z.record(z.any()).optional().describe('Tools the model can call during conversation'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
-	id: z.string(),
-	thread: z.string(),
-	model: z.string(),
-	messages: z.array(z.any()),
-	streaming: z.boolean(),
-	lastResponse: z.string(),
-	toolCalls: z.number(),
+	id: z.string().describe('Unique identifier for this conversation instance'),
+	thread: z.string().describe('Thread identifier for grouping conversations'),
+	model: z.string().describe('The OpenAI model being used'),
+	messages: z.array(z.any()).describe('Full message history of the conversation'),
+	streaming: z.boolean().describe('Whether a streaming response is currently in progress'),
+	lastResponse: z.string().describe('The last assistant response text'),
+	toolCalls: z.number().describe('Total number of tool calls made in this conversation'),
 	tokenUsage: z.object({
-		prompt: z.number(),
-		completion: z.number(),
-		total: z.number(),
-	}),
+		prompt: z.number().describe('Total prompt tokens consumed'),
+		completion: z.number().describe('Total completion tokens consumed'),
+		total: z.number().describe('Total tokens consumed'),
+	}).describe('Cumulative token usage statistics'),
 })
 
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
@@ -170,10 +170,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				if (delta?.content) {
 					fullContent += delta.content
 					this.emit('chunk', delta.content)
+					this.emit('preview', fullContent)
 				}
 
 				if (delta?.tool_calls) {
-					console.log(delta.tool_calls)
 					for (const tc of delta.tool_calls) {
 						if (!toolCalls[tc.index]) {
 							toolCalls[tc.index] = {

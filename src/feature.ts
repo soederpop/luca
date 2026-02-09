@@ -4,7 +4,7 @@ import { Registry } from './registry.js'
 import type { ContainerContext } from './container.js'
 import { kebabCase, camelCase } from 'lodash-es'
 import type { YAML } from './node/features/yaml.js';
-import { FeatureStateSchema, FeatureOptionsSchema } from './schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from './schemas/base.js'
 
 /** 
  * Use module augmentation to register features, the same way you would register
@@ -35,6 +35,7 @@ export interface FeatureState extends HelperState {
 export abstract class Feature<T extends FeatureState = FeatureState, K extends FeatureOptions = FeatureOptions> extends Helper<T, K> {
     static override stateSchema = FeatureStateSchema
     static override optionsSchema = FeatureOptionsSchema
+    static override eventsSchema = FeatureEventsSchema
 
     get shortcut() {
         return (this.constructor as any).shortcut as string

@@ -6,7 +6,7 @@ import type * as esbuild from 'esbuild-wasm';
 
 export const EsbuildWebOptionsSchema = FeatureOptionsSchema.extend({
   transformOptions: z.any().describe('Partial<esbuild.TransformOptions>').optional(),
-  tsconfig: z.string().optional(),
+  tsconfig: z.string().optional().describe('Path to a tsconfig.json file for TypeScript compilation'),
 })
 
 export type EsbuildWebOptions = z.infer<typeof EsbuildWebOptionsSchema>

@@ -97,33 +97,37 @@ export interface ClaudeSession {
 // --- Feature state and options ---
 
 export const ClaudeCodeStateSchema = FeatureStateSchema.extend({
-  sessions: z.record(z.any()),
-  activeSessions: z.array(z.string()),
-  claudeAvailable: z.boolean(),
-  claudeVersion: z.string().optional(),
+  /** Map of session IDs to ClaudeSession objects */
+  sessions: z.record(z.any()).describe('Map of session IDs to ClaudeSession objects'),
+  /** List of currently running session IDs */
+  activeSessions: z.array(z.string()).describe('List of currently running session IDs'),
+  /** Whether the Claude CLI binary is available */
+  claudeAvailable: z.boolean().describe('Whether the Claude CLI binary is available'),
+  /** Detected Claude CLI version string */
+  claudeVersion: z.string().optional().describe('Detected Claude CLI version string'),
 })
 
 export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   /** Path to the claude CLI binary. Defaults to 'claude'. */
-  claudePath: z.string().optional(),
+  claudePath: z.string().optional().describe('Path to the claude CLI binary'),
   /** Default model to use for sessions. */
-  model: z.string().optional(),
+  model: z.string().optional().describe('Default model to use for sessions'),
   /** Default working directory for sessions. */
-  cwd: z.string().optional(),
+  cwd: z.string().optional().describe('Default working directory for sessions'),
   /** Default system prompt prepended to all sessions. */
-  systemPrompt: z.string().optional(),
+  systemPrompt: z.string().optional().describe('Default system prompt prepended to all sessions'),
   /** Default append system prompt for all sessions. */
-  appendSystemPrompt: z.string().optional(),
+  appendSystemPrompt: z.string().optional().describe('Default append system prompt for all sessions'),
   /** Default permission mode. */
-  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional(),
+  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional().describe('Default permission mode for Claude CLI sessions'),
   /** Default allowed tools. */
-  allowedTools: z.array(z.string()).optional(),
+  allowedTools: z.array(z.string()).optional().describe('Default allowed tools for sessions'),
   /** Default disallowed tools. */
-  disallowedTools: z.array(z.string()).optional(),
+  disallowedTools: z.array(z.string()).optional().describe('Default disallowed tools for sessions'),
   /** Whether to stream partial messages (token-by-token). Defaults to false. */
-  streaming: z.boolean().optional(),
+  streaming: z.boolean().optional().describe('Whether to stream partial messages token-by-token'),
   /** MCP config paths or JSON strings to pass to sessions. */
-  mcpConfig: z.array(z.string()).optional(),
+  mcpConfig: z.array(z.string()).optional().describe('MCP config paths or JSON strings to pass to sessions'),
 })
 
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>

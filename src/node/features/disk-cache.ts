@@ -12,9 +12,12 @@ import type { ContainerContext } from "../../container.js";
 import { mkdirSync } from "fs";
 
 export const DiskCacheOptionsSchema = FeatureOptionsSchema.extend({
-  encrypt: z.boolean().optional(),
-  secret: z.custom<Buffer>().optional(),
-  path: z.string().optional(),
+  /** Whether to enable encryption for cached data */
+  encrypt: z.boolean().optional().describe('Whether to enable encryption for cached data'),
+  /** Secret key used for encryption operations */
+  secret: z.custom<Buffer>().optional().describe('Secret key buffer used for encryption operations'),
+  /** Custom directory path for the cache storage */
+  path: z.string().optional().describe('Custom directory path for the cache storage'),
 })
 
 export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>

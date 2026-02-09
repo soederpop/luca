@@ -4,14 +4,14 @@ import { Feature, features } from "../../feature.js";
 import { type WebFeatures, type Container, type ContainerContext } from '../container.js'
 
 export const VoiceRecognitionOptionsSchema = FeatureOptionsSchema.extend({
-  language: z.string().optional(),
-  continuous: z.boolean().optional(),
-  autoListen: z.boolean().optional(),
+  language: z.string().optional().describe('BCP 47 language code for recognition (e.g. en-US)'),
+  continuous: z.boolean().optional().describe('Whether to continuously listen for speech'),
+  autoListen: z.boolean().optional().describe('Whether to automatically start listening on creation'),
 })
 
 export const VoiceRecognitionStateSchema = FeatureStateSchema.extend({
-  listening: z.boolean(),
-  transcript: z.string(),
+  listening: z.boolean().describe('Whether the recognizer is currently listening'),
+  transcript: z.string().describe('Accumulated final transcript text'),
 })
 
 export type VoiceRecognitionOptions = z.infer<typeof VoiceRecognitionOptionsSchema>

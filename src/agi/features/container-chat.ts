@@ -16,10 +16,14 @@ declare module '@/feature' {
 export const ContainerChatOptionsSchema = FeatureOptionsSchema.extend({})
 
 export const ContainerChatStateSchema = FeatureStateSchema.extend({
-	description: z.string(),
-	started: z.boolean(),
-	messages: z.array(z.any()),
-	systemPrompt: z.string(),
+	/** Description of the container for the chat context */
+	description: z.string().describe('Description of the container for the chat context'),
+	/** Whether the chat session has been started */
+	started: z.boolean().describe('Whether the chat session has been started'),
+	/** Chat message history */
+	messages: z.array(z.any()).describe('Chat message history'),
+	/** Generated system prompt for the chat */
+	systemPrompt: z.string().describe('Generated system prompt for the chat'),
 })
 
 export type ContainerChatOptions = z.infer<typeof ContainerChatOptionsSchema>

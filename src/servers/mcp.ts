@@ -50,14 +50,14 @@ declare module '../server/index' {
 }
 
 export const McpServerOptionsSchema = ServerOptionsSchema.extend({
-	serverName: z.string().optional(),
-	version: z.string().optional(),
-	instructions: z.string().optional(),
+	serverName: z.string().optional().describe('Display name for the MCP server'),
+	version: z.string().optional().describe('Semantic version string for the MCP server'),
+	instructions: z.string().optional().describe('Instructions text provided to MCP clients'),
 })
 export type McpServerOptions = z.infer<typeof McpServerOptionsSchema>
 
 export const McpServerStateSchema = ServerStateSchema.extend({
-	started: z.boolean().default(false),
+	started: z.boolean().default(false).describe('Whether the MCP server has been started'),
 })
 export type McpServerState = z.infer<typeof McpServerStateSchema>
 

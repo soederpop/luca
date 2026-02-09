@@ -19,14 +19,19 @@ type File = {
 };
 
 export const FileManagerStateSchema = FeatureStateSchema.extend({
-  started: z.boolean().optional(),
-  starting: z.boolean().optional(),
-  watching: z.boolean().optional(),
-  failed: z.boolean().optional(),
+  /** Whether the file manager has completed its initial scan */
+  started: z.boolean().optional().describe('Whether the file manager has completed its initial scan'),
+  /** Whether the file manager is currently scanning files */
+  starting: z.boolean().optional().describe('Whether the file manager is currently scanning files'),
+  /** Whether the file watcher is actively monitoring for changes */
+  watching: z.boolean().optional().describe('Whether the file watcher is actively monitoring for changes'),
+  /** Whether the initial scan failed */
+  failed: z.boolean().optional().describe('Whether the initial file scan failed'),
 })
 
 export const FileManagerOptionsSchema = FeatureOptionsSchema.extend({
-  exclude: z.union([z.string(), z.array(z.string())]).optional(),
+  /** Glob patterns to exclude from file scanning */
+  exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Glob patterns to exclude from file scanning'),
 })
 
 export type FileManagerState = z.infer<typeof FileManagerStateSchema>

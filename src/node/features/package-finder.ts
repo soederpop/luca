@@ -24,7 +24,7 @@ type PackageIndex = {
  */
 export const PackageFinderStateSchema = FeatureStateSchema.extend({
   /** Whether the package finder has been started and initial scan completed */
-  started: z.boolean().optional(),
+  started: z.boolean().optional().describe('Whether the package finder has been started and initial scan completed'),
 })
 export type PackageFinderState = z.infer<typeof PackageFinderStateSchema>
 
@@ -33,7 +33,7 @@ export type PackageFinderState = z.infer<typeof PackageFinderStateSchema>
  */
 export const PackageFinderOptionsSchema = FeatureOptionsSchema.extend({
   /** Optional configuration parameter (currently unused) */
-  option: z.string().optional(),
+  option: z.string().optional().describe('Optional configuration parameter'),
 })
 export type PackageFinderOptions = z.infer<typeof PackageFinderOptionsSchema>
 
