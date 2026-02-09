@@ -1,4 +1,5 @@
 import { NodeContainer } from './node/container.js'
+import './introspection/generated.node.js'
 
 const container = new NodeContainer()
 

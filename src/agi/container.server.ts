@@ -1,5 +1,6 @@
 import type { ContainerState } from '@/container'
 import { type NodeFeatures, NodeContainer } from '@/node/container'
+import '@/introspection/generated.agi.js'
 import { OpenAIClient } from '@/agi/openai-client'
 import { Identity } from './features/identity'
 import { HelperChat } from './features/helper-chat'
