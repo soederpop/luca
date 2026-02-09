@@ -53,6 +53,8 @@ export type HelperIntrospection = {
 	events: Record<string, EventIntrospection>
 	// a map of state properties to their introspection
 	state: Record<string, { type: string, description: string }>
+	// a map of options properties to their introspection
+	options: Record<string, { type: string, description: string }>
 }
 
 export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
@@ -62,6 +64,26 @@ export function introspect(id: string) : HelperIntrospection | undefined {
 	return __INTROSPECTION__.get(id)
 }
 
+/**
+ * Called by generated files to seed build-time AST data (description, methods, events).
+ * Merges into any existing entry without overwriting runtime-derived state/options.
+ */
+export function setBuildTimeData(key: string, data: HelperIntrospection) {
+	const existing = __INTROSPECTION__.get(key)
+
+	__INTROSPECTION__.set(key, {
+		...data,
+		// preserve runtime-derived state/options if registration already happened
+		state: existing?.state || data.state || {},
+		options: existing?.options || data.options || {},
+	})
+}
+
+/**
+ * Called at registry.register() time to merge runtime Zod schema data
+ * into the introspection entry. Preserves build-time methods/events
+ * regardless of import order.
+ */
 export function interceptRegistration(registry: any, helperConstructor: any) {
 
 	if (!helperConstructor.shortcut) {
@@ -70,23 +92,26 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 	}
 
 	const key = helperConstructor.shortcut
-
-	if (__INTROSPECTION__.has(key)) {
-		return
-	}
+	const existing = __INTROSPECTION__.get(key)
 
 	const introspection: HelperIntrospection = {
 		id: key,
-		description: helperConstructor.description || '',
+		description: helperConstructor.description || existing?.description || '',
 		shortcut: helperConstructor.shortcut,
-		methods: {},
-		events: {},
-		state: {}
+		// preserve build-time AST data if generated file already loaded
+		methods: existing?.methods || {},
+		events: existing?.events || {},
+		state: {},
+		options: {}
 	}
 
-	// Auto-populate state info from Zod schema if available
+	// Always populate state and options from Zod schemas at runtime
 	if (helperConstructor.stateSchema && helperConstructor.stateSchema instanceof z.ZodObject) {
 		introspection.state = describeZodShape(helperConstructor.stateSchema)
+	}
+
+	if (helperConstructor.optionsSchema && helperConstructor.optionsSchema instanceof z.ZodObject) {
+		introspection.options = describeZodShape(helperConstructor.optionsSchema)
 	}
 
 	__INTROSPECTION__.set(key, introspection)

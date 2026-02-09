@@ -66,6 +66,7 @@
     "child-process-promise": "^2.2.1",
     "chokidar": "^3.5.3",
     "cli-markdown": "^3.5.0",
+    "contentbase": "file:../@projects/contentbase",
     "cors": "^2.8.5",
     "detect-port": "^1.5.1",
     "dotenv": "^16.0.3",
@@ -107,7 +108,8 @@
     "unist-util-select": "^4.0.3",
     "unist-util-visit": "^4.1.2",
     "ws": "^8.13.0",
-    "contentbase": "file:../@projects/contentbase",
-    "zod": "^3.25.57"
+    "zod": "^4.0.0",
+    "zod-to-json-schema": "^3.25.1",
+    "zod-to-ts": "^2.0.0"
   }
 }

@@ -1,9 +1,9 @@
-import { __INTROSPECTION__ } from './index.js';
+import { setBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-09T00:11:33.797Z
+// Generated at: 2026-02-09T02:36:44.637Z
 
-__INTROSPECTION__.set('features.yamlTree', {
+setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
   "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
   "shortcut": "features.yamlTree",
@@ -27,10 +27,11 @@ __INTROSPECTION__.set('features.yamlTree', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.git', {
+setBuildTimeData('features.git', {
   "id": "features.git",
   "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
   "shortcut": "features.git",
@@ -48,10 +49,11 @@ __INTROSPECTION__.set('features.git', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.esbuild', {
+setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
   "shortcut": "features.esbuild",
@@ -92,10 +94,11 @@ __INTROSPECTION__.set('features.esbuild', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.downloader', {
+setBuildTimeData('features.downloader', {
   "id": "features.downloader",
   "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
   "shortcut": "features.downloader",
@@ -120,10 +123,11 @@ __INTROSPECTION__.set('features.downloader', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.proc', {
+setBuildTimeData('features.proc', {
   "id": "features.proc",
   "description": "The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.",
   "shortcut": "features.proc",
@@ -186,10 +190,11 @@ __INTROSPECTION__.set('features.proc', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.vm', {
+setBuildTimeData('features.vm', {
   "id": "features.vm",
   "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
   "shortcut": "features.vm",
@@ -241,10 +246,11 @@ __INTROSPECTION__.set('features.vm', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.ui', {
+setBuildTimeData('features.ui', {
   "id": "features.ui",
   "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
   "shortcut": "features.ui",
@@ -472,10 +478,11 @@ __INTROSPECTION__.set('features.ui', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.repl', {
+setBuildTimeData('features.repl', {
   "id": "features.repl",
   "description": "Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server This feature provides a fully-featured REPL server with support for: - Custom evaluation context with container access - Persistent command history - Promise-aware evaluation (async/await support) - Customizable prompts and settings - Integration with the container's context and features The REPL runs in a sandboxed VM context but provides access to the container and all its features, making it perfect for interactive debugging and exploration. **Key Features:** - VM-based evaluation for security - Automatic promise resolution in REPL output - Persistent history across sessions - Full container context access - Colored terminal output support **Usage Example:** ```typescript const repl = container.feature('repl'); await repl.start({ historyPath: '.repl_history', context: { customVar: 'value' } }); // REPL is now running and accessible ```",
   "shortcut": "features.repl",
@@ -499,28 +506,31 @@ __INTROSPECTION__.set('features.repl', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.scriptRunner', {
+setBuildTimeData('features.scriptRunner', {
   "id": "features.scriptRunner",
   "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
   "shortcut": "features.scriptRunner",
   "methods": {},
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.os', {
+setBuildTimeData('features.os', {
   "id": "features.os",
   "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
   "shortcut": "features.os",
   "methods": {},
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.docker', {
+setBuildTimeData('features.docker', {
   "id": "features.docker",
   "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
   "shortcut": "features.docker",
@@ -728,10 +738,11 @@ __INTROSPECTION__.set('features.docker', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.yaml', {
+setBuildTimeData('features.yaml', {
   "id": "features.yaml",
   "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
   "shortcut": "features.yaml",
@@ -764,10 +775,11 @@ __INTROSPECTION__.set('features.yaml', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.networking', {
+setBuildTimeData('features.networking', {
   "id": "features.networking",
   "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
   "shortcut": "features.networking",
@@ -796,10 +808,11 @@ __INTROSPECTION__.set('features.networking', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.vault', {
+setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
   "shortcut": "features.vault",
@@ -843,10 +856,11 @@ __INTROSPECTION__.set('features.vault', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.fs', {
+setBuildTimeData('features.fs', {
   "id": "features.fs",
   "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
   "shortcut": "features.fs",
@@ -1100,10 +1114,11 @@ __INTROSPECTION__.set('features.fs', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.ipcSocket', {
+setBuildTimeData('features.ipcSocket', {
   "id": "features.ipcSocket",
   "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
   "shortcut": "features.ipcSocket",
@@ -1183,10 +1198,11 @@ __INTROSPECTION__.set('features.ipcSocket', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.diskCache', {
+setBuildTimeData('features.diskCache', {
   "id": "features.diskCache",
   "description": "DiskCache helper",
   "shortcut": "features.diskCache",
@@ -1376,10 +1392,11 @@ __INTROSPECTION__.set('features.diskCache', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.python', {
+setBuildTimeData('features.python', {
   "id": "features.python",
   "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
   "shortcut": "features.python",
@@ -1494,10 +1511,11 @@ __INTROSPECTION__.set('features.python', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.jsonTree', {
+setBuildTimeData('features.jsonTree', {
   "id": "features.jsonTree",
   "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
   "shortcut": "features.jsonTree",
@@ -1521,10 +1539,11 @@ __INTROSPECTION__.set('features.jsonTree', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.packageFinder', {
+setBuildTimeData('features.packageFinder', {
   "id": "features.packageFinder",
   "description": "PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. It recursively scans all node_modules directories and builds a comprehensive index of packages, enabling: **Core Functionality:** - Recursive node_modules scanning across the workspace - Package manifest parsing and indexing - Duplicate package detection and analysis - Dependency relationship mapping - Scoped package organization (@scope/package) - Package count and statistics **Use Cases:** - Dependency auditing and analysis - Duplicate package identification - Package version conflict detection - Dependency tree analysis - Workspace package inventory **Performance Features:** - Parallel manifest reading for fast scanning - Efficient duplicate detection using unique paths - Lazy initialization - only scans when started - In-memory indexing for fast queries **Usage Example:** ```typescript const finder = container.feature('packageFinder'); await finder.start(); // Find duplicates console.log('Duplicate packages:', finder.duplicates); // Find package by name const lodash = finder.findByName('lodash'); // Find dependents of a package const dependents = finder.findDependentsOf('react'); ```",
   "shortcut": "features.packageFinder",
@@ -1637,10 +1656,11 @@ __INTROSPECTION__.set('features.packageFinder', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('portExposer', {
+setBuildTimeData('portExposer', {
   "id": "portExposer",
   "description": "Port Exposer Feature Exposes local HTTP services via ngrok with SSL-enabled public URLs. Perfect for development, testing, and sharing local services securely. Features: - SSL-enabled public URLs for local services - Custom subdomains and domains (with paid plans) - Authentication options (basic auth, OAuth) - Regional endpoint selection - Connection state management",
   "shortcut": "portExposer",
@@ -1715,10 +1735,11 @@ __INTROSPECTION__.set('portExposer', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.mdxBundler', {
+setBuildTimeData('features.mdxBundler', {
   "id": "features.mdxBundler",
   "description": "The MdxBundler feature provides MDX compilation capabilities. This feature wraps the mdx-bundler library to compile MDX content into executable JavaScript. MDX allows you to use JSX components within Markdown files, making it ideal for documentation and content that needs interactive elements.",
   "shortcut": "features.mdxBundler",
@@ -1742,10 +1763,11 @@ __INTROSPECTION__.set('features.mdxBundler', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.secureShell', {
+setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
   "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
   "shortcut": "features.secureShell",
@@ -1807,10 +1829,11 @@ __INTROSPECTION__.set('features.secureShell', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.runpod', {
+setBuildTimeData('features.runpod', {
   "id": "features.runpod",
   "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
   "shortcut": "features.runpod",
@@ -1873,10 +1896,11 @@ __INTROSPECTION__.set('features.runpod', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.fileManager', {
+setBuildTimeData('features.fileManager', {
   "id": "features.fileManager",
   "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
   "shortcut": "features.fileManager",
@@ -1980,10 +2004,11 @@ __INTROSPECTION__.set('features.fileManager', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('servers.mcp', {
+setBuildTimeData('servers.mcp', {
   "id": "servers.mcp",
   "description": "McpServer helper",
   "shortcut": "servers.mcp",
@@ -2279,10 +2304,11 @@ __INTROSPECTION__.set('servers.mcp', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('servers.express', {
+setBuildTimeData('servers.express', {
   "id": "servers.express",
   "description": "ExpressServer helper",
   "shortcut": "servers.express",
@@ -2306,10 +2332,11 @@ __INTROSPECTION__.set('servers.express', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('servers.websocket', {
+setBuildTimeData('servers.websocket', {
   "id": "servers.websocket",
   "description": "WebsocketServer helper",
   "shortcut": "servers.websocket",
@@ -2369,10 +2396,11 @@ __INTROSPECTION__.set('servers.websocket', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.expert', {
+setBuildTimeData('features.expert', {
   "id": "features.expert",
   "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
   "shortcut": "features.expert",
@@ -2404,10 +2432,11 @@ __INTROSPECTION__.set('features.expert', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.conversation', {
+setBuildTimeData('features.conversation', {
   "id": "features.conversation",
   "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
   "shortcut": "features.conversation",
@@ -2478,10 +2507,11 @@ __INTROSPECTION__.set('features.conversation', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.containerChat', {
+setBuildTimeData('features.containerChat', {
   "id": "features.containerChat",
   "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
   "shortcut": "features.containerChat",
@@ -2531,10 +2561,11 @@ __INTROSPECTION__.set('features.containerChat', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.claudeCode', {
+setBuildTimeData('features.claudeCode', {
   "id": "features.claudeCode",
   "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
   "shortcut": "features.claudeCode",
@@ -2682,10 +2713,11 @@ __INTROSPECTION__.set('features.claudeCode', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.helperChat', {
+setBuildTimeData('features.helperChat', {
   "id": "features.helperChat",
   "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
   "shortcut": "features.helperChat",
@@ -2711,10 +2743,11 @@ __INTROSPECTION__.set('features.helperChat', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.snippets', {
+setBuildTimeData('features.snippets', {
   "id": "features.snippets",
   "description": "Snippets helper",
   "shortcut": "features.snippets",
@@ -2852,10 +2885,11 @@ __INTROSPECTION__.set('features.snippets', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.identity', {
+setBuildTimeData('features.identity', {
   "id": "features.identity",
   "description": "This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any accumulated memories it stores over its lifetime.",
   "shortcut": "features.identity",
@@ -2930,7 +2964,8 @@ __INTROSPECTION__.set('features.identity', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 export const introspectionData = [
   {
@@ -2957,7 +2992,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.git",
@@ -2977,7 +3013,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.esbuild",
@@ -3020,7 +3057,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.downloader",
@@ -3047,7 +3085,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.proc",
@@ -3112,7 +3151,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.vm",
@@ -3166,7 +3206,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.ui",
@@ -3396,7 +3437,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.repl",
@@ -3422,7 +3464,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.scriptRunner",
@@ -3430,7 +3473,8 @@ export const introspectionData = [
     "shortcut": "features.scriptRunner",
     "methods": {},
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.os",
@@ -3438,7 +3482,8 @@ export const introspectionData = [
     "shortcut": "features.os",
     "methods": {},
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.docker",
@@ -3648,7 +3693,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.yaml",
@@ -3683,7 +3729,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.networking",
@@ -3714,7 +3761,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.vault",
@@ -3760,7 +3808,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.fs",
@@ -4016,7 +4065,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.ipcSocket",
@@ -4098,7 +4148,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.diskCache",
@@ -4290,7 +4341,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.python",
@@ -4407,7 +4459,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.jsonTree",
@@ -4433,7 +4486,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.packageFinder",
@@ -4548,7 +4602,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "portExposer",
@@ -4625,7 +4680,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.mdxBundler",
@@ -4651,7 +4707,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.secureShell",
@@ -4715,7 +4772,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.runpod",
@@ -4780,7 +4838,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.fileManager",
@@ -4886,7 +4945,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "servers.mcp",
@@ -5184,7 +5244,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "servers.express",
@@ -5210,7 +5271,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "servers.websocket",
@@ -5272,7 +5334,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.expert",
@@ -5306,7 +5369,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.conversation",
@@ -5379,7 +5443,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.containerChat",
@@ -5431,7 +5496,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.claudeCode",
@@ -5581,7 +5647,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.helperChat",
@@ -5609,7 +5676,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.snippets",
@@ -5749,7 +5817,8 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.identity",
@@ -5826,6 +5895,7 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   }
 ];
