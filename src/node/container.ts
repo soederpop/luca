@@ -19,6 +19,7 @@ import "./features/esbuild";
 import "./features/file-manager";
 import "./features/fs";
 import "./features/git";
+import "./features/grep";
 import "./features/ipc-socket";
 import "./features/json-tree";
 import "./features/mdx-bundler";
@@ -47,6 +48,7 @@ import type { ESBuild } from "./features/esbuild";
 import type { FileManager } from "./features/file-manager";
 import type { FS } from "./features/fs";
 import type { Git } from "./features/git";
+import type { Grep } from "./features/grep";
 import type { IpcSocket } from "./features/ipc-socket";
 import type { JsonTree } from "./features/json-tree";
 import type { MdxBundler } from "./features/mdx-bundler";
@@ -74,6 +76,7 @@ export {
   type ContentDb,
   type ChildProcess,
   type Git,
+  type Grep,
   type OS,
   type Networking,
   type UI,
@@ -113,6 +116,7 @@ export interface NodeFeatures extends AvailableFeatures {
   scriptRunner: typeof ScriptRunner;
   proc: typeof ChildProcess;
   git: typeof Git;
+  grep: typeof Grep;
   os: typeof OS;
   docker: typeof Docker;
   networking: typeof Networking;
@@ -147,6 +151,7 @@ export class NodeContainer<
 > extends Container<Features, K> {
   fs!: FS;
   git!: Git;
+  grep!: Grep;
   proc!: ChildProcess;
   os!: OS;
   networking!: Networking;
@@ -172,6 +177,7 @@ export class NodeContainer<
     this.feature("fs", { enable: true });
     this.feature("proc", { enable: true });
     this.feature("git", { enable: true });
+    this.feature("grep", { enable: true });
     this.feature("os", { enable: true });
     this.feature("networking", { enable: true });
     this.feature("ui", { enable: true });
