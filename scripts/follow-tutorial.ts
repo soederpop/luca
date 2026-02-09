@@ -25,10 +25,10 @@ export async function followTutorial(tutorialPath?: string) {
 
 	const guidelines = [
 		`You are following a tutorial from the luca codebase.`,
-		`Put all files you create in the playground/ folder.`,
+		`Put all files you create in a new subfolder of the playground/ folder.`,
 		`Use relative imports from the playground folder when referencing luca modules (e.g. import container from '../src/node').`,
 		`Do not modify any existing source files outside of playground/.`,
-		`If the tutorial references multiple files, create all of them in playground/.`,
+		`If the tutorial references multiple files, create all of them in the subfolder you created in playground/.`,
 		`After creating the files, verify they work by running them if possible.`,
 	].join('\n')
 

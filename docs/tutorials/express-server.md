@@ -328,4 +328,7 @@ await web.start()
 
 ## Next Steps
 
+- [WebSocket Communication](./websocket-communication.md) — add real-time messaging to your server
+- [Building for the Browser](./building-for-the-browser.md) — serve a WebContainer-powered frontend
+- [The Shapeshifter](./the-shapeshifter.md) — Express + WebSocket + browser in one full-stack demo
 - [How We Built the AGI Container](./building-the-agi-container.md) — see servers, clients, and features all working together

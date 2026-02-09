@@ -398,4 +398,6 @@ proto.onMessage('ping', (data, socket, id) => {
 
 - [Getting Started](./getting-started.md) — the fundamentals of the container
 - [Creating Express Servers](./express-server.md) — pair HTTP with WebSockets
-- [Creating REST Clients](./rest-clients.md) — the client pattern in depth
+- [Building for the Browser](./building-for-the-browser.md) — use the WebContainer in web applications
+- [Observable State Sync](./observable-state-sync.md) — synchronize state between server and browser over WebSockets
+- [The Shapeshifter](./the-shapeshifter.md) — full-stack real-time app combining everything
