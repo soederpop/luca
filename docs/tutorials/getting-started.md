@@ -252,4 +252,6 @@ bun run scripts/my-script.ts
 - [Defining Your Own Features](./defining-features.md) — extend the container with custom capabilities
 - [Creating REST Clients](./rest-clients.md) — build typed API clients
 - [Creating Express Servers](./express-server.md) — serve HTTP with the container
+- [Building for the Browser](./building-for-the-browser.md) — use the WebContainer in web applications
+- [Observable State Sync](./observable-state-sync.md) — deep dive on observable state and synchronization patterns
 - [How We Built the AGI Container](./building-the-agi-container.md) — a walkthrough of the second-layer container
