@@ -278,11 +278,6 @@ clients.register("rest", RestClient);
 clients.register("graph", GraphClient);
 clients.register("websocket", WebSocketClient);
 
-// Register OpenAI client
-import("./agi/openai-client.js").then(({ OpenAIClient }) => {
-  clients.register("openai", OpenAIClient);
-});
-
 export const helperCache = new Map();
 
 export default Client;
