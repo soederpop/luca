@@ -1,9 +1,9 @@
-import { __INTROSPECTION__ } from './index.js';
+import { setBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-09T00:11:33.741Z
+// Generated at: 2026-02-09T02:36:44.583Z
 
-__INTROSPECTION__.set('features.esbuild', {
+setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "Esbuild helper",
   "shortcut": "features.esbuild",
@@ -39,10 +39,11 @@ __INTROSPECTION__.set('features.esbuild', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.voice', {
+setBuildTimeData('features.voice', {
   "id": "features.voice",
   "description": "VoiceRecognition helper",
   "shortcut": "features.voice",
@@ -95,12 +96,13 @@ __INTROSPECTION__.set('features.voice', {
       "arguments": {}
     }
   },
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.vm', {
+setBuildTimeData('features.vm', {
   "id": "features.vm",
-  "description": "VM helper",
+  "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
   "shortcut": "features.vm",
   "methods": {
     "createScript": {
@@ -150,12 +152,13 @@ __INTROSPECTION__.set('features.vm', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.assetLoader', {
+setBuildTimeData('features.assetLoader', {
   "id": "features.assetLoader",
-  "description": "AssetLoader helper",
+  "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
   "shortcut": "features.assetLoader",
   "methods": {
     "removeStylesheet": {
@@ -204,10 +207,11 @@ __INTROSPECTION__.set('features.assetLoader', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.vault', {
+setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "WebVault helper",
   "shortcut": "features.vault",
@@ -251,10 +255,11 @@ __INTROSPECTION__.set('features.vault', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.network', {
+setBuildTimeData('features.network', {
   "id": "features.network",
   "description": "Network helper",
   "shortcut": "features.network",
@@ -273,10 +278,11 @@ __INTROSPECTION__.set('features.network', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.speech', {
+setBuildTimeData('features.speech', {
   "id": "features.speech",
   "description": "Speech helper",
   "shortcut": "features.speech",
@@ -325,10 +331,11 @@ __INTROSPECTION__.set('features.speech', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 
-__INTROSPECTION__.set('features.mdxLoader', {
+setBuildTimeData('features.mdxLoader', {
   "id": "features.mdxLoader",
   "description": "MdxLoader helper",
   "shortcut": "features.mdxLoader",
@@ -348,7 +355,8 @@ __INTROSPECTION__.set('features.mdxLoader', {
     }
   },
   "events": {},
-  "state": {}
+  "state": {},
+  "options": {}
 });
 export const introspectionData = [
   {
@@ -387,7 +395,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.voice",
@@ -442,11 +451,12 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.vm",
-    "description": "VM helper",
+    "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
     "shortcut": "features.vm",
     "methods": {
       "createScript": {
@@ -496,11 +506,12 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.assetLoader",
-    "description": "AssetLoader helper",
+    "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
     "shortcut": "features.assetLoader",
     "methods": {
       "removeStylesheet": {
@@ -549,7 +560,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.vault",
@@ -595,7 +607,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.network",
@@ -616,7 +629,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.speech",
@@ -667,7 +681,8 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   },
   {
     "id": "features.mdxLoader",
@@ -689,6 +704,7 @@ export const introspectionData = [
       }
     },
     "events": {},
-    "state": {}
+    "state": {},
+    "options": {}
   }
 ];

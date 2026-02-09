@@ -4,7 +4,7 @@ import { Feature, features } from "../feature.js";
 import { Container, type ContainerContext } from "../container.js";
 
 export const SpeechOptionsSchema = FeatureOptionsSchema.extend({
-  voice: z.string().optional(),
+  voice: z.string().optional().describe('The voice to use for the speech'),
 })
 
 export const SpeechStateSchema = FeatureStateSchema.extend({

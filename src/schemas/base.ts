@@ -62,44 +62,25 @@ export const ServerOptionsSchema = HelperOptionsSchema.extend({
 }).describe('Base server options with port and host settings')
 
 /**
- * Converts a ZodObject's shape into an introspection-friendly record.
- * Returns { fieldName: { type, description } } for use in the introspection system.
+ * Converts a ZodObject into an introspection-friendly record.
+ * Uses Zod v4's native toJSONSchema() and transforms properties
+ * into { fieldName: { type, description } } for the introspection system.
  */
 export function describeZodShape(schema: z.ZodType): Record<string, { type: string, description: string }> {
-  const result: Record<string, { type: string, description: string }> = {}
+  try {
+    const jsonSchema = (schema as any).toJSONSchema()
+    const properties = jsonSchema?.properties || {}
+    const result: Record<string, { type: string, description: string }> = {}
 
-  if (!(schema instanceof z.ZodObject)) return result
-
-  const shape = schema.shape as Record<string, z.ZodType>
-
-  for (const [key, fieldSchema] of Object.entries(shape)) {
-    result[key] = {
-      type: getZodTypeName(fieldSchema),
-      description: fieldSchema.description || '',
+    for (const [key, prop] of Object.entries(properties) as [string, any][]) {
+      result[key] = {
+        type: prop.type || 'any',
+        description: prop.description || ''
+      }
     }
+
+    return result
+  } catch {
+    return {}
   }
-
-  return result
-}
-
-/**
- * Extracts a human-readable type name from a Zod schema.
- */
-export function getZodTypeName(schema: z.ZodType): string {
-  if (schema instanceof z.ZodString) return 'string'
-  if (schema instanceof z.ZodNumber) return 'number'
-  if (schema instanceof z.ZodBoolean) return 'boolean'
-  if (schema instanceof z.ZodArray) return `${getZodTypeName(schema.element)}[]`
-  if (schema instanceof z.ZodOptional) return `${getZodTypeName(schema.unwrap())} | undefined`
-  if (schema instanceof z.ZodDefault) return getZodTypeName(schema.removeDefault())
-  if (schema instanceof z.ZodNullable) return `${getZodTypeName(schema.unwrap())} | null`
-  if (schema instanceof z.ZodEnum) return (schema.options as string[]).map(v => `'${v}'`).join(' | ')
-  if (schema instanceof z.ZodUnion) return (schema.options as z.ZodType[]).map(getZodTypeName).join(' | ')
-  if (schema instanceof z.ZodRecord) return `Record<string, ${getZodTypeName(schema.valueSchema)}>`
-  if (schema instanceof z.ZodObject) return 'object'
-  if (schema instanceof z.ZodFunction) return 'function'
-  if (schema instanceof z.ZodAny) return 'any'
-  if (schema instanceof z.ZodLiteral) return JSON.stringify(schema.value)
-
-  return 'unknown'
 }

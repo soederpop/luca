@@ -2,6 +2,11 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import { Container } from "../container.js";
 
+/** 
+ * The AssetLoader provides an API for injecting scripts and stylesheets into the page.
+ * 
+ * It also provides a convenient way of loading any library from unpkg.com
+*/
 export class AssetLoader extends Feature {
   static attach(container: Container & { assetLoader?: AssetLoader }) {
     container.features.register("assetLoader", AssetLoader);

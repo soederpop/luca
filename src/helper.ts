@@ -68,20 +68,8 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * for the helper's options, state, and the events it emits, as well as the documentation from the helpers code for
    * each of the methods and properties.
   */
-  introspect() : (HelperIntrospection & { schemas?: { state: z.ZodType, options: z.ZodType } }) | undefined {
+  introspect() : HelperIntrospection | undefined {
     const base = (this.constructor as any).introspect()
-    const ctor = this.constructor as typeof Helper
-
-    if (base && ctor.stateSchema) {
-      return {
-        ...base,
-        schemas: {
-          state: ctor.stateSchema,
-          options: ctor.optionsSchema,
-        }
-      }
-    }
-
     return base
   }
 
@@ -271,16 +259,30 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
   // State section
   if (introspection.state && Object.keys(introspection.state).length > 0) {
     sections.push(`${heading(2)} State`)
-    
+
     sections.push(`| Property | Type | Description |`)
     sections.push(`|----------|------|-------------|`)
-    
+
     for (const [stateName, stateInfo] of Object.entries(introspection.state)) {
       const type = stateInfo.type || 'any'
       const description = stateInfo.description || ''
       sections.push(`| \`${stateName}\` | \`${type}\` | ${description} |`)
     }
   }
-  
+
+  // Options section
+  if (introspection.options && Object.keys(introspection.options).length > 0) {
+    sections.push(`${heading(2)} Options`)
+
+    sections.push(`| Property | Type | Description |`)
+    sections.push(`|----------|------|-------------|`)
+
+    for (const [optName, optInfo] of Object.entries(introspection.options)) {
+      const type = optInfo.type || 'any'
+      const description = optInfo.description || ''
+      sections.push(`| \`${optName}\` | \`${type}\` | ${description} |`)
+    }
+  }
+
   return sections.join('\n\n')
 }

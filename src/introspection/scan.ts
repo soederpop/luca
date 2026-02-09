@@ -152,18 +152,19 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     if (!shortcut) return null;
 
     const description = this.extractJSDocDescription(classNode);
-    
     const methods = this.extractMethods(classNode, sourceFile);
     const events = this.extractEvents(classNode, sourceFile);
-    const state = this.extractStateProperties(classNode, sourceFile);
 
+    // state and options are derived at runtime from Zod schemas
+    // via interceptRegistration — no need to extract them at build time
     return {
       id: shortcut,
       description: description || `${className} helper`,
       shortcut,
       methods,
       events,
-      state
+      state: {},
+      options: {}
     };
   }
 
@@ -397,24 +398,12 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return events;
   }
 
-  private extractStateProperties(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, { type: string, description: string }> {
-    const state: Record<string, { type: string, description: string }> = {};
-
-    // Look for state interface references in class generics
-    if (classNode.typeParameters) {
-      // This is a simplified approach - in a real implementation you'd want to
-      // resolve the actual state interface and extract its properties
-    }
-
-    return state;
-  }
-
   private createRegistryScript(results: HelperIntrospection[]): string {
-    const imports = `import { __INTROSPECTION__ } from './index.js';\n\n`;
-    
+    const imports = `import { setBuildTimeData } from './index.js';\n\n`;
+
     const registrations = results.map(result => {
       const data = JSON.stringify(result, null, 2);
-      return `__INTROSPECTION__.set('${result.id}', ${data});`;
+      return `setBuildTimeData('${result.id}', ${data});`;
     }).join('\n\n');
 
     const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;

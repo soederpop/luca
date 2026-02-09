@@ -1,6 +1,6 @@
-import { defineModel, z, section, toString } from 'contentbase'
+import { Collection, defineModel, z, section, toString } from 'contentbase'
 
-export const IdeaModel = defineModel('Idea', {
+export const Idea = defineModel('Idea', {
 	meta: z.object({
 		stage: z.string(),
 		term: z.enum(['short', 'medium', 'long']).default('long'),
@@ -11,3 +11,9 @@ export const IdeaModel = defineModel('Idea', {
 		})
 	}
 })
+
+export default async function create(rootPath: string): Collection<Idea> {
+	const collection = new Collection({ rootPath })
+	await collection.load()
+	return collection
+}
