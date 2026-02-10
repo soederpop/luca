@@ -196,7 +196,7 @@ sharedState.observe((changeType, key, value) => {
 // ─── Command Handler ─────────────────────────────────────────────
 // Processes voice commands from the browser.
 
-function handleCommand(msg: { action: string; args?: any }, socket: any, id: string) {
+async function handleCommand(msg: { action: string; args?: any }, socket: any, id: string) {
   const action = msg.action.toLowerCase()
 
   sharedState.set('lastCommand', action)
@@ -205,9 +205,10 @@ function handleCommand(msg: { action: string; args?: any }, socket: any, id: str
   let response = ''
 
   if (action.includes('list files') || action.includes('show files')) {
-    const files = container.fs.lsFiles().slice(0, 15)
-    sharedState.set('files', files)
-    response = `Found ${files.length} files.`
+    const files = await container.git.lsFiles()
+    const trimmed = files.slice(0, 15)
+    sharedState.set('files', trimmed)
+    response = `Found ${files.length} files. Showing the first ${trimmed.length}.`
   }
 
   else if (action.includes('what branch') || action.includes('which branch')) {
@@ -266,9 +267,9 @@ function extractFilename(text: string): string | null {
 
 await Promise.all([http.start(), ws.start()])
 
-console.log(container.ui.colorize('green', `HTTP server: http://localhost:${http.port}`))
-console.log(container.ui.colorize('cyan', `WebSocket server: ws://localhost:${ws.port}`))
-console.log(container.ui.colorize('yellow', 'Open the browser and start talking.'))
+console.log(container.ui.colors.green(`HTTP server: http://localhost:${http.port}`))
+console.log(container.ui.colors.cyan(`WebSocket server: ws://localhost:${ws.port}`))
+console.log(container.ui.colors.yellow('Open the browser and start talking.'))
 ```
 
 ## Step 3: The Browser Entry Point
@@ -690,7 +691,7 @@ Let's trace a single voice command through the entire system:
 4. **SocketClient** wraps it: `{ id: "uuid", data: { type: 'command', action: 'list files' } }`
 5. **WebsocketServer** receives it, emits `'message'`
 6. **The server's** message handler routes to `handleCommand`
-7. **handleCommand** calls `container.fs.lsFiles()` and sets `sharedState.set('files', files)`
+7. **handleCommand** calls `container.git.lsFiles()` and sets `sharedState.set('files', files)`
 8. **The state observer** fires and calls `ws.broadcast({ type: 'stateChange', key: 'files', value: [...] })`
 9. **The browser** receives the broadcast, applies it: `serverState.set('files', msg.value)`
 10. **The UI observer** fires and re-renders the file list in the DOM
