@@ -63,6 +63,7 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		}
 	}
 
+	/** Returns the Identity feature instance loaded from this expert's folder. */
 	get identity() : Identity {
 		return this.container.feature('identity', {
 			name: this.options.name,
@@ -110,6 +111,7 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		})
 	}
 
+	/** Whether the expert has been initialized and is ready to answer questions. */
 	get isStarted() {
 		return !!this.state.get('started')
 	}

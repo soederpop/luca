@@ -29,7 +29,12 @@ export type MethodIntrospection = {
 	description: string
 	parameters: Record<string, { type: string, description: string }>
 	required: string[]
-	returns: string 
+	returns: string
+}
+
+export type GetterIntrospection = {
+	description: string
+	returns: string
 }
 
 export type EventIntrospection = {
@@ -42,13 +47,15 @@ export type EventIntrospection = {
 // it will store that information at the class level as a HelperIntroSpection
 export type HelperIntrospection = {
 	// id will be e.g. features.vm, clients.openai, etc
-	id: string;	
+	id: string;
 	// a description of the helper, the main jsdoc comment for the class
 	description: string;
-	// a shortcut for the helper, e.g. "vm" for the VM feature, which will be what it is registered as with the registry and what the key is in AvailableFeatures, etc 
-	shortcut: string;	
+	// a shortcut for the helper, e.g. "vm" for the VM feature, which will be what it is registered as with the registry and what the key is in AvailableFeatures, etc
+	shortcut: string;
 	// a map of method names to their introspection
-	methods: Record<string, MethodIntrospection> 
+	methods: Record<string, MethodIntrospection>
+	// a map of getter names to their introspection
+	getters: Record<string, GetterIntrospection>
 	// a map of event names to their introspection
 	events: Record<string, EventIntrospection>
 	// a map of state properties to their introspection
@@ -57,11 +64,75 @@ export type HelperIntrospection = {
 	options: Record<string, { type: string, description: string }>
 }
 
-export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
+export type RegistryIntrospection = {
+	/** The name of the registry, e.g. "features", "clients", "servers" */
+	name: string
+	/** The base class for this registry (e.g. "Feature", "Client", "Server") */
+	baseClass: string
+	/** The IDs of all registered members available in this registry */
+	available: string[]
+}
 
+export type ContainerIntrospection = {
+	/** The class name, e.g. "NodeContainer", "AGIContainer" */
+	className: string
+	/** UUID of this container instance */
+	uuid: string
+	/** JSDoc-derived description of the container class */
+	description: string
+	/** Available registries (features, clients, servers, etc.) */
+	registries: RegistryIntrospection[]
+	/** Available factory method names (feature, client, server, etc.) */
+	factories: string[]
+	/** Container methods extracted from JSDoc/AST */
+	methods: Record<string, MethodIntrospection>
+	/** Container getters extracted from JSDoc/AST */
+	getters: Record<string, GetterIntrospection>
+	/** Container events */
+	events: Record<string, EventIntrospection>
+	/** Container state shape */
+	state: Record<string, { type: string, description: string }>
+	/** List of currently enabled feature shortcut IDs */
+	enabledFeatures: string[]
+	/** Environment flags */
+	environment: {
+		isBrowser: boolean
+		isNode: boolean
+		isBun: boolean
+		isElectron: boolean
+		isDevelopment: boolean
+		isProduction: boolean
+		isCI: boolean
+	}
+}
+
+export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
+export const __CONTAINER_INTROSPECTION__ = new Map<string, Partial<ContainerIntrospection>>()
 
 export function introspect(id: string) : HelperIntrospection | undefined {
 	return __INTROSPECTION__.get(id)
+}
+
+/**
+ * Called by generated files to seed build-time AST data for Container classes.
+ * Merges into any existing entry.
+ */
+export function setContainerBuildTimeData(className: string, data: Partial<ContainerIntrospection>) {
+	const existing = __CONTAINER_INTROSPECTION__.get(className)
+	__CONTAINER_INTROSPECTION__.set(className, {
+		...existing,
+		...data,
+		methods: data.methods || existing?.methods || {},
+		getters: data.getters || existing?.getters || {},
+		events: data.events || existing?.events || {},
+	})
+}
+
+/**
+ * Retrieves build-time AST data for a Container class by name.
+ */
+export function getContainerBuildTimeData(className: string): Partial<ContainerIntrospection> | undefined {
+	return __CONTAINER_INTROSPECTION__.get(className)
 }
 
 /**
@@ -76,6 +147,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		// preserve runtime-derived state/options if registration already happened
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
+		getters: data.getters || existing?.getters || {},
 	})
 }
 
@@ -100,6 +172,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		shortcut: helperConstructor.shortcut,
 		// preserve build-time AST data if generated file already loaded
 		methods: existing?.methods || {},
+		getters: existing?.getters || {},
 		events: existing?.events || {},
 		state: {},
 		options: {}

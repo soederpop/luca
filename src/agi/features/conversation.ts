@@ -85,18 +85,22 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}
 	}
 
+	/** Returns the registered tools available for the model to call. */
 	get tools() : Record<string, any> {
 		return this.options.tools || {}
 	}
 
+	/** Returns the full message history of the conversation. */
 	get messages(): Message[] {
 		return this.state.get('messages') || []
 	}
 
+	/** Returns the OpenAI model name being used for completions. */
 	get model(): string {
 		return this.state.get('model')!
 	}
 
+	/** Whether a streaming response is currently in progress. */
 	get isStreaming(): boolean {
 		return !!this.state.get('streaming')
 	}
@@ -136,6 +140,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return this.runCompletionLoop()
 	}
 
+	/** Returns the OpenAI client instance from the container. */
 	get openai() {
 		return this.container.client('openai') as OpenAIClient
 	}

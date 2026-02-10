@@ -34,6 +34,15 @@ export async function chat() {
 	}
 }
 
+export { oracleConsole as console }
+async function oracleConsole() {
+	const options = container.argv as any
+	const model = options.model || 'gpt-4o'
+
+	const oracle = container.feature('oracle', { model })
+	await oracle.start()
+}
+
 export async function rundoc() {
 	const options = container.argv as any
 	const relativePathToMarkdownFile = options._[1] 

@@ -45,6 +45,7 @@ export class HelperChat extends Feature<HelperChatState, HelperChatOptions> {
 
 	openai!: OpenAIClient
 
+	/** Whether the chat session has been started. */
 	get isStarted() {
 		return !!this.state.get('started')
 	}
@@ -67,6 +68,7 @@ export class HelperChat extends Feature<HelperChatState, HelperChatOptions> {
 		return this
 	}
 
+	/** Returns the generated system prompt describing the host helper's interface. */
 	get systemPrompt() {
 		return this.container.feature('ui').endent(`
 		# Helper Chat 

@@ -63,10 +63,12 @@ export class FileManager<
     initialState: {},
   });
 
+  /** Returns an array of all relative file paths indexed by the file manager. */
   get fileIds() {
     return Array.from(this.files.keys());
   }
-  
+
+  /** Returns an array of all file metadata objects indexed by the file manager. */
   get fileObjects() {
     return Array.from(this.files.values());
   }
@@ -105,14 +107,26 @@ export class FileManager<
     );
   }
 
+  /** Returns an array of unique file extensions found across all indexed files. */
+  get uniqueExtensions() {
+    return Array.from(
+      new Set(
+        this.files.values().map((file) => file.extension)
+      )
+    );
+  }
+
+  /** Whether the file manager has completed its initial scan. */
   get isStarted() {
     return !!this.state.get("started");
   }
 
+  /** Whether the file manager is currently performing its initial scan. */
   get isStarting() {
     return !!this.state.get("starting");
   }
 
+  /** Whether the file watcher is actively monitoring for changes. */
   get isWatching() {
     return !!this.state.get("watching");
   }
@@ -201,6 +215,7 @@ export class FileManager<
 
   watcher: FSWatcher | null = null;
 
+  /** Returns the directories and files currently being watched by chokidar. */
   get watchedFiles(): Record<string, string[]> {
     return this.watcher?.getWatched() || {};
   }

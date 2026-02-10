@@ -66,7 +66,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
 
     static attach(container: NodeContainer & ServersInterface) {
       container.servers = servers
-      
+
       Object.assign(container, {
         server<T extends keyof AvailableServers>(
           id: T,
@@ -74,26 +74,28 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
         ): NonNullable<InstanceType<AvailableServers[T]>> {
           const { hashObject } = container.utils
           const BaseClass = servers.lookup(id) as AvailableServers[T]
-      
+
           const cacheKey = hashObject({ __type: "server", id, options, uuid: container.uuid })
           const cached = helperCache.get(cacheKey)
-      
+
           if (cached) {
             return cached as NonNullable<InstanceType<AvailableServers[T]>>
           }
-      
+
           const helperOptions = options as ConstructorParameters<AvailableServers[T]>[0]
-          
+
           const instance = new (BaseClass as any)(helperOptions, container.context) as NonNullable<InstanceType<
             AvailableServers[T]
           >>
-      
+
           helperCache.set(cacheKey, instance)
-      
+
           return instance
-        }        
+        }
       })
-      
+
+      container.registerHelperType('servers', 'server')
+
       return container
     }
 

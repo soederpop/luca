@@ -23,7 +23,13 @@
       "Bash(bunx vitest run:*)",
       "Bash(bun -e:*)",
       "Bash(ls:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(bun --bun -e:*)",
+      "Bash(ngrok config check:*)",
+      "Bash(ngrok config:*)",
+      "WebFetch(domain:docs.comfy.org)",
+      "WebFetch(domain:9elements.com)",
+      "Bash(bun eval:*)"
     ]
   }
 }

@@ -41,6 +41,14 @@ export const createHelperSchemas = <
   }
 })
 
+// Container state schema
+export const ContainerStateSchema = z.object({
+  started: z.boolean().default(false).describe('Whether the container has been started'),
+  enabledFeatures: z.array(z.string()).describe('List of currently enabled feature shortcut IDs'),
+  registries: z.array(z.string()).describe('Names of attached registries (e.g. features, clients, servers)'),
+  factories: z.array(z.string()).describe('Names of available factory methods (e.g. feature, client, server)'),
+}).describe('Core container state')
+
 // Base schemas for common types
 export const FeatureStateSchema = HelperStateSchema.extend({
   enabled: z.boolean().default(false).describe('Whether this feature is currently enabled'),

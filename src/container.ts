@@ -9,6 +9,8 @@ import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, p
 import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
 import { zodToJsonSchema } from 'zod-to-json-schema'
+import { ContainerStateSchema, describeZodShape } from './schemas/base.js'
+import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection } from './introspection/index.js'
 
 
 export { z }
@@ -31,9 +33,11 @@ export interface ContainerArgv {
   _?: string[]
 }
 
-export interface ContainerState { 
+export interface ContainerState {
   started: boolean;
   enabledFeatures: string[];
+  registries: string[];
+  factories: string[];
 }
 
 export interface Plugin<T> {
@@ -60,6 +64,8 @@ export interface ContainerContext<T extends AvailableFeatures = any> {
  * You can design your own containers and load them up with the helpers you want for that environment.
 */
 export class Container<Features extends AvailableFeatures = AvailableFeatures, ContainerState extends ContainerState = ContainerState > {
+  static stateSchema = ContainerStateSchema
+
   readonly uuid = v4()
   private readonly _events = new Bus()
   private readonly _state: State<ContainerState>
@@ -73,10 +79,12 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   constructor(options: ContainerArgv) {
     this.options = options
     this._state = new State<ContainerState>()
-    
+
     this.state
       .set('enabledFeatures', [])
       .set('started', false)
+      .set('registries', ['features'])
+      .set('factories', ['feature'])
       
     this._hide('options', '_state', '_events', 'uuid', '_plugins')
     
@@ -97,14 +105,17 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   z = z
 
+  /** The observable state object for this container instance. */
   get state() {
     return this._state
   }
-  
+
+  /** Returns the list of shortcut IDs for all currently enabled features. */
   get enabledFeatureIds() {
     return this.state.get('enabledFeatures') || []
   }
-  
+
+  /** Returns a map of enabled feature shortcut IDs to their instances. */
   get enabledFeatures() : Partial<AvailableInstanceTypes<Features>> {
     return Object.fromEntries(
       this.enabledFeatureIds.map((featureId) => [featureId, (this as any)[featureId]])  
@@ -121,6 +132,12 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     }
   }
 
+  /**
+   * Add a value to the container's shared context, which is passed to all helper instances.
+   *
+   * @param {K} key - The context key
+   * @param {ContainerContext[K]} value - The context value
+   */
   addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]) {
     const contexts = contextMap.get(this) || new Map()
     contexts.set(key, value)
@@ -315,32 +332,141 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return process.env.CI !== undefined && String(process.env.CI).length > 0
   }
 
+  /** Emit an event on the container's event bus. */
   emit(event: string, ...args: any[]) {
     this._events.emit(event, ...args)
     return this
   }
 
+  /** Subscribe to an event on the container's event bus. */
   on(event: string, listener: (...args: any[]) => void) {
     this._events.on(event, listener)
     return this
   }
 
+  /** Unsubscribe a listener from an event on the container's event bus. */
   off(event: string, listener?: (...args: any[]) => void) {
     this._events.off(event, listener)
     return this
   }
 
+  /** Subscribe to an event on the container's event bus, but only fire once. */
   once(event: string, listener: (...args: any[]) => void) {
     this._events.once(event, listener)
     return this
   }
 
-  /** 
+  /**
    * Returns a promise that will resolve when the event is emitted
   */
   async waitFor(event: string) {
     const resp = await this._events.waitFor(event)
     return resp
+  }
+
+  /**
+   * Register a helper type (registry + factory pair) on this container.
+   * Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).
+   *
+   * @param registryName - The plural name of the registry, e.g. "clients", "servers"
+   * @param factoryName - The singular factory method name, e.g. "client", "server"
+   */
+  registerHelperType(registryName: string, factoryName: string) {
+    const registries = uniq([...this.state.get('registries')!, registryName])
+    const factories = uniq([...this.state.get('factories')!, factoryName])
+    this.state.set('registries', registries)
+    this.state.set('factories', factories)
+    return this
+  }
+
+  /** Returns the names of all attached registries (e.g. ["features", "clients", "servers"]). */
+  get registryNames(): string[] {
+    return this.state.get('registries') || ['features']
+  }
+
+  /** Returns the names of all available factory methods (e.g. ["feature", "client", "server"]). */
+  get factoryNames(): string[] {
+    return this.state.get('factories') || ['feature']
+  }
+
+  /**
+   * Returns a full introspection object for this container, merging build-time AST data
+   * (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).
+   *
+   * @returns {ContainerIntrospection} The complete introspection data
+   */
+  inspect(): ContainerIntrospection {
+    const className = this.constructor.name
+    const buildTimeData = getContainerBuildTimeData(className) || {}
+
+    // Walk up the prototype chain to merge inherited build-time data
+    let mergedMethods = { ...(buildTimeData.methods || {}) }
+    let mergedGetters = { ...(buildTimeData.getters || {}) }
+    let mergedEvents = { ...(buildTimeData.events || {}) }
+    let mergedDescription = buildTimeData.description || ''
+
+    let proto = Object.getPrototypeOf(this.constructor)
+    while (proto && proto.name) {
+      const parentData = getContainerBuildTimeData(proto.name)
+      if (parentData) {
+        mergedMethods = { ...parentData.methods, ...mergedMethods }
+        mergedGetters = { ...parentData.getters, ...mergedGetters }
+        mergedEvents = { ...parentData.events, ...mergedEvents }
+        if (!mergedDescription && parentData.description) {
+          mergedDescription = parentData.description
+        }
+      }
+      proto = Object.getPrototypeOf(proto)
+    }
+
+    // Build registry introspection from runtime data
+    const registryNames = this.registryNames
+    const registries: RegistryIntrospection[] = registryNames.map((name) => {
+      const registry = (this as any)[name]
+      return {
+        name,
+        baseClass: registry?.baseClass?.name || 'Helper',
+        available: registry?.available || []
+      }
+    })
+
+    // Get state description from the Zod schema
+    const stateSchema = (this.constructor as any).stateSchema
+    const stateDescription = stateSchema ? describeZodShape(stateSchema) : {}
+
+    return {
+      className,
+      uuid: this.uuid,
+      description: mergedDescription,
+      registries,
+      factories: this.factoryNames,
+      methods: mergedMethods,
+      getters: mergedGetters,
+      events: mergedEvents,
+      state: stateDescription,
+      enabledFeatures: this.enabledFeatureIds,
+      environment: {
+        isBrowser: this.isBrowser,
+        isNode: this.isNode,
+        isBun: this.isBun,
+        isElectron: this.isElectron,
+        isDevelopment: this.isDevelopment,
+        isProduction: this.isProduction,
+        isCI: this.isCI
+      }
+    }
+  }
+
+  /**
+   * Returns a human-readable markdown representation of this container's introspection data.
+   * Useful in REPLs, AI agent contexts, or documentation generation.
+   *
+   * @param {number} startHeadingDepth - The heading level to start from (default 1)
+   * @returns {string} Markdown-formatted introspection text
+   */
+  inspectAsText(startHeadingDepth: number = 1): string {
+    const data = this.inspect()
+    return presentContainerIntrospectionAsMarkdown(data, startHeadingDepth)
   }
 
   _hide(...propNames: string[]) {
@@ -351,12 +477,20 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return this
   }
 
+  /** Sleep for the specified number of milliseconds. Useful for scripting and sequencing. */
   async sleep(ms = 1000) {
-    await new Promise((res) => setTimeout(res,ms))    
+    await new Promise((res) => setTimeout(res,ms))
     return this
   }
 
   _plugins: (() => void)[] = []
+
+  /**
+   * Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.
+   *
+   * @param {Extension<T>} plugin - A feature name string, or a class/object with a static attach method
+   * @param {any} options - Options to pass to the plugin's attach method
+   */
   use<T = {}>(plugin: Extension<T>, options: any = {}) : this & T {
     const container = this
 
@@ -378,7 +512,128 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 }
 
 const helperCache = new Map()
-
-
 const featureIdToHelperCacheKeyMap= new Map()
 const contextMap = new WeakMap()
+
+function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, startHeadingDepth: number = 1): string {
+  const sections: string[] = []
+  const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
+
+  // Header
+  sections.push(`${heading(1)} ${data.className}\n\n${data.description || ''}`)
+
+  // Registries section
+  if (data.registries && data.registries.length > 0) {
+    sections.push(`${heading(2)} Registries`)
+
+    for (const reg of data.registries) {
+      sections.push(`${heading(3)} ${reg.name} (${reg.baseClass})`)
+      if (reg.available.length > 0) {
+        sections.push(reg.available.map(a => `- \`${a}\``).join('\n'))
+      } else {
+        sections.push('_No members registered_')
+      }
+    }
+  }
+
+  // Factories section
+  if (data.factories && data.factories.length > 0) {
+    sections.push(`${heading(2)} Factory Methods`)
+    sections.push(data.factories.map(f => `- \`${f}()\``).join('\n'))
+  }
+
+  // Methods section
+  if (data.methods && Object.keys(data.methods).length > 0) {
+    sections.push(`${heading(2)} Methods`)
+
+    for (const [methodName, methodInfo] of Object.entries(data.methods)) {
+      sections.push(`${heading(3)} ${methodName}`)
+
+      if (methodInfo.description) {
+        sections.push(methodInfo.description)
+      }
+
+      if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
+        sections.push(`**Parameters:**`)
+        sections.push(`| Name | Type | Required | Description |`)
+        sections.push(`|------|------|----------|-------------|`)
+
+        for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
+          const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
+          sections.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
+        }
+      }
+
+      if (methodInfo.returns) {
+        sections.push(`**Returns:** \`${methodInfo.returns}\``)
+      }
+
+      sections.push('')
+    }
+  }
+
+  // Getters section
+  if (data.getters && Object.keys(data.getters).length > 0) {
+    sections.push(`${heading(2)} Getters`)
+    sections.push(`| Property | Type | Description |`)
+    sections.push(`|----------|------|-------------|`)
+
+    for (const [getterName, getterInfo] of Object.entries(data.getters)) {
+      sections.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
+    }
+  }
+
+  // Events section
+  if (data.events && Object.keys(data.events).length > 0) {
+    sections.push(`${heading(2)} Events`)
+
+    for (const [eventName, eventInfo] of Object.entries(data.events)) {
+      sections.push(`${heading(3)} ${eventName}`)
+
+      if (eventInfo.description) {
+        sections.push(eventInfo.description)
+      }
+
+      if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
+        sections.push(`**Event Arguments:**`)
+        sections.push(`| Name | Type | Description |`)
+        sections.push(`|------|------|-------------|`)
+
+        for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
+          sections.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
+        }
+      }
+
+      sections.push('')
+    }
+  }
+
+  // State section
+  if (data.state && Object.keys(data.state).length > 0) {
+    sections.push(`${heading(2)} State`)
+    sections.push(`| Property | Type | Description |`)
+    sections.push(`|----------|------|-------------|`)
+
+    for (const [stateName, stateInfo] of Object.entries(data.state)) {
+      sections.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
+    }
+  }
+
+  // Enabled features section
+  if (data.enabledFeatures && data.enabledFeatures.length > 0) {
+    sections.push(`${heading(2)} Enabled Features`)
+    sections.push(data.enabledFeatures.map(f => `- \`${f}\``).join('\n'))
+  }
+
+  // Environment section
+  if (data.environment) {
+    sections.push(`${heading(2)} Environment`)
+    sections.push(`| Flag | Value |`)
+    sections.push(`|------|-------|`)
+    for (const [key, value] of Object.entries(data.environment)) {
+      sections.push(`| \`${key}\` | ${value} |`)
+    }
+  }
+
+  return sections.join('\n\n')
+}

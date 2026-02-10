@@ -1,7 +1,7 @@
-import { setBuildTimeData } from './index.js';
+import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-09T02:36:44.583Z
+// Generated at: 2026-02-10T07:48:57.831Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -36,6 +36,12 @@ setBuildTimeData('features.esbuild', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "assetLoader": {
+      "description": "Returns the assetLoader feature for loading external libraries from unpkg.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -77,6 +83,16 @@ setBuildTimeData('features.voice', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "listening": {
+      "description": "Whether the speech recognizer is currently listening for audio input.",
+      "returns": "any"
+    },
+    "transcript": {
+      "description": "Returns the accumulated final transcript text from recognition results.",
+      "returns": "any"
     }
   },
   "events": {
@@ -151,6 +167,7 @@ setBuildTimeData('features.vm', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -206,6 +223,7 @@ setBuildTimeData('features.assetLoader', {
       "returns": "Promise<any>"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -254,6 +272,7 @@ setBuildTimeData('features.vault', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -275,6 +294,16 @@ setBuildTimeData('features.network', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "isOffline": {
+      "description": "Whether the browser is currently offline.",
+      "returns": "any"
+    },
+    "isOnline": {
+      "description": "Whether the browser is currently online.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -330,6 +359,16 @@ setBuildTimeData('features.speech', {
       "returns": "void"
     }
   },
+  "getters": {
+    "voices": {
+      "description": "Returns the array of available speech synthesis voices.",
+      "returns": "any"
+    },
+    "defaultVoice": {
+      "description": "Returns the Voice object matching the currently selected default voice name.",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -354,9 +393,322 @@ setBuildTimeData('features.mdxLoader', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
+});
+
+// Container introspection data
+setContainerBuildTimeData('Container', {
+  "className": "Container",
+  "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
+  "methods": {
+    "addContext": {
+      "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+      "parameters": {
+        "key": {
+          "type": "K",
+          "description": "The context key"
+        },
+        "value": {
+          "type": "ContainerContext[K]",
+          "description": "The context value"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "void"
+    },
+    "setState": {
+      "description": "Sets the state of the container.",
+      "parameters": {
+        "newState": {
+          "type": "SetStateValue<ContainerState>",
+          "description": "Parameter newState"
+        }
+      },
+      "required": [
+        "newState"
+      ],
+      "returns": "void"
+    },
+    "bus": {
+      "description": "Convenience method for creating a new event bus instance.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "newState": {
+      "description": "Convenience method for creating a new observable State object.",
+      "parameters": {
+        "initialState": {
+          "type": "T",
+          "description": "Parameter initialState"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "feature": {
+      "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+      "parameters": {
+        "id": {
+          "type": "T",
+          "description": "Parameter id"
+        },
+        "options": {
+          "type": "ConstructorParameters<Features[T]>[0]",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "InstanceType<Features[T]>"
+    },
+    "start": {
+      "description": "TODO: A container should be able to container.use(plugin) and that plugin should be able to define an asynchronous method that will be run when the container is started.  Right now there's nothing to do with starting / stopping a container but that might be neat.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "emit": {
+      "description": "Emit an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "args": {
+          "type": "any[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "returns": "void"
+    },
+    "on": {
+      "description": "Subscribe to an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event",
+        "listener"
+      ],
+      "returns": "void"
+    },
+    "off": {
+      "description": "Unsubscribe a listener from an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "void"
+    },
+    "once": {
+      "description": "Subscribe to an event on the container's event bus, but only fire once.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event",
+        "listener"
+      ],
+      "returns": "void"
+    },
+    "waitFor": {
+      "description": "Returns a promise that will resolve when the event is emitted",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "void"
+    },
+    "registerHelperType": {
+      "description": "Register a helper type (registry + factory pair) on this container. Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).",
+      "parameters": {
+        "registryName": {
+          "type": "string",
+          "description": "Parameter registryName"
+        },
+        "factoryName": {
+          "type": "string",
+          "description": "Parameter factoryName"
+        }
+      },
+      "required": [
+        "registryName",
+        "factoryName"
+      ],
+      "returns": "void"
+    },
+    "inspect": {
+      "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
+      "parameters": {},
+      "required": [],
+      "returns": "ContainerIntrospection"
+    },
+    "inspectAsText": {
+      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+      "parameters": {
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "The heading level to start from (default 1)"
+        }
+      },
+      "required": [],
+      "returns": "string"
+    },
+    "sleep": {
+      "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
+      "parameters": {
+        "ms": {
+          "type": "any",
+          "description": "Parameter ms"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "use": {
+      "description": "Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.",
+      "parameters": {
+        "plugin": {
+          "type": "Extension<T>",
+          "description": "A feature name string, or a class/object with a static attach method"
+        },
+        "options": {
+          "type": "any",
+          "description": "Options to pass to the plugin's attach method"
+        }
+      },
+      "required": [
+        "plugin"
+      ],
+      "returns": "this & T"
+    }
+  },
+  "getters": {
+    "state": {
+      "description": "The observable state object for this container instance.",
+      "returns": "any"
+    },
+    "enabledFeatureIds": {
+      "description": "Returns the list of shortcut IDs for all currently enabled features.",
+      "returns": "any"
+    },
+    "enabledFeatures": {
+      "description": "Returns a map of enabled feature shortcut IDs to their instances.",
+      "returns": "Partial<AvailableInstanceTypes<Features>>"
+    },
+    "context": {
+      "description": "The Container's context is an object that contains the enabled features, the container itself, and any additional context that has been added to the container. All helper instances that are created by the container will have access to the shared context.",
+      "returns": "ContainerContext<Features> & Partial<AvailableInstanceTypes<AvailableFeatures>>"
+    },
+    "currentState": {
+      "description": "The current state of the container. This is a snapshot of the container's state at the time this method is called.",
+      "returns": "any"
+    },
+    "isBrowser": {
+      "description": "Returns true if the container is running in a browser.",
+      "returns": "any"
+    },
+    "isBun": {
+      "description": "Returns true if the container is running in Bun.",
+      "returns": "any"
+    },
+    "isNode": {
+      "description": "Returns true if the container is running in Node.",
+      "returns": "any"
+    },
+    "isElectron": {
+      "description": "Returns true if the container is running in Electron.",
+      "returns": "any"
+    },
+    "isDevelopment": {
+      "description": "Returns true if the container is running in development mode.",
+      "returns": "any"
+    },
+    "isProduction": {
+      "description": "Returns true if the container is running in production mode.",
+      "returns": "any"
+    },
+    "isCI": {
+      "description": "Returns true if the container is running in a CI environment.",
+      "returns": "any"
+    },
+    "registryNames": {
+      "description": "Returns the names of all attached registries (e.g. [\"features\", \"clients\", \"servers\"]).",
+      "returns": "string[]"
+    },
+    "factoryNames": {
+      "description": "Returns the names of all available factory methods (e.g. [\"feature\", \"client\", \"server\"]).",
+      "returns": "string[]"
+    }
+  },
+  "events": {
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Container",
+      "arguments": {}
+    }
+  }
+});
+
+setContainerBuildTimeData('WebContainer', {
+  "className": "WebContainer",
+  "description": "Browser-specific container that extends the base Container with web client support and browser-specific features like speech, voice recognition, and asset loading.",
+  "methods": {},
+  "getters": {
+    "Client": {
+      "description": "Returns the base Client class for creating custom clients.",
+      "returns": "any"
+    },
+    "SocketClient": {
+      "description": "Returns the SocketClient class for WebSocket connections.",
+      "returns": "any"
+    },
+    "RestClient": {
+      "description": "Returns the RestClient class for HTTP REST API connections.",
+      "returns": "any"
+    }
+  },
+  "events": {}
 });
 export const introspectionData = [
   {
@@ -392,6 +744,12 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "assetLoader": {
+        "description": "Returns the assetLoader feature for loading external libraries from unpkg.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -432,6 +790,16 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "listening": {
+        "description": "Whether the speech recognizer is currently listening for audio input.",
+        "returns": "any"
+      },
+      "transcript": {
+        "description": "Returns the accumulated final transcript text from recognition results.",
+        "returns": "any"
       }
     },
     "events": {
@@ -505,6 +873,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -559,6 +928,7 @@ export const introspectionData = [
         "returns": "Promise<any>"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -606,6 +976,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -626,6 +997,16 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "isOffline": {
+        "description": "Whether the browser is currently offline.",
+        "returns": "any"
+      },
+      "isOnline": {
+        "description": "Whether the browser is currently online.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -680,6 +1061,16 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "voices": {
+        "description": "Returns the array of available speech synthesis voices.",
+        "returns": "any"
+      },
+      "defaultVoice": {
+        "description": "Returns the Voice object matching the currently selected default voice name.",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -703,8 +1094,321 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
+  }
+];
+
+export const containerIntrospectionData = [
+  {
+    "className": "Container",
+    "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
+    "methods": {
+      "addContext": {
+        "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+        "parameters": {
+          "key": {
+            "type": "K",
+            "description": "The context key"
+          },
+          "value": {
+            "type": "ContainerContext[K]",
+            "description": "The context value"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "void"
+      },
+      "setState": {
+        "description": "Sets the state of the container.",
+        "parameters": {
+          "newState": {
+            "type": "SetStateValue<ContainerState>",
+            "description": "Parameter newState"
+          }
+        },
+        "required": [
+          "newState"
+        ],
+        "returns": "void"
+      },
+      "bus": {
+        "description": "Convenience method for creating a new event bus instance.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "newState": {
+        "description": "Convenience method for creating a new observable State object.",
+        "parameters": {
+          "initialState": {
+            "type": "T",
+            "description": "Parameter initialState"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "feature": {
+        "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+        "parameters": {
+          "id": {
+            "type": "T",
+            "description": "Parameter id"
+          },
+          "options": {
+            "type": "ConstructorParameters<Features[T]>[0]",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "InstanceType<Features[T]>"
+      },
+      "start": {
+        "description": "TODO: A container should be able to container.use(plugin) and that plugin should be able to define an asynchronous method that will be run when the container is started.  Right now there's nothing to do with starting / stopping a container but that might be neat.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "emit": {
+        "description": "Emit an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "args": {
+            "type": "any[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "event",
+          "args"
+        ],
+        "returns": "void"
+      },
+      "on": {
+        "description": "Subscribe to an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event",
+          "listener"
+        ],
+        "returns": "void"
+      },
+      "off": {
+        "description": "Unsubscribe a listener from an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "void"
+      },
+      "once": {
+        "description": "Subscribe to an event on the container's event bus, but only fire once.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event",
+          "listener"
+        ],
+        "returns": "void"
+      },
+      "waitFor": {
+        "description": "Returns a promise that will resolve when the event is emitted",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "void"
+      },
+      "registerHelperType": {
+        "description": "Register a helper type (registry + factory pair) on this container. Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).",
+        "parameters": {
+          "registryName": {
+            "type": "string",
+            "description": "Parameter registryName"
+          },
+          "factoryName": {
+            "type": "string",
+            "description": "Parameter factoryName"
+          }
+        },
+        "required": [
+          "registryName",
+          "factoryName"
+        ],
+        "returns": "void"
+      },
+      "inspect": {
+        "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
+        "parameters": {},
+        "required": [],
+        "returns": "ContainerIntrospection"
+      },
+      "inspectAsText": {
+        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+        "parameters": {
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "The heading level to start from (default 1)"
+          }
+        },
+        "required": [],
+        "returns": "string"
+      },
+      "sleep": {
+        "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
+        "parameters": {
+          "ms": {
+            "type": "any",
+            "description": "Parameter ms"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "use": {
+        "description": "Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.",
+        "parameters": {
+          "plugin": {
+            "type": "Extension<T>",
+            "description": "A feature name string, or a class/object with a static attach method"
+          },
+          "options": {
+            "type": "any",
+            "description": "Options to pass to the plugin's attach method"
+          }
+        },
+        "required": [
+          "plugin"
+        ],
+        "returns": "this & T"
+      }
+    },
+    "getters": {
+      "state": {
+        "description": "The observable state object for this container instance.",
+        "returns": "any"
+      },
+      "enabledFeatureIds": {
+        "description": "Returns the list of shortcut IDs for all currently enabled features.",
+        "returns": "any"
+      },
+      "enabledFeatures": {
+        "description": "Returns a map of enabled feature shortcut IDs to their instances.",
+        "returns": "Partial<AvailableInstanceTypes<Features>>"
+      },
+      "context": {
+        "description": "The Container's context is an object that contains the enabled features, the container itself, and any additional context that has been added to the container. All helper instances that are created by the container will have access to the shared context.",
+        "returns": "ContainerContext<Features> & Partial<AvailableInstanceTypes<AvailableFeatures>>"
+      },
+      "currentState": {
+        "description": "The current state of the container. This is a snapshot of the container's state at the time this method is called.",
+        "returns": "any"
+      },
+      "isBrowser": {
+        "description": "Returns true if the container is running in a browser.",
+        "returns": "any"
+      },
+      "isBun": {
+        "description": "Returns true if the container is running in Bun.",
+        "returns": "any"
+      },
+      "isNode": {
+        "description": "Returns true if the container is running in Node.",
+        "returns": "any"
+      },
+      "isElectron": {
+        "description": "Returns true if the container is running in Electron.",
+        "returns": "any"
+      },
+      "isDevelopment": {
+        "description": "Returns true if the container is running in development mode.",
+        "returns": "any"
+      },
+      "isProduction": {
+        "description": "Returns true if the container is running in production mode.",
+        "returns": "any"
+      },
+      "isCI": {
+        "description": "Returns true if the container is running in a CI environment.",
+        "returns": "any"
+      },
+      "registryNames": {
+        "description": "Returns the names of all attached registries (e.g. [\"features\", \"clients\", \"servers\"]).",
+        "returns": "string[]"
+      },
+      "factoryNames": {
+        "description": "Returns the names of all available factory methods (e.g. [\"feature\", \"client\", \"server\"]).",
+        "returns": "string[]"
+      }
+    },
+    "events": {
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Container",
+        "arguments": {}
+      }
+    }
+  },
+  {
+    "className": "WebContainer",
+    "description": "Browser-specific container that extends the base Container with web client support and browser-specific features like speech, voice recognition, and asset loading.",
+    "methods": {},
+    "getters": {
+      "Client": {
+        "description": "Returns the base Client class for creating custom clients.",
+        "returns": "any"
+      },
+      "SocketClient": {
+        "description": "Returns the SocketClient class for WebSocket connections.",
+        "returns": "any"
+      },
+      "RestClient": {
+        "description": "Returns the RestClient class for HTTP REST API connections.",
+        "returns": "any"
+      }
+    },
+    "events": {}
   }
 ];

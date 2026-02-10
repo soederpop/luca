@@ -29,10 +29,12 @@ export class Network<
     this.state.set("offline", !navigator.onLine);
   }
 
+  /** Whether the browser is currently offline. */
   get isOffline() {
     return this.state.get("offline") === true;
   }
 
+  /** Whether the browser is currently online. */
   get isOnline() {
     return this.state.get("offline") === false;
   }

@@ -77,10 +77,12 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
     }
   }
 
+  /** Whether the speech recognizer is currently listening for audio input. */
   get listening() {
     return !!this.state.get("listening");
   }
 
+  /** Returns the accumulated final transcript text from recognition results. */
   get transcript() {
     return this.state.get("transcript") || '';
   }

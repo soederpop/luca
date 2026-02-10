@@ -46,10 +46,12 @@ export class Speech<
     this.loadVoices()
   }
   
+  /** Returns the array of available speech synthesis voices. */
   get voices() {
-    return this.state.get('voices') || [] 
+    return this.state.get('voices') || []
   }
-  
+
+  /** Returns the Voice object matching the currently selected default voice name. */
   get defaultVoice() {
     return this.voices.find(v => v.name === this.state.get("defaultVoice"))
   }
