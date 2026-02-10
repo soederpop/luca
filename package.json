@@ -21,7 +21,8 @@
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",
     "build": "mkdist --declaration --ext=js",
-    "introspect": "bun run scripts/update-introspection-data"
+    "introspect": "bun run scripts/update-introspection-data",
+    "compile": "bun build ./src/cli/cli.ts --compile --outfile luca"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
