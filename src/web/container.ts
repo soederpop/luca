@@ -53,10 +53,10 @@ export class WebContainer<Features extends WebFeatures = WebFeatures, K extends 
 
   override useHelpers: any[] = [WebContainerExtensions]
 
-  override afterInitialize() {
+  constructor(options: any = {}) {
+    super(options)
+    this.use(WebContainerExtensions as any)
   }
 }
 
 export const helperCache = new Map()
-
-const w = new WebContainer();

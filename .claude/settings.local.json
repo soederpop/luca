@@ -22,7 +22,8 @@
       "Bash(bun add:*)",
       "Bash(bunx vitest run:*)",
       "Bash(bun -e:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(open:*)"
     ]
   }
 }
