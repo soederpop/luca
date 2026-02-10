@@ -47,6 +47,7 @@ export class ContainerChat extends Feature<ContainerChatState, ContainerChatOpti
 
 	openai!: OpenAIClient
 
+	/** Whether the chat session has been started. */
 	get isStarted() {
 		return !!this.state.get('started')
 	}
@@ -77,6 +78,7 @@ export class ContainerChat extends Feature<ContainerChatState, ContainerChatOpti
 		}).join('\n\n')
 	}
 
+	/** Returns the generated system prompt that describes the container and its capabilities. */
 	get systemPrompt() {
 		return this.container.feature('ui').endent(`
 			# Container Chat

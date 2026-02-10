@@ -200,10 +200,12 @@ export class NodeContainer<
     return Feature;
   }
 
+  /** Returns the current working directory, from options or process.cwd(). */
   get cwd(): string {
     return this.options.cwd || process.cwd();
   }
 
+  /** Returns the parsed package.json manifest for the current working directory. */
   get manifest() {
     try {
       const packageJson = this.fs.findUp("packageon");
@@ -224,16 +226,19 @@ export class NodeContainer<
     }
   }
 
+  /** Returns the parsed command-line arguments (from minimist). */
   get argv() {
     return this.options as any;
   }
 
+  /** Returns URL utility functions for parsing URIs. */
   get urlUtils() {
     return {
-      parse: (uri: string) => url.parse(uri) 
+      parse: (uri: string) => url.parse(uri)
     }
   }
 
+  /** Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse). */
   get paths() {
     const { cwd } = this;
     return {

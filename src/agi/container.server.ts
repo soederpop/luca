@@ -9,9 +9,14 @@ import { Snippets } from './features/snippets'
 import { ClaudeCode } from './features/claude-code'
 import { Conversation } from './features/conversation'
 import { Expert } from './features/expert'
+import { Oracle } from './features/oracle'
 
 import type { ContentDb } from '@/node/features/content-db'
 
+/**
+ * AGI-specific container that extends NodeContainer with AI capabilities including
+ * identity management, OpenAI conversations, code generation, and self-modifying agent features.
+ */
 export class AGIContainer extends NodeContainer {
 	identity!: Identity
 	openai!: OpenAIClient
@@ -29,6 +34,7 @@ const container = new AGIContainer()
 	.use(ClaudeCode)
 	.use(Conversation)
 	.use(Expert)
+	.use(Oracle)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')

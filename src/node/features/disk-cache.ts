@@ -35,6 +35,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
     this.hide('_cache')
   }
   
+  /** Returns the underlying cacache instance configured with the cache directory path. */
   get cache() {
     return this._cache
   }

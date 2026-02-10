@@ -20,6 +20,7 @@ export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
   static override optionsSchema = EsbuildWebOptionsSchema
   static override shortcut = "features.esbuild" as const
   
+  /** Returns the assetLoader feature for loading external libraries from unpkg. */
   get assetLoader() {
     return this.container.feature("assetLoader");
   }

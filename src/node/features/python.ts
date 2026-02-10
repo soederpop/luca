@@ -100,14 +100,17 @@ export class Python<
     return this
   }
 
+	/** Returns the root directory of the Python project. */
 	get projectDir() {
 		return this.state.get('projectDir') || this.container.cwd
 	}
 
+	/** Returns the path to the Python executable for this environment. */
 	get pythonPath() {
 		return this.state.get('pythonPath') || 'python'
 	}
 
+	/** Returns the detected environment type: 'uv', 'conda', 'venv', or 'system'. */
 	get environmentType() {
 		return this.state.get('environmentType') || 'system'
 	}

@@ -36,7 +36,7 @@ export class Client<
   static override eventsSchema = ClientEventsSchema
 
   static attach(container: Container & ClientsInterface): any {
-    return Object.assign(container, {
+    Object.assign(container, {
       get clients() {
         return clients;
       },
@@ -73,6 +73,10 @@ export class Client<
         return instance;
       },
     });
+
+    container.registerHelperType('clients', 'client');
+
+    return container;
   }
 
   constructor(options?: K, context?: ContainerContext) {

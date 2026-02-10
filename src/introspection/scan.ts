@@ -1,6 +1,6 @@
 import { Feature } from '../feature.js';
 import type { FeatureState, FeatureOptions } from '../feature.js';
-import type { HelperIntrospection, MethodIntrospection, EventIntrospection } from './index.js';
+import type { HelperIntrospection, MethodIntrospection, GetterIntrospection, EventIntrospection, ContainerIntrospection } from './index.js';
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -8,6 +8,7 @@ import { glob } from 'glob';
 
 export interface IntrospectionScannerState extends FeatureState {
   scanResults: HelperIntrospection[];
+  containerResults: Partial<ContainerIntrospection>[];
   lastScanTime: Date | null;
   scannedFiles: string[];
 }
@@ -26,6 +27,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return {
       ...super.initialState,
       scanResults: [],
+      containerResults: [],
       lastScanTime: null,
       scannedFiles: []
     };
@@ -57,6 +59,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
 
     try {
       const results: HelperIntrospection[] = [];
+      const containerResults: Partial<ContainerIntrospection>[] = [];
       const scannedFiles: string[] = [];
 
       for (const srcDir of this.options.src || []) {
@@ -64,22 +67,25 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         scannedFiles.push(...files);
 
         for (const file of files) {
-          const introspections = await this.analyzeFile(file);
-          results.push(...introspections);
+          const { helpers, containers } = await this.analyzeFile(file);
+          results.push(...helpers);
+          containerResults.push(...containers);
         }
       }
 
       this.setState({
         scanResults: results,
+        containerResults,
         lastScanTime: new Date(),
         scannedFiles
       });
 
       const duration = Date.now() - startTime;
-      this.emit('scanCompleted', { 
-        results: results.length, 
+      this.emit('scanCompleted', {
+        results: results.length,
+        containers: containerResults.length,
         files: scannedFiles.length,
-        duration 
+        duration
       });
 
       return results;
@@ -95,11 +101,13 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
   async generateRegistryScript(): Promise<string> {
     let results = this.state.get('scanResults');
     if (!results || results.length === 0) {
-      results = await this.scan();
+      await this.scan();
+      results = this.state.get('scanResults');
     }
 
-    const script = this.createRegistryScript(results);
-    
+    const containerResults = this.state.get('containerResults') || [];
+    const script = this.createRegistryScript(results!, containerResults);
+
     if (this.options.outputPath) {
       await fs.promises.writeFile(this.options.outputPath, script);
       this.emit('scriptGenerated', { path: this.options.outputPath });
@@ -108,14 +116,24 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return script;
   }
 
-  private async findTypeScriptFiles(srcDir: string): Promise<string[]> {
-    const pattern = path.join(srcDir, '**/*.ts');
-    return await glob(pattern, { 
-      ignore: ['**/*.d.ts', '**/node_modules/**'] 
+  private async findTypeScriptFiles(srcPath: string): Promise<string[]> {
+    // If it's a direct .ts file path, return it directly (if it exists)
+    if (srcPath.endsWith('.ts')) {
+      try {
+        await fs.promises.access(srcPath);
+        return [srcPath];
+      } catch {
+        return [];
+      }
+    }
+
+    const pattern = path.join(srcPath, '**/*.ts');
+    return await glob(pattern, {
+      ignore: ['**/*.d.ts', '**/node_modules/**']
     });
   }
 
-  private async analyzeFile(filePath: string): Promise<HelperIntrospection[]> {
+  private async analyzeFile(filePath: string): Promise<{ helpers: HelperIntrospection[], containers: Partial<ContainerIntrospection>[] }> {
     const sourceCode = await fs.promises.readFile(filePath, 'utf-8');
     const sourceFile = ts.createSourceFile(
       filePath,
@@ -124,20 +142,28 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       true
     );
 
-    const results: HelperIntrospection[] = [];
+    const helpers: HelperIntrospection[] = [];
+    const containers: Partial<ContainerIntrospection>[] = [];
 
     const visit = (node: ts.Node) => {
       if (ts.isClassDeclaration(node)) {
-        const introspection = this.analyzeClass(node, sourceFile);
-        if (introspection) {
-          results.push(introspection);
+        if (this.extendsContainer(node)) {
+          const containerData = this.analyzeContainerClass(node, sourceFile);
+          if (containerData) {
+            containers.push(containerData);
+          }
+        } else {
+          const introspection = this.analyzeClass(node, sourceFile);
+          if (introspection) {
+            helpers.push(introspection);
+          }
         }
       }
       ts.forEachChild(node, visit);
     };
 
     visit(sourceFile);
-    return results;
+    return { helpers, containers };
   }
 
   private analyzeClass(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): HelperIntrospection | null {
@@ -153,6 +179,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
 
     const description = this.extractJSDocDescription(classNode);
     const methods = this.extractMethods(classNode, sourceFile);
+    const getters = this.extractGetters(classNode, sourceFile);
     const events = this.extractEvents(classNode, sourceFile);
 
     // state and options are derived at runtime from Zod schemas
@@ -162,6 +189,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       description: description || `${className} helper`,
       shortcut,
       methods,
+      getters,
       events,
       state: {},
       options: {}
@@ -184,6 +212,126 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       }
     }
     return false;
+  }
+
+  /**
+   * Container-specific getters to exclude from introspection.
+   * These are framework internals (class references, utility objects) not useful in inspection.
+   */
+  private static CONTAINER_SKIP_GETTERS = new Set([
+    'Feature', 'Helper', 'State', 'z', 'features',
+  ]);
+
+  private extendsContainer(classNode: ts.ClassDeclaration): boolean {
+    const className = classNode.name?.text;
+    const containerNames = ['Container', 'NodeContainer', 'WebContainer', 'AGIContainer'];
+
+    // The root Container class itself is a container
+    if (className && containerNames.includes(className)) return true;
+
+    if (!classNode.heritageClauses) return false;
+
+    for (const clause of classNode.heritageClauses) {
+      if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
+        for (const type of clause.types) {
+          if (type.expression) {
+            const typeName = type.expression.getText();
+            if (containerNames.some(base => typeName.includes(base))) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Analyze a Container class and extract introspection data.
+   * Container classes don't have a shortcut; they use className as the key.
+   */
+  private analyzeContainerClass(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Partial<ContainerIntrospection> | null {
+    const className = classNode.name?.text;
+    if (!className) return null;
+
+    const description = this.extractJSDocDescription(classNode);
+    const methods = this.extractContainerMethods(classNode, sourceFile);
+    const getters = this.extractContainerGetters(classNode, sourceFile);
+    const events = this.extractEvents(classNode, sourceFile);
+
+    return {
+      className,
+      description: description || `${className} container`,
+      methods,
+      getters,
+      events,
+    };
+  }
+
+  private extractContainerMethods(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, MethodIntrospection> {
+    const methods: Record<string, MethodIntrospection> = {};
+
+    for (const member of classNode.members) {
+      if (ts.isMethodDeclaration(member) && member.name) {
+        const methodName = member.name.getText();
+
+        // Skip private methods unless includePrivate is true
+        const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
+        if (isPrivate && !this.options.includePrivate) continue;
+
+        // Skip static methods
+        const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+        if (isStatic) continue;
+
+        // Skip methods starting with _ (internal methods like _hide)
+        if (methodName.startsWith('_')) continue;
+
+        const description = this.extractJSDocDescription(member) || '';
+        const parameters = this.extractParameters(member);
+        const required = this.extractRequiredParameters(member);
+        const returns = this.extractReturnType(member);
+
+        methods[methodName] = {
+          description,
+          parameters,
+          required,
+          returns
+        };
+      }
+    }
+
+    return methods;
+  }
+
+  private extractContainerGetters(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, GetterIntrospection> {
+    const getters: Record<string, GetterIntrospection> = {};
+
+    for (const member of classNode.members) {
+      if (ts.isGetAccessorDeclaration(member) && member.name) {
+        const getterName = member.name.getText();
+
+        // Skip container framework getters
+        if (IntrospectionScannerFeature.CONTAINER_SKIP_GETTERS.has(getterName)) continue;
+
+        // Skip private getters unless includePrivate is true
+        const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
+        if (isPrivate && !this.options.includePrivate) continue;
+
+        // Skip static getters
+        const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+        if (isStatic) continue;
+
+        const description = this.extractJSDocDescriptionFromAccessor(member) || '';
+        const returns = member.type ? member.type.getText() : 'any';
+
+        getters[getterName] = {
+          description,
+          returns
+        };
+      }
+    }
+
+    return getters;
   }
 
   private extractShortcut(classNode: ts.ClassDeclaration): string | null {
@@ -331,6 +479,80 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return methods;
   }
 
+  /**
+   * Base class getters that should be excluded from introspection output.
+   * These are inherited from Helper/Feature and not specific to individual features.
+   */
+  private static BASE_GETTERS = new Set([
+    'initialState', 'container', 'options', 'context', 'cacheKey', 'isEnabled', 'shortcut'
+  ]);
+
+  private extractGetters(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, GetterIntrospection> {
+    const getters: Record<string, GetterIntrospection> = {};
+
+    for (const member of classNode.members) {
+      if (ts.isGetAccessorDeclaration(member) && member.name) {
+        const getterName = member.name.getText();
+
+        // Skip base class getters
+        if (IntrospectionScannerFeature.BASE_GETTERS.has(getterName)) continue;
+
+        // Skip private getters unless includePrivate is true
+        const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
+        if (isPrivate && !this.options.includePrivate) continue;
+
+        // Skip static getters
+        const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+        if (isStatic) continue;
+
+        const description = this.extractJSDocDescriptionFromAccessor(member) || '';
+        const returns = member.type ? member.type.getText() : 'any';
+
+        getters[getterName] = {
+          description,
+          returns
+        };
+      }
+    }
+
+    return getters;
+  }
+
+  private extractJSDocDescriptionFromAccessor(node: ts.GetAccessorDeclaration): string | null {
+    const sourceFile = node.getSourceFile();
+    const fullText = sourceFile.getFullText();
+
+    const ranges = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+
+    if (ranges && ranges.length > 0) {
+      for (let i = ranges.length - 1; i >= 0; i--) {
+        const range = ranges[i];
+        if (!range) continue;
+        const commentText = fullText.substring(range.pos, range.end);
+
+        if (commentText.startsWith('/**')) {
+          const content = commentText.slice(3, -2);
+          const lines = content.split('\n');
+          const cleanLines: string[] = [];
+
+          for (const line of lines) {
+            const cleaned = line.replace(/^\s*\*\s?/, '').trim();
+            if (cleaned && !cleaned.startsWith('@')) {
+              cleanLines.push(cleaned);
+            } else if (cleaned.startsWith('@')) {
+              break;
+            }
+          }
+
+          const description = cleanLines.join(' ').trim();
+          return description || null;
+        }
+      }
+    }
+
+    return null;
+  }
+
   private extractParameters(method: ts.MethodDeclaration): Record<string, { type: string, description: string }> {
     const parameters: Record<string, { type: string, description: string }> = {};
 
@@ -398,17 +620,32 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return events;
   }
 
-  private createRegistryScript(results: HelperIntrospection[]): string {
-    const imports = `import { setBuildTimeData } from './index.js';\n\n`;
+  private createRegistryScript(results: HelperIntrospection[], containerResults: Partial<ContainerIntrospection>[] = []): string {
+    const hasContainers = containerResults.length > 0;
+
+    let imports = `import { setBuildTimeData`;
+    if (hasContainers) {
+      imports += `, setContainerBuildTimeData`;
+    }
+    imports += ` } from './index.js';\n\n`;
 
     const registrations = results.map(result => {
       const data = JSON.stringify(result, null, 2);
       return `setBuildTimeData('${result.id}', ${data});`;
     }).join('\n\n');
 
-    const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;
+    let containerRegistrations = '';
+    if (hasContainers) {
+      containerRegistrations = '\n\n// Container introspection data\n' + containerResults.map(result => {
+        const data = JSON.stringify(result, null, 2);
+        return `setContainerBuildTimeData('${result.className}', ${data});`;
+      }).join('\n\n');
+    }
 
-    return `${imports}// Auto-generated introspection registry data\n// Generated at: ${new Date().toISOString()}\n\n${registrations}${exportStatement}`;
+    const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;
+    const containerExport = hasContainers ? `\nexport const containerIntrospectionData = ${JSON.stringify(containerResults, null, 2)};\n` : '';
+
+    return `${imports}// Auto-generated introspection registry data\n// Generated at: ${new Date().toISOString()}\n\n${registrations}${containerRegistrations}${exportStatement}${containerExport}`;
   }
 }
 

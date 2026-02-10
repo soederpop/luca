@@ -1,7 +1,7 @@
-import { setBuildTimeData } from './index.js';
+import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-09T02:36:44.637Z
+// Generated at: 2026-02-10T07:48:57.899Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -26,6 +26,12 @@ setBuildTimeData('features.yamlTree', {
       "returns": "void"
     }
   },
+  "getters": {
+    "tree": {
+      "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded.",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -46,6 +52,39 @@ setBuildTimeData('features.git', {
       },
       "required": [],
       "returns": "void"
+    },
+    "getLatestChanges": {
+      "description": "Gets the latest commits from the repository. Returns an array of commit objects containing the title (first line of commit message), full message body, and author name for each commit.",
+      "parameters": {
+        "numberOfChanges": {
+          "type": "number",
+          "description": "Parameter numberOfChanges"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "branch": {
+      "description": "Gets the current Git branch name.",
+      "returns": "any"
+    },
+    "sha": {
+      "description": "Gets the current Git commit SHA hash.",
+      "returns": "any"
+    },
+    "isRepo": {
+      "description": "Checks if the current directory is within a Git repository.",
+      "returns": "any"
+    },
+    "isRepoRoot": {
+      "description": "Checks if the current working directory is the root of the Git repository.",
+      "returns": "any"
+    },
+    "repoRoot": {
+      "description": "Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -93,6 +132,7 @@ setBuildTimeData('features.esbuild', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -122,6 +162,7 @@ setBuildTimeData('features.downloader', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -189,6 +230,7 @@ setBuildTimeData('features.proc', {
       "returns": "string"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -216,8 +258,21 @@ setBuildTimeData('features.vm', {
       ],
       "returns": "void"
     },
+    "isContext": {
+      "description": "Returns true if the given object has already been contextified by `vm.createContext()`. Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
+      "parameters": {
+        "ctx": {
+          "type": "unknown",
+          "description": "Parameter ctx"
+        }
+      },
+      "required": [
+        "ctx"
+      ],
+      "returns": "ctx is vm.Context"
+    },
     "createContext": {
-      "description": "Creates a new execution context for running VM scripts. This method creates an isolated JavaScript execution context that combines the container's context with any additional context variables provided. The resulting context can be used to run scripts with controlled variable access.",
+      "description": "",
       "parameters": {
         "ctx": {
           "type": "any",
@@ -243,8 +298,26 @@ setBuildTimeData('features.vm', {
         "code"
       ],
       "returns": "Promise<T>"
+    },
+    "perform": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<{ result: T, context: vm.Context }>"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -477,6 +550,24 @@ setBuildTimeData('features.ui', {
       "returns": "void"
     }
   },
+  "getters": {
+    "colors": {
+      "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
+      "returns": "typeof colors"
+    },
+    "colorPalette": {
+      "description": "Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application.",
+      "returns": "string[]"
+    },
+    "randomColor": {
+      "description": "Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing.",
+      "returns": "any"
+    },
+    "fonts": {
+      "description": "Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names",
+      "returns": "string[]"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -505,6 +596,12 @@ setBuildTimeData('features.repl', {
       "returns": "void"
     }
   },
+  "getters": {
+    "isStarted": {
+      "description": "Checks if the REPL server has been started.",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -515,6 +612,12 @@ setBuildTimeData('features.scriptRunner', {
   "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
   "shortcut": "features.scriptRunner",
   "methods": {},
+  "getters": {
+    "scripts": {
+      "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -525,6 +628,166 @@ setBuildTimeData('features.os', {
   "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
   "shortcut": "features.os",
   "methods": {},
+  "getters": {
+    "arch": {
+      "description": "Gets the operating system CPU architecture.",
+      "returns": "any"
+    },
+    "tmpdir": {
+      "description": "Gets the operating system's default directory for temporary files.",
+      "returns": "any"
+    },
+    "homedir": {
+      "description": "Gets the current user's home directory path.",
+      "returns": "any"
+    },
+    "cpuCount": {
+      "description": "Gets the number of logical CPU cores available on the system.",
+      "returns": "any"
+    },
+    "hostname": {
+      "description": "Gets the hostname of the operating system.",
+      "returns": "any"
+    },
+    "platform": {
+      "description": "Gets the operating system platform.",
+      "returns": "any"
+    },
+    "networkInterfaces": {
+      "description": "Gets information about the system's network interfaces.",
+      "returns": "any"
+    },
+    "macAddresses": {
+      "description": "Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification.",
+      "returns": "string[]"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.grep', {
+  "id": "features.grep",
+  "description": "The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.",
+  "shortcut": "features.grep",
+  "methods": {
+    "search": {
+      "description": "Search for a pattern in files and return structured results.",
+      "parameters": {
+        "options": {
+          "type": "GrepOptions",
+          "description": "Search options"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<GrepMatch[]>"
+    },
+    "filesContaining": {
+      "description": "Find files containing a pattern. Returns just the relative file paths.",
+      "parameters": {
+        "pattern": {
+          "type": "string",
+          "description": "The pattern to search for"
+        },
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern' | 'filesOnly'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "returns": "Promise<string[]>"
+    },
+    "imports": {
+      "description": "Find import/require statements for a module or path.",
+      "parameters": {
+        "moduleOrPath": {
+          "type": "string",
+          "description": "The module name or path to search for in imports"
+        },
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "moduleOrPath"
+      ],
+      "returns": "Promise<GrepMatch[]>"
+    },
+    "definitions": {
+      "description": "Find function, class, type, or variable definitions matching a name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The identifier name to search for definitions of"
+        },
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<GrepMatch[]>"
+    },
+    "todos": {
+      "description": "Find TODO, FIXME, HACK, and XXX comments.",
+      "parameters": {
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<GrepMatch[]>"
+    },
+    "count": {
+      "description": "Count the number of matches for a pattern.",
+      "parameters": {
+        "pattern": {
+          "type": "string",
+          "description": "The pattern to count"
+        },
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "returns": "Promise<number>"
+    },
+    "findForReplace": {
+      "description": "Search and replace across files. Returns the list of files that would be affected. Does NOT modify files — use the returned file list to do the replacement yourself.",
+      "parameters": {
+        "pattern": {
+          "type": "string",
+          "description": "The pattern to search for"
+        },
+        "options": {
+          "type": "Omit<GrepOptions, 'pattern'>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>"
+    }
+  },
+  "getters": {
+    "hasRipgrep": {
+      "description": "Whether ripgrep (rg) is available on this system",
+      "returns": "boolean"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -737,6 +1000,12 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<this>"
     }
   },
+  "getters": {
+    "proc": {
+      "description": "Get the proc feature for executing shell commands",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -774,6 +1043,7 @@ setBuildTimeData('features.yaml', {
       "returns": "T"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -807,6 +1077,7 @@ setBuildTimeData('features.networking', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -853,6 +1124,12 @@ setBuildTimeData('features.vault', {
         "payload"
       ],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "secretText": {
+      "description": "Gets the secret key as a base64-encoded string.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -1113,6 +1390,7 @@ setBuildTimeData('features.fs', {
       "returns": "Promise<string | string[] | null>"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -1184,6 +1462,20 @@ setBuildTimeData('features.ipcSocket', {
         "socketPath"
       ],
       "returns": "Promise<Socket>"
+    }
+  },
+  "getters": {
+    "isClient": {
+      "description": "Checks if the IPC socket is operating in client mode.",
+      "returns": "any"
+    },
+    "isServer": {
+      "description": "Checks if the IPC socket is operating in server mode.",
+      "returns": "any"
+    },
+    "connection": {
+      "description": "Gets the current client connection socket.",
+      "returns": "any"
     }
   },
   "events": {
@@ -1391,6 +1683,16 @@ setBuildTimeData('features.diskCache', {
       "returns": "void"
     }
   },
+  "getters": {
+    "cache": {
+      "description": "Returns the underlying cacache instance configured with the cache directory path.",
+      "returns": "any"
+    },
+    "securely": {
+      "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -1469,6 +1771,20 @@ setBuildTimeData('features.python', {
       "returns": "Promise<{ version: string; path: string; packages: string[] }>"
     }
   },
+  "getters": {
+    "projectDir": {
+      "description": "Returns the root directory of the Python project.",
+      "returns": "any"
+    },
+    "pythonPath": {
+      "description": "Returns the path to the Python executable for this environment.",
+      "returns": "any"
+    },
+    "environmentType": {
+      "description": "Returns the detected environment type: 'uv', 'conda', 'venv', or 'system'.",
+      "returns": "any"
+    }
+  },
   "events": {
     "ready": {
       "name": "ready",
@@ -1536,6 +1852,12 @@ setBuildTimeData('features.jsonTree', {
         "basePath"
       ],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "tree": {
+      "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree().",
+      "returns": "any"
     }
   },
   "events": {},
@@ -1655,6 +1977,32 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void"
     }
   },
+  "getters": {
+    "duplicates": {
+      "description": "Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project.",
+      "returns": "any"
+    },
+    "isStarted": {
+      "description": "Checks if the package finder has completed its initial scan.",
+      "returns": "any"
+    },
+    "packageNames": {
+      "description": "Gets an array of all unique package names discovered in the workspace.",
+      "returns": "any"
+    },
+    "scopes": {
+      "description": "Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel').",
+      "returns": "any"
+    },
+    "manifests": {
+      "description": "Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only.",
+      "returns": "any"
+    },
+    "counts": {
+      "description": "Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist.",
+      "returns": "any"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -1718,6 +2066,7 @@ setBuildTimeData('portExposer', {
       "returns": "Promise<this>"
     }
   },
+  "getters": {},
   "events": {
     "exposed": {
       "name": "exposed",
@@ -1762,6 +2111,7 @@ setBuildTimeData('features.mdxBundler', {
       "returns": "void"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -1828,6 +2178,7 @@ setBuildTimeData('features.secureShell', {
       "returns": "Promise<string>"
     }
   },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -1893,6 +2244,12 @@ setBuildTimeData('features.runpod', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "proc": {
+      "description": "Get the proc feature for executing shell commands",
+      "returns": "any"
     }
   },
   "events": {},
@@ -1997,6 +2354,40 @@ setBuildTimeData('features.fileManager', {
       "returns": "void"
     }
   },
+  "getters": {
+    "fileIds": {
+      "description": "Returns an array of all relative file paths indexed by the file manager.",
+      "returns": "any"
+    },
+    "fileObjects": {
+      "description": "Returns an array of all file metadata objects indexed by the file manager.",
+      "returns": "any"
+    },
+    "directoryIds": {
+      "description": "Returns the directory IDs for all of the files in the project.",
+      "returns": "any"
+    },
+    "uniqueExtensions": {
+      "description": "Returns an array of unique file extensions found across all indexed files.",
+      "returns": "any"
+    },
+    "isStarted": {
+      "description": "Whether the file manager has completed its initial scan.",
+      "returns": "any"
+    },
+    "isStarting": {
+      "description": "Whether the file manager is currently performing its initial scan.",
+      "returns": "any"
+    },
+    "isWatching": {
+      "description": "Whether the file watcher is actively monitoring for changes.",
+      "returns": "any"
+    },
+    "watchedFiles": {
+      "description": "Returns the directories and files currently being watched by chokidar.",
+      "returns": "Record<string, string[]>"
+    }
+  },
   "events": {
     "file:change": {
       "name": "file:change",
@@ -2004,6 +2395,58 @@ setBuildTimeData('features.fileManager', {
       "arguments": {}
     }
   },
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.contentDb', {
+  "id": "features.contentDb",
+  "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
+  "shortcut": "features.contentDb",
+  "methods": {
+    "load": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<ContentDb>"
+    },
+    "defineModel": {
+      "description": "",
+      "parameters": {
+        "definerFunction": {
+          "type": "(library: typeof this.library) => ModelDefinition",
+          "description": "Parameter definerFunction"
+        }
+      },
+      "required": [
+        "definerFunction"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "library": {
+      "description": "Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo.",
+      "returns": "any"
+    },
+    "models": {
+      "description": "Returns an object mapping model names to their model definitions.",
+      "returns": "any"
+    },
+    "isLoaded": {
+      "description": "Whether the content database has been loaded.",
+      "returns": "any"
+    },
+    "modelNames": {
+      "description": "Returns an array of all registered model names.",
+      "returns": "any"
+    },
+    "collection": {
+      "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
+      "returns": "any"
+    }
+  },
+  "events": {},
   "state": {},
   "options": {}
 });
@@ -2303,6 +2746,16 @@ setBuildTimeData('servers.mcp', {
       "returns": "void"
     }
   },
+  "getters": {
+    "z": {
+      "description": "",
+      "returns": "typeof z"
+    },
+    "server": {
+      "description": "",
+      "returns": "McpServerBase"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
@@ -2329,6 +2782,20 @@ setBuildTimeData('servers.express', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "express": {
+      "description": "",
+      "returns": "any"
+    },
+    "hooks": {
+      "description": "",
+      "returns": "any"
+    },
+    "app": {
+      "description": "",
+      "returns": "any"
     }
   },
   "events": {},
@@ -2384,6 +2851,16 @@ setBuildTimeData('servers.websocket', {
       "returns": "void"
     }
   },
+  "getters": {
+    "wss": {
+      "description": "",
+      "returns": "any"
+    },
+    "port": {
+      "description": "",
+      "returns": "any"
+    }
+  },
   "events": {
     "connection": {
       "name": "connection",
@@ -2402,9 +2879,21 @@ setBuildTimeData('servers.websocket', {
 
 setBuildTimeData('features.expert', {
   "id": "features.expert",
-  "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
+  "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.ts and hooks.ts files.",
   "shortcut": "features.expert",
   "methods": {
+    "buildTools": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Record<string, ConversationTool>"
+    },
+    "createConversation": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Conversation"
+    },
     "start": {
       "description": "",
       "parameters": {},
@@ -2413,6 +2902,18 @@ setBuildTimeData('features.expert', {
     },
     "loadSkills": {
       "description": "Loads the skills.ts file from the expert's folder if it exists. Skills are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope, exposing exported async functions as this.skills.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "loadHooks": {
+      "description": "Loads the hooks.ts file from the expert's folder if it exists. Hooks are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope. Hook functions should match event names emitted by the expert.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "bindHooks": {
+      "description": "Binds hooks to their corresponding events. Each hook function name should match an event name emitted by the expert. The hook will be called with (expert, ...eventArgs).",
       "parameters": {},
       "required": [],
       "returns": "void"
@@ -2431,7 +2932,38 @@ setBuildTimeData('features.expert', {
       "returns": "void"
     }
   },
-  "events": {},
+  "getters": {
+    "identity": {
+      "description": "Returns the Identity feature instance loaded from this expert's folder.",
+      "returns": "Identity"
+    },
+    "isStarted": {
+      "description": "Whether the expert has been initialized and is ready to answer questions.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "start": {
+      "name": "start",
+      "description": "Event emitted by Expert",
+      "arguments": {}
+    },
+    "asked": {
+      "name": "asked",
+      "description": "Event emitted by Expert",
+      "arguments": {}
+    },
+    "preview": {
+      "name": "preview",
+      "description": "Event emitted by Expert",
+      "arguments": {}
+    },
+    "answered": {
+      "name": "answered",
+      "description": "Event emitted by Expert",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -2455,6 +2987,28 @@ setBuildTimeData('features.conversation', {
       "returns": "Promise<string>"
     }
   },
+  "getters": {
+    "tools": {
+      "description": "Returns the registered tools available for the model to call.",
+      "returns": "Record<string, any>"
+    },
+    "messages": {
+      "description": "Returns the full message history of the conversation.",
+      "returns": "Message[]"
+    },
+    "model": {
+      "description": "Returns the OpenAI model name being used for completions.",
+      "returns": "string"
+    },
+    "isStreaming": {
+      "description": "Whether a streaming response is currently in progress.",
+      "returns": "boolean"
+    },
+    "openai": {
+      "description": "Returns the OpenAI client instance from the container.",
+      "returns": "any"
+    }
+  },
   "events": {
     "userMessage": {
       "name": "userMessage",
@@ -2468,6 +3022,11 @@ setBuildTimeData('features.conversation', {
     },
     "chunk": {
       "name": "chunk",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "preview": {
+      "name": "preview",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -2558,6 +3117,16 @@ setBuildTimeData('features.containerChat', {
         "question"
       ],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "isStarted": {
+      "description": "Whether the chat session has been started.",
+      "returns": "any"
+    },
+    "systemPrompt": {
+      "description": "Returns the generated system prompt that describes the container and its capabilities.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -2661,6 +3230,12 @@ setBuildTimeData('features.claudeCode', {
       "returns": "Promise<this>"
     }
   },
+  "getters": {
+    "claudePath": {
+      "description": "Resolve the path to the claude CLI binary.",
+      "returns": "string"
+    }
+  },
   "events": {
     "session:event": {
       "name": "session:event",
@@ -2740,6 +3315,16 @@ setBuildTimeData('features.helperChat', {
         "question"
       ],
       "returns": "void"
+    }
+  },
+  "getters": {
+    "isStarted": {
+      "description": "Whether the chat session has been started.",
+      "returns": "any"
+    },
+    "systemPrompt": {
+      "description": "Returns the generated system prompt describing the host helper's interface.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -2858,6 +3443,12 @@ setBuildTimeData('features.snippets', {
       "returns": "Promise<void>"
     }
   },
+  "getters": {
+    "stats": {
+      "description": "Returns computed statistics: totalSnippets, categories count, languages count, categoryCounts, and lastUpdated.",
+      "returns": "any"
+    }
+  },
   "events": {
     "snippetAdded": {
       "name": "snippetAdded",
@@ -2882,6 +3473,64 @@ setBuildTimeData('features.snippets', {
     "load": {
       "name": "load",
       "description": "Event emitted by Snippets",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.oracle', {
+  "id": "features.oracle",
+  "description": "The Oracle - an AI-augmented REPL where you can type JavaScript or natural language interchangeably. The AI copilot knows everything about the container via introspection metadata. Type code and it executes. Type English and the AI interprets it, generates code if needed, and executes it — all in the same session with shared context.",
+  "shortcut": "features.oracle",
+  "methods": {
+    "handleInput": {
+      "description": "Handle a single line of input — detect code vs natural language and act.",
+      "parameters": {
+        "input": {
+          "type": "string",
+          "description": "Parameter input"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<void>"
+    },
+    "start": {
+      "description": "Start the Oracle REPL session.",
+      "parameters": {
+        "options": {
+          "type": "{ model?: string, historyPath?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Stop the Oracle session.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "isStarted": {
+      "description": "Whether the Oracle REPL session is currently active.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Oracle",
+      "arguments": {}
+    },
+    "stopped": {
+      "name": "stopped",
+      "description": "Event emitted by Oracle",
       "arguments": {}
     }
   },
@@ -2963,9 +3612,347 @@ setBuildTimeData('features.identity', {
       "returns": "Memory[]"
     }
   },
+  "getters": {
+    "diskCache": {
+      "description": "Returns the diskCache feature instance used for persisting memories.",
+      "returns": "any"
+    },
+    "memoryCacheKey": {
+      "description": "Cache key used to namespace this identity's saved memories in diskCache.",
+      "returns": "string"
+    }
+  },
   "events": {},
   "state": {},
   "options": {}
+});
+
+// Container introspection data
+setContainerBuildTimeData('Container', {
+  "className": "Container",
+  "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
+  "methods": {
+    "addContext": {
+      "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+      "parameters": {
+        "key": {
+          "type": "K",
+          "description": "The context key"
+        },
+        "value": {
+          "type": "ContainerContext[K]",
+          "description": "The context value"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "void"
+    },
+    "setState": {
+      "description": "Sets the state of the container.",
+      "parameters": {
+        "newState": {
+          "type": "SetStateValue<ContainerState>",
+          "description": "Parameter newState"
+        }
+      },
+      "required": [
+        "newState"
+      ],
+      "returns": "void"
+    },
+    "bus": {
+      "description": "Convenience method for creating a new event bus instance.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "newState": {
+      "description": "Convenience method for creating a new observable State object.",
+      "parameters": {
+        "initialState": {
+          "type": "T",
+          "description": "Parameter initialState"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "feature": {
+      "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+      "parameters": {
+        "id": {
+          "type": "T",
+          "description": "Parameter id"
+        },
+        "options": {
+          "type": "ConstructorParameters<Features[T]>[0]",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "InstanceType<Features[T]>"
+    },
+    "start": {
+      "description": "TODO: A container should be able to container.use(plugin) and that plugin should be able to define an asynchronous method that will be run when the container is started.  Right now there's nothing to do with starting / stopping a container but that might be neat.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "emit": {
+      "description": "Emit an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "args": {
+          "type": "any[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "returns": "void"
+    },
+    "on": {
+      "description": "Subscribe to an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event",
+        "listener"
+      ],
+      "returns": "void"
+    },
+    "off": {
+      "description": "Unsubscribe a listener from an event on the container's event bus.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "void"
+    },
+    "once": {
+      "description": "Subscribe to an event on the container's event bus, but only fire once.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        },
+        "listener": {
+          "type": "(...args: any[]) => void",
+          "description": "Parameter listener"
+        }
+      },
+      "required": [
+        "event",
+        "listener"
+      ],
+      "returns": "void"
+    },
+    "waitFor": {
+      "description": "Returns a promise that will resolve when the event is emitted",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "Parameter event"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "void"
+    },
+    "registerHelperType": {
+      "description": "Register a helper type (registry + factory pair) on this container. Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).",
+      "parameters": {
+        "registryName": {
+          "type": "string",
+          "description": "Parameter registryName"
+        },
+        "factoryName": {
+          "type": "string",
+          "description": "Parameter factoryName"
+        }
+      },
+      "required": [
+        "registryName",
+        "factoryName"
+      ],
+      "returns": "void"
+    },
+    "inspect": {
+      "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
+      "parameters": {},
+      "required": [],
+      "returns": "ContainerIntrospection"
+    },
+    "inspectAsText": {
+      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+      "parameters": {
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "The heading level to start from (default 1)"
+        }
+      },
+      "required": [],
+      "returns": "string"
+    },
+    "sleep": {
+      "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
+      "parameters": {
+        "ms": {
+          "type": "any",
+          "description": "Parameter ms"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "use": {
+      "description": "Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.",
+      "parameters": {
+        "plugin": {
+          "type": "Extension<T>",
+          "description": "A feature name string, or a class/object with a static attach method"
+        },
+        "options": {
+          "type": "any",
+          "description": "Options to pass to the plugin's attach method"
+        }
+      },
+      "required": [
+        "plugin"
+      ],
+      "returns": "this & T"
+    }
+  },
+  "getters": {
+    "state": {
+      "description": "The observable state object for this container instance.",
+      "returns": "any"
+    },
+    "enabledFeatureIds": {
+      "description": "Returns the list of shortcut IDs for all currently enabled features.",
+      "returns": "any"
+    },
+    "enabledFeatures": {
+      "description": "Returns a map of enabled feature shortcut IDs to their instances.",
+      "returns": "Partial<AvailableInstanceTypes<Features>>"
+    },
+    "context": {
+      "description": "The Container's context is an object that contains the enabled features, the container itself, and any additional context that has been added to the container. All helper instances that are created by the container will have access to the shared context.",
+      "returns": "ContainerContext<Features> & Partial<AvailableInstanceTypes<AvailableFeatures>>"
+    },
+    "currentState": {
+      "description": "The current state of the container. This is a snapshot of the container's state at the time this method is called.",
+      "returns": "any"
+    },
+    "isBrowser": {
+      "description": "Returns true if the container is running in a browser.",
+      "returns": "any"
+    },
+    "isBun": {
+      "description": "Returns true if the container is running in Bun.",
+      "returns": "any"
+    },
+    "isNode": {
+      "description": "Returns true if the container is running in Node.",
+      "returns": "any"
+    },
+    "isElectron": {
+      "description": "Returns true if the container is running in Electron.",
+      "returns": "any"
+    },
+    "isDevelopment": {
+      "description": "Returns true if the container is running in development mode.",
+      "returns": "any"
+    },
+    "isProduction": {
+      "description": "Returns true if the container is running in production mode.",
+      "returns": "any"
+    },
+    "isCI": {
+      "description": "Returns true if the container is running in a CI environment.",
+      "returns": "any"
+    },
+    "registryNames": {
+      "description": "Returns the names of all attached registries (e.g. [\"features\", \"clients\", \"servers\"]).",
+      "returns": "string[]"
+    },
+    "factoryNames": {
+      "description": "Returns the names of all available factory methods (e.g. [\"feature\", \"client\", \"server\"]).",
+      "returns": "string[]"
+    }
+  },
+  "events": {
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Container",
+      "arguments": {}
+    }
+  }
+});
+
+setContainerBuildTimeData('NodeContainer', {
+  "className": "NodeContainer",
+  "description": "NodeContainer container",
+  "methods": {},
+  "getters": {
+    "cwd": {
+      "description": "Returns the current working directory, from options or process.cwd().",
+      "returns": "string"
+    },
+    "manifest": {
+      "description": "Returns the parsed package.json manifest for the current working directory.",
+      "returns": "any"
+    },
+    "argv": {
+      "description": "Returns the parsed command-line arguments (from minimist).",
+      "returns": "any"
+    },
+    "urlUtils": {
+      "description": "Returns URL utility functions for parsing URIs.",
+      "returns": "any"
+    },
+    "paths": {
+      "description": "Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse).",
+      "returns": "any"
+    }
+  },
+  "events": {}
+});
+
+setContainerBuildTimeData('AGIContainer', {
+  "className": "AGIContainer",
+  "description": "AGI-specific container that extends NodeContainer with AI capabilities including identity management, OpenAI conversations, code generation, and self-modifying agent features.",
+  "methods": {},
+  "getters": {},
+  "events": {}
 });
 export const introspectionData = [
   {
@@ -2991,6 +3978,12 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "tree": {
+        "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded.",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3010,6 +4003,39 @@ export const introspectionData = [
         },
         "required": [],
         "returns": "void"
+      },
+      "getLatestChanges": {
+        "description": "Gets the latest commits from the repository. Returns an array of commit objects containing the title (first line of commit message), full message body, and author name for each commit.",
+        "parameters": {
+          "numberOfChanges": {
+            "type": "number",
+            "description": "Parameter numberOfChanges"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "branch": {
+        "description": "Gets the current Git branch name.",
+        "returns": "any"
+      },
+      "sha": {
+        "description": "Gets the current Git commit SHA hash.",
+        "returns": "any"
+      },
+      "isRepo": {
+        "description": "Checks if the current directory is within a Git repository.",
+        "returns": "any"
+      },
+      "isRepoRoot": {
+        "description": "Checks if the current working directory is the root of the Git repository.",
+        "returns": "any"
+      },
+      "repoRoot": {
+        "description": "Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -3056,6 +4082,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3084,6 +4111,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3150,6 +4178,7 @@ export const introspectionData = [
         "returns": "string"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3176,8 +4205,21 @@ export const introspectionData = [
         ],
         "returns": "void"
       },
+      "isContext": {
+        "description": "Returns true if the given object has already been contextified by `vm.createContext()`. Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
+        "parameters": {
+          "ctx": {
+            "type": "unknown",
+            "description": "Parameter ctx"
+          }
+        },
+        "required": [
+          "ctx"
+        ],
+        "returns": "ctx is vm.Context"
+      },
       "createContext": {
-        "description": "Creates a new execution context for running VM scripts. This method creates an isolated JavaScript execution context that combines the container's context with any additional context variables provided. The resulting context can be used to run scripts with controlled variable access.",
+        "description": "",
         "parameters": {
           "ctx": {
             "type": "any",
@@ -3203,8 +4245,26 @@ export const introspectionData = [
           "code"
         ],
         "returns": "Promise<T>"
+      },
+      "perform": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<{ result: T, context: vm.Context }>"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3436,6 +4496,24 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "colors": {
+        "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
+        "returns": "typeof colors"
+      },
+      "colorPalette": {
+        "description": "Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application.",
+        "returns": "string[]"
+      },
+      "randomColor": {
+        "description": "Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing.",
+        "returns": "any"
+      },
+      "fonts": {
+        "description": "Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names",
+        "returns": "string[]"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3463,6 +4541,12 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "isStarted": {
+        "description": "Checks if the REPL server has been started.",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3472,6 +4556,12 @@ export const introspectionData = [
     "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
     "shortcut": "features.scriptRunner",
     "methods": {},
+    "getters": {
+      "scripts": {
+        "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3481,6 +4571,165 @@ export const introspectionData = [
     "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
     "shortcut": "features.os",
     "methods": {},
+    "getters": {
+      "arch": {
+        "description": "Gets the operating system CPU architecture.",
+        "returns": "any"
+      },
+      "tmpdir": {
+        "description": "Gets the operating system's default directory for temporary files.",
+        "returns": "any"
+      },
+      "homedir": {
+        "description": "Gets the current user's home directory path.",
+        "returns": "any"
+      },
+      "cpuCount": {
+        "description": "Gets the number of logical CPU cores available on the system.",
+        "returns": "any"
+      },
+      "hostname": {
+        "description": "Gets the hostname of the operating system.",
+        "returns": "any"
+      },
+      "platform": {
+        "description": "Gets the operating system platform.",
+        "returns": "any"
+      },
+      "networkInterfaces": {
+        "description": "Gets information about the system's network interfaces.",
+        "returns": "any"
+      },
+      "macAddresses": {
+        "description": "Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification.",
+        "returns": "string[]"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.grep",
+    "description": "The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.",
+    "shortcut": "features.grep",
+    "methods": {
+      "search": {
+        "description": "Search for a pattern in files and return structured results.",
+        "parameters": {
+          "options": {
+            "type": "GrepOptions",
+            "description": "Search options"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<GrepMatch[]>"
+      },
+      "filesContaining": {
+        "description": "Find files containing a pattern. Returns just the relative file paths.",
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "description": "The pattern to search for"
+          },
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern' | 'filesOnly'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "returns": "Promise<string[]>"
+      },
+      "imports": {
+        "description": "Find import/require statements for a module or path.",
+        "parameters": {
+          "moduleOrPath": {
+            "type": "string",
+            "description": "The module name or path to search for in imports"
+          },
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "moduleOrPath"
+        ],
+        "returns": "Promise<GrepMatch[]>"
+      },
+      "definitions": {
+        "description": "Find function, class, type, or variable definitions matching a name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The identifier name to search for definitions of"
+          },
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<GrepMatch[]>"
+      },
+      "todos": {
+        "description": "Find TODO, FIXME, HACK, and XXX comments.",
+        "parameters": {
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<GrepMatch[]>"
+      },
+      "count": {
+        "description": "Count the number of matches for a pattern.",
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "description": "The pattern to count"
+          },
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "returns": "Promise<number>"
+      },
+      "findForReplace": {
+        "description": "Search and replace across files. Returns the list of files that would be affected. Does NOT modify files — use the returned file list to do the replacement yourself.",
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "description": "The pattern to search for"
+          },
+          "options": {
+            "type": "Omit<GrepOptions, 'pattern'>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>"
+      }
+    },
+    "getters": {
+      "hasRipgrep": {
+        "description": "Whether ripgrep (rg) is available on this system",
+        "returns": "boolean"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3692,6 +4941,12 @@ export const introspectionData = [
         "returns": "Promise<this>"
       }
     },
+    "getters": {
+      "proc": {
+        "description": "Get the proc feature for executing shell commands",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -3728,6 +4983,7 @@ export const introspectionData = [
         "returns": "T"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3760,6 +5016,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -3805,6 +5062,12 @@ export const introspectionData = [
           "payload"
         ],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "secretText": {
+        "description": "Gets the secret key as a base64-encoded string.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -4064,6 +5327,7 @@ export const introspectionData = [
         "returns": "Promise<string | string[] | null>"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -4134,6 +5398,20 @@ export const introspectionData = [
           "socketPath"
         ],
         "returns": "Promise<Socket>"
+      }
+    },
+    "getters": {
+      "isClient": {
+        "description": "Checks if the IPC socket is operating in client mode.",
+        "returns": "any"
+      },
+      "isServer": {
+        "description": "Checks if the IPC socket is operating in server mode.",
+        "returns": "any"
+      },
+      "connection": {
+        "description": "Gets the current client connection socket.",
+        "returns": "any"
       }
     },
     "events": {
@@ -4340,6 +5618,16 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "cache": {
+        "description": "Returns the underlying cacache instance configured with the cache directory path.",
+        "returns": "any"
+      },
+      "securely": {
+        "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -4417,6 +5705,20 @@ export const introspectionData = [
         "returns": "Promise<{ version: string; path: string; packages: string[] }>"
       }
     },
+    "getters": {
+      "projectDir": {
+        "description": "Returns the root directory of the Python project.",
+        "returns": "any"
+      },
+      "pythonPath": {
+        "description": "Returns the path to the Python executable for this environment.",
+        "returns": "any"
+      },
+      "environmentType": {
+        "description": "Returns the detected environment type: 'uv', 'conda', 'venv', or 'system'.",
+        "returns": "any"
+      }
+    },
     "events": {
       "ready": {
         "name": "ready",
@@ -4483,6 +5785,12 @@ export const introspectionData = [
           "basePath"
         ],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "tree": {
+        "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree().",
+        "returns": "any"
       }
     },
     "events": {},
@@ -4601,6 +5909,32 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "duplicates": {
+        "description": "Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project.",
+        "returns": "any"
+      },
+      "isStarted": {
+        "description": "Checks if the package finder has completed its initial scan.",
+        "returns": "any"
+      },
+      "packageNames": {
+        "description": "Gets an array of all unique package names discovered in the workspace.",
+        "returns": "any"
+      },
+      "scopes": {
+        "description": "Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel').",
+        "returns": "any"
+      },
+      "manifests": {
+        "description": "Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only.",
+        "returns": "any"
+      },
+      "counts": {
+        "description": "Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist.",
+        "returns": "any"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -4663,6 +5997,7 @@ export const introspectionData = [
         "returns": "Promise<this>"
       }
     },
+    "getters": {},
     "events": {
       "exposed": {
         "name": "exposed",
@@ -4706,6 +6041,7 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -4771,6 +6107,7 @@ export const introspectionData = [
         "returns": "Promise<string>"
       }
     },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {}
@@ -4835,6 +6172,12 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "proc": {
+        "description": "Get the proc feature for executing shell commands",
+        "returns": "any"
       }
     },
     "events": {},
@@ -4938,6 +6281,40 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "fileIds": {
+        "description": "Returns an array of all relative file paths indexed by the file manager.",
+        "returns": "any"
+      },
+      "fileObjects": {
+        "description": "Returns an array of all file metadata objects indexed by the file manager.",
+        "returns": "any"
+      },
+      "directoryIds": {
+        "description": "Returns the directory IDs for all of the files in the project.",
+        "returns": "any"
+      },
+      "uniqueExtensions": {
+        "description": "Returns an array of unique file extensions found across all indexed files.",
+        "returns": "any"
+      },
+      "isStarted": {
+        "description": "Whether the file manager has completed its initial scan.",
+        "returns": "any"
+      },
+      "isStarting": {
+        "description": "Whether the file manager is currently performing its initial scan.",
+        "returns": "any"
+      },
+      "isWatching": {
+        "description": "Whether the file watcher is actively monitoring for changes.",
+        "returns": "any"
+      },
+      "watchedFiles": {
+        "description": "Returns the directories and files currently being watched by chokidar.",
+        "returns": "Record<string, string[]>"
+      }
+    },
     "events": {
       "file:change": {
         "name": "file:change",
@@ -4945,6 +6322,57 @@ export const introspectionData = [
         "arguments": {}
       }
     },
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.contentDb",
+    "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
+    "shortcut": "features.contentDb",
+    "methods": {
+      "load": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<ContentDb>"
+      },
+      "defineModel": {
+        "description": "",
+        "parameters": {
+          "definerFunction": {
+            "type": "(library: typeof this.library) => ModelDefinition",
+            "description": "Parameter definerFunction"
+          }
+        },
+        "required": [
+          "definerFunction"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "library": {
+        "description": "Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo.",
+        "returns": "any"
+      },
+      "models": {
+        "description": "Returns an object mapping model names to their model definitions.",
+        "returns": "any"
+      },
+      "isLoaded": {
+        "description": "Whether the content database has been loaded.",
+        "returns": "any"
+      },
+      "modelNames": {
+        "description": "Returns an array of all registered model names.",
+        "returns": "any"
+      },
+      "collection": {
+        "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
+        "returns": "any"
+      }
+    },
+    "events": {},
     "state": {},
     "options": {}
   },
@@ -5243,6 +6671,16 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "z": {
+        "description": "",
+        "returns": "typeof z"
+      },
+      "server": {
+        "description": "",
+        "returns": "McpServerBase"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
@@ -5268,6 +6706,20 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "express": {
+        "description": "",
+        "returns": "any"
+      },
+      "hooks": {
+        "description": "",
+        "returns": "any"
+      },
+      "app": {
+        "description": "",
+        "returns": "any"
       }
     },
     "events": {},
@@ -5322,6 +6774,16 @@ export const introspectionData = [
         "returns": "void"
       }
     },
+    "getters": {
+      "wss": {
+        "description": "",
+        "returns": "any"
+      },
+      "port": {
+        "description": "",
+        "returns": "any"
+      }
+    },
     "events": {
       "connection": {
         "name": "connection",
@@ -5339,9 +6801,21 @@ export const introspectionData = [
   },
   {
     "id": "features.expert",
-    "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.",
+    "description": "An Expert is a chat agent backed by an Identity loaded from a folder on disk. Experts are coordinated by the container to perform specialized tasks. Each expert's folder contains a SYSTEM-PROMPT.md, memories.json, and optional skills.ts and hooks.ts files.",
     "shortcut": "features.expert",
     "methods": {
+      "buildTools": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Record<string, ConversationTool>"
+      },
+      "createConversation": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Conversation"
+      },
       "start": {
         "description": "",
         "parameters": {},
@@ -5350,6 +6824,18 @@ export const introspectionData = [
       },
       "loadSkills": {
         "description": "Loads the skills.ts file from the expert's folder if it exists. Skills are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope, exposing exported async functions as this.skills.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "loadHooks": {
+        "description": "Loads the hooks.ts file from the expert's folder if it exists. Hooks are transformed from TypeScript/ESM to CJS and executed in the VM with the container in scope. Hook functions should match event names emitted by the expert.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "bindHooks": {
+        "description": "Binds hooks to their corresponding events. Each hook function name should match an event name emitted by the expert. The hook will be called with (expert, ...eventArgs).",
         "parameters": {},
         "required": [],
         "returns": "void"
@@ -5368,7 +6854,38 @@ export const introspectionData = [
         "returns": "void"
       }
     },
-    "events": {},
+    "getters": {
+      "identity": {
+        "description": "Returns the Identity feature instance loaded from this expert's folder.",
+        "returns": "Identity"
+      },
+      "isStarted": {
+        "description": "Whether the expert has been initialized and is ready to answer questions.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "start": {
+        "name": "start",
+        "description": "Event emitted by Expert",
+        "arguments": {}
+      },
+      "asked": {
+        "name": "asked",
+        "description": "Event emitted by Expert",
+        "arguments": {}
+      },
+      "preview": {
+        "name": "preview",
+        "description": "Event emitted by Expert",
+        "arguments": {}
+      },
+      "answered": {
+        "name": "answered",
+        "description": "Event emitted by Expert",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -5391,6 +6908,28 @@ export const introspectionData = [
         "returns": "Promise<string>"
       }
     },
+    "getters": {
+      "tools": {
+        "description": "Returns the registered tools available for the model to call.",
+        "returns": "Record<string, any>"
+      },
+      "messages": {
+        "description": "Returns the full message history of the conversation.",
+        "returns": "Message[]"
+      },
+      "model": {
+        "description": "Returns the OpenAI model name being used for completions.",
+        "returns": "string"
+      },
+      "isStreaming": {
+        "description": "Whether a streaming response is currently in progress.",
+        "returns": "boolean"
+      },
+      "openai": {
+        "description": "Returns the OpenAI client instance from the container.",
+        "returns": "any"
+      }
+    },
     "events": {
       "userMessage": {
         "name": "userMessage",
@@ -5404,6 +6943,11 @@ export const introspectionData = [
       },
       "chunk": {
         "name": "chunk",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "preview": {
+        "name": "preview",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -5493,6 +7037,16 @@ export const introspectionData = [
           "question"
         ],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "isStarted": {
+        "description": "Whether the chat session has been started.",
+        "returns": "any"
+      },
+      "systemPrompt": {
+        "description": "Returns the generated system prompt that describes the container and its capabilities.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -5595,6 +7149,12 @@ export const introspectionData = [
         "returns": "Promise<this>"
       }
     },
+    "getters": {
+      "claudePath": {
+        "description": "Resolve the path to the claude CLI binary.",
+        "returns": "string"
+      }
+    },
     "events": {
       "session:event": {
         "name": "session:event",
@@ -5673,6 +7233,16 @@ export const introspectionData = [
           "question"
         ],
         "returns": "void"
+      }
+    },
+    "getters": {
+      "isStarted": {
+        "description": "Whether the chat session has been started.",
+        "returns": "any"
+      },
+      "systemPrompt": {
+        "description": "Returns the generated system prompt describing the host helper's interface.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -5790,6 +7360,12 @@ export const introspectionData = [
         "returns": "Promise<void>"
       }
     },
+    "getters": {
+      "stats": {
+        "description": "Returns computed statistics: totalSnippets, categories count, languages count, categoryCounts, and lastUpdated.",
+        "returns": "any"
+      }
+    },
     "events": {
       "snippetAdded": {
         "name": "snippetAdded",
@@ -5814,6 +7390,63 @@ export const introspectionData = [
       "load": {
         "name": "load",
         "description": "Event emitted by Snippets",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.oracle",
+    "description": "The Oracle - an AI-augmented REPL where you can type JavaScript or natural language interchangeably. The AI copilot knows everything about the container via introspection metadata. Type code and it executes. Type English and the AI interprets it, generates code if needed, and executes it — all in the same session with shared context.",
+    "shortcut": "features.oracle",
+    "methods": {
+      "handleInput": {
+        "description": "Handle a single line of input — detect code vs natural language and act.",
+        "parameters": {
+          "input": {
+            "type": "string",
+            "description": "Parameter input"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<void>"
+      },
+      "start": {
+        "description": "Start the Oracle REPL session.",
+        "parameters": {
+          "options": {
+            "type": "{ model?: string, historyPath?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Stop the Oracle session.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "isStarted": {
+        "description": "Whether the Oracle REPL session is currently active.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Oracle",
+        "arguments": {}
+      },
+      "stopped": {
+        "name": "stopped",
+        "description": "Event emitted by Oracle",
         "arguments": {}
       }
     },
@@ -5894,8 +7527,345 @@ export const introspectionData = [
         "returns": "Memory[]"
       }
     },
+    "getters": {
+      "diskCache": {
+        "description": "Returns the diskCache feature instance used for persisting memories.",
+        "returns": "any"
+      },
+      "memoryCacheKey": {
+        "description": "Cache key used to namespace this identity's saved memories in diskCache.",
+        "returns": "string"
+      }
+    },
     "events": {},
     "state": {},
     "options": {}
+  }
+];
+
+export const containerIntrospectionData = [
+  {
+    "className": "Container",
+    "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
+    "methods": {
+      "addContext": {
+        "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+        "parameters": {
+          "key": {
+            "type": "K",
+            "description": "The context key"
+          },
+          "value": {
+            "type": "ContainerContext[K]",
+            "description": "The context value"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "void"
+      },
+      "setState": {
+        "description": "Sets the state of the container.",
+        "parameters": {
+          "newState": {
+            "type": "SetStateValue<ContainerState>",
+            "description": "Parameter newState"
+          }
+        },
+        "required": [
+          "newState"
+        ],
+        "returns": "void"
+      },
+      "bus": {
+        "description": "Convenience method for creating a new event bus instance.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "newState": {
+        "description": "Convenience method for creating a new observable State object.",
+        "parameters": {
+          "initialState": {
+            "type": "T",
+            "description": "Parameter initialState"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "feature": {
+        "description": "Creates a new instance of a feature. If you pass the same arguments, it will return the same instance as last time you created that. If you need the ability to create fresh instances, it is up to you how you define your options to support that.",
+        "parameters": {
+          "id": {
+            "type": "T",
+            "description": "Parameter id"
+          },
+          "options": {
+            "type": "ConstructorParameters<Features[T]>[0]",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "InstanceType<Features[T]>"
+      },
+      "start": {
+        "description": "TODO: A container should be able to container.use(plugin) and that plugin should be able to define an asynchronous method that will be run when the container is started.  Right now there's nothing to do with starting / stopping a container but that might be neat.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "emit": {
+        "description": "Emit an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "args": {
+            "type": "any[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "event",
+          "args"
+        ],
+        "returns": "void"
+      },
+      "on": {
+        "description": "Subscribe to an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event",
+          "listener"
+        ],
+        "returns": "void"
+      },
+      "off": {
+        "description": "Unsubscribe a listener from an event on the container's event bus.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "void"
+      },
+      "once": {
+        "description": "Subscribe to an event on the container's event bus, but only fire once.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          },
+          "listener": {
+            "type": "(...args: any[]) => void",
+            "description": "Parameter listener"
+          }
+        },
+        "required": [
+          "event",
+          "listener"
+        ],
+        "returns": "void"
+      },
+      "waitFor": {
+        "description": "Returns a promise that will resolve when the event is emitted",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "Parameter event"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "void"
+      },
+      "registerHelperType": {
+        "description": "Register a helper type (registry + factory pair) on this container. Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).",
+        "parameters": {
+          "registryName": {
+            "type": "string",
+            "description": "Parameter registryName"
+          },
+          "factoryName": {
+            "type": "string",
+            "description": "Parameter factoryName"
+          }
+        },
+        "required": [
+          "registryName",
+          "factoryName"
+        ],
+        "returns": "void"
+      },
+      "inspect": {
+        "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
+        "parameters": {},
+        "required": [],
+        "returns": "ContainerIntrospection"
+      },
+      "inspectAsText": {
+        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+        "parameters": {
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "The heading level to start from (default 1)"
+          }
+        },
+        "required": [],
+        "returns": "string"
+      },
+      "sleep": {
+        "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
+        "parameters": {
+          "ms": {
+            "type": "any",
+            "description": "Parameter ms"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "use": {
+        "description": "Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.",
+        "parameters": {
+          "plugin": {
+            "type": "Extension<T>",
+            "description": "A feature name string, or a class/object with a static attach method"
+          },
+          "options": {
+            "type": "any",
+            "description": "Options to pass to the plugin's attach method"
+          }
+        },
+        "required": [
+          "plugin"
+        ],
+        "returns": "this & T"
+      }
+    },
+    "getters": {
+      "state": {
+        "description": "The observable state object for this container instance.",
+        "returns": "any"
+      },
+      "enabledFeatureIds": {
+        "description": "Returns the list of shortcut IDs for all currently enabled features.",
+        "returns": "any"
+      },
+      "enabledFeatures": {
+        "description": "Returns a map of enabled feature shortcut IDs to their instances.",
+        "returns": "Partial<AvailableInstanceTypes<Features>>"
+      },
+      "context": {
+        "description": "The Container's context is an object that contains the enabled features, the container itself, and any additional context that has been added to the container. All helper instances that are created by the container will have access to the shared context.",
+        "returns": "ContainerContext<Features> & Partial<AvailableInstanceTypes<AvailableFeatures>>"
+      },
+      "currentState": {
+        "description": "The current state of the container. This is a snapshot of the container's state at the time this method is called.",
+        "returns": "any"
+      },
+      "isBrowser": {
+        "description": "Returns true if the container is running in a browser.",
+        "returns": "any"
+      },
+      "isBun": {
+        "description": "Returns true if the container is running in Bun.",
+        "returns": "any"
+      },
+      "isNode": {
+        "description": "Returns true if the container is running in Node.",
+        "returns": "any"
+      },
+      "isElectron": {
+        "description": "Returns true if the container is running in Electron.",
+        "returns": "any"
+      },
+      "isDevelopment": {
+        "description": "Returns true if the container is running in development mode.",
+        "returns": "any"
+      },
+      "isProduction": {
+        "description": "Returns true if the container is running in production mode.",
+        "returns": "any"
+      },
+      "isCI": {
+        "description": "Returns true if the container is running in a CI environment.",
+        "returns": "any"
+      },
+      "registryNames": {
+        "description": "Returns the names of all attached registries (e.g. [\"features\", \"clients\", \"servers\"]).",
+        "returns": "string[]"
+      },
+      "factoryNames": {
+        "description": "Returns the names of all available factory methods (e.g. [\"feature\", \"client\", \"server\"]).",
+        "returns": "string[]"
+      }
+    },
+    "events": {
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Container",
+        "arguments": {}
+      }
+    }
+  },
+  {
+    "className": "NodeContainer",
+    "description": "NodeContainer container",
+    "methods": {},
+    "getters": {
+      "cwd": {
+        "description": "Returns the current working directory, from options or process.cwd().",
+        "returns": "string"
+      },
+      "manifest": {
+        "description": "Returns the parsed package.json manifest for the current working directory.",
+        "returns": "any"
+      },
+      "argv": {
+        "description": "Returns the parsed command-line arguments (from minimist).",
+        "returns": "any"
+      },
+      "urlUtils": {
+        "description": "Returns URL utility functions for parsing URIs.",
+        "returns": "any"
+      },
+      "paths": {
+        "description": "Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse).",
+        "returns": "any"
+      }
+    },
+    "events": {}
+  },
+  {
+    "className": "AGIContainer",
+    "description": "AGI-specific container that extends NodeContainer with AI capabilities including identity management, OpenAI conversations, code generation, and self-modifying agent features.",
+    "methods": {},
+    "getters": {},
+    "events": {}
   }
 ];

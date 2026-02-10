@@ -69,6 +69,7 @@ export class Identity extends Feature<IdentityState, IdentityOptions> {
 		`).join('\n\n')
 	}
 
+	/** Returns the diskCache feature instance used for persisting memories. */
 	get diskCache() {
 		return this.container.feature('diskCache') as DiskCache
 	}

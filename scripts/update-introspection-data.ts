@@ -14,17 +14,17 @@ import { NodeContainer } from '../src/node/container.js';
 const targets = [
   {
     name: 'node',
-    src: ['src/node/features', 'src/servers'],
+    src: ['src/node/features', 'src/servers', 'src/container.ts', 'src/node/container.ts'],
     outputPath: 'src/introspection/generated.node.ts',
   },
   {
     name: 'web',
-    src: ['src/web/features'],
+    src: ['src/web/features', 'src/container.ts', 'src/web/container.ts'],
     outputPath: 'src/introspection/generated.web.ts',
   },
   {
     name: 'agi',
-    src: ['src/node/features', 'src/servers', 'src/agi/features'],
+    src: ['src/node/features', 'src/servers', 'src/agi/features', 'src/container.ts', 'src/node/container.ts', 'src/agi/container.server.ts'],
     outputPath: 'src/introspection/generated.agi.ts',
   },
 ];

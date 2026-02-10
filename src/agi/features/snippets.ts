@@ -199,7 +199,7 @@ export class Snippets extends Feature<SnippetsState, SnippetsOptions> {
     return this.state.get('categories') || []
   }
 
-  // Get statistics
+  /** Returns computed statistics: totalSnippets, categories count, languages count, categoryCounts, and lastUpdated. */
   get stats() {
     const snippets = this.state.get('snippets')!
     const languages = [...new Set(snippets.map(s => s.language).filter(Boolean))]

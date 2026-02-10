@@ -33,6 +33,7 @@ export interface ContentDbOptions extends FeatureOptions {
 export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override shortcut = 'features.contentDb' as const
 
+  /** Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo. */
   get library() {
     return {
       Collection,
@@ -58,20 +59,24 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   modelDefinitions: Map<string, ModelDefinition> = new Map()
 
+  /** Returns an object mapping model names to their model definitions. */
   get models() {
     return Object.fromEntries(this.modelDefinitions.entries())
   }
 
+  /** Whether the content database has been loaded. */
   get isLoaded() {
     return this.state.get('loaded')
   }
 
+  /** Returns an array of all registered model names. */
   get modelNames() {
     return Array.from(this.modelDefinitions.keys())
   }
 
   _collection?: Collection
 
+  /** Returns the lazily-initialized Collection instance for the configured rootPath. */
   get collection() {
     if (this._collection) return this._collection
     return this._collection = new Collection({ rootPath: this.options.rootPath })

@@ -229,6 +229,20 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
     }
   }
   
+  // Getters section
+  if (introspection.getters && Object.keys(introspection.getters).length > 0) {
+    sections.push(`${heading(2)} Getters`)
+
+    sections.push(`| Property | Type | Description |`)
+    sections.push(`|----------|------|-------------|`)
+
+    for (const [getterName, getterInfo] of Object.entries(introspection.getters)) {
+      const type = getterInfo.returns || 'any'
+      const description = getterInfo.description || ''
+      sections.push(`| \`${getterName}\` | \`${type}\` | ${description} |`)
+    }
+  }
+
   // Events section
   if (introspection.events && Object.keys(introspection.events).length > 0) {
     sections.push(`${heading(2)} Events`)

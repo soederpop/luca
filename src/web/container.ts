@@ -38,15 +38,22 @@ export interface WebContainer extends ClientsInterface {
 
 export interface WebContainerState extends ContainerState { }
 
+/**
+ * Browser-specific container that extends the base Container with web client support
+ * and browser-specific features like speech, voice recognition, and asset loading.
+ */
 export class WebContainer<Features extends WebFeatures = WebFeatures, K extends WebContainerState = WebContainerState> extends Container<Features, K> {
+  /** Returns the base Client class for creating custom clients. */
   get Client() {
     return Client
   }
-  
+
+  /** Returns the SocketClient class for WebSocket connections. */
   get SocketClient() {
     return SocketClient
   }
-  
+
+  /** Returns the RestClient class for HTTP REST API connections. */
   get RestClient() {
     return RestClient
   }
