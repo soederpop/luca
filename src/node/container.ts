@@ -39,6 +39,8 @@ import "./features/yaml";
 import "./features/docker";
 import "./features/runpod";
 import "./features/secure-shell";
+import "./features/tmux";
+import "./features/ink";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -67,6 +69,8 @@ import type { PortExposer } from "./features/port-exposer";
 import type { Docker } from './features/docker.ts';
 import type { Runpod } from './features/runpod.ts';
 import type { SecureShell } from './features/secure-shell.ts';
+import type { Tmux } from './features/tmux.ts';
+import type { Ink } from './features/ink.ts';
 export { State };
 
 export {
@@ -89,7 +93,9 @@ export {
   type PortExposer,
   type Docker,
   type Runpod,
-  type SecureShell
+  type SecureShell,
+  type Tmux,
+  type Ink
 };
 
 export type { FeatureOptions };
@@ -138,6 +144,8 @@ export interface NodeFeatures extends AvailableFeatures {
   portExposer: typeof PortExposer;
   runpod: typeof Runpod;
   secureShell: typeof SecureShell;
+  tmux: typeof Tmux;
+  ink: typeof Ink;
   contentDb: typeof ContentDb;
 }
 
@@ -170,6 +178,8 @@ export class NodeContainer<
   vault?: Vault;
   python?: Python;
   portExposer?: PortExposer;
+  tmux?: Tmux;
+  ink?: Ink;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

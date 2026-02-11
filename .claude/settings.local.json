@@ -36,7 +36,16 @@
       "WebFetch(domain:graphql-spec.runpod.io)",
       "WebFetch(domain:docs.runpod.io)",
       "mcp__plugin_claude-mem_mcp-search__save_memory",
-      "mcp__plugin_claude-mem_mcp-search__get_observations"
+      "mcp__plugin_claude-mem_mcp-search__get_observations",
+      "WebFetch(domain:yzc.me)",
+      "WebFetch(domain:defiprime.com)",
+      "WebFetch(domain:gamblingharm.org)",
+      "WebFetch(domain:medium.com)",
+      "WebSearch",
+      "Bash(runpodctl exec:*)",
+      "Bash(runpodctl config:*)",
+      "Bash(ssh:*)",
+      "Bash(RUNPOD_API_KEY=\"rpa_7SQP8U26QKZ0GMJLKH8OZKBUN8S1800RJMJH3XQ0ojtaye\" bun run:*)"
     ]
   }
 }

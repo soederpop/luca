@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024" viewBox="0 0 768 1024">
+  <defs>
+    <linearGradient id="bg0" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1a2e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="768" height="1024" fill="url(#bg0)" rx="0"/>
+  <!-- Silhouette -->
+  <circle cx="384" cy="340" r="140" fill="rgba(255,255,255,0.1)"/>
+  <ellipse cx="384" cy="680" rx="200" ry="240" fill="rgba(255,255,255,0.08)"/>
+  <!-- Label -->
+  <text x="384" y="900" text-anchor="middle" font-family="system-ui, sans-serif" font-size="48" fill="rgba(255,255,255,0.3)" font-weight="600">Option A</text>
+</svg>

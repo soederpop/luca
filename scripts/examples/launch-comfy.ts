@@ -4,8 +4,29 @@ const ui = container.feature('ui')
 
 const VOLUME_NAME = 'comfy-workspace'
 const POD_NAME = 'comfy-workspace'
-const IMAGE = 'ghcr.io/ai-dock/comfyui:latest'
+const TEMPLATE_ID = 'cw3nka7d08'
 const GPU = 'NVIDIA GeForce RTX 4090'
+
+// ── Models to ensure exist on the pod ───────────────────────────
+// Path on the pod filesystem → fallback download URL
+const REQUIRED_FILES = [
+	{
+		path: '/workspace/ComfyUI/models/checkpoints/juggernautXL_v9Rundiffusion.safetensors',
+		url: 'https://civitai.com/api/download/models/456194',
+		label: 'Juggernaut XL v9 checkpoint',
+	},
+	{
+		path: '/workspace/ComfyUI/models/checkpoints/sks-juggernaut-3000.safetensors',
+		url: 'https://s3.us-east-1.amazonaws.com/demo.skypager.io/sks-juggernaut-3000.safetensors',
+		label: 'Juggernaut SKS',
+	},
+	{
+		path: '/workspace/ComfyUI/models/checkpoints/loras1.zip',
+		url: 'https://s3.us-east-1.amazonaws.com/demo.skypager.io/loras1.zip',
+		label: 'Loras',
+	},
+
+]
 
 async function main() {
 	const runpod = container.feature('runpod')
@@ -37,12 +58,11 @@ async function main() {
 		ui.print.cyan('Launching ComfyUI on RTX 4090...')
 		existingPod = await runpod.createPod({
 			name: POD_NAME,
-			imageName: IMAGE,
+			templateId: TEMPLATE_ID,
 			gpuTypeId: GPU,
 			cloudType: 'SECURE',
 			networkVolumeId: volume.id,
 			containerDiskInGb: 50,
-			ports: ['8188/http', '22/tcp'],
 		})
 		ui.print.green(`Pod created: ${existingPod.id}`)
 	}
@@ -60,11 +80,46 @@ async function main() {
 	ui.print(`Cost:      $${readyPod.costPerHr}/hr`)
 	ui.print(`Volume:    ${volume.id} (${volume.size}GB)`)
 	ui.print.green(`ComfyUI:   ${comfyUrl}`)
+	ui.print(`FileBrowser: https://${readyPod.id}-8080.proxy.runpod.net`)
+	ui.print(`JupyterLab:  https://${readyPod.id}-8888.proxy.runpod.net`)
 
-	if (readyPod.portMappings?.['22/tcp']) {
-		const ssh = readyPod.portMappings['22/tcp']
-		ui.print(`SSH:       ssh root@${ssh.ip} -p ${ssh.port}`)
+	if (readyPod.publicIp && readyPod.portMappings?.['22']) {
+		ui.print(`SSH:       ssh root@${readyPod.publicIp} -p ${readyPod.portMappings['22']}`)
 	}
+
+	// Step 4: Ensure required model files exist on the pod
+	for (const file of REQUIRED_FILES) {
+		ui.print.cyan(`\nChecking: ${file.label}...`)
+		const result = await runpod.ensureFileExists(readyPod.id, file.path, file.url, {
+			onProgress: (bytes) => {
+				ui.print(`  ${file.label}: ${(bytes / 1e9).toFixed(2)} GB downloaded...`)
+			},
+		})
+
+		if (result.existed) {
+			ui.print.green(`  Already there.`)
+		} else {
+			ui.print.green(`  Downloaded successfully.`)
+		}
+	}
+
+	// Step 5: Unzip loras into the ComfyUI loras directory
+	const lorasZip = '/workspace/ComfyUI/models/checkpoints/loras1.zip'
+	const lorasDest = '/workspace/ComfyUI/models/loras'
+
+	ui.print.cyan('\nUnzipping LoRAs into models/loras...')
+	const shell = await runpod.getShell(readyPod.id)
+	const unzipResult = await shell.exec(`unzip -n ${lorasZip} -d ${lorasDest} && echo UNZIP_OK || echo UNZIP_FAIL`)
+
+	if (unzipResult.includes('UNZIP_OK')) {
+		ui.print.green('  LoRAs extracted successfully.')
+	} else {
+		ui.print.red(`  LoRA extraction may have failed: ${unzipResult}`)
+	}
+
+	ui.print.green('\n--- All models ready! ---\n')
+
+	return { podId: readyPod.id, comfyUrl, pod: readyPod }
 }
 
 main().catch(err => {
