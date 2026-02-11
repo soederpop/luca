@@ -172,22 +172,74 @@ container.isProduction  // true when NODE_ENV=production
 container.isCI          // true when CI env var is set
 ```
 
-## Introspection
+## Introspection — Everything is Inspectable
 
-One of Luca's most powerful capabilities is runtime introspection. You can discover everything about any feature, client, or server at runtime:
+One of Luca's most powerful capabilities is that **everything is inspectable at runtime**. The container, every feature, every client, every server — they all know how to describe themselves, their methods, their state, and their events. This is what makes Luca uniquely powerful for REPL-driven development and for AI agents that need to understand their own runtime.
+
+### Inspecting the Container
+
+Call `container.inspect()` to get a structured object describing the entire container — its registries, factory methods, available helpers, state shape, getters, and environment:
 
 ```ts
-// List all available features
-console.log(container.features.available)
+const info = container.inspect()
 
-// Get introspection data for a specific feature
-const info = container.features.introspect('git')
-
-// Get markdown-formatted docs at runtime
-const docs = container.features.describeAll()
+info.className       // 'NodeContainer'
+info.registries      // [{ name: 'features', baseClass: 'Feature', available: ['fs', 'git', ...] }, ...]
+info.factories       // ['feature', 'client', 'server']
+info.methods         // { addContext: { description: '...', parameters: {...} }, ... }
+info.getters         // { cwd: { description: '...', returns: 'string' }, ... }
+info.state           // { started: { type: 'boolean', ... }, enabledFeatures: { ... }, ... }
+info.enabledFeatures // ['features.fs', 'features.git', ...]
+info.environment     // { isNode: true, isBun: true, isBrowser: false, ... }
 ```
 
-This makes Luca especially powerful for REPL-driven development and for AI agents that need to understand their own runtime.
+Or get a human-readable markdown version, perfect for printing in a REPL or feeding to an AI agent:
+
+```ts
+console.log(container.inspectAsText())
+```
+
+This outputs structured markdown documenting every registry (with all available members), factory method, public method with parameters, getter, event, state field, enabled feature, and environment flag.
+
+### Inspecting Features, Clients, and Servers
+
+Every helper registered in the container can introspect itself too:
+
+```ts
+// Get structured introspection data for a feature
+const Git = container.features.lookup('git')
+const info = Git.introspect()
+
+info.methods  // { lsFiles: { description: '...', parameters: {...} }, ... }
+info.getters  // { branch: { description: '...', returns: 'string' }, ... }
+info.state    // { ... }
+info.events   // { ... }
+
+// Or get readable markdown
+console.log(Git.introspectAsText())
+
+// Works on instances too
+console.log(container.git.introspectAsText())
+```
+
+### Discovering What's Available
+
+```ts
+// List all registered features
+container.features.available   // ['fs', 'git', 'proc', 'diskCache', ...]
+
+// List all registered clients
+container.clients.available    // ['rest', 'graph', 'websocket']
+
+// List all registered servers
+container.servers.available    // ['express', 'websocket']
+
+// See which registries and factories exist
+container.registryNames        // ['features', 'clients', 'servers']
+container.factoryNames         // ['feature', 'client', 'server']
+```
+
+This self-describing nature means an AI agent with access to a Luca container can discover its own capabilities, learn how to use any feature, and even extend itself — all at runtime, without documentation files.
 
 ## The Plugin Pattern
 

@@ -29,7 +29,12 @@
       "Bash(ngrok config:*)",
       "WebFetch(domain:docs.comfy.org)",
       "WebFetch(domain:9elements.com)",
-      "Bash(bun eval:*)"
+      "Bash(bun eval:*)",
+      "Bash(runpodctl --help:*)",
+      "Bash(runpodctl create:*)",
+      "Bash(runpodctl get:*)",
+      "WebFetch(domain:graphql-spec.runpod.io)",
+      "WebFetch(domain:docs.runpod.io)"
     ]
   }
 }

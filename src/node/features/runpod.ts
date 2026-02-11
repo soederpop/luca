@@ -1,27 +1,158 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature'
+import axios from 'axios'
 
 export const RunpodStateSchema = FeatureStateSchema.extend({})
 export type RunpodState = z.infer<typeof RunpodStateSchema>
 
-export const RunpodOptionsSchema = FeatureOptionsSchema.extend({})
+export const RunpodOptionsSchema = FeatureOptionsSchema.extend({
+	apiKey: z.string().optional(),
+	dataCenterId: z.string().optional(),
+})
 export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>
 
 /**
- * Uses ssh to run commands, or scp to transfer files between a remote host. 
- * 
+ * Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.
  */
 export class Runpod extends Feature<RunpodState, RunpodOptions> {
   static override shortcut = 'features.runpod' as const
   static override stateSchema = RunpodStateSchema
   static override optionsSchema = RunpodOptionsSchema
 
-	/**
-	 * Get the proc feature for executing shell commands
-	 */
 	get proc() {
 		return this.container.feature('proc')
+	}
+
+	get apiKey() {
+		return this.options.apiKey || process.env.RUNPOD_API_KEY || ''
+	}
+
+	get dataCenterId() {
+		return this.options.dataCenterId || 'US-TX-3'
+	}
+
+	private api(path: string, options: any = {}) {
+		return axios({
+			baseURL: 'https://rest.runpod.io/v1',
+			url: path,
+			headers: {
+				Authorization: `Bearer ${this.apiKey}`,
+				'Content-Type': 'application/json',
+			},
+			...options,
+		}).then(r => r.data)
+	}
+
+	async listTemplates(options: { includePublic?: boolean, includeRunpod?: boolean } = {}): Promise<TemplateInfo[]> {
+		return this.api('/templates', {
+			params: {
+				includePublicTemplates: options.includePublic ?? false,
+				includeRunpodTemplates: options.includeRunpod ?? true,
+			}
+		})
+	}
+
+	async getTemplate(templateId: string): Promise<TemplateInfo> {
+		return this.api(`/templates/${templateId}`)
+	}
+
+	async createPod(options: CreatePodOptions): Promise<PodInfo> {
+		return this.api('/pods', {
+			method: 'POST',
+			data: {
+				name: options.name ?? 'luca-pod',
+				imageName: options.imageName,
+				gpuTypeIds: Array.isArray(options.gpuTypeId) ? options.gpuTypeId : [options.gpuTypeId],
+				gpuCount: options.gpuCount ?? 1,
+				templateId: options.templateId,
+				cloudType: options.cloudType ?? 'SECURE',
+				containerDiskInGb: options.containerDiskInGb ?? 50,
+				volumeInGb: options.volumeInGb ?? 20,
+				volumeMountPath: options.volumeMountPath ?? '/workspace',
+				ports: options.ports ?? ['8888/http', '22/tcp'],
+				env: options.env,
+				interruptible: options.interruptible ?? false,
+				networkVolumeId: options.networkVolumeId,
+				minRAMPerGPU: options.minRAMPerGPU,
+			}
+		})
+	}
+
+	async stopPod(podId: string) {
+		return this.api(`/pods/${podId}/stop`, { method: 'POST' })
+	}
+
+	async startPod(podId: string) {
+		return this.api(`/pods/${podId}/start`, { method: 'POST' })
+	}
+
+	async removePod(podId: string) {
+		return this.api(`/pods/${podId}`, { method: 'DELETE' })
+	}
+
+	/**
+	 * Get all pods via REST API
+	 */
+	async getpods(filters: { name?: string; imageName?: string; desiredStatus?: string } = {}): Promise<RestPodInfo[]> {
+		return this.api('/pods', { params: filters })
+	}
+
+	/**
+	 * Get pod details via REST API (richer than runpodctl output)
+	 */
+	async getPod(podId: string): Promise<RestPodInfo> {
+		return this.api(`/pods/${podId}`)
+	}
+
+	/**
+	 * Poll until a pod reaches a desired status, returns the pod info
+	 */
+	async waitForPod(podId: string, status: string = 'RUNNING', { interval = 5000, timeout = 300000 } = {}): Promise<RestPodInfo> {
+		const start = Date.now()
+		while (Date.now() - start < timeout) {
+			const pod = await this.getPod(podId)
+			if (pod.desiredStatus === status && pod.portMappings) {
+				return pod
+			}
+			await new Promise(r => setTimeout(r, interval))
+		}
+		throw new Error(`Pod ${podId} did not reach status ${status} within ${timeout / 1000}s`)
+	}
+
+	/**
+	 * List all network storage volumes on your account
+	 */
+	async listVolumes(): Promise<VolumeInfo[]> {
+		return this.api('/networkvolumes')
+	}
+
+	/**
+	 * Get details for a specific network volume
+	 */
+	async getVolume(volumeId: string): Promise<VolumeInfo> {
+		return this.api(`/networkvolumes/${volumeId}`)
+	}
+
+	/**
+	 * Create a new network storage volume
+	 */
+	async createVolume(options: CreateVolumeOptions): Promise<VolumeInfo> {
+		return this.api('/networkvolumes', {
+			method: 'POST',
+			data: {
+				name: options.name,
+				size: options.size,
+				dataCenterId: options.dataCenterId ?? this.dataCenterId,
+			}
+		})
+	}
+
+	/**
+	 * Delete a network storage volume
+	 */
+	async removeVolume(volumeId: string) {
+		return this.api(`/networkvolumes/${volumeId}`, { method: 'DELETE' })
 	}
 
 	async createRemoteShell(podId: string) {
@@ -222,4 +353,68 @@ type PodInfo = {
 	volumeDisk: string
 	spotPrice: string
 	ports: PortInfo[]
+}
+
+type TemplateInfo = {
+	id: string
+	name: string
+	category: string
+	imageName: string
+	isPublic: boolean
+	isRunpod: boolean
+	isServerless: boolean
+	containerDiskInGb: number
+	volumeInGb: number
+	volumeMountPath: string
+	ports: string[]
+	env: Record<string, string>
+	readme: string
+}
+
+type VolumeInfo = {
+	id: string
+	name: string
+	size: number
+	dataCenterId: string
+}
+
+type CreateVolumeOptions = {
+	name: string
+	size: number
+	dataCenterId?: string
+}
+
+type RestPodInfo = {
+	id: string
+	name: string
+	desiredStatus: 'RUNNING' | 'EXITED' | 'TERMINATED'
+	costPerHr: number
+	adjustedCostPerHr: number
+	gpu: { id: string; count: number; displayName: string }
+	machine: { dataCenterId: string; location: string; gpuTypeId: string }
+	publicIp: string | null
+	ports: string[]
+	portMappings: Record<string, { ip: string; port: number }> | null
+	containerDiskInGb: number
+	volumeInGb: number
+	memoryInGb: number
+	vcpuCount: number
+	image: string
+}
+
+type CreatePodOptions = {
+	name?: string
+	imageName?: string
+	gpuTypeId: string | string[]
+	gpuCount?: number
+	templateId?: string
+	cloudType?: 'SECURE' | 'COMMUNITY'
+	containerDiskInGb?: number
+	volumeInGb?: number
+	volumeMountPath?: string
+	ports?: string[]
+	env?: Record<string, string>
+	interruptible?: boolean
+	networkVolumeId?: string
+	minRAMPerGPU?: number
 }
