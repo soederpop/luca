@@ -10,6 +10,9 @@ import { ClaudeCode } from './features/claude-code'
 import { Conversation } from './features/conversation'
 import { Expert } from './features/expert'
 import { Oracle } from './features/oracle'
+import { Planner } from './features/planner'
+import { Crew } from './features/crew'
+import { SkillsLibrary } from './features/skills-library'
 
 import type { ContentDb } from '@/node/features/content-db'
 
@@ -22,6 +25,9 @@ export class AGIContainer extends NodeContainer {
 	openai!: OpenAIClient
 	snippets!: Snippets
 	claudeCode?: ClaudeCode
+	planner?: Planner
+	crew?: Crew
+	skillsLibrary?: SkillsLibrary
 	docs!: ContentDb
 }
 
@@ -35,6 +41,9 @@ const container = new AGIContainer()
 	.use(Conversation)
 	.use(Expert)
 	.use(Oracle)
+	.use(Planner)
+	.use(Crew)
+	.use(SkillsLibrary)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')

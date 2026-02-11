@@ -14,6 +14,10 @@ declare module '@/feature' {
 
 export type Message = OpenAI.Chat.Completions.ChatCompletionMessageParam
 
+export type ContentPart =
+	| { type: 'text'; text: string }
+	| { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }
+
 export interface ConversationTool {
 	handler: (...args: any[]) => Promise<any>
 	description: string
@@ -126,14 +130,19 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * tool calls by invoking the registered handlers and feeding results
 	 * back to the model until a final text response is produced.
 	 *
-	 * @param {string} content - The user message
+	 * @param {string | ContentPart[]} content - The user message, either a string or array of content parts (text + images)
 	 * @returns {Promise<string>} The assistant's final text response
 	 *
 	 * @example
 	 * const reply = await conversation.ask("What's the weather in SF?")
+	 * // With image:
+	 * const reply = await conversation.ask([
+	 *   { type: 'text', text: 'What is in this diagram?' },
+	 *   { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
+	 * ])
 	 */
-	async ask(content: string): Promise<string> {
-		const userMessage: Message = { role: 'user', content }
+	async ask(content: string | ContentPart[]): Promise<string> {
+		const userMessage: Message = { role: 'user', content: content as any }
 		this.pushMessage(userMessage)
 		this.emit('userMessage', content)
 
