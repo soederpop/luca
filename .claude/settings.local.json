@@ -34,7 +34,9 @@
       "Bash(runpodctl create:*)",
       "Bash(runpodctl get:*)",
       "WebFetch(domain:graphql-spec.runpod.io)",
-      "WebFetch(domain:docs.runpod.io)"
+      "WebFetch(domain:docs.runpod.io)",
+      "mcp__plugin_claude-mem_mcp-search__save_memory",
+      "mcp__plugin_claude-mem_mcp-search__get_observations"
     ]
   }
 }

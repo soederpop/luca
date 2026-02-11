@@ -12,8 +12,21 @@ const eye = colors.hex('#4ECDC4')
 const mouth = colors.hex('#4ECDC4')
 const label = colors.hex('#888888')
 
+// Center a line horizontally in the terminal
+function center(line: string, rawLength?: number): string {
+  const cols = process.stdout.columns || 80
+  const len = rawLength ?? stripAnsi(line).length
+  const pad = Math.max(0, Math.floor((cols - len) / 2))
+  return ' '.repeat(pad) + line
+}
+
+// Strip ANSI escape codes to get visual length
+function stripAnsi(str: string): string {
+  return str.replace(/\x1B\[[0-9;]*m/g, '')
+}
+
 // The robot/assistant being built brick by brick, from bottom to top
-// Each stage adds more bricks. The figure is ~18 lines tall.
+// Each stage adds more bricks. The figure is ~16 lines tall.
 const stages = [
   // Stage 0: empty platform
   [
@@ -221,9 +234,6 @@ const statusMessages = [
   'Initializing personality...',
 ]
 
-// Brick-laying animation: a small block that "flies" to position
-const brickAnim = ['▪', '▫', '▪']
-
 function colorRobotLine(line: string, stageIdx: number): string {
   let result = ''
   for (let i = 0; i < line.length; i++) {
@@ -247,6 +257,7 @@ function colorRobotLine(line: string, stageIdx: number): string {
 async function animate() {
   const frameDelay = 90
   const stageHold = 6 // frames to hold each completed stage
+  const artWidth = 30 // raw width of the art lines
 
   process.stdout.write('\x1B[?25l') // hide cursor
   process.stdout.write('\x1B[2J\x1B[H') // clear
@@ -273,10 +284,13 @@ async function animate() {
         process.stdout.write('\x1B[H')
 
         // Title
+        const titleBar = '┌─────────────────────────────────────┐'
+        const titleMid = accent('│') + colors.bold.white('   LUCA  ') + dim('Building Assistant...') + accent('       │')
+        const titleBot = '└─────────────────────────────────────┘'
         process.stdout.write('\n')
-        process.stdout.write(accent('  ┌─────────────────────────────────────┐') + '\n')
-        process.stdout.write(accent('  │') + colors.bold.white('   LUCA  ') + dim('Building Assistant...') + accent('       │') + '\n')
-        process.stdout.write(accent('  └─────────────────────────────────────┘') + '\n')
+        process.stdout.write(center(accent(titleBar)) + '\n')
+        process.stdout.write(center(titleMid, titleBar.length) + '\n')
+        process.stdout.write(center(accent(titleBot)) + '\n')
         process.stdout.write('\n')
 
         for (let l = 0; l < stage.length; l++) {
@@ -284,10 +298,8 @@ async function animate() {
           const isCurrentLine = l === targetLine
 
           if (alreadyRevealed || (isCurrentLine && brickFrame === 2)) {
-            // Show final brick line
-            process.stdout.write(colorRobotLine(stage[l], s) + '\n')
+            process.stdout.write(center(colorRobotLine(stage[l], s), artWidth) + '\n')
           } else if (isCurrentLine && brickFrame < 2) {
-            // Show shimmer/placing effect
             let shimmer = ''
             for (let c = 0; c < stage[l].length; c++) {
               if (stage[l][c] === '█' && prevStage[l][c] !== '█') {
@@ -298,10 +310,9 @@ async function animate() {
                 shimmer += colorRobotLine(prevStage[l][c], s)
               }
             }
-            process.stdout.write(shimmer + '\n')
+            process.stdout.write(center(shimmer, artWidth) + '\n')
           } else {
-            // Show previous stage line
-            process.stdout.write(colorRobotLine(prevStage[l], s) + '\n')
+            process.stdout.write(center(colorRobotLine(prevStage[l], s), artWidth) + '\n')
           }
         }
 
@@ -316,8 +327,9 @@ async function animate() {
           bar += b < filled ? brick('█') : dim('░')
         }
         const pct = Math.floor(progress * 100)
-        process.stdout.write(`  ${bar} ${dim(String(pct).padStart(3) + '%')}\n`)
-        process.stdout.write(`  ${label(status)}\n`)
+        const statusLine = `${bar} ${dim(String(pct).padStart(3) + '%')}`
+        process.stdout.write(center(statusLine, barWidth + 5) + '\n')
+        process.stdout.write(center(label(status), status.length) + '\n')
         process.stdout.write('\n')
 
         await new Promise(r => setTimeout(r, frameDelay))
@@ -328,14 +340,17 @@ async function animate() {
     for (let h = 0; h < stageHold; h++) {
       process.stdout.write('\x1B[H')
 
+      const titleBar = '┌─────────────────────────────────────┐'
+      const titleMid = accent('│') + colors.bold.white('   LUCA  ') + dim('Building Assistant...') + accent('       │')
+      const titleBot = '└─────────────────────────────────────┘'
       process.stdout.write('\n')
-      process.stdout.write(accent('  ┌─────────────────────────────────────┐') + '\n')
-      process.stdout.write(accent('  │') + colors.bold.white('   LUCA  ') + dim('Building Assistant...') + accent('       │') + '\n')
-      process.stdout.write(accent('  └─────────────────────────────────────┘') + '\n')
+      process.stdout.write(center(accent(titleBar)) + '\n')
+      process.stdout.write(center(titleMid, titleBar.length) + '\n')
+      process.stdout.write(center(accent(titleBot)) + '\n')
       process.stdout.write('\n')
 
       for (let l = 0; l < stage.length; l++) {
-        process.stdout.write(colorRobotLine(stage[l], s) + '\n')
+        process.stdout.write(center(colorRobotLine(stage[l], s), artWidth) + '\n')
       }
 
       process.stdout.write('\n')
@@ -348,8 +363,9 @@ async function animate() {
         bar += b < filled ? brick('█') : dim('░')
       }
       const pct = Math.floor(progress * 100)
-      process.stdout.write(`  ${bar} ${dim(String(pct).padStart(3) + '%')}\n`)
-      process.stdout.write(`  ${label(status)}\n`)
+      const statusLine = `${bar} ${dim(String(pct).padStart(3) + '%')}`
+      process.stdout.write(center(statusLine, barWidth + 5) + '\n')
+      process.stdout.write(center(label(status), status.length) + '\n')
       process.stdout.write('\n')
 
       await new Promise(r => setTimeout(r, frameDelay))
@@ -362,10 +378,13 @@ async function animate() {
     for (const eyeState of ['off', 'on'] as const) {
       process.stdout.write('\x1B[H')
 
+      const titleBar = '┌─────────────────────────────────────┐'
+      const titleMid = accent('│') + colors.bold.white('   LUCA  ') + accent('Assistant Online       ') + accent('│')
+      const titleBot = '└─────────────────────────────────────┘'
       process.stdout.write('\n')
-      process.stdout.write(accent('  ┌─────────────────────────────────────┐') + '\n')
-      process.stdout.write(accent('  │') + colors.bold.white('   LUCA  ') + accent('Assistant Online       ') + accent('│') + '\n')
-      process.stdout.write(accent('  └─────────────────────────────────────┘') + '\n')
+      process.stdout.write(center(accent(titleBar)) + '\n')
+      process.stdout.write(center(titleMid, titleBar.length) + '\n')
+      process.stdout.write(center(accent(titleBot)) + '\n')
       process.stdout.write('\n')
 
       for (let l = 0; l < completeStage.length; l++) {
@@ -373,13 +392,15 @@ async function animate() {
         if (eyeState === 'off') {
           line = line.replace(/◉/g, '─')
         }
-        process.stdout.write(colorRobotLine(line, stages.length - 1) + '\n')
+        process.stdout.write(center(colorRobotLine(line, stages.length - 1), artWidth) + '\n')
       }
 
       process.stdout.write('\n')
       const bar = brick('█'.repeat(30))
-      process.stdout.write(`  ${bar} ${accent('100%')}\n`)
-      process.stdout.write(`  ${eyeState === 'on' ? accent('✓ Ready') : label('Booting...')}\n`)
+      const finalStatus = `${bar} ${accent('100%')}`
+      process.stdout.write(center(finalStatus, 35) + '\n')
+      const bootMsg = eyeState === 'on' ? accent('✓ Ready') : label('Booting...')
+      process.stdout.write(center(bootMsg, 10) + '\n')
       process.stdout.write('\n')
 
       await new Promise(r => setTimeout(r, eyeState === 'off' ? 120 : 250))
