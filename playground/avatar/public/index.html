@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Choose Your Avatar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 0.25rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #555;
+      margin-bottom: 2.5rem;
+      font-size: 0.95rem;
+    }
+
+    /* ── Phase: Booting / Connecting ── */
+    #phase-boot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 4rem;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #222;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .phase-text {
+      color: #888;
+      font-size: 1rem;
+    }
+
+    /* ── Phase: Generating ── */
+    #phase-generating {
+      width: 100%;
+      max-width: 640px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .progress-bar-outer {
+      width: 100%;
+      height: 6px;
+      background: #1a1a1a;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+
+    .progress-bar-inner {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* ── Image Grid ── */
+    #phase-grid {
+      width: 100%;
+      max-width: 720px;
+    }
+
+    .grid-label {
+      color: #888;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .image-card {
+      position: relative;
+      aspect-ratio: 3 / 4;
+      background: #141414;
+      border: 2px solid #222;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s, opacity 0.3s;
+    }
+
+    .image-card:hover {
+      border-color: #667eea;
+      transform: scale(1.02);
+    }
+
+    .image-card.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .image-card.dimmed {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .image-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-card .placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 0.85rem;
+    }
+
+    .image-card .generating-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 10, 0.8);
+      gap: 0.5rem;
+    }
+
+    .image-card .card-number {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    .image-card .prompt-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 0.75rem;
+      background: linear-gradient(transparent, rgba(0,0,0,0.85));
+      font-size: 0.75rem;
+      color: #aaa;
+      line-height: 1.3;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .image-card:hover .prompt-overlay {
+      opacity: 1;
+    }
+
+    /* ── Phase: Selected ── */
+    #phase-selected {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 400px;
+    }
+
+    .selected-image {
+      width: 320px;
+      height: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid #667eea;
+      box-shadow: 0 0 30px rgba(102, 126, 234, 0.2);
+      margin-bottom: 1.5rem;
+    }
+
+    .selected-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .selected-label {
+      font-size: 1.1rem;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .selected-prompt {
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      max-width: 360px;
+      line-height: 1.4;
+    }
+
+    /* ── Phase: Error ── */
+    #phase-error {
+      color: #ef4444;
+      text-align: center;
+      margin-top: 4rem;
+    }
+
+    /* ── Buttons ── */
+    button {
+      background: #667eea;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:hover { opacity: 0.85; }
+
+    button.secondary {
+      background: #222;
+      color: #aaa;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    /* ── Phases visibility ── */
+    .phase { display: none; }
+    .phase.active { display: flex; }
+    #phase-generating.active { display: block; }
+    #phase-grid.active { display: block; }
+
+    /* ── Connection indicator ── */
+    .connection {
+      position: fixed;
+      top: 12px;
+      right: 16px;
+      font-size: 0.75rem;
+      color: #333;
+    }
+
+    .connection.connected { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <h1>Choose Your Avatar</h1>
+  <p class="subtitle">Your agent is generating its physical form.</p>
+
+  <div class="connection" id="connection">disconnected</div>
+
+  <!-- Booting / Connecting -->
+  <div class="phase" id="phase-boot">
+    <div class="spinner"></div>
+    <div class="phase-text" id="boot-text">Initializing...</div>
+  </div>
+
+  <!-- Generating -->
+  <div class="phase" id="phase-generating">
+    <div class="progress-header">
+      <span id="gen-label">Generating image 1 of 4...</span>
+      <span id="gen-percent">0%</span>
+    </div>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="gen-bar"></div>
+    </div>
+    <div class="image-grid" id="gen-grid"></div>
+  </div>
+
+  <!-- Ready: pick one -->
+  <div class="phase" id="phase-grid">
+    <div class="grid-label">Pick the one that feels right</div>
+    <div class="image-grid" id="pick-grid"></div>
+  </div>
+
+  <!-- Selected -->
+  <div class="phase" id="phase-selected">
+    <div class="selected-label" id="selected-label">This is you.</div>
+    <div class="selected-image" id="selected-image"></div>
+    <div class="selected-prompt" id="selected-prompt"></div>
+    <div class="button-row">
+      <button id="regenerate-btn" class="secondary">Generate New Options</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="phase" id="phase-error">
+    <p id="error-text">Something went wrong.</p>
+  </div>
+
+  <script type="module" src="/client.js"></script>
+</body>
+</html>

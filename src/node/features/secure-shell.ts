@@ -127,14 +127,15 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 */
 	async exec(command: string): Promise<string> {
 		const sshCmd = `${this.buildSSHConnectionString()} "${command}"`
-		
+
 		try {
-			const result = await this.proc.execAndCapture(sshCmd)
-			
+			// Use bash -c to avoid execAndCapture splitting the command on spaces
+			const result = await this.proc.spawnAndCapture('bash', ['-c', sshCmd])
+
 			if (result.exitCode !== 0) {
 				throw new Error(`SSH command failed with exit code ${result.exitCode}: ${result.stderr}`)
 			}
-			
+
 			this.setState({ connected: true })
 			return result.stdout.trim()
 		} catch (error) {

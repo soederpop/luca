@@ -157,7 +157,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 
 	async createRemoteShell(podId: string) {
 		const podInfo = await this.getPodInfo(podId)!
-		const sshService  = podInfo.ports.find((p:any) => p.serviceType == 'tcp' && p.external == '22')	
+		const sshService  = podInfo.ports.find((p:any) => p.serviceType == 'tcp' && p.external == '22')
 
 		if (!sshService) {
 			throw new Error('No SSH service found')
@@ -169,6 +169,120 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 			key: '~/.ssh/id_ed25519',
 			username: 'root'
 		})
+	}
+
+	/**
+	 * Get a SecureShell for a pod using the REST API (portMappings + publicIp).
+	 * Preferred over createRemoteShell which requires runpodctl CLI.
+	 */
+	async getShell(podId: string) {
+		const pod = await this.getPod(podId)
+
+		const sshPort = pod.portMappings?.['22']
+		if (!sshPort) {
+			throw new Error(`No SSH port mapping found for pod ${podId}. Is SSH (22/tcp) exposed?`)
+		}
+
+		if (!pod.publicIp) {
+			throw new Error(`No public IP found for pod ${podId}. Is the pod running?`)
+		}
+
+		return this.container.feature('secureShell', {
+			host: pod.publicIp,
+			port: sshPort,
+			key: '~/.ssh/id_ed25519',
+			username: 'root',
+		})
+	}
+
+	/**
+	 * Ensure a file exists on a pod's filesystem. If missing, kicks off a background
+	 * download via a helper script and polls until the file appears.
+	 *
+	 * @param podId - The pod ID
+	 * @param remotePath - Absolute path on the pod where the file should exist
+	 * @param fallbackUrl - URL to download from (inside the pod) if the file doesn't exist
+	 * @param options.pollInterval - How often to check in ms (default 5000)
+	 * @param options.timeout - Max time to wait for download in ms (default 600000 / 10 min)
+	 * @param options.onProgress - Called each poll with current file size in bytes
+	 * @returns Object with `existed` (was already there) and `path`
+	 *
+	 * @example
+	 * ```ts
+	 * await runpod.ensureFileExists(
+	 *   podId,
+	 *   '/workspace/ComfyUI/models/checkpoints/juggernaut_xl.safetensors',
+	 *   'https://civitai.com/api/download/models/456789',
+	 *   { onProgress: (bytes) => console.log(`${(bytes / 1e9).toFixed(2)} GB downloaded`) }
+	 * )
+	 * ```
+	 */
+	async ensureFileExists(
+		podId: string,
+		remotePath: string,
+		fallbackUrl: string,
+		options: {
+			pollInterval?: number
+			timeout?: number
+			onProgress?: (bytes: number) => void
+		} = {}
+	): Promise<{ existed: boolean; path: string }> {
+		const { pollInterval = 5000, timeout = 600_000, onProgress } = options
+		const shell = await this.getShell(podId)
+
+		// Check if file already exists
+		const check = await shell.exec(`test -f ${esc(remotePath)} && echo EXISTS || echo MISSING`)
+
+		if (check.trim() === 'EXISTS') {
+			return { existed: true, path: remotePath }
+		}
+
+		// Ensure parent directory exists
+		const dir = remotePath.substring(0, remotePath.lastIndexOf('/'))
+		await shell.exec(`mkdir -p ${esc(dir)}`)
+
+		// Encode the download command as base64 and decode+exec on the pod.
+		// This completely sidesteps quoting issues with nohup/& through SSH.
+		const partial = `${remotePath}.partial`
+		const downloadCmd = `wget -q -O '${partial}' '${fallbackUrl}' && mv '${partial}' '${remotePath}'`
+		const b64 = Buffer.from(downloadCmd).toString('base64')
+
+		await shell.exec(`echo ${b64} | base64 -d | nohup bash >/dev/null 2>&1 &`)
+
+		// Poll until the final file appears
+		const start = Date.now()
+
+		while (Date.now() - start < timeout) {
+			await new Promise(r => setTimeout(r, pollInterval))
+
+			// Check if the final file landed (mv from .partial succeeded)
+			const result = await shell.exec(
+				`if test -f ${esc(remotePath)}; then echo DONE; elif test -f ${esc(partial)}; then stat -c%s ${esc(partial)} 2>/dev/null || stat -f%z ${esc(partial)} 2>/dev/null; else echo MISSING; fi`
+			)
+
+			const trimmed = result.trim()
+
+			if (trimmed === 'DONE') {
+				return { existed: false, path: remotePath }
+			}
+
+			if (trimmed === 'MISSING') {
+				// wget hasn't started writing yet, or it failed before creating the file.
+				// Give it a moment — if we're early in the poll loop, keep waiting.
+				if (Date.now() - start > 30_000) {
+					throw new Error(`Download failed: neither ${remotePath} nor ${partial} found after 30s`)
+				}
+				continue
+			}
+
+			// It's a number — file size of the .partial
+			const bytes = parseInt(trimmed, 10)
+			if (!isNaN(bytes) && onProgress) {
+				onProgress(bytes)
+			}
+		}
+
+		throw new Error(`Timed out waiting for download of ${remotePath} after ${timeout / 1000}s`)
 	}
 
 	async getPodHttpURLs(podId: string) {
@@ -250,6 +364,11 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 }
 
 export default features.register('runpod', Runpod)
+
+/** Shell-escape a string for safe use in SSH commands */
+function esc(s: string): string {
+	return `'${s.replace(/'/g, "'\\''")}'`
+}
 
 function parsePortInfo(portsString: string)  {
 	const portsInfo = portsString.trim().split(')')
@@ -392,9 +511,11 @@ type RestPodInfo = {
 	adjustedCostPerHr: number
 	gpu: { id: string; count: number; displayName: string }
 	machine: { dataCenterId: string; location: string; gpuTypeId: string }
+	/** Public IP for SSH/TCP connections */
 	publicIp: string | null
 	ports: string[]
-	portMappings: Record<string, { ip: string; port: number }> | null
+	/** Maps internal port (e.g. "22") to external port number (e.g. 22122) */
+	portMappings: Record<string, number> | null
 	containerDiskInGb: number
 	volumeInGb: number
 	memoryInGb: number
