@@ -250,6 +250,110 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   }
 
   // ---------------------------------------------------------------------------
+  // Workflow format detection & conversion
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Detect whether a workflow object is in UI format (exported from the graph
+   * editor) or API format (flat node-id-keyed object with class_type).
+   */
+  static isUIFormat(workflow: Record<string, any>): boolean {
+    return Array.isArray(workflow.nodes) && Array.isArray(workflow.links);
+  }
+
+  /**
+   * Convert a UI-format workflow to the API format that /prompt expects.
+   *
+   * Requires a running ComfyUI instance to fetch `object_info` so we can
+   * map positional `widgets_values` to their named input fields.
+   *
+   * If the workflow is already in API format, it's returned as-is.
+   */
+  async toApiFormat(workflow: Record<string, any>): Promise<Record<string, any>> {
+    if (!ComfyUIClient.isUIFormat(workflow)) return workflow;
+
+    const nodes: any[] = workflow.nodes;
+    const links: any[] = workflow.links;
+
+    // Build a lookup: linkId -> { sourceNodeId, sourceSlot }
+    const linkMap = new Map<number, { sourceNodeId: string; sourceSlot: number }>();
+    for (const link of links) {
+      // link format: [linkId, sourceNodeId, sourceSlot, targetNodeId, targetSlot, type]
+      linkMap.set(link[0], { sourceNodeId: String(link[1]), sourceSlot: link[2] });
+    }
+
+    // Fetch object_info for all node types present in the workflow
+    const nodeTypes = [...new Set(nodes.map((n) => n.type))];
+    const objectInfo: Record<string, any> = {};
+    await Promise.all(
+      nodeTypes.map(async (type) => {
+        try {
+          const info = await this.getObjectInfo(type);
+          objectInfo[type] = info[type];
+        } catch {
+          // Node type not found on server — we'll do our best without it
+        }
+      })
+    );
+
+    const apiWorkflow: Record<string, any> = {};
+
+    for (const node of nodes) {
+      const nodeId = String(node.id);
+      const classType = node.type;
+      const inputs: Record<string, any> = {};
+
+      // Resolve connected inputs (from the node's input slots)
+      if (node.inputs) {
+        for (const input of node.inputs) {
+          if (input.link != null) {
+            const source = linkMap.get(input.link);
+            if (source) {
+              inputs[input.name] = [source.sourceNodeId, source.sourceSlot];
+            }
+          }
+        }
+      }
+
+      // Map widgets_values to named inputs using object_info
+      if (node.widgets_values && objectInfo[classType]) {
+        const info = objectInfo[classType];
+        const requiredInputs = info.input?.required ?? {};
+        const optionalInputs = info.input?.optional ?? {};
+
+        // Collect the widget input names in order (skip ones that are link-connected)
+        const connectedNames = new Set(
+          (node.inputs || []).filter((i: any) => i.link != null).map((i: any) => i.name)
+        );
+
+        const widgetNames: string[] = [];
+        for (const [name, config] of Object.entries(requiredInputs) as [string, any][]) {
+          if (connectedNames.has(name)) continue;
+          // Skip non-widget types (these are slot connections, not widgets)
+          const inputType = Array.isArray(config) ? config[0] : config;
+          if (typeof inputType === "string" && inputType === inputType.toUpperCase() && inputType.length > 1 && !Array.isArray(config[0])) continue;
+          widgetNames.push(name);
+        }
+        for (const [name, config] of Object.entries(optionalInputs) as [string, any][]) {
+          if (connectedNames.has(name)) continue;
+          const inputType = Array.isArray(config) ? config[0] : config;
+          if (typeof inputType === "string" && inputType === inputType.toUpperCase() && inputType.length > 1 && !Array.isArray(config[0])) continue;
+          widgetNames.push(name);
+        }
+
+        // Assign values positionally
+        for (let i = 0; i < node.widgets_values.length && i < widgetNames.length; i++) {
+          inputs[widgetNames[i]] = node.widgets_values[i];
+        }
+      }
+
+      apiWorkflow[nodeId] = { class_type: classType, inputs };
+    }
+
+    return apiWorkflow;
+  }
+
+  // ---------------------------------------------------------------------------
   // High-level workflow execution
   // ---------------------------------------------------------------------------
 
@@ -277,7 +381,9 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     inputs?: Record<string, any>,
     options: WorkflowRunOptions = {}
   ): Promise<WorkflowResult> {
-    const prompt = structuredClone(workflow);
+    // Auto-detect and convert UI format -> API format
+    const apiFormat = await this.toApiFormat(workflow);
+    const prompt = structuredClone(apiFormat);
 
     // Apply inputs
     if (inputs) {

@@ -11,6 +11,7 @@ import { Server, type ServersInterface } from "../server/index";
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
+import dotenv from 'dotenv'
 
 import "./features/disk-cache";
 import "./features/content-db";
@@ -41,6 +42,7 @@ import "./features/runpod";
 import "./features/secure-shell";
 import "./features/tmux";
 import "./features/ink";
+import "./features/telegram";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -71,6 +73,7 @@ import type { Runpod } from './features/runpod.ts';
 import type { SecureShell } from './features/secure-shell.ts';
 import type { Tmux } from './features/tmux.ts';
 import type { Ink } from './features/ink.ts';
+import type { Telegram } from './features/telegram.ts';
 export { State };
 
 export {
@@ -95,7 +98,8 @@ export {
   type Runpod,
   type SecureShell,
   type Tmux,
-  type Ink
+  type Ink,
+  type Telegram
 };
 
 export type { FeatureOptions };
@@ -146,6 +150,7 @@ export interface NodeFeatures extends AvailableFeatures {
   secureShell: typeof SecureShell;
   tmux: typeof Tmux;
   ink: typeof Ink;
+  telegram: typeof Telegram;
   contentDb: typeof ContentDb;
 }
 
@@ -180,9 +185,15 @@ export class NodeContainer<
   portExposer?: PortExposer;
   tmux?: Tmux;
   ink?: Ink;
+  telegram?: Telegram;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
+
+    try {
+      dotenv.config({ path: join(this.cwd, '.env') })
+    } catch (error) { 
+    }
 
     this.feature("fs", { enable: true });
     this.feature("proc", { enable: true });
