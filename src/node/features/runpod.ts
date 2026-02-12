@@ -70,7 +70,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 				containerDiskInGb: options.containerDiskInGb ?? 50,
 				volumeInGb: options.volumeInGb ?? 20,
 				volumeMountPath: options.volumeMountPath ?? '/workspace',
-				ports: options.ports ?? ['8888/http', '22/tcp'],
+				...(options.ports ? { ports: options.ports } : !options.templateId ? { ports: ['8888/http', '22/tcp'] } : {}),
 				env: options.env,
 				interruptible: options.interruptible ?? false,
 				networkVolumeId: options.networkVolumeId,

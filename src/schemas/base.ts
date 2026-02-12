@@ -95,6 +95,42 @@ export const ClientEventsSchema = HelperEventsSchema.extend({
 
 export const ServerEventsSchema = HelperEventsSchema.extend({}).describe('Base server events')
 
+// Command schemas
+export const CommandStateSchema = HelperStateSchema.extend({
+  running: z.boolean().default(false).describe('Whether the command is currently executing'),
+  exitCode: z.number().optional().describe('Exit code after command finishes'),
+}).describe('Base command state')
+
+export const CommandOptionsSchema = HelperOptionsSchema.extend({
+  _: z.array(z.string()).default([]).describe('Positional arguments from minimist'),
+}).describe('Base command options parsed from argv')
+
+export const CommandEventsSchema = HelperEventsSchema.extend({
+  started: z.tuple([]).describe('Emitted when command execution begins'),
+  completed: z.tuple([z.number().describe('Exit code')]).describe('Emitted when command execution finishes'),
+  failed: z.tuple([z.any().describe('The error')]).describe('Emitted when command execution fails'),
+}).describe('Base command events')
+
+// Endpoint schemas
+export const EndpointStateSchema = HelperStateSchema.extend({
+  mounted: z.boolean().default(false).describe('Whether the endpoint is mounted on a server'),
+  path: z.string().default('').describe('The URL path this endpoint is served from'),
+  methods: z.array(z.string()).default([]).describe('HTTP methods this endpoint handles'),
+  requestCount: z.number().default(0).describe('Total number of requests handled'),
+}).describe('Base endpoint state')
+
+export const EndpointOptionsSchema = HelperOptionsSchema.extend({
+  path: z.string().describe('The URL path this endpoint is served from'),
+  filePath: z.string().optional().describe('Absolute path to the endpoint source file'),
+}).describe('Base endpoint options')
+
+export const EndpointEventsSchema = HelperEventsSchema.extend({
+  loaded: z.tuple([z.any().describe('The loaded endpoint module')]).describe('Emitted when the endpoint module is loaded'),
+  mounted: z.tuple([z.string().describe('The path')]).describe('Emitted when the endpoint is mounted on a server'),
+  request: z.tuple([z.string().describe('HTTP method'), z.string().describe('Path'), z.any().describe('Parameters')]).describe('Emitted on every request'),
+  error: z.tuple([z.any().describe('The error object')]).describe('Emitted when a request handler throws'),
+}).describe('Base endpoint events')
+
 /**
  * Converts a ZodObject into an introspection-friendly record.
  * Uses Zod v4's native toJSONSchema() and transforms properties

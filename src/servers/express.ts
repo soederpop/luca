@@ -4,7 +4,8 @@ import type { Express } from 'express'
 import cors from 'cors'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server/server.js';
+import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server/server.js'
+import { Endpoint, type EndpointModule } from '../endpoint.js'
 
 declare module '../server/index' {
   interface AvailableServers {
@@ -32,7 +33,8 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     }
   
     _app?: Express
- 
+    _mountedEndpoints: Endpoint[] = []
+
     get express() {
       return express
     }
@@ -100,6 +102,65 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     override async configure() {
       this.state.set('configured', true)
       return this
+    }
+
+    useEndpoint(endpoint: Endpoint): this {
+      endpoint.mount(this.app)
+      this._mountedEndpoints.push(endpoint)
+      return this
+    }
+
+    async useEndpoints(dir: string): Promise<this> {
+      const glob = new Bun.Glob('**/*.ts')
+
+      for await (const file of glob.scan({ cwd: dir, absolute: true })) {
+        try {
+          const mod = await import(file)
+          const endpointModule: EndpointModule = mod.default || mod
+
+          if (!endpointModule.path) {
+            continue
+          }
+
+          const endpoint = new Endpoint(
+            { path: endpointModule.path, filePath: file },
+            this.container.context
+          )
+          await endpoint.load(endpointModule)
+          this.useEndpoint(endpoint)
+        } catch (err) {
+          console.error(`Failed to load endpoint from ${file}:`, err)
+        }
+      }
+
+      return this
+    }
+
+    serveOpenAPISpec(options: { title?: string; version?: string; description?: string } = {}): this {
+      const server = this
+      this.app.get('/openapi.json', (_req: any, res: any) => {
+        res.json(server.generateOpenAPISpec(options))
+      })
+      return this
+    }
+
+    generateOpenAPISpec(options: { title?: string; version?: string; description?: string } = {}): Record<string, any> {
+      const paths: Record<string, any> = {}
+
+      for (const ep of this._mountedEndpoints) {
+        paths[ep.path] = ep.toOpenAPIPathItem()
+      }
+
+      return {
+        openapi: '3.1.0',
+        info: {
+          title: options.title || 'Luca API',
+          version: options.version || '1.0.0',
+          description: options.description || 'Auto-generated from Luca endpoints',
+        },
+        servers: [{ url: `http://localhost:${this.port}` }],
+        paths,
+      }
     }
 }
 

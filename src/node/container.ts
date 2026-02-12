@@ -7,6 +7,8 @@ import { features, Feature } from "./feature.ts";
 import type { AvailableFeatures } from "../feature";
 import { Client, type ClientsInterface } from "../client";
 import { Server, type ServersInterface } from "../server/index";
+import { Command, type CommandsInterface } from "../command";
+import { Endpoint, type EndpointsInterface } from "../endpoint";
 
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
@@ -154,7 +156,7 @@ export interface NodeFeatures extends AvailableFeatures {
   contentDb: typeof ContentDb;
 }
 
-export type ClientsAndServersInterface = ClientsInterface & ServersInterface;
+export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
 
 export interface NodeContainer extends ClientsAndServersInterface {}
 
@@ -214,7 +216,7 @@ export class NodeContainer<
       }
     });
 
-    this.use(Client).use(Server);
+    this.use(Client).use(Server).use(Command).use(Endpoint);
   }
 
   override get Feature() {
