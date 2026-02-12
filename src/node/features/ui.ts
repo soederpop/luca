@@ -523,13 +523,9 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * // Available colors: any chalk color names
    * ```
    */
-  banner(text: string, options: { font: Fonts; colors: Color[] }) {
-    if (!options?.font || !Array.isArray(options?.colors)) {
-      throw new Error(`Must supply { font: "string", colors: ["string"]}`);
-    }
-
-    const art = this.asciiArt(text, options.font);
-    const colored = this.applyGradient(art, options.colors);
+  banner(text: string, options: { font: Fonts; colors: Color[] } = { font: 'Star Wars', colors: ['red', 'white', 'blue'] }) {
+    const art = this.asciiArt(text, options.font || 'Star Wars');
+    const colored = this.applyGradient(art, options.colors || ['red', 'white', 'blue']);
 
     return colored;
   }
