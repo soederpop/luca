@@ -20,14 +20,6 @@ function resolveScript(ref: string, context: ContainerContext): string | null {
 		`${ref}.ts`,
 		`${ref}.js`,
 		`${ref}.md`,
-		`scripts/examples/${ref}`,
-		`scripts/examples/${ref}.ts`,
-		`scripts/examples/${ref}.js`,
-		`scripts/examples/${ref}.md`,
-		`scripts/${ref}`,
-		`scripts/${ref}.ts`,
-		`scripts/${ref}.js`,
-		`scripts/${ref}.md`,
 	]
 
 	for (const candidate of candidates) {
@@ -41,12 +33,10 @@ function resolveScript(ref: string, context: ContainerContext): string | null {
 async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
 	const requireApproval = options.safe
-
 	await container.docs.load()
 
-	// resolve to a relative path from cwd for contentDb
-	const relativePath = container.paths.relative(scriptPath)
-	const doc = container.docs.collection.document(relativePath)
+	const doc = await container.docs.parseMarkdownAtPath(scriptPath)
+
 	const vm = container.feature('vm')
 	const shared = vm.createContext({ console, ...container.context })
 
@@ -114,6 +104,44 @@ async function runScript(scriptPath: string, context: ContainerContext) {
 	console.log(container.ui.markdown(result))
 }
 
+async function diagnoseError(scriptPath: string, error: Error, context: ContainerContext) {
+	const container = context.container as any
+
+	console.error(`\n${error.stack || error.message}\n`)
+	console.log(`Asking codebase expert to diagnose...\n`)
+
+	const expert = container.feature('expert', {
+		folder: 'codebase',
+		name: 'luca-codebase-expert',
+	})
+
+	await expert.start()
+
+	expert.conversation!.on('preview', (chunk: string) => {
+		console.clear()
+		console.log(container.ui.markdown(chunk))
+	})
+
+	expert.conversation!.on('toolCall', (name: string) => {
+		console.log(container.ui.markdown(`\n> **Running skill:** \`${name}\`\n`))
+	})
+
+	const prompt = [
+		`I ran the script \`${scriptPath}\` and it threw an error.`,
+		'',
+		'Here is the error / stack trace:',
+		'```',
+		error.stack || error.message,
+		'```',
+		'',
+		'Explain what likely caused this error and how to fix it.',
+	].join('\n')
+
+	const result = await expert.ask(prompt)
+	console.clear()
+	console.log(container.ui.markdown(result))
+}
+
 export default async function run(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
 	const fileRef = container.argv._[1] as string
@@ -132,10 +160,14 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 
 	console.log(`Running ${scriptPath}\n`)
 
-	if (scriptPath.endsWith('.md')) {
-		await runMarkdown(scriptPath, options, context)
-	} else {
-		await runScript(scriptPath, context)
+	try {
+		if (scriptPath.endsWith('.md')) {
+			await runMarkdown(scriptPath, options, context)
+		} else {
+			await runScript(scriptPath, context)
+		}
+	} catch (err: any) {
+		await diagnoseError(scriptPath, err instanceof Error ? err : new Error(String(err)), context)
 	}
 }
 

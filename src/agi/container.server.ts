@@ -7,6 +7,7 @@ import { HelperChat } from './features/helper-chat'
 import { ContainerChat } from './features/container-chat'
 import { Snippets } from './features/snippets'
 import { ClaudeCode } from './features/claude-code'
+import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
 import { Expert } from './features/expert'
 import { Oracle } from './features/oracle'
@@ -26,6 +27,7 @@ export class AGIContainer extends NodeContainer {
 	openai!: OpenAIClient
 	snippets!: Snippets
 	claudeCode?: ClaudeCode
+	openaiCodex?: OpenAICodex
 	planner?: Planner
 	crew?: Crew
 	skillsLibrary?: SkillsLibrary
@@ -58,6 +60,7 @@ const container = new AGIContainer()
 	.use(ContainerChat)
 	.use(Snippets)
 	.use(ClaudeCode)
+	.use(OpenAICodex)
 	.use(Conversation)
 	.use(Expert)
 	.use(Oracle)
