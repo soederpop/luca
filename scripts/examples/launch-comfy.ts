@@ -11,21 +11,20 @@ const GPU = 'NVIDIA GeForce RTX 4090'
 // Path on the pod filesystem → fallback download URL
 const REQUIRED_FILES = [
 	{
-		path: '/workspace/ComfyUI/models/checkpoints/juggernautXL_v9Rundiffusion.safetensors',
+		path: '/workspace/runpod-slim/ComfyUI/models/checkpoints/juggernautXL_v9Rundiffusion.safetensors',
 		url: 'https://civitai.com/api/download/models/456194',
 		label: 'Juggernaut XL v9 checkpoint',
 	},
 	{
-		path: '/workspace/ComfyUI/models/checkpoints/sks-juggernaut-3000.safetensors',
+		path: '/workspace/runpod-slim/ComfyUI/models/checkpoints/sks-juggernaut-3000.safetensors',
 		url: 'https://s3.us-east-1.amazonaws.com/demo.skypager.io/sks-juggernaut-3000.safetensors',
 		label: 'Juggernaut SKS',
 	},
 	{
-		path: '/workspace/ComfyUI/models/checkpoints/loras1.zip',
+		path: '/workspace/runpod-slim/CuomfyUI/models/loras/loras1.zip',
 		url: 'https://s3.us-east-1.amazonaws.com/demo.skypager.io/loras1.zip',
 		label: 'Loras',
 	},
-
 ]
 
 async function main() {
@@ -104,8 +103,8 @@ async function main() {
 	}
 
 	// Step 5: Unzip loras into the ComfyUI loras directory
-	const lorasZip = '/workspace/ComfyUI/models/checkpoints/loras1.zip'
-	const lorasDest = '/workspace/ComfyUI/models/loras'
+	const lorasZip = '/workspace/runpod-slim/ComfyUI/models/checkpoints/loras1.zip'
+	const lorasDest = '/workspace/runpod-slim/ComfyUI/models/loras'
 
 	ui.print.cyan('\nUnzipping LoRAs into models/loras...')
 	const shell = await runpod.getShell(readyPod.id)

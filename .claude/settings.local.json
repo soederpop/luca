@@ -51,7 +51,10 @@
       "WebFetch(domain:deepwiki.com)",
       "WebFetch(domain:developer.massive.wiki)",
       "Bash(xargs:*)",
-      "Bash(bun pm ls:*)"
+      "Bash(bun pm ls:*)",
+      "Bash(bun /Users/jon/@luca/src/cli/cli.ts serve:*)",
+      "Bash(lsof:*)",
+      "Bash(python3:*)"
     ]
   }
 }

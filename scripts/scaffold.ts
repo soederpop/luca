@@ -3,7 +3,7 @@ import { join } from 'path'
 
 const { ui, fs, argv } = container
 
-type HelperType = 'feature' | 'client' | 'server'
+type HelperType = 'feature' | 'client' | 'server' | 'endpoint'
 
 interface ScaffoldAnswers {
   type: HelperType
@@ -221,16 +221,42 @@ function generateServer(name: string, description: string): string {
   `
 }
 
+function generateEndpoint(name: string, description: string): string {
+  const kebab = toKebabCase(name)
+  const path = `/${kebab}`
+
+  return ui.endent`
+    import { z } from 'zod'
+    import type { EndpointContext } from '../../endpoint.js'
+
+    export const path = '${path}'
+    export const description = '${description}'
+    export const tags = ['${kebab}']
+
+    export const postSchema = z.object({
+      // TODO: define your parameters
+    })
+
+    export async function post(parameters: z.infer<typeof postSchema>, ctx: EndpointContext) {
+      const { container } = ctx
+      // TODO: implement
+      return { ok: true }
+    }
+  `
+}
+
 const generators: Record<HelperType, (name: string, desc: string) => string> = {
   feature: generateFeature,
   client: generateClient,
   server: generateServer,
+  endpoint: generateEndpoint,
 }
 
 const outputPaths: Record<HelperType, (name: string) => string> = {
   feature: (name) => join('src', 'node', 'features', `${toKebabCase(name)}.ts`),
   client: (name) => join('src', 'clients', toKebabCase(name), 'index.ts'),
   server: (name) => join('src', 'servers', `${toKebabCase(name)}.ts`),
+  endpoint: (name) => join('src', 'agi', 'endpoints', `${toKebabCase(name)}.ts`),
 }
 
 async function main() {
@@ -250,6 +276,7 @@ async function main() {
         { name: 'Feature  - registered in FeaturesRegistry, enable/disable lifecycle', value: 'feature' },
         { name: 'Client   - registered in ClientsRegistry, connect/configure lifecycle', value: 'client' },
         { name: 'Server   - registered in ServersRegistry, start/stop/configure lifecycle', value: 'server' },
+        { name: 'Endpoint - file-based HTTP endpoint, Remix-like DX', value: 'endpoint' },
       ],
       when: () => !positionalType,
     },
@@ -272,8 +299,8 @@ async function main() {
   const name = positionalName || answers.name!
   const description = answers.description || 'TODO: describe this helper.'
 
-  if (!['feature', 'client', 'server'].includes(type)) {
-    ui.print.red(`Invalid type "${type}". Must be feature, client, or server.`)
+  if (!['feature', 'client', 'server', 'endpoint'].includes(type)) {
+    ui.print.red(`Invalid type "${type}". Must be feature, client, server, or endpoint.`)
     process.exit(1)
   }
 
@@ -348,6 +375,24 @@ async function main() {
          ${ui.colors.cyan(`const server = container.server('${toCamelCase(name)}', { port: 3000 })`)}
          ${ui.colors.cyan(`await server.configure()`)}
          ${ui.colors.cyan(`await server.start()`)}
+    `)
+  } else if (type === 'endpoint') {
+    const kebab = toKebabCase(name)
+
+    ui.print.yellow('Next steps for your new Endpoint:')
+    console.log()
+    console.log(ui.endent`
+      1. Edit the endpoint file at src/agi/endpoints/${kebab}.ts
+
+      2. Define your Zod schemas and handler functions (get, post, put, patch, delete)
+
+      3. It will be auto-loaded when useEndpoints() scans the endpoints directory:
+         ${ui.colors.cyan(`await expressServer.useEndpoints('src/agi/endpoints')`)}
+
+      4. Or load it manually:
+         ${ui.colors.cyan(`const ep = new Endpoint({ path: '/${kebab}', filePath: '...' }, container.context)`)}
+         ${ui.colors.cyan(`await ep.load()`)}
+         ${ui.colors.cyan(`expressServer.useEndpoint(ep)`)}
     `)
   }
 
