@@ -35,3 +35,11 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # the vendor folder has stuff we dont own
 vendor/
+
+# public static files (served by express)
+public/*
+!public/.gitkeep
+
+# output
+output/
+public/

@@ -22,7 +22,8 @@
     "clean": "rm -rf dist build package",
     "build": "mkdist --declaration --ext=js",
     "introspect": "bun run scripts/update-introspection-data",
-    "compile": "bun build ./src/cli/cli.ts --compile --outfile luca"
+    "compile": "bun build ./src/cli/cli.ts --compile --outfile luca",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
