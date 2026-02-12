@@ -8,8 +8,22 @@
  *   TELEGRAM_BOT_TOKEN=your_token bun run scripts/examples/telegram-bot.ts
  */
 import container from '@/agi'
+import '@/clients/comfyui'
+import { InputFile } from 'grammy'
 import { readdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
+
+// ─── ComfyUI setup ───
+
+const COMFY_URL = process.env.COMFY_URL || 'https://8bwb9v7oc9ao4h-8188.proxy.runpod.net'
+
+const comfyui = container.client('comfyui', { baseURL: COMFY_URL })
+
+const workflowPath = new URL('../../comfy-ui/simple-checkpoint-workflow.json', import.meta.url)
+const baseWorkflow = JSON.parse(await Bun.file(workflowPath).text())
+
+// Shared ref so tool handlers can send photos to the right chat
+let _activeTgCtx: any = null
 
 // ─── Discover experts from disk ───
 
@@ -34,8 +48,59 @@ function discoverExperts(): Map<string, () => Agent> {
       model: 'o3',
       history: [{
         role: 'system',
-        content: `You are a senior software architect. You think about the bigger picture: how components fit together, what patterns to use, how to structure files, and how to build things in a way that's reusable and maintainable.\n\nYou're chatting through Telegram so keep responses concise but thorough. Use markdown formatting that works in Telegram (bold, italic, code blocks). Break up walls of text.`
-      }]
+        content: `You are a senior software architect. You think about the bigger picture: how components fit together, what patterns to use, how to structure files, and how to build things in a way that's reusable and maintainable.\n\nYou're chatting through Telegram so keep responses concise but thorough. Use markdown formatting that works in Telegram (bold, italic, code blocks). Break up walls of text.\n\nYou have a generate_image tool. When the user asks you to generate, create, draw, or make an image, use it. Craft a detailed prompt for the image based on what they asked for. The model is a photorealistic SDXL checkpoint so describe scenes like a photographer would.`
+      }],
+      tools: {
+        generate_image: {
+          description: 'Generate an image using a Stable Diffusion XL model via ComfyUI. The image will be sent as a photo in the chat.',
+          parameters: {
+            type: 'object',
+            properties: {
+              prompt: {
+                type: 'string',
+                description: 'Detailed positive prompt describing what to generate. Be descriptive like a photographer: subject, setting, lighting, mood, camera angle.'
+              },
+              negative_prompt: {
+                type: 'string',
+                description: 'What to avoid in the image. Defaults to standard quality negatives if not provided.'
+              }
+            },
+            required: ['prompt']
+          },
+          handler: async (args: { prompt: string; negative_prompt?: string }) => {
+            const ctx = _activeTgCtx
+            if (ctx) await ctx.replyWithChatAction('upload_photo')
+
+            console.log(`🎨 Generating image: ${args.prompt.slice(0, 80)}...`)
+
+            const workflow = JSON.parse(JSON.stringify(baseWorkflow))
+            const result = await comfyui.runWorkflow(workflow, {
+              '3': { text: `${args.prompt}` },
+              '4': { text: args.negative_prompt || 'low quality, blurry, deformed, ugly, bad anatomy, disfigured, poorly drawn' },
+              '6': { seed: Math.floor(Math.random() * 2 ** 32) },
+            }, {
+              outputDir: './output',
+              poll: true,
+              pollInterval: 2000,
+            })
+
+            if (result.images?.length && ctx) {
+              for (const img of result.images) {
+                if (img.localPath) {
+                  const file = Bun.file(img.localPath)
+                  const buf = Buffer.from(await file.arrayBuffer())
+                  await ctx.replyWithPhoto(new InputFile(buf, img.filename), {
+                    caption: args.prompt.slice(0, 200),
+                  })
+                }
+              }
+              return `Image generated and sent to chat. prompt_id: ${result.promptId}`
+            }
+
+            return `Image generation completed (prompt_id: ${result.promptId}) but no images were returned.`
+          }
+        }
+      }
     })
     return {
       name: 'architect',
@@ -207,19 +272,25 @@ async function main() {
     console.log(`💬 ${user} → ${agent.name}: ${text}`)
     await ctx.replyWithChatAction('typing')
 
+    // Set context so tool handlers can send photos to this chat
+    _activeTgCtx = ctx
+
     try {
       const reply = await agent.ask(text)
       console.log(`🧠 ${agent.name}: ${reply.slice(0, 80)}...`)
 
-      // Try with markdown, fall back to plain text
-      try {
-        await ctx.reply(reply, { parse_mode: 'Markdown' })
-      } catch {
-        await ctx.reply(reply)
+      if (reply.trim()) {
+        try {
+          await ctx.reply(reply, { parse_mode: 'Markdown' })
+        } catch {
+          await ctx.reply(reply)
+        }
       }
     } catch (err: any) {
       console.error(`${agent.name} error:`, err.message)
       await ctx.reply(`⚠️ ${agent.name} error: ${err.message}`)
+    } finally {
+      _activeTgCtx = null
     }
   })
 

@@ -54,7 +54,10 @@
       "Bash(bun pm ls:*)",
       "Bash(bun /Users/jon/@luca/src/cli/cli.ts serve:*)",
       "Bash(lsof:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(bun src/cli/cli.ts run:*)",
+      "WebFetch(domain:developers.openai.com)",
+      "Bash(codex:*)"
     ]
   }
 }

@@ -1,5 +1,5 @@
 import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
-import { Collection, defineModel, section, hasMany, belongsTo, type ModelDefinition } from 'contentbase'
+import { parse, Collection, defineModel, section, hasMany, belongsTo, type ModelDefinition } from 'contentbase'
 
 /**
  * State interface for the ContentDb feature.
@@ -75,6 +75,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   _collection?: Collection
+
+  parseMarkdownAtPath(path: string) {
+    return parse(path)
+  }
 
   /** Returns the lazily-initialized Collection instance for the configured rootPath. */
   get collection() {
