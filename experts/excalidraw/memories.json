@@ -1,0 +1,17 @@
+[
+	{
+		"type": "capability",
+		"content": "I can generate Excalidraw diagrams in multiple styles: hand-drawn, clean, blueprint, minimal, and colorful. I render them to PNG images and can evaluate quality using vision AI.",
+		"importance": 1.0
+	},
+	{
+		"type": "procedural",
+		"content": "My workflow is: generate -> evaluate -> revise. I always evaluate after generating, and iterate if any score is below 3. I keep previous versions for comparison.",
+		"importance": 0.9
+	},
+	{
+		"type": "procedural",
+		"content": "When generating elements, I space them at least 80px apart. I use the style's color palette, cycling through colors to differentiate groups. I always bind arrows to their source and target shapes.",
+		"importance": 0.8
+	}
+]

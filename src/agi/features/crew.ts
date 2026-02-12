@@ -204,6 +204,11 @@ export class Crew extends Feature<CrewState, CrewOptions> {
 
 		this._architectConversation = conversation
 
+		// Forward streaming events for dashboard visibility
+		conversation.on('chunk', (text: string) => this.emit('architect:chunk' as any, text))
+		conversation.on('streamStart', () => this.emit('architect:streamStart' as any))
+		conversation.on('streamEnd', () => this.emit('architect:streamEnd' as any))
+
 		const prompt = `## Project Goal\n\n${goal}\n\n## Project Path\n\n${this.projectPath}\n\nProduce your architectural plan.`
 
 		const plan = await conversation.ask(prompt)
@@ -214,6 +219,10 @@ export class Crew extends Feature<CrewState, CrewOptions> {
 
 	async runPlanner(architectPlan: string, goal: string): Promise<string> {
 		const planner = this.getPlanner()
+
+		// Forward planner events for dashboard visibility
+		planner.on('planning' as any, () => this.emit('planner:start' as any))
+		planner.on('planned' as any, (path: string) => this.emit('planner:done' as any, path))
 
 		const buildPath = await planner.plan(architectPlan, {
 			projectPath: this.projectPath,
@@ -254,6 +263,17 @@ export class Crew extends Feature<CrewState, CrewOptions> {
 
 		const cc = this.container.feature('claudeCode') as unknown as ClaudeCode
 
+		// Track session → taskId mapping for event forwarding
+		const sessionTaskMap = new Map<string, string>()
+
+		// Forward ClaudeCode streaming events with task context
+		cc.on('session:delta', ({ sessionId, text }: { sessionId: string; text: string }) => {
+			const taskId = sessionTaskMap.get(sessionId)
+			if (taskId) {
+				this.emit('agent:delta' as any, { taskId, text, sessionId })
+			}
+		})
+
 		for (let phaseIndex = 0; phaseIndex < executionOrder.length; phaseIndex++) {
 			const phaseTaskIds = executionOrder[phaseIndex]
 			this.setState({ currentPhase: phaseIndex + 1 })
@@ -286,11 +306,14 @@ export class Crew extends Feature<CrewState, CrewOptions> {
 						cwd: this.projectPath,
 						systemPrompt,
 						permissionMode: this.permissionMode,
+						streaming: true,
 					})
 
+					sessionTaskMap.set(sessionId, taskId)
 					await planner.updateTaskStatus(taskId, 'in_progress', { assigned_session: sessionId })
 
 					const session = await cc.waitForSession(sessionId)
+					sessionTaskMap.delete(sessionId)
 
 					const costUsd = session.costUsd || 0
 					const totalCost = (this.state.get('costUsd') || 0) + costUsd
