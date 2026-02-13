@@ -105,6 +105,7 @@
     "openai": "^5.1.1",
     "opener": "^1.5.2",
     "react": "^19.2.4",
+    "react-devtools-core": "^7.0.1",
     "react-reconciler": "^0.33.0",
     "remark-gfm": "^3.0.1",
     "rimraf": "^5.0.0",

@@ -59,7 +59,9 @@
       "WebFetch(domain:developers.openai.com)",
       "Bash(codex:*)",
       "Bash(bun remove:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(/Users/jon/@luca/dist/luca console:*)",
+      "Bash(pkill:*)"
     ]
   }
 }
