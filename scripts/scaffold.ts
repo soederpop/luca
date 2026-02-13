@@ -32,27 +32,20 @@ function generateFeature(name: string, description: string): string {
   const shortcut = toCamelCase(name)
 
   return ui.endent`
-    import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
+    import { z } from 'zod'
+    import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+    import { Feature, features } from '../feature.js'
 
-    /**
-     * State interface for the ${className} feature.
-     *
-     * @interface ${className}State
-     * @extends {FeatureState}
-     */
-    export interface ${className}State extends FeatureState {
+    export const ${className}StateSchema = FeatureStateSchema.extend({
       // TODO: add state properties
-    }
+    })
 
-    /**
-     * Options interface for the ${className} feature.
-     *
-     * @interface ${className}Options
-     * @extends {FeatureOptions}
-     */
-    export interface ${className}Options extends FeatureOptions {
+    export const ${className}OptionsSchema = FeatureOptionsSchema.extend({
       // TODO: add option properties
-    }
+    })
+
+    export type ${className}State = z.infer<typeof ${className}StateSchema>
+    export type ${className}Options = z.infer<typeof ${className}OptionsSchema>
 
     /**
      * ${description}
@@ -61,6 +54,8 @@ function generateFeature(name: string, description: string): string {
      */
     export class ${className} extends Feature<${className}State, ${className}Options> {
       static override shortcut = 'features.${shortcut}' as const
+      static override stateSchema = ${className}StateSchema
+      static override optionsSchema = ${className}OptionsSchema
 
       override get initialState(): ${className}State {
         return {
@@ -88,9 +83,9 @@ function generateClient(name: string, description: string): string {
   const registryKey = toCamelCase(name)
 
   return ui.endent`
+    import { z } from 'zod'
+    import { ClientStateSchema, ClientOptionsSchema } from '@/schemas/base.js'
     import {
-      type ClientOptions,
-      type ClientState,
       type ClientsInterface,
       clients,
       RestClient,
@@ -103,25 +98,16 @@ function generateClient(name: string, description: string): string {
       }
     }
 
-    /**
-     * State interface for the ${className}.
-     *
-     * @interface ${className}State
-     * @extends {ClientState}
-     */
-    export interface ${className}State extends ClientState {
+    export const ${className}StateSchema = ClientStateSchema.extend({
       // TODO: add state properties
-    }
+    })
 
-    /**
-     * Options interface for the ${className}.
-     *
-     * @interface ${className}Options
-     * @extends {ClientOptions}
-     */
-    export interface ${className}Options extends ClientOptions {
+    export const ${className}OptionsSchema = ClientOptionsSchema.extend({
       // TODO: add option properties
-    }
+    })
+
+    export type ${className}State = z.infer<typeof ${className}StateSchema>
+    export type ${className}Options = z.infer<typeof ${className}OptionsSchema>
 
     /**
      * ${description}
@@ -130,6 +116,8 @@ function generateClient(name: string, description: string): string {
      */
     export class ${className}<T extends ${className}State = ${className}State> extends RestClient<T> {
       static override shortcut = 'clients.${registryKey}' as const
+      static override stateSchema = ${className}StateSchema
+      static override optionsSchema = ${className}OptionsSchema
 
       constructor(options: ${className}Options, context: ContainerContext) {
         options = {
@@ -160,8 +148,10 @@ function generateServer(name: string, description: string): string {
   const registryKey = toCamelCase(name)
 
   return ui.endent`
+    import { z } from 'zod'
+    import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
     import type { NodeContainer } from '../node/container.js'
-    import { servers, Server, type ServersInterface, type ServerState, type ServerOptions, type StartOptions } from '../server/server.js'
+    import { servers, Server, type ServersInterface, type ServerState, type StartOptions } from '../server/server.js'
 
     declare module '../server/index' {
       interface AvailableServers {
@@ -169,15 +159,11 @@ function generateServer(name: string, description: string): string {
       }
     }
 
-    /**
-     * Options interface for the ${className}.
-     *
-     * @interface ${className}Options
-     * @extends {ServerOptions}
-     */
-    export interface ${className}Options extends ServerOptions {
+    export const ${className}OptionsSchema = ServerOptionsSchema.extend({
       // TODO: add option properties
-    }
+    })
+
+    export type ${className}Options = z.infer<typeof ${className}OptionsSchema>
 
     /**
      * ${description}
@@ -186,6 +172,7 @@ function generateServer(name: string, description: string): string {
      */
     export class ${className}<T extends ServerState = ServerState, K extends ${className}Options = ${className}Options> extends Server<T, K> {
       static override shortcut = 'servers.${registryKey}' as const
+      static override optionsSchema = ${className}OptionsSchema
 
       override async start(options?: StartOptions) {
         if (this.isListening) {

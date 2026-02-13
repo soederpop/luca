@@ -184,9 +184,11 @@ export const ApiServerOptionsSchema = z.object({
 
 export type ApiServerOptions = z.infer<typeof ApiServerOptionsSchema>
 
-export interface ApiServerState extends ServerState {
-  requestCount: number
-}
+export const ApiServerStateSchema = ServerStateSchema.extend({
+  requestCount: z.number().default(0),
+})
+
+export type ApiServerState = z.infer<typeof ApiServerStateSchema>
 
 export class ApiServer extends ExpressServer<ApiServerState, ApiServerOptions & ExpressServerOptions> {
   static override shortcut = 'servers.api' as const

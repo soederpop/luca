@@ -1,23 +1,27 @@
 import { Feature } from '../feature.js';
-import type { FeatureState, FeatureOptions } from '../feature.js';
 import type { HelperIntrospection, MethodIntrospection, GetterIntrospection, EventIntrospection, ContainerIntrospection } from './index.js';
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../schemas/base.js'
 
-export interface IntrospectionScannerState extends FeatureState {
-  scanResults: HelperIntrospection[];
-  containerResults: Partial<ContainerIntrospection>[];
-  lastScanTime: Date | null;
-  scannedFiles: string[];
-}
+export const IntrospectionScannerStateSchema = FeatureStateSchema.extend({
+  scanResults: z.array(z.any()).default([]),
+  containerResults: z.array(z.any()).default([]),
+  lastScanTime: z.date().nullable().default(null),
+  scannedFiles: z.array(z.string()).default([]),
+})
 
-export interface IntrospectionScannerOptions extends FeatureOptions {
-  src?: string[];
-  outputPath?: string;
-  includePrivate?: boolean;
-}
+export const IntrospectionScannerOptionsSchema = FeatureOptionsSchema.extend({
+  src: z.array(z.string()).optional(),
+  outputPath: z.string().optional(),
+  includePrivate: z.boolean().optional(),
+})
+
+export type IntrospectionScannerState = z.infer<typeof IntrospectionScannerStateSchema>
+export type IntrospectionScannerOptions = z.infer<typeof IntrospectionScannerOptionsSchema>
 
 export class IntrospectionScannerFeature extends Feature<IntrospectionScannerState, IntrospectionScannerOptions> {
   static override shortcut = 'introspectionScanner';

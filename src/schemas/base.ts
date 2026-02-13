@@ -1,9 +1,8 @@
 import { z } from 'zod'
 
-// Base helper schemas
-export const HelperStateSchema = z.object({
-  // Empty base - allows for extension
-}).describe('Base state for all helpers')
+// Base helper schemas — looseObject allows additional properties so subclass
+// state types can structurally extend the base via z.infer<>
+export const HelperStateSchema = z.looseObject({}).describe('Base state for all helpers')
 
 export const HelperOptionsSchema = z.object({
   name: z.string().optional().describe('Optional name identifier for this helper instance'),

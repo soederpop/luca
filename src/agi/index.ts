@@ -1,3 +1,4 @@
 import container from './container.server'
+import type { AGIContainer } from './container.server'
 
-export default container
+export default container as AGIContainer

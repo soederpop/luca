@@ -158,8 +158,6 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 		process.exit(1)
 	}
 
-	console.log(`Running ${scriptPath}\n`)
-
 	try {
 		if (scriptPath.endsWith('.md')) {
 			await runMarkdown(scriptPath, options, context)

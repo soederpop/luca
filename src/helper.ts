@@ -7,13 +7,8 @@ import { introspect, type HelperIntrospection } from "./introspection/index.js";
 import { z } from 'zod'
 import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
-// @ts-ignore-next-line
-export interface HelperState { }
-
-export interface HelperOptions {
-  name?: string;
-  _cacheKey?: string;
-}
+export type HelperState = z.infer<typeof HelperStateSchema>
+export type HelperOptions = z.infer<typeof HelperOptionsSchema>
 
 /**
  * Helpers are used to represent types of modules.

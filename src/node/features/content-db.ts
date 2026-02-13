@@ -1,25 +1,18 @@
-import { Feature, features, type FeatureOptions, type FeatureState } from '../feature.js'
+import { Feature, features } from '../feature.js'
 import { parse, Collection, defineModel, section, hasMany, belongsTo, type ModelDefinition } from 'contentbase'
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
-/**
- * State interface for the ContentDb feature.
- *
- * @interface ContentDbState
- * @extends {FeatureState}
- */
-export interface ContentDbState extends FeatureState {
-  loaded: boolean
-}
+export const ContentDbStateSchema = FeatureStateSchema.extend({
+  loaded: z.boolean().default(false),
+})
 
-/**
- * Options interface for the ContentDb feature.
- *
- * @interface ContentDbOptions
- * @extends {FeatureOptions}
- */
-export interface ContentDbOptions extends FeatureOptions {
-  rootPath: string
-}
+export const ContentDbOptionsSchema = FeatureOptionsSchema.extend({
+  rootPath: z.string(),
+})
+
+export type ContentDbState = z.infer<typeof ContentDbStateSchema>
+export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>
 
 /**
  * Turns an organized folder of structured markdown files into an ORM like database

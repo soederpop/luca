@@ -13,7 +13,6 @@ import { Endpoint, type EndpointsInterface } from "../endpoint";
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
-import dotenv from 'dotenv'
 
 import "./features/disk-cache";
 import "./features/content-db";
@@ -197,10 +196,7 @@ export class NodeContainer<
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
 
-    try {
-      dotenv.config({ path: join(this.cwd, '.env') })
-    } catch (error) { 
-    }
+    // Bun loads .env from cwd automatically; no dotenv needed.
 
     this.feature("fs", { enable: true });
     this.feature("proc", { enable: true });

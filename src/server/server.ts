@@ -1,21 +1,12 @@
 import type { NodeContainer } from '../node/container.js'
-import type { HelperOptions, HelperState } from '../helper.js'
 import { Helper } from '../helper.js'
 import { Registry } from '../registry.js'
 import type { AvailableServers } from './index.js'
+import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
 
-export interface ServerState extends HelperState {
-  port?: number;
-  listening?: boolean;  
-  configured?: boolean;
-  stopped?: boolean;
-}
-
-export interface ServerOptions extends HelperOptions {
-  port?: number;
-  host?: string;
-}
+export type ServerState = z.infer<typeof ServerStateSchema>
+export type ServerOptions = z.infer<typeof ServerOptionsSchema>
 
 export type StartOptions = {
   port?: number;

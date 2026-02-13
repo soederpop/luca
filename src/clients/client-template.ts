@@ -1,11 +1,12 @@
 import {
   type ClientOptions,
-  type ClientState,
   type ClientsInterface,
-	clients,	
+  clients,
   RestClient,
 } from "@/client";
 import { type ContainerContext } from "@/container";
+import { z } from 'zod'
+import { ClientStateSchema } from '@/schemas/base.js'
 
 declare module "@/client" {
   interface AvailableClients {
@@ -13,9 +14,11 @@ declare module "@/client" {
   }
 }
 
-export interface MyClientState extends ClientState {
-  checkpoints: string[];
-}
+export const MyClientStateSchema = ClientStateSchema.extend({
+  checkpoints: z.array(z.string()).default([]),
+})
+
+export type MyClientState = z.infer<typeof MyClientStateSchema>
 
 export class MyClient<T extends MyClientState> extends RestClient<T> {
   // @ts-ignore
