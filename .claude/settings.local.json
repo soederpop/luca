@@ -57,7 +57,9 @@
       "Bash(python3:*)",
       "Bash(bun src/cli/cli.ts run:*)",
       "WebFetch(domain:developers.openai.com)",
-      "Bash(codex:*)"
+      "Bash(codex:*)",
+      "Bash(bun remove:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
