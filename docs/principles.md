@@ -1,0 +1,7 @@
+# Random Principles
+
+- I've built so many different client / server applications with JavaScript ( and many other languages ).  I've reinvented way too many things that could have been solved once.  The clearest example of this pain is a poorly structured dockerfile, e.g. one that reinstalls core os dependencies when you change an html file.
+
+- Nearly every application, I've structured as a "boss with liuetenants" so to speak, that everything else talked to.  The boss, the liuetenants, had some kind of state.  Events occur during their operations.  Sometimes these events need to be triggered.  Overtime, core patterns emerged, somewhat encouraged by popular frameworks in the shape they took or names I gave them.
+
+- In building Luca, we want to provide ways to ultimately narrow the range of possible outputs a first time developer, or AI assistant, might produce when asked to build something using a Luca `container` and its components.  The names themselves of the helpers, `clients`, `servers`, `features` already begin to describe their shape, purpose, where their code should live, etc. By going through the extra effort of building essentially a wrapper class, with descriptive interfaces, the developer will ultimately be delivering code that is easier to work with, and re-use in future efforts.

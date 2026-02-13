@@ -55,7 +55,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				if (answer.question.toLowerCase() !== 'y') continue
 			}
 
-			await vm.run(value, shared)
+			await vm.run(`(async function() { ${value} })()`, shared)
 		} else {
 			const md = doc.stringify({ type: 'root', children: [node] })
 			console.log(container.ui.markdown(md))
