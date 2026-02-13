@@ -338,7 +338,7 @@ export class McpServer<T extends McpServerState = McpServerState, K extends McpS
 			const tools: Tool[] = Array.from(this._tools.entries()).map(([name, tool]) => ({
 				name,
 				description: tool.description,
-				inputSchema: this.zodToJsonSchema(tool.schema)
+				inputSchema: tool.schema.toJSONSchema() as any
 			}))
 
 			return {
@@ -425,42 +425,6 @@ export class McpServer<T extends McpServerState = McpServerState, K extends McpS
 			return {}
 		}
 
-		// Helper method to convert Zod schema to JSON Schema
-		private zodToJsonSchema(schema: z.ZodObject<any>): any {
-			const shape = schema.shape
-			const properties: any = {}
-			const required: string[] = []
-
-			for (const [key, value] of Object.entries(shape)) {
-				const zodType = value as z.ZodTypeAny
-				
-				if (zodType instanceof z.ZodString) {
-					properties[key] = { type: "string" }
-				} else if (zodType instanceof z.ZodNumber) {
-					properties[key] = { type: "number" }
-				} else if (zodType instanceof z.ZodBoolean) {
-					properties[key] = { type: "boolean" }
-				} else if (zodType instanceof z.ZodArray) {
-					properties[key] = { type: "array" }
-				} else if (zodType instanceof z.ZodObject) {
-					properties[key] = { type: "object" }
-				} else {
-					// Default to string for unknown types
-					properties[key] = { type: "string" }
-				}
-
-				// Check if the field is required (not optional)
-				if (!(zodType instanceof z.ZodOptional)) {
-					required.push(key)
-				}
-			}
-
-			return {
-				type: "object",
-				properties,
-				required: required.length > 0 ? required : undefined
-			}
-		}
 
 		// Helper method to convert Zod schema to MCP arguments array
 		private zodToArgumentsArray(schema: z.ZodObject<any>): any[] {

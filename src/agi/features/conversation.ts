@@ -5,6 +5,7 @@ import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { OpenAIClient } from '../openai-client';
 import type OpenAI from 'openai';
+import type { ConversationHistory } from './conversation-history';
 
 declare module '@/feature' {
 	interface AvailableFeatures {
@@ -27,6 +28,8 @@ export interface ConversationTool {
 export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** A unique identifier for the conversation */
 	id: z.string().optional().describe('A unique identifier for the conversation'),
+	/** A human-readable title for the conversation */
+	title: z.string().optional().describe('A human-readable title for the conversation'),
 	/** A unique identifier for threads, an arbitrary grouping mechanism */
 	thread: z.string().optional().describe('A unique identifier for threads, an arbitrary grouping mechanism'),
 	/** Any available OpenAI model */
@@ -35,6 +38,10 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	history: z.array(z.any()).optional().describe('Initial message history to seed the conversation'),
 	/** Tools the model can call during conversation */
 	tools: z.record(z.any()).optional().describe('Tools the model can call during conversation'),
+	/** Tags for categorizing and searching this conversation */
+	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
+	/** Arbitrary metadata to attach to this conversation */
+	metadata: z.record(z.any()).optional().describe('Arbitrary metadata to attach to this conversation'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -152,6 +159,45 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
 		return this.container.client('openai') as OpenAIClient
+	}
+
+	/** Returns the conversationHistory feature for persistence. */
+	get history(): ConversationHistory {
+		return this.container.feature('conversationHistory') as ConversationHistory
+	}
+
+	/**
+	 * Persist this conversation to disk via conversationHistory.
+	 * Creates a new record if this conversation hasn't been saved before,
+	 * or updates the existing one.
+	 *
+	 * @param opts - Optional overrides for title, tags, thread, or metadata
+	 * @returns The saved conversation record
+	 */
+	async save(opts?: { title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }) {
+		const id = this.state.get('id')!
+		const existing = await this.history.load(id)
+
+		if (existing) {
+			existing.messages = this.messages
+			existing.model = this.model
+			if (opts?.title) existing.title = opts.title
+			if (opts?.tags) existing.tags = opts.tags
+			if (opts?.thread) existing.thread = opts.thread
+			if (opts?.metadata) existing.metadata = { ...existing.metadata, ...opts.metadata }
+			await this.history.save(existing)
+			return existing
+		}
+
+		return this.history.create({
+			id,
+			title: opts?.title || this.options.title || 'Untitled',
+			model: this.model,
+			messages: this.messages,
+			tags: opts?.tags || this.options.tags || [],
+			thread: opts?.thread || this.options.thread || this.state.get('thread'),
+			metadata: opts?.metadata || this.options.metadata || {},
+		})
 	}
 
 	/**

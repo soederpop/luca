@@ -73,13 +73,12 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 
 	buildTools(): Record<string, ConversationTool> {
 		const tools: Record<string, ConversationTool> = {}
-		const toJsonSchema = (this.container as any).utils.zodToJsonSchema
 
 		for (const [name, handler] of Object.entries(this.skills)) {
 			const schema = this.skillSchemas[name]
 			if (!schema) continue
 
-			const jsonSchema = toJsonSchema(schema)
+			const jsonSchema = schema.toJSONSchema() as Record<string, any>
 
 			tools[name] = {
 				handler,

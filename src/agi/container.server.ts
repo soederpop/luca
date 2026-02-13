@@ -14,6 +14,7 @@ import { Oracle } from './features/oracle'
 import { Planner } from './features/planner'
 import { Crew } from './features/crew'
 import { SkillsLibrary } from './features/skills-library'
+import { ConversationHistory } from './features/conversation-history'
 
 import type { ContentDb } from '@/node/features/content-db'
 import type { ExpressServer } from '@/servers/express'
@@ -31,6 +32,7 @@ export class AGIContainer extends NodeContainer {
 	planner?: Planner
 	crew?: Crew
 	skillsLibrary?: SkillsLibrary
+	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
 	async startAPI(options: { port?: number; staticDir?: string; endpointsDir?: string } = {}): Promise<ExpressServer> {
@@ -67,6 +69,7 @@ const container = new AGIContainer()
 	.use(Planner)
 	.use(Crew)
 	.use(SkillsLibrary)
+	.use(ConversationHistory)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')

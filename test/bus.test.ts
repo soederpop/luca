@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Bus } from '../src/bus'
 
 describe('Bus', () => {
@@ -63,5 +63,72 @@ describe('Bus', () => {
   it('emit with no listeners does not throw', () => {
     const bus = new Bus()
     expect(() => bus.emit('nope')).not.toThrow()
+  })
+
+  describe('event stats tracking', () => {
+    it('tracks fire count for events', () => {
+      const bus = new Bus()
+      bus.emit('click')
+      bus.emit('click')
+      bus.emit('click')
+      const stats = bus.getEventStats('click')
+      expect(stats.fireCount).toBe(3)
+      expect(stats.event).toBe('click')
+    })
+
+    it('tracks lastFiredAt timestamp', () => {
+      const bus = new Bus()
+      const before = Date.now()
+      bus.emit('ping')
+      const after = Date.now()
+      const stats = bus.getEventStats('ping')
+      expect(stats.lastFiredAt).toBeGreaterThanOrEqual(before)
+      expect(stats.lastFiredAt).toBeLessThanOrEqual(after)
+    })
+
+    it('returns zero stats for events that never fired', () => {
+      const bus = new Bus()
+      const stats = bus.getEventStats('ghost')
+      expect(stats.fireCount).toBe(0)
+      expect(stats.lastFiredAt).toBeNull()
+      expect(stats.firesPerMinute).toBe(0)
+    })
+
+    it('history returns stats for all fired events', () => {
+      const bus = new Bus()
+      bus.emit('a')
+      bus.emit('b')
+      bus.emit('b')
+      bus.emit('c')
+      const history = bus.history
+      expect(history).toHaveLength(3)
+      expect(history.find(s => s.event === 'a')?.fireCount).toBe(1)
+      expect(history.find(s => s.event === 'b')?.fireCount).toBe(2)
+      expect(history.find(s => s.event === 'c')?.fireCount).toBe(1)
+    })
+
+    it('firedEvents lists all event names that have been emitted', () => {
+      const bus = new Bus()
+      bus.emit('x')
+      bus.emit('y')
+      bus.emit('x')
+      expect(bus.firedEvents).toEqual(['x', 'y'])
+    })
+
+    it('tracks events even with no listeners', () => {
+      const bus = new Bus()
+      bus.emit('orphan')
+      bus.emit('orphan')
+      expect(bus.getEventStats('orphan').fireCount).toBe(2)
+    })
+
+    it('computes firesPerMinute for recent events', () => {
+      const bus = new Bus()
+      bus.emit('rapid')
+      bus.emit('rapid')
+      bus.emit('rapid')
+      const stats = bus.getEventStats('rapid')
+      expect(stats.firesPerMinute).toBe(3)
+    })
   })
 })

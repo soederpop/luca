@@ -19,8 +19,6 @@ import {
   UnsubscribeRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
-
 const ToolInputSchema = ToolSchema.shape.inputSchema;
 type ToolInput = z.infer<typeof ToolInputSchema>;
 
@@ -410,46 +408,46 @@ export const createServer = () => {
       {
         name: ToolName.ECHO,
         description: "Echoes back the input",
-        inputSchema: zodToJsonSchema(EchoSchema) as ToolInput,
+        inputSchema: EchoSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.ADD,
         description: "Adds two numbers",
-        inputSchema: zodToJsonSchema(AddSchema) as ToolInput,
+        inputSchema: AddSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.PRINT_ENV,
         description:
           "Prints all environment variables, helpful for debugging MCP server configuration",
-        inputSchema: zodToJsonSchema(PrintEnvSchema) as ToolInput,
+        inputSchema: PrintEnvSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.LONG_RUNNING_OPERATION,
         description:
           "Demonstrates a long running operation with progress updates",
-        inputSchema: zodToJsonSchema(LongRunningOperationSchema) as ToolInput,
+        inputSchema: LongRunningOperationSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.SAMPLE_LLM,
         description: "Samples from an LLM using MCP's sampling feature",
-        inputSchema: zodToJsonSchema(SampleLLMSchema) as ToolInput,
+        inputSchema: SampleLLMSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.GET_TINY_IMAGE,
         description: "Returns the MCP_TINY_IMAGE",
-        inputSchema: zodToJsonSchema(GetTinyImageSchema) as ToolInput,
+        inputSchema: GetTinyImageSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.ANNOTATED_MESSAGE,
         description:
           "Demonstrates how annotations can be used to provide metadata about content",
-        inputSchema: zodToJsonSchema(AnnotatedMessageSchema) as ToolInput,
+        inputSchema: AnnotatedMessageSchema.toJSONSchema() as ToolInput,
       },
       {
         name: ToolName.GET_RESOURCE_REFERENCE,
         description:
           "Returns a resource reference that can be used by MCP clients",
-        inputSchema: zodToJsonSchema(GetResourceReferenceSchema) as ToolInput,
+        inputSchema: GetResourceReferenceSchema.toJSONSchema() as ToolInput,
       },
     ];
 

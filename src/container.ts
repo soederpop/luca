@@ -8,7 +8,6 @@ import hashObject from './hash-object'
 import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
 import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
-import { zodToJsonSchema } from 'zod-to-json-schema'
 import { ContainerStateSchema, describeZodShape } from './schemas/base.js'
 import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection } from './introspection/index.js'
 
@@ -123,7 +122,6 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   }
   
   utils = {
-    zodToJsonSchema: (schema: z.ZodType) => zodToJsonSchema(schema),
     hashObject: (obj: any) => hashObject(obj),
     get stringUtils() { return stringUtils },
     uuid: () => v4(),
