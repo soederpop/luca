@@ -28,7 +28,7 @@ export class AGIContainer extends NodeContainer {
 	claudeCode?: ClaudeCode
 	openaiCodex?: OpenAICodex
 	planner?: Planner
-skillsLibrary?: SkillsLibrary
+	skillsLibrary?: SkillsLibrary
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
@@ -51,20 +51,6 @@ const container = new AGIContainer()
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
-})
-
-container.docs.defineModel(({ defineModel, section, toString }: any) => {
-	const { z } = container
-	const Idea = defineModel('Idea', {
-		meta: z.object({
-			stage: z.string(),
-			term: z.enum(['short', 'medium', 'long']).default('long'),
-		})
-	})
-
-	container.docs.collection.register(Idea)
-
-	return Idea
 })
 
 const { z } = container
