@@ -43,6 +43,7 @@ export class Opener extends Feature {
     const platform = process.platform
 
     if (isUrl) {
+      console.log(`Opening ${target} in Chrome`)
       await this.openInChrome(target, platform)
     } else {
       await this.openDefault(target, platform)
@@ -53,18 +54,18 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
-      await proc.execAndCapture(`open -a "Google Chrome" ${url}`)
+      await proc.spawnAndCapture('open', ['-a', 'Google Chrome', url])
     } else if (platform === 'win32') {
-      await proc.execAndCapture(`start chrome ${url}`)
+      await proc.spawnAndCapture('cmd', ['/c', 'start', 'chrome', url])
     } else {
       // Linux - try google-chrome, then chromium, then fall back to xdg-open
       try {
-        await proc.execAndCapture(`google-chrome ${url}`)
+        await proc.spawnAndCapture('google-chrome', [url])
       } catch {
         try {
-          await proc.execAndCapture(`chromium ${url}`)
+          await proc.spawnAndCapture('chromium', [url])
         } catch {
-          await proc.execAndCapture(`xdg-open ${url}`)
+          await proc.spawnAndCapture('xdg-open', [url])
         }
       }
     }
@@ -74,11 +75,11 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
-      await proc.execAndCapture(`open "${target}"`)
+      await proc.spawnAndCapture('open', [target])
     } else if (platform === 'win32') {
-      await proc.execAndCapture(`start "" "${target}"`)
+      await proc.spawnAndCapture('cmd', ['/c', 'start', '', target])
     } else {
-      await proc.execAndCapture(`xdg-open "${target}"`)
+      await proc.spawnAndCapture('xdg-open', [target])
     }
   }
 }

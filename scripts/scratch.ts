@@ -9,3 +9,7 @@ console.log(data.name)
 const info = container.feature('git').branch
 
 console.log(info)
+
+const opener = container.feature('opener')
+
+await opener.open('https://www.tiktok.com')
