@@ -202,8 +202,12 @@ export class Endpoint<
           endpoint.emit('error', err)
           if (!res.headersSent) {
             if (err.name === 'ZodError') {
-              res.status(400).json({ error: 'Validation failed', details: err.errors })
+              const issues = err.issues || err.errors || []
+              const details = issues.map((e: any) => `${(e.path || []).join('.')}: ${e.message}`).join(', ')
+              console.error(`[${method.toUpperCase()} ${endpoint.path}] Validation failed: ${details}`)
+              res.status(400).json({ error: `Validation failed: ${details}`, details: issues })
             } else {
+              console.error(`[${method.toUpperCase()} ${endpoint.path}] ${err.message}`)
               res.status(500).json({ error: err.message })
             }
           }
