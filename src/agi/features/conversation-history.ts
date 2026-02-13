@@ -1,0 +1,384 @@
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import type { Container } from '@/container'
+import { type AvailableFeatures } from '@/feature'
+import { features, Feature } from '@/feature'
+import { NodeContainer, type DiskCache, type NodeFeatures } from '@/node/container'
+import type { Message } from './conversation'
+
+declare module '@/feature' {
+	interface AvailableFeatures {
+		conversationHistory: typeof ConversationHistory
+	}
+}
+
+export interface ConversationRecord {
+	id: string
+	title: string
+	model: string
+	messages: Message[]
+	tags: string[]
+	thread: string
+	createdAt: string
+	updatedAt: string
+	messageCount: number
+	metadata: Record<string, any>
+}
+
+export type ConversationMeta = Omit<ConversationRecord, 'messages'>
+
+export interface SearchOptions {
+	tag?: string
+	tags?: string[]
+	thread?: string
+	model?: string
+	before?: string | Date
+	after?: string | Date
+	query?: string
+	limit?: number
+	offset?: number
+}
+
+export const ConversationHistoryOptionsSchema = FeatureOptionsSchema.extend({
+	cachePath: z.string().optional().describe('Custom cache directory for conversation storage'),
+	namespace: z.string().optional().describe('Namespace prefix for cache keys to isolate datasets'),
+})
+
+export const ConversationHistoryStateSchema = FeatureStateSchema.extend({
+	conversationCount: z.number().describe('Total number of stored conversations'),
+	lastSaved: z.string().optional().describe('ISO timestamp of the last save operation'),
+})
+
+export type ConversationHistoryOptions = z.infer<typeof ConversationHistoryOptionsSchema>
+export type ConversationHistoryState = z.infer<typeof ConversationHistoryStateSchema>
+
+/**
+ * Persists conversations to disk using the diskCache feature (cacache).
+ * Each conversation is stored as a JSON blob keyed by ID, with metadata
+ * stored alongside for efficient listing and search without loading full message arrays.
+ */
+export class ConversationHistory extends Feature<ConversationHistoryState, ConversationHistoryOptions> {
+	static override stateSchema = ConversationHistoryStateSchema
+	static override optionsSchema = ConversationHistoryOptionsSchema
+	static override shortcut = 'features.conversationHistory' as const
+
+	static attach(container: Container<AvailableFeatures, any>) {
+		features.register('conversationHistory', ConversationHistory)
+		return container
+	}
+
+	override get initialState(): ConversationHistoryState {
+		return {
+			...super.initialState,
+			conversationCount: 0,
+			lastSaved: undefined,
+		}
+	}
+
+	override get container() {
+		return super.container as NodeContainer<NodeFeatures, any>
+	}
+
+	get diskCache(): DiskCache {
+		const opts: Record<string, any> = {}
+		if (this.options.cachePath) {
+			opts.path = this.options.cachePath
+		}
+		return this.container.feature('diskCache', opts) as DiskCache
+	}
+
+	get namespace(): string {
+		return this.options.namespace || 'conversation-history'
+	}
+
+	private cacheKey(id: string): string {
+		return `${this.namespace}:${id}`
+	}
+
+	private metaKey(id: string): string {
+		return `${this.namespace}:meta:${id}`
+	}
+
+	private indexKey(): string {
+		return `${this.namespace}:__index__`
+	}
+
+	/**
+	 * Save a conversation. Creates or overwrites by ID.
+	 *
+	 * @param record - The full conversation record to persist
+	 */
+	async save(record: ConversationRecord): Promise<void> {
+		record.updatedAt = new Date().toISOString()
+		record.messageCount = record.messages.length
+
+		// store the full conversation (messages included)
+		await this.diskCache.set(this.cacheKey(record.id), record)
+
+		// store lightweight metadata separately for fast listing
+		const meta: ConversationMeta = { ...record }
+		delete (meta as any).messages
+		await this.diskCache.set(this.metaKey(record.id), meta)
+
+		// update the index
+		await this.addToIndex(record.id)
+
+		this.state.set('lastSaved', record.updatedAt)
+		this.emit('saved', record.id)
+	}
+
+	/**
+	 * Create a new conversation from messages, returning the saved record.
+	 */
+	async create(opts: {
+		id?: string
+		title?: string
+		model?: string
+		messages: Message[]
+		tags?: string[]
+		thread?: string
+		metadata?: Record<string, any>
+	}): Promise<ConversationRecord> {
+		const now = new Date().toISOString()
+		const record: ConversationRecord = {
+			id: opts.id || crypto.randomUUID(),
+			title: opts.title || 'Untitled',
+			model: opts.model || 'unknown',
+			messages: opts.messages,
+			tags: opts.tags || [],
+			thread: opts.thread || 'default',
+			createdAt: now,
+			updatedAt: now,
+			messageCount: opts.messages.length,
+			metadata: opts.metadata || {},
+		}
+
+		await this.save(record)
+		return record
+	}
+
+	/**
+	 * Load a full conversation by ID, including all messages.
+	 */
+	async load(id: string): Promise<ConversationRecord | null> {
+		const exists = await this.diskCache.has(this.cacheKey(id))
+		if (!exists) return null
+		return this.diskCache.get(this.cacheKey(id), true)
+	}
+
+	/**
+	 * Load just the metadata for a conversation (no messages).
+	 */
+	async getMeta(id: string): Promise<ConversationMeta | null> {
+		const exists = await this.diskCache.has(this.metaKey(id))
+		if (!exists) return null
+		return this.diskCache.get(this.metaKey(id), true)
+	}
+
+	/**
+	 * Append messages to an existing conversation.
+	 */
+	async append(id: string, messages: Message[]): Promise<ConversationRecord | null> {
+		const record = await this.load(id)
+		if (!record) return null
+
+		record.messages.push(...messages)
+		await this.save(record)
+		return record
+	}
+
+	/**
+	 * Delete a conversation by ID.
+	 */
+	async delete(id: string): Promise<boolean> {
+		const exists = await this.diskCache.has(this.cacheKey(id))
+		if (!exists) return false
+
+		await this.diskCache.rm(this.cacheKey(id))
+		await this.diskCache.rm(this.metaKey(id)).catch(() => {})
+		await this.removeFromIndex(id)
+
+		this.emit('deleted', id)
+		return true
+	}
+
+	/**
+	 * List all conversation metadata, with optional search/filter.
+	 * Loads only the lightweight meta records, never the full messages.
+	 */
+	async list(options?: SearchOptions): Promise<ConversationMeta[]> {
+		const ids = await this.getIndex()
+		const metas: ConversationMeta[] = []
+
+		for (const id of ids) {
+			const meta = await this.getMeta(id)
+			if (meta) metas.push(meta)
+		}
+
+		return this.applyFilters(metas, options)
+	}
+
+	/**
+	 * Search conversations by text query across titles, tags, and metadata.
+	 * Also supports filtering by tag, thread, model, and date range.
+	 */
+	async search(options: SearchOptions): Promise<ConversationMeta[]> {
+		return this.list(options)
+	}
+
+	/**
+	 * Get all unique tags across all conversations.
+	 */
+	async allTags(): Promise<string[]> {
+		const metas = await this.list()
+		const tags = new Set<string>()
+		for (const meta of metas) {
+			for (const tag of meta.tags) {
+				tags.add(tag)
+			}
+		}
+		return [...tags].sort()
+	}
+
+	/**
+	 * Get all unique threads across all conversations.
+	 */
+	async allThreads(): Promise<string[]> {
+		const metas = await this.list()
+		const threads = new Set<string>()
+		for (const meta of metas) {
+			threads.add(meta.thread)
+		}
+		return [...threads].sort()
+	}
+
+	/**
+	 * Tag a conversation. Adds tags without duplicates.
+	 */
+	async tag(id: string, ...tags: string[]): Promise<boolean> {
+		const record = await this.load(id)
+		if (!record) return false
+
+		const tagSet = new Set(record.tags)
+		for (const t of tags) tagSet.add(t)
+		record.tags = [...tagSet]
+
+		await this.save(record)
+		return true
+	}
+
+	/**
+	 * Remove tags from a conversation.
+	 */
+	async untag(id: string, ...tags: string[]): Promise<boolean> {
+		const record = await this.load(id)
+		if (!record) return false
+
+		const removeSet = new Set(tags)
+		record.tags = record.tags.filter(t => !removeSet.has(t))
+
+		await this.save(record)
+		return true
+	}
+
+	/**
+	 * Update metadata on a conversation without touching messages.
+	 */
+	async updateMeta(id: string, updates: Partial<Pick<ConversationRecord, 'title' | 'tags' | 'thread' | 'metadata'>>): Promise<boolean> {
+		const record = await this.load(id)
+		if (!record) return false
+
+		if (updates.title !== undefined) record.title = updates.title
+		if (updates.tags !== undefined) record.tags = updates.tags
+		if (updates.thread !== undefined) record.thread = updates.thread
+		if (updates.metadata !== undefined) record.metadata = { ...record.metadata, ...updates.metadata }
+
+		await this.save(record)
+		return true
+	}
+
+	// -- index management --
+
+	private async getIndex(): Promise<string[]> {
+		const exists = await this.diskCache.has(this.indexKey())
+		if (!exists) return []
+		return this.diskCache.get(this.indexKey(), true)
+	}
+
+	private async setIndex(ids: string[]): Promise<void> {
+		await this.diskCache.set(this.indexKey(), ids)
+		this.state.set('conversationCount', ids.length)
+	}
+
+	private async addToIndex(id: string): Promise<void> {
+		const ids = await this.getIndex()
+		if (!ids.includes(id)) {
+			ids.push(id)
+			await this.setIndex(ids)
+		}
+	}
+
+	private async removeFromIndex(id: string): Promise<void> {
+		const ids = await this.getIndex()
+		await this.setIndex(ids.filter(i => i !== id))
+	}
+
+	// -- filtering --
+
+	private applyFilters(metas: ConversationMeta[], options?: SearchOptions): ConversationMeta[] {
+		if (!options) return metas
+
+		let results = metas
+
+		if (options.tag) {
+			results = results.filter(m => m.tags.includes(options.tag!))
+		}
+
+		if (options.tags && options.tags.length) {
+			results = results.filter(m => options.tags!.every(t => m.tags.includes(t)))
+		}
+
+		if (options.thread) {
+			results = results.filter(m => m.thread === options.thread)
+		}
+
+		if (options.model) {
+			results = results.filter(m => m.model === options.model)
+		}
+
+		if (options.after) {
+			const after = new Date(options.after).getTime()
+			results = results.filter(m => new Date(m.createdAt).getTime() >= after)
+		}
+
+		if (options.before) {
+			const before = new Date(options.before).getTime()
+			results = results.filter(m => new Date(m.createdAt).getTime() <= before)
+		}
+
+		if (options.query) {
+			const q = options.query.toLowerCase()
+			results = results.filter(m =>
+				m.title.toLowerCase().includes(q) ||
+				m.tags.some(t => t.toLowerCase().includes(q)) ||
+				m.thread.toLowerCase().includes(q) ||
+				JSON.stringify(m.metadata).toLowerCase().includes(q)
+			)
+		}
+
+		// sort newest first
+		results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+		if (options.offset) {
+			results = results.slice(options.offset)
+		}
+
+		if (options.limit) {
+			results = results.slice(0, options.limit)
+		}
+
+		return results
+	}
+}
+
+export default features.register('conversationHistory', ConversationHistory)

@@ -45,6 +45,7 @@ import "./features/secure-shell";
 import "./features/tmux";
 import "./features/ink";
 import "./features/telegram";
+import "./features/opener";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -76,6 +77,7 @@ import type { SecureShell } from './features/secure-shell.ts';
 import type { Tmux } from './features/tmux.ts';
 import type { Ink } from './features/ink.ts';
 import type { Telegram } from './features/telegram.ts';
+import type { Opener } from './features/opener.ts';
 export { State };
 
 export {
@@ -101,7 +103,8 @@ export {
   type SecureShell,
   type Tmux,
   type Ink,
-  type Telegram
+  type Telegram,
+  type Opener
 };
 
 export type { FeatureOptions };
@@ -153,6 +156,7 @@ export interface NodeFeatures extends AvailableFeatures {
   tmux: typeof Tmux;
   ink: typeof Ink;
   telegram: typeof Telegram;
+  opener: typeof Opener;
   contentDb: typeof ContentDb;
 }
 
@@ -188,6 +192,7 @@ export class NodeContainer<
   tmux?: Tmux;
   ink?: Ink;
   telegram?: Telegram;
+  opener?: Opener;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

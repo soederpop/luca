@@ -21,6 +21,7 @@
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",
     "build": "mkdist --declaration --ext=js",
+    "build:web": "bun run scripts/build-web.ts",
     "introspect": "bun run scripts/update-introspection-data",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile luca",
     "typecheck": "tsc -p tsconfig.json --noEmit"
