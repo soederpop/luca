@@ -13,5 +13,4 @@ const architect = container.feature('expert', {
 })
 
 await architect.start()
-console.log('Started Architect...')
 ```

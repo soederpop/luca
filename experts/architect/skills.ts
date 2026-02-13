@@ -22,3 +22,11 @@ export async function validatePlanDocument({ content }: { content: string }) {
 export async function savePlanDocument({ content, planId }: { content: string, planId: string }) {
 
 }
+
+/** 
+ * The Architect can "Research a Question" which will consist of asking Claude code a very specific
+ * question with context.  This can be used for code review.
+*/
+export async function rearchWithCode({ question }: { question: string }) {
+
+}
