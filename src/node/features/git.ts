@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { dirname } from 'path';
+import { dirname, resolve, isAbsolute } from 'path';
 import { State } from '../../state.js';
 import { features, Feature } from '../feature.js'
 
@@ -264,6 +264,83 @@ export class Git extends Feature {
                 const [title = '', message = '', author = ''] = entry.split(fieldSep).map((s: string) => s.trim())
                 return { title, message, author }
             })
+    }
+
+    /**
+     * Gets the commit history for a set of files or glob patterns.
+     *
+     * Accepts absolute paths, relative paths (resolved from container.cwd),
+     * or glob patterns. Returns commits that touched any of the matched files,
+     * with each entry noting which of your queried files were in that commit.
+     *
+     * @param {...string} paths - File paths or glob patterns to get history for
+     * @returns {Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>}
+     *
+     * @example
+     * ```typescript
+     * const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
+     * const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
+     * ```
+     */
+    getChangeHistoryForFiles(...paths: string[]) {
+        if (!this.isRepo || !paths.length) return []
+
+        const proc = this.container.feature('proc')
+        const root = this.repoRoot!
+
+        // resolve each path relative to cwd (globs stay as-is for git, but we resolve for matching)
+        const resolved = paths.map(p =>
+            isAbsolute(p) ? p : resolve(this.container.cwd, p)
+        )
+
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+
+        const output = proc.exec(
+            `git log --pretty=format:"%H${fieldSep}%s${fieldSep}%b${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
+            { cwd: root }
+        )
+
+        if (!output.trim()) return []
+
+        const commits = output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [sha = '', message = '', longMessage = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { sha, message, longMessage }
+            })
+
+        // build matchers: Bun.Glob for patterns with wildcards, exact match otherwise
+        const matchers = resolved.map(p => {
+            const hasGlob = /[*?{}\[\]]/.test(p)
+            return {
+                original: p,
+                match: hasGlob
+                    ? (file: string) => new Bun.Glob(p).match(file)
+                    : (file: string) => file === p,
+            }
+        })
+
+        return commits.map(commit => {
+            const changedFiles = proc.exec(
+                `git diff-tree --no-commit-id --name-only -r ${commit.sha}`,
+                { cwd: root }
+            ).trim().split('\n').filter(Boolean)
+
+            const changedAbsolute = changedFiles.map(f => resolve(root, f))
+
+            const filesMatched = matchers
+                .filter(m => changedAbsolute.some(f => m.match(f)))
+                .map(m => m.original)
+
+            return {
+                sha: commit.sha,
+                message: commit.message,
+                longMessage: commit.longMessage,
+                filesMatched,
+            }
+        })
     }
 }
 
