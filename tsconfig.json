@@ -17,7 +17,7 @@
     // Path mapping for absolute imports
     "baseUrl": ".",
     "paths": {
-      "@/identities/*": ["identities/*"],
+      "@/experts/*": ["identities/*"],
       "@/*": ["src/*"],
       "@/web/*": ["src/web/*"],
       "@/node/*": ["src/node/*"]
@@ -34,5 +34,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "index.ts"],
+  "exclude": [
+    "scripts/**",
+    "playground/**",
+    "docs/**",
+    "output/**",
+    "dist/**"
+  ]
 }
