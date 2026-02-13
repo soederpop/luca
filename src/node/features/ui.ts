@@ -7,7 +7,9 @@ import type { Fonts } from "figlet";
 import inquirer from "inquirer";
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
-import endent from 'endent';
+import _endent from 'endent';
+// Handle CJS/ESM interop for bun --compile
+const endent = typeof _endent === 'function' ? _endent : (_endent as any).default;
 
 // @ts-ignore
 marked.use(markedTerminal({ }));
