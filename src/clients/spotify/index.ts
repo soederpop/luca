@@ -1,11 +1,11 @@
 import {
-  type ClientOptions,
-  type ClientState,
   type ClientsInterface,
   clients,
   RestClient,
 } from "@/client";
 import { Container, type ContainerContext } from "@/container";
+import { z } from 'zod'
+import { ClientStateSchema, ClientOptionsSchema } from '@/schemas/base.js'
 
 declare module "@/client" {
   interface AvailableClients {
@@ -13,13 +13,16 @@ declare module "@/client" {
   }
 }
 
-export interface SpotifyClientState extends ClientState {
-  accessToken?: string;
-}
+export const SpotifyClientStateSchema = ClientStateSchema.extend({
+  accessToken: z.string().optional(),
+})
 
-export interface SpotifyClientOptions extends ClientOptions {
-  accessToken?: string;
-}
+export const SpotifyClientOptionsSchema = ClientOptionsSchema.extend({
+  accessToken: z.string().optional(),
+})
+
+export type SpotifyClientState = z.infer<typeof SpotifyClientStateSchema>
+export type SpotifyClientOptions = z.infer<typeof SpotifyClientOptionsSchema>
 
 export class SpotifyClient<
   T extends SpotifyClientState = SpotifyClientState,

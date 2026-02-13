@@ -1,36 +1,21 @@
-import {  Helper } from './helper.js';
-import type { HelperOptions, HelperState } from './helper.js'
+import { Helper } from './helper.js';
 import { Registry } from './registry.js'
 import type { ContainerContext } from './container.js'
 import { kebabCase, camelCase } from 'lodash-es'
 import type { YAML } from './node/features/yaml.js';
+import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from './schemas/base.js'
 
-/** 
+/**
  * Use module augmentation to register features, the same way you would register
  * them at runtime.  This will help developers get autocomplete etc.
 */
-export interface AvailableFeatures { 
+export interface AvailableFeatures {
     yaml: typeof YAML
 }
 
-export interface FeatureOptions extends HelperOptions {
-    /** 
-     * If a feature is cached, you can only get one instance of it. 
-     * 
-     * when you say container.feature('whatever', options) with the same options
-     * then you'll get the same object back. Passing cached = false will circumvent
-     * this behavior and give you a new object every time.
-    */
-    cached?: boolean;
-
-    // Pass enable=true to automatically enable the feature 
-    enable?: boolean;
-}
-
-export interface FeatureState extends HelperState { 
-    enabled: boolean;
-}
+export type FeatureOptions = z.infer<typeof FeatureOptionsSchema>
+export type FeatureState = z.infer<typeof FeatureStateSchema>
 
 export abstract class Feature<T extends FeatureState = FeatureState, K extends FeatureOptions = FeatureOptions> extends Helper<T, K> {
     static override stateSchema = FeatureStateSchema

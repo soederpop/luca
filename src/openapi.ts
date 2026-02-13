@@ -1,30 +1,21 @@
 import { Feature, features } from './feature.js'
-import type { FeatureOptions, FeatureState } from './feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from './schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'
 
-export interface OpenAPIOptions extends FeatureOptions {
-  url: string
-}
-
-export interface OpenAPIState extends FeatureState {
-  loaded: boolean
-  title: string
-  version: string
-  endpointCount: number
-}
-
-const OpenAPIStateSchema = FeatureStateSchema.extend({
+export const OpenAPIStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false),
   title: z.string().default(''),
   version: z.string().default(''),
   endpointCount: z.number().default(0),
 })
 
-const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
+export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
   url: z.string().url(),
 })
+
+export type OpenAPIOptions = z.infer<typeof OpenAPIOptionsSchema>
+export type OpenAPIState = z.infer<typeof OpenAPIStateSchema>
 
 export interface EndpointInfo {
   /** Human-friendly camelCase name derived from operationId */

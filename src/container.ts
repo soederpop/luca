@@ -32,12 +32,7 @@ export interface ContainerArgv {
   _?: string[]
 }
 
-export interface ContainerState {
-  started: boolean;
-  enabledFeatures: string[];
-  registries: string[];
-  factories: string[];
-}
+export type ContainerState = z.infer<typeof ContainerStateSchema>
 
 export interface Plugin<T> {
   attach?: (container: Container<any> & T, options?: any) => any 

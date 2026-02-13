@@ -1,5 +1,7 @@
-import { Client, type ClientState, type ClientsInterface, RestClient } from '@/client'
+import { Client, type ClientsInterface, RestClient } from '@/client'
 import { Container } from '@/container'
+import { z } from 'zod'
+import { ClientStateSchema } from '@/schemas/base.js'
 
 declare module '@/client' {
   interface AvailableClients {
@@ -68,9 +70,11 @@ export type Img2ImgOptions = Omit<TextToImageOptions, 'restoreFaces'> & {
 
 export type Img2ImgResponse = TextToImageResponse
 
-export interface SDWebUIClientState extends ClientState {
-  checkpoints: string[]
-}
+export const SDWebUIClientStateSchema = ClientStateSchema.extend({
+  checkpoints: z.array(z.string()).default([]),
+})
+
+export type SDWebUIClientState = z.infer<typeof SDWebUIClientStateSchema>
 
 export class SDWebUIClient<T extends SDWebUIClientState> extends RestClient<T> {
 

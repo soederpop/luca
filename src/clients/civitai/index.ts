@@ -1,13 +1,14 @@
 import {
   Client,
   type ClientOptions,
-  type ClientState,
   type ClientsInterface,
   RestClient,
 } from "@/client";
 import { Container, type ContainerContext } from "@/container";
 import { isEmpty, maxBy, omitBy } from "lodash-es";
 import { NodeContainer } from "@/node/container";
+import { z } from 'zod'
+import { ClientStateSchema } from '@/schemas/base.js'
 
 declare module "@/client" {
   interface AvailableClients {
@@ -15,9 +16,11 @@ declare module "@/client" {
   }
 }
 
-export interface CivitaiClientState extends ClientState {
-  checkpoints: string[];
-}
+export const CivitaiClientStateSchema = ClientStateSchema.extend({
+  checkpoints: z.array(z.string()).default([]),
+})
+
+export type CivitaiClientState = z.infer<typeof CivitaiClientStateSchema>
 
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   // @ts-ignore

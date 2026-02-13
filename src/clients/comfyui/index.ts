@@ -1,11 +1,11 @@
 import {
-  type ClientOptions,
-  type ClientState,
   type ClientsInterface,
   clients,
   RestClient,
 } from "@/client";
 import type { Container, ContainerContext } from "@/container";
+import { z } from 'zod'
+import { ClientStateSchema, ClientOptionsSchema } from '@/schemas/base.js'
 
 declare module "@/client" {
   interface AvailableClients {
@@ -13,16 +13,19 @@ declare module "@/client" {
   }
 }
 
-export interface ComfyUIClientState extends ClientState {
-  clientId: string;
-  queueRemaining: number;
-  executing: string | null;
-}
+export const ComfyUIClientStateSchema = ClientStateSchema.extend({
+  clientId: z.string().default(''),
+  queueRemaining: z.number().default(0),
+  executing: z.string().nullable().default(null),
+})
 
-export interface ComfyUIClientOptions extends ClientOptions {
+export const ComfyUIClientOptionsSchema = ClientOptionsSchema.extend({
   /** Override the WebSocket URL (defaults to ws version of baseURL) */
-  wsURL?: string;
-}
+  wsURL: z.string().optional(),
+})
+
+export type ComfyUIClientState = z.infer<typeof ComfyUIClientStateSchema>
+export type ComfyUIClientOptions = z.infer<typeof ComfyUIClientOptionsSchema>
 
 /** Maps a semantic input name to a specific node ID and field */
 export type InputMapping = Record<string, { nodeId: string; field: string }>;

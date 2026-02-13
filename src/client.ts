@@ -1,21 +1,16 @@
-import { Helper, type HelperOptions, type HelperState } from "./helper.js";
+import { Helper } from "./helper.js";
 import type { Container, ContainerContext } from "./container.js";
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Registry } from "./registry.js";
+import { z } from 'zod'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from './schemas/base.js'
 
-export interface ClientOptions extends HelperOptions {
-  baseURL?: string;
-  json?: boolean;
-}
+export type ClientOptions = z.infer<typeof ClientOptionsSchema>
+export type ClientState = z.infer<typeof ClientStateSchema>
 
 export interface AvailableClients {
   rest: typeof RestClient;
   graph: typeof GraphClient;
-}
-
-export interface ClientState extends HelperState {
-  connected: boolean;
 }
 
 export interface ClientsInterface {

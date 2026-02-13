@@ -33,15 +33,24 @@ Features are pluggable functionality modules that can be enabled/disabled.
 
 **Feature Implementation Pattern:**
 ```typescript
-export interface MyFeatureState extends FeatureState {
-  customProperty: string;
-}
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
-export interface MyFeatureOptions extends FeatureOptions {
-  apiKey?: string;
-}
+export const MyFeatureStateSchema = FeatureStateSchema.extend({
+  customProperty: z.string().default('default'),
+})
+
+export const MyFeatureOptionsSchema = FeatureOptionsSchema.extend({
+  apiKey: z.string().optional(),
+})
+
+export type MyFeatureState = z.infer<typeof MyFeatureStateSchema>
+export type MyFeatureOptions = z.infer<typeof MyFeatureOptionsSchema>
 
 export class MyFeature extends Feature<MyFeatureState, MyFeatureOptions> {
+  static override stateSchema = MyFeatureStateSchema
+  static override optionsSchema = MyFeatureOptionsSchema
+
   get initialState(): MyFeatureState {
     return {
       ...super.initialState,
@@ -80,15 +89,24 @@ Clients handle external communication (REST, GraphQL, WebSocket, etc.).
 
 **Client Implementation Pattern:**
 ```typescript
-export interface MyClientState extends ClientState {
-  connectionCount: number;
-}
+import { z } from 'zod'
+import { ClientStateSchema, ClientOptionsSchema } from '@/schemas/base.js'
 
-export interface MyClientOptions extends ClientOptions {
-  apiVersion?: string;
-}
+export const MyClientStateSchema = ClientStateSchema.extend({
+  connectionCount: z.number().default(0),
+})
+
+export const MyClientOptionsSchema = ClientOptionsSchema.extend({
+  apiVersion: z.string().optional(),
+})
+
+export type MyClientState = z.infer<typeof MyClientStateSchema>
+export type MyClientOptions = z.infer<typeof MyClientOptionsSchema>
 
 export class MyClient extends Client<MyClientState, MyClientOptions> {
+  static override stateSchema = MyClientStateSchema
+  static override optionsSchema = MyClientOptionsSchema
+
   static override attach(container: Container & ClientsInterface): any {
     return container // Return container to maintain chain
   }
@@ -132,15 +150,24 @@ Servers handle incoming connections and requests.
 
 **Server Implementation Pattern:**
 ```typescript
-export interface MyServerState extends ServerState {
-  activeConnections: number;
-}
+import { z } from 'zod'
+import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
 
-export interface MyServerOptions extends ServerOptions {
-  maxConnections?: number;
-}
+export const MyServerStateSchema = ServerStateSchema.extend({
+  activeConnections: z.number().default(0),
+})
+
+export const MyServerOptionsSchema = ServerOptionsSchema.extend({
+  maxConnections: z.number().optional(),
+})
+
+export type MyServerState = z.infer<typeof MyServerStateSchema>
+export type MyServerOptions = z.infer<typeof MyServerOptionsSchema>
 
 export class MyServer extends Server<MyServerState, MyServerOptions> {
+  static override stateSchema = MyServerStateSchema
+  static override optionsSchema = MyServerOptionsSchema
+
   static attach(container: NodeContainer & ServersInterface) {
     // Attach to container if needed
     return container

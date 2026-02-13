@@ -7,6 +7,34 @@ Lightweight Universal Conversational Architecture. Runtime is bun.
 - I'd much prefer: aight, i got you my g. let me cook. to... alright I have a full picture now, let me get started or some corporate dork.
 - That's about it.  Just talk to me like somebody i'd want to spend time with and talk to not a dork I have to sit next to in an open office setup I don't wanna be at.
 
+## Core Requirements
+
+- Luca's type system is such that it allows the following snippet
+
+```ts
+const whatever = container.feature('whatever', options)
+```
+
+to provide auto-complete through typescript.  'whatever' is suggested by typescript, and the keys and documentation for options are known at typescript.  It does this through module augmentation and some basic type magic.
+
+In addition, the events are typed
+
+```ts
+whatever.on("eventName", (someArg) => { })
+```
+
+as well as the internal state system, the allowed keys and their types
+
+```ts
+whatever.setState({
+	key: "value"
+})
+```
+
+This is due to the way the Helper and Registry functions and types work.  It is very important we don't break this.
+
+In addition to this, the options, state schemas, etc, need to be built on top of Zod schemas so we get access to them at runtime as well.
+
 ## Important Tips
 
 - Read docs/codebase-explainer.md if you need a quick summary of the codebase.  For speed's sake I'd rather you do this than glob my entire tree and call dozens of tools to read it.  I will promise to keep it up to date if things change.

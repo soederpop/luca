@@ -1,5 +1,7 @@
 import Websocket from 'isomorphic-ws'
-import { Client, clients, type ClientState, type ClientOptions } from '../../client'
+import { Client, clients } from '../../client'
+import { z } from 'zod'
+import { ClientStateSchema, ClientOptionsSchema } from '../../schemas/base.js'
 
 declare module '../../client' {
   interface AvailableClients {
@@ -7,13 +9,16 @@ declare module '../../client' {
   }
 }
 
-export interface SocketState extends ClientState {
-  connectionError?: any
-}
+export const SocketStateSchema = ClientStateSchema.extend({
+  connectionError: z.any().optional(),
+})
 
-export interface SocketOptions extends ClientOptions {
-  reconnect?: boolean
-}
+export const SocketOptionsSchema = ClientOptionsSchema.extend({
+  reconnect: z.boolean().optional(),
+})
+
+export type SocketState = z.infer<typeof SocketStateSchema>
+export type SocketOptions = z.infer<typeof SocketOptionsSchema>
 
 export class SocketClient<T extends SocketState = SocketState, K extends SocketOptions = SocketOptions> extends Client<T,K> {
   ws?: Websocket

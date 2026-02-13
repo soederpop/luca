@@ -1,4 +1,4 @@
-import { Helper, type HelperOptions, type HelperState } from './helper.js'
+import { Helper } from './helper.js'
 import type { Container, ContainerContext } from './container.js'
 import { Registry } from './registry.js'
 import { z } from 'zod'
@@ -6,17 +6,8 @@ import { EndpointStateSchema, EndpointOptionsSchema, EndpointEventsSchema } from
 
 export interface AvailableEndpoints {}
 
-export interface EndpointState extends HelperState {
-  mounted: boolean
-  path: string
-  methods: string[]
-  requestCount: number
-}
-
-export interface EndpointOptions extends HelperOptions {
-  path: string
-  filePath?: string
-}
+export type EndpointState = z.infer<typeof EndpointStateSchema>
+export type EndpointOptions = z.infer<typeof EndpointOptionsSchema>
 
 export type EndpointHandler = (
   parameters: Record<string, any>,

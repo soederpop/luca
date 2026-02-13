@@ -1,19 +1,12 @@
 import { Helper } from './helper.js'
-import type { HelperOptions, HelperState } from './helper.js'
 import type { Container, ContainerContext } from './container.js'
 import { Registry } from './registry.js'
 import { CommandStateSchema, CommandOptionsSchema, CommandEventsSchema } from './schemas/base.js'
 import { z } from 'zod'
 import { join } from 'path'
 
-export interface CommandState extends HelperState {
-	running: boolean
-	exitCode?: number
-}
-
-export interface CommandOptions extends HelperOptions {
-	_?: string[]
-}
+export type CommandState = z.infer<typeof CommandStateSchema>
+export type CommandOptions = z.infer<typeof CommandOptionsSchema>
 
 export interface AvailableCommands {}
 

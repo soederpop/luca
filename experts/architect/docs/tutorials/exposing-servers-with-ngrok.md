@@ -28,10 +28,12 @@ declare module '@/server/index' {
   }
 }
 
-export interface DemoApiState extends ServerState {
-  requestCount: number
-  publicUrl?: string
-}
+export const DemoApiStateSchema = ServerStateSchema.extend({
+  requestCount: z.number().default(0),
+  publicUrl: z.string().optional(),
+})
+
+export type DemoApiState = z.infer<typeof DemoApiStateSchema>
 
 export class DemoApiServer extends ExpressServer<DemoApiState, ExpressServerOptions> {
   static override shortcut = 'servers.demoApi' as const
