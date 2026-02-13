@@ -12,7 +12,6 @@ import { Conversation } from './features/conversation'
 import { Expert } from './features/expert'
 import { Oracle } from './features/oracle'
 import { Planner } from './features/planner'
-import { Crew } from './features/crew'
 import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 
@@ -30,8 +29,7 @@ export class AGIContainer extends NodeContainer {
 	claudeCode?: ClaudeCode
 	openaiCodex?: OpenAICodex
 	planner?: Planner
-	crew?: Crew
-	skillsLibrary?: SkillsLibrary
+skillsLibrary?: SkillsLibrary
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
@@ -67,7 +65,6 @@ const container = new AGIContainer()
 	.use(Expert)
 	.use(Oracle)
 	.use(Planner)
-	.use(Crew)
 	.use(SkillsLibrary)
 	.use(ConversationHistory)
 

@@ -69,6 +69,10 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		return super.container as AGIContainer
 	}
 
+	/** 
+	 * Every expert has a content database in its home folder that can be searched and queried
+	 * by the expert to return documents that are relevant to the expert's tasks.
+	*/	
 	get content() : ContentDb {
 		return this.container.feature('contentDb', {
 			rootPath: this.container.paths.resolve('experts', this.options.folder!, 'docs')
