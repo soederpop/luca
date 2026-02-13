@@ -58,7 +58,7 @@ export class WebContainer<Features extends WebFeatures = WebFeatures, K extends 
     return RestClient
   }
 
-  override useHelpers: any[] = [WebContainerExtensions]
+  useHelpers: any[] = [WebContainerExtensions]
 
   constructor(options: any = {}) {
     super(options)

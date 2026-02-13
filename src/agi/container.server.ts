@@ -16,7 +16,6 @@ import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 
 import type { ContentDb } from '@/node/features/content-db'
-import type { ExpressServer } from '@/servers/express'
 
 /**
  * AGI-specific container that extends NodeContainer with AI capabilities including
@@ -33,24 +32,6 @@ skillsLibrary?: SkillsLibrary
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
-	async startAPI(options: { port?: number; staticDir?: string; endpointsDir?: string } = {}): Promise<ExpressServer> {
-		const expressServer = this.server('express', {
-			port: options.port || 3000,
-			cors: true,
-			static: options.staticDir || this.paths.resolve('public'),
-		}) as ExpressServer
-
-		const endpointsDir = options.endpointsDir || this.paths.resolve('src/agi/endpoints')
-		await expressServer.useEndpoints(endpointsDir)
-		expressServer.serveOpenAPISpec({
-			title: 'Luca AGI API',
-			version: '1.0.0',
-			description: 'AGI container endpoints',
-		})
-		await expressServer.start({ port: options.port || 3000 })
-
-		return expressServer
-	}
 }
 
 const container = new AGIContainer()
