@@ -5,6 +5,8 @@ import { type AvailableFeatures } from '@/feature'
 import { features, Feature } from '@/feature'
 import type { Identity } from './identity'
 import type { Conversation, ConversationTool } from './conversation'
+import type { AGIContainer } from '../container.server.js';
+import type { ContentDb } from '@/node/features/content-db.js';
 
 declare module '@/feature' {
 	interface AvailableFeatures {
@@ -61,6 +63,16 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 			name: '',
 			folder: ''
 		}
+	}
+
+	override get container() : AGIContainer {
+		return super.container as AGIContainer
+	}
+
+	get content() : ContentDb {
+		return this.container.feature('contentDb', {
+			rootPath: this.container.paths.resolve('experts', this.options.folder!, 'docs')
+		})
 	}
 
 	/** Returns the Identity feature instance loaded from this expert's folder. */
