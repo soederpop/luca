@@ -9,7 +9,6 @@ import { Snippets } from './features/snippets'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
-import { Expert } from './features/expert'
 import { Oracle } from './features/oracle'
 import { Planner } from './features/planner'
 import { SkillsLibrary } from './features/skills-library'
@@ -43,7 +42,6 @@ const container = new AGIContainer()
 	.use(ClaudeCode)
 	.use(OpenAICodex)
 	.use(Conversation)
-	.use(Expert)
 	.use(Oracle)
 	.use(Planner)
 	.use(SkillsLibrary)

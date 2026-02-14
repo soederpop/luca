@@ -70,76 +70,14 @@ async function runScript(scriptPath: string, context: ContainerContext) {
 
 	if (exitCode === 0) return
 
-	console.log(`\nScript failed with exit code ${exitCode}. Asking codebase expert to diagnose...\n`)
-
-	const expert = container.feature('expert', {
-		folder: 'codebase',
-		name: 'luca-codebase-expert',
-	})
-
-	await expert.start()
-
-	expert.conversation!.on('preview', (chunk: string) => {
-		console.clear()
-		console.log(container.ui.markdown(chunk))
-	})
-
-	expert.conversation!.on('toolCall', (name: string) => {
-		console.log(container.ui.markdown(`\n> **Running skill:** \`${name}\`\n`))
-	})
-
-	const prompt = [
-		`I ran the script \`${scriptPath}\` and it failed with exit code ${exitCode}.`,
-		'',
-		'Here is the error / stack trace (last 100 lines):',
-		'```',
-		stderr.join('\n'),
-		'```',
-		'',
-		'Explain what likely caused this error and how to fix it.',
-	].join('\n')
-
-	const result = await expert.ask(prompt)
-	console.clear()
-	console.log(container.ui.markdown(result))
+	console.error(`\nScript failed with exit code ${exitCode}.\n`)
+	if (stderr.length) {
+		console.error(stderr.join('\n'))
+	}
 }
 
-async function diagnoseError(scriptPath: string, error: Error, context: ContainerContext) {
-	const container = context.container as any
-
+async function diagnoseError(_scriptPath: string, error: Error, _context: ContainerContext) {
 	console.error(`\n${error.stack || error.message}\n`)
-	console.log(`Asking codebase expert to diagnose...\n`)
-
-	const expert = container.feature('expert', {
-		folder: 'codebase',
-		name: 'luca-codebase-expert',
-	})
-
-	await expert.start()
-
-	expert.conversation!.on('preview', (chunk: string) => {
-		console.clear()
-		console.log(container.ui.markdown(chunk))
-	})
-
-	expert.conversation!.on('toolCall', (name: string) => {
-		console.log(container.ui.markdown(`\n> **Running skill:** \`${name}\`\n`))
-	})
-
-	const prompt = [
-		`I ran the script \`${scriptPath}\` and it threw an error.`,
-		'',
-		'Here is the error / stack trace:',
-		'```',
-		error.stack || error.message,
-		'```',
-		'',
-		'Explain what likely caused this error and how to fix it.',
-	].join('\n')
-
-	const result = await expert.ask(prompt)
-	console.clear()
-	console.log(container.ui.markdown(result))
 }
 
 export default async function run(options: z.infer<typeof argsSchema>, context: ContainerContext) {
