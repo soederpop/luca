@@ -462,6 +462,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return presentContainerIntrospectionAsMarkdown(data, startHeadingDepth)
   }
 
+  /** Make a property non-enumerable, which is nice for inspecting it in the REPL */
   _hide(...propNames: string[]) {
     propNames.map((propName) => {
       Object.defineProperty(this, propName, { enumerable: false })

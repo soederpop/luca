@@ -91,11 +91,56 @@ export class Expert extends Feature<ExpertState, ExpertOptions> {
 		})
 	}
 
+	get coreSkillSchemas() : Record<string, z.ZodType> {
+		return {
+			listDocs: z.object({
+				docs: z.array(z.string()).describe('The list of documents to read'),
+			}).describe('List the documents'),
+			readDocsOutlines: z.object({
+				docs: z.array(z.string()).describe('The list of documents to read'),
+			}).describe('Read the outlines of the documents'),
+			readDocs: z.object({
+				docs: z.array(z.string()).describe('The list of documents to read'),
+			}).describe('Read the documents'),
+			writeDoc: z.object({
+				doc: z.string().describe('The document to write'),
+				content: z.string().describe('The content to write to the document'),
+			}).describe('Write a document'),
+		}
+	}
+
+	get coreSkills() : Record<string, (...args: any[]) => Promise<any>> {
+		return {
+			async listDocs() {
+				return []
+			},
+			async readDocsOutlines() {
+				return []
+			},
+			async readDocs() {
+				return []
+			},
+			async writeDoc() {
+				return []
+			}
+		}
+	}
+
 	buildTools(): Record<string, ConversationTool> {
 		const tools: Record<string, ConversationTool> = {}
 
-		for (const [name, handler] of Object.entries(this.skills)) {
-			const schema = this.skillSchemas[name]
+		const combinedTools = {
+			...this.skills,
+			...this.coreSkills,
+		}
+
+		const combinedSchemas = {
+			...this.skillSchemas,
+			...this.coreSkillSchemas,
+		}
+
+		for (const [name, handler] of Object.entries(combinedTools)) {
+			const schema = combinedSchemas[name]
 			if (!schema) continue
 
 			const jsonSchema = schema.toJSONSchema() as Record<string, any>
