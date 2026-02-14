@@ -1,10 +1,10 @@
 import type { NodeContainer } from '../node/container.js'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
-import { type StartOptions, servers, Server, type ServersInterface, type ServerState } from '../server/server';
+import { type StartOptions, servers, Server, type ServersInterface, type ServerState } from '../server.js';
 import { WebSocketServer as BaseServer } from 'ws'
 
-declare module '../server/index' {
+declare module '../server' {
   interface AvailableServers {
     websocket: typeof WebsocketServer
   }

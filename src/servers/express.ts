@@ -4,10 +4,10 @@ import type { Express } from 'express'
 import cors from 'cors'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server/server.js'
+import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server.js'
 import { Endpoint, type EndpointModule } from '../endpoint.js'
 
-declare module '../server/index' {
+declare module '../server' {
   interface AvailableServers {
     express: typeof ExpressServer
   }
