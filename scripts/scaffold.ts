@@ -151,9 +151,9 @@ function generateServer(name: string, description: string): string {
     import { z } from 'zod'
     import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
     import type { NodeContainer } from '../node/container.js'
-    import { servers, Server, type ServersInterface, type ServerState, type StartOptions } from '../server/server.js'
+    import { servers, Server, type ServersInterface, type ServerState, type StartOptions } from '../server.js'
 
-    declare module '../server/index' {
+    declare module '../server' {
       interface AvailableServers {
         ${registryKey}: typeof ${className}
       }
@@ -353,12 +353,11 @@ async function main() {
     ui.print.yellow('Next steps for your new Server:')
     console.log()
     console.log(ui.endent`
-      1. Import the server in src/server/index.ts:
-         ${ui.colors.cyan(`import '../servers/${kebab}'`)}
+      1. Import and register the server in src/server.ts:
+         ${ui.colors.cyan(`import { ${className} } from './servers/${kebab}.js'`)}
+         ${ui.colors.cyan(`servers.register('${toCamelCase(name)}', ${className})`)}
 
-      2. Add to the AvailableServers re-exports if needed.
-
-      3. Use it:
+      2. Use it:
          ${ui.colors.cyan(`const server = container.server('${toCamelCase(name)}', { port: 3000 })`)}
          ${ui.colors.cyan(`await server.configure()`)}
          ${ui.colors.cyan(`await server.start()`)}

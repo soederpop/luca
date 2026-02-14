@@ -1,9 +1,8 @@
-import type { NodeContainer } from '../node/container.js'
-import { Helper } from '../helper.js'
-import { Registry } from '../registry.js'
-import type { AvailableServers } from './index.js'
+import type { NodeContainer } from './node/container.js'
+import { Helper } from './helper.js'
+import { Registry } from './registry.js'
 import { z } from 'zod'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from './schemas/base.js'
 
 export type ServerState = z.infer<typeof ServerStateSchema>
 export type ServerOptions = z.infer<typeof ServerOptionsSchema>
@@ -14,24 +13,16 @@ export type StartOptions = {
 }
 
 export type ServerFactory = <T extends keyof AvailableServers>(
-      key: T, 
+      key: T,
       options?: ConstructorParameters<AvailableServers[T]>[0]
 ) => NonNullable<InstanceType<AvailableServers[T]>>
 
 export interface ServersInterface {
   servers: ServersRegistry;
-  server: ServerFactory 
+  server: ServerFactory
 }
 
-const makeFactory = (container: NodeContainer & ServersInterface) : ServerFactory => {
-  const factory : ServerFactory = <T extends keyof AvailableServers>(key: T, options?: ConstructorParameters<AvailableServers[T]>[0]) => {
-    const Server = container.servers.lookup(key)
-    const server = new Server(options!, container.context)
-    return server as NonNullable<InstanceType<AvailableServers[T]>>
-  }
-  
-  return factory
-}
+export interface AvailableServers {}
 
 export class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
     static override stateSchema = ServerStateSchema
@@ -46,7 +37,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
         stopped: false
       } as unknown) as T
     }
-    
+
     override get options() : K {
       return {
         port: 3000,
@@ -97,27 +88,27 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
     get isListening() {
       return !!this.state.get('listening')
     }
-    
+
     get isConfigured() {
       return !!this.state.get('configured')
     }
-    
+
     get isStopped() {
       return !!this.state.get('stopped')
     }
 
     get port() {
-      return this.state.get('port') || this.options.port || 3000 
+      return this.state.get('port') || this.options.port || 3000
     }
-    
+
     async stop() {
       if(this.isStopped) {
         return this
       }
-      
+
       this.state.set('stopped', true)
-      
-      return this  
+
+      return this
     }
 
     async start(options?: StartOptions) {
@@ -126,15 +117,15 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       }
 
       this.state.set('listening', true)
-      
+
       return this
     }
-    
+
     async configure() {
       const port = await this.container.networking.findOpenPort(this.port)
-      
+
       if(port !== this.port) {
-        this.state.set('port', port)  
+        this.state.set('port', port)
       }
 
       this.state.set('configured', true)
@@ -143,7 +134,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
     }
 }
 
-export class ServersRegistry extends Registry<Server<any>> { 
+export class ServersRegistry extends Registry<Server<any>> {
   override scope = "servers"
   override baseClass = Server
 }
