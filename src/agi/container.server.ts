@@ -15,6 +15,22 @@ import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 
 import type { ContentDb } from '@/node/features/content-db'
+import type { ConversationTool } from './features/conversation'
+import type { z } from 'zod'
+
+export interface ConversationFactoryOptions {
+	tools?: {
+		handlers: Record<string, ConversationTool['handler']>
+		schemas: Record<string, z.ZodType>
+	}
+	systemPrompt?: string
+	model?: string
+	id?: string
+	title?: string
+	thread?: string
+	tags?: string[]
+	metadata?: Record<string, any>
+}
 
 /**
  * AGI-specific container that extends NodeContainer with AI capabilities including
@@ -31,6 +47,35 @@ export class AGIContainer extends NodeContainer {
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
+	async conversation(options: ConversationFactoryOptions = {}) {
+		const tools: Record<string, ConversationTool> = {}
+
+		if (options.tools) {
+			for (const [name, schema] of Object.entries(options.tools.schemas)) {
+				const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
+				tools[name] = {
+					handler: options.tools.handlers[name]!,
+					description: jsonSchema.description || name,
+					parameters: jsonSchema,
+				}
+			}
+		}
+
+		const history = options.systemPrompt
+			? [{ role: 'system' as const, content: options.systemPrompt }]
+			: undefined
+
+		return this.feature('conversation', {
+			tools,
+			history,
+			model: options.model,
+			id: options.id,
+			title: options.title,
+			thread: options.thread,
+			tags: options.tags,
+			metadata: options.metadata,
+		})
+	}
 }
 
 const container = new AGIContainer()
