@@ -63,7 +63,8 @@
       "Bash(/Users/jon/@luca/dist/luca console:*)",
       "Bash(pkill:*)",
       "Bash(git -C /Users/jon/@luca stash:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)"
     ]
   }
 }

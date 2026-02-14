@@ -59,9 +59,9 @@ src/
       isomorphic-vm.ts  # Browser shim for node:vm (uses Function constructor)
   agi/
     index.ts            # Re-exports container.server
-    container.server.ts # AGIContainer extends NodeContainer (adds OpenAI, Identity, chat features)
+    container.server.ts # AGIContainer extends NodeContainer (adds OpenAI, conversation, code gen features)
     openai-client.ts    # OpenAIClient extends Client (wraps openai npm package)
-    features/           # 7 AGI features (see table below)
+    features/           # AGI features (see table below)
   server/
     index.ts            # Server registry barrel (registers express, websocket)
     server.ts           # Server class extends Helper + ServersRegistry
@@ -264,18 +264,14 @@ Extends Helper. Adds:
 
 | Shortcut | Class | File | Key Methods |
 |----------|-------|------|-------------|
-| `features.identity` | Identity | identity.ts | load, generatePrompt, remember, forget, recall, buildMemoryText |
-| `features.helperChat` | HelperChat | helper-chat.ts | start, ask (chat with a single helper via OpenAI) |
-| `features.containerChat` | ContainerChat | container-chat.ts | start, ask, generateSnippet, buildFeatureDocumentation |
 | `features.snippets` | Snippets | snippets.ts | addSnippet, getSnippet, updateSnippet, removeSnippet, searchSnippets |
 | `features.claudeCode` | ClaudeCode | claude-code.ts | run, start (background), abort, getSession, waitForSession, checkAvailability |
 | `features.conversation` | Conversation | conversation.ts | ask (streaming + tool calling loop), messages, model, isStreaming |
-| `features.expert` | Expert | expert.ts | start, ask, loadSkills, identity (creates Identity per expert) |
 
 **AGI Client:** OpenAIClient (`clients.openai`) in `src/agi/openai-client.ts`
 Methods: `createChatCompletion`, `createCompletion`, `createEmbedding`, `createImage`, `listModels`, `ask`, `chat`, `raw` (raw OpenAI SDK)
 
-**AGIContainer** (`src/agi/container.server.ts`): extends NodeContainer, `.use()`s OpenAIClient, Identity, HelperChat, ContainerChat, Snippets, ClaudeCode, Conversation.
+**AGIContainer** (`src/agi/container.server.ts`): extends NodeContainer, `.use()`s OpenAIClient, Snippets, ClaudeCode, Conversation.
 
 ---
 
