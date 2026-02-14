@@ -2,219 +2,160 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import vm from 'vm'
+import readline from 'readline'
+import fs from 'fs'
 
-/**
- * Starts a Node.js REPL server with the provided options.
- *
- * @param options - Configuration options for the REPL server
- * @returns Promise resolving to the started REPL server instance
- */
-async function start(options: any) {
-  const repl = await import('node:repl')
-  return repl.start(options)
-}
-
-/**
- * Zod schema for the Repl feature state.
- * Tracks whether the REPL server has been started.
- */
 export const ReplStateSchema = FeatureStateSchema.extend({
-  /** Whether the REPL server has been started */
   started: z.boolean().optional().describe('Whether the REPL server has been started'),
 })
 export type ReplState = z.infer<typeof ReplStateSchema>
 
-/**
- * Zod schema for the Repl feature options.
- */
 export const ReplOptionsSchema = FeatureOptionsSchema.extend({
-  /** The prompt string to display in the REPL (default: "> ") */
   prompt: z.string().optional().describe('The prompt string to display in the REPL (default: "> ")'),
-  /** Path to the REPL history file for command persistence */
   historyPath: z.string().optional().describe('Path to the REPL history file for command persistence'),
 })
 export type ReplOptions = z.infer<typeof ReplOptionsSchema>
 
-/**
- * Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server
- * 
- * This feature provides a fully-featured REPL server with support for:
- * - Custom evaluation context with container access
- * - Persistent command history
- * - Promise-aware evaluation (async/await support)
- * - Customizable prompts and settings
- * - Integration with the container's context and features
- * 
- * The REPL runs in a sandboxed VM context but provides access to the container
- * and all its features, making it perfect for interactive debugging and exploration.
- * 
- * **Key Features:**
- * - VM-based evaluation for security
- * - Automatic promise resolution in REPL output
- * - Persistent history across sessions
- * - Full container context access
- * - Colored terminal output support
- * 
- * **Usage Example:**
- * ```typescript
- * const repl = container.feature('repl');
- * await repl.start({
- *   historyPath: '.repl_history',
- *   context: { customVar: 'value' }
- * });
- * // REPL is now running and accessible
- * ```
- * 
- * @template T - The state type, defaults to ReplState
- * @template K - The options type, defaults to ReplOptions
- * @extends {Feature<T, K>}
- */
 export class Repl<
   T extends ReplState = ReplState,
   K extends ReplOptions = ReplOptions
 > extends Feature<T, K> {
-  /** The shortcut path for accessing this feature */
   static override shortcut = "features.repl" as const
   static override stateSchema = ReplStateSchema
   static override optionsSchema = ReplOptionsSchema
 
-  /**
-   * Checks if the REPL server has been started.
-   * 
-   * @returns True if the REPL server is currently running
-   */
   get isStarted() {
     return !!this.state.get("started");
   }
 
-  /** The internal REPL server instance */
-  _server?: ReturnType<typeof start> 
+  _rl?: readline.Interface
+  _vmContext?: vm.Context
+  _history: string[] = []
+  _historyPath?: string
 
-  /**
-   * Creates and configures a new REPL server instance.
-   * 
-   * This method sets up the REPL with custom evaluation logic that:
-   * - Runs code in a VM context for isolation
-   * - Automatically handles Promise resolution
-   * - Provides colored terminal output
-   * - Uses the configured prompt
-   * 
-   * The REPL evaluation supports both synchronous and asynchronous code execution,
-   * automatically detecting and awaiting Promises in the result.
-   * 
-   * @returns Promise resolving to the configured REPL server
-   * 
-   * @example
-   * ```typescript
-   * const server = await repl.createServer();
-   * // Server is configured but not yet listening
-   * ```
-   */
-  async createServer() {
-    if (this._server) {
-      return this._server
-    }
-
-    const { prompt = "> " } = this.options;
-    const server = start({
-      useGlobal: false,
-      useColors: true,
-      terminal: true,
-      prompt,
-      eval: (
-        command: string,
-        context: any,
-        file: string,
-        cb: (err: any, result: any) => void
-      ) => {
-        const script = new vm.Script(command);
-        const result = script.runInContext(context);
-
-        if (typeof result?.then === "function") {
-          result
-            .then((result: any) => cb(null, result))
-            .catch((e: any) => cb(null, e));
-        } else {
-          cb(null, result);
-        }
-      },
-    });
-   
-    return this._server = server
+  get vmContext() {
+    return this._vmContext
   }
 
-  /**
-   * Starts the REPL server with the specified configuration.
-   * 
-   * This method initializes the REPL server, sets up command history persistence,
-   * and configures the evaluation context. The context includes:
-   * - All container features and properties
-   * - Custom context variables passed in options
-   * - Helper functions like `client()` for creating clients
-   * 
-   * **History Management:**
-   * - Creates history file directory if it doesn't exist
-   * - Uses provided historyPath or defaults to node_modules/.cache/.repl_history
-   * - Persists command history across sessions
-   * 
-   * **Context Setup:**
-   * - Inherits full container context
-   * - Adds custom context variables
-   * - Provides convenience methods for container interaction
-   * 
-   * @param options - Configuration options for starting the REPL
-   * @param options.historyPath - Custom path for history file storage
-   * @param options.context - Additional context variables to expose in REPL
-   * @param options.exclude - Properties to exclude from context (unused currently)
-   * @returns Promise resolving to this instance for chaining
-   * 
-   * @throws {Error} When REPL is already started or history setup fails
-   * 
-   * @example
-   * ```typescript
-   * // Basic usage
-   * await repl.start();
-   * 
-   * // With custom history and context
-   * await repl.start({
-   *   historyPath: './my-repl-history',
-   *   context: { myVar: 'available in REPL' }
-   * });
-   * 
-   * // In the REPL:
-   * // > container.feature('fileManager')
-   * // > client('httpClient', { baseURL: 'https://api.example.com' })
-   * // > myVar  // 'available in REPL'
-   * ```
-   */
-  async start(options: { historyPath?: string, context?: any, exclude?: string | string[] } = {}) {
+  async start(options: { historyPath?: string, context?: any } = {}) {
     if (this.isStarted) {
       return this;
     }
-    
+
+    const { prompt = "> " } = this.options;
+
+    // Set up history file
     const userHistoryPath = options.historyPath || this.options.historyPath
-    
-    const historyPath = typeof userHistoryPath === 'string' 
+    this._historyPath = typeof userHistoryPath === 'string'
       ? this.container.paths.resolve(userHistoryPath)
       : this.container.paths.resolve('node_modules', '.cache', '.repl_history')
-    
-    this.container.fs.ensureFolder(this.container.paths.dirname(historyPath))
-    //await this.container.fs.ensureFileAsync(historyPath, '', false)
-   
-    const server = await this.createServer()
 
-    await new Promise((res,rej) => {
-      server.setupHistory(historyPath, (err) => {
-        err ? rej(err) : res(true)
+    this.container.fs.ensureFolder(this.container.paths.dirname(this._historyPath))
+
+    // Load existing history
+    try {
+      const content = fs.readFileSync(this._historyPath, 'utf-8')
+      this._history = content.split('\n').filter(Boolean).reverse()
+    } catch {}
+
+    // Build VM context
+    this._vmContext = vm.createContext({
+      ...this.container.context,
+      ...options.context,
+      // @ts-ignore
+      client: (...args: any[]) => this.container.client(...args),
+    })
+
+    // Completer for tab autocomplete
+    const ctx = this._vmContext!
+    const completer = (line: string): [string[], string] => {
+      // Dot-notation: e.g. container.fea<tab>
+      const dotMatch = line.match(/([a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*)*)\.([a-zA-Z_$][\w$]*)?$/)
+      if (dotMatch) {
+        const objPath = dotMatch[1]!
+        const partial = dotMatch[2] || ''
+        try {
+          const obj = new vm.Script(objPath).runInContext(ctx)
+          if (obj != null && typeof obj === 'object') {
+            const own = Object.getOwnPropertyNames(obj)
+            const proto = Object.getOwnPropertyNames(Object.getPrototypeOf(obj) || {})
+            const all = [...new Set([...own, ...proto])]
+              .filter(p => p.startsWith(partial))
+              .sort()
+              .map(p => `${objPath}.${p}`)
+            return [all, dotMatch[0]!]
+          }
+        } catch {}
+        return [[], line]
+      }
+
+      // Top-level identifiers
+      const idMatch = line.match(/([a-zA-Z_$][\w$]*)$/)
+      const partial = idMatch ? idMatch[1]! : ''
+      const keys = Object.keys(ctx).filter(k => k.startsWith(partial)).sort()
+      return [keys, partial]
+    }
+
+    // Create readline interface
+    this._rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true,
+      history: this._history,
+      completer,
+    })
+
+    this.state.set('started', true)
+
+    // REPL loop
+    let lastResult: any
+    const ask = (): void => {
+      this._rl!.question(prompt, async (input) => {
+        const trimmed = input.trim()
+        if (!trimmed) { ask(); return }
+        if (trimmed === '.exit' || trimmed === 'exit') {
+          this._saveHistory(input)
+          this._rl!.close()
+          return
+        }
+
+        this._saveHistory(input)
+
+        try {
+          const script = new vm.Script(trimmed)
+          let result = script.runInContext(ctx)
+
+          if (result && typeof result.then === 'function') {
+            result = await result
+          }
+
+          lastResult = result
+          ctx._ = lastResult
+
+          if (result !== undefined) {
+            if (typeof result === 'object' && result !== null) {
+              console.log(Bun.inspect(result, { colors: true, depth: 4 }))
+            } else {
+              console.log(result)
+            }
+          }
+        } catch (err: any) {
+          console.log(`\x1b[31mError: ${err.message}\x1b[0m`)
+        }
+
+        ask()
       })
-    })
-    
-    Object.assign(server.context, this.container.context, options.context || {}, {
-      // @ts-ignore-next-line
-      client: (...args) => this.container.client(...args)
-    })
+    }
 
+    ask()
     return this;
+  }
+
+  private _saveHistory(line: string) {
+    if (!this._historyPath || !line.trim()) return
+    try {
+      fs.appendFileSync(this._historyPath, line + '\n')
+    } catch {}
   }
 }
 
