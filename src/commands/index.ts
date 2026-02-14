@@ -2,6 +2,5 @@ export { Command, commands, CommandsRegistry, type AvailableCommands, type Comma
 
 // Side-effect imports register each command
 import './run.js'
-import './chat.js'
 import './console.js'
 import './serve.js'

@@ -326,7 +326,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	}
 
 	/**
-	 * Converts all skills into ConversationTool format for use with Expert/Conversation.
+	 * Converts all skills into ConversationTool format for use with Conversation.
 	 * Each skill becomes a tool that returns its instruction body when invoked.
 	 *
 	 * @returns {Record<string, ConversationTool>} Tools keyed by sanitized skill name
@@ -361,16 +361,6 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 		const lines = skills.map((s) => `- **${s.name}**: ${s.description}`)
 		return `## Available Skills\n\n${lines.join('\n')}`
-	}
-
-	/**
-	 * Returns specific skills by name for Expert opt-in usage.
-	 *
-	 * @param {string[]} names - Skill names to load
-	 * @returns {SkillEntry[]} Found skills (missing names are silently skipped)
-	 */
-	getSkillsForExpert(names: string[]): SkillEntry[] {
-		return names.map((n) => this.find(n)).filter(Boolean) as SkillEntry[]
 	}
 
 	// --- Private ---
