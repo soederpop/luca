@@ -98,7 +98,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     return this.context.container as NodeContainer;
   }
 
-  async downloadCheckpoint(modelId: string, skipDownloadFile = false) {
+  async downloadCheckpoint(modelId: string, destinationFolder: string, skipDownloadFile = false) {
     const { paths, utils } = this.container;
     const { stringUtils } = utils;
     const downloader = this.container.feature("downloader");
@@ -107,9 +107,6 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     const info = await this.getCheckpointInfo(modelId);
     const { downloadUrl, fileName } = info;
 
-    const destinationFolder = paths.resolve(
-      "/Users/jon/stable-diffusion-webui/models/Stable-Diffusion"
-    );
     const destinationPath = paths.resolve(destinationFolder, fileName.replace(/\s/g, "_"))
 
     const metaName = info.fileId;
@@ -139,7 +136,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     }
   }
 
-  async downloadEmbedding(modelId: string, skipDownloadFile = false, modelFileId?: string) {
+  async downloadEmbedding(modelId: string, destinationFolder: string,skipDownloadFile = false, modelFileId?: string) {
     const { paths, utils } = this.container;
     const downloader = this.container.feature("downloader");
     const yaml = this.container.feature("yaml");
@@ -148,7 +145,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     const { downloadUrl, fileName } = info;
 
     const destinationPath = paths.resolve(
-      "/Users/jon/stable-diffusion-webui/embeddings",
+      destinationFolder,
       fileName
     );
 
@@ -179,26 +176,17 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   }
 
 
-  async downloadLoraModel(modelId: string, fileId: string | number, skipDownloadFile = false) {
-    const { paths, utils } = this.container;
+  async downloadLoraModel(modelId: string, fileId: string | number, destinationFolder: string, skipDownloadFile = false) {
+    const { paths } = this.container;
     const downloader = this.container.feature("downloader");
-    const yaml = this.container.feature("yaml");
 
     const info = await this.getLoraModelInfo(modelId, fileId);
     const { downloadUrl, fileName } = info;
 
     const destinationPath = paths.resolve(
-      "/Users/jon/stable-diffusion-webui/models/Lora",
+      destinationFolder,
       fileName
     );
-    const loraPath = paths.resolve(
-      "loras",
-      `${utils.stringUtils.camelCase(
-        utils.stringUtils.kebabCase(info.name)
-      )}.yml`
-    );
-
-    await this.container.fs.writeFileAsync(loraPath, yaml.stringify(info));
 
     if (!skipDownloadFile) {
       const downloadPath = await downloader.download(

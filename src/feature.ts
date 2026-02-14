@@ -50,7 +50,9 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
     */
     protected attachToContainer() {
         Object.defineProperty(this.container, this.shortcut.split('.').pop()!, {
-            get: () => this
+            get: () => this,
+            configurable: true,
+            enumerable: true,
         })        
     }
 
