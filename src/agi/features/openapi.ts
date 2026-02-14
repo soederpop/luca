@@ -1,7 +1,13 @@
-import { Feature, features } from './feature.js'
-import { FeatureStateSchema, FeatureOptionsSchema } from './schemas/base.js'
+import { Feature, features } from '../../feature.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'
+
+declare module '../../feature.js' {
+  interface AvailableFeatures {
+    openapi: typeof OpenAPI
+  }
+}
 
 export const OpenAPIStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false),
@@ -11,11 +17,13 @@ export const OpenAPIStateSchema = FeatureStateSchema.extend({
 })
 
 export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
-  url: z.string().url(),
+  url: z.string().optional()
 })
 
 export type OpenAPIOptions = z.infer<typeof OpenAPIOptionsSchema>
 export type OpenAPIState = z.infer<typeof OpenAPIStateSchema>
+
+
 
 export interface EndpointInfo {
   /** Human-friendly camelCase name derived from operationId */
@@ -107,12 +115,12 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /** The base server URL derived from options, normalizing the openapi.json suffix */
   get serverUrl(): string {
-    return this.options.url.replace(/\/openapi\.json\/?$/, '').replace(/\/swagger\.json\/?$/, '').replace(/\/$/, '')
+    return this.options.url!.replace(/\/openapi\.json\/?$/, '').replace(/\/swagger\.json\/?$/, '').replace(/\/$/, '')
   }
 
   /** The URL that will be fetched for the spec document */
   get specUrl(): string {
-    const url = this.options.url
+    const url = this.options.url!
     if (/\.(json|yaml|yml)(\?.*)?$/.test(url)) return url
     return `${this.serverUrl}/openapi.json`
   }
