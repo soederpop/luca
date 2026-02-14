@@ -2979,70 +2979,6 @@ setBuildTimeData('features.conversation', {
   "options": {}
 });
 
-setBuildTimeData('features.containerChat', {
-  "id": "features.containerChat",
-  "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
-  "shortcut": "features.containerChat",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "buildFeatureDocumentation": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "generateSnippet": {
-      "description": "",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "Parameter question"
-        },
-        "usingFeatures": {
-          "type": "string[]",
-          "description": "Parameter usingFeatures"
-        }
-      },
-      "required": [
-        "question",
-        "usingFeatures"
-      ],
-      "returns": "void"
-    },
-    "ask": {
-      "description": "",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "Parameter question"
-        }
-      },
-      "required": [
-        "question"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "isStarted": {
-      "description": "Whether the chat session has been started.",
-      "returns": "any"
-    },
-    "systemPrompt": {
-      "description": "Returns the generated system prompt that describes the container and its capabilities.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {}
-});
-
 setBuildTimeData('features.claudeCode', {
   "id": "features.claudeCode",
   "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
@@ -3201,46 +3137,6 @@ setBuildTimeData('features.claudeCode', {
   "options": {}
 });
 
-setBuildTimeData('features.helperChat', {
-  "id": "features.helperChat",
-  "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
-  "shortcut": "features.helperChat",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "ask": {
-      "description": "",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "Parameter question"
-        }
-      },
-      "required": [
-        "question"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "isStarted": {
-      "description": "Whether the chat session has been started.",
-      "returns": "any"
-    },
-    "systemPrompt": {
-      "description": "Returns the generated system prompt describing the host helper's interface.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {}
-});
-
 setBuildTimeData('features.snippets', {
   "id": "features.snippets",
   "description": "Snippets helper",
@@ -3385,153 +3281,6 @@ setBuildTimeData('features.snippets', {
       "arguments": {}
     }
   },
-  "state": {},
-  "options": {}
-});
-
-setBuildTimeData('features.oracle', {
-  "id": "features.oracle",
-  "description": "The Oracle - an AI-augmented REPL where you can type JavaScript or natural language interchangeably. The AI copilot knows everything about the container via introspection metadata. Type code and it executes. Type English and the AI interprets it, generates code if needed, and executes it — all in the same session with shared context.",
-  "shortcut": "features.oracle",
-  "methods": {
-    "handleInput": {
-      "description": "Handle a single line of input — detect code vs natural language and act.",
-      "parameters": {
-        "input": {
-          "type": "string",
-          "description": "Parameter input"
-        }
-      },
-      "required": [
-        "input"
-      ],
-      "returns": "Promise<void>"
-    },
-    "start": {
-      "description": "Start the Oracle REPL session.",
-      "parameters": {
-        "options": {
-          "type": "{ model?: string, historyPath?: string }",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "stop": {
-      "description": "Stop the Oracle session.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "isStarted": {
-      "description": "Whether the Oracle REPL session is currently active.",
-      "returns": "any"
-    }
-  },
-  "events": {
-    "started": {
-      "name": "started",
-      "description": "Event emitted by Oracle",
-      "arguments": {}
-    },
-    "stopped": {
-      "name": "stopped",
-      "description": "Event emitted by Oracle",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {}
-});
-
-setBuildTimeData('features.identity', {
-  "id": "features.identity",
-  "description": "This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any accumulated memories it stores over its lifetime.",
-  "shortcut": "features.identity",
-  "methods": {
-    "generatePrompt": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "buildMemoryText": {
-      "description": "",
-      "parameters": {
-        "memoryTypes": {
-          "type": "Memory['type'][]",
-          "description": "Parameter memoryTypes"
-        }
-      },
-      "required": [
-        "memoryTypes"
-      ],
-      "returns": "void"
-    },
-    "load": {
-      "description": "Load the identity from disk. Reads the system prompt and hardcoded memories from the basePath, then loads any saved memories from diskCache and merges them together.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "loadSavedMemories": {
-      "description": "Load saved memories from diskCache.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<Memory[]>"
-    },
-    "remember": {
-      "description": "Save a new memory. Persists to diskCache and updates state.",
-      "parameters": {
-        "memory": {
-          "type": "Memory",
-          "description": "The memory to save"
-        }
-      },
-      "required": [
-        "memory"
-      ],
-      "returns": "Promise<Memory[]>"
-    },
-    "forget": {
-      "description": "Remove memories that match a predicate. Only affects saved memories (not hardcoded ones). Persists the change to diskCache and updates state.",
-      "parameters": {
-        "predicate": {
-          "type": "(memory: Memory) => boolean",
-          "description": "Function that returns true for memories to remove"
-        }
-      },
-      "required": [
-        "predicate"
-      ],
-      "returns": "Promise<Memory[]>"
-    },
-    "recall": {
-      "description": "Recall memories, optionally filtered by type.",
-      "parameters": {
-        "type": {
-          "type": "Memory['type']",
-          "description": "Parameter type"
-        }
-      },
-      "required": [],
-      "returns": "Memory[]"
-    }
-  },
-  "getters": {
-    "diskCache": {
-      "description": "Returns the diskCache feature instance used for persisting memories.",
-      "returns": "any"
-    },
-    "memoryCacheKey": {
-      "description": "Cache key used to namespace this identity's saved memories in diskCache.",
-      "returns": "string"
-    }
-  },
-  "events": {},
   "state": {},
   "options": {}
 });
@@ -3858,7 +3607,7 @@ setContainerBuildTimeData('NodeContainer', {
 
 setContainerBuildTimeData('AGIContainer', {
   "className": "AGIContainer",
-  "description": "AGI-specific container that extends NodeContainer with AI capabilities including identity management, OpenAI conversations, code generation, and self-modifying agent features.",
+  "description": "AGI-specific container that extends NodeContainer with AI capabilities including OpenAI conversations, code generation, and self-modifying agent features.",
   "methods": {},
   "getters": {},
   "events": {}
@@ -6810,69 +6559,6 @@ export const introspectionData = [
     "options": {}
   },
   {
-    "id": "features.containerChat",
-    "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
-    "shortcut": "features.containerChat",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "buildFeatureDocumentation": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "generateSnippet": {
-        "description": "",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "Parameter question"
-          },
-          "usingFeatures": {
-            "type": "string[]",
-            "description": "Parameter usingFeatures"
-          }
-        },
-        "required": [
-          "question",
-          "usingFeatures"
-        ],
-        "returns": "void"
-      },
-      "ask": {
-        "description": "",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "Parameter question"
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "isStarted": {
-        "description": "Whether the chat session has been started.",
-        "returns": "any"
-      },
-      "systemPrompt": {
-        "description": "Returns the generated system prompt that describes the container and its capabilities.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {}
-  },
-  {
     "id": "features.claudeCode",
     "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
     "shortcut": "features.claudeCode",
@@ -7030,45 +6716,6 @@ export const introspectionData = [
     "options": {}
   },
   {
-    "id": "features.helperChat",
-    "description": "The purpose of the `ServerInterfaces` feature is to provide an easy way to define either a Rest or Websocket server and iteratively add or subtract endpoints / message handlers as needed at runtime.  The primary actor who will be doing this is a self-aware process that wants to define ways to communicate and gather data from other processes, and expose mechanisms to trigger capabilities that it offers.",
-    "shortcut": "features.helperChat",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "ask": {
-        "description": "",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "Parameter question"
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "isStarted": {
-        "description": "Whether the chat session has been started.",
-        "returns": "any"
-      },
-      "systemPrompt": {
-        "description": "Returns the generated system prompt describing the host helper's interface.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {}
-  },
-  {
     "id": "features.snippets",
     "description": "Snippets helper",
     "shortcut": "features.snippets",
@@ -7215,151 +6862,6 @@ export const introspectionData = [
     "state": {},
     "options": {}
   },
-  {
-    "id": "features.oracle",
-    "description": "The Oracle - an AI-augmented REPL where you can type JavaScript or natural language interchangeably. The AI copilot knows everything about the container via introspection metadata. Type code and it executes. Type English and the AI interprets it, generates code if needed, and executes it — all in the same session with shared context.",
-    "shortcut": "features.oracle",
-    "methods": {
-      "handleInput": {
-        "description": "Handle a single line of input — detect code vs natural language and act.",
-        "parameters": {
-          "input": {
-            "type": "string",
-            "description": "Parameter input"
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "returns": "Promise<void>"
-      },
-      "start": {
-        "description": "Start the Oracle REPL session.",
-        "parameters": {
-          "options": {
-            "type": "{ model?: string, historyPath?: string }",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "stop": {
-        "description": "Stop the Oracle session.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "isStarted": {
-        "description": "Whether the Oracle REPL session is currently active.",
-        "returns": "any"
-      }
-    },
-    "events": {
-      "started": {
-        "name": "started",
-        "description": "Event emitted by Oracle",
-        "arguments": {}
-      },
-      "stopped": {
-        "name": "stopped",
-        "description": "Event emitted by Oracle",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {}
-  },
-  {
-    "id": "features.identity",
-    "description": "This feature is used to manage the perceived identity of our AGI.  It consists of a system prompt, as well as any accumulated memories it stores over its lifetime.",
-    "shortcut": "features.identity",
-    "methods": {
-      "generatePrompt": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "buildMemoryText": {
-        "description": "",
-        "parameters": {
-          "memoryTypes": {
-            "type": "Memory['type'][]",
-            "description": "Parameter memoryTypes"
-          }
-        },
-        "required": [
-          "memoryTypes"
-        ],
-        "returns": "void"
-      },
-      "load": {
-        "description": "Load the identity from disk. Reads the system prompt and hardcoded memories from the basePath, then loads any saved memories from diskCache and merges them together.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "loadSavedMemories": {
-        "description": "Load saved memories from diskCache.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<Memory[]>"
-      },
-      "remember": {
-        "description": "Save a new memory. Persists to diskCache and updates state.",
-        "parameters": {
-          "memory": {
-            "type": "Memory",
-            "description": "The memory to save"
-          }
-        },
-        "required": [
-          "memory"
-        ],
-        "returns": "Promise<Memory[]>"
-      },
-      "forget": {
-        "description": "Remove memories that match a predicate. Only affects saved memories (not hardcoded ones). Persists the change to diskCache and updates state.",
-        "parameters": {
-          "predicate": {
-            "type": "(memory: Memory) => boolean",
-            "description": "Function that returns true for memories to remove"
-          }
-        },
-        "required": [
-          "predicate"
-        ],
-        "returns": "Promise<Memory[]>"
-      },
-      "recall": {
-        "description": "Recall memories, optionally filtered by type.",
-        "parameters": {
-          "type": {
-            "type": "Memory['type']",
-            "description": "Parameter type"
-          }
-        },
-        "required": [],
-        "returns": "Memory[]"
-      }
-    },
-    "getters": {
-      "diskCache": {
-        "description": "Returns the diskCache feature instance used for persisting memories.",
-        "returns": "any"
-      },
-      "memoryCacheKey": {
-        "description": "Cache key used to namespace this identity's saved memories in diskCache.",
-        "returns": "string"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {}
-  }
 ];
 
 export const containerIntrospectionData = [
@@ -7682,7 +7184,7 @@ export const containerIntrospectionData = [
   },
   {
     "className": "AGIContainer",
-    "description": "AGI-specific container that extends NodeContainer with AI capabilities including identity management, OpenAI conversations, code generation, and self-modifying agent features.",
+    "description": "AGI-specific container that extends NodeContainer with AI capabilities including OpenAI conversations, code generation, and self-modifying agent features.",
     "methods": {},
     "getters": {},
     "events": {}
