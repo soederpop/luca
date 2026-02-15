@@ -2,6 +2,9 @@
   "name": "@soederpop/luca",
   "version": "0.0.1",
   "description": "lightweight universal conversational architecture",
+  "publishConfig": { 
+    "registry": "http://localhost:4873"
+  }, 
   "author": "jon soeder <jon@chicago.com>",
   "type": "module",
   "repository": "https://github.com/soederpop/luca",

@@ -335,7 +335,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
-	 * Start the assistant by loading the system prompt, tools, hooks, and docs reader,
+	 * Start the assistant by loading the system prompt, tools, uooks, and docs reader,
 	 * then creating the underlying conversation.
 	 *
 	 * @returns {Promise<this>} The initialized assistant
@@ -344,11 +344,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Load system prompt
 		this._systemPrompt = this.loadSystemPrompt()
 
+		this.emit('systemPromptLoaded', this._systemPrompt)
+
 		// Load tools from tools.ts and options
 		this._tools = await this.loadTools()
+		this.emit('toolsLoaded')
 
 		// Load hooks from hooks.ts
 		this._hooks = await this.loadHooks()
+		this.emit('hooksLoaded')
 
 		// Initialize the docs reader for internal docs
 		this.docsReader = await this.initDocsReader()
@@ -432,7 +436,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (hook) {
 			this.emit('hookFired', eventName)
 			try {
-				hook(...args)
+				Promise.resolve(hook(...args))
+					.catch((err) => {
+						this.emit('hookError', eventName, err)
+						this.fireHook('hookError', eventName, err)
+					})
+					.then(() => {
+						this.emit('hookCompleted', eventName)
+					})
 			} catch (err) {
 				// Hook errors are non-fatal
 			}
@@ -464,6 +475,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.state.set('conversationCount', count)
 
 		const result = await this.conversation.ask(question)
+
+		this.emit('answered', result)
+		this.fireHook('answered', result)
 
 		return result
 	}

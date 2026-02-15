@@ -1,4 +1,5 @@
 import container from '@/agi'
+// @ts-ignore - module not yet implemented
 import createCollection, { Idea } from '@/ideas'
 
 async function main() {
