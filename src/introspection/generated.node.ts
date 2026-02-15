@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-10T07:48:57.815Z
+// Generated at: 2026-02-15T03:18:23.168Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -37,6 +37,108 @@ setBuildTimeData('features.yamlTree', {
   "options": {}
 });
 
+setBuildTimeData('features.ink', {
+  "id": "features.ink",
+  "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
+  "shortcut": "features.ink",
+  "methods": {
+    "loadModules": {
+      "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "render": {
+      "description": "Mount a React element to the terminal. Wraps `ink.render()` — automatically loads modules if needed, tracks the instance for unmount / waitUntilExit, and updates state.",
+      "parameters": {
+        "node": {
+          "type": "any",
+          "description": "Parameter node"
+        },
+        "options": {
+          "type": "Record<string, any>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "node"
+      ],
+      "returns": "void"
+    },
+    "rerender": {
+      "description": "Re-render the currently mounted app with a new root element.",
+      "parameters": {
+        "node": {
+          "type": "any",
+          "description": "Parameter node"
+        }
+      },
+      "required": [
+        "node"
+      ],
+      "returns": "void"
+    },
+    "unmount": {
+      "description": "Unmount the currently mounted Ink app.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "waitUntilExit": {
+      "description": "Returns a promise that resolves when the mounted app exits.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "clear": {
+      "description": "Clear the terminal output of the mounted app.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "React": {
+      "description": "The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import.",
+      "returns": "any"
+    },
+    "components": {
+      "description": "All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ```",
+      "returns": "any"
+    },
+    "hooks": {
+      "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ```",
+      "returns": "any"
+    },
+    "measureElement": {
+      "description": "The Ink measureElement utility.",
+      "returns": "any"
+    },
+    "isMounted": {
+      "description": "Whether an ink app is currently mounted.",
+      "returns": "boolean"
+    },
+    "instance": {
+      "description": "The raw ink render instance if you need low-level access.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "mounted": {
+      "name": "mounted",
+      "description": "Event emitted by Ink",
+      "arguments": {}
+    },
+    "unmounted": {
+      "name": "unmounted",
+      "description": "Event emitted by Ink",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
 setBuildTimeData('features.git', {
   "id": "features.git",
   "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
@@ -62,6 +164,19 @@ setBuildTimeData('features.git', {
         }
       },
       "required": [],
+      "returns": "void"
+    },
+    "getChangeHistoryForFiles": {
+      "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
+      "parameters": {
+        "paths": {
+          "type": "string[]",
+          "description": "File paths or glob patterns to get history for"
+        }
+      },
+      "required": [
+        "paths"
+      ],
       "returns": "void"
     }
   },
@@ -212,12 +327,29 @@ setBuildTimeData('features.proc', {
       ],
       "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
     },
+    "runScript": {
+      "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
+      "parameters": {
+        "scriptPath": {
+          "type": "string",
+          "description": "Absolute path to the script file"
+        },
+        "options": {
+          "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "scriptPath"
+      ],
+      "returns": "Promise<{ exitCode: number; stderr: string[] }>"
+    },
     "exec": {
-      "description": "Executes a command synchronously and returns its output. This method runs a command and waits for it to complete before returning. It's useful for simple commands where you need the result immediately and don't require real-time output monitoring.",
+      "description": "",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "The command to execute"
+          "description": "Parameter command"
         },
         "options": {
           "type": "any",
@@ -432,8 +564,7 @@ setBuildTimeData('features.ui', {
         }
       },
       "required": [
-        "text",
-        "options"
+        "text"
       ],
       "returns": "void"
     },
@@ -573,22 +704,212 @@ setBuildTimeData('features.ui', {
   "options": {}
 });
 
-setBuildTimeData('features.repl', {
-  "id": "features.repl",
-  "description": "Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server This feature provides a fully-featured REPL server with support for: - Custom evaluation context with container access - Persistent command history - Promise-aware evaluation (async/await support) - Customizable prompts and settings - Integration with the container's context and features The REPL runs in a sandboxed VM context but provides access to the container and all its features, making it perfect for interactive debugging and exploration. **Key Features:** - VM-based evaluation for security - Automatic promise resolution in REPL output - Persistent history across sessions - Full container context access - Colored terminal output support **Usage Example:** ```typescript const repl = container.feature('repl'); await repl.start({ historyPath: '.repl_history', context: { customVar: 'value' } }); // REPL is now running and accessible ```",
-  "shortcut": "features.repl",
+setBuildTimeData('features.opener', {
+  "id": "features.opener",
+  "description": "The Opener feature opens files and URLs using the system's default application. HTTP/HTTPS URLs are opened in Google Chrome. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+  "shortcut": "features.opener",
   "methods": {
-    "createServer": {
-      "description": "Creates and configures a new REPL server instance. This method sets up the REPL with custom evaluation logic that: - Runs code in a VM context for isolation - Automatically handles Promise resolution - Provides colored terminal output - Uses the configured prompt The REPL evaluation supports both synchronous and asynchronous code execution, automatically detecting and awaiting Promises in the result.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "start": {
-      "description": "Starts the REPL server with the specified configuration. This method initializes the REPL server, sets up command history persistence, and configures the evaluation context. The context includes: - All container features and properties - Custom context variables passed in options - Helper functions like `client()` for creating clients **History Management:** - Creates history file directory if it doesn't exist - Uses provided historyPath or defaults to node_modules/.cache/.repl_history - Persists command history across sessions **Context Setup:** - Inherits full container context - Adds custom context variables - Provides convenience methods for container interaction",
+    "open": {
+      "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
+      "parameters": {
+        "target": {
+          "type": "string",
+          "description": "A URL or file path to open"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.telegram', {
+  "id": "features.telegram",
+  "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
+  "shortcut": "features.telegram",
+  "methods": {
+    "enable": {
+      "description": "",
       "parameters": {
         "options": {
-          "type": "{ historyPath?: string, context?: any, exclude?: string | string[] }",
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "start": {
+      "description": "Start the bot in the configured mode (polling or webhook).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Stop the bot gracefully.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "command": {
+      "description": "Register a command handler. Also emits 'command' on the Luca event bus.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "handler": {
+          "type": "(ctx: Context) => any",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "name",
+        "handler"
+      ],
+      "returns": "this"
+    },
+    "handle": {
+      "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method.",
+      "parameters": {
+        "filter": {
+          "type": "Parameters<Bot['on']>[0]",
+          "description": "Parameter filter"
+        },
+        "handler": {
+          "type": "(ctx: any) => any",
+          "description": "Parameter handler"
+        }
+      },
+      "required": [
+        "filter",
+        "handler"
+      ],
+      "returns": "this"
+    },
+    "use": {
+      "description": "Add grammY middleware.",
+      "parameters": {
+        "middleware": {
+          "type": "Middleware[]",
+          "description": "Parameter middleware"
+        }
+      },
+      "required": [
+        "middleware"
+      ],
+      "returns": "this"
+    },
+    "startPolling": {
+      "description": "Start long-polling mode.",
+      "parameters": {
+        "dropPendingUpdates": {
+          "type": "boolean",
+          "description": "Parameter dropPendingUpdates"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "setupWebhook": {
+      "description": "Set up webhook mode with an Express server.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Parameter url"
+        },
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "deleteWebhook": {
+      "description": "Remove the webhook from Telegram.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "getMe": {
+      "description": "Get bot info from Telegram API.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<UserFromGetMe>"
+    },
+    "diagnostics": {
+      "description": "Print a diagnostic summary of the bot's current state.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    }
+  },
+  "getters": {
+    "token": {
+      "description": "Bot token from options or TELEGRAM_BOT_TOKEN env var.",
+      "returns": "string"
+    },
+    "bot": {
+      "description": "The grammY Bot instance. Created lazily on first access.",
+      "returns": "Bot"
+    },
+    "isRunning": {
+      "description": "",
+      "returns": "boolean"
+    },
+    "mode": {
+      "description": "",
+      "returns": "'polling' | 'webhook' | 'idle'"
+    }
+  },
+  "events": {
+    "stopped": {
+      "name": "stopped",
+      "description": "Event emitted by Telegram",
+      "arguments": {}
+    },
+    "command": {
+      "name": "command",
+      "description": "Event emitted by Telegram",
+      "arguments": {}
+    },
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Telegram",
+      "arguments": {}
+    },
+    "webhook_ready": {
+      "name": "webhook_ready",
+      "description": "Event emitted by Telegram",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by Telegram",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.repl', {
+  "id": "features.repl",
+  "description": "Repl helper",
+  "shortcut": "features.repl",
+  "methods": {
+    "start": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "{ historyPath?: string, context?: any }",
           "description": "Parameter options"
         }
       },
@@ -598,11 +919,178 @@ setBuildTimeData('features.repl', {
   },
   "getters": {
     "isStarted": {
-      "description": "Checks if the REPL server has been started.",
+      "description": "",
+      "returns": "any"
+    },
+    "vmContext": {
+      "description": "",
       "returns": "any"
     }
   },
   "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.tmux', {
+  "id": "features.tmux",
+  "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
+  "shortcut": "features.tmux",
+  "methods": {
+    "executeTmuxCommand": {
+      "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
+      "parameters": {
+        "args": {
+          "type": "string[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+    },
+    "checkAvailability": {
+      "description": "Check if tmux is available on this system.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "enable": {
+      "description": "Initialize the tmux feature. Verifies tmux is available. Throws if tmux is not installed.",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "ensureSession": {
+      "description": "Ensure we are running inside a tmux session. If already inside tmux, uses the current session. If not, re-execs the current script inside a new tmux session so the user actually sees panes. The current process is replaced (via execSync) — code after `ensureSession()` only runs inside tmux.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "killSession": {
+      "description": "Kill the current session (or a named one).",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "split": {
+      "description": "Split the current window into multiple panes.",
+      "parameters": {
+        "options": {
+          "type": "SplitOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<TmuxLayout>"
+    },
+    "runInPane": {
+      "description": "Run a command in a specific pane. Returns a PaneProcess handle.",
+      "parameters": {
+        "paneId": {
+          "type": "string",
+          "description": "Parameter paneId"
+        },
+        "command": {
+          "type": "string",
+          "description": "Parameter command"
+        }
+      },
+      "required": [
+        "paneId",
+        "command"
+      ],
+      "returns": "Promise<PaneProcess>"
+    },
+    "capture": {
+      "description": "Capture the current content of a pane.",
+      "parameters": {
+        "paneId": {
+          "type": "string",
+          "description": "Parameter paneId"
+        }
+      },
+      "required": [
+        "paneId"
+      ],
+      "returns": "Promise<string>"
+    },
+    "sendKeys": {
+      "description": "Send keys to a pane. If `literal` is provided, it's sent as a tmux key name (e.g. \"C-c\", \"Enter\"). Otherwise `text` is sent followed by Enter.",
+      "parameters": {
+        "paneId": {
+          "type": "string",
+          "description": "Parameter paneId"
+        },
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "literal": {
+          "type": "string",
+          "description": "Parameter literal"
+        }
+      },
+      "required": [
+        "paneId",
+        "text"
+      ],
+      "returns": "Promise<void>"
+    },
+    "isPaneAlive": {
+      "description": "Check if a pane is still alive.",
+      "parameters": {
+        "paneId": {
+          "type": "string",
+          "description": "Parameter paneId"
+        }
+      },
+      "required": [
+        "paneId"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "collapse": {
+      "description": "Kill all managed panes except the first one, returning to a single pane view.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {},
+  "events": {
+    "sessionCreated": {
+      "name": "sessionCreated",
+      "description": "Event emitted by Tmux",
+      "arguments": {}
+    },
+    "sessionKilled": {
+      "name": "sessionKilled",
+      "description": "Event emitted by Tmux",
+      "arguments": {}
+    },
+    "paneSplit": {
+      "name": "paneSplit",
+      "description": "Event emitted by Tmux",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -2186,9 +2674,175 @@ setBuildTimeData('features.secureShell', {
 
 setBuildTimeData('features.runpod', {
   "id": "features.runpod",
-  "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+  "description": "Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.",
   "shortcut": "features.runpod",
   "methods": {
+    "listTemplates": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "{ includePublic?: boolean, includeRunpod?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<TemplateInfo[]>"
+    },
+    "getTemplate": {
+      "description": "",
+      "parameters": {
+        "templateId": {
+          "type": "string",
+          "description": "Parameter templateId"
+        }
+      },
+      "required": [
+        "templateId"
+      ],
+      "returns": "Promise<TemplateInfo>"
+    },
+    "createPod": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "CreatePodOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<PodInfo>"
+    },
+    "stopPod": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "startPod": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "removePod": {
+      "description": "",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "getpods": {
+      "description": "Get all pods via REST API",
+      "parameters": {
+        "filters": {
+          "type": "{ name?: string; imageName?: string; desiredStatus?: string }",
+          "description": "Parameter filters"
+        }
+      },
+      "required": [],
+      "returns": "Promise<RestPodInfo[]>"
+    },
+    "getPod": {
+      "description": "Get pod details via REST API (richer than runpodctl output)",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "Promise<RestPodInfo>"
+    },
+    "waitForPod": {
+      "description": "Poll until a pod reaches a desired status, returns the pod info",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        },
+        "status": {
+          "type": "string",
+          "description": "Parameter status"
+        },
+        "{ interval = 5000, timeout = 300000 }": {
+          "type": "any",
+          "description": "Parameter { interval = 5000, timeout = 300000 }"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "Promise<RestPodInfo>"
+    },
+    "listVolumes": {
+      "description": "List all network storage volumes on your account",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<VolumeInfo[]>"
+    },
+    "getVolume": {
+      "description": "Get details for a specific network volume",
+      "parameters": {
+        "volumeId": {
+          "type": "string",
+          "description": "Parameter volumeId"
+        }
+      },
+      "required": [
+        "volumeId"
+      ],
+      "returns": "Promise<VolumeInfo>"
+    },
+    "createVolume": {
+      "description": "Create a new network storage volume",
+      "parameters": {
+        "options": {
+          "type": "CreateVolumeOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<VolumeInfo>"
+    },
+    "removeVolume": {
+      "description": "Delete a network storage volume",
+      "parameters": {
+        "volumeId": {
+          "type": "string",
+          "description": "Parameter volumeId"
+        }
+      },
+      "required": [
+        "volumeId"
+      ],
+      "returns": "void"
+    },
     "createRemoteShell": {
       "description": "",
       "parameters": {
@@ -2201,6 +2855,46 @@ setBuildTimeData('features.runpod', {
         "podId"
       ],
       "returns": "void"
+    },
+    "getShell": {
+      "description": "Get a SecureShell for a pod using the REST API (portMappings + publicIp). Preferred over createRemoteShell which requires runpodctl CLI.",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        }
+      },
+      "required": [
+        "podId"
+      ],
+      "returns": "void"
+    },
+    "ensureFileExists": {
+      "description": "Ensure a file exists on a pod's filesystem. If missing, kicks off a background download via a helper script and polls until the file appears.",
+      "parameters": {
+        "podId": {
+          "type": "string",
+          "description": "Parameter podId"
+        },
+        "remotePath": {
+          "type": "string",
+          "description": "Parameter remotePath"
+        },
+        "fallbackUrl": {
+          "type": "string",
+          "description": "Parameter fallbackUrl"
+        },
+        "options": {
+          "type": "{\n\t\t\tpollInterval?: number\n\t\t\ttimeout?: number\n\t\t\tonProgress?: (bytes: number) => void\n\t\t}",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "podId",
+        "remotePath",
+        "fallbackUrl"
+      ],
+      "returns": "Promise<{ existed: boolean; path: string }>"
     },
     "getPodHttpURLs": {
       "description": "",
@@ -2248,7 +2942,15 @@ setBuildTimeData('features.runpod', {
   },
   "getters": {
     "proc": {
-      "description": "Get the proc feature for executing shell commands",
+      "description": "",
+      "returns": "any"
+    },
+    "apiKey": {
+      "description": "",
+      "returns": "any"
+    },
+    "dataCenterId": {
+      "description": "",
       "returns": "any"
     }
   },
@@ -2404,6 +3106,19 @@ setBuildTimeData('features.contentDb', {
   "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
   "shortcut": "features.contentDb",
   "methods": {
+    "parseMarkdownAtPath": {
+      "description": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    },
     "load": {
       "description": "",
       "parameters": {},
@@ -2451,316 +3166,6 @@ setBuildTimeData('features.contentDb', {
   "options": {}
 });
 
-setBuildTimeData('servers.mcp', {
-  "id": "servers.mcp",
-  "description": "McpServer helper",
-  "shortcut": "servers.mcp",
-  "methods": {
-    "start": {
-      "description": "",
-      "parameters": {
-        "options": {
-          "type": "StartOptions",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    },
-    "log": {
-      "description": "",
-      "parameters": {
-        "message": {
-          "type": "any",
-          "description": "Parameter message"
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "returns": "void"
-    },
-    "completion": {
-      "description": "",
-      "parameters": {
-        "ref": {
-          "type": "string",
-          "description": "Parameter ref"
-        },
-        "handler": {
-          "type": "(argName: string, argValue: string) => Promise<string[]>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "ref",
-        "handler"
-      ],
-      "returns": "void"
-    },
-    "handleListResources": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListResourcesRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ListResourcesResult>"
-    },
-    "handleListResourceTemplates": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListResourceTemplatesRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleReadResource": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ReadResourceRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ReadResourceResult>"
-    },
-    "handleSubscribe": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "SubscribeRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleUnsubscribe": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "UnsubscribeRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleListPrompts": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListPromptsRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<ListPromptsResult>"
-    },
-    "handleGetPrompt": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "GetPromptRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleListTools": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "ListToolsRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "handleCallTool": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "CallToolRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<CallToolResult>"
-    },
-    "handleComplete": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "CompleteRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "Promise<CompleteResult>"
-    },
-    "handleSetLevel": {
-      "description": "",
-      "parameters": {
-        "request": {
-          "type": "SetLevelRequest",
-          "description": "Parameter request"
-        }
-      },
-      "required": [
-        "request"
-      ],
-      "returns": "void"
-    },
-    "tool": {
-      "description": "",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "inputSchema": {
-          "type": "z.ZodObject<T>",
-          "description": "Parameter inputSchema"
-        },
-        "description": {
-          "type": "string",
-          "description": "Parameter description"
-        },
-        "handler": {
-          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "name",
-        "inputSchema",
-        "description",
-        "handler"
-      ],
-      "returns": "void"
-    },
-    "resource": {
-      "description": "",
-      "parameters": {
-        "uri": {
-          "type": "string",
-          "description": "Parameter uri"
-        },
-        "nameOrHandler": {
-          "type": "string | (() => Promise<Resource>)",
-          "description": "Parameter nameOrHandler"
-        },
-        "handler": {
-          "type": "() => Promise<Resource>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "uri",
-        "nameOrHandler"
-      ],
-      "returns": "void"
-    },
-    "resourceTemplate": {
-      "description": "",
-      "parameters": {
-        "uriTemplate": {
-          "type": "string",
-          "description": "Parameter uriTemplate"
-        },
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "descriptionOrHandler": {
-          "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
-          "description": "Parameter descriptionOrHandler"
-        },
-        "handler": {
-          "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "uriTemplate",
-        "name",
-        "descriptionOrHandler"
-      ],
-      "returns": "void"
-    },
-    "prompt": {
-      "description": "",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "description": {
-          "type": "string",
-          "description": "Parameter description"
-        },
-        "schemaOrHandler": {
-          "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
-          "description": "Parameter schemaOrHandler"
-        },
-        "handler": {
-          "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
-          "description": "Parameter handler"
-        }
-      },
-      "required": [
-        "name",
-        "description",
-        "schemaOrHandler"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "z": {
-      "description": "",
-      "returns": "typeof z"
-    },
-    "server": {
-      "description": "",
-      "returns": "McpServerBase"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {}
-});
-
 setBuildTimeData('servers.express', {
   "id": "servers.express",
   "description": "ExpressServer helper",
@@ -2782,6 +3187,54 @@ setBuildTimeData('servers.express', {
       "parameters": {},
       "required": [],
       "returns": "void"
+    },
+    "useEndpoint": {
+      "description": "",
+      "parameters": {
+        "endpoint": {
+          "type": "Endpoint",
+          "description": "Parameter endpoint"
+        }
+      },
+      "required": [
+        "endpoint"
+      ],
+      "returns": "this"
+    },
+    "useEndpoints": {
+      "description": "",
+      "parameters": {
+        "dir": {
+          "type": "string",
+          "description": "Parameter dir"
+        }
+      },
+      "required": [
+        "dir"
+      ],
+      "returns": "Promise<this>"
+    },
+    "serveOpenAPISpec": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "{ title?: string; version?: string; description?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "this"
+    },
+    "generateOpenAPISpec": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "{ title?: string; version?: string; description?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Record<string, any>"
     }
   },
   "getters": {
@@ -3231,6 +3684,107 @@ export const introspectionData = [
     "options": {}
   },
   {
+    "id": "features.ink",
+    "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
+    "shortcut": "features.ink",
+    "methods": {
+      "loadModules": {
+        "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "render": {
+        "description": "Mount a React element to the terminal. Wraps `ink.render()` — automatically loads modules if needed, tracks the instance for unmount / waitUntilExit, and updates state.",
+        "parameters": {
+          "node": {
+            "type": "any",
+            "description": "Parameter node"
+          },
+          "options": {
+            "type": "Record<string, any>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "node"
+        ],
+        "returns": "void"
+      },
+      "rerender": {
+        "description": "Re-render the currently mounted app with a new root element.",
+        "parameters": {
+          "node": {
+            "type": "any",
+            "description": "Parameter node"
+          }
+        },
+        "required": [
+          "node"
+        ],
+        "returns": "void"
+      },
+      "unmount": {
+        "description": "Unmount the currently mounted Ink app.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "waitUntilExit": {
+        "description": "Returns a promise that resolves when the mounted app exits.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "clear": {
+        "description": "Clear the terminal output of the mounted app.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "React": {
+        "description": "The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import.",
+        "returns": "any"
+      },
+      "components": {
+        "description": "All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ```",
+        "returns": "any"
+      },
+      "hooks": {
+        "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ```",
+        "returns": "any"
+      },
+      "measureElement": {
+        "description": "The Ink measureElement utility.",
+        "returns": "any"
+      },
+      "isMounted": {
+        "description": "Whether an ink app is currently mounted.",
+        "returns": "boolean"
+      },
+      "instance": {
+        "description": "The raw ink render instance if you need low-level access.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "mounted": {
+        "name": "mounted",
+        "description": "Event emitted by Ink",
+        "arguments": {}
+      },
+      "unmounted": {
+        "name": "unmounted",
+        "description": "Event emitted by Ink",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "features.git",
     "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
     "shortcut": "features.git",
@@ -3255,6 +3809,19 @@ export const introspectionData = [
           }
         },
         "required": [],
+        "returns": "void"
+      },
+      "getChangeHistoryForFiles": {
+        "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
+        "parameters": {
+          "paths": {
+            "type": "string[]",
+            "description": "File paths or glob patterns to get history for"
+          }
+        },
+        "required": [
+          "paths"
+        ],
         "returns": "void"
       }
     },
@@ -3402,12 +3969,29 @@ export const introspectionData = [
         ],
         "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
       },
+      "runScript": {
+        "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
+        "parameters": {
+          "scriptPath": {
+            "type": "string",
+            "description": "Absolute path to the script file"
+          },
+          "options": {
+            "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "scriptPath"
+        ],
+        "returns": "Promise<{ exitCode: number; stderr: string[] }>"
+      },
       "exec": {
-        "description": "Executes a command synchronously and returns its output. This method runs a command and waits for it to complete before returning. It's useful for simple commands where you need the result immediately and don't require real-time output monitoring.",
+        "description": "",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "The command to execute"
+            "description": "Parameter command"
           },
           "options": {
             "type": "any",
@@ -3620,8 +4204,7 @@ export const introspectionData = [
           }
         },
         "required": [
-          "text",
-          "options"
+          "text"
         ],
         "returns": "void"
       },
@@ -3761,21 +4344,209 @@ export const introspectionData = [
     "options": {}
   },
   {
-    "id": "features.repl",
-    "description": "Repl Feature - Interactive Node.js REPL (Read-Eval-Print Loop) server This feature provides a fully-featured REPL server with support for: - Custom evaluation context with container access - Persistent command history - Promise-aware evaluation (async/await support) - Customizable prompts and settings - Integration with the container's context and features The REPL runs in a sandboxed VM context but provides access to the container and all its features, making it perfect for interactive debugging and exploration. **Key Features:** - VM-based evaluation for security - Automatic promise resolution in REPL output - Persistent history across sessions - Full container context access - Colored terminal output support **Usage Example:** ```typescript const repl = container.feature('repl'); await repl.start({ historyPath: '.repl_history', context: { customVar: 'value' } }); // REPL is now running and accessible ```",
-    "shortcut": "features.repl",
+    "id": "features.opener",
+    "description": "The Opener feature opens files and URLs using the system's default application. HTTP/HTTPS URLs are opened in Google Chrome. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+    "shortcut": "features.opener",
     "methods": {
-      "createServer": {
-        "description": "Creates and configures a new REPL server instance. This method sets up the REPL with custom evaluation logic that: - Runs code in a VM context for isolation - Automatically handles Promise resolution - Provides colored terminal output - Uses the configured prompt The REPL evaluation supports both synchronous and asynchronous code execution, automatically detecting and awaiting Promises in the result.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "start": {
-        "description": "Starts the REPL server with the specified configuration. This method initializes the REPL server, sets up command history persistence, and configures the evaluation context. The context includes: - All container features and properties - Custom context variables passed in options - Helper functions like `client()` for creating clients **History Management:** - Creates history file directory if it doesn't exist - Uses provided historyPath or defaults to node_modules/.cache/.repl_history - Persists command history across sessions **Context Setup:** - Inherits full container context - Adds custom context variables - Provides convenience methods for container interaction",
+      "open": {
+        "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
+        "parameters": {
+          "target": {
+            "type": "string",
+            "description": "A URL or file path to open"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.telegram",
+    "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
+    "shortcut": "features.telegram",
+    "methods": {
+      "enable": {
+        "description": "",
         "parameters": {
           "options": {
-            "type": "{ historyPath?: string, context?: any, exclude?: string | string[] }",
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "start": {
+        "description": "Start the bot in the configured mode (polling or webhook).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Stop the bot gracefully.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "command": {
+        "description": "Register a command handler. Also emits 'command' on the Luca event bus.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "handler": {
+            "type": "(ctx: Context) => any",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "name",
+          "handler"
+        ],
+        "returns": "this"
+      },
+      "handle": {
+        "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method.",
+        "parameters": {
+          "filter": {
+            "type": "Parameters<Bot['on']>[0]",
+            "description": "Parameter filter"
+          },
+          "handler": {
+            "type": "(ctx: any) => any",
+            "description": "Parameter handler"
+          }
+        },
+        "required": [
+          "filter",
+          "handler"
+        ],
+        "returns": "this"
+      },
+      "use": {
+        "description": "Add grammY middleware.",
+        "parameters": {
+          "middleware": {
+            "type": "Middleware[]",
+            "description": "Parameter middleware"
+          }
+        },
+        "required": [
+          "middleware"
+        ],
+        "returns": "this"
+      },
+      "startPolling": {
+        "description": "Start long-polling mode.",
+        "parameters": {
+          "dropPendingUpdates": {
+            "type": "boolean",
+            "description": "Parameter dropPendingUpdates"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "setupWebhook": {
+        "description": "Set up webhook mode with an Express server.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Parameter url"
+          },
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "deleteWebhook": {
+        "description": "Remove the webhook from Telegram.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "getMe": {
+        "description": "Get bot info from Telegram API.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<UserFromGetMe>"
+      },
+      "diagnostics": {
+        "description": "Print a diagnostic summary of the bot's current state.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      }
+    },
+    "getters": {
+      "token": {
+        "description": "Bot token from options or TELEGRAM_BOT_TOKEN env var.",
+        "returns": "string"
+      },
+      "bot": {
+        "description": "The grammY Bot instance. Created lazily on first access.",
+        "returns": "Bot"
+      },
+      "isRunning": {
+        "description": "",
+        "returns": "boolean"
+      },
+      "mode": {
+        "description": "",
+        "returns": "'polling' | 'webhook' | 'idle'"
+      }
+    },
+    "events": {
+      "stopped": {
+        "name": "stopped",
+        "description": "Event emitted by Telegram",
+        "arguments": {}
+      },
+      "command": {
+        "name": "command",
+        "description": "Event emitted by Telegram",
+        "arguments": {}
+      },
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Telegram",
+        "arguments": {}
+      },
+      "webhook_ready": {
+        "name": "webhook_ready",
+        "description": "Event emitted by Telegram",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by Telegram",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.repl",
+    "description": "Repl helper",
+    "shortcut": "features.repl",
+    "methods": {
+      "start": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "{ historyPath?: string, context?: any }",
             "description": "Parameter options"
           }
         },
@@ -3785,11 +4556,177 @@ export const introspectionData = [
     },
     "getters": {
       "isStarted": {
-        "description": "Checks if the REPL server has been started.",
+        "description": "",
+        "returns": "any"
+      },
+      "vmContext": {
+        "description": "",
         "returns": "any"
       }
     },
     "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.tmux",
+    "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
+    "shortcut": "features.tmux",
+    "methods": {
+      "executeTmuxCommand": {
+        "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
+        "parameters": {
+          "args": {
+            "type": "string[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      },
+      "checkAvailability": {
+        "description": "Check if tmux is available on this system.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "enable": {
+        "description": "Initialize the tmux feature. Verifies tmux is available. Throws if tmux is not installed.",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "ensureSession": {
+        "description": "Ensure we are running inside a tmux session. If already inside tmux, uses the current session. If not, re-execs the current script inside a new tmux session so the user actually sees panes. The current process is replaced (via execSync) — code after `ensureSession()` only runs inside tmux.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "killSession": {
+        "description": "Kill the current session (or a named one).",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "split": {
+        "description": "Split the current window into multiple panes.",
+        "parameters": {
+          "options": {
+            "type": "SplitOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<TmuxLayout>"
+      },
+      "runInPane": {
+        "description": "Run a command in a specific pane. Returns a PaneProcess handle.",
+        "parameters": {
+          "paneId": {
+            "type": "string",
+            "description": "Parameter paneId"
+          },
+          "command": {
+            "type": "string",
+            "description": "Parameter command"
+          }
+        },
+        "required": [
+          "paneId",
+          "command"
+        ],
+        "returns": "Promise<PaneProcess>"
+      },
+      "capture": {
+        "description": "Capture the current content of a pane.",
+        "parameters": {
+          "paneId": {
+            "type": "string",
+            "description": "Parameter paneId"
+          }
+        },
+        "required": [
+          "paneId"
+        ],
+        "returns": "Promise<string>"
+      },
+      "sendKeys": {
+        "description": "Send keys to a pane. If `literal` is provided, it's sent as a tmux key name (e.g. \"C-c\", \"Enter\"). Otherwise `text` is sent followed by Enter.",
+        "parameters": {
+          "paneId": {
+            "type": "string",
+            "description": "Parameter paneId"
+          },
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "literal": {
+            "type": "string",
+            "description": "Parameter literal"
+          }
+        },
+        "required": [
+          "paneId",
+          "text"
+        ],
+        "returns": "Promise<void>"
+      },
+      "isPaneAlive": {
+        "description": "Check if a pane is still alive.",
+        "parameters": {
+          "paneId": {
+            "type": "string",
+            "description": "Parameter paneId"
+          }
+        },
+        "required": [
+          "paneId"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "collapse": {
+        "description": "Kill all managed panes except the first one, returning to a single pane view.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {},
+    "events": {
+      "sessionCreated": {
+        "name": "sessionCreated",
+        "description": "Event emitted by Tmux",
+        "arguments": {}
+      },
+      "sessionKilled": {
+        "name": "sessionKilled",
+        "description": "Event emitted by Tmux",
+        "arguments": {}
+      },
+      "paneSplit": {
+        "name": "paneSplit",
+        "description": "Event emitted by Tmux",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -5356,9 +6293,175 @@ export const introspectionData = [
   },
   {
     "id": "features.runpod",
-    "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+    "description": "Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.",
     "shortcut": "features.runpod",
     "methods": {
+      "listTemplates": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "{ includePublic?: boolean, includeRunpod?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<TemplateInfo[]>"
+      },
+      "getTemplate": {
+        "description": "",
+        "parameters": {
+          "templateId": {
+            "type": "string",
+            "description": "Parameter templateId"
+          }
+        },
+        "required": [
+          "templateId"
+        ],
+        "returns": "Promise<TemplateInfo>"
+      },
+      "createPod": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "CreatePodOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<PodInfo>"
+      },
+      "stopPod": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "startPod": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "removePod": {
+        "description": "",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "getpods": {
+        "description": "Get all pods via REST API",
+        "parameters": {
+          "filters": {
+            "type": "{ name?: string; imageName?: string; desiredStatus?: string }",
+            "description": "Parameter filters"
+          }
+        },
+        "required": [],
+        "returns": "Promise<RestPodInfo[]>"
+      },
+      "getPod": {
+        "description": "Get pod details via REST API (richer than runpodctl output)",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "Promise<RestPodInfo>"
+      },
+      "waitForPod": {
+        "description": "Poll until a pod reaches a desired status, returns the pod info",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          },
+          "status": {
+            "type": "string",
+            "description": "Parameter status"
+          },
+          "{ interval = 5000, timeout = 300000 }": {
+            "type": "any",
+            "description": "Parameter { interval = 5000, timeout = 300000 }"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "Promise<RestPodInfo>"
+      },
+      "listVolumes": {
+        "description": "List all network storage volumes on your account",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<VolumeInfo[]>"
+      },
+      "getVolume": {
+        "description": "Get details for a specific network volume",
+        "parameters": {
+          "volumeId": {
+            "type": "string",
+            "description": "Parameter volumeId"
+          }
+        },
+        "required": [
+          "volumeId"
+        ],
+        "returns": "Promise<VolumeInfo>"
+      },
+      "createVolume": {
+        "description": "Create a new network storage volume",
+        "parameters": {
+          "options": {
+            "type": "CreateVolumeOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<VolumeInfo>"
+      },
+      "removeVolume": {
+        "description": "Delete a network storage volume",
+        "parameters": {
+          "volumeId": {
+            "type": "string",
+            "description": "Parameter volumeId"
+          }
+        },
+        "required": [
+          "volumeId"
+        ],
+        "returns": "void"
+      },
       "createRemoteShell": {
         "description": "",
         "parameters": {
@@ -5371,6 +6474,46 @@ export const introspectionData = [
           "podId"
         ],
         "returns": "void"
+      },
+      "getShell": {
+        "description": "Get a SecureShell for a pod using the REST API (portMappings + publicIp). Preferred over createRemoteShell which requires runpodctl CLI.",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          }
+        },
+        "required": [
+          "podId"
+        ],
+        "returns": "void"
+      },
+      "ensureFileExists": {
+        "description": "Ensure a file exists on a pod's filesystem. If missing, kicks off a background download via a helper script and polls until the file appears.",
+        "parameters": {
+          "podId": {
+            "type": "string",
+            "description": "Parameter podId"
+          },
+          "remotePath": {
+            "type": "string",
+            "description": "Parameter remotePath"
+          },
+          "fallbackUrl": {
+            "type": "string",
+            "description": "Parameter fallbackUrl"
+          },
+          "options": {
+            "type": "{\n\t\t\tpollInterval?: number\n\t\t\ttimeout?: number\n\t\t\tonProgress?: (bytes: number) => void\n\t\t}",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "podId",
+          "remotePath",
+          "fallbackUrl"
+        ],
+        "returns": "Promise<{ existed: boolean; path: string }>"
       },
       "getPodHttpURLs": {
         "description": "",
@@ -5418,7 +6561,15 @@ export const introspectionData = [
     },
     "getters": {
       "proc": {
-        "description": "Get the proc feature for executing shell commands",
+        "description": "",
+        "returns": "any"
+      },
+      "apiKey": {
+        "description": "",
+        "returns": "any"
+      },
+      "dataCenterId": {
+        "description": "",
         "returns": "any"
       }
     },
@@ -5572,6 +6723,19 @@ export const introspectionData = [
     "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
     "shortcut": "features.contentDb",
     "methods": {
+      "parseMarkdownAtPath": {
+        "description": "",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      },
       "load": {
         "description": "",
         "parameters": {},
@@ -5619,315 +6783,6 @@ export const introspectionData = [
     "options": {}
   },
   {
-    "id": "servers.mcp",
-    "description": "McpServer helper",
-    "shortcut": "servers.mcp",
-    "methods": {
-      "start": {
-        "description": "",
-        "parameters": {
-          "options": {
-            "type": "StartOptions",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      },
-      "log": {
-        "description": "",
-        "parameters": {
-          "message": {
-            "type": "any",
-            "description": "Parameter message"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "returns": "void"
-      },
-      "completion": {
-        "description": "",
-        "parameters": {
-          "ref": {
-            "type": "string",
-            "description": "Parameter ref"
-          },
-          "handler": {
-            "type": "(argName: string, argValue: string) => Promise<string[]>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "ref",
-          "handler"
-        ],
-        "returns": "void"
-      },
-      "handleListResources": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListResourcesRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ListResourcesResult>"
-      },
-      "handleListResourceTemplates": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListResourceTemplatesRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleReadResource": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ReadResourceRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ReadResourceResult>"
-      },
-      "handleSubscribe": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "SubscribeRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleUnsubscribe": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "UnsubscribeRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleListPrompts": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListPromptsRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<ListPromptsResult>"
-      },
-      "handleGetPrompt": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "GetPromptRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleListTools": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "ListToolsRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "handleCallTool": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "CallToolRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<CallToolResult>"
-      },
-      "handleComplete": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "CompleteRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "Promise<CompleteResult>"
-      },
-      "handleSetLevel": {
-        "description": "",
-        "parameters": {
-          "request": {
-            "type": "SetLevelRequest",
-            "description": "Parameter request"
-          }
-        },
-        "required": [
-          "request"
-        ],
-        "returns": "void"
-      },
-      "tool": {
-        "description": "",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "inputSchema": {
-            "type": "z.ZodObject<T>",
-            "description": "Parameter inputSchema"
-          },
-          "description": {
-            "type": "string",
-            "description": "Parameter description"
-          },
-          "handler": {
-            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<CallToolResult>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "name",
-          "inputSchema",
-          "description",
-          "handler"
-        ],
-        "returns": "void"
-      },
-      "resource": {
-        "description": "",
-        "parameters": {
-          "uri": {
-            "type": "string",
-            "description": "Parameter uri"
-          },
-          "nameOrHandler": {
-            "type": "string | (() => Promise<Resource>)",
-            "description": "Parameter nameOrHandler"
-          },
-          "handler": {
-            "type": "() => Promise<Resource>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "uri",
-          "nameOrHandler"
-        ],
-        "returns": "void"
-      },
-      "resourceTemplate": {
-        "description": "",
-        "parameters": {
-          "uriTemplate": {
-            "type": "string",
-            "description": "Parameter uriTemplate"
-          },
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "descriptionOrHandler": {
-            "type": "string | ((uri: string, params: Record<string, string>) => Promise<Resource>)",
-            "description": "Parameter descriptionOrHandler"
-          },
-          "handler": {
-            "type": "(uri: string, params: Record<string, string>) => Promise<Resource>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "uriTemplate",
-          "name",
-          "descriptionOrHandler"
-        ],
-        "returns": "void"
-      },
-      "prompt": {
-        "description": "",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "description": {
-            "type": "string",
-            "description": "Parameter description"
-          },
-          "schemaOrHandler": {
-            "type": "z.ZodObject<T> | ((args?: any) => Promise<any>)",
-            "description": "Parameter schemaOrHandler"
-          },
-          "handler": {
-            "type": "(args: z.infer<z.ZodObject<T>>) => Promise<any>",
-            "description": "Parameter handler"
-          }
-        },
-        "required": [
-          "name",
-          "description",
-          "schemaOrHandler"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "z": {
-        "description": "",
-        "returns": "typeof z"
-      },
-      "server": {
-        "description": "",
-        "returns": "McpServerBase"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {}
-  },
-  {
     "id": "servers.express",
     "description": "ExpressServer helper",
     "shortcut": "servers.express",
@@ -5948,6 +6803,54 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "void"
+      },
+      "useEndpoint": {
+        "description": "",
+        "parameters": {
+          "endpoint": {
+            "type": "Endpoint",
+            "description": "Parameter endpoint"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "returns": "this"
+      },
+      "useEndpoints": {
+        "description": "",
+        "parameters": {
+          "dir": {
+            "type": "string",
+            "description": "Parameter dir"
+          }
+        },
+        "required": [
+          "dir"
+        ],
+        "returns": "Promise<this>"
+      },
+      "serveOpenAPISpec": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "{ title?: string; version?: string; description?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "this"
+      },
+      "generateOpenAPISpec": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "{ title?: string; version?: string; description?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Record<string, any>"
       }
     },
     "getters": {

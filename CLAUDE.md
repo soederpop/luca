@@ -40,6 +40,8 @@ Use the components that are available, the features, etc.  Instead of reinventin
 
 Commit all your changes after you're done.  Only include the changes you made. Leave a commit message that is descriptive, and an explanation in the body or whatever of the message not just the title.
 
+Folders of markdown should be organized as `contentbase` collections. 
+
 ## Project Commands
 
 ### Run the Test Suite
@@ -53,12 +55,12 @@ bun test
 You'll run this command to capture method, getter, class descriptions from the various helper implementations contained in this project. Run this any time you add or change a feature and are happy with its interface and documentation.
 
 ```shell
-bun run introspect
+bun run build:introspection 
 ```
 
 ### Update Codebase Explainer
 
-This document is intended to be a summary of the layout of each file and its purpose, mainly for a new developer or an AI coder.  We should periodically update this document as the project evolves and things are added or removed
+This document is intended to be a summary of the layout of each file and its purpose, mainly for a new developer or an AI coder.  We should periodically update this document as the project evolves and things are added or removed.  No need to do it after every minor change.
 
 ```shell
 bun run explain-codebase
