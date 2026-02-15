@@ -9,6 +9,7 @@ import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 import { DocsReader } from './features/docs-reader'
 import { Assistant } from './features/assistant'
+import { AssistantsManager } from './features/assistants-manager'
 
 import type { ContentDb } from '@/node/features/content-db'
 import type { ConversationTool } from './features/conversation'
@@ -80,6 +81,7 @@ const container = new AGIContainer()
 	.use(ConversationHistory)
 	.use(DocsReader)
 	.use(Assistant)
+	.use(AssistantsManager)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
