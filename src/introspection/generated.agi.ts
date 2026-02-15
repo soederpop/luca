@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-15T03:18:23.234Z
+// Generated at: 2026-02-15T04:20:22.391Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -3791,6 +3791,146 @@ setBuildTimeData('features.skillsLibrary', {
     "skillRemoved": {
       "name": "skillRemoved",
       "description": "Event emitted by SkillsLibrary",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.assistant', {
+  "id": "features.assistant",
+  "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
+  "shortcut": "features.assistant",
+  "methods": {
+    "loadSystemPrompt": {
+      "description": "Load the system prompt from CORE.md, applying any prepend/append options.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
+    "loadTools": {
+      "description": "Load tools from tools.ts using the container's VM feature, injecting the container and assistant as globals. Merges with any tools provided in the constructor options.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, ConversationTool>>"
+    },
+    "loadHooks": {
+      "description": "Load event hooks from hooks.ts. Each exported function name should match an event the assistant emits. When that event fires, the corresponding hook function is called.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, (...args: any[]) => any>>"
+    },
+    "initDocsReader": {
+      "description": "Initialize the DocsReader for the assistant's docs/ folder, providing the researchInternalDocs tool.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<DocsReader | undefined>"
+    },
+    "start": {
+      "description": "Start the assistant by loading the system prompt, tools, hooks, and docs reader, then creating the underlying conversation.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "ask": {
+      "description": "Ask the assistant a question. It will use its tools and docs to produce a streamed response. The assistant auto-starts if needed.",
+      "parameters": {
+        "question": {
+          "type": "string | ContentPart[]",
+          "description": "The question to ask"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "Promise<string>"
+    },
+    "save": {
+      "description": "Save the conversation to disk via conversationHistory.",
+      "parameters": {
+        "opts": {
+          "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "resolvedFolder": {
+      "description": "The absolute resolved path to the assistant folder.",
+      "returns": "string"
+    },
+    "docsFolder": {
+      "description": "The path to the docs subfolder.",
+      "returns": "string"
+    },
+    "corePromptPath": {
+      "description": "The path to CORE.md which provides the system prompt.",
+      "returns": "string"
+    },
+    "toolsModulePath": {
+      "description": "The path to tools.ts which provides tool implementations and schemas.",
+      "returns": "string"
+    },
+    "hooksModulePath": {
+      "description": "The path to hooks.ts which provides event handler functions.",
+      "returns": "string"
+    },
+    "isStarted": {
+      "description": "Whether the assistant has been started and is ready to receive questions.",
+      "returns": "boolean"
+    },
+    "systemPrompt": {
+      "description": "The current system prompt text.",
+      "returns": "string"
+    },
+    "tools": {
+      "description": "The tools registered with this assistant.",
+      "returns": "Record<string, ConversationTool>"
+    }
+  },
+  "events": {
+    "chunk": {
+      "name": "chunk",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "preview": {
+      "name": "preview",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "response": {
+      "name": "response",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "toolResult": {
+      "name": "toolResult",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "hookFired": {
+      "name": "hookFired",
+      "description": "Event emitted by Assistant",
       "arguments": {}
     }
   },
@@ -8421,6 +8561,145 @@ export const introspectionData = [
       "skillRemoved": {
         "name": "skillRemoved",
         "description": "Event emitted by SkillsLibrary",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.assistant",
+    "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
+    "shortcut": "features.assistant",
+    "methods": {
+      "loadSystemPrompt": {
+        "description": "Load the system prompt from CORE.md, applying any prepend/append options.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
+      "loadTools": {
+        "description": "Load tools from tools.ts using the container's VM feature, injecting the container and assistant as globals. Merges with any tools provided in the constructor options.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, ConversationTool>>"
+      },
+      "loadHooks": {
+        "description": "Load event hooks from hooks.ts. Each exported function name should match an event the assistant emits. When that event fires, the corresponding hook function is called.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, (...args: any[]) => any>>"
+      },
+      "initDocsReader": {
+        "description": "Initialize the DocsReader for the assistant's docs/ folder, providing the researchInternalDocs tool.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<DocsReader | undefined>"
+      },
+      "start": {
+        "description": "Start the assistant by loading the system prompt, tools, hooks, and docs reader, then creating the underlying conversation.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "ask": {
+        "description": "Ask the assistant a question. It will use its tools and docs to produce a streamed response. The assistant auto-starts if needed.",
+        "parameters": {
+          "question": {
+            "type": "string | ContentPart[]",
+            "description": "The question to ask"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "Promise<string>"
+      },
+      "save": {
+        "description": "Save the conversation to disk via conversationHistory.",
+        "parameters": {
+          "opts": {
+            "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "resolvedFolder": {
+        "description": "The absolute resolved path to the assistant folder.",
+        "returns": "string"
+      },
+      "docsFolder": {
+        "description": "The path to the docs subfolder.",
+        "returns": "string"
+      },
+      "corePromptPath": {
+        "description": "The path to CORE.md which provides the system prompt.",
+        "returns": "string"
+      },
+      "toolsModulePath": {
+        "description": "The path to tools.ts which provides tool implementations and schemas.",
+        "returns": "string"
+      },
+      "hooksModulePath": {
+        "description": "The path to hooks.ts which provides event handler functions.",
+        "returns": "string"
+      },
+      "isStarted": {
+        "description": "Whether the assistant has been started and is ready to receive questions.",
+        "returns": "boolean"
+      },
+      "systemPrompt": {
+        "description": "The current system prompt text.",
+        "returns": "string"
+      },
+      "tools": {
+        "description": "The tools registered with this assistant.",
+        "returns": "Record<string, ConversationTool>"
+      }
+    },
+    "events": {
+      "chunk": {
+        "name": "chunk",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "preview": {
+        "name": "preview",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "response": {
+        "name": "response",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "toolResult": {
+        "name": "toolResult",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "hookFired": {
+        "name": "hookFired",
+        "description": "Event emitted by Assistant",
         "arguments": {}
       }
     },
