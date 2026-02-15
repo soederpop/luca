@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-15T04:20:22.329Z
+// Generated at: 2026-02-15T07:22:36.598Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",

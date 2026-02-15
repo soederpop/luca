@@ -3,6 +3,9 @@ import container from '@/agi'
 import '@/commands/index.js'
 
 async function main() {
+	// Discover project-local commands (commands/ or src/commands/)
+	await discoverProjectCommands()
+
 	const commandName = container.argv._[0] as string
 
 	if (commandName && container.commands.has(commandName)) {
@@ -22,6 +25,18 @@ async function main() {
 			console.error(`  ${name.padEnd(12)} ${desc}`)
 		}
 		process.exit(1)
+	}
+}
+
+async function discoverProjectCommands() {
+	const { fs, paths } = container
+
+	for (const candidate of ['commands', 'src/commands']) {
+		const dir = paths.resolve(candidate)
+		if (fs.exists(dir)) {
+			await container.commands.discover({ directory: dir })
+			return
+		}
 	}
 }
 

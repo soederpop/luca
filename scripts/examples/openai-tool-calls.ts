@@ -64,7 +64,7 @@ async function run() {
       tool_choice: "auto",
     });
 
-    const choice = response.choices[0];
+    const choice = response.choices[0]!;
     const assistantMessage = choice.message;
 
     console.log("Finish reason:", choice.finish_reason);

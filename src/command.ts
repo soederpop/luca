@@ -135,7 +135,21 @@ export class CommandsRegistry extends Registry<Command<any>> {
 
 		for await (const file of glob.scan({ cwd: options.directory })) {
 			if (file === 'index.ts') continue
-			await import(join(options.directory, file))
+
+			const mod = await import(join(options.directory, file))
+			const commandModule = mod.default || mod
+
+			// Support export-based command files (like endpoints).
+			// If the module exports a handler function, register it
+			// using the filename as the command name.
+			if (typeof commandModule.handler === 'function' && !this.has(file.replace(/\.ts$/, ''))) {
+				const name = file.replace(/\.ts$/, '')
+				this.registerHandler(name, {
+					description: commandModule.description || '',
+					argsSchema: commandModule.argsSchema,
+					handler: commandModule.handler,
+				})
+			}
 		}
 	}
 }

@@ -1,7 +1,7 @@
 import container from '@/agi'
 import { ContentDb } from '@/node/features/content-db'
 
-container.features.register('contentDb', ContentDb)
+container.features.register('contentDb', ContentDb as any)
 
 async function main() {
 	const contentDb = container.feature('contentDb', {
@@ -18,7 +18,7 @@ async function main() {
 			}),
 			sections: {
 				motivation: section('Motivation', {
-					extract: (query: any) => query.selectAll('*').map(n => toString(n))
+					extract: (query: any) => query.selectAll('*').map((n: any) => toString(n))
 				})
 			}
 		})		

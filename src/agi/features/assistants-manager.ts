@@ -102,7 +102,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 	/** The absolute path to the assistants folder. */
 	get assistantsFolder(): string {
-		return this.container.paths.resolve(this.options.folder)
+		return this.container.paths.resolve(this.options.folder || 'assistants')
 	}
 
 	override afterInitialize() {
