@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-15T04:20:22.391Z
+// Generated at: 2026-02-15T07:22:36.662Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -3330,6 +3330,101 @@ setBuildTimeData('servers.websocket', {
   "options": {}
 });
 
+setBuildTimeData('features.assistantsManager', {
+  "id": "features.assistantsManager",
+  "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
+  "shortcut": "features.assistantsManager",
+  "methods": {
+    "afterInitialize": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "discover": {
+      "description": "Scans the assistants folder for subdirectories and probes each for CORE.md, tools.ts, hooks.ts, and docs/. Populates the internal entries map.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
+    "list": {
+      "description": "Returns all discovered assistant entries as an array.",
+      "parameters": {},
+      "required": [],
+      "returns": "AssistantEntry[]"
+    },
+    "get": {
+      "description": "Looks up a single assistant entry by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The assistant subdirectory name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "AssistantEntry | undefined"
+    },
+    "create": {
+      "description": "Creates and returns a new Assistant feature instance for the given name. The assistant is configured with the discovered folder path. Any additional options are merged in.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The assistant name (must match a discovered entry)"
+        },
+        "options": {
+          "type": "Record<string, any>",
+          "description": "Additional options to pass to the Assistant constructor"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Assistant"
+    },
+    "getInstance": {
+      "description": "Returns a previously created assistant instance by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The assistant name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Assistant | undefined"
+    },
+    "toSummary": {
+      "description": "Generates a markdown summary of all discovered assistants, listing their names and which definition files are present.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    }
+  },
+  "getters": {
+    "assistantsFolder": {
+      "description": "The absolute path to the assistants folder.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "discovered": {
+      "name": "discovered",
+      "description": "Event emitted by AssistantsManager",
+      "arguments": {}
+    },
+    "assistantCreated": {
+      "name": "assistantCreated",
+      "description": "Event emitted by AssistantsManager",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
 setBuildTimeData('features.conversation', {
   "id": "features.conversation",
   "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
@@ -3828,7 +3923,7 @@ setBuildTimeData('features.assistant', {
       "returns": "Promise<DocsReader | undefined>"
     },
     "start": {
-      "description": "Start the assistant by loading the system prompt, tools, hooks, and docs reader, then creating the underlying conversation.",
+      "description": "Start the assistant by loading the system prompt, tools, uooks, and docs reader, then creating the underlying conversation.",
       "parameters": {},
       "required": [],
       "returns": "Promise<this>"
@@ -3893,6 +3988,21 @@ setBuildTimeData('features.assistant', {
     }
   },
   "events": {
+    "systemPromptLoaded": {
+      "name": "systemPromptLoaded",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "toolsLoaded": {
+      "name": "toolsLoaded",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "hooksLoaded": {
+      "name": "hooksLoaded",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
     "chunk": {
       "name": "chunk",
       "description": "Event emitted by Assistant",
@@ -3930,6 +4040,21 @@ setBuildTimeData('features.assistant', {
     },
     "hookFired": {
       "name": "hookFired",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "hookError": {
+      "name": "hookError",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "hookCompleted": {
+      "name": "hookCompleted",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "answered": {
+      "name": "answered",
       "description": "Event emitted by Assistant",
       "arguments": {}
     }
@@ -8104,6 +8229,100 @@ export const introspectionData = [
     "options": {}
   },
   {
+    "id": "features.assistantsManager",
+    "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
+    "shortcut": "features.assistantsManager",
+    "methods": {
+      "afterInitialize": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "discover": {
+        "description": "Scans the assistants folder for subdirectories and probes each for CORE.md, tools.ts, hooks.ts, and docs/. Populates the internal entries map.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
+      "list": {
+        "description": "Returns all discovered assistant entries as an array.",
+        "parameters": {},
+        "required": [],
+        "returns": "AssistantEntry[]"
+      },
+      "get": {
+        "description": "Looks up a single assistant entry by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The assistant subdirectory name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "AssistantEntry | undefined"
+      },
+      "create": {
+        "description": "Creates and returns a new Assistant feature instance for the given name. The assistant is configured with the discovered folder path. Any additional options are merged in.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The assistant name (must match a discovered entry)"
+          },
+          "options": {
+            "type": "Record<string, any>",
+            "description": "Additional options to pass to the Assistant constructor"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Assistant"
+      },
+      "getInstance": {
+        "description": "Returns a previously created assistant instance by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The assistant name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Assistant | undefined"
+      },
+      "toSummary": {
+        "description": "Generates a markdown summary of all discovered assistants, listing their names and which definition files are present.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      }
+    },
+    "getters": {
+      "assistantsFolder": {
+        "description": "The absolute path to the assistants folder.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "discovered": {
+        "name": "discovered",
+        "description": "Event emitted by AssistantsManager",
+        "arguments": {}
+      },
+      "assistantCreated": {
+        "name": "assistantCreated",
+        "description": "Event emitted by AssistantsManager",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "features.conversation",
     "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
     "shortcut": "features.conversation",
@@ -8597,7 +8816,7 @@ export const introspectionData = [
         "returns": "Promise<DocsReader | undefined>"
       },
       "start": {
-        "description": "Start the assistant by loading the system prompt, tools, hooks, and docs reader, then creating the underlying conversation.",
+        "description": "Start the assistant by loading the system prompt, tools, uooks, and docs reader, then creating the underlying conversation.",
         "parameters": {},
         "required": [],
         "returns": "Promise<this>"
@@ -8662,6 +8881,21 @@ export const introspectionData = [
       }
     },
     "events": {
+      "systemPromptLoaded": {
+        "name": "systemPromptLoaded",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "toolsLoaded": {
+        "name": "toolsLoaded",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "hooksLoaded": {
+        "name": "hooksLoaded",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
       "chunk": {
         "name": "chunk",
         "description": "Event emitted by Assistant",
@@ -8699,6 +8933,21 @@ export const introspectionData = [
       },
       "hookFired": {
         "name": "hookFired",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "hookError": {
+        "name": "hookError",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "hookCompleted": {
+        "name": "hookCompleted",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "answered": {
+        "name": "answered",
         "description": "Event emitted by Assistant",
         "arguments": {}
       }
