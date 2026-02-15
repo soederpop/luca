@@ -2,106 +2,76 @@
 
 Lightweight Universal Conversational Architecture. Runtime is bun.
 
-## Personality
+Luca provides a system for building runtime `container` objects which provide server and browser applications with all of the dependencies they need to build complete applications.  A `container` is a per process global singleton, event bus, state machine, and dependency injector.  A `container` is either based on a node or browser runtime, and comes with features optimized for that environment.  You can build your own container on top of it, with your own features, clients, servers.  It is very much inspired by docker layer caching.
 
-- I'd much prefer: aight, i got you my g. let me cook. to... alright I have a full picture now, let me get started or some corporate dork.
-- That's about it.  Just talk to me like somebody i'd want to spend time with and talk to not a dork I have to sit next to in an open office setup I don't wanna be at.
+Dependencies consist of Helpers - Features, Clients, Servers, as well as primitives like event buses, observable state.  The `container` contains registries of all available components: `container.features`, `container.clients`, `container.servers`, `container.commands`, `container.endpoints` as well as factory functions to create instances of them: `container.feature('fileManager')`, `container.server('express')`. 
 
-## Core Requirements
+The `container` and its helpers are perfect for scripts and long running services on the backend, or highly reactive and stateful applications on the frontend.  The components can easily talk to eachother, as the `container` on the server provides servers like `container.server('express')` and `container.server('websocket')` as well as `container.client('rest')` and `container.client('websocket')` and others.  
 
-- Luca's type system is such that it allows the following snippet
+On the frontend the browser container is perfect for highly reactive, stateful web applications, especially works well with React.
 
-```ts
-const whatever = container.feature('whatever', options)
-```
+## Dev-time and Run-time typed interfaces
 
-to provide auto-complete through typescript.  'whatever' is suggested by typescript, and the keys and documentation for options are known at typescript.  It does this through module augmentation and some basic type magic.
+Helpers, registries, and factory functions on the container are all typed, and as you add your own components to a container, you can use module augmentation to extend the `AvailableFeatures` and `AvailableClients` etc.  Defining subclasses of the helpers involves using types for the `HelperOptions` and `HelperState` and `HelperEvents` which provide dev-time autocompletion through types when creating instances through the factories, as well as working with the `helper.state` and using helper events `helper.on()`, `helper.once()` etc.  
 
-In addition, the events are typed
+Since these types are based on Zod schemas, we also get runtime introspection of these things. Every helper, as well as the container, have methods like `introspect()` and `introspectAsText()` that contain information derived from the Zod schemas, as well as static metadata derived from the docblocks on the classes, methods, and properties.
 
-```ts
-whatever.on("eventName", (someArg) => { })
-```
+This allows every server, feature, endpoint, command, to have built in help for working with it.
 
-as well as the internal state system, the allowed keys and their types
+What is a `Feature`? A `Feature` is a thing, that emits events, has state, and provide an interface for doing something meaningful.  It has a well typed, well documented interface.  A `Feature` can combine other features, clients, servers.  
 
-```ts
-whatever.setState({
-	key: "value"
-})
-```
+Like all helpers, features, clients, servers, etc can access the container that created them:  `feature.container` 
 
-This is due to the way the Helper and Registry functions and types work.  It is very important we don't break this.
+For more information about why we did all this consult the [Philosophy](./docs/philosophy.md)
 
-In addition to this, the options, state schemas, etc, need to be built on top of Zod schemas so we get access to them at runtime as well.
+## Optimized for Developer and LLM Agent Experience
 
-## Important Tips
+Luca is optimized for developers authoring applications, as well as AI Agents, because you can learn about it at dev time and run time.  If all you know is the general purpose of the container and its registries and factories, the existence of basic primitives like state and event buses, you could learn about everything that is available to you and build an application without reading very many docs. `container.features.available` will tell you everything that is there.  `container.features.describeAll()` will give you documentation for all features.
 
-- Read docs/codebase-explainer.md if you need a quick summary of the codebase.  For speed's sake I'd rather you do this than glob my entire tree and call dozens of tools to read it.  I will promise to keep it up to date if things change.
+## Development Guidelines
 
-- Read the scripts/examples/*.ts files to get some examples of using the node features in scripts
+Never break the type system.  I should always be able to get type information as I complete each component of this: `const someFeature : NowIShouldKnowTheType = container.feature('nowIShouldGEtAutoComplete', andNowHereAsWellIShouldGetAvailableKeysDescriptionsTypeEtc)`
 
-## Vision
+Document the classes you create when creating any Helper subclass.  Document all methods on the helpers you create, and document all getters as well.
 
-Luca philosophically is inspired by the beauty of docker layers and their cacheability, and how when you order your dockerfile properly based on how frequently each line changes, you can save tons and tons of time and space.  
+Types are based on Zod and zod's type inference system.  `.describe()` things when you can.
 
-As a professional full-stack application developer who does a lot of side projects, consulting for multiple clients, professional agency work, I want to organize my work in such a way that I can re-use core foundational components across multiple projects but still have a very consistent and robust architectural capabilities on top of JavaScript that I don't want to reinvent every time.  And if I fix something in one project, I'd like all projects to benefit seamlessly.
+Use the components that are available, the features, etc.  Instead of reinventing things that the features might already do.
 
-Luca produces a `container` which is a JavaScript runtime object that provides your application code with features or other objects ( clients, servers, whatever you think of ) for that specific runtime (node, browser).  As well as observable state objects, and event bus objects, that are core architectural tools that any application can be built from.
-
-Layer 1: Container / NodeContainer / WebContainer - platform specific containers with features that are universally applicable to any application in that runtime
-Layer 2: ApplicationContainer - features, clients, servers, etc specific to that individual category of applications. `RestaurantContainer` or `FinanceCompanyContainer` think.
-
-Layer 3: `OrganizationSpecificContainer` e.g. `SomeSaasCompanyContainer` or `SomeLawFirmContainer`
-
-It is my firm belief that it is possible to solve Layer 1 and Layer 2 once and rarely again.  ( this is like all docker containers being based on alpine version whatever.  You never need to rebuild that layer if you don't change versions. ) 
-
-When you get to layer 3, it is so customer specific that things are changing every day.  
-
-It is my strong belief that in order to be the best you can be as a builder, you need to spend all your energy on layer 3.
-
-I want to be able to take `containers` from project to project, and since its javascript, in the browser or the server.  For example, if I develop a client for Github in one project and add it to that container, I can start a brand new project with that same container and already have a Github client ready to go. If I need to use it in a web application, its the same as if I use it in a server side script.
-
-### REPL - great interface for developers, even better interface for agentic AI
-
-Something special and unique about Luca, is that it provides JavaScript runtimes the equivalent capabilities as e.g the Ruby language and its amazing introspection abilities to see every class that subclasses another one.  Or all instances of a specific class, within that running process.  
-
-At runtime, you can learn about all of the features, servers, clients available.  Their available options, what observable state they have, what events they emit, and the signatures for all of these things.  Just by having access to the `container` object you can learn everything you need about the dependencies available to you at runtime.
-
-This is an old idea, and remains especially helpful for my REPL driven development style.
-
-Today, in the age of LLMs and Agentic AI, imagine an Agent which knew JavaScript like a master already and could learn about its own runtime and environment? It could literally code and modify itself 100% at runtime and you could watch the thing being built and you and the agents could interact with it.  
-
-## Architecture
-
-Luca provides a dependency injection `Container` class which is intended to create global singleton with observable `State` and global event `Bus`, as well as several registries which are instances of a `Registry` that is assigned a particular `Helper` class that everything inside the registry is a subclass of. 
-
-Example types of `Helper` subclasses are `Feature`, `Server`, and `Client`.  A `Helper` instance isn't intended to be a singleton, necessarily, but the container provides factory methods to go along with every registry which will create a single instance of that `Helper` for every unique options object that gets created with it.  `container.feature('whatever')` will always return an object with the same `uuid` unless called with different arguments e.g. `container.feature('whatever', { name: 'twin' })` will be a different instance.  
-
-Container's have a `clients` registry, and a `client` factory function.  `Client` subclasses are registered, e.g. `container.clients.register('github', class GithubClient extends Client { shortcut = 'clients.github' })`.  Same for servers, same for features, same for any Helper subclass.
-
-The `Helper` like `Container` has an observable state machine, and event bus as well.  A `Helpers` purpose is to help represent a standard interface (e.g. all clients `connect` and all servers `start`) for working with a type of thing, 
-
-## Class Hierarchy and Folder Naming / Organization
-
-This project contains the core framework container stuff, as well as second layer containers which are designed to power certain categories of applications.  
-
-### Core Layer
-
-- `Container` in `src/container.ts` is platform agnostic core container stuff.
-- `Helper` in `src/helper.ts` is 
-- `NodeContainer` in `src/node/container.ts` is the subclass of that and intended to be used in server side environments.
-- `BrowserContainer` in `src/web/container.ts` is intended for use in web environments.
-- `src/web/features/**.ts` contains all features that are only intended for the browser
-- `src/node/features/**.ts` contains all features that are intended for the server side.
-- `src/server.ts` `src/client.ts` `src/feature.ts` are all subclasses of Helper
-
-### Second Layer
-
-An Example of a second layer container can be found in `src/agi`.  
-
-These are intended to be used for a specific type of application: self-coding / self-modifying agentic objects that are aware of the luca philosophy and capable of working with the `container` object to be able to extend itself or build its own interfaces for gathering things it needs and communicating with other `container` instances across the internet.
+Commit all your changes after you're done.  Only include the changes you made. Leave a commit message that is descriptive, and an explanation in the body or whatever of the message not just the title.
 
 ## Project Commands
 
-`bun run scripts/scaffold` will generate a feature, client, or server boilerplate.
+### Run the Test Suite
+
+```shell
+bun test
+```
+
+### Generate Introspection Metadata
+
+You'll run this command to capture method, getter, class descriptions from the various helper implementations contained in this project. Run this any time you add or change a feature and are happy with its interface and documentation.
+
+```shell
+bun run introspect
+```
+
+### Update Codebase Explainer
+
+This document is intended to be a summary of the layout of each file and its purpose, mainly for a new developer or an AI coder.  We should periodically update this document as the project evolves and things are added or removed
+
+```shell
+bun run explain-codebase
+```
+
+### Typecheck
+
+The type information is very important, and maintaining the `container.feature(string, options)` type system even as new features are added on top of the core is a big priority.
+
+```shell
+bun run typecheck
+```
+
+### Compile
+
+Builds the single file `luca` executable.  This CLI will run commands available in `src/commands/*.ts` which are instances of the `Command` helper. 

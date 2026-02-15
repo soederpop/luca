@@ -2,11 +2,9 @@ import type { ContainerState } from '@/container'
 import { type NodeFeatures, NodeContainer } from '@/node/container'
 import '@/introspection/generated.agi.js'
 import { OpenAIClient } from '@/agi/openai-client'
-import { Snippets } from './features/snippets'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
-import { Planner } from './features/planner'
 import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 
@@ -34,10 +32,8 @@ export interface ConversationFactoryOptions {
  */
 export class AGIContainer extends NodeContainer {
 	openai!: OpenAIClient
-	snippets!: Snippets
 	claudeCode?: ClaudeCode
 	openaiCodex?: OpenAICodex
-	planner?: Planner
 	skillsLibrary?: SkillsLibrary
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
@@ -75,11 +71,9 @@ export class AGIContainer extends NodeContainer {
 
 const container = new AGIContainer()
 	.use(OpenAIClient)
-	.use(Snippets)
 	.use(ClaudeCode)
 	.use(OpenAICodex)
 	.use(Conversation)
-	.use(Planner)
 	.use(SkillsLibrary)
 	.use(ConversationHistory)
 

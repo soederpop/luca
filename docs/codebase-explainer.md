@@ -260,14 +260,13 @@ Extends Helper. Adds:
 
 | Shortcut | Class | File | Key Methods |
 |----------|-------|------|-------------|
-| `features.snippets` | Snippets | snippets.ts | addSnippet, getSnippet, updateSnippet, removeSnippet, searchSnippets |
 | `features.claudeCode` | ClaudeCode | claude-code.ts | run, start (background), abort, getSession, waitForSession, checkAvailability |
 | `features.conversation` | Conversation | conversation.ts | ask (streaming + tool calling loop), messages, model, isStreaming |
 
 **AGI Client:** OpenAIClient (`clients.openai`) in `src/agi/openai-client.ts`
 Methods: `createChatCompletion`, `createCompletion`, `createEmbedding`, `createImage`, `listModels`, `ask`, `chat`, `raw` (raw OpenAI SDK)
 
-**AGIContainer** (`src/agi/container.server.ts`): extends NodeContainer, `.use()`s OpenAIClient, Snippets, ClaudeCode, Conversation.
+**AGIContainer** (`src/agi/container.server.ts`): extends NodeContainer, `.use()`s OpenAIClient, ClaudeCode, OpenAICodex, Conversation, SkillsLibrary, ConversationHistory.
 
 ---
 
