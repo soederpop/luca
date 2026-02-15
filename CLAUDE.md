@@ -4,6 +4,8 @@ Lightweight Universal Conversational Architecture. Runtime is bun.
 
 Luca provides a system for building runtime `container` objects which provide server and browser applications with all of the dependencies they need to build complete applications.  A `container` is a per process global singleton, event bus, state machine, and dependency injector.  A `container` is either based on a node or browser runtime, and comes with features optimized for that environment.  You can build your own container on top of it, with your own features, clients, servers.  It is very much inspired by docker layer caching.
 
+A `container` could be used for all "business logic" and state, and be a headless provider for an entire application.  The UI, Scripting output, input, etc, are all just functional interfaces and event bindings to the core container and all of its helpers, and their state.
+
 Dependencies consist of Helpers - Features, Clients, Servers, as well as primitives like event buses, observable state.  The `container` contains registries of all available components: `container.features`, `container.clients`, `container.servers`, `container.commands`, `container.endpoints` as well as factory functions to create instances of them: `container.feature('fileManager')`, `container.server('express')`. 
 
 The `container` and its helpers are perfect for scripts and long running services on the backend, or highly reactive and stateful applications on the frontend.  The components can easily talk to eachother, as the `container` on the server provides servers like `container.server('express')` and `container.server('websocket')` as well as `container.client('rest')` and `container.client('websocket')` and others.  
@@ -40,7 +42,7 @@ Use the components that are available, the features, etc.  Instead of reinventin
 
 Commit all your changes after you're done.  Only include the changes you made. Leave a commit message that is descriptive, and an explanation in the body or whatever of the message not just the title.
 
-Folders of markdown should be organized as `contentbase` collections. 
+Folders of markdown should be organized as `contentbase` collections. See [docs/contentbase-readme.md](./docs/contentbase-readme.md) for its API and usage.
 
 ## Project Commands
 
