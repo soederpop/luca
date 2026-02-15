@@ -13,9 +13,19 @@
     "conversational",
     "architecture"
   ],
-  "main": "./dist/main.js",
-  "types": "./dist/main.d.ts",
-  "browser": "./dist/esbuild/browser.js",
+  "main": "./dist/node.js",
+  "types": "./dist/node.d.ts",
+  "browser": "./dist/browser.js",
+  "exports": {
+    ".": {
+      "node": { "import": "./dist/node.js", "types": "./dist/node.d.ts" },
+      "browser": { "import": "./dist/browser.js", "types": "./dist/browser.d.ts" },
+      "default": "./dist/node.js"
+    },
+    "./node": { "import": "./dist/node.js", "types": "./dist/node.d.ts" },
+    "./web": { "import": "./dist/browser.js", "types": "./dist/browser.d.ts" },
+    "./agi": { "import": "./dist/agi/index.js", "types": "./dist/agi/index.d.ts" }
+  },
   "bin": {
     "luca": "./dist/esbuild/cli.js"
   },
