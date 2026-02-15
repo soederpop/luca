@@ -7,6 +7,7 @@ import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
 import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
+import { DocsReader } from './features/docs-reader'
 import { Assistant } from './features/assistant'
 
 import type { ContentDb } from '@/node/features/content-db'
@@ -77,6 +78,7 @@ const container = new AGIContainer()
 	.use(Conversation)
 	.use(SkillsLibrary)
 	.use(ConversationHistory)
+	.use(DocsReader)
 	.use(Assistant)
 
 container.docs = container.feature('contentDb', {
