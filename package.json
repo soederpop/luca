@@ -24,7 +24,8 @@
     "build:web": "bun run scripts/build-web.ts",
     "build:introspection": "bun run scripts/update-introspection-data",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "explain-codebase": "bun run scripts/explain-codebase.ts"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
