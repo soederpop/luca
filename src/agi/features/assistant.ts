@@ -7,8 +7,6 @@ import type { Conversation, ConversationTool, ContentPart } from './conversation
 import type { DocsReader } from './docs-reader'
 import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@/node/features/content-db.js'
-import { readFileSync, existsSync } from 'fs'
-import { resolve, join } from 'path'
 
 declare module '@/feature' {
 	interface AvailableFeatures {
@@ -100,29 +98,27 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The absolute resolved path to the assistant folder. */
 	get resolvedFolder(): string {
-		const folder = this.options.folder
-		if (folder.startsWith('/')) return folder
-		return resolve(this.container.cwd, folder)
+		return this.container.paths.resolve(this.options.folder)
 	}
 
 	/** The path to the docs subfolder. */
 	get docsFolder(): string {
-		return join(this.resolvedFolder, this.options.docsPath || 'docs')
+		return this.container.paths.resolve(this.resolvedFolder, this.options.docsPath || 'docs')
 	}
 
 	/** The path to CORE.md which provides the system prompt. */
 	get corePromptPath(): string {
-		return join(this.resolvedFolder, 'CORE.md')
+		return this.container.paths.resolve(this.resolvedFolder, 'CORE.md')
 	}
 
 	/** The path to tools.ts which provides tool implementations and schemas. */
 	get toolsModulePath(): string {
-		return join(this.resolvedFolder, 'tools.ts')
+		return this.container.paths.resolve(this.resolvedFolder, 'tools.ts')
 	}
 
 	/** The path to hooks.ts which provides event handler functions. */
 	get hooksModulePath(): string {
-		return join(this.resolvedFolder, 'hooks.ts')
+		return this.container.paths.resolve(this.resolvedFolder, 'hooks.ts')
 	}
 
 	conversation?: Conversation
@@ -153,10 +149,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns {string} The assembled system prompt
 	 */
 	loadSystemPrompt(): string {
+		const { fs } = this.container
 		let prompt = ''
 
-		if (existsSync(this.corePromptPath)) {
-			prompt = readFileSync(this.corePromptPath, 'utf-8')
+		if (fs.exists(this.corePromptPath)) {
+			prompt = fs.readFile(this.corePromptPath)
 		}
 
 		if (this.options.prependPrompt) {
@@ -180,8 +177,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	async loadTools(): Promise<Record<string, ConversationTool>> {
 		const tools: Record<string, ConversationTool> = {}
 
-		if (existsSync(this.toolsModulePath)) {
-			const code = readFileSync(this.toolsModulePath, 'utf-8')
+		const { fs } = this.container
+
+		if (fs.exists(this.toolsModulePath)) {
+			const code = fs.readFile(this.toolsModulePath)
 			const vm = this.container.feature('vm')
 
 			const { context } = await vm.perform(code, {
@@ -262,8 +261,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	async loadHooks(): Promise<Record<string, (...args: any[]) => any>> {
 		const hooks: Record<string, (...args: any[]) => any> = {}
 
-		if (existsSync(this.hooksModulePath)) {
-			const code = readFileSync(this.hooksModulePath, 'utf-8')
+		const { fs } = this.container
+
+		if (fs.exists(this.hooksModulePath)) {
+			const code = fs.readFile(this.hooksModulePath)
 			const vm = this.container.feature('vm')
 
 			const { context } = await vm.perform(code, {
@@ -292,7 +293,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns {Promise<DocsReader | undefined>} The docs reader, or undefined if no docs folder exists
 	 */
 	async initDocsReader(): Promise<DocsReader | undefined> {
-		if (!existsSync(this.docsFolder)) return undefined
+		if (!this.container.fs.exists(this.docsFolder)) return undefined
 
 		const contentDb = this.container.feature('contentDb', {
 			rootPath: this.docsFolder,
