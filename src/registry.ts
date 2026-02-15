@@ -68,7 +68,22 @@ abstract class Registry<T extends Helper> {
       id = [this.scope, id].join(".")
     }
 
-    return this.members.get(id)!;
+    const Constructor = this.members.get(id);
+
+    if (!Constructor) {
+      const available = this.available
+      const suggestion = available.length > 0
+        ? `\n\nAvailable ${this.scope}: ${available.join(', ')}`
+        : `\n\nNo ${this.scope} are registered. Make sure the module is imported or .use()'d on the container.`
+
+      throw new Error(
+        `${this.scope} "${id}" is not registered.${suggestion}\n\n` +
+        `To fix this, ensure the module that defines "${id}" is imported (e.g. import './${this.scope}/${id}') ` +
+        `or registered on the container (e.g. container.use(${id[0].toUpperCase() + id.slice(1)})).`
+      )
+    }
+
+    return Constructor;
   }
 
   /** 
