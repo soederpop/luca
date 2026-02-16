@@ -407,48 +407,56 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return null;
   }
 
-  private extractJSDocParamDescriptions(method: ts.MethodDeclaration): Record<string, string> {
-    const paramDescriptions: Record<string, string> = {};
-    
-    // Use the same logic as extractJSDocDescription to get the JSDoc comment
+  private extractJSDocParamDescriptions(method: ts.MethodDeclaration): {
+    params: Record<string, string>,
+    subProps: Record<string, Record<string, string>>
+  } {
+    const params: Record<string, string> = {};
+    const subProps: Record<string, Record<string, string>> = {};
+
     const sourceFile = method.getSourceFile();
     const fullText = sourceFile.getFullText();
-    
-    // Get the text range for the method including leading trivia (comments)
+
     const ranges = ts.getLeadingCommentRanges(fullText, method.getFullStart());
-    
+
     if (ranges && ranges.length > 0) {
-      // Find the last JSDoc comment (the one immediately before the method)
       for (let i = ranges.length - 1; i >= 0; i--) {
         const range = ranges[i];
         if (range) {
           const commentText = fullText.substring(range.pos, range.end);
-          
-          // Check if it's a JSDoc comment (starts with /**)
+
           if (commentText.startsWith('/**')) {
-            // Extract the content between /** and */
             const content = commentText.slice(3, -2);
-            
-            // Look for @param lines
+
             const lines = content.split('\n');
             for (const line of lines) {
               const cleaned = line.replace(/^\s*\*\s?/, '').trim();
-              
-              // Match @param {type} paramName - description
-              const paramMatch = cleaned.match(/^@param\s+\{[^}]*\}\s+(\w+)\s*-?\s*(.+)$/);
+
+              // Match @param {type} name.subProp or @param {type} [name.subProp=default] - description
+              const paramMatch = cleaned.match(/^@param\s+(?:\{[^}]*\}\s+)?\[?([\w.]+)(?:=[^\]]*)?\]?\s*-?\s*(.+)$/);
               if (paramMatch && paramMatch[1] && paramMatch[2]) {
-                const paramName = paramMatch[1];
-                const description = paramMatch[2];
-                paramDescriptions[paramName] = description.trim();
+                const fullName = paramMatch[1];
+                const description = paramMatch[2].trim();
+
+                if (fullName.includes('.')) {
+                  // Sub-property: e.g. options.cached -> { options: { cached: "..." } }
+                  const parts = fullName.split('.');
+                  const parentName = parts[0]!;
+                  const propName = parts.slice(1).join('.');
+                  if (!subProps[parentName]) subProps[parentName] = {};
+                  subProps[parentName]![propName] = description;
+                } else {
+                  params[fullName] = description;
+                }
               }
             }
-            break; // Stop after finding the first JSDoc comment
+            break;
           }
         }
       }
     }
-    
-    return paramDescriptions;
+
+    return { params, subProps };
   }
 
   private extractMethods(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, MethodIntrospection> {
@@ -557,23 +565,147 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     return null;
   }
 
-  private extractParameters(method: ts.MethodDeclaration): Record<string, { type: string, description: string }> {
-    const parameters: Record<string, { type: string, description: string }> = {};
+  private static PRIMITIVE_TYPES = new Set([
+    'string', 'number', 'boolean', 'any', 'void', 'undefined', 'null',
+    'never', 'unknown', 'object', 'bigint', 'symbol',
+  ]);
 
-    // Extract JSDoc parameter descriptions
-    const paramDescriptions = this.extractJSDocParamDescriptions(method);
+  private extractParameters(method: ts.MethodDeclaration): Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }> {
+    const parameters: Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }> = {};
+
+    // Extract JSDoc parameter descriptions (including sub-property descriptions)
+    const { params: paramDescriptions, subProps } = this.extractJSDocParamDescriptions(method);
+    const sourceFile = method.getSourceFile();
 
     for (const param of method.parameters) {
       const paramName = param.name.getText();
       const type = param.type ? param.type.getText() : 'any';
-      
+
       // Use JSDoc description if available, otherwise fallback to generic description
       const description = paramDescriptions[paramName] || `Parameter ${paramName}`;
 
-      parameters[paramName] = { type, description };
+      const entry: { type: string, description: string, properties?: Record<string, { type: string, description: string }> } = { type, description };
+
+      // Resolve non-primitive types to their member properties
+      const baseType = type.replace(/\[\]$/, '').replace(/\s*\|.*$/, '').trim();
+      if (!IntrospectionScannerFeature.PRIMITIVE_TYPES.has(baseType)) {
+        const properties = this.resolveTypeProperties(baseType, sourceFile);
+        if (properties) {
+          entry.properties = properties;
+        }
+      }
+
+      // Merge JSDoc sub-property descriptions (e.g. @param {boolean} [options.cached] - ...)
+      // into the resolved type properties
+      const jsdocSubProps = subProps[paramName];
+      if (jsdocSubProps) {
+        if (!entry.properties) entry.properties = {};
+        for (const [propName, propDesc] of Object.entries(jsdocSubProps)) {
+          if (entry.properties[propName]) {
+            // Enrich existing property with JSDoc description if it was empty
+            if (!entry.properties[propName].description) {
+              entry.properties[propName].description = propDesc;
+            }
+          } else {
+            entry.properties[propName] = { type: 'any', description: propDesc };
+          }
+        }
+      }
+
+      parameters[paramName] = entry;
     }
 
     return parameters;
+  }
+
+  /**
+   * Resolves a type name to its member properties by searching the source file
+   * for type alias or interface declarations.
+   */
+  private resolveTypeProperties(typeName: string, sourceFile: ts.SourceFile): Record<string, { type: string, description: string }> | null {
+    for (const statement of sourceFile.statements) {
+      // Handle: type Foo = { ... }
+      if (ts.isTypeAliasDeclaration(statement) && statement.name.text === typeName) {
+        if (ts.isTypeLiteralNode(statement.type)) {
+          return this.extractTypeLiteralMembers(statement.type, sourceFile);
+        }
+      }
+      // Handle: interface Foo { ... }
+      if (ts.isInterfaceDeclaration(statement) && statement.name.text === typeName) {
+        return this.extractInterfaceMembers(statement, sourceFile);
+      }
+    }
+    return null;
+  }
+
+  private extractTypeLiteralMembers(node: ts.TypeLiteralNode, sourceFile: ts.SourceFile): Record<string, { type: string, description: string }> {
+    const members: Record<string, { type: string, description: string }> = {};
+
+    for (const member of node.members) {
+      if (ts.isPropertySignature(member) && member.name) {
+        const name = member.name.getText();
+        const type = member.type ? member.type.getText() : 'any';
+        const description = this.extractJSDocFromNode(member, sourceFile) || '';
+        members[name] = { type, description };
+      }
+    }
+
+    return Object.keys(members).length > 0 ? members : null as any;
+  }
+
+  private extractInterfaceMembers(node: ts.InterfaceDeclaration, sourceFile: ts.SourceFile): Record<string, { type: string, description: string }> {
+    const members: Record<string, { type: string, description: string }> = {};
+
+    for (const member of node.members) {
+      if (ts.isPropertySignature(member) && member.name) {
+        const name = member.name.getText();
+        const type = member.type ? member.type.getText() : 'any';
+        const description = this.extractJSDocFromNode(member, sourceFile) || '';
+        members[name] = { type, description };
+      }
+    }
+
+    return Object.keys(members).length > 0 ? members : null as any;
+  }
+
+  /**
+   * Extracts a JSDoc description from any node that may have leading comments.
+   */
+  private extractJSDocFromNode(node: ts.Node, sourceFile: ts.SourceFile): string | null {
+    const fullText = sourceFile.getFullText();
+    const ranges = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+
+    if (ranges && ranges.length > 0) {
+      for (let i = ranges.length - 1; i >= 0; i--) {
+        const range = ranges[i];
+        if (!range) continue;
+        const commentText = fullText.substring(range.pos, range.end);
+
+        if (commentText.startsWith('/**')) {
+          const content = commentText.slice(3, -2);
+          const lines = content.split('\n');
+          const cleanLines: string[] = [];
+
+          for (const line of lines) {
+            const cleaned = line.replace(/^\s*\*\s?/, '').trim();
+            if (cleaned && !cleaned.startsWith('@')) {
+              cleanLines.push(cleaned);
+            } else if (cleaned.startsWith('@')) {
+              break;
+            }
+          }
+
+          return cleanLines.join(' ').trim() || null;
+        }
+
+        // Handle single-line // comments
+        if (commentText.startsWith('//')) {
+          return commentText.replace(/^\/\/\s*/, '').trim() || null;
+        }
+      }
+    }
+
+    return null;
   }
 
   private extractRequiredParameters(method: ts.MethodDeclaration): string[] {

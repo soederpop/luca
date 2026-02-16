@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-15T07:22:36.662Z
+// Generated at: 2026-02-16T04:05:52.110Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -13,11 +13,11 @@ setBuildTimeData('features.yamlTree', {
       "parameters": {
         "basePath": {
           "type": "string",
-          "description": "Parameter basePath"
+          "description": "The root directory path to scan for YAML files"
         },
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The key to store the tree under in state (defaults to first segment of basePath)"
         }
       },
       "required": [
@@ -53,11 +53,11 @@ setBuildTimeData('features.ink', {
       "parameters": {
         "node": {
           "type": "any",
-          "description": "Parameter node"
+          "description": "A React element (JSX or React.createElement)"
         },
         "options": {
           "type": "Record<string, any>",
-          "description": "Parameter options"
+          "description": "Ink render options (stdout, stdin, debug, etc.)"
         }
       },
       "required": [
@@ -149,7 +149,45 @@ setBuildTimeData('features.git', {
       "parameters": {
         "options": {
           "type": "LsFilesOptions",
-          "description": "Parameter options"
+          "description": "Options to control which files are listed",
+          "properties": {
+            "cached": {
+              "type": "boolean",
+              "description": "Show cached/staged files"
+            },
+            "deleted": {
+              "type": "boolean",
+              "description": "Show deleted files"
+            },
+            "modified": {
+              "type": "boolean",
+              "description": "Show modified files"
+            },
+            "others": {
+              "type": "boolean",
+              "description": "Show untracked files"
+            },
+            "ignored": {
+              "type": "boolean",
+              "description": "Show ignored files"
+            },
+            "status": {
+              "type": "boolean",
+              "description": "Show file status information"
+            },
+            "includeIgnored": {
+              "type": "boolean",
+              "description": "Include ignored files when showing others"
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "Patterns to exclude from results"
+            },
+            "baseDir": {
+              "type": "string",
+              "description": "Base directory to list files from"
+            }
+          }
         }
       },
       "required": [],
@@ -160,11 +198,67 @@ setBuildTimeData('features.git', {
       "parameters": {
         "numberOfChanges": {
           "type": "number",
-          "description": "Parameter numberOfChanges"
+          "description": "The number of recent commits to return"
         }
       },
       "required": [],
       "returns": "void"
+    },
+    "fileLog": {
+      "description": "Gets a lightweight commit log for one or more files. Returns the SHA and message for each commit that touched the given files, without the per-commit overhead of resolving which specific files matched. For richer per-file matching, see {@link getChangeHistoryForFiles}.",
+      "parameters": {
+        "files": {
+          "type": "string[]",
+          "description": "File paths (absolute or relative to container.cwd)"
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "returns": "void"
+    },
+    "diff": {
+      "description": "Gets the diff for a file between two refs. By default compares from the current HEAD to the given ref. You can supply both `compareTo` and `compareFrom` to diff between any two commits, branches, or tags.",
+      "parameters": {
+        "file": {
+          "type": "string",
+          "description": "File path (absolute or relative to container.cwd)"
+        },
+        "compareTo": {
+          "type": "string",
+          "description": "The target ref (commit SHA, branch, tag) to compare to"
+        },
+        "compareFrom": {
+          "type": "string",
+          "description": "The base ref to compare from (defaults to current HEAD)"
+        }
+      },
+      "required": [
+        "file",
+        "compareTo"
+      ],
+      "returns": "void"
+    },
+    "displayDiff": {
+      "description": "Pretty prints a unified diff string to the terminal using colors. Parses the diff output and applies color coding: - File headers (`diff --git`, `---`, `+++`) are rendered bold - Hunk headers (`@@ ... @@`) are rendered in cyan - Added lines (`+`) are rendered in green - Removed lines (`-`) are rendered in red - Context lines are rendered dim Can be called with a raw diff string, or with the same arguments as {@link diff} to fetch and display in one step.",
+      "parameters": {
+        "diffOrFile": {
+          "type": "string",
+          "description": "A raw diff string, or a file path to pass to {@link diff}"
+        },
+        "compareTo": {
+          "type": "string",
+          "description": "When diffOrFile is a file path, the target ref to compare to"
+        },
+        "compareFrom": {
+          "type": "string",
+          "description": "When diffOrFile is a file path, the base ref to compare from"
+        }
+      },
+      "required": [
+        "diffOrFile"
+      ],
+      "returns": "string"
     },
     "getChangeHistoryForFiles": {
       "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
@@ -217,11 +311,11 @@ setBuildTimeData('features.esbuild', {
       "parameters": {
         "code": {
           "type": "string",
-          "description": "Parameter code"
+          "description": "The code to transform"
         },
         "options": {
           "type": "esbuild.TransformOptions",
-          "description": "Parameter options"
+          "description": "The options to pass to esbuild"
         }
       },
       "required": [
@@ -234,11 +328,11 @@ setBuildTimeData('features.esbuild', {
       "parameters": {
         "code": {
           "type": "string",
-          "description": "Parameter code"
+          "description": "The code to transform"
         },
         "options": {
           "type": "esbuild.TransformOptions",
-          "description": "Parameter options"
+          "description": "The options to pass to esbuild"
         }
       },
       "required": [
@@ -297,7 +391,7 @@ setBuildTimeData('features.proc', {
         },
         "options": {
           "type": "any",
-          "description": "Parameter options"
+          "description": "Options to pass to the underlying spawn process"
         }
       },
       "required": [
@@ -318,7 +412,41 @@ setBuildTimeData('features.proc', {
         },
         "options": {
           "type": "SpawnOptions",
-          "description": "Parameter options"
+          "description": "Options for process execution and monitoring",
+          "properties": {
+            "stdio": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": ""
+            },
+            "stdout": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": ""
+            },
+            "stderr": {
+              "type": "\"ignore\" | \"inherit\"",
+              "description": ""
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the process"
+            },
+            "environment": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "onError": {
+              "type": "(data: string) => void",
+              "description": "Callback for stderr data"
+            },
+            "onOutput": {
+              "type": "(data: string) => void",
+              "description": "Callback for stdout data"
+            },
+            "onExit": {
+              "type": "(code: number) => void",
+              "description": "Callback for process exit"
+            }
+          }
         }
       },
       "required": [
@@ -336,7 +464,21 @@ setBuildTimeData('features.proc', {
         },
         "options": {
           "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
-          "description": "Parameter options"
+          "description": "Options",
+          "properties": {
+            "cwd": {
+              "type": "any",
+              "description": "Working directory"
+            },
+            "maxLines": {
+              "type": "any",
+              "description": "Max stderr lines to keep"
+            },
+            "env": {
+              "type": "any",
+              "description": "Extra environment variables"
+            }
+          }
         }
       },
       "required": [
@@ -382,7 +524,7 @@ setBuildTimeData('features.vm', {
         },
         "options": {
           "type": "vm.ScriptOptions",
-          "description": "Parameter options"
+          "description": "Options for script compilation"
         }
       },
       "required": [
@@ -423,7 +565,7 @@ setBuildTimeData('features.vm', {
         },
         "ctx": {
           "type": "any",
-          "description": "Parameter ctx"
+          "description": "Context variables to make available to the executing code"
         }
       },
       "required": [
@@ -478,7 +620,7 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "name": {
           "type": "string",
-          "description": "Parameter name"
+          "description": "The unique identifier to assign a color to"
         }
       },
       "required": [
@@ -491,11 +633,11 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "questions": {
           "type": "any[]",
-          "description": "Parameter questions"
+          "description": "Array of inquirer question objects"
         },
         "initialAnswers": {
           "type": "any",
-          "description": "Parameter initialAnswers"
+          "description": "Pre-populated answers to skip questions or provide defaults"
         }
       },
       "required": [
@@ -521,11 +663,11 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The initial text content to edit"
         },
         "extension": {
           "type": "any",
-          "description": "Parameter extension"
+          "description": "File extension for syntax highlighting (default: \".ts\")"
         }
       },
       "required": [
@@ -538,11 +680,11 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The text to convert to ASCII art"
         },
         "font": {
           "type": "Fonts",
-          "description": "Parameter font"
+          "description": "The figlet font to use (see fonts property for available options)"
         }
       },
       "required": [
@@ -556,11 +698,21 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The text to convert to a styled banner"
         },
         "options": {
           "type": "{ font: Fonts; colors: Color[] }",
-          "description": "Parameter options"
+          "description": "Banner styling options",
+          "properties": {
+            "font": {
+              "type": "any",
+              "description": "The figlet font to use for ASCII art generation"
+            },
+            "colors": {
+              "type": "any",
+              "description": "Array of colors for the gradient effect"
+            }
+          }
         }
       },
       "required": [
@@ -586,15 +738,15 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The text content to apply gradients to"
         },
         "lineColors": {
           "type": "Color[]",
-          "description": "Parameter lineColors"
+          "description": "Array of colors to cycle through in the gradient"
         },
         "direction": {
           "type": "\"horizontal\" | \"vertical\"",
-          "description": "Parameter direction"
+          "description": "Gradient direction: 'horizontal' or 'vertical'"
         }
       },
       "required": [
@@ -607,11 +759,11 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The text to apply horizontal gradients to"
         },
         "lineColors": {
           "type": "Color[]",
-          "description": "Parameter lineColors"
+          "description": "Array of colors to cycle through"
         }
       },
       "required": [
@@ -624,11 +776,11 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The text to apply vertical gradients to (supports newlines)"
         },
         "lineColors": {
           "type": "Color[]",
-          "description": "Parameter lineColors"
+          "description": "Array of colors to cycle through for each line"
         }
       },
       "required": [
@@ -641,15 +793,15 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "str": {
           "type": "string",
-          "description": "Parameter str"
+          "description": "The string to pad"
         },
         "length": {
           "type": "number",
-          "description": "Parameter length"
+          "description": "The desired total length after padding"
         },
         "padChar": {
           "type": "any",
-          "description": "Parameter padChar"
+          "description": "The character to use for padding (default: \" \")"
         }
       },
       "required": [
@@ -663,15 +815,15 @@ setBuildTimeData('features.ui', {
       "parameters": {
         "str": {
           "type": "string",
-          "description": "Parameter str"
+          "description": "The string to pad"
         },
         "length": {
           "type": "number",
-          "description": "Parameter length"
+          "description": "The desired total length after padding"
         },
         "padChar": {
           "type": "any",
-          "description": "Parameter padChar"
+          "description": "The character to use for padding (default: \" \")"
         }
       },
       "required": [
@@ -972,7 +1124,7 @@ setBuildTimeData('features.tmux', {
       "parameters": {
         "name": {
           "type": "string",
-          "description": "Parameter name"
+          "description": "Session name. Defaults to `luca-{uuid}`."
         }
       },
       "required": [],
@@ -994,7 +1146,21 @@ setBuildTimeData('features.tmux', {
       "parameters": {
         "options": {
           "type": "SplitOptions",
-          "description": "Parameter options"
+          "description": "Split configuration",
+          "properties": {
+            "count": {
+              "type": "number",
+              "description": "Number of panes to create (splits the current pane this many times)"
+            },
+            "orientation": {
+              "type": "'horizontal' | 'vertical'",
+              "description": "Split direction: 'horizontal' splits side-by-side, 'vertical' splits top/bottom"
+            },
+            "size": {
+              "type": "number",
+              "description": "Percentage size for each new pane"
+            }
+          }
         }
       },
       "required": [],
@@ -1005,11 +1171,11 @@ setBuildTimeData('features.tmux', {
       "parameters": {
         "paneId": {
           "type": "string",
-          "description": "Parameter paneId"
+          "description": "The tmux pane ID (e.g. \"%5\")"
         },
         "command": {
           "type": "string",
-          "description": "Parameter command"
+          "description": "The command string to execute"
         }
       },
       "required": [
@@ -1023,7 +1189,7 @@ setBuildTimeData('features.tmux', {
       "parameters": {
         "paneId": {
           "type": "string",
-          "description": "Parameter paneId"
+          "description": "The tmux pane ID"
         }
       },
       "required": [
@@ -1036,15 +1202,15 @@ setBuildTimeData('features.tmux', {
       "parameters": {
         "paneId": {
           "type": "string",
-          "description": "Parameter paneId"
+          "description": "The tmux pane ID"
         },
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "Text to type (followed by Enter)"
         },
         "literal": {
           "type": "string",
-          "description": "Parameter literal"
+          "description": "A literal tmux key name (sent without Enter)"
         }
       },
       "required": [
@@ -1165,7 +1331,69 @@ setBuildTimeData('features.grep', {
       "parameters": {
         "options": {
           "type": "GrepOptions",
-          "description": "Search options"
+          "description": "Search options",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Pattern to search for (string or regex)"
+            },
+            "path": {
+              "type": "string",
+              "description": "Directory or file to search in (defaults to container cwd)"
+            },
+            "include": {
+              "type": "string | string[]",
+              "description": "Glob patterns to include (e.g. '*.ts')"
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "Glob patterns to exclude (e.g. 'node_modules')"
+            },
+            "ignoreCase": {
+              "type": "boolean",
+              "description": "Case insensitive search"
+            },
+            "fixedStrings": {
+              "type": "boolean",
+              "description": "Treat pattern as a fixed string, not regex"
+            },
+            "recursive": {
+              "type": "boolean",
+              "description": "Search recursively (default: true)"
+            },
+            "hidden": {
+              "type": "boolean",
+              "description": "Include hidden files"
+            },
+            "maxResults": {
+              "type": "number",
+              "description": "Max number of results to return"
+            },
+            "before": {
+              "type": "number",
+              "description": "Number of context lines before match"
+            },
+            "after": {
+              "type": "number",
+              "description": "Number of context lines after match"
+            },
+            "filesOnly": {
+              "type": "boolean",
+              "description": "Only return filenames, not match details"
+            },
+            "invert": {
+              "type": "boolean",
+              "description": "Invert match (return lines that don't match)"
+            },
+            "wordMatch": {
+              "type": "boolean",
+              "description": "Match whole words only"
+            },
+            "rawFlags": {
+              "type": "string[]",
+              "description": "Additional raw flags to pass to grep/ripgrep"
+            }
+          }
         }
       },
       "required": [
@@ -1182,7 +1410,7 @@ setBuildTimeData('features.grep', {
         },
         "options": {
           "type": "Omit<GrepOptions, 'pattern' | 'filesOnly'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [
@@ -1199,7 +1427,7 @@ setBuildTimeData('features.grep', {
         },
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [
@@ -1216,7 +1444,7 @@ setBuildTimeData('features.grep', {
         },
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [
@@ -1229,7 +1457,7 @@ setBuildTimeData('features.grep', {
       "parameters": {
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [],
@@ -1244,7 +1472,7 @@ setBuildTimeData('features.grep', {
         },
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [
@@ -1261,7 +1489,7 @@ setBuildTimeData('features.grep', {
         },
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
-          "description": "Parameter options"
+          "description": "Additional search options"
         }
       },
       "required": [
@@ -1547,7 +1775,7 @@ setBuildTimeData('features.networking', {
       "parameters": {
         "startAt": {
           "type": "any",
-          "description": "Parameter startAt"
+          "description": "The port number to start searching from (0 means system will choose)"
         }
       },
       "required": [],
@@ -1558,7 +1786,7 @@ setBuildTimeData('features.networking', {
       "parameters": {
         "checkPort": {
           "type": "any",
-          "description": "Parameter checkPort"
+          "description": "The port number to check for availability"
         }
       },
       "required": [],
@@ -1665,7 +1893,25 @@ setBuildTimeData('features.fs', {
         },
         "options": {
           "type": "WalkOptions",
-          "description": "Options to configure the walk behavior"
+          "description": "Options to configure the walk behavior",
+          "properties": {
+            "directories": {
+              "type": "boolean",
+              "description": "Whether to include directories in results"
+            },
+            "files": {
+              "type": "boolean",
+              "description": "Whether to include files in results"
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "] - Patterns to exclude from results"
+            },
+            "include": {
+              "type": "string | string[]",
+              "description": "] - Patterns to include in results"
+            }
+          }
         }
       },
       "required": [
@@ -1682,7 +1928,25 @@ setBuildTimeData('features.fs', {
         },
         "options": {
           "type": "WalkOptions",
-          "description": "Options to configure the walk behavior"
+          "description": "Options to configure the walk behavior",
+          "properties": {
+            "directories": {
+              "type": "boolean",
+              "description": "Whether to include directories in results"
+            },
+            "files": {
+              "type": "boolean",
+              "description": "Whether to include files in results"
+            },
+            "exclude": {
+              "type": "string | string[]",
+              "description": "] - Patterns to exclude from results"
+            },
+            "include": {
+              "type": "string | string[]",
+              "description": "] - Patterns to include in results"
+            }
+          }
         }
       },
       "required": [
@@ -1703,7 +1967,7 @@ setBuildTimeData('features.fs', {
         },
         "overwrite": {
           "type": "any",
-          "description": "Parameter overwrite"
+          "description": "Whether to overwrite the file if it already exists"
         }
       },
       "required": [
@@ -1756,7 +2020,7 @@ setBuildTimeData('features.fs', {
         },
         "overwrite": {
           "type": "any",
-          "description": "Parameter overwrite"
+          "description": "Whether to overwrite the file if it already exists"
         }
       },
       "required": [
@@ -1774,7 +2038,13 @@ setBuildTimeData('features.fs', {
         },
         "options": {
           "type": "{ cwd?: string }",
-          "description": "Parameter options"
+          "description": "Options for the search",
+          "properties": {
+            "cwd": {
+              "type": "any",
+              "description": "The directory to start searching from (defaults to container.cwd)"
+            }
+          }
         }
       },
       "required": [
@@ -1869,7 +2139,17 @@ setBuildTimeData('features.fs', {
         },
         "options": {
           "type": "{ cwd?: string; multiple?: boolean }",
-          "description": "Parameter options"
+          "description": "Options for the search",
+          "properties": {
+            "cwd": {
+              "type": "any",
+              "description": "The directory to start searching from (defaults to container.cwd)"
+            },
+            "multiple": {
+              "type": "any",
+              "description": "Whether to find multiple instances of the file"
+            }
+          }
         }
       },
       "required": [
@@ -1894,11 +2174,11 @@ setBuildTimeData('features.ipcSocket', {
       "parameters": {
         "socketPath": {
           "type": "string",
-          "description": "Parameter socketPath"
+          "description": "The file system path for the Unix domain socket"
         },
         "removeLock": {
           "type": "any",
-          "description": "Parameter removeLock"
+          "description": "Whether to remove existing socket file (default: false)"
         }
       },
       "required": [
@@ -1917,7 +2197,7 @@ setBuildTimeData('features.ipcSocket', {
       "parameters": {
         "message": {
           "type": "any",
-          "description": "Parameter message"
+          "description": "The message object to broadcast to all clients"
         }
       },
       "required": [
@@ -1930,7 +2210,7 @@ setBuildTimeData('features.ipcSocket', {
       "parameters": {
         "message": {
           "type": "any",
-          "description": "Parameter message"
+          "description": "The message object to send to the server"
         }
       },
       "required": [
@@ -1943,7 +2223,7 @@ setBuildTimeData('features.ipcSocket', {
       "parameters": {
         "socketPath": {
           "type": "string",
-          "description": "Parameter socketPath"
+          "description": "The file system path to the server's Unix domain socket"
         }
       },
       "required": [
@@ -1992,15 +2272,15 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to retrieve"
         },
         "outputPath": {
           "type": "string",
-          "description": "Parameter outputPath"
+          "description": "The local path where the file should be saved"
         },
         "isBase64": {
           "type": "any",
-          "description": "Parameter isBase64"
+          "description": "Whether the cached content is base64 encoded"
         }
       },
       "required": [
@@ -2014,11 +2294,11 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to check/set"
         },
         "content": {
           "type": "string",
-          "description": "Parameter content"
+          "description": "The content to set if the key doesn't exist"
         }
       },
       "required": [
@@ -2032,15 +2312,15 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "source": {
           "type": "string",
-          "description": "Parameter source"
+          "description": "The source cache key"
         },
         "destination": {
           "type": "string",
-          "description": "Parameter destination"
+          "description": "The destination cache key"
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Parameter overwrite"
+          "description": "Whether to overwrite if destination exists (default: false)"
         }
       },
       "required": [
@@ -2054,15 +2334,15 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "source": {
           "type": "string",
-          "description": "Parameter source"
+          "description": "The source cache key"
         },
         "destination": {
           "type": "string",
-          "description": "Parameter destination"
+          "description": "The destination cache key"
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Parameter overwrite"
+          "description": "Whether to overwrite if destination exists (default: false)"
         }
       },
       "required": [
@@ -2076,7 +2356,7 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to check"
         }
       },
       "required": [
@@ -2089,11 +2369,11 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to retrieve"
         },
         "json": {
           "type": "any",
-          "description": "Parameter json"
+          "description": "Whether to parse the value as JSON (default: false)"
         }
       },
       "required": [
@@ -2106,15 +2386,15 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to store under"
         },
         "value": {
           "type": "any",
-          "description": "Parameter value"
+          "description": "The value to store (string, object, or any serializable data)"
         },
         "meta": {
           "type": "any",
-          "description": "Parameter meta"
+          "description": "Optional metadata to associate with the cached item"
         }
       },
       "required": [
@@ -2128,7 +2408,7 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The cache key to remove"
         }
       },
       "required": [
@@ -2141,7 +2421,7 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "confirm": {
           "type": "any",
-          "description": "Parameter confirm"
+          "description": "Must be set to true to confirm the operation"
         }
       },
       "required": [],
@@ -2164,7 +2444,7 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "path": {
           "type": "string",
-          "description": "Parameter path"
+          "description": "Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)"
         }
       },
       "required": [],
@@ -2223,11 +2503,17 @@ setBuildTimeData('features.python', {
         },
         "variables": {
           "type": "Record<string, any>",
-          "description": "Parameter variables"
+          "description": "Variables to make available to the Python code"
         },
         "options": {
           "type": "{ captureLocals?: boolean }",
-          "description": "Parameter options"
+          "description": "Execution options",
+          "properties": {
+            "captureLocals": {
+              "type": "any",
+              "description": "Whether to capture and return local variables after execution"
+            }
+          }
         }
       },
       "required": [
@@ -2244,7 +2530,7 @@ setBuildTimeData('features.python', {
         },
         "variables": {
           "type": "Record<string, any>",
-          "description": "Parameter variables"
+          "description": "Variables to make available via command line arguments"
         }
       },
       "required": [
@@ -2329,11 +2615,11 @@ setBuildTimeData('features.jsonTree', {
       "parameters": {
         "basePath": {
           "type": "string",
-          "description": "Parameter basePath"
+          "description": "The root directory path to scan for JSON files"
         },
         "key": {
           "type": "string",
-          "description": "Parameter key"
+          "description": "The key to store the tree under in state (defaults to first segment of basePath)"
         }
       },
       "required": [
@@ -2369,11 +2655,41 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "manifest": {
           "type": "PartialManifest",
-          "description": "Parameter manifest"
+          "description": "The package manifest data from package.json",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The package name (e.g., 'lodash', '@types/node')"
+            },
+            "version": {
+              "type": "string",
+              "description": "The package version (e.g., '1.0.0', '^2.1.3')"
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional package description"
+            },
+            "dependencies": {
+              "type": "Record<string, Record<string,string>>",
+              "description": "Runtime dependencies with version constraints"
+            },
+            "devDependencies": {
+              "type": "Record<string, Record<string,string>>",
+              "description": "Development dependencies with version constraints"
+            },
+            "peerDependencies": {
+              "type": "Record<string, Record<string,string>>",
+              "description": "Peer dependencies with version constraints"
+            },
+            "optionalDependencies": {
+              "type": "Record<string, Record<string,string>>",
+              "description": "Optional dependencies with version constraints"
+            }
+          }
         },
         "path": {
           "type": "string",
-          "description": "Parameter path"
+          "description": "The file system path to the package.json file"
         }
       },
       "required": [
@@ -2393,7 +2709,13 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "options": {
           "type": "{ exclude?: string | string[] }",
-          "description": "Parameter options"
+          "description": "Scanning options (currently unused)",
+          "properties": {
+            "exclude": {
+              "type": "any",
+              "description": "Optional exclusion patterns (not implemented)"
+            }
+          }
         }
       },
       "required": [],
@@ -2404,7 +2726,7 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "name": {
           "type": "string",
-          "description": "Parameter name"
+          "description": "The exact package name to search for"
         }
       },
       "required": [
@@ -2417,7 +2739,7 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "packageName": {
           "type": "string",
-          "description": "Parameter packageName"
+          "description": "The name of the package to find dependents for"
         }
       },
       "required": [
@@ -2430,7 +2752,7 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "filter": {
           "type": "(manifest: PartialManifest) => boolean",
-          "description": "Parameter filter"
+          "description": "Function that returns true for matching packages"
         }
       },
       "required": [
@@ -2443,7 +2765,7 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "filter": {
           "type": "(manifest: PartialManifest) => boolean",
-          "description": "Parameter filter"
+          "description": "Function that returns true for matching packages"
         }
       },
       "required": [
@@ -2456,7 +2778,7 @@ setBuildTimeData('features.packageFinder', {
       "parameters": {
         "filter": {
           "type": "(manifest: PartialManifest) => boolean",
-          "description": "Parameter filter"
+          "description": "Function that returns true for packages to exclude"
         }
       },
       "required": [
@@ -2506,7 +2828,7 @@ setBuildTimeData('portExposer', {
       "parameters": {
         "port": {
           "type": "number",
-          "description": "Parameter port"
+          "description": "Optional port override"
         }
       },
       "required": [],
@@ -2590,7 +2912,13 @@ setBuildTimeData('features.mdxBundler', {
         },
         "options": {
           "type": "CompileOptions",
-          "description": "Parameter options"
+          "description": "Compilation options",
+          "properties": {
+            "files": {
+              "type": "Record<string, string>",
+              "description": "Additional files to include in the bundle (path -> content mapping)"
+            }
+          }
         }
       },
       "required": [
@@ -2621,7 +2949,7 @@ setBuildTimeData('features.secureShell', {
       "parameters": {
         "command": {
           "type": "string",
-          "description": "Parameter command"
+          "description": "The command to execute."
         }
       },
       "required": [
@@ -2634,11 +2962,11 @@ setBuildTimeData('features.secureShell', {
       "parameters": {
         "source": {
           "type": "string",
-          "description": "Parameter source"
+          "description": "The source file path on the remote host."
         },
         "target": {
           "type": "string",
-          "description": "Parameter target"
+          "description": "The target file path on the local machine."
         }
       },
       "required": [
@@ -2652,11 +2980,11 @@ setBuildTimeData('features.secureShell', {
       "parameters": {
         "source": {
           "type": "string",
-          "description": "Parameter source"
+          "description": "The source file path on the local machine."
         },
         "target": {
           "type": "string",
-          "description": "Parameter target"
+          "description": "The target file path on the remote host."
         }
       },
       "required": [
@@ -2706,7 +3034,65 @@ setBuildTimeData('features.runpod', {
       "parameters": {
         "options": {
           "type": "CreatePodOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": ""
+            },
+            "imageName": {
+              "type": "string",
+              "description": ""
+            },
+            "gpuTypeId": {
+              "type": "string | string[]",
+              "description": ""
+            },
+            "gpuCount": {
+              "type": "number",
+              "description": ""
+            },
+            "templateId": {
+              "type": "string",
+              "description": ""
+            },
+            "cloudType": {
+              "type": "'SECURE' | 'COMMUNITY'",
+              "description": ""
+            },
+            "containerDiskInGb": {
+              "type": "number",
+              "description": ""
+            },
+            "volumeInGb": {
+              "type": "number",
+              "description": ""
+            },
+            "volumeMountPath": {
+              "type": "string",
+              "description": ""
+            },
+            "ports": {
+              "type": "string[]",
+              "description": ""
+            },
+            "env": {
+              "type": "Record<string, string>",
+              "description": ""
+            },
+            "interruptible": {
+              "type": "boolean",
+              "description": ""
+            },
+            "networkVolumeId": {
+              "type": "string",
+              "description": ""
+            },
+            "minRAMPerGPU": {
+              "type": "number",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
@@ -2822,7 +3208,21 @@ setBuildTimeData('features.runpod', {
       "parameters": {
         "options": {
           "type": "CreateVolumeOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": ""
+            },
+            "size": {
+              "type": "number",
+              "description": ""
+            },
+            "dataCenterId": {
+              "type": "string",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
@@ -2874,19 +3274,33 @@ setBuildTimeData('features.runpod', {
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID"
         },
         "remotePath": {
           "type": "string",
-          "description": "Parameter remotePath"
+          "description": "Absolute path on the pod where the file should exist"
         },
         "fallbackUrl": {
           "type": "string",
-          "description": "Parameter fallbackUrl"
+          "description": "URL to download from (inside the pod) if the file doesn't exist"
         },
         "options": {
           "type": "{\n\t\t\tpollInterval?: number\n\t\t\ttimeout?: number\n\t\t\tonProgress?: (bytes: number) => void\n\t\t}",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "pollInterval": {
+              "type": "any",
+              "description": "How often to check in ms (default 5000)"
+            },
+            "timeout": {
+              "type": "any",
+              "description": "Max time to wait for download in ms (default 600000 / 10 min)"
+            },
+            "onProgress": {
+              "type": "any",
+              "description": "Called each poll with current file size in bytes"
+            }
+          }
         }
       },
       "required": [
@@ -2995,7 +3409,13 @@ setBuildTimeData('features.fileManager', {
       "parameters": {
         "options": {
           "type": "{ exclude?: string | string[] }",
-          "description": "Parameter options"
+          "description": "Options for the file manager",
+          "properties": {
+            "exclude": {
+              "type": "any",
+              "description": "The patterns to exclude from the scan"
+            }
+          }
         }
       },
       "required": [],
@@ -3006,7 +3426,13 @@ setBuildTimeData('features.fileManager', {
       "parameters": {
         "options": {
           "type": "{ exclude?: string | string[] }",
-          "description": "Parameter options"
+          "description": "Options for the file manager",
+          "properties": {
+            "exclude": {
+              "type": "any",
+              "description": "The patterns to exclude from the scan"
+            }
+          }
         }
       },
       "required": [],
@@ -3017,7 +3443,13 @@ setBuildTimeData('features.fileManager', {
       "parameters": {
         "options": {
           "type": "{ exclude?: string | string[] }",
-          "description": "Parameter options"
+          "description": "Options for the file manager",
+          "properties": {
+            "exclude": {
+              "type": "any",
+              "description": "The patterns to exclude from the watch"
+            }
+          }
         }
       },
       "required": [],
@@ -3448,7 +3880,7 @@ setBuildTimeData('features.conversation', {
       "parameters": {
         "opts": {
           "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
-          "description": "Parameter opts"
+          "description": "Optional overrides for title, tags, thread, or metadata"
         }
       },
       "required": [],
@@ -3571,7 +4003,7 @@ setBuildTimeData('features.openapi', {
       "parameters": {
         "filter": {
           "type": "(ep: EndpointInfo) => boolean",
-          "description": "Parameter filter"
+          "description": "Optional predicate to select which endpoints to include."
         }
       },
       "required": [],
@@ -3595,7 +4027,7 @@ setBuildTimeData('features.openapi', {
       "parameters": {
         "filter": {
           "type": "(ep: EndpointInfo) => boolean",
-          "description": "Parameter filter"
+          "description": "Optional predicate to select which endpoints to include."
         }
       },
       "required": [],
@@ -3946,7 +4378,7 @@ setBuildTimeData('features.assistant', {
       "parameters": {
         "opts": {
           "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
-          "description": "Parameter opts"
+          "description": "Optional overrides for title, tags, thread, or metadata"
         }
       },
       "required": [],
@@ -4083,7 +4515,65 @@ setBuildTimeData('features.claudeCode', {
         },
         "options": {
           "type": "RunOptions",
-          "description": "Parameter options"
+          "description": "Session configuration overrides",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Override model for this session."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Override working directory."
+            },
+            "systemPrompt": {
+              "type": "string",
+              "description": "System prompt for this session."
+            },
+            "appendSystemPrompt": {
+              "type": "string",
+              "description": "Append system prompt for this session."
+            },
+            "permissionMode": {
+              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+              "description": "Permission mode override."
+            },
+            "allowedTools": {
+              "type": "string[]",
+              "description": "Allowed tools override."
+            },
+            "disallowedTools": {
+              "type": "string[]",
+              "description": "Disallowed tools override."
+            },
+            "streaming": {
+              "type": "boolean",
+              "description": "Whether to stream partial messages."
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous session by ID."
+            },
+            "continue": {
+              "type": "boolean",
+              "description": "Continue the most recent conversation."
+            },
+            "addDirs": {
+              "type": "string[]",
+              "description": "Additional directories to allow tool access to."
+            },
+            "mcpConfig": {
+              "type": "string[]",
+              "description": "MCP config paths or JSON strings."
+            },
+            "dangerouslySkipPermissions": {
+              "type": "boolean",
+              "description": "Skip all permission checks (only for sandboxed environments)."
+            },
+            "extraArgs": {
+              "type": "string[]",
+              "description": "Additional arbitrary CLI flags."
+            }
+          }
         }
       },
       "required": [
@@ -4100,7 +4590,65 @@ setBuildTimeData('features.claudeCode', {
         },
         "options": {
           "type": "RunOptions",
-          "description": "Parameter options"
+          "description": "Session configuration overrides",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "Override model for this session."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Override working directory."
+            },
+            "systemPrompt": {
+              "type": "string",
+              "description": "System prompt for this session."
+            },
+            "appendSystemPrompt": {
+              "type": "string",
+              "description": "Append system prompt for this session."
+            },
+            "permissionMode": {
+              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+              "description": "Permission mode override."
+            },
+            "allowedTools": {
+              "type": "string[]",
+              "description": "Allowed tools override."
+            },
+            "disallowedTools": {
+              "type": "string[]",
+              "description": "Disallowed tools override."
+            },
+            "streaming": {
+              "type": "boolean",
+              "description": "Whether to stream partial messages."
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous session by ID."
+            },
+            "continue": {
+              "type": "boolean",
+              "description": "Continue the most recent conversation."
+            },
+            "addDirs": {
+              "type": "string[]",
+              "description": "Additional directories to allow tool access to."
+            },
+            "mcpConfig": {
+              "type": "string[]",
+              "description": "MCP config paths or JSON strings."
+            },
+            "dangerouslySkipPermissions": {
+              "type": "boolean",
+              "description": "Skip all permission checks (only for sandboxed environments)."
+            },
+            "extraArgs": {
+              "type": "string[]",
+              "description": "Additional arbitrary CLI flags."
+            }
+          }
         }
       },
       "required": [
@@ -4152,7 +4700,7 @@ setBuildTimeData('features.claudeCode', {
       "parameters": {
         "options": {
           "type": "any",
-          "description": "Parameter options"
+          "description": "Enable options"
         }
       },
       "required": [],
@@ -4241,7 +4789,61 @@ setBuildTimeData('features.openaiCodex', {
         },
         "options": {
           "type": "CodexRunOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "cwd": {
+              "type": "string",
+              "description": ""
+            },
+            "sandbox": {
+              "type": "'read-only' | 'workspace-write' | 'danger-full-access'",
+              "description": ""
+            },
+            "approvalMode": {
+              "type": "'suggest' | 'auto-edit' | 'full-auto'",
+              "description": ""
+            },
+            "projectDoc": {
+              "type": "string",
+              "description": ""
+            },
+            "noProjectDoc": {
+              "type": "boolean",
+              "description": ""
+            },
+            "fullStdout": {
+              "type": "boolean",
+              "description": ""
+            },
+            "images": {
+              "type": "string[]",
+              "description": ""
+            },
+            "fullAuto": {
+              "type": "boolean",
+              "description": ""
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous session by ID."
+            },
+            "resumeLast": {
+              "type": "boolean",
+              "description": "Resume the most recent session."
+            },
+            "dangerouslyAutoApproveEverything": {
+              "type": "boolean",
+              "description": "Skip all approvals and sandboxing."
+            },
+            "extraArgs": {
+              "type": "string[]",
+              "description": "Additional CLI flags."
+            }
+          }
         }
       },
       "required": [
@@ -4258,7 +4860,61 @@ setBuildTimeData('features.openaiCodex', {
         },
         "options": {
           "type": "CodexRunOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "cwd": {
+              "type": "string",
+              "description": ""
+            },
+            "sandbox": {
+              "type": "'read-only' | 'workspace-write' | 'danger-full-access'",
+              "description": ""
+            },
+            "approvalMode": {
+              "type": "'suggest' | 'auto-edit' | 'full-auto'",
+              "description": ""
+            },
+            "projectDoc": {
+              "type": "string",
+              "description": ""
+            },
+            "noProjectDoc": {
+              "type": "boolean",
+              "description": ""
+            },
+            "fullStdout": {
+              "type": "boolean",
+              "description": ""
+            },
+            "images": {
+              "type": "string[]",
+              "description": ""
+            },
+            "fullAuto": {
+              "type": "boolean",
+              "description": ""
+            },
+            "resumeSessionId": {
+              "type": "string",
+              "description": "Resume a previous session by ID."
+            },
+            "resumeLast": {
+              "type": "boolean",
+              "description": "Resume the most recent session."
+            },
+            "dangerouslyAutoApproveEverything": {
+              "type": "boolean",
+              "description": "Skip all approvals and sandboxing."
+            },
+            "extraArgs": {
+              "type": "string[]",
+              "description": "Additional CLI flags."
+            }
+          }
         }
       },
       "required": [
@@ -4399,7 +5055,49 @@ setBuildTimeData('features.conversationHistory', {
       "parameters": {
         "record": {
           "type": "ConversationRecord",
-          "description": "Parameter record"
+          "description": "The full conversation record to persist",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "messages": {
+              "type": "Message[]",
+              "description": ""
+            },
+            "tags": {
+              "type": "string[]",
+              "description": ""
+            },
+            "thread": {
+              "type": "string",
+              "description": ""
+            },
+            "createdAt": {
+              "type": "string",
+              "description": ""
+            },
+            "updatedAt": {
+              "type": "string",
+              "description": ""
+            },
+            "messageCount": {
+              "type": "number",
+              "description": ""
+            },
+            "metadata": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
@@ -4482,7 +5180,45 @@ setBuildTimeData('features.conversationHistory', {
       "parameters": {
         "options": {
           "type": "SearchOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "tag": {
+              "type": "string",
+              "description": ""
+            },
+            "tags": {
+              "type": "string[]",
+              "description": ""
+            },
+            "thread": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "before": {
+              "type": "string | Date",
+              "description": ""
+            },
+            "after": {
+              "type": "string | Date",
+              "description": ""
+            },
+            "query": {
+              "type": "string",
+              "description": ""
+            },
+            "limit": {
+              "type": "number",
+              "description": ""
+            },
+            "offset": {
+              "type": "number",
+              "description": ""
+            }
+          }
         }
       },
       "required": [],
@@ -4493,7 +5229,45 @@ setBuildTimeData('features.conversationHistory', {
       "parameters": {
         "options": {
           "type": "SearchOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "tag": {
+              "type": "string",
+              "description": ""
+            },
+            "tags": {
+              "type": "string[]",
+              "description": ""
+            },
+            "thread": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "before": {
+              "type": "string | Date",
+              "description": ""
+            },
+            "after": {
+              "type": "string | Date",
+              "description": ""
+            },
+            "query": {
+              "type": "string",
+              "description": ""
+            },
+            "limit": {
+              "type": "number",
+              "description": ""
+            },
+            "offset": {
+              "type": "number",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
@@ -4622,7 +5396,7 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "newState": {
           "type": "SetStateValue<ContainerState>",
-          "description": "Parameter newState"
+          "description": "The new state of the container."
         }
       },
       "required": [
@@ -4652,11 +5426,11 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "id": {
           "type": "T",
-          "description": "Parameter id"
+          "description": "The id of the feature to create."
         },
         "options": {
           "type": "ConstructorParameters<Features[T]>[0]",
-          "description": "Parameter options"
+          "description": "The options to pass to the feature constructor."
         }
       },
       "required": [
@@ -4759,11 +5533,11 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "registryName": {
           "type": "string",
-          "description": "Parameter registryName"
+          "description": "The plural name of the registry, e.g. \"clients\", \"servers\""
         },
         "factoryName": {
           "type": "string",
-          "description": "Parameter factoryName"
+          "description": "The singular factory method name, e.g. \"client\", \"server\""
         }
       },
       "required": [
@@ -4779,11 +5553,15 @@ setContainerBuildTimeData('Container', {
       "returns": "ContainerIntrospection"
     },
     "inspectAsText": {
-      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only that section, or a number for the starting heading depth (backward compatible).",
       "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
         "startHeadingDepth": {
           "type": "number",
-          "description": "The heading level to start from (default 1)"
+          "description": "Parameter startHeadingDepth"
         }
       },
       "required": [],
@@ -4923,7 +5701,41 @@ setContainerBuildTimeData('AGIContainer', {
       "parameters": {
         "options": {
           "type": "ConversationFactoryOptions",
-          "description": "Parameter options"
+          "description": "Parameter options",
+          "properties": {
+            "tools": {
+              "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, z.ZodType>\n\t}",
+              "description": ""
+            },
+            "systemPrompt": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "thread": {
+              "type": "string",
+              "description": ""
+            },
+            "tags": {
+              "type": "string[]",
+              "description": ""
+            },
+            "metadata": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
         }
       },
       "required": [],
@@ -4944,11 +5756,11 @@ export const introspectionData = [
         "parameters": {
           "basePath": {
             "type": "string",
-            "description": "Parameter basePath"
+            "description": "The root directory path to scan for YAML files"
           },
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The key to store the tree under in state (defaults to first segment of basePath)"
           }
         },
         "required": [
@@ -4983,11 +5795,11 @@ export const introspectionData = [
         "parameters": {
           "node": {
             "type": "any",
-            "description": "Parameter node"
+            "description": "A React element (JSX or React.createElement)"
           },
           "options": {
             "type": "Record<string, any>",
-            "description": "Parameter options"
+            "description": "Ink render options (stdout, stdin, debug, etc.)"
           }
         },
         "required": [
@@ -5078,7 +5890,45 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "LsFilesOptions",
-            "description": "Parameter options"
+            "description": "Options to control which files are listed",
+            "properties": {
+              "cached": {
+                "type": "boolean",
+                "description": "Show cached/staged files"
+              },
+              "deleted": {
+                "type": "boolean",
+                "description": "Show deleted files"
+              },
+              "modified": {
+                "type": "boolean",
+                "description": "Show modified files"
+              },
+              "others": {
+                "type": "boolean",
+                "description": "Show untracked files"
+              },
+              "ignored": {
+                "type": "boolean",
+                "description": "Show ignored files"
+              },
+              "status": {
+                "type": "boolean",
+                "description": "Show file status information"
+              },
+              "includeIgnored": {
+                "type": "boolean",
+                "description": "Include ignored files when showing others"
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "Patterns to exclude from results"
+              },
+              "baseDir": {
+                "type": "string",
+                "description": "Base directory to list files from"
+              }
+            }
           }
         },
         "required": [],
@@ -5089,11 +5939,67 @@ export const introspectionData = [
         "parameters": {
           "numberOfChanges": {
             "type": "number",
-            "description": "Parameter numberOfChanges"
+            "description": "The number of recent commits to return"
           }
         },
         "required": [],
         "returns": "void"
+      },
+      "fileLog": {
+        "description": "Gets a lightweight commit log for one or more files. Returns the SHA and message for each commit that touched the given files, without the per-commit overhead of resolving which specific files matched. For richer per-file matching, see {@link getChangeHistoryForFiles}.",
+        "parameters": {
+          "files": {
+            "type": "string[]",
+            "description": "File paths (absolute or relative to container.cwd)"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "returns": "void"
+      },
+      "diff": {
+        "description": "Gets the diff for a file between two refs. By default compares from the current HEAD to the given ref. You can supply both `compareTo` and `compareFrom` to diff between any two commits, branches, or tags.",
+        "parameters": {
+          "file": {
+            "type": "string",
+            "description": "File path (absolute or relative to container.cwd)"
+          },
+          "compareTo": {
+            "type": "string",
+            "description": "The target ref (commit SHA, branch, tag) to compare to"
+          },
+          "compareFrom": {
+            "type": "string",
+            "description": "The base ref to compare from (defaults to current HEAD)"
+          }
+        },
+        "required": [
+          "file",
+          "compareTo"
+        ],
+        "returns": "void"
+      },
+      "displayDiff": {
+        "description": "Pretty prints a unified diff string to the terminal using colors. Parses the diff output and applies color coding: - File headers (`diff --git`, `---`, `+++`) are rendered bold - Hunk headers (`@@ ... @@`) are rendered in cyan - Added lines (`+`) are rendered in green - Removed lines (`-`) are rendered in red - Context lines are rendered dim Can be called with a raw diff string, or with the same arguments as {@link diff} to fetch and display in one step.",
+        "parameters": {
+          "diffOrFile": {
+            "type": "string",
+            "description": "A raw diff string, or a file path to pass to {@link diff}"
+          },
+          "compareTo": {
+            "type": "string",
+            "description": "When diffOrFile is a file path, the target ref to compare to"
+          },
+          "compareFrom": {
+            "type": "string",
+            "description": "When diffOrFile is a file path, the base ref to compare from"
+          }
+        },
+        "required": [
+          "diffOrFile"
+        ],
+        "returns": "string"
       },
       "getChangeHistoryForFiles": {
         "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
@@ -5145,11 +6051,11 @@ export const introspectionData = [
         "parameters": {
           "code": {
             "type": "string",
-            "description": "Parameter code"
+            "description": "The code to transform"
           },
           "options": {
             "type": "esbuild.TransformOptions",
-            "description": "Parameter options"
+            "description": "The options to pass to esbuild"
           }
         },
         "required": [
@@ -5162,11 +6068,11 @@ export const introspectionData = [
         "parameters": {
           "code": {
             "type": "string",
-            "description": "Parameter code"
+            "description": "The code to transform"
           },
           "options": {
             "type": "esbuild.TransformOptions",
-            "description": "Parameter options"
+            "description": "The options to pass to esbuild"
           }
         },
         "required": [
@@ -5223,7 +6129,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "any",
-            "description": "Parameter options"
+            "description": "Options to pass to the underlying spawn process"
           }
         },
         "required": [
@@ -5244,7 +6150,41 @@ export const introspectionData = [
           },
           "options": {
             "type": "SpawnOptions",
-            "description": "Parameter options"
+            "description": "Options for process execution and monitoring",
+            "properties": {
+              "stdio": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": ""
+              },
+              "stdout": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": ""
+              },
+              "stderr": {
+                "type": "\"ignore\" | \"inherit\"",
+                "description": ""
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the process"
+              },
+              "environment": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "onError": {
+                "type": "(data: string) => void",
+                "description": "Callback for stderr data"
+              },
+              "onOutput": {
+                "type": "(data: string) => void",
+                "description": "Callback for stdout data"
+              },
+              "onExit": {
+                "type": "(code: number) => void",
+                "description": "Callback for process exit"
+              }
+            }
           }
         },
         "required": [
@@ -5262,7 +6202,21 @@ export const introspectionData = [
           },
           "options": {
             "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
-            "description": "Parameter options"
+            "description": "Options",
+            "properties": {
+              "cwd": {
+                "type": "any",
+                "description": "Working directory"
+              },
+              "maxLines": {
+                "type": "any",
+                "description": "Max stderr lines to keep"
+              },
+              "env": {
+                "type": "any",
+                "description": "Extra environment variables"
+              }
+            }
           }
         },
         "required": [
@@ -5307,7 +6261,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "vm.ScriptOptions",
-            "description": "Parameter options"
+            "description": "Options for script compilation"
           }
         },
         "required": [
@@ -5348,7 +6302,7 @@ export const introspectionData = [
           },
           "ctx": {
             "type": "any",
-            "description": "Parameter ctx"
+            "description": "Context variables to make available to the executing code"
           }
         },
         "required": [
@@ -5402,7 +6356,7 @@ export const introspectionData = [
         "parameters": {
           "name": {
             "type": "string",
-            "description": "Parameter name"
+            "description": "The unique identifier to assign a color to"
           }
         },
         "required": [
@@ -5415,11 +6369,11 @@ export const introspectionData = [
         "parameters": {
           "questions": {
             "type": "any[]",
-            "description": "Parameter questions"
+            "description": "Array of inquirer question objects"
           },
           "initialAnswers": {
             "type": "any",
-            "description": "Parameter initialAnswers"
+            "description": "Pre-populated answers to skip questions or provide defaults"
           }
         },
         "required": [
@@ -5445,11 +6399,11 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The initial text content to edit"
           },
           "extension": {
             "type": "any",
-            "description": "Parameter extension"
+            "description": "File extension for syntax highlighting (default: \".ts\")"
           }
         },
         "required": [
@@ -5462,11 +6416,11 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The text to convert to ASCII art"
           },
           "font": {
             "type": "Fonts",
-            "description": "Parameter font"
+            "description": "The figlet font to use (see fonts property for available options)"
           }
         },
         "required": [
@@ -5480,11 +6434,21 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The text to convert to a styled banner"
           },
           "options": {
             "type": "{ font: Fonts; colors: Color[] }",
-            "description": "Parameter options"
+            "description": "Banner styling options",
+            "properties": {
+              "font": {
+                "type": "any",
+                "description": "The figlet font to use for ASCII art generation"
+              },
+              "colors": {
+                "type": "any",
+                "description": "Array of colors for the gradient effect"
+              }
+            }
           }
         },
         "required": [
@@ -5510,15 +6474,15 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The text content to apply gradients to"
           },
           "lineColors": {
             "type": "Color[]",
-            "description": "Parameter lineColors"
+            "description": "Array of colors to cycle through in the gradient"
           },
           "direction": {
             "type": "\"horizontal\" | \"vertical\"",
-            "description": "Parameter direction"
+            "description": "Gradient direction: 'horizontal' or 'vertical'"
           }
         },
         "required": [
@@ -5531,11 +6495,11 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The text to apply horizontal gradients to"
           },
           "lineColors": {
             "type": "Color[]",
-            "description": "Parameter lineColors"
+            "description": "Array of colors to cycle through"
           }
         },
         "required": [
@@ -5548,11 +6512,11 @@ export const introspectionData = [
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The text to apply vertical gradients to (supports newlines)"
           },
           "lineColors": {
             "type": "Color[]",
-            "description": "Parameter lineColors"
+            "description": "Array of colors to cycle through for each line"
           }
         },
         "required": [
@@ -5565,15 +6529,15 @@ export const introspectionData = [
         "parameters": {
           "str": {
             "type": "string",
-            "description": "Parameter str"
+            "description": "The string to pad"
           },
           "length": {
             "type": "number",
-            "description": "Parameter length"
+            "description": "The desired total length after padding"
           },
           "padChar": {
             "type": "any",
-            "description": "Parameter padChar"
+            "description": "The character to use for padding (default: \" \")"
           }
         },
         "required": [
@@ -5587,15 +6551,15 @@ export const introspectionData = [
         "parameters": {
           "str": {
             "type": "string",
-            "description": "Parameter str"
+            "description": "The string to pad"
           },
           "length": {
             "type": "number",
-            "description": "Parameter length"
+            "description": "The desired total length after padding"
           },
           "padChar": {
             "type": "any",
-            "description": "Parameter padChar"
+            "description": "The character to use for padding (default: \" \")"
           }
         },
         "required": [
@@ -5892,7 +6856,7 @@ export const introspectionData = [
         "parameters": {
           "name": {
             "type": "string",
-            "description": "Parameter name"
+            "description": "Session name. Defaults to `luca-{uuid}`."
           }
         },
         "required": [],
@@ -5914,7 +6878,21 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "SplitOptions",
-            "description": "Parameter options"
+            "description": "Split configuration",
+            "properties": {
+              "count": {
+                "type": "number",
+                "description": "Number of panes to create (splits the current pane this many times)"
+              },
+              "orientation": {
+                "type": "'horizontal' | 'vertical'",
+                "description": "Split direction: 'horizontal' splits side-by-side, 'vertical' splits top/bottom"
+              },
+              "size": {
+                "type": "number",
+                "description": "Percentage size for each new pane"
+              }
+            }
           }
         },
         "required": [],
@@ -5925,11 +6903,11 @@ export const introspectionData = [
         "parameters": {
           "paneId": {
             "type": "string",
-            "description": "Parameter paneId"
+            "description": "The tmux pane ID (e.g. \"%5\")"
           },
           "command": {
             "type": "string",
-            "description": "Parameter command"
+            "description": "The command string to execute"
           }
         },
         "required": [
@@ -5943,7 +6921,7 @@ export const introspectionData = [
         "parameters": {
           "paneId": {
             "type": "string",
-            "description": "Parameter paneId"
+            "description": "The tmux pane ID"
           }
         },
         "required": [
@@ -5956,15 +6934,15 @@ export const introspectionData = [
         "parameters": {
           "paneId": {
             "type": "string",
-            "description": "Parameter paneId"
+            "description": "The tmux pane ID"
           },
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "Text to type (followed by Enter)"
           },
           "literal": {
             "type": "string",
-            "description": "Parameter literal"
+            "description": "A literal tmux key name (sent without Enter)"
           }
         },
         "required": [
@@ -6082,7 +7060,69 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "GrepOptions",
-            "description": "Search options"
+            "description": "Search options",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "Pattern to search for (string or regex)"
+              },
+              "path": {
+                "type": "string",
+                "description": "Directory or file to search in (defaults to container cwd)"
+              },
+              "include": {
+                "type": "string | string[]",
+                "description": "Glob patterns to include (e.g. '*.ts')"
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "Glob patterns to exclude (e.g. 'node_modules')"
+              },
+              "ignoreCase": {
+                "type": "boolean",
+                "description": "Case insensitive search"
+              },
+              "fixedStrings": {
+                "type": "boolean",
+                "description": "Treat pattern as a fixed string, not regex"
+              },
+              "recursive": {
+                "type": "boolean",
+                "description": "Search recursively (default: true)"
+              },
+              "hidden": {
+                "type": "boolean",
+                "description": "Include hidden files"
+              },
+              "maxResults": {
+                "type": "number",
+                "description": "Max number of results to return"
+              },
+              "before": {
+                "type": "number",
+                "description": "Number of context lines before match"
+              },
+              "after": {
+                "type": "number",
+                "description": "Number of context lines after match"
+              },
+              "filesOnly": {
+                "type": "boolean",
+                "description": "Only return filenames, not match details"
+              },
+              "invert": {
+                "type": "boolean",
+                "description": "Invert match (return lines that don't match)"
+              },
+              "wordMatch": {
+                "type": "boolean",
+                "description": "Match whole words only"
+              },
+              "rawFlags": {
+                "type": "string[]",
+                "description": "Additional raw flags to pass to grep/ripgrep"
+              }
+            }
           }
         },
         "required": [
@@ -6099,7 +7139,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "Omit<GrepOptions, 'pattern' | 'filesOnly'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [
@@ -6116,7 +7156,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [
@@ -6133,7 +7173,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [
@@ -6146,7 +7186,7 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [],
@@ -6161,7 +7201,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [
@@ -6178,7 +7218,7 @@ export const introspectionData = [
           },
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
-            "description": "Parameter options"
+            "description": "Additional search options"
           }
         },
         "required": [
@@ -6461,7 +7501,7 @@ export const introspectionData = [
         "parameters": {
           "startAt": {
             "type": "any",
-            "description": "Parameter startAt"
+            "description": "The port number to start searching from (0 means system will choose)"
           }
         },
         "required": [],
@@ -6472,7 +7512,7 @@ export const introspectionData = [
         "parameters": {
           "checkPort": {
             "type": "any",
-            "description": "Parameter checkPort"
+            "description": "The port number to check for availability"
           }
         },
         "required": [],
@@ -6577,7 +7617,25 @@ export const introspectionData = [
           },
           "options": {
             "type": "WalkOptions",
-            "description": "Options to configure the walk behavior"
+            "description": "Options to configure the walk behavior",
+            "properties": {
+              "directories": {
+                "type": "boolean",
+                "description": "Whether to include directories in results"
+              },
+              "files": {
+                "type": "boolean",
+                "description": "Whether to include files in results"
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "] - Patterns to exclude from results"
+              },
+              "include": {
+                "type": "string | string[]",
+                "description": "] - Patterns to include in results"
+              }
+            }
           }
         },
         "required": [
@@ -6594,7 +7652,25 @@ export const introspectionData = [
           },
           "options": {
             "type": "WalkOptions",
-            "description": "Options to configure the walk behavior"
+            "description": "Options to configure the walk behavior",
+            "properties": {
+              "directories": {
+                "type": "boolean",
+                "description": "Whether to include directories in results"
+              },
+              "files": {
+                "type": "boolean",
+                "description": "Whether to include files in results"
+              },
+              "exclude": {
+                "type": "string | string[]",
+                "description": "] - Patterns to exclude from results"
+              },
+              "include": {
+                "type": "string | string[]",
+                "description": "] - Patterns to include in results"
+              }
+            }
           }
         },
         "required": [
@@ -6615,7 +7691,7 @@ export const introspectionData = [
           },
           "overwrite": {
             "type": "any",
-            "description": "Parameter overwrite"
+            "description": "Whether to overwrite the file if it already exists"
           }
         },
         "required": [
@@ -6668,7 +7744,7 @@ export const introspectionData = [
           },
           "overwrite": {
             "type": "any",
-            "description": "Parameter overwrite"
+            "description": "Whether to overwrite the file if it already exists"
           }
         },
         "required": [
@@ -6686,7 +7762,13 @@ export const introspectionData = [
           },
           "options": {
             "type": "{ cwd?: string }",
-            "description": "Parameter options"
+            "description": "Options for the search",
+            "properties": {
+              "cwd": {
+                "type": "any",
+                "description": "The directory to start searching from (defaults to container.cwd)"
+              }
+            }
           }
         },
         "required": [
@@ -6781,7 +7863,17 @@ export const introspectionData = [
           },
           "options": {
             "type": "{ cwd?: string; multiple?: boolean }",
-            "description": "Parameter options"
+            "description": "Options for the search",
+            "properties": {
+              "cwd": {
+                "type": "any",
+                "description": "The directory to start searching from (defaults to container.cwd)"
+              },
+              "multiple": {
+                "type": "any",
+                "description": "Whether to find multiple instances of the file"
+              }
+            }
           }
         },
         "required": [
@@ -6805,11 +7897,11 @@ export const introspectionData = [
         "parameters": {
           "socketPath": {
             "type": "string",
-            "description": "Parameter socketPath"
+            "description": "The file system path for the Unix domain socket"
           },
           "removeLock": {
             "type": "any",
-            "description": "Parameter removeLock"
+            "description": "Whether to remove existing socket file (default: false)"
           }
         },
         "required": [
@@ -6828,7 +7920,7 @@ export const introspectionData = [
         "parameters": {
           "message": {
             "type": "any",
-            "description": "Parameter message"
+            "description": "The message object to broadcast to all clients"
           }
         },
         "required": [
@@ -6841,7 +7933,7 @@ export const introspectionData = [
         "parameters": {
           "message": {
             "type": "any",
-            "description": "Parameter message"
+            "description": "The message object to send to the server"
           }
         },
         "required": [
@@ -6854,7 +7946,7 @@ export const introspectionData = [
         "parameters": {
           "socketPath": {
             "type": "string",
-            "description": "Parameter socketPath"
+            "description": "The file system path to the server's Unix domain socket"
           }
         },
         "required": [
@@ -6902,15 +7994,15 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to retrieve"
           },
           "outputPath": {
             "type": "string",
-            "description": "Parameter outputPath"
+            "description": "The local path where the file should be saved"
           },
           "isBase64": {
             "type": "any",
-            "description": "Parameter isBase64"
+            "description": "Whether the cached content is base64 encoded"
           }
         },
         "required": [
@@ -6924,11 +8016,11 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to check/set"
           },
           "content": {
             "type": "string",
-            "description": "Parameter content"
+            "description": "The content to set if the key doesn't exist"
           }
         },
         "required": [
@@ -6942,15 +8034,15 @@ export const introspectionData = [
         "parameters": {
           "source": {
             "type": "string",
-            "description": "Parameter source"
+            "description": "The source cache key"
           },
           "destination": {
             "type": "string",
-            "description": "Parameter destination"
+            "description": "The destination cache key"
           },
           "overwrite": {
             "type": "boolean",
-            "description": "Parameter overwrite"
+            "description": "Whether to overwrite if destination exists (default: false)"
           }
         },
         "required": [
@@ -6964,15 +8056,15 @@ export const introspectionData = [
         "parameters": {
           "source": {
             "type": "string",
-            "description": "Parameter source"
+            "description": "The source cache key"
           },
           "destination": {
             "type": "string",
-            "description": "Parameter destination"
+            "description": "The destination cache key"
           },
           "overwrite": {
             "type": "boolean",
-            "description": "Parameter overwrite"
+            "description": "Whether to overwrite if destination exists (default: false)"
           }
         },
         "required": [
@@ -6986,7 +8078,7 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to check"
           }
         },
         "required": [
@@ -6999,11 +8091,11 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to retrieve"
           },
           "json": {
             "type": "any",
-            "description": "Parameter json"
+            "description": "Whether to parse the value as JSON (default: false)"
           }
         },
         "required": [
@@ -7016,15 +8108,15 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to store under"
           },
           "value": {
             "type": "any",
-            "description": "Parameter value"
+            "description": "The value to store (string, object, or any serializable data)"
           },
           "meta": {
             "type": "any",
-            "description": "Parameter meta"
+            "description": "Optional metadata to associate with the cached item"
           }
         },
         "required": [
@@ -7038,7 +8130,7 @@ export const introspectionData = [
         "parameters": {
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The cache key to remove"
           }
         },
         "required": [
@@ -7051,7 +8143,7 @@ export const introspectionData = [
         "parameters": {
           "confirm": {
             "type": "any",
-            "description": "Parameter confirm"
+            "description": "Must be set to true to confirm the operation"
           }
         },
         "required": [],
@@ -7074,7 +8166,7 @@ export const introspectionData = [
         "parameters": {
           "path": {
             "type": "string",
-            "description": "Parameter path"
+            "description": "Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)"
           }
         },
         "required": [],
@@ -7132,11 +8224,17 @@ export const introspectionData = [
           },
           "variables": {
             "type": "Record<string, any>",
-            "description": "Parameter variables"
+            "description": "Variables to make available to the Python code"
           },
           "options": {
             "type": "{ captureLocals?: boolean }",
-            "description": "Parameter options"
+            "description": "Execution options",
+            "properties": {
+              "captureLocals": {
+                "type": "any",
+                "description": "Whether to capture and return local variables after execution"
+              }
+            }
           }
         },
         "required": [
@@ -7153,7 +8251,7 @@ export const introspectionData = [
           },
           "variables": {
             "type": "Record<string, any>",
-            "description": "Parameter variables"
+            "description": "Variables to make available via command line arguments"
           }
         },
         "required": [
@@ -7237,11 +8335,11 @@ export const introspectionData = [
         "parameters": {
           "basePath": {
             "type": "string",
-            "description": "Parameter basePath"
+            "description": "The root directory path to scan for JSON files"
           },
           "key": {
             "type": "string",
-            "description": "Parameter key"
+            "description": "The key to store the tree under in state (defaults to first segment of basePath)"
           }
         },
         "required": [
@@ -7276,11 +8374,41 @@ export const introspectionData = [
         "parameters": {
           "manifest": {
             "type": "PartialManifest",
-            "description": "Parameter manifest"
+            "description": "The package manifest data from package.json",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The package name (e.g., 'lodash', '@types/node')"
+              },
+              "version": {
+                "type": "string",
+                "description": "The package version (e.g., '1.0.0', '^2.1.3')"
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional package description"
+              },
+              "dependencies": {
+                "type": "Record<string, Record<string,string>>",
+                "description": "Runtime dependencies with version constraints"
+              },
+              "devDependencies": {
+                "type": "Record<string, Record<string,string>>",
+                "description": "Development dependencies with version constraints"
+              },
+              "peerDependencies": {
+                "type": "Record<string, Record<string,string>>",
+                "description": "Peer dependencies with version constraints"
+              },
+              "optionalDependencies": {
+                "type": "Record<string, Record<string,string>>",
+                "description": "Optional dependencies with version constraints"
+              }
+            }
           },
           "path": {
             "type": "string",
-            "description": "Parameter path"
+            "description": "The file system path to the package.json file"
           }
         },
         "required": [
@@ -7300,7 +8428,13 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "{ exclude?: string | string[] }",
-            "description": "Parameter options"
+            "description": "Scanning options (currently unused)",
+            "properties": {
+              "exclude": {
+                "type": "any",
+                "description": "Optional exclusion patterns (not implemented)"
+              }
+            }
           }
         },
         "required": [],
@@ -7311,7 +8445,7 @@ export const introspectionData = [
         "parameters": {
           "name": {
             "type": "string",
-            "description": "Parameter name"
+            "description": "The exact package name to search for"
           }
         },
         "required": [
@@ -7324,7 +8458,7 @@ export const introspectionData = [
         "parameters": {
           "packageName": {
             "type": "string",
-            "description": "Parameter packageName"
+            "description": "The name of the package to find dependents for"
           }
         },
         "required": [
@@ -7337,7 +8471,7 @@ export const introspectionData = [
         "parameters": {
           "filter": {
             "type": "(manifest: PartialManifest) => boolean",
-            "description": "Parameter filter"
+            "description": "Function that returns true for matching packages"
           }
         },
         "required": [
@@ -7350,7 +8484,7 @@ export const introspectionData = [
         "parameters": {
           "filter": {
             "type": "(manifest: PartialManifest) => boolean",
-            "description": "Parameter filter"
+            "description": "Function that returns true for matching packages"
           }
         },
         "required": [
@@ -7363,7 +8497,7 @@ export const introspectionData = [
         "parameters": {
           "filter": {
             "type": "(manifest: PartialManifest) => boolean",
-            "description": "Parameter filter"
+            "description": "Function that returns true for packages to exclude"
           }
         },
         "required": [
@@ -7412,7 +8546,7 @@ export const introspectionData = [
         "parameters": {
           "port": {
             "type": "number",
-            "description": "Parameter port"
+            "description": "Optional port override"
           }
         },
         "required": [],
@@ -7495,7 +8629,13 @@ export const introspectionData = [
           },
           "options": {
             "type": "CompileOptions",
-            "description": "Parameter options"
+            "description": "Compilation options",
+            "properties": {
+              "files": {
+                "type": "Record<string, string>",
+                "description": "Additional files to include in the bundle (path -> content mapping)"
+              }
+            }
           }
         },
         "required": [
@@ -7525,7 +8665,7 @@ export const introspectionData = [
         "parameters": {
           "command": {
             "type": "string",
-            "description": "Parameter command"
+            "description": "The command to execute."
           }
         },
         "required": [
@@ -7538,11 +8678,11 @@ export const introspectionData = [
         "parameters": {
           "source": {
             "type": "string",
-            "description": "Parameter source"
+            "description": "The source file path on the remote host."
           },
           "target": {
             "type": "string",
-            "description": "Parameter target"
+            "description": "The target file path on the local machine."
           }
         },
         "required": [
@@ -7556,11 +8696,11 @@ export const introspectionData = [
         "parameters": {
           "source": {
             "type": "string",
-            "description": "Parameter source"
+            "description": "The source file path on the local machine."
           },
           "target": {
             "type": "string",
-            "description": "Parameter target"
+            "description": "The target file path on the remote host."
           }
         },
         "required": [
@@ -7609,7 +8749,65 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "CreatePodOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": ""
+              },
+              "imageName": {
+                "type": "string",
+                "description": ""
+              },
+              "gpuTypeId": {
+                "type": "string | string[]",
+                "description": ""
+              },
+              "gpuCount": {
+                "type": "number",
+                "description": ""
+              },
+              "templateId": {
+                "type": "string",
+                "description": ""
+              },
+              "cloudType": {
+                "type": "'SECURE' | 'COMMUNITY'",
+                "description": ""
+              },
+              "containerDiskInGb": {
+                "type": "number",
+                "description": ""
+              },
+              "volumeInGb": {
+                "type": "number",
+                "description": ""
+              },
+              "volumeMountPath": {
+                "type": "string",
+                "description": ""
+              },
+              "ports": {
+                "type": "string[]",
+                "description": ""
+              },
+              "env": {
+                "type": "Record<string, string>",
+                "description": ""
+              },
+              "interruptible": {
+                "type": "boolean",
+                "description": ""
+              },
+              "networkVolumeId": {
+                "type": "string",
+                "description": ""
+              },
+              "minRAMPerGPU": {
+                "type": "number",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
@@ -7725,7 +8923,21 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "CreateVolumeOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": ""
+              },
+              "size": {
+                "type": "number",
+                "description": ""
+              },
+              "dataCenterId": {
+                "type": "string",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
@@ -7777,19 +8989,33 @@ export const introspectionData = [
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID"
           },
           "remotePath": {
             "type": "string",
-            "description": "Parameter remotePath"
+            "description": "Absolute path on the pod where the file should exist"
           },
           "fallbackUrl": {
             "type": "string",
-            "description": "Parameter fallbackUrl"
+            "description": "URL to download from (inside the pod) if the file doesn't exist"
           },
           "options": {
             "type": "{\n\t\t\tpollInterval?: number\n\t\t\ttimeout?: number\n\t\t\tonProgress?: (bytes: number) => void\n\t\t}",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "pollInterval": {
+                "type": "any",
+                "description": "How often to check in ms (default 5000)"
+              },
+              "timeout": {
+                "type": "any",
+                "description": "Max time to wait for download in ms (default 600000 / 10 min)"
+              },
+              "onProgress": {
+                "type": "any",
+                "description": "Called each poll with current file size in bytes"
+              }
+            }
           }
         },
         "required": [
@@ -7897,7 +9123,13 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "{ exclude?: string | string[] }",
-            "description": "Parameter options"
+            "description": "Options for the file manager",
+            "properties": {
+              "exclude": {
+                "type": "any",
+                "description": "The patterns to exclude from the scan"
+              }
+            }
           }
         },
         "required": [],
@@ -7908,7 +9140,13 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "{ exclude?: string | string[] }",
-            "description": "Parameter options"
+            "description": "Options for the file manager",
+            "properties": {
+              "exclude": {
+                "type": "any",
+                "description": "The patterns to exclude from the scan"
+              }
+            }
           }
         },
         "required": [],
@@ -7919,7 +9157,13 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "{ exclude?: string | string[] }",
-            "description": "Parameter options"
+            "description": "Options for the file manager",
+            "properties": {
+              "exclude": {
+                "type": "any",
+                "description": "The patterns to exclude from the watch"
+              }
+            }
           }
         },
         "required": [],
@@ -8345,7 +9589,7 @@ export const introspectionData = [
         "parameters": {
           "opts": {
             "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
-            "description": "Parameter opts"
+            "description": "Optional overrides for title, tags, thread, or metadata"
           }
         },
         "required": [],
@@ -8467,7 +9711,7 @@ export const introspectionData = [
         "parameters": {
           "filter": {
             "type": "(ep: EndpointInfo) => boolean",
-            "description": "Parameter filter"
+            "description": "Optional predicate to select which endpoints to include."
           }
         },
         "required": [],
@@ -8491,7 +9735,7 @@ export const introspectionData = [
         "parameters": {
           "filter": {
             "type": "(ep: EndpointInfo) => boolean",
-            "description": "Parameter filter"
+            "description": "Optional predicate to select which endpoints to include."
           }
         },
         "required": [],
@@ -8839,7 +10083,7 @@ export const introspectionData = [
         "parameters": {
           "opts": {
             "type": "{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }",
-            "description": "Parameter opts"
+            "description": "Optional overrides for title, tags, thread, or metadata"
           }
         },
         "required": [],
@@ -8975,7 +10219,65 @@ export const introspectionData = [
           },
           "options": {
             "type": "RunOptions",
-            "description": "Parameter options"
+            "description": "Session configuration overrides",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Override model for this session."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Override working directory."
+              },
+              "systemPrompt": {
+                "type": "string",
+                "description": "System prompt for this session."
+              },
+              "appendSystemPrompt": {
+                "type": "string",
+                "description": "Append system prompt for this session."
+              },
+              "permissionMode": {
+                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+                "description": "Permission mode override."
+              },
+              "allowedTools": {
+                "type": "string[]",
+                "description": "Allowed tools override."
+              },
+              "disallowedTools": {
+                "type": "string[]",
+                "description": "Disallowed tools override."
+              },
+              "streaming": {
+                "type": "boolean",
+                "description": "Whether to stream partial messages."
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous session by ID."
+              },
+              "continue": {
+                "type": "boolean",
+                "description": "Continue the most recent conversation."
+              },
+              "addDirs": {
+                "type": "string[]",
+                "description": "Additional directories to allow tool access to."
+              },
+              "mcpConfig": {
+                "type": "string[]",
+                "description": "MCP config paths or JSON strings."
+              },
+              "dangerouslySkipPermissions": {
+                "type": "boolean",
+                "description": "Skip all permission checks (only for sandboxed environments)."
+              },
+              "extraArgs": {
+                "type": "string[]",
+                "description": "Additional arbitrary CLI flags."
+              }
+            }
           }
         },
         "required": [
@@ -8992,7 +10294,65 @@ export const introspectionData = [
           },
           "options": {
             "type": "RunOptions",
-            "description": "Parameter options"
+            "description": "Session configuration overrides",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": "Override model for this session."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Override working directory."
+              },
+              "systemPrompt": {
+                "type": "string",
+                "description": "System prompt for this session."
+              },
+              "appendSystemPrompt": {
+                "type": "string",
+                "description": "Append system prompt for this session."
+              },
+              "permissionMode": {
+                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+                "description": "Permission mode override."
+              },
+              "allowedTools": {
+                "type": "string[]",
+                "description": "Allowed tools override."
+              },
+              "disallowedTools": {
+                "type": "string[]",
+                "description": "Disallowed tools override."
+              },
+              "streaming": {
+                "type": "boolean",
+                "description": "Whether to stream partial messages."
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous session by ID."
+              },
+              "continue": {
+                "type": "boolean",
+                "description": "Continue the most recent conversation."
+              },
+              "addDirs": {
+                "type": "string[]",
+                "description": "Additional directories to allow tool access to."
+              },
+              "mcpConfig": {
+                "type": "string[]",
+                "description": "MCP config paths or JSON strings."
+              },
+              "dangerouslySkipPermissions": {
+                "type": "boolean",
+                "description": "Skip all permission checks (only for sandboxed environments)."
+              },
+              "extraArgs": {
+                "type": "string[]",
+                "description": "Additional arbitrary CLI flags."
+              }
+            }
           }
         },
         "required": [
@@ -9044,7 +10404,7 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "any",
-            "description": "Parameter options"
+            "description": "Enable options"
           }
         },
         "required": [],
@@ -9132,7 +10492,61 @@ export const introspectionData = [
           },
           "options": {
             "type": "CodexRunOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "cwd": {
+                "type": "string",
+                "description": ""
+              },
+              "sandbox": {
+                "type": "'read-only' | 'workspace-write' | 'danger-full-access'",
+                "description": ""
+              },
+              "approvalMode": {
+                "type": "'suggest' | 'auto-edit' | 'full-auto'",
+                "description": ""
+              },
+              "projectDoc": {
+                "type": "string",
+                "description": ""
+              },
+              "noProjectDoc": {
+                "type": "boolean",
+                "description": ""
+              },
+              "fullStdout": {
+                "type": "boolean",
+                "description": ""
+              },
+              "images": {
+                "type": "string[]",
+                "description": ""
+              },
+              "fullAuto": {
+                "type": "boolean",
+                "description": ""
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous session by ID."
+              },
+              "resumeLast": {
+                "type": "boolean",
+                "description": "Resume the most recent session."
+              },
+              "dangerouslyAutoApproveEverything": {
+                "type": "boolean",
+                "description": "Skip all approvals and sandboxing."
+              },
+              "extraArgs": {
+                "type": "string[]",
+                "description": "Additional CLI flags."
+              }
+            }
           }
         },
         "required": [
@@ -9149,7 +10563,61 @@ export const introspectionData = [
           },
           "options": {
             "type": "CodexRunOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "cwd": {
+                "type": "string",
+                "description": ""
+              },
+              "sandbox": {
+                "type": "'read-only' | 'workspace-write' | 'danger-full-access'",
+                "description": ""
+              },
+              "approvalMode": {
+                "type": "'suggest' | 'auto-edit' | 'full-auto'",
+                "description": ""
+              },
+              "projectDoc": {
+                "type": "string",
+                "description": ""
+              },
+              "noProjectDoc": {
+                "type": "boolean",
+                "description": ""
+              },
+              "fullStdout": {
+                "type": "boolean",
+                "description": ""
+              },
+              "images": {
+                "type": "string[]",
+                "description": ""
+              },
+              "fullAuto": {
+                "type": "boolean",
+                "description": ""
+              },
+              "resumeSessionId": {
+                "type": "string",
+                "description": "Resume a previous session by ID."
+              },
+              "resumeLast": {
+                "type": "boolean",
+                "description": "Resume the most recent session."
+              },
+              "dangerouslyAutoApproveEverything": {
+                "type": "boolean",
+                "description": "Skip all approvals and sandboxing."
+              },
+              "extraArgs": {
+                "type": "string[]",
+                "description": "Additional CLI flags."
+              }
+            }
           }
         },
         "required": [
@@ -9289,7 +10757,49 @@ export const introspectionData = [
         "parameters": {
           "record": {
             "type": "ConversationRecord",
-            "description": "Parameter record"
+            "description": "The full conversation record to persist",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "messages": {
+                "type": "Message[]",
+                "description": ""
+              },
+              "tags": {
+                "type": "string[]",
+                "description": ""
+              },
+              "thread": {
+                "type": "string",
+                "description": ""
+              },
+              "createdAt": {
+                "type": "string",
+                "description": ""
+              },
+              "updatedAt": {
+                "type": "string",
+                "description": ""
+              },
+              "messageCount": {
+                "type": "number",
+                "description": ""
+              },
+              "metadata": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
@@ -9372,7 +10882,45 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "SearchOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "tag": {
+                "type": "string",
+                "description": ""
+              },
+              "tags": {
+                "type": "string[]",
+                "description": ""
+              },
+              "thread": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "before": {
+                "type": "string | Date",
+                "description": ""
+              },
+              "after": {
+                "type": "string | Date",
+                "description": ""
+              },
+              "query": {
+                "type": "string",
+                "description": ""
+              },
+              "limit": {
+                "type": "number",
+                "description": ""
+              },
+              "offset": {
+                "type": "number",
+                "description": ""
+              }
+            }
           }
         },
         "required": [],
@@ -9383,7 +10931,45 @@ export const introspectionData = [
         "parameters": {
           "options": {
             "type": "SearchOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "tag": {
+                "type": "string",
+                "description": ""
+              },
+              "tags": {
+                "type": "string[]",
+                "description": ""
+              },
+              "thread": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "before": {
+                "type": "string | Date",
+                "description": ""
+              },
+              "after": {
+                "type": "string | Date",
+                "description": ""
+              },
+              "query": {
+                "type": "string",
+                "description": ""
+              },
+              "limit": {
+                "type": "number",
+                "description": ""
+              },
+              "offset": {
+                "type": "number",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
@@ -9513,7 +11099,7 @@ export const containerIntrospectionData = [
         "parameters": {
           "newState": {
             "type": "SetStateValue<ContainerState>",
-            "description": "Parameter newState"
+            "description": "The new state of the container."
           }
         },
         "required": [
@@ -9543,11 +11129,11 @@ export const containerIntrospectionData = [
         "parameters": {
           "id": {
             "type": "T",
-            "description": "Parameter id"
+            "description": "The id of the feature to create."
           },
           "options": {
             "type": "ConstructorParameters<Features[T]>[0]",
-            "description": "Parameter options"
+            "description": "The options to pass to the feature constructor."
           }
         },
         "required": [
@@ -9650,11 +11236,11 @@ export const containerIntrospectionData = [
         "parameters": {
           "registryName": {
             "type": "string",
-            "description": "Parameter registryName"
+            "description": "The plural name of the registry, e.g. \"clients\", \"servers\""
           },
           "factoryName": {
             "type": "string",
-            "description": "Parameter factoryName"
+            "description": "The singular factory method name, e.g. \"client\", \"server\""
           }
         },
         "required": [
@@ -9670,11 +11256,15 @@ export const containerIntrospectionData = [
         "returns": "ContainerIntrospection"
       },
       "inspectAsText": {
-        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only that section, or a number for the starting heading depth (backward compatible).",
         "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
           "startHeadingDepth": {
             "type": "number",
-            "description": "The heading level to start from (default 1)"
+            "description": "Parameter startHeadingDepth"
           }
         },
         "required": [],
@@ -9812,7 +11402,41 @@ export const containerIntrospectionData = [
         "parameters": {
           "options": {
             "type": "ConversationFactoryOptions",
-            "description": "Parameter options"
+            "description": "Parameter options",
+            "properties": {
+              "tools": {
+                "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, z.ZodType>\n\t}",
+                "description": ""
+              },
+              "systemPrompt": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "thread": {
+                "type": "string",
+                "description": ""
+              },
+              "tags": {
+                "type": "string[]",
+                "description": ""
+              },
+              "metadata": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
           }
         },
         "required": [],

@@ -9,7 +9,7 @@ import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, p
 import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
 import { ContainerStateSchema, describeZodShape } from './schemas/base.js'
-import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection } from './introspection/index.js'
+import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index.js'
 
 
 export { z }
@@ -454,12 +454,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * Returns a human-readable markdown representation of this container's introspection data.
    * Useful in REPLs, AI agent contexts, or documentation generation.
    *
-   * @param {number} startHeadingDepth - The heading level to start from (default 1)
+   * The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only
+   * that section, or a number for the starting heading depth (backward compatible).
+   *
    * @returns {string} Markdown-formatted introspection text
    */
-  inspectAsText(startHeadingDepth: number = 1): string {
+  inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
+    let section: IntrospectionSection | undefined
+    let depth = 1
+
+    if (typeof sectionOrDepth === 'string') {
+      section = sectionOrDepth
+      depth = startHeadingDepth ?? 1
+    } else if (typeof sectionOrDepth === 'number') {
+      depth = sectionOrDepth
+    }
+
     const data = this.inspect()
-    return presentContainerIntrospectionAsMarkdown(data, startHeadingDepth)
+    return presentContainerIntrospectionAsMarkdown(data, depth, section)
   }
 
   /** Make a property non-enumerable, which is nice for inspecting it in the REPL */
@@ -509,35 +521,39 @@ const helperCache = new Map()
 const featureIdToHelperCacheKeyMap= new Map()
 const contextMap = new WeakMap()
 
-function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, startHeadingDepth: number = 1): string {
+function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection): string {
   const sections: string[] = []
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
 
-  // Header
-  sections.push(`${heading(1)} ${data.className}\n\n${data.description || ''}`)
+  const shouldRender = (name: IntrospectionSection | string) => !section || section === name
 
-  // Registries section
-  if (data.registries && data.registries.length > 0) {
-    sections.push(`${heading(2)} Registries`)
+  if (!section) {
+    // Header
+    sections.push(`${heading(1)} ${data.className}\n\n${data.description || ''}`)
 
-    for (const reg of data.registries) {
-      sections.push(`${heading(3)} ${reg.name} (${reg.baseClass})`)
-      if (reg.available.length > 0) {
-        sections.push(reg.available.map(a => `- \`${a}\``).join('\n'))
-      } else {
-        sections.push('_No members registered_')
+    // Registries section
+    if (data.registries && data.registries.length > 0) {
+      sections.push(`${heading(2)} Registries`)
+
+      for (const reg of data.registries) {
+        sections.push(`${heading(3)} ${reg.name} (${reg.baseClass})`)
+        if (reg.available.length > 0) {
+          sections.push(reg.available.map(a => `- \`${a}\``).join('\n'))
+        } else {
+          sections.push('_No members registered_')
+        }
       }
+    }
+
+    // Factories section
+    if (data.factories && data.factories.length > 0) {
+      sections.push(`${heading(2)} Factory Methods`)
+      sections.push(data.factories.map(f => `- \`${f}()\``).join('\n'))
     }
   }
 
-  // Factories section
-  if (data.factories && data.factories.length > 0) {
-    sections.push(`${heading(2)} Factory Methods`)
-    sections.push(data.factories.map(f => `- \`${f}()\``).join('\n'))
-  }
-
   // Methods section
-  if (data.methods && Object.keys(data.methods).length > 0) {
+  if (shouldRender('methods') && data.methods && Object.keys(data.methods).length > 0) {
     sections.push(`${heading(2)} Methods`)
 
     for (const [methodName, methodInfo] of Object.entries(data.methods)) {
@@ -555,6 +571,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
         for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
           const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
           sections.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
+
+          if (paramInfo.properties && Object.keys(paramInfo.properties).length > 0) {
+            sections.push('')
+            sections.push(`\`${paramInfo.type}\` properties:`)
+            sections.push(`| Property | Type | Description |`)
+            sections.push(`|----------|------|-------------|`)
+
+            for (const [propName, propInfo] of Object.entries(paramInfo.properties)) {
+              sections.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
+            }
+          }
         }
       }
 
@@ -567,7 +594,7 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
   }
 
   // Getters section
-  if (data.getters && Object.keys(data.getters).length > 0) {
+  if (shouldRender('getters') && data.getters && Object.keys(data.getters).length > 0) {
     sections.push(`${heading(2)} Getters`)
     sections.push(`| Property | Type | Description |`)
     sections.push(`|----------|------|-------------|`)
@@ -578,7 +605,7 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
   }
 
   // Events section
-  if (data.events && Object.keys(data.events).length > 0) {
+  if (shouldRender('events') && data.events && Object.keys(data.events).length > 0) {
     sections.push(`${heading(2)} Events`)
 
     for (const [eventName, eventInfo] of Object.entries(data.events)) {
@@ -603,7 +630,7 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
   }
 
   // State section
-  if (data.state && Object.keys(data.state).length > 0) {
+  if (shouldRender('state') && data.state && Object.keys(data.state).length > 0) {
     sections.push(`${heading(2)} State`)
     sections.push(`| Property | Type | Description |`)
     sections.push(`|----------|------|-------------|`)
@@ -613,19 +640,21 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
     }
   }
 
-  // Enabled features section
-  if (data.enabledFeatures && data.enabledFeatures.length > 0) {
-    sections.push(`${heading(2)} Enabled Features`)
-    sections.push(data.enabledFeatures.map(f => `- \`${f}\``).join('\n'))
-  }
+  if (!section) {
+    // Enabled features section
+    if (data.enabledFeatures && data.enabledFeatures.length > 0) {
+      sections.push(`${heading(2)} Enabled Features`)
+      sections.push(data.enabledFeatures.map(f => `- \`${f}\``).join('\n'))
+    }
 
-  // Environment section
-  if (data.environment) {
-    sections.push(`${heading(2)} Environment`)
-    sections.push(`| Flag | Value |`)
-    sections.push(`|------|-------|`)
-    for (const [key, value] of Object.entries(data.environment)) {
-      sections.push(`| \`${key}\` | ${value} |`)
+    // Environment section
+    if (data.environment) {
+      sections.push(`${heading(2)} Environment`)
+      sections.push(`| Flag | Value |`)
+      sections.push(`|------|-------|`)
+      for (const [key, value] of Object.entries(data.environment)) {
+        sections.push(`| \`${key}\` | ${value} |`)
+      }
     }
   }
 
