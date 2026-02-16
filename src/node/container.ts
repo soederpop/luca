@@ -9,6 +9,7 @@ import { Client, type ClientsInterface } from "../client";
 import { Server, type ServersInterface } from "../server";
 import "../servers/express";
 import "../servers/socket";
+import "../servers/mcp";
 import { Command, type CommandsInterface } from "../command";
 import { Endpoint, type EndpointsInterface } from "../endpoint";
 

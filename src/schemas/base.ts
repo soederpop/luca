@@ -92,7 +92,57 @@ export const ClientEventsSchema = HelperEventsSchema.extend({
   failure: z.tuple([z.any().describe('The error object')]).describe('Emitted when a request fails'),
 }).describe('Base client events')
 
+// WebSocket client schemas
+export const WebSocketClientStateSchema = ClientStateSchema.extend({
+  connectionError: z.any().optional().describe('The last connection error, if any'),
+  reconnectAttempts: z.number().default(0).describe('Number of reconnection attempts made'),
+}).describe('WebSocket client state with connection error and reconnect tracking')
+
+export const WebSocketClientOptionsSchema = ClientOptionsSchema.extend({
+  reconnect: z.boolean().optional().describe('Whether to automatically reconnect on disconnection'),
+  reconnectInterval: z.number().optional().describe('Base interval in milliseconds between reconnection attempts'),
+  maxReconnectAttempts: z.number().optional().describe('Maximum number of reconnection attempts before giving up'),
+}).describe('WebSocket client options with reconnection settings')
+
+export const WebSocketClientEventsSchema = ClientEventsSchema.extend({
+  message: z.tuple([z.any().describe('The parsed message data')]).describe('Emitted when a message is received'),
+  open: z.tuple([]).describe('Emitted when the WebSocket connection is established'),
+  close: z.tuple([z.number().optional().describe('Close code'), z.string().optional().describe('Close reason')]).describe('Emitted when the WebSocket connection is closed'),
+  error: z.tuple([z.any().describe('The error')]).describe('Emitted when a WebSocket error occurs'),
+  reconnecting: z.tuple([z.number().describe('Attempt number')]).describe('Emitted when attempting to reconnect'),
+}).describe('WebSocket client events')
+
+// GraphQL client schemas
+export const GraphClientOptionsSchema = ClientOptionsSchema.extend({
+  endpoint: z.string().optional().describe('The GraphQL endpoint path, defaults to /graphql'),
+}).describe('GraphQL client options')
+
+export const GraphClientEventsSchema = ClientEventsSchema.extend({
+  graphqlError: z.tuple([z.array(z.any()).describe('Array of GraphQL errors')]).describe('Emitted when GraphQL-level errors are present in the response'),
+}).describe('GraphQL client events')
+
 export const ServerEventsSchema = HelperEventsSchema.extend({}).describe('Base server events')
+
+// MCP Server schemas
+export const MCPServerOptionsSchema = ServerOptionsSchema.extend({
+  transport: z.enum(['stdio', 'http']).optional().describe('Transport type for MCP communication'),
+  serverName: z.string().optional().describe('Server name reported to MCP clients'),
+  serverVersion: z.string().optional().describe('Server version reported to MCP clients'),
+}).describe('MCP server options')
+
+export const MCPServerStateSchema = ServerStateSchema.extend({
+  transport: z.string().optional().describe('Active transport type'),
+  toolCount: z.number().default(0).describe('Number of registered tools'),
+  resourceCount: z.number().default(0).describe('Number of registered resources'),
+  promptCount: z.number().default(0).describe('Number of registered prompts'),
+}).describe('MCP server state with tool/resource/prompt counts')
+
+export const MCPServerEventsSchema = ServerEventsSchema.extend({
+  toolRegistered: z.tuple([z.string().describe('Tool name')]).describe('Emitted when a tool is registered'),
+  resourceRegistered: z.tuple([z.string().describe('Resource URI')]).describe('Emitted when a resource is registered'),
+  promptRegistered: z.tuple([z.string().describe('Prompt name')]).describe('Emitted when a prompt is registered'),
+  toolCalled: z.tuple([z.string().describe('Tool name'), z.any().describe('Arguments')]).describe('Emitted when a tool is called'),
+}).describe('MCP server events')
 
 // Command schemas
 export const CommandStateSchema = HelperStateSchema.extend({
