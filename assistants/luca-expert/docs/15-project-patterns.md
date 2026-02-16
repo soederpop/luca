@@ -93,6 +93,7 @@ The endpoint creates the assistant and forwards questions:
 ```typescript
 // endpoints/ask.ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/ask'
 export const postSchema = z.object({
@@ -100,7 +101,7 @@ export const postSchema = z.object({
   conversationId: z.string().optional(),
 })
 
-export async function post(params, ctx) {
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
   const assistant = ctx.container.feature('assistant', {
     folder: 'assistants/helper',
     model: 'gpt-4o',
@@ -136,13 +137,14 @@ docs-site/
 ```typescript
 // endpoints/docs.ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/docs'
 export const getSchema = z.object({
   section: z.string().optional(),
 })
 
-export async function get(params, ctx) {
+export async function get(params: z.infer<typeof getSchema>, ctx: EndpointContext) {
   const db = ctx.container.feature('contentDb', { rootPath: './content' })
   await db.load()
   // ... query and return content
@@ -176,15 +178,19 @@ Build complex features by composing simpler ones:
 
 ```typescript
 class NotificationService extends Feature<NotifState, NotifOptions> {
+  private cache: any
+  private api: any
+
   async initialize() {
     // Compose other features
     this.cache = this.container.feature('diskCache', { path: './.notif-cache' })
     this.api = this.container.client('rest', {
       baseURL: this.options.webhookUrl,
     })
+    await this.api.connect()
   }
 
-  async send(channel, message) {
+  async send(channel: string, message: string) {
     // Check rate limiting via cache
     const key = `ratelimit:${channel}`
     if (await this.cache.has(key)) {

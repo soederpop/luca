@@ -33,22 +33,21 @@ Read, write, and navigate the file system:
 ```typescript
 const fs = container.fs
 
-// Read files
-const content = await fs.readFile('./README.md')
-const json = await fs.readJson('./package.json')
+// Read files (synchronous)
+const content = fs.readFile('./README.md')
+const json = fs.readJson('./package.json')
 
-// Write files
+// Write files (async -- creates parent dirs automatically)
 await fs.writeFile('./output.txt', 'Hello')
-await fs.writeJson('./config.json', { key: 'value' })
 
 // Check existence
 fs.exists('./path/to/file')
 
-// Walk directories
-const files = await fs.walk('./src', { extensions: ['.ts'] })
+// Walk directories -- returns { files: string[], directories: string[] }
+const { files } = fs.walk('./src', { include: ['*.ts'] })
 
-// Find files upward
-const configPath = await fs.findUp('tsconfig.json')
+// Find files upward (synchronous)
+const configPath = fs.findUp('tsconfig.json')
 ```
 
 ### git -- Git Operations
@@ -58,10 +57,12 @@ Work with git repositories:
 ```typescript
 const git = container.git
 
-const branch = await git.branch()          // Current branch name
-const sha = await git.sha()                // Current commit SHA
-const status = await git.status()           // Working tree status
-const files = await git.lsFiles()           // List tracked files
+const branch = git.branch                  // Current branch name (getter)
+const sha = git.sha                        // Current commit SHA (getter)
+const isRepo = git.isRepo                  // Whether cwd is a git repo (getter)
+const root = git.repoRoot                  // Absolute path to repo root (getter)
+const files = await git.lsFiles()          // List tracked files
+const recent = await git.getLatestChanges(5) // Recent commits
 ```
 
 ### proc -- Process Execution
@@ -69,13 +70,13 @@ const files = await git.lsFiles()           // List tracked files
 Run external processes:
 
 ```typescript
-const proc = container.feature('proc')
+const proc = container.proc
 
-// Execute and get output
-const result = await proc.exec('ls', ['-la'])
+// Execute a command synchronously and get output as a string
+const result = proc.exec('ls -la')
 
 // Execute with options
-const result = await proc.exec('npm', ['test'], {
+const output = proc.exec('npm test', {
   cwd: '/path/to/project',
   env: { NODE_ENV: 'test' },
 })
@@ -110,7 +111,10 @@ ui.colors.red('Error!')
 ui.colors.yellow('Warning!')
 
 // ASCII art
-await ui.figlet('My App')
+console.log(ui.asciiArt('My App', 'Standard'))
+
+// Colorful ASCII banner with gradient
+console.log(ui.banner('My App', { font: 'Star Wars', colors: ['red', 'white', 'blue'] }))
 
 // Render markdown in the terminal
 ui.markdown('# Hello\n\nThis is **bold**')
@@ -121,11 +125,8 @@ ui.markdown('# Hello\n\nThis is **bold**')
 ```typescript
 const net = container.networking
 
-// Find an available port
+// Find an available port (starting from a preferred port)
 const port = await net.findOpenPort(3000)
-
-// Check if a port is available
-const available = await net.isPortAvailable(8080)
 ```
 
 ### os -- System Info
@@ -135,7 +136,7 @@ const os = container.os
 
 os.platform   // 'darwin', 'linux', 'win32'
 os.arch       // 'x64', 'arm64'
-os.cpus       // CPU info
+os.cpuCount   // Number of CPU cores
 os.tmpdir     // Temp directory path
 ```
 
@@ -146,13 +147,13 @@ const cache = container.feature('diskCache', { path: './.cache' })
 
 await cache.set('key', { data: 'value' })
 const data = await cache.get('key')
-await cache.has('key')
-await cache.delete('key')
+await cache.has('key')    // true
+await cache.rm('key')     // remove a cached item
 ```
 
 ### contentDb -- Markdown as a Database
 
-Turn markdown folders into queryable collections. See the dedicated [ContentDb tutorial](./09-contentbase.md).
+Turn markdown folders into queryable collections. See the dedicated [ContentBase tutorial](./11-contentbase.md).
 
 ### fileManager -- Batch File Operations
 
@@ -164,16 +165,17 @@ const fm = container.feature('fileManager')
 ### grep -- Search File Contents
 
 ```typescript
-const grep = container.feature('grep')
-const results = await grep.search('./src', { pattern: /TODO/, extensions: ['.ts'] })
+const grep = container.grep
+const results = await grep.search({ pattern: 'TODO', include: '*.ts' })
+// Returns array of { file, line, column, match } objects
 ```
 
 ### tmux -- Terminal Multiplexer
 
 ```typescript
 const tmux = container.feature('tmux')
-const session = await tmux.createSession('my-session')
-const layout = await session.split('horizontal')
+await tmux.ensureSession('my-session')
+const layout = await tmux.split({ count: 2, orientation: 'horizontal' })
 const [left, right] = layout.panes
 await left!.run('bun run dev')
 await right!.run('bun test --watch')
@@ -200,6 +202,6 @@ container.features.describe('diskCache')
 // Get docs for everything
 container.features.describeAll()
 
-// Introspect a feature's full API
-container.features.introspect('fs')
+// Structured introspection data for a feature's full API
+container.feature('fs').introspect()
 ```

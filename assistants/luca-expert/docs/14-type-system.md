@@ -12,7 +12,7 @@ Luca's type system ensures that as you add features, clients, servers, and comma
 When you register a new helper, you augment the corresponding interface so TypeScript knows about it:
 
 ```typescript
-import { Feature, features } from '@soederpop/luca'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 import { z } from 'zod'
 
 // 1. Define your feature

@@ -61,15 +61,19 @@ await server.start()
 console.log(`Listening on port ${server.state.get('port')}`)
 ```
 
-### Server Events
+### Server State
 
 ```typescript
-server.on('listening', (port) => {
-  console.log(`Server started on port ${port}`)
-})
+// After starting, check server state
+await server.start()
+server.state.get('listening')  // true
+server.state.get('port')       // 3000
 
-server.on('request', (req) => {
-  console.log(`${req.method} ${req.url}`)
+// Watch for state changes
+server.state.observe((type, key, value) => {
+  if (key === 'listening' && value) {
+    console.log('Server is now listening')
+  }
 })
 ```
 

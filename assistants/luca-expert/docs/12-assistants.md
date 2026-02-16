@@ -169,6 +169,7 @@ Expose the assistant as an API:
 ```typescript
 // endpoints/ask.ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/ask'
 export const description = 'Ask the support assistant a question'

@@ -18,7 +18,7 @@ luca run scripts/hello.ts
 import container from '@soederpop/luca'
 
 console.log('Available features:', container.features.available)
-console.log('Git branch:', await container.git.branch())
+console.log('Git branch:', container.git.branch)
 console.log('OS:', container.os.platform, container.os.arch)
 ```
 
@@ -48,7 +48,7 @@ console.log(container.features.available)
 Now let's use the file system feature:
 
 ```ts
-const files = await container.fs.walk('./src', { extensions: ['.ts'] })
+const { files } = container.fs.walk('./src', { include: ['*.ts'] })
 console.log(`Found ${files.length} TypeScript files`)
 ```
 
@@ -95,12 +95,12 @@ All codeblocks in a markdown file share a VM context. The context includes `cons
 ````markdown
 ```ts
 // Block 1: container is already available in the context
-const files = await container.fs.walk('./src')
+const { files } = container.fs.walk('./src')
 ```
 
 ```ts
 // Block 2: `files` from block 1 is still in scope
-console.log(`Found ${files.length} files`)
+console.log(`Found ${files.length} files in src/`)
 ```
 ````
 
@@ -121,12 +121,12 @@ import container from '@soederpop/luca'
 
 const { fs, proc } = container
 
-const images = await fs.walk('./uploads', { extensions: ['.png', '.jpg'] })
+const { files: images } = fs.walk('./uploads', { include: ['*.png', '*.jpg'] })
 console.log(`Processing ${images.length} images...`)
 
 for (const image of images) {
   console.log(`  Optimizing: ${image}`)
-  await proc.exec('optipng', [image])
+  proc.exec(`optipng ${image}`)
 }
 
 console.log('Done.')
@@ -145,7 +145,7 @@ const api = container.client('rest', {
 })
 await api.connect()
 
-const oldData = await fs.readJson('./data/legacy-users.json')
+const oldData = fs.readJson('./data/legacy-users.json')
 console.log(`Migrating ${oldData.length} users...`)
 
 for (const user of oldData) {
@@ -168,17 +168,17 @@ import container from '@soederpop/luca'
 
 const { git, fs } = container
 
-const branch = await git.branch()
-const sha = await git.sha()
-const status = await git.status()
+const branch = git.branch       // getter, not a method
+const sha = git.sha             // getter, not a method
 const files = await git.lsFiles()
+const { files: srcFiles } = fs.walk('./src', { include: ['*.ts'] })
 
 const report = `# Weekly Report
 
 - Branch: ${branch}
 - Commit: ${sha}
 - Tracked files: ${files.length}
-- Working tree: ${status.clean ? 'clean' : 'dirty'}
+- Source files: ${srcFiles.length}
 
 Generated: ${new Date().toISOString()}
 `

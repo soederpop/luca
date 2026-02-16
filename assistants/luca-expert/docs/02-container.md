@@ -109,9 +109,9 @@ container.state.get('ready') // true
 // Get a snapshot of all state
 container.state.current
 
-// Observe all changes
+// Observe all changes (changeType is 'add' | 'update' | 'delete')
 container.state.observe((changeType, key, value) => {
-  console.log(`${key} changed to`, value)
+  console.log(`${key} ${changeType}:`, value)
 })
 
 // State has a version counter
