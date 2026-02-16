@@ -21,7 +21,7 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   // @ts-ignore-next-line
   private recognition: SpeechRecognition | null = null;
 
-  static override attach(container: Container<WebFeatures> & { voice?: VoiceRecognition }, options?: VoiceRecognitionOptions) {
+  static attach(container: Container<WebFeatures> & { voice?: VoiceRecognition }, options?: VoiceRecognitionOptions) {
     container.features.register('voice', VoiceRecognition)
     container.feature('voice', { enable: true })
     return container

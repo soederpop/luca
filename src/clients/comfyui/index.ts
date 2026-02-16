@@ -53,7 +53,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
 
   private ws: WebSocket | null = null;
 
-  static attach(container: Container & ClientsInterface, options?: any) {
+  static override attach(container: Container & ClientsInterface, options?: any) {
     container.clients.register("comfyui", ComfyUIClient);
     return container;
   }
@@ -132,7 +132,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     opts: { subfolder?: string; type?: string; overwrite?: boolean } = {}
   ): Promise<any> {
     const formData = new FormData();
-    const blob = file instanceof Blob ? file : new Blob([file]);
+    const blob = file instanceof Blob ? file : new Blob([file as BlobPart]);
     formData.append("image", blob, filename);
     if (opts.subfolder) formData.append("subfolder", opts.subfolder);
     if (opts.type) formData.append("type", opts.type);
@@ -346,7 +346,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
 
         // Assign values positionally
         for (let i = 0; i < node.widgets_values.length && i < widgetNames.length; i++) {
-          inputs[widgetNames[i]] = node.widgets_values[i];
+          inputs[widgetNames[i]!] = node.widgets_values[i];
         }
       }
 

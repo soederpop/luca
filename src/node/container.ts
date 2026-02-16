@@ -218,7 +218,7 @@ export class NodeContainer<
     this.feature("os", { enable: true });
     this.feature("networking", { enable: true });
     this.feature("ui", { enable: true });
-    this.feature("vm", { enable: true });
+    this.feature("vm", { enable: true, context: {} });
 
     const enable = castArray(this.options.enable)
       .filter((v) => v && v?.length)

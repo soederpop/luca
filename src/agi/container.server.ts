@@ -13,12 +13,12 @@ import { AssistantsManager } from './features/assistants-manager'
 
 import type { ContentDb } from '@/node/features/content-db'
 import type { ConversationTool } from './features/conversation'
-import type { z } from 'zod'
+import type { ZodType } from 'zod'
 
 export interface ConversationFactoryOptions {
 	tools?: {
 		handlers: Record<string, ConversationTool['handler']>
-		schemas: Record<string, z.ZodType>
+		schemas: Record<string, ZodType>
 	}
 	systemPrompt?: string
 	model?: string

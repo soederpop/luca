@@ -1,4 +1,4 @@
-import type { Helper, HelperOptions } from './helper.js';
+import type { Helper } from './helper.js';
 import type { ContainerContext } from './container.js';
 import { Bus } from './bus.js';
 
@@ -10,9 +10,9 @@ export type { HelperIntrospection }
 abstract class Registry<T extends Helper> {
   scope: string = "unspecified"
  
-  baseClass?: new (options: HelperOptions, context: ContainerContext) => T
-  
-  private members = new Map<string, new (options: HelperOptions, context: ContainerContext) => T>();
+  baseClass?: new (options: any, context: ContainerContext) => T
+
+  private members = new Map<string, new (options: any, context: ContainerContext) => T>();
 
   private readonly _events = new Bus();
 
@@ -41,7 +41,7 @@ abstract class Registry<T extends Helper> {
    * @param constructor - The constructor for the helper.
    * @returns The constructor for the helper.
   */
-  register(id: string, constructor: new (options: HelperOptions, context: ContainerContext) => T) {
+  register(id: string, constructor: new (options: any, context: ContainerContext) => T) {
     this.members.set(id.replace(`${this.scope}.`, ''), constructor);
     interceptRegistration(this, constructor)
     return constructor
@@ -63,7 +63,7 @@ abstract class Registry<T extends Helper> {
    * @param id - The id of the helper to lookup.
    * @returns The constructor for the helper.
   */
-  lookup(id: string) : new (options: HelperOptions, context: ContainerContext) => T {
+  lookup(id: string) : new (options: any, context: ContainerContext) => T {
     if (!this.members.has(id) && this.members.has([this.scope, id].join('.'))) {
       id = [this.scope, id].join(".")
     }
@@ -79,7 +79,7 @@ abstract class Registry<T extends Helper> {
       throw new Error(
         `${this.scope} "${id}" is not registered.${suggestion}\n\n` +
         `To fix this, ensure the module that defines "${id}" is imported (e.g. import './${this.scope}/${id}') ` +
-        `or registered on the container (e.g. container.use(${id[0].toUpperCase() + id.slice(1)})).`
+        `or registered on the container (e.g. container.use(${id[0]!.toUpperCase() + id.slice(1)})).`
       )
     }
 

@@ -3,14 +3,22 @@ import type { Container, ContainerContext } from "./container.js";
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Registry } from "./registry.js";
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from './schemas/base.js'
+import {
+  ClientStateSchema, ClientOptionsSchema, ClientEventsSchema,
+  WebSocketClientStateSchema, WebSocketClientOptionsSchema, WebSocketClientEventsSchema,
+  GraphClientOptionsSchema, GraphClientEventsSchema,
+} from './schemas/base.js'
 
 export type ClientOptions = z.infer<typeof ClientOptionsSchema>
 export type ClientState = z.infer<typeof ClientStateSchema>
+export type WebSocketClientState = z.infer<typeof WebSocketClientStateSchema>
+export type WebSocketClientOptions = z.infer<typeof WebSocketClientOptionsSchema>
+export type GraphClientOptions = z.infer<typeof GraphClientOptionsSchema>
 
 export interface AvailableClients {
   rest: typeof RestClient;
   graph: typeof GraphClient;
+  websocket: typeof WebSocketClient;
 }
 
 export interface ClientsInterface {
@@ -112,7 +120,7 @@ export class RestClient<
 > extends Client<T, K> {
   axios!: AxiosInstance;
 
-  static override shortcut = "clients.rest" as const
+  static override shortcut: string = "clients.rest"
 
   static override attach(container: Container & ClientsInterface): any {
     return container
@@ -242,27 +250,211 @@ export class RestClient<
   }
 }
 
+/**
+ * GraphQL client that wraps RestClient with convenience methods for executing
+ * queries and mutations. Automatically handles the GraphQL request envelope
+ * (query/variables/operationName) and unwraps responses, extracting the `data`
+ * field and emitting events for GraphQL-level errors.
+ */
 export class GraphClient<
   T extends ClientState = ClientState,
-  K extends ClientOptions = ClientOptions
-> extends Client<T, K> {
+  K extends GraphClientOptions = GraphClientOptions
+> extends RestClient<T, K> {
   static override shortcut = "clients.graph" as const
+  static override optionsSchema = GraphClientOptionsSchema
+  static override eventsSchema = GraphClientEventsSchema
+
+  /** The GraphQL endpoint path. Defaults to '/graphql'. */
+  get endpoint() {
+    return (this.options as GraphClientOptions).endpoint || '/graphql'
+  }
+
+  /**
+   * Execute a GraphQL query and return the unwrapped data.
+   * @param query - The GraphQL query string
+   * @param variables - Optional variables for the query
+   * @param operationName - Optional operation name when the query contains multiple operations
+   */
+  async query<R = any>(query: string, variables?: Record<string, any>, operationName?: string): Promise<R> {
+    return this.execute<R>(query, variables, operationName)
+  }
+
+  /**
+   * Execute a GraphQL mutation and return the unwrapped data.
+   * Semantically identical to query() but named for clarity when performing mutations.
+   * @param mutation - The GraphQL mutation string
+   * @param variables - Optional variables for the mutation
+   * @param operationName - Optional operation name when the mutation contains multiple operations
+   */
+  async mutate<R = any>(mutation: string, variables?: Record<string, any>, operationName?: string): Promise<R> {
+    return this.execute<R>(mutation, variables, operationName)
+  }
+
+  /**
+   * Execute a GraphQL operation, unwrap the response, and handle errors.
+   * Posts to the configured endpoint with the standard GraphQL envelope.
+   * If the response contains GraphQL-level errors, emits both 'graphqlError'
+   * and 'failure' events before returning the data.
+   */
+  private async execute<R = any>(query: string, variables?: Record<string, any>, operationName?: string): Promise<R> {
+    const body: Record<string, any> = { query }
+    if (variables) body.variables = variables
+    if (operationName) body.operationName = operationName
+
+    const response = await this.post(this.endpoint, body)
+
+    if (response?.errors?.length) {
+      this.emit('graphqlError', response.errors)
+      this.emit('failure', response.errors)
+    }
+
+    return response?.data as R
+  }
 }
 
-/** 
- * The Websocket Client accepts a websocket URL as its baseURL and establishes a connection to it, 
-*/
+/**
+ * WebSocket client that bridges raw WebSocket events to Luca's Helper event bus,
+ * providing a clean interface for sending/receiving messages, tracking connection
+ * state, and optional auto-reconnection with exponential backoff.
+ *
+ * Events emitted:
+ * - `open` — connection established
+ * - `message` — message received (JSON-parsed when possible)
+ * - `close` — connection closed (with code and reason)
+ * - `error` — connection error
+ * - `reconnecting` — attempting reconnection (with attempt number)
+ */
 export class WebSocketClient<
-  T extends ClientState = ClientState,
-  K extends ClientOptions = ClientOptions
+  T extends WebSocketClientState = WebSocketClientState,
+  K extends WebSocketClientOptions = WebSocketClientOptions
 > extends Client<T, K> {
   ws!: WebSocket
+  _intentionalClose: boolean
 
   static override shortcut = "clients.websocket" as const
+  static override stateSchema = WebSocketClientStateSchema
+  static override optionsSchema = WebSocketClientOptionsSchema
+  static override eventsSchema = WebSocketClientEventsSchema
 
-  override async connect() {
-    this.ws = new WebSocket(this.baseURL)
+  constructor(options?: K, context?: ContainerContext) {
+    super(options, context)
+    this._intentionalClose = false
+  }
+
+  override get initialState(): T {
+    return {
+      connected: false,
+      reconnectAttempts: 0,
+    } as T
+  }
+
+  /**
+   * Establish a WebSocket connection to the configured baseURL.
+   * Wires all raw WebSocket events (open, message, close, error) to the
+   * Helper event bus and updates connection state accordingly.
+   * Resolves once the connection is open; rejects on error.
+   */
+  override async connect(): Promise<this> {
+    if (this.isConnected) {
+      return this
+    }
+
+    const ws = this.ws = new WebSocket(this.baseURL)
+    const state = this.state as any
+
+    await new Promise<void>((resolve, reject) => {
+      ws.onopen = () => {
+        state.set('connected', true)
+        state.set('connectionError', undefined)
+        state.set('reconnectAttempts', 0)
+        this.emit('open')
+        resolve()
+      }
+
+      ws.onerror = (event: any) => {
+        state.set('connectionError', event)
+        this.emit('error', event)
+        reject(event)
+      }
+
+      ws.onmessage = (event: any) => {
+        let data = event?.data ?? event
+        try {
+          data = JSON.parse(data)
+        } catch {}
+        this.emit('message', data)
+      }
+
+      ws.onclose = (event: any) => {
+        state.set('connected', false)
+        this.emit('close', event?.code, event?.reason)
+        if (!this._intentionalClose) {
+          this.maybeReconnect()
+        }
+        this._intentionalClose = false
+      }
+    })
+
     return this
+  }
+
+  /**
+   * Send data over the WebSocket connection. Automatically JSON-serializes
+   * the payload. If not currently connected, attempts to connect first.
+   * @param data - The data to send (will be JSON.stringify'd)
+   */
+  async send(data: any): Promise<void> {
+    if (!this.isConnected) {
+      await this.connect()
+    }
+
+    if (!this.ws) {
+      throw new Error('WebSocket instance not available')
+    }
+
+    this.ws.send(JSON.stringify(data))
+  }
+
+  /**
+   * Gracefully close the WebSocket connection. Suppresses auto-reconnect
+   * and updates connection state to disconnected.
+   */
+  async disconnect(): Promise<this> {
+    this._intentionalClose = true
+    if (this.ws) {
+      this.ws.close()
+    }
+    ;(this.state as any).set('connected', false)
+    return this
+  }
+
+  /** Whether the client is in an error state. */
+  get hasError() {
+    return !!(this.state as any).get('connectionError')
+  }
+
+  /**
+   * Attempt to reconnect if the reconnect option is enabled and we haven't
+   * exceeded maxReconnectAttempts. Uses exponential backoff capped at 30s.
+   */
+  private maybeReconnect() {
+    const opts = this.options as WebSocketClientOptions
+    if (!opts.reconnect) return
+
+    const state = this.state as any
+    const maxAttempts = opts.maxReconnectAttempts ?? Infinity
+    const baseInterval = opts.reconnectInterval ?? 1000
+    const attempts = ((state.get('reconnectAttempts') as number) ?? 0) + 1
+
+    if (attempts > maxAttempts) return
+
+    state.set('reconnectAttempts', attempts)
+    this.emit('reconnecting', attempts)
+
+    const delay = Math.min(baseInterval * Math.pow(2, attempts - 1), 30000)
+    setTimeout(() => {
+      this.connect().catch(() => {})
+    }, delay)
   }
 }
 

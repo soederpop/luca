@@ -732,8 +732,8 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
           node.expression.expression.kind === ts.SyntaxKind.ThisKeyword &&
           node.expression.name.text === 'emit') {
         
-        if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
-          const eventName = node.arguments[0].text;
+        if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0]!)) {
+          const eventName = node.arguments[0]!.text;
           
           if (!events[eventName]) {
             events[eventName] = {

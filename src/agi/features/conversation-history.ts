@@ -91,7 +91,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		return this.options.namespace || 'conversation-history'
 	}
 
-	private cacheKey(id: string): string {
+	private buildCacheKey(id: string): string {
 		return `${this.namespace}:${id}`
 	}
 
@@ -113,7 +113,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		record.messageCount = record.messages.length
 
 		// store the full conversation (messages included)
-		await this.diskCache.set(this.cacheKey(record.id), record)
+		await this.diskCache.set(this.buildCacheKey(record.id), record)
 
 		// store lightweight metadata separately for fast listing
 		const meta: ConversationMeta = { ...record }
@@ -161,9 +161,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	 * Load a full conversation by ID, including all messages.
 	 */
 	async load(id: string): Promise<ConversationRecord | null> {
-		const exists = await this.diskCache.has(this.cacheKey(id))
+		const exists = await this.diskCache.has(this.buildCacheKey(id))
 		if (!exists) return null
-		return this.diskCache.get(this.cacheKey(id), true)
+		return this.diskCache.get(this.buildCacheKey(id), true)
 	}
 
 	/**
@@ -191,10 +191,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	 * Delete a conversation by ID.
 	 */
 	async delete(id: string): Promise<boolean> {
-		const exists = await this.diskCache.has(this.cacheKey(id))
+		const exists = await this.diskCache.has(this.buildCacheKey(id))
 		if (!exists) return false
 
-		await this.diskCache.rm(this.cacheKey(id))
+		await this.diskCache.rm(this.buildCacheKey(id))
 		await this.diskCache.rm(this.metaKey(id)).catch(() => {})
 		await this.removeFromIndex(id)
 

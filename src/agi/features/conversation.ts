@@ -37,11 +37,11 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Initial message history to seed the conversation */
 	history: z.array(z.any()).optional().describe('Initial message history to seed the conversation'),
 	/** Tools the model can call during conversation */
-	tools: z.record(z.any()).optional().describe('Tools the model can call during conversation'),
+	tools: z.record(z.string(), z.any()).optional().describe('Tools the model can call during conversation'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
-	metadata: z.record(z.any()).optional().describe('Arbitrary metadata to attach to this conversation'),
+	metadata: z.record(z.string(), z.any()).optional().describe('Arbitrary metadata to attach to this conversation'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -158,7 +158,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
-		return this.container.client('openai') as OpenAIClient
+		return (this.container as any).client('openai') as OpenAIClient
 	}
 
 	/** Returns the conversationHistory feature for persistence. */
@@ -254,13 +254,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 							}
 						}
 						if (tc.id) {
-							toolCalls[tc.index].id = tc.id
+							toolCalls[tc.index]!.id = tc.id
 						}
 						if (tc.function?.name) {
-							toolCalls[tc.index].function.name += tc.function.name
+							toolCalls[tc.index]!.function.name += tc.function.name
 						}
 						if (tc.function?.arguments) {
-							toolCalls[tc.index].function.arguments += tc.function.arguments
+							toolCalls[tc.index]!.function.arguments += tc.function.arguments
 						}
 					}
 				}

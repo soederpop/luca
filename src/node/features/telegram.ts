@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'
-import { Bot, webhookCallback, type Context, type Middleware, type UserFromGetMe } from 'grammy'
+import { Bot, webhookCallback, type Context, type Middleware } from 'grammy'
+
+type UserFromGetMe = Awaited<ReturnType<Bot['api']['getMe']>>
 
 export const TelegramBotInfoSchema = z.object({
   id: z.number().describe('Bot user ID'),

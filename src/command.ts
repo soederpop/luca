@@ -119,7 +119,7 @@ export class CommandsRegistry extends Registry<Command<any>> {
 			static override commandDescription = desc
 			static override argsSchema = argsSchema
 
-			async execute() {
+			override async execute() {
 				await handler(this.parseArgs(), this.context)
 			}
 		}

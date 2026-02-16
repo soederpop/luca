@@ -1,88 +1,81 @@
 import Websocket from 'isomorphic-ws'
-import { Client, clients } from '../../client'
-import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema } from '../../schemas/base.js'
+import { WebSocketClient, clients, type WebSocketClientState, type WebSocketClientOptions } from '../../client'
 
-declare module '../../client' {
-  interface AvailableClients {
-    websocket: typeof SocketClient
-  }
-}
-
-export const SocketStateSchema = ClientStateSchema.extend({
-  connectionError: z.any().optional(),
-})
-
-export const SocketOptionsSchema = ClientOptionsSchema.extend({
-  reconnect: z.boolean().optional(),
-})
-
-export type SocketState = z.infer<typeof SocketStateSchema>
-export type SocketOptions = z.infer<typeof SocketOptionsSchema>
-
-export class SocketClient<T extends SocketState = SocketState, K extends SocketOptions = SocketOptions> extends Client<T,K> {
-  ws?: Websocket
+/**
+ * Web-specific WebSocket client implementation using isomorphic-ws.
+ * Extends the base WebSocketClient with platform-specific transport and
+ * an envelope format that wraps sent data with a unique ID.
+ */
+export class SocketClient<T extends WebSocketClientState = WebSocketClientState, K extends WebSocketClientOptions = WebSocketClientOptions> extends WebSocketClient<T,K> {
+  // @ts-expect-error widening ws type for isomorphic-ws compatibility
+  declare ws: Websocket | WebSocket
 
   static override shortcut = 'clients.websocket' as const
-  
+
   static override attach(...args: any[]) {
     clients.register('websocket', SocketClient)
   }
 
-  override afterInitialize(): void {
-    const { reconnect } = this.options
-
-    this.on('close', () => {
-      if(reconnect) {
-        this.connect()
-      }  
-    })
-  }
-
-  async send(data: any) {
+  /**
+   * Send data over the WebSocket with an ID envelope.
+   * Wraps the payload in { id, data } before JSON serialization.
+   */
+  override async send(data: any) {
     if(!this.isConnected && !this.hasError) {
-      await this.connect() 
+      await this.connect()
     }
-    
+
     if(typeof this.ws === 'undefined') {
       throw new Error(`Missing websocket instance`)
     }
-    
+
     this.ws.send(JSON.stringify({
       id: this.container.utils.uuid(),
       data
     }))
   }
 
-  get hasError() {
-    return !!this.state.get('connectionError')
-  }
-
+  /**
+   * Establish a WebSocket connection using isomorphic-ws.
+   * Bridges raw WebSocket events to the Helper event bus and tracks connection state.
+   */
   override async connect() {
     if(this.isConnected) {
       return this
     }
-    
+
     const ws = this.ws = new Websocket(this.options.baseURL!)
+    const state = this.state as any
 
-    await new Promise((res,rej) => {
-      ws.onopen = res  
-      ws.onerror = rej
-
-      ws.onmessage = (data: any) => {
-        this.emit('message', data)
+    await new Promise<void>((resolve, reject) => {
+      ws.onopen = () => {
+        state.set('connected', true)
+        state.set('connectionError', undefined)
+        state.set('reconnectAttempts', 0)
+        this.emit('open')
+        resolve()
       }
 
-      ws.onclose = () => {
-        this.emit('close')
-        this.state.set('connected', false)
+      ws.onerror = (event: any) => {
+        state.set('connectionError', event)
+        this.emit('error', event)
+        reject(event)
+      }
+
+      ws.onmessage = (event: any) => {
+        this.emit('message', event)
+      }
+
+      ws.onclose = (event: any) => {
+        state.set('connected', false)
+        this.emit('close', event?.code, event?.reason)
       }
     }).catch((error) => {
-      this.state.set('connectionError', error)
+      state.set('connectionError', error)
       throw error
     })
 
-    return this  
+    return this
   }
 }
 
