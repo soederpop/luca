@@ -3,7 +3,7 @@ import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
-import { introspect, type HelperIntrospection } from "./introspection/index.js";
+import { introspect, type HelperIntrospection, type IntrospectionSection } from "./introspection/index.js";
 import { z } from 'zod'
 import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
@@ -47,14 +47,17 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return {} as T
   }
 
-  static introspect() : HelperIntrospection | undefined {
-    return introspect((this as any).shortcut || '')
+  static introspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
+    const data = introspect((this as any).shortcut || '')
+    if (!data || !section) return data
+    return filterIntrospection(data, section)
   }
 
-  static introspectAsText(startHeadingDepth: number = 1) : string {
+  static introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    const { section, depth } = resolveIntrospectAsTextArgs(sectionOrDepth, startHeadingDepth)
     const introspection = this.introspect()
     if (!introspection) return ''
-    return presentIntrospectionJSONAsMarkdown(introspection, startHeadingDepth)
+    return presentIntrospectionJSONAsMarkdown(introspection, depth, section)
   }
 
 
@@ -63,16 +66,26 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * will report information about the Helper that can only get extracted by reading the code, e.g. the type interfaces
    * for the helper's options, state, and the events it emits, as well as the documentation from the helpers code for
    * each of the methods and properties.
+   *
+   * Pass a section name to get only that section: `'methods'`, `'getters'`, `'events'`, `'state'`, `'options'`
   */
-  introspect() : HelperIntrospection | undefined {
+  introspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
     const base = (this.constructor as any).introspect()
-    return base
+    if (!base || !section) return base
+    return filterIntrospection(base, section)
   }
 
-  introspectAsText(startHeadingDepth: number = 1) : string {
+  /**
+   * Returns the introspection data formatted as a markdown string.
+   *
+   * The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only
+   * that section, or a number for the starting heading depth (backward compatible).
+   */
+  introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    const { section, depth } = resolveIntrospectAsTextArgs(sectionOrDepth, startHeadingDepth)
     const introspection = this.introspect()
     if (!introspection) return ''
-    return presentIntrospectionJSONAsMarkdown(introspection, startHeadingDepth)
+    return presentIntrospectionJSONAsMarkdown(introspection, depth, section)
   }
   
   constructor(options: K, context: ContainerContext) {
@@ -181,116 +194,182 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 }
 
-function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1) {
+const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options']
+
+function filterIntrospection(data: HelperIntrospection, section: IntrospectionSection): HelperIntrospection {
+  const filtered: HelperIntrospection = {
+    id: data.id,
+    description: data.description,
+    shortcut: data.shortcut,
+    methods: {},
+    getters: {},
+    events: {},
+    state: {},
+    options: {},
+  }
+  filtered[section] = data[section] as any
+  return filtered
+}
+
+function resolveIntrospectAsTextArgs(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) {
+  let section: IntrospectionSection | undefined
+  let depth = 1
+
+  if (typeof sectionOrDepth === 'string') {
+    section = sectionOrDepth
+    depth = startHeadingDepth ?? 1
+  } else if (typeof sectionOrDepth === 'number') {
+    depth = sectionOrDepth
+  }
+
+  return { section, depth }
+}
+
+function renderMethodsSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
   const sections: string[] = []
-  
-  // Helper function to generate heading markers based on depth
+  if (!introspection.methods || Object.keys(introspection.methods).length === 0) return sections
+
+  sections.push(`${heading(2)} Methods`)
+
+  for (const [methodName, methodInfo] of Object.entries(introspection.methods)) {
+    sections.push(`${heading(3)} ${methodName}`)
+
+    if (methodInfo.description) {
+      sections.push(methodInfo.description)
+    }
+
+    if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
+      sections.push(`**Parameters:**`)
+      sections.push(`| Name | Type | Required | Description |`)
+      sections.push(`|------|------|----------|-------------|`)
+
+      for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
+        const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
+        const type = paramInfo.type || 'any'
+        const description = paramInfo.description || ''
+        sections.push(`| \`${paramName}\` | \`${type}\` | ${isRequired} | ${description} |`)
+
+        // Render expanded type properties if available
+        if (paramInfo.properties && Object.keys(paramInfo.properties).length > 0) {
+          sections.push('')
+          sections.push(`\`${type}\` properties:`)
+          sections.push(`| Property | Type | Description |`)
+          sections.push(`|----------|------|-------------|`)
+
+          for (const [propName, propInfo] of Object.entries(paramInfo.properties)) {
+            sections.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
+          }
+        }
+      }
+    }
+
+    if (methodInfo.returns) {
+      sections.push(`**Returns:** \`${methodInfo.returns}\``)
+    }
+
+    sections.push('')
+  }
+
+  return sections
+}
+
+function renderGettersSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+  if (!introspection.getters || Object.keys(introspection.getters).length === 0) return sections
+
+  sections.push(`${heading(2)} Getters`)
+  sections.push(`| Property | Type | Description |`)
+  sections.push(`|----------|------|-------------|`)
+
+  for (const [getterName, getterInfo] of Object.entries(introspection.getters)) {
+    const type = getterInfo.returns || 'any'
+    const description = getterInfo.description || ''
+    sections.push(`| \`${getterName}\` | \`${type}\` | ${description} |`)
+  }
+
+  return sections
+}
+
+function renderEventsSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+  if (!introspection.events || Object.keys(introspection.events).length === 0) return sections
+
+  sections.push(`${heading(2)} Events`)
+
+  for (const [eventName, eventInfo] of Object.entries(introspection.events)) {
+    sections.push(`${heading(3)} ${eventName}`)
+
+    if (eventInfo.description) {
+      sections.push(eventInfo.description)
+    }
+
+    if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
+      sections.push(`**Event Arguments:**`)
+      sections.push(`| Name | Type | Description |`)
+      sections.push(`|------|------|-------------|`)
+
+      for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
+        sections.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
+      }
+    }
+
+    sections.push('')
+  }
+
+  return sections
+}
+
+function renderStateSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+  if (!introspection.state || Object.keys(introspection.state).length === 0) return sections
+
+  sections.push(`${heading(2)} State`)
+  sections.push(`| Property | Type | Description |`)
+  sections.push(`|----------|------|-------------|`)
+
+  for (const [stateName, stateInfo] of Object.entries(introspection.state)) {
+    sections.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
+  }
+
+  return sections
+}
+
+function renderOptionsSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+  if (!introspection.options || Object.keys(introspection.options).length === 0) return sections
+
+  sections.push(`${heading(2)} Options`)
+  sections.push(`| Property | Type | Description |`)
+  sections.push(`|----------|------|-------------|`)
+
+  for (const [optName, optInfo] of Object.entries(introspection.options)) {
+    sections.push(`| \`${optName}\` | \`${optInfo.type || 'any'}\` | ${optInfo.description || ''} |`)
+  }
+
+  return sections
+}
+
+function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection) {
+  const sections: string[] = []
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
-  
-  // Header
-  sections.push(`${heading(1)} ${introspection.id}\n\n${introspection.description}`)
 
-  // Methods section
-  if (introspection.methods && Object.keys(introspection.methods).length > 0) {
-    sections.push(`${heading(2)} Methods`)
-    
-    for (const [methodName, methodInfo] of Object.entries(introspection.methods)) {
-      sections.push(`${heading(3)} ${methodName}`)
-      
-      if (methodInfo.description) {
-        sections.push(methodInfo.description)
-      }
-      
-      // Parameters table
-      if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
-        sections.push(`**Parameters:**`)
-        sections.push(`| Name | Type | Required | Description |`)
-        sections.push(`|------|------|----------|-------------|`)
-        
-        for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
-          const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
-          const type = paramInfo.type || 'any'
-          const description = paramInfo.description || ''
-          sections.push(`| \`${paramName}\` | \`${type}\` | ${isRequired} | ${description} |`)
-        }
-      }
-      
-      // Return type
-      if (methodInfo.returns) {
-        sections.push(`**Returns:** \`${methodInfo.returns}\``)
-      }
-      
-      sections.push('') // Empty line between methods
-    }
-  }
-  
-  // Getters section
-  if (introspection.getters && Object.keys(introspection.getters).length > 0) {
-    sections.push(`${heading(2)} Getters`)
-
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
-
-    for (const [getterName, getterInfo] of Object.entries(introspection.getters)) {
-      const type = getterInfo.returns || 'any'
-      const description = getterInfo.description || ''
-      sections.push(`| \`${getterName}\` | \`${type}\` | ${description} |`)
-    }
+  if (!section) {
+    sections.push(`${heading(1)} ${introspection.id}\n\n${introspection.description}`)
   }
 
-  // Events section
-  if (introspection.events && Object.keys(introspection.events).length > 0) {
-    sections.push(`${heading(2)} Events`)
-    
-    for (const [eventName, eventInfo] of Object.entries(introspection.events)) {
-      sections.push(`${heading(3)} ${eventName}`)
-      
-      if (eventInfo.description) {
-        sections.push(eventInfo.description)
-      }
-      
-      // Event arguments if any
-      if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
-        sections.push(`**Event Arguments:**`)
-        sections.push(`| Name | Type | Description |`)
-        sections.push(`|------|------|-------------|`)
-        
-        for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
-          const type = argInfo.type || 'any'
-          const description = argInfo.description || ''
-          sections.push(`| \`${argName}\` | \`${type}\` | ${description} |`)
-        }
-      }
-      
-      sections.push('') // Empty line between events
-    }
-  }
-  
-  // State section
-  if (introspection.state && Object.keys(introspection.state).length > 0) {
-    sections.push(`${heading(2)} State`)
-
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
-
-    for (const [stateName, stateInfo] of Object.entries(introspection.state)) {
-      const type = stateInfo.type || 'any'
-      const description = stateInfo.description || ''
-      sections.push(`| \`${stateName}\` | \`${type}\` | ${description} |`)
-    }
+  const renderers: Record<IntrospectionSection, () => string[]> = {
+    methods: () => renderMethodsSection(introspection, heading),
+    getters: () => renderGettersSection(introspection, heading),
+    events: () => renderEventsSection(introspection, heading),
+    state: () => renderStateSection(introspection, heading),
+    options: () => renderOptionsSection(introspection, heading),
   }
 
-  // Options section
-  if (introspection.options && Object.keys(introspection.options).length > 0) {
-    sections.push(`${heading(2)} Options`)
-
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
-
-    for (const [optName, optInfo] of Object.entries(introspection.options)) {
-      const type = optInfo.type || 'any'
-      const description = optInfo.description || ''
-      sections.push(`| \`${optName}\` | \`${type}\` | ${description} |`)
+  if (section) {
+    sections.push(...renderers[section]())
+  } else {
+    for (const renderer of Object.values(renderers)) {
+      sections.push(...renderer())
     }
   }
 

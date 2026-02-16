@@ -27,10 +27,13 @@ import { describeZodShape, describeEventsSchema } from '../schemas/base.js'
 
 export type MethodIntrospection = {
 	description: string
-	parameters: Record<string, { type: string, description: string }>
+	parameters: Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }>
 	required: string[]
 	returns: string
 }
+
+/** Sections that can be requested individually from introspect / inspect */
+export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options'
 
 export type GetterIntrospection = {
 	description: string

@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-15T07:22:36.608Z
+// Generated at: 2026-02-16T04:05:52.038Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -427,7 +427,7 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "newState": {
           "type": "SetStateValue<ContainerState>",
-          "description": "Parameter newState"
+          "description": "The new state of the container."
         }
       },
       "required": [
@@ -457,11 +457,11 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "id": {
           "type": "T",
-          "description": "Parameter id"
+          "description": "The id of the feature to create."
         },
         "options": {
           "type": "ConstructorParameters<Features[T]>[0]",
-          "description": "Parameter options"
+          "description": "The options to pass to the feature constructor."
         }
       },
       "required": [
@@ -564,11 +564,11 @@ setContainerBuildTimeData('Container', {
       "parameters": {
         "registryName": {
           "type": "string",
-          "description": "Parameter registryName"
+          "description": "The plural name of the registry, e.g. \"clients\", \"servers\""
         },
         "factoryName": {
           "type": "string",
-          "description": "Parameter factoryName"
+          "description": "The singular factory method name, e.g. \"client\", \"server\""
         }
       },
       "required": [
@@ -584,11 +584,15 @@ setContainerBuildTimeData('Container', {
       "returns": "ContainerIntrospection"
     },
     "inspectAsText": {
-      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+      "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only that section, or a number for the starting heading depth (backward compatible).",
       "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
         "startHeadingDepth": {
           "type": "number",
-          "description": "The heading level to start from (default 1)"
+          "description": "Parameter startHeadingDepth"
         }
       },
       "required": [],
@@ -1129,7 +1133,7 @@ export const containerIntrospectionData = [
         "parameters": {
           "newState": {
             "type": "SetStateValue<ContainerState>",
-            "description": "Parameter newState"
+            "description": "The new state of the container."
           }
         },
         "required": [
@@ -1159,11 +1163,11 @@ export const containerIntrospectionData = [
         "parameters": {
           "id": {
             "type": "T",
-            "description": "Parameter id"
+            "description": "The id of the feature to create."
           },
           "options": {
             "type": "ConstructorParameters<Features[T]>[0]",
-            "description": "Parameter options"
+            "description": "The options to pass to the feature constructor."
           }
         },
         "required": [
@@ -1266,11 +1270,11 @@ export const containerIntrospectionData = [
         "parameters": {
           "registryName": {
             "type": "string",
-            "description": "Parameter registryName"
+            "description": "The plural name of the registry, e.g. \"clients\", \"servers\""
           },
           "factoryName": {
             "type": "string",
-            "description": "Parameter factoryName"
+            "description": "The singular factory method name, e.g. \"client\", \"server\""
           }
         },
         "required": [
@@ -1286,11 +1290,15 @@ export const containerIntrospectionData = [
         "returns": "ContainerIntrospection"
       },
       "inspectAsText": {
-        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation.",
+        "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only that section, or a number for the starting heading depth (backward compatible).",
         "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
           "startHeadingDepth": {
             "type": "number",
-            "description": "The heading level to start from (default 1)"
+            "description": "Parameter startHeadingDepth"
           }
         },
         "required": [],

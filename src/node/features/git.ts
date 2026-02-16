@@ -267,6 +267,151 @@ export class Git extends Feature {
     }
 
     /**
+     * Gets a lightweight commit log for one or more files.
+     *
+     * Returns the SHA and message for each commit that touched the given files,
+     * without the per-commit overhead of resolving which specific files matched.
+     * For richer per-file matching, see {@link getChangeHistoryForFiles}.
+     *
+     * @param {...string} files - File paths (absolute or relative to container.cwd)
+     * @returns {Array<{ sha: string, message: string }>} Array of commits
+     *
+     * @example
+     * ```typescript
+     * const log = git.fileLog('package.json')
+     * const log = git.fileLog('src/index.ts', 'src/helper.ts')
+     * for (const entry of log) {
+     *   console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)
+     * }
+     * ```
+     */
+    fileLog(...files: string[]) {
+        if (!this.isRepo || !files.length) return []
+
+        const proc = this.container.feature('proc')
+        const root = this.repoRoot!
+
+        const resolved = files.map(p =>
+            isAbsolute(p) ? p : resolve(this.container.cwd, p)
+        )
+
+        const separator = '---COMMIT---'
+        const fieldSep = '---FIELD---'
+
+        const output = proc.exec(
+            `git log --pretty=format:"%H${fieldSep}%s${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
+            { cwd: root }
+        )
+
+        if (!output.trim()) return []
+
+        return output
+            .split(separator)
+            .filter((entry: string) => entry.trim().length > 0)
+            .map((entry: string) => {
+                const [sha = '', message = ''] = entry.split(fieldSep).map((s: string) => s.trim())
+                return { sha, message }
+            })
+    }
+
+    /**
+     * Gets the diff for a file between two refs.
+     *
+     * By default compares from the current HEAD to the given ref. You can
+     * supply both `compareTo` and `compareFrom` to diff between any two commits,
+     * branches, or tags.
+     *
+     * @param {string} file - File path (absolute or relative to container.cwd)
+     * @param {string} compareTo - The target ref (commit SHA, branch, tag) to compare to
+     * @param {string} [compareFrom] - The base ref to compare from (defaults to current HEAD)
+     * @returns {string} The diff output, or an empty string if there are no changes
+     *
+     * @example
+     * ```typescript
+     * // Diff package.json between HEAD and a specific commit
+     * const d = git.diff('package.json', 'abc1234')
+     *
+     * // Diff between two branches
+     * const d = git.diff('src/index.ts', 'feature-branch', 'main')
+     * ```
+     */
+    diff(file: string, compareTo: string, compareFrom?: string) {
+        if (!this.isRepo) return ''
+
+        const proc = this.container.feature('proc')
+        const root = this.repoRoot!
+        const from = compareFrom ?? this.sha!
+        const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
+
+        return proc.exec(
+            `git diff ${from} ${compareTo} -- "${resolved}"`,
+            { cwd: root }
+        ).trim()
+    }
+
+    /**
+     * Pretty prints a unified diff string to the terminal using colors.
+     *
+     * Parses the diff output and applies color coding:
+     * - File headers (`diff --git`, `---`, `+++`) are rendered bold
+     * - Hunk headers (`@@ ... @@`) are rendered in cyan
+     * - Added lines (`+`) are rendered in green
+     * - Removed lines (`-`) are rendered in red
+     * - Context lines are rendered dim
+     *
+     * Can be called with a raw diff string, or with the same arguments as
+     * {@link diff} to fetch and display in one step.
+     *
+     * @param diffOrFile - A raw diff string, or a file path to pass to {@link diff}
+     * @param compareTo - When diffOrFile is a file path, the target ref to compare to
+     * @param compareFrom - When diffOrFile is a file path, the base ref to compare from
+     * @returns The colorized diff string (also prints to stdout)
+     *
+     * @example
+     * ```typescript
+     * // Display a pre-fetched diff
+     * const raw = git.diff('src/index.ts', 'main')
+     * git.displayDiff(raw)
+     *
+     * // Fetch and display in one call
+     * git.displayDiff('src/index.ts', 'abc1234')
+     * ```
+     */
+    displayDiff(diffOrFile: string, compareTo?: string, compareFrom?: string): string {
+        const raw = compareTo
+            ? this.diff(diffOrFile, compareTo, compareFrom)
+            : diffOrFile
+
+        if (!raw.trim()) return ''
+
+        const { colors } = this.container.feature('ui')
+
+        const lines = raw.split('\n')
+        const colored = lines.map(line => {
+            if (line.startsWith('diff --git') || line.startsWith('index ')) {
+                return colors.bold(line)
+            }
+            if (line.startsWith('--- ') || line.startsWith('+++ ')) {
+                return colors.bold(line)
+            }
+            if (line.startsWith('@@')) {
+                return colors.cyan(line)
+            }
+            if (line.startsWith('+')) {
+                return colors.green(line)
+            }
+            if (line.startsWith('-')) {
+                return colors.red(line)
+            }
+            return colors.dim(line)
+        })
+
+        const output = colored.join('\n')
+        console.log(output)
+        return output
+    }
+
+    /**
      * Gets the commit history for a set of files or glob patterns.
      *
      * Accepts absolute paths, relative paths (resolved from container.cwd),
