@@ -159,14 +159,14 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 	}
 
 	buildSystemPrompt(): string {
-		const available = this.contentDb.collection.available
 		const prefix = this.options.systemPrompt || 'You are a helpful documentation assistant. You have access to a library of documents. Use the provided tools to look up documents and answer the user\'s questions accurately based on what you find.'
 
-		const docsList = available.length > 0
-			? `\n\nAvailable documents:\n${available.map((id) => `- ${id}`).join('\n')}`
+		const toc = this.contentDb.collection.tableOfContents({ title: 'Available Documentation' })
+		const docsSection = toc
+			? `\n\n${toc}`
 			: '\n\nNo documents are currently loaded.'
 
-		return `${prefix}${docsList}\n\nUse the listDocs tool to see available documents, readDocOutline to scan a document's structure, and readDoc or readDocs to read the full content. Always read the relevant documents before answering.`
+		return `${prefix}${docsSection}\n\nUse the listDocs tool to see available documents, readDocOutline to scan a document's structure, and readDoc or readDocs to read the full content. Always read the relevant documents before answering.`
 	}
 
 	createConversation(): Conversation {

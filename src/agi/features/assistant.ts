@@ -335,6 +335,104 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Build the listDocs tool that lists all available documents directly
+	 * from the content database without going through the DocsReader AI.
+	 *
+	 * @returns {ConversationTool} The tool definition
+	 */
+	private buildListDocsTool(): ConversationTool {
+		const db = this.docsReader!.contentDb
+
+		return {
+			handler: async () => {
+				return db.collection.available.map((id: string) => {
+					try {
+						const doc = db.collection.document(id)
+						return { id, title: doc.title, outline: doc.toOutline() }
+					} catch {
+						return { id }
+					}
+				})
+			},
+			description: 'List all available documents in the assistant\'s docs/ folder with their titles and heading outlines.',
+			parameters: {
+				type: 'object',
+				properties: {},
+			},
+		}
+	}
+
+	/**
+	 * Build the readDocOutlines tool that returns heading outlines for
+	 * one or more documents, useful for scanning structure before reading.
+	 *
+	 * @returns {ConversationTool} The tool definition
+	 */
+	private buildReadDocOutlinesTool(): ConversationTool {
+		const db = this.docsReader!.contentDb
+
+		return {
+			handler: async ({ docs }: { docs: string[] }) => {
+				return docs.map((id: string) => {
+					try {
+						const doc = db.collection.document(id)
+						return { id, title: doc.title, outline: doc.toOutline() }
+					} catch (err: any) {
+						return { id, error: err.message }
+					}
+				})
+			},
+			description: 'Get the heading outline of one or more documents. Useful for understanding document structure before reading the full content.',
+			parameters: {
+				type: 'object',
+				properties: {
+					docs: {
+						type: 'array',
+						items: { type: 'string' },
+						description: 'The document IDs to get outlines for',
+					},
+				},
+				required: ['docs'],
+			},
+		}
+	}
+
+	/**
+	 * Build the readDocs tool that reads one or more documents directly
+	 * from the content database without going through the DocsReader AI.
+	 *
+	 * @returns {ConversationTool} The tool definition
+	 */
+	private buildReadDocsTool(): ConversationTool {
+		const db = this.docsReader!.contentDb
+
+		return {
+			handler: async ({ docs }: { docs: string[] }) => {
+				return docs.map((id: string) => {
+					try {
+						const doc = db.collection.document(id)
+						return { id, title: doc.title, meta: doc.meta, content: doc.content }
+					} catch (err: any) {
+						return { id, error: err.message }
+					}
+				})
+			},
+			description: 'Read the full content of one or more documents by their IDs. Use listDocs first to see what\'s available.',
+			parameters: {
+				type: 'object',
+				properties: {
+					docs: {
+						type: 'array',
+						items: { type: 'string' },
+						description: 'The document IDs to read',
+					},
+				},
+				required: ['docs'],
+			},
+		}
+	}
+
+	/**
 	 * Start the assistant by loading the system prompt, tools, uooks, and docs reader,
 	 * then creating the underlying conversation.
 	 *
@@ -357,9 +455,18 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Initialize the docs reader for internal docs
 		this.docsReader = await this.initDocsReader()
 
-		// Add the researchInternalDocs tool if docs are available
+		// Add docs tools and table of contents if docs are available
 		if (this.docsReader) {
 			this._tools.researchInternalDocs = this.buildDocsResearchTool()
+			this._tools.listDocs = this.buildListDocsTool()
+			this._tools.readDocOutlines = this.buildReadDocOutlinesTool()
+			this._tools.readDocs = this.buildReadDocsTool()
+
+			// Append a runtime table of contents so the assistant knows what docs exist
+			const toc = this.docsReader.contentDb.collection.tableOfContents({ title: 'Available Documentation' })
+			if (toc) {
+				this._systemPrompt += '\n\n---\n\n' + toc
+			}
 		}
 
 		// Create the conversation
