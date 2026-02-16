@@ -47,6 +47,8 @@ import "./features/tmux";
 import "./features/ink";
 import "./features/telegram";
 import "./features/opener";
+import "./features/postgres";
+import "./features/sqlite";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -79,6 +81,8 @@ import type { Tmux } from './features/tmux.ts';
 import type { Ink } from './features/ink.ts';
 import type { Telegram } from './features/telegram.ts';
 import type { Opener } from './features/opener.ts';
+import type { Postgres } from './features/postgres.ts';
+import type { Sqlite } from './features/sqlite.ts';
 export { State };
 
 export {
@@ -105,7 +109,9 @@ export {
   type Tmux,
   type Ink,
   type Telegram,
-  type Opener
+  type Opener,
+  type Postgres,
+  type Sqlite
 };
 
 export type { FeatureOptions };
@@ -158,6 +164,8 @@ export interface NodeFeatures extends AvailableFeatures {
   ink: typeof Ink;
   telegram: typeof Telegram;
   opener: typeof Opener;
+  postgres: typeof Postgres;
+  sqlite: typeof Sqlite;
   contentDb: typeof ContentDb;
 }
 
@@ -194,6 +202,8 @@ export class NodeContainer<
   ink?: Ink;
   telegram?: Telegram;
   opener?: Opener;
+  postgres?: Postgres;
+  sqlite?: Sqlite;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

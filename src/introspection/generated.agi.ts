@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-16T04:05:52.110Z
+// Generated at: 2026-02-16T06:07:29.183Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -1509,6 +1509,102 @@ setBuildTimeData('features.grep', {
   "options": {}
 });
 
+setBuildTimeData('features.sqlite', {
+  "id": "features.sqlite",
+  "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+  "shortcut": "features.sqlite",
+  "methods": {
+    "query": {
+      "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "Parameter queryText"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<T[]>"
+    },
+    "execute": {
+      "description": "Executes a write/update/delete statement and returns metadata. Use sqlite placeholders (`?`) for `params`.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "Parameter queryText"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>"
+    },
+    "sql": {
+      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+      "parameters": {
+        "strings": {
+          "type": "TemplateStringsArray",
+          "description": "Parameter strings"
+        },
+        "values": {
+          "type": "SqlValue[]",
+          "description": "Parameter values"
+        }
+      },
+      "required": [
+        "strings",
+        "values"
+      ],
+      "returns": "Promise<T[]>"
+    },
+    "close": {
+      "description": "Closes the sqlite database and updates feature state.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "db": {
+      "description": "Returns the underlying Bun sqlite database instance.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "query": {
+      "name": "query",
+      "description": "Event emitted by Sqlite",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by Sqlite",
+      "arguments": {}
+    },
+    "execute": {
+      "name": "execute",
+      "description": "Event emitted by Sqlite",
+      "arguments": {}
+    },
+    "closed": {
+      "name": "closed",
+      "description": "Event emitted by Sqlite",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
 setBuildTimeData('features.docker', {
   "id": "features.docker",
   "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
@@ -2462,6 +2558,102 @@ setBuildTimeData('features.diskCache', {
     }
   },
   "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.postgres', {
+  "id": "features.postgres",
+  "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+  "shortcut": "features.postgres",
+  "methods": {
+    "query": {
+      "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "Parameter queryText"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<T[]>"
+    },
+    "execute": {
+      "description": "Executes a write/update/delete statement and returns metadata. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
+      "parameters": {
+        "queryText": {
+          "type": "string",
+          "description": "Parameter queryText"
+        },
+        "params": {
+          "type": "SqlValue[]",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "queryText"
+      ],
+      "returns": "Promise<{ rowCount: number }>"
+    },
+    "sql": {
+      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+      "parameters": {
+        "strings": {
+          "type": "TemplateStringsArray",
+          "description": "Parameter strings"
+        },
+        "values": {
+          "type": "SqlValue[]",
+          "description": "Parameter values"
+        }
+      },
+      "required": [
+        "strings",
+        "values"
+      ],
+      "returns": "Promise<T[]>"
+    },
+    "close": {
+      "description": "Closes the postgres connection and updates feature state.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "client": {
+      "description": "Returns the underlying Bun SQL postgres client.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "query": {
+      "name": "query",
+      "description": "Event emitted by Postgres",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by Postgres",
+      "arguments": {}
+    },
+    "execute": {
+      "name": "execute",
+      "description": "Event emitted by Postgres",
+      "arguments": {}
+    },
+    "closed": {
+      "name": "closed",
+      "description": "Event emitted by Postgres",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -3919,8 +4111,8 @@ setBuildTimeData('features.conversation', {
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
-    "streamStart": {
-      "name": "streamStart",
+    "turnStart": {
+      "name": "turnStart",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -3931,11 +4123,6 @@ setBuildTimeData('features.conversation', {
     },
     "preview": {
       "name": "preview",
-      "description": "Event emitted by Conversation",
-      "arguments": {}
-    },
-    "streamEnd": {
-      "name": "streamEnd",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -3961,6 +4148,11 @@ setBuildTimeData('features.conversation', {
     },
     "toolCallsEnd": {
       "name": "toolCallsEnd",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "turnEnd": {
+      "name": "turnEnd",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -4432,6 +4624,16 @@ setBuildTimeData('features.assistant', {
     },
     "hooksLoaded": {
       "name": "hooksLoaded",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "turnStart": {
+      "name": "turnStart",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "turnEnd": {
+      "name": "turnEnd",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -7238,6 +7440,101 @@ export const introspectionData = [
     "options": {}
   },
   {
+    "id": "features.sqlite",
+    "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+    "shortcut": "features.sqlite",
+    "methods": {
+      "query": {
+        "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "Parameter queryText"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<T[]>"
+      },
+      "execute": {
+        "description": "Executes a write/update/delete statement and returns metadata. Use sqlite placeholders (`?`) for `params`.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "Parameter queryText"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>"
+      },
+      "sql": {
+        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+        "parameters": {
+          "strings": {
+            "type": "TemplateStringsArray",
+            "description": "Parameter strings"
+          },
+          "values": {
+            "type": "SqlValue[]",
+            "description": "Parameter values"
+          }
+        },
+        "required": [
+          "strings",
+          "values"
+        ],
+        "returns": "Promise<T[]>"
+      },
+      "close": {
+        "description": "Closes the sqlite database and updates feature state.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "db": {
+        "description": "Returns the underlying Bun sqlite database instance.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "query": {
+        "name": "query",
+        "description": "Event emitted by Sqlite",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by Sqlite",
+        "arguments": {}
+      },
+      "execute": {
+        "name": "execute",
+        "description": "Event emitted by Sqlite",
+        "arguments": {}
+      },
+      "closed": {
+        "name": "closed",
+        "description": "Event emitted by Sqlite",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "features.docker",
     "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
     "shortcut": "features.docker",
@@ -8184,6 +8481,101 @@ export const introspectionData = [
       }
     },
     "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.postgres",
+    "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+    "shortcut": "features.postgres",
+    "methods": {
+      "query": {
+        "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "Parameter queryText"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<T[]>"
+      },
+      "execute": {
+        "description": "Executes a write/update/delete statement and returns metadata. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
+        "parameters": {
+          "queryText": {
+            "type": "string",
+            "description": "Parameter queryText"
+          },
+          "params": {
+            "type": "SqlValue[]",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "queryText"
+        ],
+        "returns": "Promise<{ rowCount: number }>"
+      },
+      "sql": {
+        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+        "parameters": {
+          "strings": {
+            "type": "TemplateStringsArray",
+            "description": "Parameter strings"
+          },
+          "values": {
+            "type": "SqlValue[]",
+            "description": "Parameter values"
+          }
+        },
+        "required": [
+          "strings",
+          "values"
+        ],
+        "returns": "Promise<T[]>"
+      },
+      "close": {
+        "description": "Closes the postgres connection and updates feature state.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "client": {
+        "description": "Returns the underlying Bun SQL postgres client.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "query": {
+        "name": "query",
+        "description": "Event emitted by Postgres",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by Postgres",
+        "arguments": {}
+      },
+      "execute": {
+        "name": "execute",
+        "description": "Event emitted by Postgres",
+        "arguments": {}
+      },
+      "closed": {
+        "name": "closed",
+        "description": "Event emitted by Postgres",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -9628,8 +10020,8 @@ export const introspectionData = [
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
-      "streamStart": {
-        "name": "streamStart",
+      "turnStart": {
+        "name": "turnStart",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -9640,11 +10032,6 @@ export const introspectionData = [
       },
       "preview": {
         "name": "preview",
-        "description": "Event emitted by Conversation",
-        "arguments": {}
-      },
-      "streamEnd": {
-        "name": "streamEnd",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -9670,6 +10057,11 @@ export const introspectionData = [
       },
       "toolCallsEnd": {
         "name": "toolCallsEnd",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "turnEnd": {
+        "name": "turnEnd",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -10137,6 +10529,16 @@ export const introspectionData = [
       },
       "hooksLoaded": {
         "name": "hooksLoaded",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "turnStart": {
+        "name": "turnStart",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "turnEnd": {
+        "name": "turnEnd",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },
