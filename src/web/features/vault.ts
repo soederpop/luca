@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'

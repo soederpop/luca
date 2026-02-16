@@ -44,9 +44,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Text to append to the system prompt from CORE.md */
 	appendPrompt: z.string().optional().describe('Text to append to the system prompt'),
 	/** Override or extend the tools loaded from tools.ts */
-	tools: z.record(z.any()).optional().describe('Override or extend the tools loaded from tools.ts'),
+	tools: z.record(z.string(), z.any()).optional().describe('Override or extend the tools loaded from tools.ts'),
 	/** Override or extend the schemas loaded from tools.ts */
-	schemas: z.record(z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
+	schemas: z.record(z.string(), z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
 	/** OpenAI model to use for the conversation */
 	model: z.string().optional().describe('OpenAI model to use'),
 })

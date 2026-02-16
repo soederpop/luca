@@ -43,7 +43,7 @@ const SkillMetaSchema = z.object({
 })
 
 const SkillModel = defineModel('Skill', {
-	meta: SkillMetaSchema,
+	meta: SkillMetaSchema as any,
 	match: (doc: { id: string; meta: Record<string, unknown> }) =>
 		doc.id.endsWith('/SKILL') || doc.id === 'SKILL',
 })

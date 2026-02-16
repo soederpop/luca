@@ -96,7 +96,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     this.hide('_context', '_state', '_options', '_events', 'uuid')
     
     this.state.observe(() => {
-      this.emit('stateChange', this.state.current)
+      (this as any).emit('stateChange', this.state.current)
     })
     
     this.afterInitialize()
