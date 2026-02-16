@@ -61,13 +61,34 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 
 	const assistant = manager.create(name, createOptions)
 
-	assistant.on('preview', (text: string) => {
-		process.stdout.write('\x1B[2J\x1B[H')
-		console.log(ui.markdown(text))
+	let isFirstChunk = true
+
+	assistant.on('chunk', (text: string) => {
+		if (isFirstChunk) {
+			process.stdout.write('\n')
+			isFirstChunk = false
+		}
+		process.stdout.write(text)
 	})
 
 	assistant.on('toolCall', (toolName: string, args: any) => {
-		process.stdout.write(ui.colors.dim(`\n  ⟳ ${toolName}(${JSON.stringify(args).slice(0, 80)})\n`))
+		const argsStr = JSON.stringify(args).slice(0, 120)
+		process.stdout.write(ui.colors.dim(`\n  ⟳ ${toolName}`) + ui.colors.dim(`(${argsStr})\n`))
+	})
+
+	assistant.on('toolResult', (toolName: string, result: any) => {
+		const preview = typeof result === 'string' ? result.slice(0, 100) : JSON.stringify(result).slice(0, 100)
+		process.stdout.write(ui.colors.green(`  ✓ ${toolName}`) + ui.colors.dim(` → ${preview}${preview.length >= 100 ? '…' : ''}\n`))
+	})
+
+	assistant.on('toolError', (toolName: string, error: any) => {
+		const msg = error?.message || String(error)
+		process.stdout.write(ui.colors.red(`  ✗ ${toolName}: ${msg}\n`))
+	})
+
+	assistant.on('response', () => {
+		process.stdout.write('\n')
+		isFirstChunk = true
 	})
 
 	const rl = readline.createInterface({
