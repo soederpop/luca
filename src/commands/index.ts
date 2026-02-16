@@ -4,3 +4,4 @@ export { Command, commands, CommandsRegistry, type AvailableCommands, type Comma
 import './run.js'
 import './console.js'
 import './serve.js'
+import './chat.js'
