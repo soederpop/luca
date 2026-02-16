@@ -16,3 +16,8 @@ export const vm = container.feature('vm')
 export const proc = container.feature('proc')
 
 export { servers, features, clients }
+
+export type { EndpointContext } from './endpoint.js'
+export type { ContainerContext } from './container.js'
+export type { CommandHandler } from './command.js'
+export { FeatureStateSchema, FeatureOptionsSchema } from './schemas/base.js'

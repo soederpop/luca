@@ -32,66 +32,78 @@ await api.delete('/users/123')
 ### REST Client Events
 
 ```typescript
-api.on('requestStart', (config) => {
-  console.log(`${config.method} ${config.url}`)
+api.on('failure', (error) => {
+  console.error('Request failed:', error.message)
 })
 
-api.on('requestEnd', (response) => {
-  console.log(`${response.status} (${response.data.length} bytes)`)
-})
-
-api.on('error', (err) => {
-  console.error('Request failed:', err.message)
+// State changes track connection status
+api.state.observe((type, key, value) => {
+  if (key === 'connected') {
+    console.log(`Client connected: ${value}`)
+  }
 })
 ```
 
 ## GraphQL Client
 
+For GraphQL APIs, use the REST client's `post()` method to send queries and mutations:
+
 ```typescript
-const graph = container.client('graph', {
+const graph = container.client('rest', {
   baseURL: 'https://api.example.com/graphql',
   headers: { Authorization: 'Bearer my-token' },
 })
 
 await graph.connect()
 
-const result = await graph.query(`
-  query GetUser($id: ID!) {
-    user(id: $id) {
-      name
-      email
-      posts { title }
+// Send a query
+const result = await graph.post('/', {
+  query: `
+    query GetUser($id: ID!) {
+      user(id: $id) {
+        name
+        email
+        posts { title }
+      }
     }
-  }
-`, { id: '123' })
+  `,
+  variables: { id: '123' },
+})
 
-const mutationResult = await graph.mutate(`
-  mutation CreatePost($input: PostInput!) {
-    createPost(input: $input) {
-      id
-      title
+// Send a mutation
+const mutationResult = await graph.post('/', {
+  query: `
+    mutation CreatePost($input: PostInput!) {
+      createPost(input: $input) {
+        id
+        title
+      }
     }
-  }
-`, { input: { title: 'Hello World', body: '...' } })
+  `,
+  variables: { input: { title: 'Hello World', body: '...' } },
+})
 ```
 
 ## WebSocket Client
 
+The WebSocket client wraps a raw `WebSocket` connection:
+
 ```typescript
 const ws = container.client('websocket', {
-  url: 'wss://realtime.example.com',
+  baseURL: 'wss://realtime.example.com',
 })
 
 await ws.connect()
 
-ws.on('message', (data) => {
-  console.log('Received:', data)
-})
+// Access the underlying WebSocket via ws.ws
+ws.ws.onmessage = (event) => {
+  console.log('Received:', event.data)
+}
 
-ws.send({ type: 'subscribe', channel: 'updates' })
+ws.ws.send(JSON.stringify({ type: 'subscribe', channel: 'updates' }))
 
 // Clean up
-await ws.disconnect()
+ws.ws.close()
 ```
 
 ## Discovering Clients
@@ -106,6 +118,7 @@ container.clients.describe('rest')
 ```typescript
 // endpoints/proxy.ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/external-data'
 

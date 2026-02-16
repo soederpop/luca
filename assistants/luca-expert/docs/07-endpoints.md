@@ -28,6 +28,7 @@ Define schemas for your handlers. Parameters are validated automatically:
 ```typescript
 // endpoints/users.ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/users'
 export const description = 'User management'
@@ -64,6 +65,7 @@ Use `:param` in the path or bracket-based file naming:
 ```typescript
 // endpoints/users/[id].ts
 import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
 
 export const path = '/api/users/:id'
 export const description = 'Get, update, or delete a specific user'
@@ -108,7 +110,7 @@ export async function post(params: any, ctx: EndpointContext) {
   } = ctx
 
   // Use container features
-  const data = await container.fs.readJson('./data/config.json')
+  const data = container.fs.readJson('./data/config.json')
 
   return { success: true }
 }

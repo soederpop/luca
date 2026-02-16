@@ -53,7 +53,7 @@ import container from '@soederpop/luca/node'
 
 // Now you have access to all features
 const fs = container.fs           // File system operations
-const git = container.git         // Git utilities
+const git = container.git         // Git utilities (branch, sha, lsFiles, etc.)
 const ui = container.ui           // Terminal UI (colors, prompts, figlet)
 const proc = container.feature('proc')  // Process execution
 ```

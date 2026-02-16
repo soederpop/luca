@@ -13,7 +13,7 @@ Contentbase lets you treat folders of markdown files as queryable database colle
 import container from '@soederpop/luca'
 
 const db = container.feature('contentDb', { rootPath: './content' })
-await db.load()
+const { defineModel, section, hasMany, belongsTo } = db.library
 ```
 
 ## Directory Structure
@@ -37,7 +37,6 @@ content/
 Models map to subdirectories and define the shape of your content:
 
 ```typescript
-import { defineModel, section, hasMany, belongsTo } from '@soederpop/luca/contentbase'
 import { z } from 'zod'
 
 const Post = defineModel('Post', {
@@ -85,11 +84,12 @@ const Author = defineModel('Author', {
 })
 ```
 
-## Registering Models
+## Registering and Loading
 
 ```typescript
 db.register(Post)
 db.register(Author)
+await db.load()  // Parses all markdown files and builds the queryable index
 ```
 
 ## Querying
@@ -155,10 +155,10 @@ console.log('Hello!')
 
 ```typescript
 import container from '@soederpop/luca'
-import { defineModel, section, hasMany } from '@soederpop/luca/contentbase'
 import { z } from 'zod'
 
 const db = container.feature('contentDb', { rootPath: './blog' })
+const { defineModel, section, hasMany } = db.library
 
 const Post = defineModel('Post', {
   prefix: 'posts',

@@ -102,9 +102,9 @@ const available = container.features.available
 const fsInfo = container.features.introspect('fs')
 
 // fsInfo.methods tells the agent:
-// - readFile(path: string): Promise<string>
-// - writeFile(path: string, content: string): Promise<void>
-// - walk(dir: string, options?: WalkOptions): Promise<string[]>
+// - readFile(path: string): string
+// - writeFile(path: string, content: string): Promise<string>
+// - walk(basePath: string, options?: WalkOptions): { files: string[], directories: string[] }
 // etc.
 
 // The agent can now use these methods without prior training on the fs feature

@@ -28,7 +28,7 @@ feature.state.version              // Number, increments on every change
 ```typescript
 // Watch all state changes
 const dispose = feature.state.observe((changeType, key, value) => {
-  // changeType: 'set' | 'delete' | etc.
+  // changeType: 'add' | 'update' | 'delete'
   console.log(`${key} was ${changeType}d:`, value)
 })
 
@@ -110,18 +110,7 @@ console.log('Feature is now ready')
 // Useful for initialization sequences
 const server = container.server('express', { port: 3000 })
 await server.start()
-await server.waitFor('listening')
-console.log('Server is accepting connections')
-```
-
-### Event Statistics
-
-Events track their own usage:
-
-```typescript
-// After some events have fired
-feature.events.stats('taskAdded')
-// { fireCount: 5, lastFired: '2024-...', firesPerMinute: 2.5 }
+console.log('Server is accepting connections on port', server.state.get('port'))
 ```
 
 ### Container Events
@@ -129,12 +118,8 @@ feature.events.stats('taskAdded')
 The container emits events for lifecycle moments:
 
 ```typescript
-container.on('featureEnabled', (name) => {
-  console.log(`Feature ${name} was enabled`)
-})
-
-container.on('helperCreated', (type, id) => {
-  console.log(`New ${type}: ${id}`)
+container.on('featureEnabled', (featureId, feature) => {
+  console.log(`Feature ${featureId} was enabled`)
 })
 ```
 

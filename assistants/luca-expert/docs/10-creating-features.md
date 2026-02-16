@@ -20,17 +20,16 @@ A feature has:
 
 ```typescript
 import { z } from 'zod'
-import { Feature, features } from '@soederpop/luca'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca/schemas'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 
-// Define state schema
+// Define state schema by extending the base FeatureStateSchema
 export const CounterStateSchema = FeatureStateSchema.extend({
   count: z.number().describe('Current count value'),
   lastUpdated: z.string().optional().describe('ISO timestamp of last update'),
 })
 export type CounterState = z.infer<typeof CounterStateSchema>
 
-// Define options schema
+// Define options schema by extending the base FeatureOptionsSchema
 export const CounterOptionsSchema = FeatureOptionsSchema.extend({
   initialCount: z.number().default(0).describe('Starting count value'),
   step: z.number().default(1).describe('Increment step size'),

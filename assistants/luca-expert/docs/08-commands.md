@@ -12,6 +12,7 @@ Commands are CLI actions that the `luca` command discovers and runs. Projects ca
 ```typescript
 // commands/seed.ts
 import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
 
 export const description = 'Seed the database with sample data'
 
@@ -20,7 +21,7 @@ export const argsSchema = z.object({
   table: z.string().optional().describe('Specific table to seed'),
 })
 
-export async function handler(options: z.infer<typeof argsSchema>, context: any) {
+export async function handler(options: z.infer<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
 
   console.log(`Seeding ${options.count} records...`)
@@ -84,21 +85,21 @@ export const argsSchema = z.object({
 Commands receive a context with the full container:
 
 ```typescript
-export async function handler(options: any, context: any) {
+export async function handler(options: any, context: ContainerContext) {
   const { container } = context
 
   // File system operations
-  const config = await container.fs.readJson('./config.json')
+  const config = container.fs.readJson('./config.json')
 
-  // Git info
-  const branch = await container.git.branch()
-  const sha = await container.git.sha()
+  // Git info (these are getters, not methods)
+  const branch = container.git.branch
+  const sha = container.git.sha
 
   // Terminal UI
   container.ui.colors.green('Success!')
 
-  // Run external processes
-  const result = await container.proc.exec('ls', ['-la'])
+  // Run external processes (synchronous, returns string)
+  const result = container.proc.exec('ls -la')
 
   // Use any feature
   const cache = container.feature('diskCache', { path: './.cache' })
@@ -112,6 +113,7 @@ export async function handler(options: any, context: any) {
 ```typescript
 // commands/migrate.ts
 import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
 
 export const description = 'Run database migrations'
 
@@ -120,15 +122,15 @@ export const argsSchema = z.object({
   steps: z.number().default(1).describe('Number of migrations to run'),
 })
 
-export async function handler(options: z.infer<typeof argsSchema>, context: any) {
+export async function handler(options: z.infer<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
-  const files = await container.fs.walk('./migrations', { extensions: ['.sql'] })
+  const { files } = container.fs.walk('./migrations', { include: ['*.sql'] })
 
   console.log(`Running ${options.steps} migration(s) ${options.direction}...`)
 
   for (const file of files.slice(0, options.steps)) {
     console.log(`  Applying: ${file}`)
-    const sql = await container.fs.readFile(file)
+    const sql = container.fs.readFile(file)
     // ... execute sql
   }
 
@@ -141,6 +143,7 @@ export async function handler(options: z.infer<typeof argsSchema>, context: any)
 ```typescript
 // commands/deploy.ts
 import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
 
 export const description = 'Deploy the application'
 
@@ -149,7 +152,7 @@ export const argsSchema = z.object({
   dryRun: z.boolean().default(false).describe('Preview without deploying'),
 })
 
-export async function handler(options: z.infer<typeof argsSchema>, context: any) {
+export async function handler(options: z.infer<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
 
   if (options.dryRun) {
@@ -157,10 +160,10 @@ export async function handler(options: z.infer<typeof argsSchema>, context: any)
     return
   }
 
-  const sha = await container.git.sha()
+  const sha = container.git.sha
   console.log(`Deploying ${sha} to ${options.env}...`)
 
-  await container.proc.exec('bun', ['run', 'build'])
+  container.proc.exec('bun run build')
   // ... deployment logic
 
   console.log('Deployed successfully.')
