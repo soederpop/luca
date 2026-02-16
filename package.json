@@ -2,9 +2,9 @@
   "name": "@soederpop/luca",
   "version": "0.0.1",
   "description": "lightweight universal conversational architecture",
-  "publishConfig": { 
+  "publishConfig": {
     "registry": "http://localhost:4873"
-  }, 
+  },
   "author": "jon soeder <jon@chicago.com>",
   "type": "module",
   "repository": "https://github.com/soederpop/luca",
@@ -18,13 +18,28 @@
   "browser": "./dist/browser.js",
   "exports": {
     ".": {
-      "node": { "import": "./dist/node.js", "types": "./dist/node.d.ts" },
-      "browser": { "import": "./dist/browser.js", "types": "./dist/browser.d.ts" },
+      "node": {
+        "import": "./dist/node.js",
+        "types": "./dist/node.d.ts"
+      },
+      "browser": {
+        "import": "./dist/browser.js",
+        "types": "./dist/browser.d.ts"
+      },
       "default": "./dist/node.js"
     },
-    "./node": { "import": "./dist/node.js", "types": "./dist/node.d.ts" },
-    "./web": { "import": "./dist/browser.js", "types": "./dist/browser.d.ts" },
-    "./agi": { "import": "./dist/agi/index.js", "types": "./dist/agi/index.d.ts" }
+    "./node": {
+      "import": "./dist/node.js",
+      "types": "./dist/node.d.ts"
+    },
+    "./web": {
+      "import": "./dist/browser.js",
+      "types": "./dist/browser.d.ts"
+    },
+    "./agi": {
+      "import": "./dist/agi/index.js",
+      "types": "./dist/agi/index.d.ts"
+    }
   },
   "bin": {
     "luca": "./dist/esbuild/cli.js"
@@ -76,6 +91,7 @@
     "@ngrok/ngrok": "^1.5.1",
     "@openai/codex": "^0.99.0",
     "@resvg/resvg-js": "^2.6.2",
+    "@supabase/supabase-js": "^2.95.3",
     "@types/marked": "^6.0.0",
     "@types/marked-terminal": "^6.1.1",
     "axios": "^1.3.5",
