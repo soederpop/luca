@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-16T06:07:29.183Z
+// Generated at: 2026-02-16T06:57:53.400Z
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -3790,6 +3790,163 @@ setBuildTimeData('features.contentDb', {
   "options": {}
 });
 
+setBuildTimeData('servers.mcp', {
+  "id": "servers.mcp",
+  "description": "MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly with Zod 4 native JSON Schema conversion. Register tools, resources, and prompts programmatically, then start the server over stdio (for CLI integration) or HTTP (for remote access).",
+  "shortcut": "servers.mcp",
+  "methods": {
+    "tool": {
+      "description": "Register an MCP tool. The tool's Zod schema is converted to JSON Schema for the protocol listing, and used for runtime argument validation. Tool handlers can return a string (auto-wrapped as text content) or a full CallToolResult object for advanced responses (images, errors, etc).",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Unique tool name"
+        },
+        "options": {
+          "type": "ToolRegistrationOptions",
+          "description": "Tool schema, description, and handler",
+          "properties": {
+            "schema": {
+              "type": "z.ZodObject<any>",
+              "description": ""
+            },
+            "description": {
+              "type": "string",
+              "description": ""
+            },
+            "handler": {
+              "type": "(args: any, ctx: MCPContext) => any",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "options"
+      ],
+      "returns": "this"
+    },
+    "resource": {
+      "description": "Register an MCP resource. Resources expose data (files, configs, etc) that AI clients can read by URI. Accepts either a handler function directly or an options object with additional metadata (name, description, mimeType).",
+      "parameters": {
+        "uri": {
+          "type": "string",
+          "description": "Unique resource URI (e.g. \"project://readme\")"
+        },
+        "handlerOrOptions": {
+          "type": "ResourceRegistrationOptions['handler'] | ResourceRegistrationOptions",
+          "description": "Handler function or options object with handler"
+        }
+      },
+      "required": [
+        "uri",
+        "handlerOrOptions"
+      ],
+      "returns": "this"
+    },
+    "prompt": {
+      "description": "Register an MCP prompt. Prompts are reusable message templates that AI clients can invoke with optional string arguments.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Unique prompt name"
+        },
+        "options": {
+          "type": "PromptRegistrationOptions",
+          "description": "Prompt handler, optional args schema, and description",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": ""
+            },
+            "args": {
+              "type": "Record<string, z.ZodType>",
+              "description": ""
+            },
+            "handler": {
+              "type": "(args: Record<string, string | undefined>, ctx: MCPContext) => Promise<PromptMessage[]> | PromptMessage[]",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "name",
+        "options"
+      ],
+      "returns": "this"
+    },
+    "configure": {
+      "description": "Configure the MCP protocol server and register all protocol handlers. Called automatically before start() if not already configured.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "start": {
+      "description": "Start the MCP server with the specified transport.",
+      "parameters": {
+        "options": {
+          "type": "{ transport?: 'stdio' | 'http', port?: number, host?: string }",
+          "description": "Transport configuration. Defaults to stdio.",
+          "properties": {
+            "transport": {
+              "type": "any",
+              "description": "'stdio' for CLI integration, 'http' for remote access"
+            },
+            "port": {
+              "type": "any",
+              "description": "Port for HTTP transport (default 3001)"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "Stop the MCP server and close all connections.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "mcpServer": {
+      "description": "The underlying MCP protocol server instance. Created during configure().",
+      "returns": "MCPProtocolServer"
+    },
+    "handlerContext": {
+      "description": "The handler context passed to all tool, resource, and prompt handlers.",
+      "returns": "MCPContext"
+    }
+  },
+  "events": {
+    "toolRegistered": {
+      "name": "toolRegistered",
+      "description": "Event emitted by MCPServer",
+      "arguments": {}
+    },
+    "resourceRegistered": {
+      "name": "resourceRegistered",
+      "description": "Event emitted by MCPServer",
+      "arguments": {}
+    },
+    "promptRegistered": {
+      "name": "promptRegistered",
+      "description": "Event emitted by MCPServer",
+      "arguments": {}
+    },
+    "toolCalled": {
+      "name": "toolCalled",
+      "description": "Event emitted by MCPServer",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
 setBuildTimeData('servers.express', {
   "id": "servers.express",
   "description": "ExpressServer helper",
@@ -5906,7 +6063,7 @@ setContainerBuildTimeData('AGIContainer', {
           "description": "Parameter options",
           "properties": {
             "tools": {
-              "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, z.ZodType>\n\t}",
+              "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, ZodType>\n\t}",
               "description": ""
             },
             "systemPrompt": {
@@ -9703,6 +9860,162 @@ export const introspectionData = [
     "options": {}
   },
   {
+    "id": "servers.mcp",
+    "description": "MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly with Zod 4 native JSON Schema conversion. Register tools, resources, and prompts programmatically, then start the server over stdio (for CLI integration) or HTTP (for remote access).",
+    "shortcut": "servers.mcp",
+    "methods": {
+      "tool": {
+        "description": "Register an MCP tool. The tool's Zod schema is converted to JSON Schema for the protocol listing, and used for runtime argument validation. Tool handlers can return a string (auto-wrapped as text content) or a full CallToolResult object for advanced responses (images, errors, etc).",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Unique tool name"
+          },
+          "options": {
+            "type": "ToolRegistrationOptions",
+            "description": "Tool schema, description, and handler",
+            "properties": {
+              "schema": {
+                "type": "z.ZodObject<any>",
+                "description": ""
+              },
+              "description": {
+                "type": "string",
+                "description": ""
+              },
+              "handler": {
+                "type": "(args: any, ctx: MCPContext) => any",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "name",
+          "options"
+        ],
+        "returns": "this"
+      },
+      "resource": {
+        "description": "Register an MCP resource. Resources expose data (files, configs, etc) that AI clients can read by URI. Accepts either a handler function directly or an options object with additional metadata (name, description, mimeType).",
+        "parameters": {
+          "uri": {
+            "type": "string",
+            "description": "Unique resource URI (e.g. \"project://readme\")"
+          },
+          "handlerOrOptions": {
+            "type": "ResourceRegistrationOptions['handler'] | ResourceRegistrationOptions",
+            "description": "Handler function or options object with handler"
+          }
+        },
+        "required": [
+          "uri",
+          "handlerOrOptions"
+        ],
+        "returns": "this"
+      },
+      "prompt": {
+        "description": "Register an MCP prompt. Prompts are reusable message templates that AI clients can invoke with optional string arguments.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Unique prompt name"
+          },
+          "options": {
+            "type": "PromptRegistrationOptions",
+            "description": "Prompt handler, optional args schema, and description",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": ""
+              },
+              "args": {
+                "type": "Record<string, z.ZodType>",
+                "description": ""
+              },
+              "handler": {
+                "type": "(args: Record<string, string | undefined>, ctx: MCPContext) => Promise<PromptMessage[]> | PromptMessage[]",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "name",
+          "options"
+        ],
+        "returns": "this"
+      },
+      "configure": {
+        "description": "Configure the MCP protocol server and register all protocol handlers. Called automatically before start() if not already configured.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "start": {
+        "description": "Start the MCP server with the specified transport.",
+        "parameters": {
+          "options": {
+            "type": "{ transport?: 'stdio' | 'http', port?: number, host?: string }",
+            "description": "Transport configuration. Defaults to stdio.",
+            "properties": {
+              "transport": {
+                "type": "any",
+                "description": "'stdio' for CLI integration, 'http' for remote access"
+              },
+              "port": {
+                "type": "any",
+                "description": "Port for HTTP transport (default 3001)"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "Stop the MCP server and close all connections.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "mcpServer": {
+        "description": "The underlying MCP protocol server instance. Created during configure().",
+        "returns": "MCPProtocolServer"
+      },
+      "handlerContext": {
+        "description": "The handler context passed to all tool, resource, and prompt handlers.",
+        "returns": "MCPContext"
+      }
+    },
+    "events": {
+      "toolRegistered": {
+        "name": "toolRegistered",
+        "description": "Event emitted by MCPServer",
+        "arguments": {}
+      },
+      "resourceRegistered": {
+        "name": "resourceRegistered",
+        "description": "Event emitted by MCPServer",
+        "arguments": {}
+      },
+      "promptRegistered": {
+        "name": "promptRegistered",
+        "description": "Event emitted by MCPServer",
+        "arguments": {}
+      },
+      "toolCalled": {
+        "name": "toolCalled",
+        "description": "Event emitted by MCPServer",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "servers.express",
     "description": "ExpressServer helper",
     "shortcut": "servers.express",
@@ -11807,7 +12120,7 @@ export const containerIntrospectionData = [
             "description": "Parameter options",
             "properties": {
               "tools": {
-                "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, z.ZodType>\n\t}",
+                "type": "{\n\t\thandlers: Record<string, ConversationTool['handler']>\n\t\tschemas: Record<string, ZodType>\n\t}",
                 "description": ""
               },
               "systemPrompt": {

@@ -76,7 +76,12 @@
       "Bash(git -C /Users/jon/@luca add src/registry.ts)",
       "Bash(git -C /Users/jon/@luca commit -m \"$\\(cat <<''EOF''\nthrow helpful error when looking up unregistered helpers\n\nRegistry.lookup\\(\\) previously returned undefined silently when a helper\nwasn''t registered, causing a confusing \"undefined is not a constructor\"\nerror downstream. Now it throws immediately with:\n- The name of what wasn''t found\n- A list of what IS available\n- Advice on how to fix it \\(import the module or .use\\(\\) it\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git -C /Users/jon/@luca add src/agi/features/assistant.ts)",
-      "Bash(git -C /Users/jon/@luca commit -m \"$\\(cat <<''EOF''\nuse container.fs and container.paths instead of raw Node fs/path\n\nReplace direct imports of readFileSync, existsSync from ''fs'' and\nresolve, join from ''path'' with container.fs.readFile\\(\\),\ncontainer.fs.exists\\(\\), and container.paths.resolve\\(\\). This keeps the\nassistant consistent with the rest of the codebase where all I/O goes\nthrough the container''s helpers.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -C /Users/jon/@luca commit -m \"$\\(cat <<''EOF''\nuse container.fs and container.paths instead of raw Node fs/path\n\nReplace direct imports of readFileSync, existsSync from ''fs'' and\nresolve, join from ''path'' with container.fs.readFile\\(\\),\ncontainer.fs.exists\\(\\), and container.paths.resolve\\(\\). This keeps the\nassistant consistent with the rest of the codebase where all I/O goes\nthrough the container''s helpers.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /Users/jon/@luca diff --stat)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(lane\" to \"go deeper when needed\" to reflect the new capability.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git status:*)"
     ]
   }
 }
