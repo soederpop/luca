@@ -153,7 +153,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.pushMessage(userMessage)
 		this.emit('userMessage', content)
 
-		return this.runCompletionLoop()
+		return this.runCompletionLoop({ turn: 1, accumulated: '' })
 	}
 
 	/** Returns the OpenAI client instance from the container. */
@@ -206,14 +206,24 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 *
 	 * @returns {Promise<string>} The final assistant text response
 	 */
-	private async runCompletionLoop(): Promise<string> {
+	/**
+	 * Runs the streaming completion loop. If the model requests tool calls,
+	 * executes them and loops again until a text response is produced.
+	 *
+	 * @param context - Turn tracking: turn number and text accumulated across all turns
+	 * @returns {Promise<string>} The final assistant text response (accumulated across all turns)
+	 */
+	private async runCompletionLoop(context: { turn: number; accumulated: string } = { turn: 1, accumulated: '' }): Promise<string> {
+		const { turn } = context
+		let accumulated = context.accumulated
+
 		const hasTools = Object.keys(this._tools || {}).length > 0
 		const toolsParam = hasTools ? this.openaiTools : undefined
 
 		this.state.set('streaming', true)
-		this.emit('streamStart')
+		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
-		let fullContent = ''
+		let turnContent = ''
 		let toolCalls: Array<{ id: string; function: { name: string; arguments: string }; type: 'function' }> = []
 
 		try {
@@ -228,9 +238,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				const delta = chunk.choices[0]?.delta
 
 				if (delta?.content) {
-					fullContent += delta.content
+					turnContent += delta.content
+					accumulated += delta.content
 					this.emit('chunk', delta.content)
-					this.emit('preview', fullContent)
+					this.emit('preview', accumulated)
 				}
 
 				if (delta?.tool_calls) {
@@ -265,14 +276,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			}
 		} finally {
 			this.state.set('streaming', false)
-			this.emit('streamEnd')
 		}
 
 		// If the model produced tool calls, execute them and loop
 		if (toolCalls.length > 0) {
 			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
 				role: 'assistant',
-				content: fullContent || null,
+				content: turnContent || null,
 				tool_calls: toolCalls
 			}
 			this.pushMessage(assistantMessage)
@@ -312,19 +322,22 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			}
 
 			this.emit('toolCallsEnd')
+			this.emit('turnEnd', { turn, hasToolCalls: true })
 
 			// Loop: let the model respond to tool results
-			return this.runCompletionLoop()
+			return this.runCompletionLoop({ turn: turn + 1, accumulated })
 		}
 
-		// Final text response
-		const assistantMessage: Message = { role: 'assistant', content: fullContent }
+		// Final text response — use this turn's content for the message history,
+		// but accumulated for the response event and return value
+		const assistantMessage: Message = { role: 'assistant', content: turnContent }
 		this.pushMessage(assistantMessage)
-		this.state.set('lastResponse', fullContent)
+		this.state.set('lastResponse', accumulated)
 
-		this.emit('response', fullContent)
+		this.emit('turnEnd', { turn, hasToolCalls: false })
+		this.emit('response', accumulated)
 
-		return fullContent
+		return accumulated
 	}
 
 	/**

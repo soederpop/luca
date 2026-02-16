@@ -16,9 +16,11 @@ declare module '@/feature' {
 
 export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	started: z.tuple([]).describe('Emitted when the assistant has been initialized'),
+	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Emitted when a new completion turn begins. isFollowUp is true when resuming after tool calls'),
+	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Emitted when a completion turn ends. hasToolCalls indicates whether tool calls will follow'),
 	chunk: z.tuple([z.string().describe('A chunk of streamed text')]).describe('Emitted as tokens stream in'),
-	preview: z.tuple([z.string().describe('The accumulated response so far')]).describe('Emitted with the full response text so far as it streams'),
-	response: z.tuple([z.string().describe('The final response text')]).describe('Emitted when a complete response is produced'),
+	preview: z.tuple([z.string().describe('The accumulated response so far')]).describe('Emitted with the full response text accumulated across all turns'),
+	response: z.tuple([z.string().describe('The final response text')]).describe('Emitted when a complete response is produced (accumulated across all turns)'),
 	toolCall: z.tuple([z.string().describe('Tool name'), z.any().describe('Tool arguments')]).describe('Emitted when a tool is called'),
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
@@ -479,6 +481,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		})
 
 		// Wire up event forwarding from conversation to assistant
+		this.conversation.on('turnStart', (info: any) => {
+			this.emit('turnStart', info)
+			this.fireHook('turnStart', info)
+		})
+		this.conversation.on('turnEnd', (info: any) => {
+			this.emit('turnEnd', info)
+			this.fireHook('turnEnd', info)
+		})
 		this.conversation.on('chunk', (chunk: string) => {
 			this.emit('chunk', chunk)
 			this.fireHook('chunk', chunk)
