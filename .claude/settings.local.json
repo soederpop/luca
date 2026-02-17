@@ -87,7 +87,8 @@
       "Bash(gtimeout 8 bun run:*)",
       "mcp__luca-sandbox__eval",
       "Bash(wc:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(bun:*)"
     ]
   },
   "enabledMcpjsonServers": [
