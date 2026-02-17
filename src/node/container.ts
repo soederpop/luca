@@ -50,6 +50,11 @@ import "./features/telegram";
 import "./features/opener";
 import "./features/postgres";
 import "./features/sqlite";
+import "./features/google-auth";
+import "./features/google-drive";
+import "./features/google-sheets";
+import "./features/google-calendar";
+import "./features/google-docs";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -84,6 +89,11 @@ import type { Telegram } from './features/telegram.ts';
 import type { Opener } from './features/opener.ts';
 import type { Postgres } from './features/postgres.ts';
 import type { Sqlite } from './features/sqlite.ts';
+import type { GoogleAuth } from './features/google-auth.ts';
+import type { GoogleDrive } from './features/google-drive.ts';
+import type { GoogleSheets } from './features/google-sheets.ts';
+import type { GoogleCalendar } from './features/google-calendar.ts';
+import type { GoogleDocs } from './features/google-docs.ts';
 export { State };
 
 export {
@@ -112,7 +122,12 @@ export {
   type Telegram,
   type Opener,
   type Postgres,
-  type Sqlite
+  type Sqlite,
+  type GoogleAuth,
+  type GoogleDrive,
+  type GoogleSheets,
+  type GoogleCalendar,
+  type GoogleDocs,
 };
 
 export type { FeatureOptions };
@@ -168,6 +183,11 @@ export interface NodeFeatures extends AvailableFeatures {
   postgres: typeof Postgres;
   sqlite: typeof Sqlite;
   contentDb: typeof ContentDb;
+  googleAuth: typeof GoogleAuth;
+  googleDrive: typeof GoogleDrive;
+  googleSheets: typeof GoogleSheets;
+  googleCalendar: typeof GoogleCalendar;
+  googleDocs: typeof GoogleDocs;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -205,6 +225,11 @@ export class NodeContainer<
   opener?: Opener;
   postgres?: Postgres;
   sqlite?: Sqlite;
+  googleAuth?: GoogleAuth;
+  googleDrive?: GoogleDrive;
+  googleSheets?: GoogleSheets;
+  googleCalendar?: GoogleCalendar;
+  googleDocs?: GoogleDocs;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

@@ -1,7 +1,124 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-16T06:57:53.306Z
+// Generated at: 2026-02-17T22:56:15.526Z
+
+setBuildTimeData('features.googleDocs', {
+  "id": "features.googleDocs",
+  "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
+  "shortcut": "features.googleDocs",
+  "methods": {
+    "getDocument": {
+      "description": "Get the raw document structure from the Docs API.",
+      "parameters": {
+        "documentId": {
+          "type": "string",
+          "description": "The Google Docs document ID"
+        }
+      },
+      "required": [
+        "documentId"
+      ],
+      "returns": "Promise<docs_v1.Schema$Document>"
+    },
+    "getAsMarkdown": {
+      "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks.",
+      "parameters": {
+        "documentId": {
+          "type": "string",
+          "description": "The Google Docs document ID"
+        }
+      },
+      "required": [
+        "documentId"
+      ],
+      "returns": "Promise<string>"
+    },
+    "getAsText": {
+      "description": "Read a Google Doc as plain text (strips all formatting).",
+      "parameters": {
+        "documentId": {
+          "type": "string",
+          "description": "The Google Docs document ID"
+        }
+      },
+      "required": [
+        "documentId"
+      ],
+      "returns": "Promise<string>"
+    },
+    "saveAsMarkdown": {
+      "description": "Download a Google Doc as Markdown and save to a local file.",
+      "parameters": {
+        "documentId": {
+          "type": "string",
+          "description": "The Google Docs document ID"
+        },
+        "localPath": {
+          "type": "string",
+          "description": "Local file path (resolved relative to container cwd)"
+        }
+      },
+      "required": [
+        "documentId",
+        "localPath"
+      ],
+      "returns": "Promise<string>"
+    },
+    "listDocs": {
+      "description": "List Google Docs in Drive (filters by Docs MIME type).",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Optional additional Drive search query"
+        },
+        "options": {
+          "type": "{ pageSize?: number; pageToken?: string }",
+          "description": "Pagination options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<DriveFile[]>"
+    },
+    "searchDocs": {
+      "description": "Search for Google Docs by name or content.",
+      "parameters": {
+        "term": {
+          "type": "string",
+          "description": "Search term"
+        }
+      },
+      "required": [
+        "term"
+      ],
+      "returns": "Promise<DriveFile[]>"
+    }
+  },
+  "getters": {
+    "auth": {
+      "description": "Access the google-auth feature lazily.",
+      "returns": "GoogleAuth"
+    },
+    "drive": {
+      "description": "Access the google-drive feature lazily.",
+      "returns": "GoogleDrive"
+    }
+  },
+  "events": {
+    "documentFetched": {
+      "name": "documentFetched",
+      "description": "Event emitted by GoogleDocs",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by GoogleDocs",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
@@ -573,6 +690,23 @@ setBuildTimeData('features.vm', {
       ],
       "returns": "Promise<T>"
     },
+    "runSync": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "T"
+    },
     "perform": {
       "description": "",
       "parameters": {
@@ -589,10 +723,253 @@ setBuildTimeData('features.vm', {
         "code"
       ],
       "returns": "Promise<{ result: T, context: vm.Context }>"
+    },
+    "performSync": {
+      "description": "Executes JavaScript code synchronously and returns both the result and the execution context. Unlike `runSync`, this method also returns the context object, allowing you to inspect variables set during execution (e.g. `module.exports`). This is the synchronous equivalent of `perform()`.",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "The JavaScript code to execute"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Context variables to make available to the executing code"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "{ result: T, context: vm.Context }"
+    },
+    "loadModule": {
+      "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Absolute path to the module file to load"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Additional context variables to inject into the module's execution environment"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "Record<string, any>"
     }
   },
   "getters": {},
   "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.googleDrive', {
+  "id": "features.googleDrive",
+  "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
+  "shortcut": "features.googleDrive",
+  "methods": {
+    "listFiles": {
+      "description": "List files in the user's Drive with an optional query filter.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Drive search query (e.g. \"name contains 'report'\", \"mimeType='application/pdf'\")"
+        },
+        "options": {
+          "type": "ListFilesOptions",
+          "description": "Pagination and filtering options",
+          "properties": {
+            "pageSize": {
+              "type": "number",
+              "description": ""
+            },
+            "pageToken": {
+              "type": "string",
+              "description": ""
+            },
+            "orderBy": {
+              "type": "string",
+              "description": ""
+            },
+            "fields": {
+              "type": "string",
+              "description": ""
+            },
+            "corpora": {
+              "type": "'user' | 'drive' | 'allDrives'",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<DriveFileList>"
+    },
+    "listFolder": {
+      "description": "List files within a specific folder.",
+      "parameters": {
+        "folderId": {
+          "type": "string",
+          "description": "The Drive folder ID"
+        },
+        "options": {
+          "type": "ListFilesOptions",
+          "description": "Pagination and filtering options",
+          "properties": {
+            "pageSize": {
+              "type": "number",
+              "description": ""
+            },
+            "pageToken": {
+              "type": "string",
+              "description": ""
+            },
+            "orderBy": {
+              "type": "string",
+              "description": ""
+            },
+            "fields": {
+              "type": "string",
+              "description": ""
+            },
+            "corpora": {
+              "type": "'user' | 'drive' | 'allDrives'",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "folderId"
+      ],
+      "returns": "Promise<DriveFileList>"
+    },
+    "browse": {
+      "description": "Browse a folder's contents, separating files from subfolders.",
+      "parameters": {
+        "folderId": {
+          "type": "string",
+          "description": "Folder ID to browse (defaults to 'root')"
+        }
+      },
+      "required": [],
+      "returns": "Promise<DriveBrowseResult>"
+    },
+    "search": {
+      "description": "Search files by name, content, or MIME type.",
+      "parameters": {
+        "term": {
+          "type": "string",
+          "description": "Search term to look for in file names and content"
+        },
+        "options": {
+          "type": "SearchOptions",
+          "description": "Additional search options like mimeType filter or folder restriction"
+        }
+      },
+      "required": [
+        "term"
+      ],
+      "returns": "Promise<DriveFileList>"
+    },
+    "getFile": {
+      "description": "Get file metadata by file ID.",
+      "parameters": {
+        "fileId": {
+          "type": "string",
+          "description": "The Drive file ID"
+        },
+        "fields": {
+          "type": "string",
+          "description": "Specific fields to request (defaults to common fields)"
+        }
+      },
+      "required": [
+        "fileId"
+      ],
+      "returns": "Promise<DriveFile>"
+    },
+    "download": {
+      "description": "Download a file's content as a Buffer. Uses alt=media for binary download of non-Google files.",
+      "parameters": {
+        "fileId": {
+          "type": "string",
+          "description": "The Drive file ID"
+        }
+      },
+      "required": [
+        "fileId"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "downloadTo": {
+      "description": "Download a file and save it to a local path.",
+      "parameters": {
+        "fileId": {
+          "type": "string",
+          "description": "The Drive file ID"
+        },
+        "localPath": {
+          "type": "string",
+          "description": "Local file path (resolved relative to container cwd)"
+        }
+      },
+      "required": [
+        "fileId",
+        "localPath"
+      ],
+      "returns": "Promise<string>"
+    },
+    "exportFile": {
+      "description": "Export a Google Workspace file (Docs, Sheets, Slides) to a given MIME type. Uses the Files.export endpoint.",
+      "parameters": {
+        "fileId": {
+          "type": "string",
+          "description": "The Drive file ID of a Google Workspace document"
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "Target MIME type (e.g. 'text/plain', 'application/pdf', 'text/csv')"
+        }
+      },
+      "required": [
+        "fileId",
+        "mimeType"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "listDrives": {
+      "description": "List all shared drives the user has access to.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<SharedDrive[]>"
+    }
+  },
+  "getters": {
+    "auth": {
+      "description": "Access the google-auth feature lazily.",
+      "returns": "GoogleAuth"
+    }
+  },
+  "events": {
+    "filesFetched": {
+      "name": "filesFetched",
+      "description": "Event emitted by GoogleDrive",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by GoogleDrive",
+      "arguments": {}
+    },
+    "fileDownloaded": {
+      "name": "fileDownloaded",
+      "description": "Event emitted by GoogleDrive",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -1509,6 +1886,105 @@ setBuildTimeData('features.grep', {
   "options": {}
 });
 
+setBuildTimeData('features.googleAuth', {
+  "id": "features.googleAuth",
+  "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
+  "shortcut": "features.googleAuth",
+  "methods": {
+    "getOAuth2Client": {
+      "description": "Get the OAuth2Client instance, creating it lazily. After authentication, this client has valid credentials set.",
+      "parameters": {},
+      "required": [],
+      "returns": "OAuth2Client"
+    },
+    "getAuthClient": {
+      "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2. For service accounts, returns the JWT auth client.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>"
+    },
+    "authorize": {
+      "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server",
+      "parameters": {
+        "scopes": {
+          "type": "string[]",
+          "description": "OAuth2 scopes to request (defaults to options.scopes or defaultScopes)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "authenticateServiceAccount": {
+      "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "tryRestoreTokens": {
+      "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "revoke": {
+      "description": "Revoke the current credentials and clear cached tokens.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "getters": {
+    "clientId": {
+      "description": "OAuth2 client ID from options or GOOGLE_CLIENT_ID env var.",
+      "returns": "string"
+    },
+    "clientSecret": {
+      "description": "OAuth2 client secret from options or GOOGLE_CLIENT_SECRET env var.",
+      "returns": "string"
+    },
+    "authMode": {
+      "description": "Resolved authentication mode based on options.",
+      "returns": "'oauth2' | 'service-account'"
+    },
+    "isAuthenticated": {
+      "description": "Whether valid credentials are currently available.",
+      "returns": "boolean"
+    },
+    "defaultScopes": {
+      "description": "Default scopes covering Drive, Sheets, Calendar, and Docs read access.",
+      "returns": "string[]"
+    },
+    "tokenCacheKey": {
+      "description": "DiskCache key used for storing the refresh token.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "tokenRefreshed": {
+      "name": "tokenRefreshed",
+      "description": "Event emitted by GoogleAuth",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by GoogleAuth",
+      "arguments": {}
+    },
+    "authorizationRequired": {
+      "name": "authorizationRequired",
+      "description": "Event emitted by GoogleAuth",
+      "arguments": {}
+    },
+    "authenticated": {
+      "name": "authenticated",
+      "description": "Event emitted by GoogleAuth",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
 setBuildTimeData('features.sqlite', {
   "id": "features.sqlite",
   "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
@@ -1945,6 +2421,183 @@ setBuildTimeData('features.vault', {
     }
   },
   "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.googleCalendar', {
+  "id": "features.googleCalendar",
+  "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
+  "shortcut": "features.googleCalendar",
+  "methods": {
+    "listCalendars": {
+      "description": "List all calendars accessible to the authenticated user.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<CalendarInfo[]>"
+    },
+    "listEvents": {
+      "description": "List events from a calendar within a time range.",
+      "parameters": {
+        "options": {
+          "type": "ListEventsOptions",
+          "description": "Filtering options including timeMin, timeMax, query, maxResults",
+          "properties": {
+            "calendarId": {
+              "type": "string",
+              "description": ""
+            },
+            "timeMin": {
+              "type": "string",
+              "description": ""
+            },
+            "timeMax": {
+              "type": "string",
+              "description": ""
+            },
+            "maxResults": {
+              "type": "number",
+              "description": ""
+            },
+            "query": {
+              "type": "string",
+              "description": ""
+            },
+            "orderBy": {
+              "type": "'startTime' | 'updated'",
+              "description": ""
+            },
+            "pageToken": {
+              "type": "string",
+              "description": ""
+            },
+            "singleEvents": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<CalendarEventList>"
+    },
+    "getToday": {
+      "description": "Get today's events from a calendar.",
+      "parameters": {
+        "calendarId": {
+          "type": "string",
+          "description": "Calendar ID (defaults to options.defaultCalendarId or 'primary')"
+        }
+      },
+      "required": [],
+      "returns": "Promise<CalendarEvent[]>"
+    },
+    "getUpcoming": {
+      "description": "Get upcoming events for the next N days.",
+      "parameters": {
+        "days": {
+          "type": "number",
+          "description": "Number of days to look ahead (default: 7)"
+        },
+        "calendarId": {
+          "type": "string",
+          "description": "Calendar ID"
+        }
+      },
+      "required": [],
+      "returns": "Promise<CalendarEvent[]>"
+    },
+    "getEvent": {
+      "description": "Get a single event by ID.",
+      "parameters": {
+        "eventId": {
+          "type": "string",
+          "description": "The event ID"
+        },
+        "calendarId": {
+          "type": "string",
+          "description": "Calendar ID"
+        }
+      },
+      "required": [
+        "eventId"
+      ],
+      "returns": "Promise<CalendarEvent>"
+    },
+    "searchEvents": {
+      "description": "Search events by text query across event summaries, descriptions, and locations.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Freetext search term"
+        },
+        "options": {
+          "type": "ListEventsOptions",
+          "description": "Additional listing options (timeMin, timeMax, calendarId, etc.)",
+          "properties": {
+            "calendarId": {
+              "type": "string",
+              "description": ""
+            },
+            "timeMin": {
+              "type": "string",
+              "description": ""
+            },
+            "timeMax": {
+              "type": "string",
+              "description": ""
+            },
+            "maxResults": {
+              "type": "number",
+              "description": ""
+            },
+            "query": {
+              "type": "string",
+              "description": ""
+            },
+            "orderBy": {
+              "type": "'startTime' | 'updated'",
+              "description": ""
+            },
+            "pageToken": {
+              "type": "string",
+              "description": ""
+            },
+            "singleEvents": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<CalendarEvent[]>"
+    }
+  },
+  "getters": {
+    "auth": {
+      "description": "Access the google-auth feature lazily.",
+      "returns": "GoogleAuth"
+    },
+    "defaultCalendarId": {
+      "description": "Default calendar ID from options or 'primary'.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "error": {
+      "name": "error",
+      "description": "Event emitted by GoogleCalendar",
+      "arguments": {}
+    },
+    "eventsFetched": {
+      "name": "eventsFetched",
+      "description": "Event emitted by GoogleCalendar",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -3083,6 +3736,145 @@ setBuildTimeData('portExposer', {
     "closed": {
       "name": "closed",
       "description": "Event emitted by PortExposer",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.googleSheets', {
+  "id": "features.googleSheets",
+  "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
+  "shortcut": "features.googleSheets",
+  "methods": {
+    "getSpreadsheet": {
+      "description": "Get spreadsheet metadata including title, locale, and sheet list.",
+      "parameters": {
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID (defaults to options.defaultSpreadsheetId)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<SpreadsheetMeta>"
+    },
+    "listSheets": {
+      "description": "List all sheets (tabs) in a spreadsheet.",
+      "parameters": {
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [],
+      "returns": "Promise<SheetInfo[]>"
+    },
+    "getRange": {
+      "description": "Read a range of values from a sheet.",
+      "parameters": {
+        "range": {
+          "type": "string",
+          "description": "A1 notation range (e.g. \"Sheet1!A1:D10\" or \"Sheet1\" for entire sheet)"
+        },
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [
+        "range"
+      ],
+      "returns": "Promise<string[][]>"
+    },
+    "getAsJson": {
+      "description": "Read a sheet as an array of JSON objects. The first row is treated as headers; subsequent rows become objects keyed by those headers.",
+      "parameters": {
+        "sheetName": {
+          "type": "string",
+          "description": "Name of the sheet tab (if omitted, reads the first sheet)"
+        },
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [],
+      "returns": "Promise<T[]>"
+    },
+    "getAsCsv": {
+      "description": "Read a sheet and return it as a CSV string.",
+      "parameters": {
+        "sheetName": {
+          "type": "string",
+          "description": "Name of the sheet tab (if omitted, reads the first sheet)"
+        },
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "saveAsJson": {
+      "description": "Download sheet data as JSON and save to a local file.",
+      "parameters": {
+        "localPath": {
+          "type": "string",
+          "description": "Local file path (resolved relative to container cwd)"
+        },
+        "sheetName": {
+          "type": "string",
+          "description": "Sheet tab name (defaults to first sheet)"
+        },
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [
+        "localPath"
+      ],
+      "returns": "Promise<string>"
+    },
+    "saveAsCsv": {
+      "description": "Download sheet data as CSV and save to a local file.",
+      "parameters": {
+        "localPath": {
+          "type": "string",
+          "description": "Local file path (resolved relative to container cwd)"
+        },
+        "sheetName": {
+          "type": "string",
+          "description": "Sheet tab name (defaults to first sheet)"
+        },
+        "spreadsheetId": {
+          "type": "string",
+          "description": "The spreadsheet ID"
+        }
+      },
+      "required": [
+        "localPath"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "getters": {
+    "auth": {
+      "description": "Access the google-auth feature lazily.",
+      "returns": "GoogleAuth"
+    }
+  },
+  "events": {
+    "error": {
+      "name": "error",
+      "description": "Event emitted by GoogleSheets",
+      "arguments": {}
+    },
+    "dataFetched": {
+      "name": "dataFetched",
+      "description": "Event emitted by GoogleSheets",
       "arguments": {}
     }
   },
@@ -4436,6 +5228,122 @@ setContainerBuildTimeData('NodeContainer', {
 });
 export const introspectionData = [
   {
+    "id": "features.googleDocs",
+    "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
+    "shortcut": "features.googleDocs",
+    "methods": {
+      "getDocument": {
+        "description": "Get the raw document structure from the Docs API.",
+        "parameters": {
+          "documentId": {
+            "type": "string",
+            "description": "The Google Docs document ID"
+          }
+        },
+        "required": [
+          "documentId"
+        ],
+        "returns": "Promise<docs_v1.Schema$Document>"
+      },
+      "getAsMarkdown": {
+        "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks.",
+        "parameters": {
+          "documentId": {
+            "type": "string",
+            "description": "The Google Docs document ID"
+          }
+        },
+        "required": [
+          "documentId"
+        ],
+        "returns": "Promise<string>"
+      },
+      "getAsText": {
+        "description": "Read a Google Doc as plain text (strips all formatting).",
+        "parameters": {
+          "documentId": {
+            "type": "string",
+            "description": "The Google Docs document ID"
+          }
+        },
+        "required": [
+          "documentId"
+        ],
+        "returns": "Promise<string>"
+      },
+      "saveAsMarkdown": {
+        "description": "Download a Google Doc as Markdown and save to a local file.",
+        "parameters": {
+          "documentId": {
+            "type": "string",
+            "description": "The Google Docs document ID"
+          },
+          "localPath": {
+            "type": "string",
+            "description": "Local file path (resolved relative to container cwd)"
+          }
+        },
+        "required": [
+          "documentId",
+          "localPath"
+        ],
+        "returns": "Promise<string>"
+      },
+      "listDocs": {
+        "description": "List Google Docs in Drive (filters by Docs MIME type).",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Optional additional Drive search query"
+          },
+          "options": {
+            "type": "{ pageSize?: number; pageToken?: string }",
+            "description": "Pagination options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<DriveFile[]>"
+      },
+      "searchDocs": {
+        "description": "Search for Google Docs by name or content.",
+        "parameters": {
+          "term": {
+            "type": "string",
+            "description": "Search term"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "returns": "Promise<DriveFile[]>"
+      }
+    },
+    "getters": {
+      "auth": {
+        "description": "Access the google-auth feature lazily.",
+        "returns": "GoogleAuth"
+      },
+      "drive": {
+        "description": "Access the google-drive feature lazily.",
+        "returns": "GoogleDrive"
+      }
+    },
+    "events": {
+      "documentFetched": {
+        "name": "documentFetched",
+        "description": "Event emitted by GoogleDocs",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by GoogleDocs",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "features.yamlTree",
     "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
     "shortcut": "features.yamlTree",
@@ -4999,6 +5907,23 @@ export const introspectionData = [
         ],
         "returns": "Promise<T>"
       },
+      "runSync": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "T"
+      },
       "perform": {
         "description": "",
         "parameters": {
@@ -5015,10 +5940,252 @@ export const introspectionData = [
           "code"
         ],
         "returns": "Promise<{ result: T, context: vm.Context }>"
+      },
+      "performSync": {
+        "description": "Executes JavaScript code synchronously and returns both the result and the execution context. Unlike `runSync`, this method also returns the context object, allowing you to inspect variables set during execution (e.g. `module.exports`). This is the synchronous equivalent of `perform()`.",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "The JavaScript code to execute"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Context variables to make available to the executing code"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "{ result: T, context: vm.Context }"
+      },
+      "loadModule": {
+        "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Absolute path to the module file to load"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Additional context variables to inject into the module's execution environment"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "Record<string, any>"
       }
     },
     "getters": {},
     "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.googleDrive",
+    "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
+    "shortcut": "features.googleDrive",
+    "methods": {
+      "listFiles": {
+        "description": "List files in the user's Drive with an optional query filter.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Drive search query (e.g. \"name contains 'report'\", \"mimeType='application/pdf'\")"
+          },
+          "options": {
+            "type": "ListFilesOptions",
+            "description": "Pagination and filtering options",
+            "properties": {
+              "pageSize": {
+                "type": "number",
+                "description": ""
+              },
+              "pageToken": {
+                "type": "string",
+                "description": ""
+              },
+              "orderBy": {
+                "type": "string",
+                "description": ""
+              },
+              "fields": {
+                "type": "string",
+                "description": ""
+              },
+              "corpora": {
+                "type": "'user' | 'drive' | 'allDrives'",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<DriveFileList>"
+      },
+      "listFolder": {
+        "description": "List files within a specific folder.",
+        "parameters": {
+          "folderId": {
+            "type": "string",
+            "description": "The Drive folder ID"
+          },
+          "options": {
+            "type": "ListFilesOptions",
+            "description": "Pagination and filtering options",
+            "properties": {
+              "pageSize": {
+                "type": "number",
+                "description": ""
+              },
+              "pageToken": {
+                "type": "string",
+                "description": ""
+              },
+              "orderBy": {
+                "type": "string",
+                "description": ""
+              },
+              "fields": {
+                "type": "string",
+                "description": ""
+              },
+              "corpora": {
+                "type": "'user' | 'drive' | 'allDrives'",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "folderId"
+        ],
+        "returns": "Promise<DriveFileList>"
+      },
+      "browse": {
+        "description": "Browse a folder's contents, separating files from subfolders.",
+        "parameters": {
+          "folderId": {
+            "type": "string",
+            "description": "Folder ID to browse (defaults to 'root')"
+          }
+        },
+        "required": [],
+        "returns": "Promise<DriveBrowseResult>"
+      },
+      "search": {
+        "description": "Search files by name, content, or MIME type.",
+        "parameters": {
+          "term": {
+            "type": "string",
+            "description": "Search term to look for in file names and content"
+          },
+          "options": {
+            "type": "SearchOptions",
+            "description": "Additional search options like mimeType filter or folder restriction"
+          }
+        },
+        "required": [
+          "term"
+        ],
+        "returns": "Promise<DriveFileList>"
+      },
+      "getFile": {
+        "description": "Get file metadata by file ID.",
+        "parameters": {
+          "fileId": {
+            "type": "string",
+            "description": "The Drive file ID"
+          },
+          "fields": {
+            "type": "string",
+            "description": "Specific fields to request (defaults to common fields)"
+          }
+        },
+        "required": [
+          "fileId"
+        ],
+        "returns": "Promise<DriveFile>"
+      },
+      "download": {
+        "description": "Download a file's content as a Buffer. Uses alt=media for binary download of non-Google files.",
+        "parameters": {
+          "fileId": {
+            "type": "string",
+            "description": "The Drive file ID"
+          }
+        },
+        "required": [
+          "fileId"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "downloadTo": {
+        "description": "Download a file and save it to a local path.",
+        "parameters": {
+          "fileId": {
+            "type": "string",
+            "description": "The Drive file ID"
+          },
+          "localPath": {
+            "type": "string",
+            "description": "Local file path (resolved relative to container cwd)"
+          }
+        },
+        "required": [
+          "fileId",
+          "localPath"
+        ],
+        "returns": "Promise<string>"
+      },
+      "exportFile": {
+        "description": "Export a Google Workspace file (Docs, Sheets, Slides) to a given MIME type. Uses the Files.export endpoint.",
+        "parameters": {
+          "fileId": {
+            "type": "string",
+            "description": "The Drive file ID of a Google Workspace document"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "Target MIME type (e.g. 'text/plain', 'application/pdf', 'text/csv')"
+          }
+        },
+        "required": [
+          "fileId",
+          "mimeType"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "listDrives": {
+        "description": "List all shared drives the user has access to.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<SharedDrive[]>"
+      }
+    },
+    "getters": {
+      "auth": {
+        "description": "Access the google-auth feature lazily.",
+        "returns": "GoogleAuth"
+      }
+    },
+    "events": {
+      "filesFetched": {
+        "name": "filesFetched",
+        "description": "Event emitted by GoogleDrive",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by GoogleDrive",
+        "arguments": {}
+      },
+      "fileDownloaded": {
+        "name": "fileDownloaded",
+        "description": "Event emitted by GoogleDrive",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -5927,6 +7094,104 @@ export const introspectionData = [
     "options": {}
   },
   {
+    "id": "features.googleAuth",
+    "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
+    "shortcut": "features.googleAuth",
+    "methods": {
+      "getOAuth2Client": {
+        "description": "Get the OAuth2Client instance, creating it lazily. After authentication, this client has valid credentials set.",
+        "parameters": {},
+        "required": [],
+        "returns": "OAuth2Client"
+      },
+      "getAuthClient": {
+        "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2. For service accounts, returns the JWT auth client.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>"
+      },
+      "authorize": {
+        "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server",
+        "parameters": {
+          "scopes": {
+            "type": "string[]",
+            "description": "OAuth2 scopes to request (defaults to options.scopes or defaultScopes)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "authenticateServiceAccount": {
+        "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "tryRestoreTokens": {
+        "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "revoke": {
+        "description": "Revoke the current credentials and clear cached tokens.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "getters": {
+      "clientId": {
+        "description": "OAuth2 client ID from options or GOOGLE_CLIENT_ID env var.",
+        "returns": "string"
+      },
+      "clientSecret": {
+        "description": "OAuth2 client secret from options or GOOGLE_CLIENT_SECRET env var.",
+        "returns": "string"
+      },
+      "authMode": {
+        "description": "Resolved authentication mode based on options.",
+        "returns": "'oauth2' | 'service-account'"
+      },
+      "isAuthenticated": {
+        "description": "Whether valid credentials are currently available.",
+        "returns": "boolean"
+      },
+      "defaultScopes": {
+        "description": "Default scopes covering Drive, Sheets, Calendar, and Docs read access.",
+        "returns": "string[]"
+      },
+      "tokenCacheKey": {
+        "description": "DiskCache key used for storing the refresh token.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "tokenRefreshed": {
+        "name": "tokenRefreshed",
+        "description": "Event emitted by GoogleAuth",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by GoogleAuth",
+        "arguments": {}
+      },
+      "authorizationRequired": {
+        "name": "authorizationRequired",
+        "description": "Event emitted by GoogleAuth",
+        "arguments": {}
+      },
+      "authenticated": {
+        "name": "authenticated",
+        "description": "Event emitted by GoogleAuth",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
     "id": "features.sqlite",
     "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
     "shortcut": "features.sqlite",
@@ -6358,6 +7623,182 @@ export const introspectionData = [
       }
     },
     "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.googleCalendar",
+    "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
+    "shortcut": "features.googleCalendar",
+    "methods": {
+      "listCalendars": {
+        "description": "List all calendars accessible to the authenticated user.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<CalendarInfo[]>"
+      },
+      "listEvents": {
+        "description": "List events from a calendar within a time range.",
+        "parameters": {
+          "options": {
+            "type": "ListEventsOptions",
+            "description": "Filtering options including timeMin, timeMax, query, maxResults",
+            "properties": {
+              "calendarId": {
+                "type": "string",
+                "description": ""
+              },
+              "timeMin": {
+                "type": "string",
+                "description": ""
+              },
+              "timeMax": {
+                "type": "string",
+                "description": ""
+              },
+              "maxResults": {
+                "type": "number",
+                "description": ""
+              },
+              "query": {
+                "type": "string",
+                "description": ""
+              },
+              "orderBy": {
+                "type": "'startTime' | 'updated'",
+                "description": ""
+              },
+              "pageToken": {
+                "type": "string",
+                "description": ""
+              },
+              "singleEvents": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<CalendarEventList>"
+      },
+      "getToday": {
+        "description": "Get today's events from a calendar.",
+        "parameters": {
+          "calendarId": {
+            "type": "string",
+            "description": "Calendar ID (defaults to options.defaultCalendarId or 'primary')"
+          }
+        },
+        "required": [],
+        "returns": "Promise<CalendarEvent[]>"
+      },
+      "getUpcoming": {
+        "description": "Get upcoming events for the next N days.",
+        "parameters": {
+          "days": {
+            "type": "number",
+            "description": "Number of days to look ahead (default: 7)"
+          },
+          "calendarId": {
+            "type": "string",
+            "description": "Calendar ID"
+          }
+        },
+        "required": [],
+        "returns": "Promise<CalendarEvent[]>"
+      },
+      "getEvent": {
+        "description": "Get a single event by ID.",
+        "parameters": {
+          "eventId": {
+            "type": "string",
+            "description": "The event ID"
+          },
+          "calendarId": {
+            "type": "string",
+            "description": "Calendar ID"
+          }
+        },
+        "required": [
+          "eventId"
+        ],
+        "returns": "Promise<CalendarEvent>"
+      },
+      "searchEvents": {
+        "description": "Search events by text query across event summaries, descriptions, and locations.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Freetext search term"
+          },
+          "options": {
+            "type": "ListEventsOptions",
+            "description": "Additional listing options (timeMin, timeMax, calendarId, etc.)",
+            "properties": {
+              "calendarId": {
+                "type": "string",
+                "description": ""
+              },
+              "timeMin": {
+                "type": "string",
+                "description": ""
+              },
+              "timeMax": {
+                "type": "string",
+                "description": ""
+              },
+              "maxResults": {
+                "type": "number",
+                "description": ""
+              },
+              "query": {
+                "type": "string",
+                "description": ""
+              },
+              "orderBy": {
+                "type": "'startTime' | 'updated'",
+                "description": ""
+              },
+              "pageToken": {
+                "type": "string",
+                "description": ""
+              },
+              "singleEvents": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<CalendarEvent[]>"
+      }
+    },
+    "getters": {
+      "auth": {
+        "description": "Access the google-auth feature lazily.",
+        "returns": "GoogleAuth"
+      },
+      "defaultCalendarId": {
+        "description": "Default calendar ID from options or 'primary'.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "error": {
+        "name": "error",
+        "description": "Event emitted by GoogleCalendar",
+        "arguments": {}
+      },
+      "eventsFetched": {
+        "name": "eventsFetched",
+        "description": "Event emitted by GoogleCalendar",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -7488,6 +8929,144 @@ export const introspectionData = [
       "closed": {
         "name": "closed",
         "description": "Event emitted by PortExposer",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.googleSheets",
+    "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
+    "shortcut": "features.googleSheets",
+    "methods": {
+      "getSpreadsheet": {
+        "description": "Get spreadsheet metadata including title, locale, and sheet list.",
+        "parameters": {
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID (defaults to options.defaultSpreadsheetId)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<SpreadsheetMeta>"
+      },
+      "listSheets": {
+        "description": "List all sheets (tabs) in a spreadsheet.",
+        "parameters": {
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [],
+        "returns": "Promise<SheetInfo[]>"
+      },
+      "getRange": {
+        "description": "Read a range of values from a sheet.",
+        "parameters": {
+          "range": {
+            "type": "string",
+            "description": "A1 notation range (e.g. \"Sheet1!A1:D10\" or \"Sheet1\" for entire sheet)"
+          },
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [
+          "range"
+        ],
+        "returns": "Promise<string[][]>"
+      },
+      "getAsJson": {
+        "description": "Read a sheet as an array of JSON objects. The first row is treated as headers; subsequent rows become objects keyed by those headers.",
+        "parameters": {
+          "sheetName": {
+            "type": "string",
+            "description": "Name of the sheet tab (if omitted, reads the first sheet)"
+          },
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [],
+        "returns": "Promise<T[]>"
+      },
+      "getAsCsv": {
+        "description": "Read a sheet and return it as a CSV string.",
+        "parameters": {
+          "sheetName": {
+            "type": "string",
+            "description": "Name of the sheet tab (if omitted, reads the first sheet)"
+          },
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "saveAsJson": {
+        "description": "Download sheet data as JSON and save to a local file.",
+        "parameters": {
+          "localPath": {
+            "type": "string",
+            "description": "Local file path (resolved relative to container cwd)"
+          },
+          "sheetName": {
+            "type": "string",
+            "description": "Sheet tab name (defaults to first sheet)"
+          },
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [
+          "localPath"
+        ],
+        "returns": "Promise<string>"
+      },
+      "saveAsCsv": {
+        "description": "Download sheet data as CSV and save to a local file.",
+        "parameters": {
+          "localPath": {
+            "type": "string",
+            "description": "Local file path (resolved relative to container cwd)"
+          },
+          "sheetName": {
+            "type": "string",
+            "description": "Sheet tab name (defaults to first sheet)"
+          },
+          "spreadsheetId": {
+            "type": "string",
+            "description": "The spreadsheet ID"
+          }
+        },
+        "required": [
+          "localPath"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "getters": {
+      "auth": {
+        "description": "Access the google-auth feature lazily.",
+        "returns": "GoogleAuth"
+      }
+    },
+    "events": {
+      "error": {
+        "name": "error",
+        "description": "Event emitted by GoogleSheets",
+        "arguments": {}
+      },
+      "dataFetched": {
+        "name": "dataFetched",
+        "description": "Event emitted by GoogleSheets",
         "arguments": {}
       }
     },
