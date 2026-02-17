@@ -1,5 +1,5 @@
 ---
-status: pending
+status: approved
 ---
 
 # Add Google Integration Features
