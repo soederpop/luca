@@ -24,18 +24,30 @@ export default async function lucaConsole(_options: z.infer<typeof argsSchema>, 
 
 	// Load user console module if present
 	const consoleModulePath = container.paths.resolve('luca.console.ts')
+	let consoleModuleLoaded = false
+	let consoleModuleError: Error | null = null
+
 	if (container.fs.exists(consoleModulePath)) {
-		const vmFeature = container.feature('vm')
-		const userExports = vmFeature.loadModule(consoleModulePath, { container, console })
-		Object.assign(featureContext, userExports)
+		try {
+			const vmFeature = container.feature('vm')
+			const userExports = vmFeature.loadModule(consoleModulePath, { container, console })
+			Object.assign(featureContext, userExports)
+			consoleModuleLoaded = true
+		} catch (err: any) {
+			consoleModuleError = err
+		}
 	}
 
 	const prompt = ui.colors.cyan('luca') + ui.colors.dim(' > ')
 
 	console.log()
 	console.log(ui.colors.dim('  Luca REPL — all container features in scope. Tab to autocomplete.'))
-	if (container.fs.exists(consoleModulePath)) {
+	if (consoleModuleLoaded) {
 		console.log(ui.colors.dim('  Loaded luca.console.ts exports into scope.'))
+	} else if (consoleModuleError) {
+		console.log(ui.colors.yellow('  ⚠ Failed to load luca.console.ts:'))
+		console.log(ui.colors.yellow(`    ${consoleModuleError.message}`))
+		console.log(ui.colors.dim('  The REPL will start without your custom exports.'))
 	}
 	console.log(ui.colors.dim('  Type .exit to quit.'))
 	console.log()

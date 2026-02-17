@@ -7,7 +7,6 @@ declare global {
 }
 
 export function created() {
-	console.log('created hook fired', me.contentDb.uuid, me.uuid)
 	me.contentDb.defineModel(({ defineModel }) => {
 		return defineModel('Plan', {
 			prefix: 'plans',
@@ -26,6 +25,12 @@ export function created() {
 				references: section('References', {
 					extract: (query) => query.selectAll('listItem').map((n: any) => toString(n)),
 					schema: z.array(z.string()),
+					alternatives: ['Reference Sources', 'Resources'],
+				}),
+				verification: section('Test plan', {
+					extract: (query) => query.selectAll('listItem').map((n: any) => toString(n)),
+					schema: z.array(z.string()),
+					alternatives: ['Validation'],
 				}),
 			}
 		})
