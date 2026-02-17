@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { createRequire } from 'module'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
 import { Feature, features } from "../feature.js";
@@ -150,11 +151,86 @@ export class VM<
     return (await script.runInContext(context)) as T
   }
 
+  /*
+   * Executes JavaScript code in a controlled environment synchronously.
+   * @param {string} code - The JavaScript code to execute
+   * @param {any} [ctx={}] - Context variables to make available to the executing code
+   * @returns {any} The result of the code execution, or an Error object if execution failed
+  */
+  runSync<T extends any = any>(code: string, ctx: any = {}): T {
+    const script = this.createScript(code)
+    const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
+
+    return script.runInContext(context) as T
+  }
+
   async perform<T extends any>(code: string, ctx: any = {}): Promise<{ result: T, context: vm.Context }> {
     const script = this.createScript(code)
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return { result: (await script.runInContext(context)) as T, context }
+  }
+
+  /**
+   * Executes JavaScript code synchronously and returns both the result and the execution context.
+   *
+   * Unlike `runSync`, this method also returns the context object, allowing you to inspect
+   * variables set during execution (e.g. `module.exports`). This is the synchronous equivalent
+   * of `perform()`.
+   *
+   * @param {string} code - The JavaScript code to execute
+   * @param {any} [ctx={}] - Context variables to make available to the executing code
+   * @returns {{ result: T, context: vm.Context }} The execution result and the context object
+   *
+   * @example
+   * ```typescript
+   * const { result, context } = vm.performSync(code, {
+   *   exports: {},
+   *   module: { exports: {} },
+   * })
+   * const moduleExports = context.module?.exports || context.exports
+   * ```
+   */
+  performSync<T extends any = any>(code: string, ctx: any = {}): { result: T, context: vm.Context } {
+    const script = this.createScript(code)
+    const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
+
+    return { result: script.runInContext(context) as T, context }
+  }
+
+  /**
+   * Synchronously loads a JavaScript/TypeScript module from a file path, executing it
+   * in an isolated VM context and returning its exports. The module gets `require`,
+   * `exports`, and `module` globals automatically, plus any additional context you provide.
+   *
+   * @param {string} filePath - Absolute path to the module file to load
+   * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
+   * @returns {Record<string, any>} The module's exports (from `module.exports` or `exports`)
+   *
+   * @example
+   * ```typescript
+   * const vm = container.feature('vm')
+   *
+   * // Load a tools module, injecting the container
+   * const tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })
+   * // tools.myFunction, tools.schemas, etc.
+   * ```
+   */
+  loadModule(filePath: string, ctx: any = {}): Record<string, any> {
+    const { fs } = this.container
+
+    if (!fs.exists(filePath)) return {}
+
+    const code = fs.readFile(filePath)
+
+    const { context } = this.performSync(code, {
+      require: createRequire(filePath),
+      exports: {},
+      module: { exports: {} },
+      ...ctx,
+    })
+
+    return context.module?.exports || context.exports || {}
   }
 }
 
