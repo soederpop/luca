@@ -70,7 +70,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'  container.clients.describe(n)   — get docs for a client by name',
 			'  container.inspectAsText()       — full container introspection',
 			'  fs.readFile(path)               — read a file',
-			'  fs.list(dir)                    — list directory contents',
+			'  fs.readdir(dir)                 — list directory contents',
 			'  proc.exec(cmd)                  — run a shell command',
 		].join('\n'),
 		schema: z.object({
@@ -146,7 +146,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				'All enabled features are available as top-level variables:',
 				'```',
 				'fs.readFile("package.json")            // Read a file',
-				'fs.list("src")                         // List directory',
+				'fs.readdir("src")                         // List directory',
 				'git.log({ max: 5 })                    // Recent git commits',
 				'proc.exec("ls -la")                    // Run a shell command',
 				'```',
