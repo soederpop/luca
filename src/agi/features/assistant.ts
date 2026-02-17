@@ -15,6 +15,7 @@ declare module '@/feature' {
 }
 
 export const AssistantEventsSchema = FeatureEventsSchema.extend({
+	created: z.tuple([]).describe('Emitted immediately after the assistant loads its prompt, tools, and hooks. Use this to register models on the contentDb before start() loads documents.'),
 	started: z.tuple([]).describe('Emitted when the assistant has been initialized'),
 	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Emitted when a new completion turn begins. isFollowUp is true when resuming after tool calls'),
 	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Emitted when a completion turn ends. hasToolCalls indicates whether tool calls will follow'),
@@ -126,9 +127,37 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	conversation?: Conversation
 	docsReader?: DocsReader
 
+	/** The content database for the assistant's docs/ folder. Available after initialization, before start(). */
+	contentDb?: ContentDb
+
 	private _tools: Record<string, ConversationTool> = {}
 	private _hooks: Record<string, (...args: any[]) => any> = {}
 	private _systemPrompt: string = ''
+
+	/**
+	 * Called immediately after the assistant is constructed. Synchronously loads
+	 * the system prompt, tools, and hooks using the VM's runSync, creates the
+	 * contentDb if a docs/ folder exists, then fires the `created` hook.
+	 */
+	override afterInitialize() {
+		// Load system prompt synchronously
+		this._systemPrompt = this.loadSystemPrompt()
+
+		// Load tools and hooks synchronously via vm.performSync
+		this._tools = this.loadTools()
+		this._hooks = this.loadHooks()
+
+		// Create the contentDb eagerly if docs folder exists (no loading yet)
+		if (this.container.fs.exists(this.docsFolder)) {
+			this.contentDb = this.container.feature('contentDb', {
+				rootPath: this.docsFolder,
+			}) as ContentDb
+		}
+
+		// Fire created hook — consumers can register models on contentDb here
+		this.emit('created')
+		this.fireHook('created')
+	}
 
 	/** Whether the assistant has been started and is ready to receive questions. */
 	get isStarted(): boolean {
@@ -172,28 +201,20 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/**
 	 * Load tools from tools.ts using the container's VM feature, injecting
 	 * the container and assistant as globals. Merges with any tools
-	 * provided in the constructor options.
+	 * provided in the constructor options. Runs synchronously via vm.loadModule.
 	 *
-	 * @returns {Promise<Record<string, ConversationTool>>} The assembled tool map
+	 * @returns {Record<string, ConversationTool>} The assembled tool map
 	 */
-	async loadTools(): Promise<Record<string, ConversationTool>> {
+	loadTools(): Record<string, ConversationTool> {
 		const tools: Record<string, ConversationTool> = {}
+		const vm = this.container.feature('vm')
 
-		const { fs } = this.container
+		const moduleExports = vm.loadModule(this.toolsModulePath, {
+			container: this.container,
+			me: this,
+		})
 
-		if (fs.exists(this.toolsModulePath)) {
-			const code = fs.readFile(this.toolsModulePath)
-			const vm = this.container.feature('vm')
-
-			const { context } = await vm.perform(code, {
-				container: this.container,
-				me: this,
-				require: (await import('module')).createRequire(this.toolsModulePath),
-				exports: {},
-				module: { exports: {} },
-			})
-
-			const moduleExports = context.module?.exports || context.exports || {}
+		if (Object.keys(moduleExports).length) {
 			const schemas: Record<string, z.ZodType> = moduleExports.schemas || {}
 
 			for (const [name, fn] of Object.entries(moduleExports)) {
@@ -256,33 +277,22 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/**
 	 * Load event hooks from hooks.ts. Each exported function name should
 	 * match an event the assistant emits. When that event fires, the
-	 * corresponding hook function is called.
+	 * corresponding hook function is called. Runs synchronously via vm.loadModule.
 	 *
-	 * @returns {Promise<Record<string, Function>>} The hook function map
+	 * @returns {Record<string, Function>} The hook function map
 	 */
-	async loadHooks(): Promise<Record<string, (...args: any[]) => any>> {
+	loadHooks(): Record<string, (...args: any[]) => any> {
 		const hooks: Record<string, (...args: any[]) => any> = {}
+		const vm = this.container.feature('vm')
 
-		const { fs } = this.container
+		const moduleExports = vm.loadModule(this.hooksModulePath, {
+			container: this.container,
+			me: this,
+		})
 
-		if (fs.exists(this.hooksModulePath)) {
-			const code = fs.readFile(this.hooksModulePath)
-			const vm = this.container.feature('vm')
-
-			const { context } = await vm.perform(code, {
-				container: this.container,
-				me: this,
-				require: (await import('module')).createRequire(this.hooksModulePath),
-				exports: {},
-				module: { exports: {} },
-			})
-
-			const moduleExports = context.module?.exports || context.exports || {}
-
-			for (const [name, fn] of Object.entries(moduleExports)) {
-				if (name === 'default' || typeof fn !== 'function') continue
-				hooks[name] = fn as (...args: any[]) => any
-			}
+		for (const [name, fn] of Object.entries(moduleExports)) {
+			if (name === 'default' || typeof fn !== 'function') continue
+			hooks[name] = fn as (...args: any[]) => any
 		}
 
 		return hooks
@@ -290,19 +300,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/**
 	 * Initialize the DocsReader for the assistant's docs/ folder,
-	 * providing the researchInternalDocs tool.
+	 * using the contentDb created during initialization. This loads
+	 * documents and sets up the research tools.
 	 *
-	 * @returns {Promise<DocsReader | undefined>} The docs reader, or undefined if no docs folder exists
+	 * @returns {Promise<DocsReader | undefined>} The docs reader, or undefined if no contentDb exists
 	 */
 	async initDocsReader(): Promise<DocsReader | undefined> {
-		if (!this.container.fs.exists(this.docsFolder)) return undefined
-
-		const contentDb = this.container.feature('contentDb', {
-			rootPath: this.docsFolder,
-		}) as ContentDb
+		if (!this.contentDb) return undefined
 
 		const docsReader = this.container.feature('docsReader', {
-			contentDb,
+			contentDb: this.contentDb,
 			model: this.options.model,
 		})
 
@@ -435,26 +442,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
-	 * Start the assistant by loading the system prompt, tools, uooks, and docs reader,
-	 * then creating the underlying conversation.
+	 * Start the assistant by loading the docs reader, creating the conversation,
+	 * and wiring up events. The system prompt, tools, hooks, and contentDb are
+	 * already loaded synchronously during initialization.
 	 *
 	 * @returns {Promise<this>} The initialized assistant
 	 */
 	async start(): Promise<this> {
-		// Load system prompt
-		this._systemPrompt = this.loadSystemPrompt()
-
-		this.emit('systemPromptLoaded', this._systemPrompt)
-
-		// Load tools from tools.ts and options
-		this._tools = await this.loadTools()
-		this.emit('toolsLoaded')
-
-		// Load hooks from hooks.ts
-		this._hooks = await this.loadHooks()
-		this.emit('hooksLoaded')
-
-		// Initialize the docs reader for internal docs
+		// Initialize the docs reader using the eagerly-created contentDb
 		this.docsReader = await this.initDocsReader()
 
 		// Add docs tools and table of contents if docs are available
@@ -532,7 +527,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	private bindHooks() {
 		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
 			// Only bind hooks that aren't already forwarded from conversation events
-			const forwardedEvents = ['chunk', 'preview', 'response', 'toolCall', 'toolResult', 'toolError', 'started']
+			const forwardedEvents = ['created', 'chunk', 'preview', 'response', 'toolCall', 'toolResult', 'toolError', 'started']
 			if (!forwardedEvents.includes(eventName)) {
 				this.on(eventName as any, (...args: any[]) => {
 					this.emit('hookFired', eventName)
