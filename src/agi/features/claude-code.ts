@@ -95,6 +95,29 @@ export interface ClaudeSession {
   process?: Subprocess
 }
 
+// --- MCP server config types ---
+
+export interface McpStdioServer {
+  type: 'stdio'
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+}
+
+export interface McpHttpServer {
+  type: 'http'
+  url: string
+  headers?: Record<string, string>
+}
+
+export interface McpSseServer {
+  type: 'sse'
+  url: string
+  headers?: Record<string, string>
+}
+
+export type McpServerConfig = McpStdioServer | McpHttpServer | McpSseServer
+
 // --- Feature state and options ---
 
 export const ClaudeCodeStateSchema = FeatureStateSchema.extend({
@@ -127,8 +150,10 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   disallowedTools: z.array(z.string()).optional().describe('Default disallowed tools for sessions'),
   /** Whether to stream partial messages (token-by-token). Defaults to false. */
   streaming: z.boolean().optional().describe('Whether to stream partial messages token-by-token'),
-  /** MCP config paths or JSON strings to pass to sessions. */
-  mcpConfig: z.array(z.string()).optional().describe('MCP config paths or JSON strings to pass to sessions'),
+  /** MCP config file paths to pass to sessions. */
+  mcpConfig: z.array(z.string()).optional().describe('MCP config file paths to pass to sessions'),
+  /** MCP servers to inject into sessions, keyed by server name. Automatically written to a temp config file. */
+  mcpServers: z.record(z.string(), z.any()).optional().describe('MCP server configs keyed by name, injected into sessions via temp config file'),
 })
 
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
@@ -157,8 +182,10 @@ export interface RunOptions {
   continue?: boolean
   /** Additional directories to allow tool access to. */
   addDirs?: string[]
-  /** MCP config paths or JSON strings. */
+  /** MCP config file paths. */
   mcpConfig?: string[]
+  /** MCP servers to inject, keyed by server name. */
+  mcpServers?: Record<string, McpServerConfig>
   /** Skip all permission checks (only for sandboxed environments). */
   dangerouslySkipPermissions?: boolean
   /** Additional arbitrary CLI flags. */
@@ -251,14 +278,40 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     }
   }
 
+  /** Tracks temp MCP config files created for cleanup */
+  private mcpTempFiles: string[] = []
+
+  /**
+   * Write an MCP server config map to a temp file suitable for `--mcp-config`.
+   *
+   * @param {Record<string, McpServerConfig>} servers - Server configs keyed by name
+   * @returns {Promise<string>} Path to the generated temp config file
+   *
+   * @example
+   * ```typescript
+   * const configPath = await cc.writeMcpConfig({
+   *   'my-api': { type: 'http', url: 'https://api.example.com/mcp' },
+   *   'local-tool': { type: 'stdio', command: 'bun', args: ['run', 'server.ts'] }
+   * })
+   * ```
+   */
+  async writeMcpConfig(servers: Record<string, McpServerConfig>): Promise<string> {
+    const config = { mcpServers: servers }
+    const tmpDir = process.env.TMPDIR || '/tmp'
+    const tmpPath = `${tmpDir}/luca-mcp-${crypto.randomUUID()}.json`
+    await Bun.write(tmpPath, JSON.stringify(config, null, 2))
+    this.mcpTempFiles.push(tmpPath)
+    return tmpPath
+  }
+
   /**
    * Build the argument array for a claude CLI invocation.
    *
    * @param {string} prompt - The prompt text
    * @param {RunOptions} options - Session options
-   * @returns {string[]} CLI arguments
+   * @returns {Promise<string[]>} CLI arguments
    */
-  private buildArgs(prompt: string, options: RunOptions = {}): string[] {
+  private async buildArgs(prompt: string, options: RunOptions = {}): Promise<string[]> {
     const args: string[] = ['-p', '--output-format', 'stream-json', '--verbose']
 
     const streaming = options.streaming ?? this.options.streaming ?? false
@@ -284,8 +337,23 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const disallowedTools = options.disallowedTools ?? this.options.disallowedTools
     if (disallowedTools?.length) args.push('--disallowed-tools', ...disallowedTools)
 
+    // Collect all --mcp-config paths
+    const configPaths: string[] = []
+
     const mcpConfig = options.mcpConfig ?? this.options.mcpConfig
-    if (mcpConfig?.length) args.push('--mcp-config', ...mcpConfig)
+    if (mcpConfig?.length) configPaths.push(...mcpConfig)
+
+    // Merge mcpServers from feature-level defaults and per-session overrides
+    const defaultServers = this.options.mcpServers as Record<string, McpServerConfig> | undefined
+    const sessionServers = options.mcpServers
+    const mergedServers = { ...defaultServers, ...sessionServers }
+
+    if (Object.keys(mergedServers).length > 0) {
+      const tmpPath = await this.writeMcpConfig(mergedServers)
+      configPaths.push(tmpPath)
+    }
+
+    if (configPaths.length) args.push('--mcp-config', ...configPaths)
 
     if (options.resumeSessionId) args.push('--resume', options.resumeSessionId)
     if (options.continue) args.push('--continue')
@@ -418,6 +486,14 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    *   streaming: true
    * })
    *
+   * // With injected MCP servers
+   * const session = await cc.run('Use the database tools to list tables', {
+   *   mcpServers: {
+   *     'db-tools': { type: 'stdio', command: 'bun', args: ['run', 'db-mcp.ts'] },
+   *     'api': { type: 'http', url: 'https://api.example.com/mcp' }
+   *   }
+   * })
+   *
    * // Resume a previous session
    * const session = await cc.run('Now add tests for that', {
    *   resumeSessionId: previousSession.sessionId
@@ -426,7 +502,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    */
   async run(prompt: string, options: RunOptions = {}): Promise<ClaudeSession> {
     const id = this.createSessionId()
-    const args = this.buildArgs(prompt, options)
+    const args = await this.buildArgs(prompt, options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
 
     const session: ClaudeSession = {
@@ -534,9 +610,9 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    * })
    * ```
    */
-  start(prompt: string, options: RunOptions = {}): string {
+  async start(prompt: string, options: RunOptions = {}): Promise<string> {
     const id = this.createSessionId()
-    const args = this.buildArgs(prompt, options)
+    const args = await this.buildArgs(prompt, options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
 
     const session: ClaudeSession = {
@@ -698,6 +774,17 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       this.on('session:result', handler)
       this.on('session:error', handler)
     })
+  }
+
+  /**
+   * Clean up any temp MCP config files created during sessions.
+   */
+  async cleanupMcpTempFiles(): Promise<void> {
+    const { unlink } = await import('node:fs/promises')
+    for (const path of this.mcpTempFiles) {
+      try { await unlink(path) } catch { /* already gone */ }
+    }
+    this.mcpTempFiles = []
   }
 
   /**
