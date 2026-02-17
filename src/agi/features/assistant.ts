@@ -127,13 +127,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	conversation?: Conversation
 	docsReader?: DocsReader
 
-	/** The content database for the assistant's docs/ folder. Available after initialization, before start(). */
-	contentDb?: ContentDb
-
 	private _tools: Record<string, ConversationTool> = {}
 	private _hooks: Record<string, (...args: any[]) => any> = {}
 	private _systemPrompt: string = ''
 
+	get contentDb(): ContentDb {
+		return this.container.feature('contentDb', {
+			rootPath: this.docsFolder,
+		}) as ContentDb
+	}
+	
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
 	 * the system prompt, tools, and hooks using the VM's runSync, creates the
@@ -146,13 +149,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Load tools and hooks synchronously via vm.performSync
 		this._tools = this.loadTools()
 		this._hooks = this.loadHooks()
-
-		// Create the contentDb eagerly if docs folder exists (no loading yet)
-		if (this.container.fs.exists(this.docsFolder)) {
-			this.contentDb = this.container.feature('contentDb', {
-				rootPath: this.docsFolder,
-			}) as ContentDb
-		}
 
 		// Fire created hook — consumers can register models on contentDb here
 		this.emit('created')
@@ -212,6 +208,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const moduleExports = vm.loadModule(this.toolsModulePath, {
 			container: this.container,
 			me: this,
+			my: this,
+			assistant: this,
+			console: console,
 		})
 
 		if (Object.keys(moduleExports).length) {
@@ -288,6 +287,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const moduleExports = vm.loadModule(this.hooksModulePath, {
 			container: this.container,
 			me: this,
+			my: this,
+			assistant: this,
+			console: console,
 		})
 
 		for (const [name, fn] of Object.entries(moduleExports)) {
@@ -310,7 +312,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		const docsReader = this.container.feature('docsReader', {
 			contentDb: this.contentDb,
-			model: this.options.model,
+			model: this.options.model || "gpt-5",
 		})
 
 		await docsReader.start()
@@ -545,6 +547,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	private fireHook(eventName: string, ...args: any[]) {
 		const hook = this._hooks[eventName]
+
 		if (hook) {
 			this.emit('hookFired', eventName)
 			try {
@@ -552,6 +555,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 					.catch((err) => {
 						this.emit('hookError', eventName, err)
 						this.fireHook('hookError', eventName, err)
+						console.error('Assistant hook error', eventName, err)
 					})
 					.then(() => {
 						this.emit('hookCompleted', eventName)

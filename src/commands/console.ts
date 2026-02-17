@@ -22,10 +22,21 @@ export default async function lucaConsole(_options: z.infer<typeof argsSchema>, 
 		} catch {}
 	}
 
+	// Load user console module if present
+	const consoleModulePath = container.paths.resolve('luca.console.ts')
+	if (container.fs.exists(consoleModulePath)) {
+		const vmFeature = container.feature('vm')
+		const userExports = vmFeature.loadModule(consoleModulePath, { container, console })
+		Object.assign(featureContext, userExports)
+	}
+
 	const prompt = ui.colors.cyan('luca') + ui.colors.dim(' > ')
 
 	console.log()
 	console.log(ui.colors.dim('  Luca REPL — all container features in scope. Tab to autocomplete.'))
+	if (container.fs.exists(consoleModulePath)) {
+		console.log(ui.colors.dim('  Loaded luca.console.ts exports into scope.'))
+	}
 	console.log(ui.colors.dim('  Type .exit to quit.'))
 	console.log()
 
