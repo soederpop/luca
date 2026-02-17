@@ -35,7 +35,7 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "index.ts", "scripts/**/*.ts"],
+  "include": ["*.ts", "src/**/*.ts", "src/**/*.tsx", "index.ts", "scripts/**/*.ts", "assistants/**/*.ts"],
   "exclude": [
     "playground/**",
     "docs/**",

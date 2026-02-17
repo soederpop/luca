@@ -40,5 +40,6 @@ for (const plan of plans) {
 	console.log('Meta:', plan.meta)
 	console.log('Summary:', plan.sections.summary)
 	console.log('Steps:', plan.sections.steps)
+	console.log('Verification:', plan.sections.verification)
 	console.log('References:', plan.sections.references)
 }

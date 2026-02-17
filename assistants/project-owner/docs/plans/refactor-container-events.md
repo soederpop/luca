@@ -16,6 +16,13 @@ Replace the current EventEmitter-based eventing in the container with a typed, s
 - [ ] Update all features to use the new typed event API
 - [ ] Run full test suite and fix any regressions
 
+## Test plan
+
+- [ ] All existing event listeners still fire correctly
+- [ ] Invalid payloads throw validation errors at emit time
+- [ ] Event autocomplete works in IDE for all core events
+- [ ] No performance regression in event-heavy test scenarios
+
 ## References
 
 - [Zod Documentation](https://zod.dev)

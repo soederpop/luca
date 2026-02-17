@@ -16,6 +16,13 @@ Add token-based authentication to the WebSocket server so that only authorized c
 - [ ] Add unit tests for token validation
 - [ ] Add integration test for authenticated WebSocket connections
 
+## Test plan
+
+- [ ] Verify connections with valid tokens are accepted
+- [ ] Verify connections with expired tokens are rejected with 401
+- [ ] Verify connections with no token are rejected with 401
+- [ ] Verify existing unauthenticated endpoints still work
+
 ## References
 
 - [JWT Best Practices](https://datatracker.ietf.org/doc/html/rfc7519)
