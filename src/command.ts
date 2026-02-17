@@ -116,7 +116,9 @@ export class CommandsRegistry extends Registry<Command<any>> {
 
 		const CommandClass = class extends Command {
 			static override shortcut = `commands.${name}` as const
+			static override description = desc
 			static override commandDescription = desc
+			static override optionsSchema = argsSchema as any
 			static override argsSchema = argsSchema
 
 			override async execute() {
