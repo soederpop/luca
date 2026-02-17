@@ -82,7 +82,15 @@
       "Bash(git commit:*)",
       "Bash(lane\" to \"go deeper when needed\" to reflect the new capability.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git status:*)",
-      "WebFetch(domain:arxiv.org)"
+      "WebFetch(domain:arxiv.org)",
+      "Bash(bun scripts/test-ideas-and-plans.ts:*)",
+      "Bash(gtimeout 8 bun run:*)",
+      "mcp__luca-sandbox__eval",
+      "Bash(wc:*)",
+      "Bash(chmod:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "luca-sandbox"
+  ]
 }
