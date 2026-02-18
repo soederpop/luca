@@ -23,6 +23,13 @@ export type EndpointContext = {
   params: Record<string, any>
 }
 
+export interface EndpointRateLimit {
+  /** Maximum requests allowed per window */
+  maxRequests: number
+  /** Window size in seconds (default: 1) */
+  windowSeconds?: number
+}
+
 export interface EndpointModule {
   path: string
   get?: EndpointHandler
@@ -35,11 +42,55 @@ export interface EndpointModule {
   putSchema?: z.ZodType
   patchSchema?: z.ZodType
   deleteSchema?: z.ZodType
+  /** Rate limit applied to all methods on this endpoint */
+  rateLimit?: EndpointRateLimit
+  /** Per-method rate limits (overrides the endpoint-level rateLimit) */
+  getRateLimit?: EndpointRateLimit
+  postRateLimit?: EndpointRateLimit
+  putRateLimit?: EndpointRateLimit
+  patchRateLimit?: EndpointRateLimit
+  deleteRateLimit?: EndpointRateLimit
   description?: string
   tags?: string[]
 }
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
+
+/**
+ * Sliding-window rate limiter keyed by IP address.
+ * Tracks timestamps of requests and prunes entries older than the window.
+ */
+class RateLimiter {
+  private _windows = new Map<string, number[]>()
+
+  /** Returns true if the request is allowed, false if rate-limited. */
+  allow(key: string, maxRequests: number, windowMs: number): boolean {
+    const now = Date.now()
+    let timestamps = this._windows.get(key)
+
+    if (!timestamps) {
+      timestamps = []
+      this._windows.set(key, timestamps)
+    }
+
+    // Prune timestamps outside the window
+    while (timestamps.length > 0 && timestamps[0] <= now - windowMs) {
+      timestamps.shift()
+    }
+
+    if (timestamps.length >= maxRequests) {
+      return false
+    }
+
+    timestamps.push(now)
+    return true
+  }
+
+  /** Clear all tracking state */
+  reset(): void {
+    this._windows.clear()
+  }
+}
 
 export type EndpointFactory = <T extends keyof AvailableEndpoints>(
   key: T,
@@ -62,6 +113,7 @@ export class Endpoint<
   static override eventsSchema = EndpointEventsSchema
 
   private _module: EndpointModule | null = null
+  private _rateLimiter = new RateLimiter()
 
   static attach(container: Container & EndpointsInterface): any {
     Object.assign(container, {
@@ -157,12 +209,36 @@ export class Endpoint<
     return this._module?.[`${method}Schema` as keyof EndpointModule] as z.ZodType | undefined
   }
 
+  /** Returns the rate limit config for a given method, or undefined if none. */
+  rateLimitFor(method: string): EndpointRateLimit | undefined {
+    const perMethod = this._module?.[`${method}RateLimit` as keyof EndpointModule] as EndpointRateLimit | undefined
+    return perMethod || this._module?.rateLimit
+  }
+
+  /** Access the rate limiter instance (useful for testing or manual resets) */
+  get rateLimiter(): RateLimiter {
+    return this._rateLimiter
+  }
+
   mount(app: any): this {
     for (const method of this.methods) {
       const endpoint = this
 
       app[method](this.path, async (req: any, res: any) => {
         try {
+          // Rate limit check
+          const limit = endpoint.rateLimitFor(method)
+          if (limit) {
+            const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+            const key = `${method}:${ip}`
+            const windowMs = (limit.windowSeconds ?? 1) * 1000
+            if (!endpoint._rateLimiter.allow(key, limit.maxRequests, windowMs)) {
+              endpoint.emit('error', new Error(`Rate limit exceeded for ${method.toUpperCase()} ${endpoint.path}`))
+              res.status(429).json({ error: 'Too Many Requests' })
+              return
+            }
+          }
+
           const currentHandler = endpoint.handler(method)
           if (!currentHandler) {
             res.status(404).json({ error: 'Not found' })
@@ -227,6 +303,7 @@ export class Endpoint<
             description: 'Successful response',
             content: { 'application/json': { schema: { type: 'object' } } },
           },
+          ...(this.rateLimitFor(method) ? { '429': { description: 'Rate limit exceeded' } } : {}),
           '400': { description: 'Validation error' },
           '500': { description: 'Server error' },
         },
