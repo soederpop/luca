@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import * as readline from 'readline'
-import { commands } from '../command.js'
-import { CommandOptionsSchema } from '../schemas/base.js'
-import type { ContainerContext } from '../container.js'
+import { commands } from '../command'
+import { CommandOptionsSchema } from '../schemas/base'
+import type { ContainerContext } from '../container'
 
 declare module '../command.js' {
 	interface AvailableCommands {

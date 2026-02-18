@@ -31,6 +31,7 @@ function resolveScript(ref: string, context: ContainerContext): string | null {
 }
 
 async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchema>, context: ContainerContext) {
+        console.clear()
 	const container = context.container as any
 	const requireApproval = options.safe
 	await container.docs.load()

@@ -2,8 +2,8 @@ import url from 'node:url'
 
 import { Container, type ContainerState } from "../container";
 import { State } from "../state";
-import type { FeatureOptions } from "./feature.ts";
-import { features, Feature } from "./feature.ts";
+import type { FeatureOptions } from "./feature";
+import { features, Feature } from "./feature";
 import type { AvailableFeatures } from "../feature";
 import { Client, type ClientsInterface } from "../client";
 import { Server, type ServersInterface } from "../server";
@@ -80,20 +80,20 @@ import type { VM } from "./features/vm";
 import type { YAML } from "./features/yaml";
 import type { YamlTree } from "./features/yaml-tree";
 import type { PortExposer } from "./features/port-exposer";
-import type { Docker } from './features/docker.ts';
-import type { Runpod } from './features/runpod.ts';
-import type { SecureShell } from './features/secure-shell.ts';
-import type { Tmux } from './features/tmux.ts';
-import type { Ink } from './features/ink.ts';
-import type { Telegram } from './features/telegram.ts';
-import type { Opener } from './features/opener.ts';
-import type { Postgres } from './features/postgres.ts';
-import type { Sqlite } from './features/sqlite.ts';
-import type { GoogleAuth } from './features/google-auth.ts';
-import type { GoogleDrive } from './features/google-drive.ts';
-import type { GoogleSheets } from './features/google-sheets.ts';
-import type { GoogleCalendar } from './features/google-calendar.ts';
-import type { GoogleDocs } from './features/google-docs.ts';
+import type { Docker } from './features/docker';
+import type { Runpod } from './features/runpod';
+import type { SecureShell } from './features/secure-shell';
+import type { Tmux } from './features/tmux';
+import type { Ink } from './features/ink';
+import type { Telegram } from './features/telegram';
+import type { Opener } from './features/opener';
+import type { Postgres } from './features/postgres';
+import type { Sqlite } from './features/sqlite';
+import type { GoogleAuth } from './features/google-auth';
+import type { GoogleDrive } from './features/google-drive';
+import type { GoogleSheets } from './features/google-sheets';
+import type { GoogleCalendar } from './features/google-calendar';
+import type { GoogleDocs } from './features/google-docs';
 export { State };
 
 export {

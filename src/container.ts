@@ -1,15 +1,15 @@
 // @ts-nocheck
-import { Bus } from './bus.js'
-import { SetStateValue, State } from './state.js'
-import { AvailableFeatures, features, Feature, FeaturesRegistry } from './feature.js'
-import { Helper } from './helper.js'
+import { Bus } from './bus'
+import { SetStateValue, State } from './state'
+import { AvailableFeatures, features, Feature, FeaturesRegistry } from './feature'
+import { Helper } from './helper'
 import uuid from 'node-uuid'
 import hashObject from './hash-object'
 import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
 import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
-import { ContainerStateSchema, describeZodShape } from './schemas/base.js'
-import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index.js'
+import { ContainerStateSchema, describeZodShape } from './schemas/base'
+import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index'
 
 
 export { z }
@@ -88,7 +88,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       featureIdToHelperCacheKeyMap.set(mapKey, feature.cacheKey)
       this.state.set('enabledFeatures', uniq([
         ...this.state.get('enabledFeatures')!,
-        featureId
+        featureKey
       ]))  
     })
 
