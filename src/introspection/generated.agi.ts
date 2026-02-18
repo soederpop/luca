@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-18T22:38:34.799Z
+// Generated at: 2026-02-18T22:48:27.578Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -619,6 +619,36 @@ setBuildTimeData('features.proc', {
         "command"
       ],
       "returns": "string"
+    },
+    "kill": {
+      "description": "Kills a process by its PID.",
+      "parameters": {
+        "pid": {
+          "type": "number",
+          "description": "The process ID to kill"
+        },
+        "signal": {
+          "type": "NodeJS.Signals | number",
+          "description": "The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9)"
+        }
+      },
+      "required": [
+        "pid"
+      ],
+      "returns": "boolean"
+    },
+    "findPidsByPort": {
+      "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "The port number to search for"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "returns": "number[]"
     }
   },
   "getters": {},
@@ -7520,6 +7550,36 @@ export const introspectionData = [
           "command"
         ],
         "returns": "string"
+      },
+      "kill": {
+        "description": "Kills a process by its PID.",
+        "parameters": {
+          "pid": {
+            "type": "number",
+            "description": "The process ID to kill"
+          },
+          "signal": {
+            "type": "NodeJS.Signals | number",
+            "description": "The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9)"
+          }
+        },
+        "required": [
+          "pid"
+        ],
+        "returns": "boolean"
+      },
+      "findPidsByPort": {
+        "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "The port number to search for"
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "returns": "number[]"
       }
     },
     "getters": {},
