@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-18T22:38:34.733Z
+// Generated at: 2026-02-18T22:48:27.502Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",

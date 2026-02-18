@@ -304,6 +304,67 @@ export class ChildProcess extends Feature {
       .toString()
       .trim();
   }
+
+  /**
+   * Kills a process by its PID.
+   *
+   * @param {number} pid - The process ID to kill
+   * @param {NodeJS.Signals | number} [signal='SIGTERM'] - The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9)
+   * @returns {boolean} True if the signal was sent successfully, false if the process was not found
+   *
+   * @example
+   * ```typescript
+   * // Gracefully terminate a process
+   * proc.kill(12345)
+   *
+   * // Force kill a process
+   * proc.kill(12345, 'SIGKILL')
+   * ```
+   */
+  kill(pid: number, signal: NodeJS.Signals | number = 'SIGTERM'): boolean {
+    try {
+      process.kill(pid, signal)
+      return true
+    } catch (err: any) {
+      if (err.code === 'ESRCH') return false
+      throw err
+    }
+  }
+
+  /**
+   * Finds PIDs of processes listening on a given port.
+   *
+   * Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.
+   *
+   * @param {number} port - The port number to search for
+   * @returns {number[]} Array of PIDs listening on that port (empty if none found)
+   *
+   * @example
+   * ```typescript
+   * const pids = proc.findPidsByPort(3000)
+   * console.log(`Processes on port 3000: ${pids}`)
+   *
+   * // Kill everything on port 3000
+   * for (const pid of proc.findPidsByPort(3000)) {
+   *   proc.kill(pid)
+   * }
+   * ```
+   */
+  findPidsByPort(port: number): number[] {
+    try {
+      const output = execSync(`lsof -ti :${port}`, { stdio: ['pipe', 'pipe', 'pipe'] })
+        .toString()
+        .trim()
+
+      if (!output) return []
+
+      return [...new Set(
+        output.split('\n').map((line) => parseInt(line.trim(), 10)).filter((pid) => !isNaN(pid))
+      )]
+    } catch {
+      return []
+    }
+  }
 }
 
 export default features.register("proc", ChildProcess);
