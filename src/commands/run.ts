@@ -56,7 +56,15 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				if (answer.question.toLowerCase() !== 'y') continue
 			}
 
-			await vm.run(`(async function() { ${value} })()`, shared)
+			const hasTopLevelAwait = /\bawait\b/.test(value)
+			const code = hasTopLevelAwait
+				? `(async function() { ${value} })()`
+				: value
+				
+			await vm.run(code, shared)
+
+			// if we enabled any features, they will be in the context object
+			Object.assign(shared, container.context)
 		} else {
 			const md = doc.stringify({ type: 'root', children: [node] })
 			console.log(container.ui.markdown(md))
