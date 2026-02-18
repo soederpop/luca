@@ -26,3 +26,9 @@ Plans are structured, actionable work items that AI coding assistants can execut
 Ideas flow into plans: explore an idea, and when it's `ready`, create a plan from it. Plans get `approved` by the creator, then executed by coding assistants.
 
 Use `listPlansAndIdeas` to see the current state. Use `createIdea` and `createPlan` to author new documents. Use the doc reading tools to review existing content.
+
+For self-improvement loop work, use:
+- `docs/north-star.md` as immutable strategic constraints.
+- `docs/templates/next-step-rubric.md` to rank candidate next tasks.
+- `docs/templates/handoff-template.md` as the required HANDOFF structure.
+- `validateHandoff` to run contentbase-backed validation on `HANDOFF.md` before review.
