@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { z } = require('zod')
+const { validateDocument } = require('contentbase')
 
 /**
  * Slugify a title into a kebab-case filename.
@@ -10,6 +11,31 @@ function slugify(title) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+/**
+ * Walk up from the assistant folder to locate the Luca repository root.
+ * Looks for package.json with name "@soederpop/luca".
+ */
+function findLucaRoot() {
+  let dir = me.resolvedFolder
+
+  while (dir !== path.dirname(dir)) {
+    const pkgPath = path.join(dir, 'package.json')
+
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+        if (pkg.name === '@soederpop/luca') {
+          return dir
+        }
+      } catch {}
+    }
+
+    dir = path.dirname(dir)
+  }
+
+  return null
 }
 
 /**
@@ -144,10 +170,56 @@ async function listPlansAndIdeas() {
   return results
 }
 
+/**
+ * Validate that HANDOFF.md includes all required sections for the self-improvement loop.
+ */
+async function validateHandoff({ filePath = 'HANDOFF.md' }) {
+  const lucaRoot = findLucaRoot()
+
+  if (!lucaRoot) {
+    return { error: 'Could not locate the Luca repository root.' }
+  }
+
+  const db = me.contentDb
+  const handoffModel = db.models?.Handoff
+
+  if (!handoffModel) {
+    return { error: 'Handoff model is not defined. Ensure assistant hooks register the Handoff model.' }
+  }
+
+  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.join(lucaRoot, filePath)
+
+  if (!fs.existsSync(resolvedPath)) {
+    return { error: `Handoff file not found: ${resolvedPath}` }
+  }
+
+  const parsed = await db.parseMarkdownAtPath(resolvedPath)
+  const result = validateDocument(parsed, handoffModel)
+  const sectionIssues = result.errors
+    .filter((issue) => issue.path?.[0] === 'sections')
+    .map((issue) => ({
+      key: String(issue.path?.[1] || ''),
+      message: issue.message,
+    }))
+
+  return {
+    file: resolvedPath,
+    valid: result.valid,
+    errorCount: result.errors.length,
+    sectionIssues,
+    errors: result.errors.map((issue) => ({
+      path: issue.path,
+      message: issue.message,
+      code: issue.code,
+    })),
+  }
+}
+
 module.exports = {
   createPlan,
   createIdea,
   listPlansAndIdeas,
+  validateHandoff,
   schemas: {
     createPlan: z
       .object({
@@ -199,6 +271,16 @@ module.exports = {
       .object({})
       .describe(
         'List all plans and ideas with their metadata. Returns a structured overview showing status, category, and horizon for each document.'
+      ),
+    validateHandoff: z
+      .object({
+        filePath: z
+          .string()
+          .optional()
+          .describe('Optional path to the handoff markdown file. Defaults to HANDOFF.md at repository root.'),
+      })
+      .describe(
+        'Validate that a HANDOFF markdown document includes all required sections for the self-improvement loop review gate.'
       ),
   },
 }

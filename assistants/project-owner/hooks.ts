@@ -58,4 +58,31 @@ export function created() {
 			}
 		})
 	})
+
+	me.contentDb.defineModel(({ defineModel }) => {
+		const requiredSection = (heading: string, alternatives: string[] = []) =>
+			section(heading, {
+				extract: (query) => query.selectAll('paragraph').map((n: any) => toString(n)).join('\n'),
+				schema: z.string().min(1),
+				alternatives,
+			})
+
+		return defineModel('Handoff', {
+			prefix: 'HANDOFF',
+			meta: z.object({}),
+			sections: {
+				whatIsThis: requiredSection('What Is This'),
+				objectiveAttempted: requiredSection('Objective Attempted'),
+				completionStatus: requiredSection('Completion Status'),
+				evidence: requiredSection('Evidence'),
+				mostImportantNextStep: requiredSection('Most Important Next Step'),
+				rankedAlternatives: requiredSection('Ranked Alternatives'),
+				whyNow: requiredSection('Why Now'),
+				risksAndUnknowns: requiredSection('Risks and Unknowns'),
+				costOfRejection: requiredSection('Cost of Rejection'),
+				filesTouched: requiredSection('Files Touched'),
+				validationResults: requiredSection('Validation Results', ['Test Results']),
+			},
+		})
+	})
 }
