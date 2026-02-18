@@ -10,10 +10,31 @@ import { ConversationHistory } from './features/conversation-history'
 import { DocsReader } from './features/docs-reader'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
+import { ContentDb } from '@/node/features/content-db'
 
-import type { ContentDb } from '@/node/features/content-db'
 import type { ConversationTool } from './features/conversation'
 import type { ZodType } from 'zod'
+
+export {
+	ClaudeCode,
+	OpenAICodex,
+	Conversation,
+	SkillsLibrary,
+	ConversationHistory,
+	DocsReader,
+	Assistant,
+	AssistantsManager,
+	ContentDb,
+	NodeContainer,
+	OpenAIClient,
+}
+
+export type {
+	ConversationTool,
+	ZodType,
+	ContainerState,
+	NodeFeatures,
+}
 
 export interface ConversationFactoryOptions {
 	tools?: {
@@ -86,7 +107,5 @@ const container = new AGIContainer()
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
 })
-
-const { z } = container
 
 export default container
