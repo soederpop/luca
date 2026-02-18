@@ -10,7 +10,6 @@ import type { VoiceRecognition } from './features/voice-recognition.js'
 import type { Speech } from './features/speech.js'
 import type { Network } from './features/network.js'
 import type { WebVault } from './features/vault.js'
-import type { MdxLoader } from './features/mdx-loader.js'
 import type { VM } from './features/vm.js'
 import type { Esbuild } from './features/esbuild.js'
 
@@ -23,7 +22,6 @@ export interface WebFeatures extends AvailableFeatures {
   voice: typeof VoiceRecognition
   speech: typeof Speech
   vault: typeof WebVault
-  mdxLoader: typeof MdxLoader
   vm: typeof VM;
   esbuild: typeof Esbuild
 }

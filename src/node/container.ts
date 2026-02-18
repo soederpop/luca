@@ -27,7 +27,6 @@ import "./features/git";
 import "./features/grep";
 import "./features/ipc-socket";
 import "./features/json-tree";
-import "./features/mdx-bundler";
 import "./features/networking";
 import "./features/os";
 import "./features/package-finder";
@@ -67,7 +66,6 @@ import type { Git } from "./features/git";
 import type { Grep } from "./features/grep";
 import type { IpcSocket } from "./features/ipc-socket";
 import type { JsonTree } from "./features/json-tree";
-import type { MdxBundler } from "./features/mdx-bundler";
 import type { Networking } from "./features/networking";
 import type { OS } from "./features/os";
 import type { PackageFinder } from "./features/package-finder";
@@ -111,7 +109,6 @@ export {
   type DiskCache,
   type Vault,
   type ScriptRunner,
-  type MdxBundler,
   type Downloader,
   type PortExposer,
   type Docker,
@@ -170,7 +167,6 @@ export interface NodeFeatures extends AvailableFeatures {
   diskCache: typeof DiskCache;
   vault: typeof Vault;
   jsonTree: typeof JsonTree;
-  mdxBundler: typeof MdxBundler;
   downloader: typeof Downloader;
   python: typeof Python;
   portExposer: typeof PortExposer;

@@ -8,14 +8,12 @@ import { SocketClient } from './clients/socket.js'
 import { Network } from './features/network.js'
 import { WebVault } from './features/vault.js'
 import { VM } from './features/vm.js'
-import { MdxLoader } from './features/mdx-loader.js'
 import { Esbuild } from './features/esbuild.js'
 
 export function attach<K extends Container & ClientsInterface>(container: K, options?: any) : Container & ClientsInterface {
   container
     .use(Client)
     .use(AssetLoader)
-    .use(MdxLoader)
     .use(VoiceRecognition)
     .use(Speech)
     .use(SocketClient)
