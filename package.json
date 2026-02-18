@@ -13,42 +13,23 @@
     "conversational",
     "architecture"
   ],
-  "main": "./dist/node.js",
-  "types": "./dist/node.d.ts",
-  "browser": "./dist/browser.js",
+  "main": "./src/node.ts",
+  "types": "./src/node.ts",
+  "browser": "./src/browser.ts",
   "exports": {
-    ".": {
-      "node": {
-        "import": "./dist/node.js",
-        "types": "./dist/node.d.ts"
-      },
-      "browser": {
-        "import": "./dist/browser.js",
-        "types": "./dist/browser.d.ts"
-      },
-      "default": "./dist/node.js"
-    },
-    "./node": {
-      "import": "./dist/node.js",
-      "types": "./dist/node.d.ts"
-    },
-    "./web": {
-      "import": "./dist/browser.js",
-      "types": "./dist/browser.d.ts"
-    },
-    "./agi": {
-      "import": "./dist/agi/index.js",
-      "types": "./dist/agi/index.d.ts"
-    }
+    ".": "./src/node.ts",
+    "./node": "./src/node.ts",
+    "./web": "./src/browser.ts",
+    "./agi": "./src/agi/index.ts",
+    "./schemas": "./src/schemas/base.ts"
   },
   "bin": {
-    "luca": "./dist/esbuild/cli.js"
+    "luca": "./src/cli/cli.ts"
   },
   "scripts": {
     "console": "ts-node --esm scripts/console.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",
-    "build": "mkdist --declaration --ext=js",
     "build:web": "bun run scripts/build-web.ts",
     "build:introspection": "bun run scripts/update-introspection-data",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
@@ -101,7 +82,7 @@
     "child-process-promise": "^2.2.1",
     "chokidar": "^3.5.3",
     "cli-markdown": "^3.5.0",
-    "contentbase": "file:../@projects/contentbase",
+    "contentbase": "file:../contentbase",
     "cors": "^2.8.5",
     "detect-port": "^1.5.1",
     "dotenv": "^17.2.4",

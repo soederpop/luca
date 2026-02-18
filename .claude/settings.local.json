@@ -93,5 +93,6 @@
   },
   "enabledMcpjsonServers": [
     "luca-sandbox"
-  ]
+  ],
+  "enableAllProjectMcpServers": true
 }
