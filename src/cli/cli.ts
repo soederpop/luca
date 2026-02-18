@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
 import container from '@/agi'
 import '@/commands/index.js'
+import { homedir } from 'os'
+import { join } from 'path'
 
 async function main() {
 	// Discover project-local commands (commands/ or src/commands/)
 	await discoverProjectCommands()
+	// Discover user-level commands (~/.luca/commands/)
+	await discoverUserCommands()
 
 	const commandName = container.argv._[0] as string
 
@@ -54,6 +58,15 @@ async function discoverProjectCommands() {
 			await container.commands.discover({ directory: dir })
 			return
 		}
+	}
+}
+
+async function discoverUserCommands() {
+	const { fs } = container
+	const dir = join(homedir(), '.luca', 'commands')
+
+	if (fs.exists(dir)) {
+		await container.commands.discover({ directory: dir })
 	}
 }
 

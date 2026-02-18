@@ -90,6 +90,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
         ...this.state.get('enabledFeatures')!,
         featureKey
       ]))  
+      this.addContext(featureKey, feature)
     })
 
     this.state.observe(() => {
