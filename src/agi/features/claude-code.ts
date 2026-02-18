@@ -131,6 +131,12 @@ export const ClaudeCodeStateSchema = FeatureStateSchema.extend({
   claudeVersion: z.string().optional().describe('Detected Claude CLI version string'),
 })
 
+export const FileLogLevelSchema = z.enum(['verbose', 'normal', 'minimal']).describe(
+  'Log verbosity: verbose=all events including stream deltas, normal=messages+tool calls+results, minimal=init+result/error only'
+)
+
+export type FileLogLevel = z.infer<typeof FileLogLevelSchema>
+
 export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   /** Path to the claude CLI binary. Defaults to 'claude'. */
   claudePath: z.string().optional().describe('Path to the claude CLI binary'),
@@ -154,6 +160,10 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   mcpConfig: z.array(z.string()).optional().describe('MCP config file paths to pass to sessions'),
   /** MCP servers to inject into sessions, keyed by server name. Automatically written to a temp config file. */
   mcpServers: z.record(z.string(), z.any()).optional().describe('MCP server configs keyed by name, injected into sessions via temp config file'),
+  /** Path to write a parseable NDJSON session log file. Each line is a JSON object with timestamp, sessionId, event type, and event data. */
+  fileLogPath: z.string().optional().describe('Path to write a parseable NDJSON session log file'),
+  /** Verbosity level for file logging. Defaults to "normal". */
+  fileLogLevel: FileLogLevelSchema.optional().describe('Verbosity level for file logging. Defaults to "normal"'),
 })
 
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
@@ -190,6 +200,10 @@ export interface RunOptions {
   dangerouslySkipPermissions?: boolean
   /** Additional arbitrary CLI flags. */
   extraArgs?: string[]
+  /** Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. */
+  fileLogPath?: string
+  /** Verbosity level for file logging. Overrides feature-level fileLogLevel. */
+  fileLogLevel?: FileLogLevel
 }
 
 /**
@@ -280,6 +294,73 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
   /** Tracks temp MCP config files created for cleanup */
   private mcpTempFiles: string[] = []
+
+  /** Tracks active file log paths per session */
+  private sessionLogPaths: Map<string, { path: string; level: FileLogLevel }> = new Map()
+
+  /**
+   * Resolve the file log path for a session, checking per-session options then feature-level defaults.
+   *
+   * @param {RunOptions} options - Per-session options
+   * @returns {{ path: string; level: FileLogLevel } | undefined} Log config if logging is enabled
+   */
+  private resolveFileLog(options: RunOptions = {}): { path: string; level: FileLogLevel } | undefined {
+    const path = options.fileLogPath ?? this.options.fileLogPath
+    if (!path) return undefined
+    const level = options.fileLogLevel ?? this.options.fileLogLevel ?? 'normal'
+    return { path, level }
+  }
+
+  /**
+   * Write a log entry to the session's NDJSON log file.
+   * Each line is a self-contained JSON object with timestamp, sessionId, event type, and data.
+   *
+   * @param {string} sessionId - The local session ID
+   * @param {string} type - Event type label (e.g. 'session:init', 'session:message')
+   * @param {any} data - Event payload
+   */
+  private async writeLogEntry(sessionId: string, type: string, data: any): Promise<void> {
+    const logConfig = this.sessionLogPaths.get(sessionId)
+    if (!logConfig) return
+
+    const entry = JSON.stringify({
+      ts: new Date().toISOString(),
+      session: sessionId,
+      type,
+      data
+    }) + '\n'
+
+    const { appendFile } = await import('node:fs/promises')
+    try {
+      await appendFile(logConfig.path, entry, 'utf-8')
+    } catch (err) {
+      this.emit('session:log-error', { sessionId, error: err })
+    }
+  }
+
+  /**
+   * Determine if an event should be logged based on the configured log level.
+   *
+   * - verbose: all events (stream deltas, partial messages, everything)
+   * - normal: assistant messages, tool results, init, result, errors (no stream_event)
+   * - minimal: init and result/error only
+   *
+   * @param {string} eventType - The Claude event type
+   * @param {FileLogLevel} level - The configured log level
+   * @returns {boolean} Whether to log this event
+   */
+  private shouldLog(eventType: string, level: FileLogLevel): boolean {
+    switch (level) {
+      case 'verbose':
+        return true
+      case 'normal':
+        return eventType !== 'stream_event'
+      case 'minimal':
+        return eventType === 'system' || eventType === 'result'
+      default:
+        return true
+    }
+  }
 
   /**
    * Write an MCP server config map to a temp file suitable for `--mcp-config`.
@@ -405,6 +486,12 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   private handleEvent(sessionId: string, event: ClaudeEvent): void {
     this.emit('session:event', { sessionId, event })
 
+    // File logging
+    const logConfig = this.sessionLogPaths.get(sessionId)
+    if (logConfig && this.shouldLog(event.type, logConfig.level)) {
+      this.writeLogEntry(sessionId, event.type, event)
+    }
+
     switch (event.type) {
       case 'system': {
         const init = event as ClaudeInitEvent
@@ -505,6 +592,13 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const args = await this.buildArgs(prompt, options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
 
+    // Set up file logging for this session
+    const fileLog = this.resolveFileLog(options)
+    if (fileLog) {
+      this.sessionLogPaths.set(id, fileLog)
+      this.writeLogEntry(id, 'session:start', { prompt, cwd, args: [this.claudePath, ...args] })
+    }
+
     const session: ClaudeSession = {
       id,
       status: 'running',
@@ -586,6 +680,20 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       this.emit('session:error', { sessionId: id, error: stderr, exitCode })
     }
 
+    // Finalize file log
+    if (this.sessionLogPaths.has(id)) {
+      const finalSession = this.state.current.sessions[id]!
+      await this.writeLogEntry(id, 'session:end', {
+        status: finalSession.status,
+        result: finalSession.result,
+        error: finalSession.error,
+        costUsd: finalSession.costUsd,
+        turns: finalSession.turns,
+        messageCount: finalSession.messages.length
+      })
+      this.sessionLogPaths.delete(id)
+    }
+
     return this.state.current.sessions[id]!
   }
 
@@ -614,6 +722,13 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const id = this.createSessionId()
     const args = await this.buildArgs(prompt, options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
+
+    // Set up file logging for this session
+    const fileLog = this.resolveFileLog(options)
+    if (fileLog) {
+      this.sessionLogPaths.set(id, fileLog)
+      this.writeLogEntry(id, 'session:start', { prompt, cwd, args: [this.claudePath, ...args] })
+    }
 
     const session: ClaudeSession = {
       id,
@@ -702,6 +817,20 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       })
       this.emit('session:error', { sessionId, error: stderr, exitCode })
     }
+
+    // Finalize file log
+    if (this.sessionLogPaths.has(sessionId)) {
+      const finalSession = this.state.current.sessions[sessionId]!
+      await this.writeLogEntry(sessionId, 'session:end', {
+        status: finalSession.status,
+        result: finalSession.result,
+        error: finalSession.error,
+        costUsd: finalSession.costUsd,
+        turns: finalSession.turns,
+        messageCount: finalSession.messages.length
+      })
+      this.sessionLogPaths.delete(sessionId)
+    }
   }
 
   /**
@@ -724,6 +853,11 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       const activeSessions = this.state.current.activeSessions.filter(id => id !== sessionId)
       this.setState({ activeSessions })
       this.emit('session:abort', { sessionId })
+
+      if (this.sessionLogPaths.has(sessionId)) {
+        this.writeLogEntry(sessionId, 'session:abort', { reason: 'Aborted by user' })
+        this.sessionLogPaths.delete(sessionId)
+      }
     }
   }
 
