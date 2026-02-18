@@ -33,13 +33,13 @@ describe('Features', () => {
   describe('core features are auto-enabled', () => {
     it('has fs, git, proc, os, networking, ui, vm enabled', () => {
       const c = new NodeContainer()
-      expect(c.enabledFeatureIds).toContain('features.fs')
-      expect(c.enabledFeatureIds).toContain('features.git')
-      expect(c.enabledFeatureIds).toContain('features.proc')
-      expect(c.enabledFeatureIds).toContain('features.os')
-      expect(c.enabledFeatureIds).toContain('features.networking')
-      expect(c.enabledFeatureIds).toContain('features.ui')
-      expect(c.enabledFeatureIds).toContain('features.vm')
+      expect(c.enabledFeatureIds).toContain('fs')
+      expect(c.enabledFeatureIds).toContain('git')
+      expect(c.enabledFeatureIds).toContain('proc')
+      expect(c.enabledFeatureIds).toContain('os')
+      expect(c.enabledFeatureIds).toContain('networking')
+      expect(c.enabledFeatureIds).toContain('ui')
+      expect(c.enabledFeatureIds).toContain('vm')
     })
   })
 
