@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-17T22:56:15.526Z
+// Generated at: 2026-02-18T22:38:34.723Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -3878,41 +3878,6 @@ setBuildTimeData('features.googleSheets', {
       "arguments": {}
     }
   },
-  "state": {},
-  "options": {}
-});
-
-setBuildTimeData('features.mdxBundler', {
-  "id": "features.mdxBundler",
-  "description": "The MdxBundler feature provides MDX compilation capabilities. This feature wraps the mdx-bundler library to compile MDX content into executable JavaScript. MDX allows you to use JSX components within Markdown files, making it ideal for documentation and content that needs interactive elements.",
-  "shortcut": "features.mdxBundler",
-  "methods": {
-    "compile": {
-      "description": "Compiles MDX source code into executable JavaScript. This method takes MDX source code and optional file dependencies and compiles them into JavaScript code that can be executed in a React environment. The compilation process handles JSX transformation, import resolution, and bundling.",
-      "parameters": {
-        "source": {
-          "type": "string",
-          "description": "The MDX source code to compile"
-        },
-        "options": {
-          "type": "CompileOptions",
-          "description": "Compilation options",
-          "properties": {
-            "files": {
-              "type": "Record<string, string>",
-              "description": "Additional files to include in the bundle (path -> content mapping)"
-            }
-          }
-        }
-      },
-      "required": [
-        "source"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {},
-  "events": {},
   "state": {},
   "options": {}
 });
@@ -9070,40 +9035,6 @@ export const introspectionData = [
         "arguments": {}
       }
     },
-    "state": {},
-    "options": {}
-  },
-  {
-    "id": "features.mdxBundler",
-    "description": "The MdxBundler feature provides MDX compilation capabilities. This feature wraps the mdx-bundler library to compile MDX content into executable JavaScript. MDX allows you to use JSX components within Markdown files, making it ideal for documentation and content that needs interactive elements.",
-    "shortcut": "features.mdxBundler",
-    "methods": {
-      "compile": {
-        "description": "Compiles MDX source code into executable JavaScript. This method takes MDX source code and optional file dependencies and compiles them into JavaScript code that can be executed in a React environment. The compilation process handles JSX transformation, import resolution, and bundling.",
-        "parameters": {
-          "source": {
-            "type": "string",
-            "description": "The MDX source code to compile"
-          },
-          "options": {
-            "type": "CompileOptions",
-            "description": "Compilation options",
-            "properties": {
-              "files": {
-                "type": "Record<string, string>",
-                "description": "Additional files to include in the bundle (path -> content mapping)"
-              }
-            }
-          }
-        },
-        "required": [
-          "source"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {},
-    "events": {},
     "state": {},
     "options": {}
   },

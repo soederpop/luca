@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-17T22:56:15.537Z
+// Generated at: 2026-02-18T22:38:34.733Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -369,31 +369,6 @@ setBuildTimeData('features.speech', {
       "returns": "any"
     }
   },
-  "events": {},
-  "state": {},
-  "options": {}
-});
-
-setBuildTimeData('features.mdxLoader', {
-  "id": "features.mdxLoader",
-  "description": "MdxLoader helper",
-  "shortcut": "features.mdxLoader",
-  "methods": {
-    "load": {
-      "description": "",
-      "parameters": {
-        "source": {
-          "type": "string",
-          "description": "Parameter source"
-        }
-      },
-      "required": [
-        "source"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {},
   "events": {},
   "state": {},
   "options": {}
@@ -1075,30 +1050,6 @@ export const introspectionData = [
         "returns": "any"
       }
     },
-    "events": {},
-    "state": {},
-    "options": {}
-  },
-  {
-    "id": "features.mdxLoader",
-    "description": "MdxLoader helper",
-    "shortcut": "features.mdxLoader",
-    "methods": {
-      "load": {
-        "description": "",
-        "parameters": {
-          "source": {
-            "type": "string",
-            "description": "Parameter source"
-          }
-        },
-        "required": [
-          "source"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {},
     "events": {},
     "state": {},
     "options": {}
