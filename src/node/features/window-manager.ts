@@ -456,7 +456,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
       this._pending.set(id, { resolve, reject, timer })
 
-      const line = JSON.stringify({ id, method, ...params }) + '\n'
+      const line = JSON.stringify({ id, method, params }) + '\n'
       this._socket.write(line)
     })
   }
