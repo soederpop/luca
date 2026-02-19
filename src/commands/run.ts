@@ -11,6 +11,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	safe: z.boolean().default(false).describe('Require approval before each code block (markdown mode)'),
+	console: z.boolean().default(false).describe('Start an interactive REPL after executing a markdown file, with all accumulated context'),
 })
 
 function resolveScript(ref: string, context: ContainerContext): string | null {
@@ -60,7 +61,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			const code = hasTopLevelAwait
 				? `(async function() { ${value} })()`
 				: value
-				
+
 			await vm.run(code, shared)
 
 			// if we enabled any features, they will be in the context object
@@ -70,6 +71,8 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			console.log(container.ui.markdown(md))
 		}
 	}
+
+	return shared
 }
 
 async function runScript(scriptPath: string, context: ContainerContext) {
@@ -107,7 +110,30 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 
 	try {
 		if (scriptPath.endsWith('.md')) {
-			await runMarkdown(scriptPath, options, context)
+			const shared = await runMarkdown(scriptPath, options, context)
+
+			if (options.console) {
+				const ui = container.feature('ui')
+				const prompt = ui.colors.cyan('luca') + ui.colors.dim(' > ')
+
+				console.log()
+				console.log(ui.colors.dim('  Entering REPL with markdown context. Type .exit to quit.'))
+				console.log()
+
+				const repl = container.feature('repl', { prompt })
+				await repl.start({
+					context: {
+						...shared,
+						console,
+						setTimeout,
+						setInterval,
+						clearTimeout,
+						clearInterval,
+						fetch,
+						Bun,
+					},
+				})
+			}
 		} else {
 			await runScript(scriptPath, context)
 		}
