@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-18T22:48:27.578Z
+// Generated at: 2026-02-19T01:02:30.592Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -4514,11 +4514,11 @@ setBuildTimeData('features.fileManager', {
 
 setBuildTimeData('features.contentDb', {
   "id": "features.contentDb",
-  "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
+  "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
   "shortcut": "features.contentDb",
   "methods": {
     "parseMarkdownAtPath": {
-      "description": "",
+      "description": "Parse a markdown file at the given path without loading the full collection.",
       "parameters": {
         "path": {
           "type": "string",
@@ -4531,45 +4531,28 @@ setBuildTimeData('features.contentDb', {
       "returns": "void"
     },
     "load": {
-      "description": "",
+      "description": "Load the collection, discovering models from models.ts and parsing all documents.",
       "parameters": {},
       "required": [],
       "returns": "Promise<ContentDb>"
-    },
-    "defineModel": {
-      "description": "",
-      "parameters": {
-        "definerFunction": {
-          "type": "(library: typeof this.library) => ModelDefinition",
-          "description": "Parameter definerFunction"
-        }
-      },
-      "required": [
-        "definerFunction"
-      ],
-      "returns": "void"
     }
   },
   "getters": {
-    "library": {
-      "description": "Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo.",
-      "returns": "any"
-    },
-    "models": {
-      "description": "Returns an object mapping model names to their model definitions.",
-      "returns": "any"
-    },
     "isLoaded": {
       "description": "Whether the content database has been loaded.",
-      "returns": "any"
-    },
-    "modelNames": {
-      "description": "Returns an array of all registered model names.",
       "returns": "any"
     },
     "collection": {
       "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
       "returns": "any"
+    },
+    "models": {
+      "description": "Returns an object mapping model names to their model definitions, sourced from the collection.",
+      "returns": "Record<string, ModelDefinition>"
+    },
+    "modelNames": {
+      "description": "Returns an array of all registered model names from the collection.",
+      "returns": "string[]"
     }
   },
   "events": {},
@@ -11415,11 +11398,11 @@ export const introspectionData = [
   },
   {
     "id": "features.contentDb",
-    "description": "Turns an organized folder of structured markdown files into an ORM like database This is a wrapper around the Contentbase library essentially. You can access raw document objects and query them, without having to define models or anything.",
+    "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
     "shortcut": "features.contentDb",
     "methods": {
       "parseMarkdownAtPath": {
-        "description": "",
+        "description": "Parse a markdown file at the given path without loading the full collection.",
         "parameters": {
           "path": {
             "type": "string",
@@ -11432,45 +11415,28 @@ export const introspectionData = [
         "returns": "void"
       },
       "load": {
-        "description": "",
+        "description": "Load the collection, discovering models from models.ts and parsing all documents.",
         "parameters": {},
         "required": [],
         "returns": "Promise<ContentDb>"
-      },
-      "defineModel": {
-        "description": "",
-        "parameters": {
-          "definerFunction": {
-            "type": "(library: typeof this.library) => ModelDefinition",
-            "description": "Parameter definerFunction"
-          }
-        },
-        "required": [
-          "definerFunction"
-        ],
-        "returns": "void"
       }
     },
     "getters": {
-      "library": {
-        "description": "Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo.",
-        "returns": "any"
-      },
-      "models": {
-        "description": "Returns an object mapping model names to their model definitions.",
-        "returns": "any"
-      },
       "isLoaded": {
         "description": "Whether the content database has been loaded.",
-        "returns": "any"
-      },
-      "modelNames": {
-        "description": "Returns an array of all registered model names.",
         "returns": "any"
       },
       "collection": {
         "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
         "returns": "any"
+      },
+      "models": {
+        "description": "Returns an object mapping model names to their model definitions, sourced from the collection.",
+        "returns": "Record<string, ModelDefinition>"
+      },
+      "modelNames": {
+        "description": "Returns an array of all registered model names from the collection.",
+        "returns": "string[]"
       }
     },
     "events": {},

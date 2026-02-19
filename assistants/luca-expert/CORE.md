@@ -666,32 +666,18 @@ console.log(ui.markdown(answer))
 ```typescript
 import container from '@soederpop/luca/node'
 
+// Models are defined in the collection's models.ts file and auto-discovered on load.
 const contentDb = container.feature('contentDb', {
   rootPath: container.paths.resolve('docs'),
 })
 
-const { z } = container
-
-const BlogPost = contentDb.defineModel(({ defineModel, section, toString }: any) => {
-  return defineModel('BlogPost', {
-    meta: z.object({
-      title: z.string(),
-      date: z.coerce.date(),
-      published: z.boolean().default(false),
-      tags: z.array(z.string()).default([]),
-    }),
-    sections: {
-      excerpt: section('Excerpt', {
-        extract: (query: any) => query.selectAll('paragraph').slice(0, 1).map((n: any) => toString(n)),
-      }),
-    },
-  })
-})
-
 await contentDb.load()
 
+// Access auto-discovered models by name
+const BlogPost = contentDb.models['BlogPost']
+
 // Query the collection
-const posts = await contentDb.query('BlogPost').where('published', true).fetchAll()
+const posts = await contentDb.collection.query(BlogPost).where('published', true).fetchAll()
 
 for (const post of posts) {
   console.log(`${post.meta.title} (${post.meta.date.toLocaleDateString()})`)
