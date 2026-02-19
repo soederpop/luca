@@ -63,6 +63,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     return this.collection.modelDefinitions.map((d) => d.name)
   }
 
+  query<T extends ModelDefinition>(model: T) {
+    return this.collection.query(model)
+  }
+
   /** Parse a markdown file at the given path without loading the full collection. */
   parseMarkdownAtPath(path: string) {
     return parse(path)
