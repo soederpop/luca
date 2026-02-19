@@ -15,14 +15,54 @@ export const argsSchema = CommandOptionsSchema.extend({
 	endpointsDir: z.string().optional().describe('Directory to load endpoints from'),
 	staticDir: z.string().optional().describe('Directory to serve static files from'),
 	cors: z.boolean().default(true).describe('Enable CORS'),
+	force: z.boolean().default(false).describe('Kill any process currently using the target port'),
+	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
+	open: z.boolean().default(true).describe('Open the server URL in Google Chrome'),
 })
 
 export default async function serve(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
-	const { fs, paths, manifest } = container
+	const { fs, paths, manifest, networking, proc } = container
 
-	const port = options.port
+	let port = options.port
 	const staticDir = options.staticDir ? paths.resolve(options.staticDir) : paths.resolve('public')
+
+	if (options.anyPort) {
+		port = await networking.findOpenPort(3001)
+	}
+
+	const isPortAvailable = await networking.isPortOpen(port)
+	if (!isPortAvailable) {
+		if (!options.force) {
+			console.error(`Port ${port} is already in use.`)
+			console.error(`Use --force to kill the process on this port, or --any-port to find another port.`)
+			process.exit(1)
+		}
+
+		const pids = proc.findPidsByPort(port)
+		if (!pids.length) {
+			console.error(`Port ${port} is in use, but no PID could be discovered for termination.`)
+			process.exit(1)
+		}
+
+		for (const pid of pids) {
+			proc.kill(pid)
+		}
+
+		let portFreed = false
+		for (let i = 0; i < 10; i++) {
+			if (await networking.isPortOpen(port)) {
+				portFreed = true
+				break
+			}
+			await new Promise((resolve) => setTimeout(resolve, 100))
+		}
+
+		if (!portFreed) {
+			console.error(`Failed to free port ${port} after terminating process(es): ${pids.join(', ')}`)
+			process.exit(1)
+		}
+	}
 
 	// Discover the endpoints directory from the project root.
 	// Checks explicit flag, then common conventions, then gives up.
@@ -53,6 +93,15 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 	const name = manifest.name || 'Server'
 	console.log(`\n${name} listening on http://localhost:${port}`)
 	console.log(`OpenAPI spec at http://localhost:${port}/openapi.json`)
+
+	if (options.open) {
+		try {
+			const opener = container.feature('opener')
+			await opener.open(`http://localhost:${port}`)
+		} catch (error) {
+			console.warn(`Could not open browser automatically: ${(error as Error).message}`)
+		}
+	}
 
 	if (expressServer._mountedEndpoints.length) {
 		console.log(`\nEndpoints:`)
