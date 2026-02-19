@@ -72,6 +72,9 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'  fs.readFile(path)               — read a file',
 			'  fs.readdir(dir)                 — list directory contents',
 			'  proc.exec(cmd)                  — run a shell command',
+			'',
+			'Tip: Use the inspect_container, list_registry, describe_helper, and',
+			'inspect_helper_instance tools for structured introspection without writing code.',
 		].join('\n'),
 		schema: z.object({
 			code: z.string().describe('JavaScript code to evaluate in the Luca container sandbox'),
@@ -115,6 +118,119 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 					content: [{ type: 'text' as const, text: `Error: ${error.message}\n\n${error.stack || ''}` }],
 					isError: true,
 				}
+			}
+		},
+	})
+
+	// --- Tool: inspect_container ---
+	mcpServer.tool('inspect_container', {
+		description: [
+			'Inspect the Luca container — registries, state, methods, events, environment.',
+			'',
+			'Returns a markdown overview of the container. Optionally filter to a specific section.',
+			'',
+			'Sections: "methods", "getters", "events", "state", "options"',
+			'Leave section empty for the full overview.',
+		].join('\n'),
+		schema: z.object({
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+				.describe('Optional section to filter to. Omit for full overview.'),
+		}),
+		handler: (args) => {
+			return container.inspectAsText(args.section)
+		},
+	})
+
+	// --- Tool: list_registry ---
+	mcpServer.tool('list_registry', {
+		description: [
+			'List available items in a container registry.',
+			'',
+			'Returns names and brief descriptions for all registered helpers in the chosen registry.',
+			'Use describe_helper to get full documentation for a specific item.',
+		].join('\n'),
+		schema: z.object({
+			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
+				.describe('Which registry to list'),
+		}),
+		handler: (args) => {
+			const registry = (container as any)[args.registry]
+			if (!registry) return `Unknown registry: ${args.registry}`
+			const names: string[] = registry.available
+			if (names.length === 0) return `No ${args.registry} registered.`
+			const lines = [`# Available ${args.registry}\n`]
+			for (const name of names) {
+				try {
+					const Ctor = registry.lookup(name) as any
+					const desc = Ctor.description || ''
+					lines.push(`- **${name}**${desc ? `: ${desc}` : ''}`)
+				} catch {
+					lines.push(`- **${name}**`)
+				}
+			}
+			return lines.join('\n')
+		},
+	})
+
+	// --- Tool: describe_helper ---
+	mcpServer.tool('describe_helper', {
+		description: [
+			'Get full documentation for a specific helper (feature, client, server, command, endpoint).',
+			'',
+			'Returns markdown with options, state schema, methods, getters, events, and descriptions.',
+			'Use list_registry first to see what is available.',
+		].join('\n'),
+		schema: z.object({
+			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
+				.describe('Which registry the helper belongs to'),
+			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express")'),
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+				.describe('Optional section to filter to. Omit for full documentation.'),
+		}),
+		handler: (args) => {
+			const registry = (container as any)[args.registry]
+			if (!registry) return `Unknown registry: ${args.registry}`
+			if (!registry.has(args.name)) {
+				return `"${args.name}" not found in ${args.registry}. Available: ${registry.available.join(', ')}`
+			}
+			try {
+				const Ctor = registry.lookup(args.name) as any
+				return Ctor.introspectAsText(args.section)
+			} catch (e: any) {
+				return `Error describing ${args.name}: ${e.message}`
+			}
+		},
+	})
+
+	// --- Tool: inspect_helper_instance ---
+	mcpServer.tool('inspect_helper_instance', {
+		description: [
+			'Inspect a live helper instance (enabled feature, active client/server).',
+			'',
+			'Creates or retrieves the helper and returns introspectAsText() — the same',
+			'rich markdown documentation available on any Helper instance at runtime.',
+			'Optionally filter to a specific section.',
+		].join('\n'),
+		schema: z.object({
+			type: z.enum(['feature', 'client', 'server'])
+				.describe('What kind of helper to inspect'),
+			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express")'),
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+				.describe('Optional section to filter to. Omit for full introspection.'),
+		}),
+		handler: (args) => {
+			try {
+				let instance: any
+				if (args.type === 'feature') {
+					instance = container.feature(args.name as any)
+				} else if (args.type === 'client') {
+					instance = container.client(args.name as any)
+				} else if (args.type === 'server') {
+					instance = container.server(args.name as any)
+				}
+				return instance.introspectAsText(args.section)
+			} catch (e: any) {
+				return `Error inspecting ${args.type} "${args.name}": ${e.message}`
 			}
 		},
 	})
@@ -230,7 +346,8 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		console.log(`\nLuca Sandbox MCP listening on http://localhost:${options.port}/mcp`)
 	} else {
 		console.error(`Luca Sandbox MCP started (stdio transport)`)
-		console.error(`Tools: eval | Prompts: discover, introspect | Resources: luca://container/info, luca://features`)
+		console.error(`Tools: eval, inspect_container, list_registry, describe_helper, inspect_helper_instance`)
+		console.error(`Prompts: discover, introspect | Resources: luca://container/info, luca://features`)
 	}
 }
 
