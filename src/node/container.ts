@@ -54,6 +54,7 @@ import "./features/google-drive";
 import "./features/google-sheets";
 import "./features/google-calendar";
 import "./features/google-docs";
+import "./features/window-manager";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -92,6 +93,7 @@ import type { GoogleDrive } from './features/google-drive';
 import type { GoogleSheets } from './features/google-sheets';
 import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
+import type { WindowManager } from './features/window-manager';
 export { State };
 
 export {
@@ -125,6 +127,7 @@ export {
   type GoogleSheets,
   type GoogleCalendar,
   type GoogleDocs,
+  type WindowManager,
 };
 
 export type { FeatureOptions };
@@ -184,6 +187,7 @@ export interface NodeFeatures extends AvailableFeatures {
   googleSheets: typeof GoogleSheets;
   googleCalendar: typeof GoogleCalendar;
   googleDocs: typeof GoogleDocs;
+  windowManager: typeof WindowManager;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -226,6 +230,7 @@ export class NodeContainer<
   googleSheets?: GoogleSheets;
   googleCalendar?: GoogleCalendar;
   googleDocs?: GoogleDocs;
+  windowManager?: WindowManager;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
