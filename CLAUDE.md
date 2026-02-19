@@ -46,6 +46,8 @@ Folders of markdown should be organized as `contentbase` collections. See [docs/
 
 ## Project Commands
 
+Generally, before every commit, you'll want to run the typecheck, tests.  After the commit you should compile.
+
 ### Run the Test Suite
 
 ```shell

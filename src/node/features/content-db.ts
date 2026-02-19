@@ -5,6 +5,8 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false),
+  tableOfContents: z.string().default(''),
+  modelSummary: z.string().default(''),
 })
 
 export const ContentDbOptionsSchema = FeatureOptionsSchema.extend({
@@ -44,6 +46,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   get collection() {
     if (this._collection) return this._collection
     return this._collection = new Collection({ rootPath: this.options.rootPath })
+  }
+
+  get collectionPath() {
+    return this.container.paths.resolve(this.options.rootPath)
   }
 
   /** Returns an object mapping model names to their model definitions, sourced from the collection. */
