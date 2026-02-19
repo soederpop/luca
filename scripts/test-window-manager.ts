@@ -2,11 +2,10 @@ import { NodeContainer } from '../src/node/container'
 
 const container = new NodeContainer({ cwd: process.cwd() })
 const wm = container.feature('windowManager', { 
-  enable: true, 
   autoConnect: true,
   token: "t_V+3OtVbtEYK5QcQ3RfAgcf6jCrEOLGSXalHEFSBdPso=",
   projectId: "p_luca"
-})
+} as any)
 
 console.log('Connected:', wm.isConnected)
 
