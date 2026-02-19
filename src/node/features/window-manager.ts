@@ -86,10 +86,13 @@ export interface SpawnOptions {
   height?: number
   x?: number
   y?: number
+  /** Whether to auto-focus the window after spawning. Defaults to true. */
+  autoFocus?: boolean
   window?: {
     decorations?: 'normal' | 'hiddenTitleBar' | 'none'
     transparent?: boolean
     shadow?: boolean
+    /** Whether the window stays above all normal windows. Defaults to true. */
     alwaysOnTop?: boolean
     opacity?: number
     clickThrough?: boolean
@@ -327,11 +330,27 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    */
   async spawn(opts: SpawnOptions = {}): Promise<{ windowId: string } & Record<string, any>> {
     await this.ensureConnected()
-    return this.send('spawnWindow', {
-      ...opts,
+
+    const { autoFocus = true, ...rest } = opts
+
+    // Default alwaysOnTop to true unless explicitly set
+    const windowOpts = {
+      alwaysOnTop: true,
+      ...rest.window,
+    }
+
+    const result = await this.send<{ windowId: string } & Record<string, any>>('spawnWindow', {
+      ...rest,
+      window: windowOpts,
       projectId: this.options.projectId,
       token: this.options.token,
     })
+
+    if (autoFocus && result.windowId) {
+      await this.focus(result.windowId)
+    }
+
+    return result
   }
 
   /**
