@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-19T01:02:30.511Z
+// Generated at: 2026-02-19T03:16:27.509Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -490,6 +490,199 @@ setBuildTimeData('features.downloader', {
   },
   "getters": {},
   "events": {},
+  "state": {},
+  "options": {}
+});
+
+setBuildTimeData('features.windowManager', {
+  "id": "features.windowManager",
+  "description": "WindowManager Feature — Native window control via MenuBarWebAgent Provides a typed client for the MenuBarWebAgent (MBWA) macOS menu bar app. Communicates over a Unix domain socket using an NDJSON request/response protocol with per-project authentication. **Capabilities:** - Spawn native browser windows with configurable chrome (decorations, transparency, etc.) - Navigate windows to URLs or load HTML content - Evaluate arbitrary JavaScript in any window's web view - Focus, close, and list windows - Receive real-time events for window lifecycle and navigation changes - Automatic reconnection with exponential backoff **Protocol:** Uses NDJSON (newline-delimited JSON) over Unix domain sockets. Each request includes an auto-incrementing `id` for response correlation and `projectId`/`token` for authentication. Unsolicited server events are forwarded to the Luca event bus.",
+  "shortcut": "features.windowManager",
+  "methods": {
+    "enable": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "connect": {
+      "description": "Connect to the MenuBarWebAgent Unix domain socket. Wires up data, close, and error handlers for NDJSON communication.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "disconnect": {
+      "description": "Disconnect from the MenuBarWebAgent socket. Suppresses automatic reconnection.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "ping": {
+      "description": "Ping the MBWA server. Does not require authentication.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "spawn": {
+      "description": "Spawn a new native browser window.",
+      "parameters": {
+        "opts": {
+          "type": "SpawnOptions",
+          "description": "Window configuration (url/html, dimensions, chrome options)",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": ""
+            },
+            "html": {
+              "type": "string",
+              "description": ""
+            },
+            "width": {
+              "type": "number",
+              "description": ""
+            },
+            "height": {
+              "type": "number",
+              "description": ""
+            },
+            "x": {
+              "type": "number",
+              "description": ""
+            },
+            "y": {
+              "type": "number",
+              "description": ""
+            },
+            "window": {
+              "type": "{\n    decorations?: 'normal' | 'hiddenTitleBar' | 'none'\n    transparent?: boolean\n    shadow?: boolean\n    alwaysOnTop?: boolean\n    opacity?: number\n    clickThrough?: boolean\n  }",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ windowId: string } & Record<string, any>>"
+    },
+    "list": {
+      "description": "List all windows for the authenticated project.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ windows: WindowInfo[] }>"
+    },
+    "focus": {
+      "description": "Bring a window to the front.",
+      "parameters": {
+        "windowId": {
+          "type": "string",
+          "description": "The ID of the window to focus"
+        }
+      },
+      "required": [
+        "windowId"
+      ],
+      "returns": "Promise<any>"
+    },
+    "close": {
+      "description": "Close a window.",
+      "parameters": {
+        "windowId": {
+          "type": "string",
+          "description": "The ID of the window to close"
+        }
+      },
+      "required": [
+        "windowId"
+      ],
+      "returns": "Promise<any>"
+    },
+    "navigate": {
+      "description": "Navigate a window to a new URL.",
+      "parameters": {
+        "windowId": {
+          "type": "string",
+          "description": "The ID of the window"
+        },
+        "url": {
+          "type": "string",
+          "description": "The URL to navigate to"
+        }
+      },
+      "required": [
+        "windowId",
+        "url"
+      ],
+      "returns": "Promise<any>"
+    },
+    "eval": {
+      "description": "Evaluate JavaScript in a window's web view.",
+      "parameters": {
+        "windowId": {
+          "type": "string",
+          "description": "The ID of the window"
+        },
+        "code": {
+          "type": "string",
+          "description": "JavaScript code to evaluate"
+        },
+        "opts": {
+          "type": "{ timeoutMs?: number; returnJson?: boolean }",
+          "description": "Options: timeoutMs, returnJson"
+        }
+      },
+      "required": [
+        "windowId",
+        "code"
+      ],
+      "returns": "Promise<any>"
+    },
+    "window": {
+      "description": "Get a WindowHandle for chainable operations on a specific window.",
+      "parameters": {
+        "windowId": {
+          "type": "string",
+          "description": "The ID of the window"
+        }
+      },
+      "required": [
+        "windowId"
+      ],
+      "returns": "WindowHandle"
+    }
+  },
+  "getters": {
+    "isConnected": {
+      "description": "Whether the socket is currently connected to MBWA.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "disconnected": {
+      "name": "disconnected",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "connected": {
+      "name": "connected",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "reconnecting": {
+      "name": "reconnecting",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {}
 });
@@ -4546,6 +4739,10 @@ setBuildTimeData('features.contentDb', {
       "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
       "returns": "any"
     },
+    "collectionPath": {
+      "description": "",
+      "returns": "any"
+    },
     "models": {
       "description": "Returns an object mapping model names to their model definitions, sourced from the collection.",
       "returns": "Record<string, ModelDefinition>"
@@ -5687,6 +5884,198 @@ export const introspectionData = [
     },
     "getters": {},
     "events": {},
+    "state": {},
+    "options": {}
+  },
+  {
+    "id": "features.windowManager",
+    "description": "WindowManager Feature — Native window control via MenuBarWebAgent Provides a typed client for the MenuBarWebAgent (MBWA) macOS menu bar app. Communicates over a Unix domain socket using an NDJSON request/response protocol with per-project authentication. **Capabilities:** - Spawn native browser windows with configurable chrome (decorations, transparency, etc.) - Navigate windows to URLs or load HTML content - Evaluate arbitrary JavaScript in any window's web view - Focus, close, and list windows - Receive real-time events for window lifecycle and navigation changes - Automatic reconnection with exponential backoff **Protocol:** Uses NDJSON (newline-delimited JSON) over Unix domain sockets. Each request includes an auto-incrementing `id` for response correlation and `projectId`/`token` for authentication. Unsolicited server events are forwarded to the Luca event bus.",
+    "shortcut": "features.windowManager",
+    "methods": {
+      "enable": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "connect": {
+        "description": "Connect to the MenuBarWebAgent Unix domain socket. Wires up data, close, and error handlers for NDJSON communication.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "disconnect": {
+        "description": "Disconnect from the MenuBarWebAgent socket. Suppresses automatic reconnection.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "ping": {
+        "description": "Ping the MBWA server. Does not require authentication.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "spawn": {
+        "description": "Spawn a new native browser window.",
+        "parameters": {
+          "opts": {
+            "type": "SpawnOptions",
+            "description": "Window configuration (url/html, dimensions, chrome options)",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": ""
+              },
+              "html": {
+                "type": "string",
+                "description": ""
+              },
+              "width": {
+                "type": "number",
+                "description": ""
+              },
+              "height": {
+                "type": "number",
+                "description": ""
+              },
+              "x": {
+                "type": "number",
+                "description": ""
+              },
+              "y": {
+                "type": "number",
+                "description": ""
+              },
+              "window": {
+                "type": "{\n    decorations?: 'normal' | 'hiddenTitleBar' | 'none'\n    transparent?: boolean\n    shadow?: boolean\n    alwaysOnTop?: boolean\n    opacity?: number\n    clickThrough?: boolean\n  }",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ windowId: string } & Record<string, any>>"
+      },
+      "list": {
+        "description": "List all windows for the authenticated project.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ windows: WindowInfo[] }>"
+      },
+      "focus": {
+        "description": "Bring a window to the front.",
+        "parameters": {
+          "windowId": {
+            "type": "string",
+            "description": "The ID of the window to focus"
+          }
+        },
+        "required": [
+          "windowId"
+        ],
+        "returns": "Promise<any>"
+      },
+      "close": {
+        "description": "Close a window.",
+        "parameters": {
+          "windowId": {
+            "type": "string",
+            "description": "The ID of the window to close"
+          }
+        },
+        "required": [
+          "windowId"
+        ],
+        "returns": "Promise<any>"
+      },
+      "navigate": {
+        "description": "Navigate a window to a new URL.",
+        "parameters": {
+          "windowId": {
+            "type": "string",
+            "description": "The ID of the window"
+          },
+          "url": {
+            "type": "string",
+            "description": "The URL to navigate to"
+          }
+        },
+        "required": [
+          "windowId",
+          "url"
+        ],
+        "returns": "Promise<any>"
+      },
+      "eval": {
+        "description": "Evaluate JavaScript in a window's web view.",
+        "parameters": {
+          "windowId": {
+            "type": "string",
+            "description": "The ID of the window"
+          },
+          "code": {
+            "type": "string",
+            "description": "JavaScript code to evaluate"
+          },
+          "opts": {
+            "type": "{ timeoutMs?: number; returnJson?: boolean }",
+            "description": "Options: timeoutMs, returnJson"
+          }
+        },
+        "required": [
+          "windowId",
+          "code"
+        ],
+        "returns": "Promise<any>"
+      },
+      "window": {
+        "description": "Get a WindowHandle for chainable operations on a specific window.",
+        "parameters": {
+          "windowId": {
+            "type": "string",
+            "description": "The ID of the window"
+          }
+        },
+        "required": [
+          "windowId"
+        ],
+        "returns": "WindowHandle"
+      }
+    },
+    "getters": {
+      "isConnected": {
+        "description": "Whether the socket is currently connected to MBWA.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "disconnected": {
+        "name": "disconnected",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "connected": {
+        "name": "connected",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "reconnecting": {
+        "name": "reconnecting",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {}
   },
@@ -9710,6 +10099,10 @@ export const introspectionData = [
       },
       "collection": {
         "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
+        "returns": "any"
+      },
+      "collectionPath": {
+        "description": "",
         "returns": "any"
       },
       "models": {
