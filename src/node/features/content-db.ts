@@ -1,5 +1,5 @@
 import { Feature, features } from '../feature.js'
-import { parse, Collection, defineModel, section, hasMany, belongsTo, type ModelDefinition } from 'contentbase'
+import { parse, Collection, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
@@ -15,27 +15,16 @@ export type ContentDbState = z.infer<typeof ContentDbStateSchema>
 export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>
 
 /**
- * Turns an organized folder of structured markdown files into an ORM like database
- * 
- * This is a wrapper around the Contentbase library essentially.
- * 
- * You can access raw document objects and query them, without having to define models or anything.
+ * Provides access to a Contentbase Collection for a folder of structured markdown files.
+ *
+ * Models are defined in the collection's models.ts file and auto-discovered on load.
+ * This feature is a thin wrapper that manages the collection lifecycle and provides
+ * convenience accessors for models and documents.
  *
  * @extends Feature
  */
 export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override shortcut = 'features.contentDb' as const
-
-  /** Returns the Contentbase library utilities: Collection, defineModel, section, hasMany, belongsTo. */
-  get library() {
-    return {
-      Collection,
-      defineModel,
-      section,
-      hasMany,
-      belongsTo
-    }
-  }
 
   override get initialState(): ContentDbState {
     return {
@@ -44,34 +33,12 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     }
   }
 
-  /**
-   * TODO: describe this method.
-   *
-   * @returns {Promise<void>}
-   */
-
-  modelDefinitions: Map<string, ModelDefinition> = new Map()
-
-  /** Returns an object mapping model names to their model definitions. */
-  get models() {
-    return Object.fromEntries(this.modelDefinitions.entries())
-  }
-
   /** Whether the content database has been loaded. */
   get isLoaded() {
     return this.state.get('loaded')
   }
 
-  /** Returns an array of all registered model names. */
-  get modelNames() {
-    return Array.from(this.modelDefinitions.keys())
-  }
-
   _collection?: Collection
-
-  parseMarkdownAtPath(path: string) {
-    return parse(path)
-  }
 
   /** Returns the lazily-initialized Collection instance for the configured rootPath. */
   get collection() {
@@ -79,6 +46,23 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     return this._collection = new Collection({ rootPath: this.options.rootPath })
   }
 
+  /** Returns an object mapping model names to their model definitions, sourced from the collection. */
+  get models(): Record<string, ModelDefinition> {
+    const entries = this.collection.modelDefinitions.map((d) => [d.name, d] as const)
+    return Object.fromEntries(entries)
+  }
+
+  /** Returns an array of all registered model names from the collection. */
+  get modelNames(): string[] {
+    return this.collection.modelDefinitions.map((d) => d.name)
+  }
+
+  /** Parse a markdown file at the given path without loading the full collection. */
+  parseMarkdownAtPath(path: string) {
+    return parse(path)
+  }
+
+  /** Load the collection, discovering models from models.ts and parsing all documents. */
   async load(): Promise<ContentDb> {
     if (this.isLoaded) {
       return this;
@@ -89,14 +73,6 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     return this
   }
-
-  defineModel(definerFunction: (library: typeof this.library) => ModelDefinition) {
-    const model = definerFunction(this.library)
-
-    this.modelDefinitions.set(model.name, model)
-
-    return model
-  } 
 }
 
 export default features.register('contentDb', ContentDb)
