@@ -29,7 +29,7 @@ listener.on('command', async (cmd) => {
   cmd.progress(0.5, 'Halfway there')
 
   await new Promise((r) => setTimeout(r, 1500))
-  cmd.finish({ action: 'completed', text: cmd.text }, 'All done!')
+  cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'All done!' })
 
   console.log(`[finished] "${cmd.text}" (${listener.state.get('commandsReceived')} total received)`)
 })

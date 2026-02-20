@@ -94,6 +94,36 @@ export interface SpawnOptions {
 }
 
 /**
+ * Options for spawning a native terminal window.
+ */
+export interface SpawnTTYOptions {
+  /** Executable name or path (required). */
+  command: string
+  /** Arguments passed after the command. */
+  args?: string[]
+  /** Working directory for the process. */
+  cwd?: string
+  /** Environment variable overrides. */
+  env?: Record<string, string>
+  /** Initial terminal columns. */
+  cols?: number
+  /** Initial terminal rows. */
+  rows?: number
+  /** Window title. */
+  title?: string
+  /** Window width in points. */
+  width?: number
+  /** Window height in points. */
+  height?: number
+  /** Window x position. */
+  x?: number
+  /** Window y position. */
+  y?: number
+  /** Chrome options (decorations, alwaysOnTop, etc.) */
+  window?: SpawnOptions['window']
+}
+
+/**
  * The result returned from a window ack.
  */
 export interface WindowAckResult {
@@ -338,6 +368,31 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       action: 'open',
       ...flat,
       alwaysOnTop: flat.alwaysOnTop ?? false,
+    })
+  }
+
+  /**
+   * Spawn a native terminal window running a command.
+   * The terminal is read-only — stdout/stderr are rendered with ANSI support.
+   * Closing the window terminates the process.
+   *
+   * @param opts - Terminal configuration (command, args, cwd, dimensions, etc.)
+   * @returns The window ack result including `windowId` and `pid`
+   */
+  async spawnTTY(opts: SpawnTTYOptions): Promise<WindowAckResult> {
+    const { window: windowChrome, ...flat } = opts
+
+    if (windowChrome) {
+      return this.sendWindowCommand({
+        action: 'terminal',
+        ...flat,
+        window: windowChrome,
+      })
+    }
+
+    return this.sendWindowCommand({
+      action: 'terminal',
+      ...flat,
     })
   }
 
