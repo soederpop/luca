@@ -48,32 +48,18 @@ export class Client<
         id: T,
         options?: ConstructorParameters<AvailableClients[T]>[0]
       ): InstanceType<AvailableClients[T]> {
-        const { hashObject } = container.utils;
         const BaseClass = clients.lookup(
           id as keyof AvailableClients
         ) as AvailableClients[T];
 
-        const cacheKey = hashObject({
-          __type: "client",
-          id,
+        return container.createHelperInstance({
+          cache: helperCache,
+          type: 'client',
+          id: String(id),
+          BaseClass,
           options,
-          uuid: container.uuid,
-        });
-        const cached = helperCache.get(cacheKey);
-
-        if (cached) {
-          return cached as InstanceType<AvailableClients[T]>;
-        }
-
-        const helperOptions = (options || {}) as ConstructorParameters<
-          AvailableClients[T]
-        >[0];
-
-        const instance = new (BaseClass as any)(helperOptions, container.context) as InstanceType<AvailableClients[T]>;
-
-        helperCache.set(cacheKey, instance);
-
-        return instance;
+          fallbackName: String(id),
+        }) as InstanceType<AvailableClients[T]>;
       },
     });
 

@@ -221,6 +221,81 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return new State<T>({ initialState })
   }
 
+  /**
+   * Parse helper options through the helper's static options schema so defaults are materialized.
+   */
+  normalizeHelperOptions(BaseClass: any, options: any, fallbackName?: string) {
+    const candidate = { ...(options || {}) }
+
+    if (fallbackName && (candidate.name === undefined || candidate.name === null || candidate.name === '')) {
+      candidate.name = fallbackName
+    }
+
+    const schema = BaseClass?.optionsSchema
+    if (!schema || typeof schema.safeParse !== 'function') {
+      return candidate
+    }
+
+    const parsed = schema.safeParse(candidate)
+    if (parsed.success) {
+      return parsed.data
+    }
+
+    const target = BaseClass?.shortcut || BaseClass?.name || 'helper'
+    const details = parsed.error.issues
+      .map((issue: any) => `${issue.path?.join('.') || 'options'}: ${issue.message}`)
+      .join('; ')
+    throw new Error(`Invalid options for ${target}: ${details || parsed.error.message}`)
+  }
+
+  buildHelperCacheKey(type: string, id: string, options: any, omitOptionKeys: string[] = []) {
+    const hashableOptions = omit(options || {}, uniq(['_cacheKey', ...omitOptionKeys]))
+
+    return hashObject({
+      __type: type,
+      id,
+      options: hashableOptions,
+      uuid: this.uuid,
+    })
+  }
+
+  createHelperInstance({
+    cache,
+    type,
+    id,
+    BaseClass,
+    options,
+    fallbackName,
+    omitOptionKeys = [],
+    context,
+  }: {
+    cache: Map<string, any>
+    type: string
+    id: string
+    BaseClass: any
+    options?: any
+    fallbackName?: string
+    omitOptionKeys?: string[]
+    context?: any
+  }) {
+    const normalizedOptions = this.normalizeHelperOptions(BaseClass, options, fallbackName || id)
+    const cacheKey = this.buildHelperCacheKey(type, id, normalizedOptions, omitOptionKeys)
+    const cached = cache.get(cacheKey)
+
+    if (cached) {
+      return cached
+    }
+
+    const helperOptions = {
+      ...normalizedOptions,
+      _cacheKey: normalizedOptions._cacheKey || cacheKey,
+    }
+
+    const instance = new (BaseClass as any)(helperOptions, context || this.context)
+    cache.set(cacheKey, instance)
+    return instance
+  }
+
   /** 
    * Creates a new instance of a feature.
    * 
@@ -236,24 +311,17 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     id: T,
     options?: ConstructorParameters<Features[T]>[0]
   ): InstanceType<Features[T]> {
-    const BaseClass = this.features.lookup(id as string) as Features[T];
+    const BaseClass = this.features.lookup(id as string) as Features[T]
 
-    const cacheKey = hashObject({ id, options: omit(options!, 'enable'), uuid: this.uuid })
-    const cached = helperCache.get(cacheKey)
-    
-    if (cached) {
-      return cached as InstanceType<Features[T]>
-    }
-    
-    const instance = new (BaseClass as any)({
-      ...options,
-      name: options?.name || id,
-      _cacheKey: cacheKey,
-    }, { container: this }) as InstanceType<Features[T]>;
-    
-    helperCache.set(cacheKey, instance)
-    
-    return instance
+    return this.createHelperInstance({
+      cache: helperCache,
+      type: 'feature',
+      id: String(id),
+      BaseClass,
+      options,
+      omitOptionKeys: ['enable'],
+      context: { container: this },
+    }) as InstanceType<Features[T]>
   }
   
   /** 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import container from '@/agi'
 
 const assistant = container.feature('assistant', {

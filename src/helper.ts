@@ -89,7 +89,18 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
   
   constructor(options: K, context: ContainerContext) {
-    this._options = options;
+    const optionSchema = (this.constructor as any).optionsSchema
+    if (optionSchema && typeof optionSchema.safeParse === 'function') {
+      const parsed = optionSchema.safeParse(options || {})
+      if (parsed.success) {
+        this._options = parsed.data as K
+      } else {
+        const details = parsed.error.issues.map((issue: any) => `${issue.path?.join('.') || 'options'}: ${issue.message}`).join('; ')
+        throw new Error(`Invalid options for ${(this.constructor as any).shortcut || this.constructor.name}: ${details || parsed.error.message}`)
+      }
+    } else {
+      this._options = options
+    }
     this._context = context;
     this.state = new State<T>({ initialState: this.initialState });
     
