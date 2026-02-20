@@ -16,18 +16,113 @@ const DEFAULT_SOCKET_PATH = join(
 
 const FALLBACK_SOCKET_PATH = `/tmp/native-command-launcher.${process.getuid?.() ?? 501}.sock`
 
-const ACK_MESSAGES = [
-  'On it!',
-  'Working on it',
-  'Let me handle that',
-  'Got it, one sec',
-  'Sure thing',
-  'Coming right up',
-  'Heard you loud and clear',
-  'Processing that now',
-  'One moment',
-  'Right away',
-]
+// --- CommandHandle ---
+
+/**
+ * A handle to a single incoming command from the native app.
+ * Provides methods to acknowledge, report progress, and finish the command.
+ * All responses are automatically correlated by the command's `id`.
+ */
+export class CommandHandle {
+  /** The correlation UUID from the app. */
+  readonly id: string
+  /** The command text (e.g. "open notes"). */
+  readonly text: string
+  /** The input source (e.g. "voice", "hotkey"). */
+  readonly source: string
+  /** The full payload object from the app. */
+  readonly payload: any
+  /** The entire raw message from the app. */
+  readonly raw: any
+
+  private _send: (msg: Record<string, any>) => boolean
+  private _finished = false
+
+  constructor(msg: any, send: (msg: Record<string, any>) => boolean) {
+    this.id = msg.id
+    this.text = msg.payload?.text ?? ''
+    this.source = msg.payload?.source ?? ''
+    this.payload = msg.payload ?? {}
+    this.raw = msg
+    this._send = send
+  }
+
+  /** Whether `finish()` or `fail()` has been called. */
+  get isFinished(): boolean {
+    return this._finished
+  }
+
+  /**
+   * Send a processing acknowledgement to the app.
+   * Optionally include a speech phrase for TTS.
+   *
+   * @param speech - Text the app will speak aloud via macOS TTS
+   */
+  ack(speech?: string): boolean {
+    return this._send({
+      id: this.id,
+      status: 'processing',
+      ...(speech ? { speech } : {}),
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Send a progress update to the app.
+   *
+   * @param progress - A number between 0 and 1
+   * @param message - Optional human-readable progress message
+   */
+  progress(progress: number, message?: string): boolean {
+    return this._send({
+      id: this.id,
+      status: 'progress',
+      progress,
+      ...(message ? { message } : {}),
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Mark the command as successfully finished.
+   * Can only be called once per command.
+   *
+   * @param result - The result payload to send to the app
+   * @param speech - Optional speech phrase for TTS
+   */
+  finish(result: Record<string, any> = {}, speech?: string): boolean {
+    if (this._finished) return false
+    this._finished = true
+    return this._send({
+      id: this.id,
+      status: 'finished',
+      success: true,
+      result,
+      ...(speech ? { speech } : {}),
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Mark the command as failed.
+   * Can only be called once per command.
+   *
+   * @param error - Error description string
+   * @param speech - Optional speech phrase for TTS
+   */
+  fail(error: string, speech?: string): boolean {
+    if (this._finished) return false
+    this._finished = true
+    return this._send({
+      id: this.id,
+      status: 'finished',
+      success: false,
+      error,
+      ...(speech ? { speech } : {}),
+      timestamp: new Date().toISOString(),
+    })
+  }
+}
 
 // --- Schemas ---
 
@@ -38,8 +133,6 @@ export const LauncherAppCommandListenerOptionsSchema = FeatureOptionsSchema.exte
     .describe('Fallback socket path if primary is unavailable'),
   autoListen: z.boolean().optional()
     .describe('Automatically start listening when the feature is enabled'),
-  sleepMs: z.number().default(2000)
-    .describe('How long to sleep while "processing" a command, in milliseconds'),
 })
 export type LauncherAppCommandListenerOptions = z.infer<typeof LauncherAppCommandListenerOptionsSchema>
 
@@ -52,10 +145,6 @@ export const LauncherAppCommandListenerStateSchema = FeatureStateSchema.extend({
     .describe('The socket path in use'),
   commandsReceived: z.number().default(0)
     .describe('Total number of commands received'),
-  commandsCompleted: z.number().default(0)
-    .describe('Total number of commands completed'),
-  processing: z.boolean().default(false)
-    .describe('Whether a command is currently being processed'),
   lastCommandText: z.string().optional()
     .describe('The text of the last received command'),
   lastError: z.string().optional()
@@ -67,10 +156,8 @@ export const LauncherAppCommandListenerEventsSchema = FeatureEventsSchema.extend
   listening: z.tuple([]).describe('Emitted when the IPC server starts listening'),
   clientConnected: z.tuple([z.any().describe('The client socket')]).describe('Emitted when the native app connects'),
   clientDisconnected: z.tuple([]).describe('Emitted when the native app disconnects'),
-  commandReceived: z.tuple([z.any().describe('The command event')]).describe('Emitted when a command is received from the app'),
-  commandCompleted: z.tuple([z.any().describe('The command event')]).describe('Emitted when a command finishes processing'),
+  command: z.tuple([z.any().describe('A CommandHandle for the incoming command')]).describe('Emitted when a command is received. The listener is responsible for calling ack(), finish(), or fail() on the handle.'),
   message: z.tuple([z.any().describe('The parsed message')]).describe('Emitted for any non-command message from the app'),
-  error: z.tuple([z.any().describe('The error')]).describe('Emitted on error'),
 })
 
 // --- Private types ---
@@ -83,11 +170,12 @@ interface ClientConnection {
 // --- Feature ---
 
 /**
- * LauncherAppCommandListener — IPC server that processes commands from the NativeCommandLauncher app
+ * LauncherAppCommandListener — IPC transport for commands from the NativeCommandLauncher app
  *
  * Listens on a Unix domain socket for the native macOS launcher app to connect.
- * When a command event arrives (voice, hotkey, text input), it acknowledges receipt
- * with a friendly TTS message, processes the command, and sends a finished response.
+ * When a command event arrives (voice, hotkey, text input), it wraps it in a
+ * `CommandHandle` and emits a `command` event. The consumer is responsible for
+ * acknowledging, processing, and finishing the command via the handle.
  *
  * Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.
  *
@@ -98,12 +186,14 @@ interface ClientConnection {
  *   autoListen: true,
  * })
  *
- * listener.on('commandReceived', (cmd) => {
- *   console.log('Processing:', cmd.payload.text)
- * })
+ * listener.on('command', async (cmd) => {
+ *   cmd.ack('Working on it!')
  *
- * listener.on('commandCompleted', (cmd) => {
- *   console.log('Done:', cmd.payload.text)
+ *   // ... do your actual work ...
+ *   cmd.progress(0.5, 'Halfway there')
+ *
+ *   cmd.finish({ action: 'completed', text: cmd.text }, 'All done!')
+ *   // or: cmd.fail('something went wrong', 'Sorry, that failed.')
  * })
  * ```
  */
@@ -122,8 +212,6 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
       listening: false,
       clientConnected: false,
       commandsReceived: 0,
-      commandsCompleted: 0,
-      processing: false,
     }
   }
 
@@ -141,7 +229,7 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
     await super.enable(options)
 
     if (this.options.autoListen) {
-      await this.listen()
+      this.listen()
     }
 
     return this
@@ -149,12 +237,12 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
 
   /**
    * Start listening on the Unix domain socket for the native app to connect.
-   * Cleans up stale socket files automatically. Falls back to the secondary
-   * path if the primary directory doesn't exist.
+   * Fire-and-forget — binds the socket and returns immediately. Sits quietly
+   * until the native app connects; does nothing visible if it never does.
    *
    * @param socketPath - Override the configured socket path
    */
-  async listen(socketPath?: string): Promise<this> {
+  listen(socketPath?: string): this {
     if (this._server) return this
 
     socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
@@ -179,24 +267,22 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
       }
     }
 
-    return new Promise<this>((resolve, reject) => {
-      const server = new NetServer((socket) => {
-        this.handleClientConnect(socket)
-      })
-
-      server.on('error', (err) => {
-        this.setState({ lastError: err.message })
-        this.emit('error', err)
-        reject(err)
-      })
-
-      server.listen(socketPath, () => {
-        this._server = server
-        this.setState({ listening: true, socketPath })
-        this.emit('listening')
-        resolve(this)
-      })
+    const server = new NetServer((socket) => {
+      this.handleClientConnect(socket)
     })
+
+    server.on('error', (err) => {
+      this.setState({ lastError: err.message })
+    })
+
+    const finalPath = socketPath
+    server.listen(finalPath, () => {
+      this._server = server
+      this.setState({ listening: true, socketPath: finalPath })
+      this.emit('listening')
+    })
+
+    return this
   }
 
   /**
@@ -230,11 +316,10 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
    *
    * @param msg - The message object to send (will be JSON-serialized + newline)
    */
-  send(msg: Record<string, any>): void {
-    if (!this._client) {
-      throw new Error('No app client connected')
-    }
+  send(msg: Record<string, any>): boolean {
+    if (!this._client) return false
     this._client.socket.write(JSON.stringify(msg) + '\n')
+    return true
   }
 
   // --- Private ---
@@ -270,11 +355,10 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
 
     socket.on('error', (err) => {
       this.setState({ lastError: err.message })
-      this.emit('error', err)
     })
   }
 
-  /** Process a single NDJSON line. Handles commands; emits `message` for everything else. */
+  /** Process a single NDJSON line. Wraps commands in a CommandHandle; emits `message` for everything else. */
   private processLine(line: string): void {
     let msg: any
     try {
@@ -284,52 +368,18 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
     }
 
     if (msg.type === 'command') {
-      this.handleCommand(msg)
+      const handle = new CommandHandle(msg, (m) => this.send(m))
+
+      this.setState({
+        commandsReceived: (this.state.get('commandsReceived') ?? 0) + 1,
+        lastCommandText: handle.text,
+      })
+
+      this.emit('command', handle)
       return
     }
 
     this.emit('message', msg)
-  }
-
-  /** Acknowledge, process, and finish a command. */
-  private async handleCommand(cmd: any): Promise<void> {
-    const id: string = cmd.id
-    const text: string = cmd.payload?.text ?? ''
-
-    this.setState({
-      commandsReceived: (this.state.get('commandsReceived') ?? 0) + 1,
-      processing: true,
-      lastCommandText: text,
-    })
-    this.emit('commandReceived', cmd)
-
-    // Acknowledge immediately with a random friendly message
-    const ackMessage = ACK_MESSAGES[Math.floor(Math.random() * ACK_MESSAGES.length)]
-    this.send({
-      id,
-      status: 'processing',
-      speech: ackMessage,
-      timestamp: new Date().toISOString(),
-    })
-
-    // "Do something" — sleep for now
-    await new Promise((resolve) => setTimeout(resolve, this.options.sleepMs ?? 2000))
-
-    // Mark finished
-    this.send({
-      id,
-      status: 'finished',
-      success: true,
-      result: { action: 'completed', text },
-      speech: 'Done.',
-      timestamp: new Date().toISOString(),
-    })
-
-    this.setState({
-      commandsCompleted: (this.state.get('commandsCompleted') ?? 0) + 1,
-      processing: false,
-    })
-    this.emit('commandCompleted', cmd)
   }
 }
 
