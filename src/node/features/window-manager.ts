@@ -92,7 +92,7 @@ export interface SpawnOptions {
     decorations?: 'normal' | 'hiddenTitleBar' | 'none'
     transparent?: boolean
     shadow?: boolean
-    /** Whether the window stays above all normal windows. Defaults to true. */
+    /** Whether the window stays above all normal windows. Defaults to false. */
     alwaysOnTop?: boolean
     opacity?: number
     clickThrough?: boolean
@@ -333,9 +333,10 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     const { autoFocus = true, ...rest } = opts
 
-    // Default alwaysOnTop to true unless explicitly set
+    // Default alwaysOnTop to false unless explicitly set.
+    // Windows still start in front by default because autoFocus defaults to true.
     const windowOpts = {
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       ...rest.window,
     }
 
