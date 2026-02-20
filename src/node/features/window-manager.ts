@@ -1,20 +1,28 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'
-import { Socket } from 'net'
+import { Server as NetServer, Socket } from 'net'
 import { homedir } from 'os'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { randomUUID } from 'crypto'
+import { existsSync, unlinkSync, mkdirSync } from 'fs'
 
-const DEFAULT_SOCKET_PATH = join(homedir(), 'Library', 'Application Support', 'Luca', 'agent.sock')
-const DEFAULT_TOKEN = "t_vVlGB2Q9rvHX+tQifB472RDbHcnqDf4kpaFYtGro7Ks="
+const DEFAULT_SOCKET_PATH = join(
+  homedir(),
+  'Library',
+  'Application Support',
+  'NativeCommandLauncherApp',
+  'ipc.sock'
+)
 
+const FALLBACK_SOCKET_PATH = `/tmp/native-command-launcher.${process.getuid?.() ?? 501}.sock`
 
-const ErrorCodes = ['AuthFailed', 'BadRequest', 'NotFound', 'EvalFailed', 'Internal', 'Timeout', 'Disconnected'] as const
+const ErrorCodes = ['BadRequest', 'NotFound', 'EvalFailed', 'Internal', 'Timeout', 'Disconnected', 'NoClient'] as const
 type WindowManagerErrorCode = typeof ErrorCodes[number]
 
 /**
  * Custom error class for WindowManager operations.
- * Carries a `code` property matching MBWA protocol error codes.
+ * Carries a `code` property for programmatic error handling.
  */
 export class WindowManagerError extends Error {
   code: WindowManagerErrorCode
@@ -29,90 +37,77 @@ export class WindowManagerError extends Error {
 // --- Schemas ---
 
 export const WindowManagerOptionsSchema = FeatureOptionsSchema.extend({
-  projectId: z.string().default('p_luca')
-    .describe('Luca project ID for authentication'),
-  token: z.string().default(DEFAULT_TOKEN)
-    .describe('Luca auth token for authentication'),
   socketPath: z.string().default(DEFAULT_SOCKET_PATH)
-    .describe('Path to the Luca.app Unix domain socket'),
-  autoConnect: z.boolean().optional()
-    .describe('Automatically connect to the socket when the feature is enabled'),
-  reconnect: z.boolean().optional()
-    .describe('Automatically reconnect on unexpected disconnect'),
-  reconnectInterval: z.number().default(1000)
-    .describe('Base milliseconds between reconnect retries'),
-  maxReconnectAttempts: z.number().optional()
-    .describe('Maximum number of reconnect attempts before giving up'),
+    .describe('Path to the Unix domain socket the server listens on'),
+  fallbackSocketPath: z.string().default(FALLBACK_SOCKET_PATH)
+    .describe('Fallback socket path if primary is unavailable'),
+  autoListen: z.boolean().optional()
+    .describe('Automatically start listening when the feature is enabled'),
   requestTimeoutMs: z.number().default(10000)
-    .describe('Per-request timeout in milliseconds'),
+    .describe('Per-request timeout in milliseconds for window operations'),
 })
 export type WindowManagerOptions = z.infer<typeof WindowManagerOptionsSchema>
 
 export const WindowManagerStateSchema = FeatureStateSchema.extend({
-  connected: z.boolean().default(false)
-    .describe('Whether the socket is currently connected'),
+  listening: z.boolean().default(false)
+    .describe('Whether the IPC server is listening'),
+  clientConnected: z.boolean().default(false)
+    .describe('Whether the native launcher app is connected'),
   socketPath: z.string().optional()
     .describe('The socket path in use'),
-  projectId: z.string().optional()
-    .describe('The authenticated project ID'),
   windowCount: z.number().default(0)
     .describe('Number of tracked windows'),
-  serverVersion: z.string().optional()
-    .describe('MBWA server version from ping'),
   lastError: z.string().optional()
     .describe('Last error message'),
-  reconnectAttempts: z.number().default(0)
-    .describe('Number of reconnect attempts made'),
 })
 export type WindowManagerState = z.infer<typeof WindowManagerStateSchema>
 
 export const WindowManagerEventsSchema = FeatureEventsSchema.extend({
-  connected: z.tuple([]).describe('Emitted when connected to MBWA socket'),
-  disconnected: z.tuple([]).describe('Emitted when disconnected from MBWA socket'),
-  reconnecting: z.tuple([z.number().describe('Attempt number')]).describe('Emitted when attempting to reconnect'),
+  listening: z.tuple([]).describe('Emitted when the IPC server starts listening'),
+  clientConnected: z.tuple([z.any().describe('The client socket')]).describe('Emitted when the native app connects'),
+  clientDisconnected: z.tuple([]).describe('Emitted when the native app disconnects'),
+  message: z.tuple([z.any().describe('The parsed message object')]).describe('Emitted for any incoming message that is not a windowAck'),
+  windowAck: z.tuple([z.any().describe('The window ack payload')]).describe('Emitted when a window ack is received from the app'),
   error: z.tuple([z.any().describe('The error')]).describe('Emitted on error'),
-  windowOpened: z.tuple([z.any().describe('Window info')]).describe('Emitted when a window is opened'),
-  windowClosed: z.tuple([z.any().describe('Close info')]).describe('Emitted when a window is closed'),
-  navigationStarted: z.tuple([z.any().describe('Navigation info')]).describe('Emitted when navigation starts'),
-  navigationFinished: z.tuple([z.any().describe('Navigation info')]).describe('Emitted when navigation finishes'),
 })
 
-// --- Spawn options type ---
+// --- Types ---
 
+/**
+ * Options for spawning a new native browser window.
+ */
 export interface SpawnOptions {
   url?: string
-  html?: string
   width?: number
   height?: number
   x?: number
   y?: number
-  /** Whether to auto-focus the window after spawning. Defaults to true. */
-  autoFocus?: boolean
+  alwaysOnTop?: boolean
   window?: {
     decorations?: 'normal' | 'hiddenTitleBar' | 'none'
     transparent?: boolean
     shadow?: boolean
-    /** Whether the window stays above all normal windows. Defaults to false. */
     alwaysOnTop?: boolean
     opacity?: number
     clickThrough?: boolean
   }
 }
 
-export interface WindowInfo {
-  windowId: string
-  url?: string
-  title?: string
-  width?: number
-  height?: number
-  x?: number
-  y?: number
+/**
+ * The result returned from a window ack.
+ */
+export interface WindowAckResult {
+  ok?: boolean
+  windowId?: string
+  value?: string
+  json?: any
+  [key: string]: any
 }
 
 // --- WindowHandle ---
 
 /**
- * A lightweight handle to a single MBWA window.
+ * A lightweight handle to a single native window.
  * Delegates all operations back to the WindowManager instance.
  */
 export class WindowHandle {
@@ -122,27 +117,27 @@ export class WindowHandle {
   ) {}
 
   /** Bring this window to the front. */
-  async focus(): Promise<any> {
+  async focus(): Promise<WindowAckResult> {
     return this.manager.focus(this.windowId)
   }
 
   /** Close this window. */
-  async close(): Promise<any> {
+  async close(): Promise<WindowAckResult> {
     return this.manager.close(this.windowId)
   }
 
   /** Navigate this window to a URL. */
-  async navigate(url: string): Promise<any> {
+  async navigate(url: string): Promise<WindowAckResult> {
     return this.manager.navigate(this.windowId, url)
   }
 
   /** Evaluate JavaScript in this window's web view. */
-  async eval(code: string, opts?: { timeoutMs?: number; returnJson?: boolean }): Promise<any> {
+  async eval(code: string, opts?: { timeoutMs?: number; returnJson?: boolean }): Promise<WindowAckResult> {
     return this.manager.eval(this.windowId, code, opts)
   }
 }
 
-// --- Feature ---
+// --- Private types ---
 
 type PendingRequest = {
   resolve: (value: any) => void
@@ -150,38 +145,46 @@ type PendingRequest = {
   timer: ReturnType<typeof setTimeout>
 }
 
+interface ClientConnection {
+  socket: Socket
+  buffer: string
+}
+
+// --- Feature ---
+
 /**
- * WindowManager Feature — Native window control via MenuBarWebAgent
+ * WindowManager Feature — Native window control via NativeCommandLauncher
  *
- * Provides a typed client for the MenuBarWebAgent (MBWA) macOS menu bar app.
- * Communicates over a Unix domain socket using an NDJSON request/response protocol
- * with per-project authentication.
- *
- * **Capabilities:**
- * - Spawn native browser windows with configurable chrome (decorations, transparency, etc.)
- * - Navigate windows to URLs or load HTML content
- * - Evaluate arbitrary JavaScript in any window's web view
- * - Focus, close, and list windows
- * - Receive real-time events for window lifecycle and navigation changes
- * - Automatic reconnection with exponential backoff
+ * Acts as an IPC server that the native macOS launcher app connects to.
+ * Communicates over a Unix domain socket using NDJSON (newline-delimited JSON).
  *
  * **Protocol:**
- * Uses NDJSON (newline-delimited JSON) over Unix domain sockets. Each request
- * includes an auto-incrementing `id` for response correlation and `projectId`/`token`
- * for authentication. Unsolicited server events are forwarded to the Luca event bus.
+ * - Bun listens on a Unix domain socket; the native app connects as a client
+ * - Window dispatch commands are sent as NDJSON with a `window` field
+ * - The app executes window commands and sends back `windowAck` messages
+ * - Any non-windowAck message from the app is emitted as a `message` event
+ * - Other features can use `send()` to write arbitrary NDJSON to the app
+ *
+ * **Capabilities:**
+ * - Spawn native browser windows with configurable chrome
+ * - Navigate, focus, close, and eval JavaScript in windows
+ * - Automatic socket file cleanup and fallback paths
  *
  * @example
  * ```typescript
- * const wm = container.feature('windowManager', { enable: true, autoConnect: true })
+ * const wm = container.feature('windowManager', { enable: true, autoListen: true })
  *
- * // Spawn a window
- * const result = await wm.spawn({ url: 'https://example.com', width: 800, height: 600 })
+ * const result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })
+ * const handle = wm.window(result.windowId)
+ * await handle.navigate('https://news.ycombinator.com')
+ * const title = await handle.eval('document.title')
+ * await handle.close()
  *
- * // Use a WindowHandle for chainable operations
- * const win = wm.window(result.windowId)
- * await win.navigate('https://google.com')
- * const title = await win.eval('document.title')
- * await win.close()
+ * // Other features can listen for non-window messages
+ * wm.on('message', (msg) => console.log('App says:', msg))
+ *
+ * // Other features can write raw NDJSON to the app
+ * wm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })
  * ```
  */
 export class WindowManager extends Feature<WindowManagerState, WindowManagerOptions> {
@@ -190,251 +193,217 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   static override optionsSchema = WindowManagerOptionsSchema
   static override eventsSchema = WindowManagerEventsSchema
 
-  private _socket?: Socket
-  private _nextId = 1
-  private _pending = new Map<number, PendingRequest>()
-  private _buffer = ''
-  private _intentionalClose = false
+  private _server?: NetServer
+  private _client?: ClientConnection
+  private _pending = new Map<string, PendingRequest>()
 
   override get initialState(): WindowManagerState {
     return {
       ...super.initialState,
-      connected: false,
+      listening: false,
+      clientConnected: false,
       windowCount: 0,
-      reconnectAttempts: 0,
     }
   }
 
-  /** Whether the socket is currently connected to MBWA. */
-  get isConnected(): boolean {
-    return this.state.get('connected') || false
+  /** Whether the IPC server is currently listening. */
+  get isListening(): boolean {
+    return this.state.get('listening') || false
+  }
+
+  /** Whether the native app client is currently connected. */
+  get isClientConnected(): boolean {
+    return this.state.get('clientConnected') || false
   }
 
   override async enable(options: any = {}): Promise<this> {
     await super.enable(options)
 
-    if (this.options.autoConnect) {
-      await this.connect()
+    if (this.options.autoListen) {
+      await this.listen()
     }
 
     return this
   }
 
   /**
-   * Connect to the MenuBarWebAgent Unix domain socket.
-   * Wires up data, close, and error handlers for NDJSON communication.
+   * Start listening on the Unix domain socket for the native app to connect.
+   * Cleans up stale socket files automatically. Falls back to the secondary
+   * path if the primary directory doesn't exist.
    *
-   * @returns Promise that resolves when the connection is established
-   * @throws {WindowManagerError} When the connection fails
+   * @param socketPath - Override the configured socket path
+   * @returns Promise resolving when the server is listening
    */
-  async connect(): Promise<this> {
-    if (this.isConnected && this._socket) {
-      return this
+  async listen(socketPath?: string): Promise<this> {
+    if (this._server) return this
+
+    socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
+
+    // Ensure the directory exists; fall back if it doesn't
+    const dir = dirname(socketPath)
+    if (!existsSync(dir)) {
+      try {
+        mkdirSync(dir, { recursive: true })
+      } catch {
+        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
+      }
     }
 
-    const socketPath = this.options.socketPath || DEFAULT_SOCKET_PATH
-
-    try {
-      const socket = await new Promise<Socket>((resolve, reject) => {
-        const s = new Socket()
-
-        s.connect(socketPath, () => {
-          resolve(s)
-        })
-
-        s.on('error', (err) => {
-          reject(err)
-        })
-      })
-
-      this._socket = socket
-      this._buffer = ''
-      this._intentionalClose = false
-
-      socket.on('data', (chunk) => {
-        this.handleData(chunk)
-      })
-
-      socket.on('close', () => {
-        this.setState({ connected: false })
-        this.emit('disconnected')
-
-        if (!this._intentionalClose) {
-          this.maybeReconnect()
+    // Clean up stale socket file
+    if (existsSync(socketPath)) {
+      try {
+        unlinkSync(socketPath)
+      } catch {
+        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
+        if (existsSync(socketPath)) {
+          unlinkSync(socketPath)
         }
-        this._intentionalClose = false
+      }
+    }
+
+    return new Promise<this>((resolve, reject) => {
+      const server = new NetServer((socket) => {
+        this.handleClientConnect(socket)
       })
 
-      socket.on('error', (err) => {
+      server.on('error', (err) => {
         this.setState({ lastError: err.message })
         this.emit('error', err)
+        reject(new WindowManagerError(`Failed to listen on ${socketPath}: ${err.message}`))
       })
 
-      this.setState({
-        connected: true,
-        socketPath,
-        projectId: this.options.projectId,
-        reconnectAttempts: 0,
-        lastError: undefined,
+      server.listen(socketPath, () => {
+        this._server = server
+        this.setState({ listening: true, socketPath })
+        this.emit('listening')
+        resolve(this)
       })
-
-      this.emit('connected')
-    } catch (err: any) {
-      this.setState({ lastError: err.message })
-      this.emit('error', err)
-      throw new WindowManagerError(`Failed to connect to MBWA at ${socketPath}: ${err.message}`, 'Disconnected')
-    }
-
-    return this
+    })
   }
 
   /**
-   * Disconnect from the MenuBarWebAgent socket.
-   * Suppresses automatic reconnection.
+   * Stop the IPC server and clean up all connections.
+   * Rejects any pending window operation requests.
    */
-  async disconnect(): Promise<this> {
-    this._intentionalClose = true
-
-    if (this._socket) {
-      this._socket.destroy()
-      this._socket = undefined
-    }
-
-    // Reject all pending requests
-    for (const [id, pending] of this._pending) {
+  async stop(): Promise<this> {
+    for (const [, pending] of this._pending) {
       clearTimeout(pending.timer)
-      pending.reject(new WindowManagerError('Disconnected', 'Disconnected'))
+      pending.reject(new WindowManagerError('Server stopping', 'Disconnected'))
     }
     this._pending.clear()
-    this._buffer = ''
 
-    this.setState({ connected: false })
+    if (this._client) {
+      this._client.socket.destroy()
+      this._client = undefined
+    }
+
+    const socketPath = this.state.get('socketPath')
+
+    if (this._server) {
+      await new Promise<void>((resolve) => {
+        this._server!.close(() => resolve())
+      })
+      this._server = undefined
+    }
+
+    // Clean up the socket file
+    if (socketPath && existsSync(socketPath)) {
+      try { unlinkSync(socketPath) } catch { /* ignore */ }
+    }
+
+    this.setState({ listening: false, clientConnected: false, socketPath: undefined })
     return this
   }
 
-  /**
-   * Ping the MBWA server. Does not require authentication.
-   *
-   * @returns Server response (typically includes version info)
-   */
-  async ping(): Promise<any> {
-    await this.ensureConnected()
-    return this.send('ping', {})
-  }
+  // --- Window Operations ---
 
   /**
    * Spawn a new native browser window.
+   * Sends a window dispatch to the app and waits for the ack.
    *
-   * @param opts - Window configuration (url/html, dimensions, chrome options)
-   * @returns The spawn response including `windowId`
+   * @param opts - Window configuration (url, dimensions, chrome options)
+   * @returns The window ack result including `windowId`
    */
-  async spawn(opts: SpawnOptions = {}): Promise<{ windowId: string } & Record<string, any>> {
-    await this.ensureConnected()
+  async spawn(opts: SpawnOptions = {}): Promise<WindowAckResult> {
+    const { window: windowChrome, ...flat } = opts
 
-    const { autoFocus = true, ...rest } = opts
-
-    // Default alwaysOnTop to false unless explicitly set.
-    // Windows still start in front by default because autoFocus defaults to true.
-    const windowOpts = {
-      alwaysOnTop: false,
-      ...rest.window,
+    if (windowChrome) {
+      return this.sendWindowCommand({
+        action: 'open',
+        request: {
+          ...flat,
+          window: windowChrome,
+        },
+      })
     }
 
-    const result = await this.send<{ windowId: string } & Record<string, any>>('spawnWindow', {
-      ...rest,
-      window: windowOpts,
-      projectId: this.options.projectId,
-      token: this.options.token,
-    })
-
-    if (autoFocus && result.windowId) {
-      await this.focus(result.windowId)
-    }
-
-    return result
-  }
-
-  /**
-   * List all windows for the authenticated project.
-   *
-   * @returns Object with `windows` array of WindowInfo
-   */
-  async list(): Promise<{ windows: WindowInfo[] }> {
-    await this.ensureConnected()
-    return this.send('listWindows', {
-      projectId: this.options.projectId,
-      token: this.options.token,
+    return this.sendWindowCommand({
+      action: 'open',
+      ...flat,
+      alwaysOnTop: flat.alwaysOnTop ?? false,
     })
   }
 
   /**
    * Bring a window to the front.
    *
-   * @param windowId - The ID of the window to focus
+   * @param windowId - The window ID. If omitted, the app uses the most recent window.
    */
-  async focus(windowId: string): Promise<any> {
-    await this.ensureConnected()
-    return this.send('focusWindow', {
-      windowId,
-      projectId: this.options.projectId,
-      token: this.options.token,
+  async focus(windowId?: string): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'focus',
+      ...(windowId ? { windowId } : {}),
     })
   }
 
   /**
    * Close a window.
    *
-   * @param windowId - The ID of the window to close
+   * @param windowId - The window ID. If omitted, the app closes the most recent window.
    */
-  async close(windowId: string): Promise<any> {
-    await this.ensureConnected()
-    return this.send('closeWindow', {
-      windowId,
-      projectId: this.options.projectId,
-      token: this.options.token,
+  async close(windowId?: string): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'close',
+      ...(windowId ? { windowId } : {}),
     })
   }
 
   /**
    * Navigate a window to a new URL.
    *
-   * @param windowId - The ID of the window
+   * @param windowId - The window ID
    * @param url - The URL to navigate to
    */
-  async navigate(windowId: string, url: string): Promise<any> {
-    await this.ensureConnected()
-    return this.send('navigate', {
+  async navigate(windowId: string, url: string): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'navigate',
       windowId,
       url,
-      projectId: this.options.projectId,
-      token: this.options.token,
     })
   }
 
   /**
    * Evaluate JavaScript in a window's web view.
    *
-   * @param windowId - The ID of the window
+   * @param windowId - The window ID
    * @param code - JavaScript code to evaluate
-   * @param opts - Options: timeoutMs, returnJson
-   * @returns The evaluation result
+   * @param opts - timeoutMs (default 5000), returnJson (default true)
+   * @returns The evaluation result from the window ack
    */
-  async eval(windowId: string, code: string, opts?: { timeoutMs?: number; returnJson?: boolean }): Promise<any> {
-    await this.ensureConnected()
-    return this.send('eval', {
+  async eval(windowId: string, code: string, opts?: { timeoutMs?: number; returnJson?: boolean }): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'eval',
       windowId,
       code,
       ...(opts?.timeoutMs != null ? { timeoutMs: opts.timeoutMs } : {}),
       ...(opts?.returnJson != null ? { returnJson: opts.returnJson } : {}),
-      projectId: this.options.projectId,
-      token: this.options.token,
     })
   }
 
   /**
    * Get a WindowHandle for chainable operations on a specific window.
    *
-   * @param windowId - The ID of the window
+   * @param windowId - The window ID
    * @returns A WindowHandle instance
    */
   window(windowId: string): WindowHandle {
@@ -444,130 +413,122 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   // --- Private internals ---
 
   /**
-   * Ensure the socket is connected, connecting lazily if needed.
+   * Handle a new client connection from the native app.
+   * Sets up NDJSON buffering and event forwarding.
    */
-  private async ensureConnected(): Promise<void> {
-    if (!this.isConnected || !this._socket) {
-      await this.connect()
+  private handleClientConnect(socket: Socket): void {
+    const client: ClientConnection = { socket, buffer: '' }
+
+    // Replace any existing client (single-client model)
+    if (this._client) {
+      this._client.socket.destroy()
     }
-  }
+    this._client = client
 
-  /**
-   * Send an NDJSON request and wait for the correlated response.
-   *
-   * @param method - The MBWA protocol method name
-   * @param params - The request parameters
-   * @returns Promise resolving to the response result
-   */
-  private send<T = any>(method: string, params: Record<string, any>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      if (!this._socket) {
-        reject(new WindowManagerError('Not connected', 'Disconnected'))
-        return
+    this.setState({ clientConnected: true })
+    this.emit('clientConnected', socket)
+
+    socket.on('data', (chunk) => {
+      client.buffer += chunk.toString()
+      const lines = client.buffer.split('\n')
+      client.buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.trim()) this.processLine(line)
       }
+    })
 
-      const id = this._nextId++
-      const timeoutMs = this.options.requestTimeoutMs || 10000
+    socket.on('close', () => {
+      if (this._client === client) {
+        this._client = undefined
+        this.setState({ clientConnected: false })
+        this.emit('clientDisconnected')
+      }
+    })
 
-      const timer = setTimeout(() => {
-        this._pending.delete(id)
-        reject(new WindowManagerError(`Request ${method} (id=${id}) timed out after ${timeoutMs}ms`, 'Timeout'))
-      }, timeoutMs)
-
-      this._pending.set(id, { resolve, reject, timer })
-
-      const line = JSON.stringify({ id, method, params }) + '\n'
-      this._socket.write(line)
+    socket.on('error', (err) => {
+      this.setState({ lastError: err.message })
+      this.emit('error', err)
     })
   }
 
   /**
-   * Handle incoming data chunks from the socket.
-   * Buffers partial lines and processes complete NDJSON lines.
-   */
-  private handleData(chunk: Buffer): void {
-    this._buffer += chunk.toString()
-
-    const lines = this._buffer.split('\n')
-    // Keep the last (possibly incomplete) segment in the buffer
-    this._buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      if (line.trim()) {
-        this.processLine(line)
-      }
-    }
-  }
-
-  /**
-   * Process a single complete NDJSON line.
-   * If it has an `id`, resolves/rejects the matching pending request.
-   * If it has a `method`, emits the corresponding event.
+   * Process a single complete NDJSON line from the app.
+   * Resolves pending windowAck requests; emits `message` for everything else.
    */
   private processLine(line: string): void {
     let msg: any
     try {
       msg = JSON.parse(line)
     } catch {
+      return // Malformed JSON ignored per spec
+    }
+
+    // WindowAck from app (response to a window dispatch)
+    if (msg.type === 'windowAck') {
+      this.emit('windowAck', msg)
+
+      if (msg.id && this._pending.has(msg.id)) {
+        const pending = this._pending.get(msg.id)!
+        this._pending.delete(msg.id)
+        clearTimeout(pending.timer)
+
+        if (msg.success) {
+          pending.resolve(msg.result ?? msg)
+        } else {
+          pending.reject(new WindowManagerError(msg.error || 'Window operation failed', 'Internal'))
+        }
+      }
       return
     }
 
-    // Response to a pending request
-    if (msg.id != null && this._pending.has(msg.id)) {
-      const pending = this._pending.get(msg.id)!
-      this._pending.delete(msg.id)
-      clearTimeout(pending.timer)
-
-      if (msg.error) {
-        const code = (ErrorCodes.includes(msg.error.code) ? msg.error.code : 'Internal') as WindowManagerErrorCode
-        pending.reject(new WindowManagerError(msg.error.message || 'Unknown error', code))
-      } else {
-        pending.resolve(msg.result ?? msg)
-      }
-      return
-    }
-
-    // Unsolicited server event
-    if (msg.method) {
-      // Only process events for our project
-      if (msg.projectId && msg.projectId !== this.options.projectId) {
-        return
-      }
-
-      const eventMap: Record<string, string> = {
-        windowOpened: 'windowOpened',
-        windowClosed: 'windowClosed',
-        navigationStarted: 'navigationStarted',
-        navigationFinished: 'navigationFinished',
-      }
-
-      const eventName = eventMap[msg.method]
-      if (eventName) {
-        this.emit(eventName as any, msg.params || msg)
-      }
-    }
+    // Everything else is forwarded as a generic message
+    this.emit('message', msg)
   }
 
   /**
-   * Attempt to reconnect using exponential backoff.
-   * Mirrors the WebSocketClient reconnection pattern.
+   * Send a window dispatch command to the app and wait for the ack.
+   * Generates a UUID for correlation and sets up a timeout.
    */
-  private maybeReconnect(): void {
-    if (!this.options.reconnect) return
+  private sendWindowCommand(windowPayload: Record<string, any>): Promise<WindowAckResult> {
+    return new Promise<WindowAckResult>((resolve, reject) => {
+      if (!this._client) {
+        reject(new WindowManagerError('No app client connected', 'NoClient'))
+        return
+      }
 
-    const maxAttempts = this.options.maxReconnectAttempts ?? Infinity
-    const baseInterval = this.options.reconnectInterval ?? 1000
-    const attempts = (this.state.get('reconnectAttempts') ?? 0) + 1
+      const id = randomUUID()
+      const timeoutMs = this.options.requestTimeoutMs || 10000
 
-    if (attempts > maxAttempts) return
+      const timer = setTimeout(() => {
+        this._pending.delete(id)
+        reject(new WindowManagerError(
+          `Window ${windowPayload.action} timed out after ${timeoutMs}ms`,
+          'Timeout'
+        ))
+      }, timeoutMs)
 
-    this.setState({ reconnectAttempts: attempts })
-    this.emit('reconnecting', attempts)
+      this._pending.set(id, { resolve, reject, timer })
 
-    const delay = Math.min(baseInterval * Math.pow(2, attempts - 1), 30000)
-    setTimeout(() => {
-      this.connect().catch(() => {})
-    }, delay)
+      this.send({
+        id,
+        status: 'processing',
+        window: windowPayload,
+        timestamp: new Date().toISOString(),
+      })
+    })
+  }
+
+  /**
+   * Write an NDJSON message to the connected app client.
+   * Public so other features can send arbitrary protocol messages over the same socket.
+   *
+   * @param msg - The message object to send (will be JSON-serialized + newline)
+   */
+  send(msg: Record<string, any>): void {
+    if (!this._client) {
+      throw new WindowManagerError('No app client connected', 'NoClient')
+    }
+    this._client.socket.write(JSON.stringify(msg) + '\n')
   }
 }
 

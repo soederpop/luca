@@ -3,16 +3,28 @@ import { NodeContainer } from '../src/node/container'
 const container = new NodeContainer({ cwd: process.cwd() })
 const wm = container.feature('windowManager')
 
-console.log('Connected:', wm.isConnected)
+// Start listening for the native app to connect
+await wm.listen()
+console.log('Listening:', wm.isListening)
+console.log('Socket path:', wm.state.get('socketPath'))
 
-// Ping the server
-const pong = await wm.ping()
-console.log('Ping response:', pong)
-
-// Spawn a Google window
-const result = await wm.spawn({
-  url: 'https://www.google.com',
-  width: 1024,
-  height: 768,
+wm.on('clientConnected', () => {
+  console.log('App connected')
 })
-console.log('Spawned window:', result)
+
+// Forward any non-window messages from the app
+wm.on('message', (msg) => {
+  console.log('Message from app:', msg)
+})
+
+// Wait for the app, then spawn a window
+wm.on('clientConnected', async () => {
+  const result = await wm.spawn({
+    url: 'https://www.google.com',
+    width: 1024,
+    height: 768,
+  })
+  console.log('Spawned window:', result)
+})
+
+console.log('Waiting for native app to connect...')
