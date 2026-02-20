@@ -264,7 +264,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * to do with starting / stopping a container but that might be neat.
   */
   async start() {
-    this.emit('started')
+    this.emit('started', this as Container<Features>)
     this.state.set('started', true)
     return this  
   }
