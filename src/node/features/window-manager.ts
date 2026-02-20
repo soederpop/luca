@@ -471,9 +471,10 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     if (msg.type === 'windowAck') {
       this.emit('windowAck', msg)
 
-      if (msg.id && this._pending.has(msg.id)) {
-        const pending = this._pending.get(msg.id)!
-        this._pending.delete(msg.id)
+      const ackId = typeof msg.id === 'string' ? msg.id.toLowerCase() : msg.id
+      if (ackId && this._pending.has(ackId)) {
+        const pending = this._pending.get(ackId)!
+        this._pending.delete(ackId)
         clearTimeout(pending.timer)
 
         if (msg.success) {
