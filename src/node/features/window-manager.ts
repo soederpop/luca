@@ -220,7 +220,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     await super.enable(options)
 
     if (this.options.autoListen) {
-      await this.listen()
+      this.listen()
     }
 
     return this
@@ -228,13 +228,12 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
   /**
    * Start listening on the Unix domain socket for the native app to connect.
-   * Cleans up stale socket files automatically. Falls back to the secondary
-   * path if the primary directory doesn't exist.
+   * Fire-and-forget — binds the socket and returns immediately. Sits quietly
+   * until the native app connects; does nothing visible if it never does.
    *
    * @param socketPath - Override the configured socket path
-   * @returns Promise resolving when the server is listening
    */
-  async listen(socketPath?: string): Promise<this> {
+  listen(socketPath?: string): this {
     if (this._server) return this
 
     socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
@@ -261,24 +260,22 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       }
     }
 
-    return new Promise<this>((resolve, reject) => {
-      const server = new NetServer((socket) => {
-        this.handleClientConnect(socket)
-      })
-
-      server.on('error', (err) => {
-        this.setState({ lastError: err.message })
-        this.emit('error', err)
-        reject(new WindowManagerError(`Failed to listen on ${socketPath}: ${err.message}`))
-      })
-
-      server.listen(socketPath, () => {
-        this._server = server
-        this.setState({ listening: true, socketPath })
-        this.emit('listening')
-        resolve(this)
-      })
+    const server = new NetServer((socket) => {
+      this.handleClientConnect(socket)
     })
+
+    server.on('error', (err) => {
+      this.setState({ lastError: err.message })
+    })
+
+    const finalPath = socketPath
+    server.listen(finalPath, () => {
+      this._server = server
+      this.setState({ listening: true, socketPath: finalPath })
+      this.emit('listening')
+    })
+
+    return this
   }
 
   /**
@@ -288,7 +285,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   async stop(): Promise<this> {
     for (const [, pending] of this._pending) {
       clearTimeout(pending.timer)
-      pending.reject(new WindowManagerError('Server stopping', 'Disconnected'))
+      pending.resolve({ ok: false, error: 'Server stopping' })
     }
     this._pending.clear()
 
@@ -441,13 +438,20 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       if (this._client === client) {
         this._client = undefined
         this.setState({ clientConnected: false })
+
+        // Resolve all pending requests — the app is gone, no acks coming
+        for (const [id, pending] of this._pending) {
+          clearTimeout(pending.timer)
+          pending.resolve({ ok: false, error: 'Client disconnected' })
+        }
+        this._pending.clear()
+
         this.emit('clientDisconnected')
       }
     })
 
     socket.on('error', (err) => {
       this.setState({ lastError: err.message })
-      this.emit('error', err)
     })
   }
 
@@ -475,7 +479,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
         if (msg.success) {
           pending.resolve(msg.result ?? msg)
         } else {
-          pending.reject(new WindowManagerError(msg.error || 'Window operation failed', 'Internal'))
+          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
         }
       }
       return
@@ -492,7 +496,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private sendWindowCommand(windowPayload: Record<string, any>): Promise<WindowAckResult> {
     return new Promise<WindowAckResult>((resolve, reject) => {
       if (!this._client) {
-        reject(new WindowManagerError('No app client connected', 'NoClient'))
+        resolve({ ok: false })
         return
       }
 
@@ -501,10 +505,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
       const timer = setTimeout(() => {
         this._pending.delete(id)
-        reject(new WindowManagerError(
-          `Window ${windowPayload.action} timed out after ${timeoutMs}ms`,
-          'Timeout'
-        ))
+        resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms` })
       }, timeoutMs)
 
       this._pending.set(id, { resolve, reject, timer })
@@ -524,11 +525,10 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    *
    * @param msg - The message object to send (will be JSON-serialized + newline)
    */
-  send(msg: Record<string, any>): void {
-    if (!this._client) {
-      throw new WindowManagerError('No app client connected', 'NoClient')
-    }
+  send(msg: Record<string, any>): boolean {
+    if (!this._client) return false
     this._client.socket.write(JSON.stringify(msg) + '\n')
+    return true
   }
 }
 
