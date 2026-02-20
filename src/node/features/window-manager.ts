@@ -5,9 +5,9 @@ import { Socket } from 'net'
 import { homedir } from 'os'
 import { join } from 'path'
 
-const DEFAULT_SOCKET_PATH = join(homedir(), 'Library', 'Application Support', 'MenuBarWebAgent', 'agent.sock')
+const DEFAULT_SOCKET_PATH = join(homedir(), 'Library', 'Application Support', 'Luca', 'agent.sock')
+const DEFAULT_TOKEN = "t_vVlGB2Q9rvHX+tQifB472RDbHcnqDf4kpaFYtGro7Ks="
 
-// --- Error class ---
 
 const ErrorCodes = ['AuthFailed', 'BadRequest', 'NotFound', 'EvalFailed', 'Internal', 'Timeout', 'Disconnected'] as const
 type WindowManagerErrorCode = typeof ErrorCodes[number]
@@ -30,11 +30,11 @@ export class WindowManagerError extends Error {
 
 export const WindowManagerOptionsSchema = FeatureOptionsSchema.extend({
   projectId: z.string().default('p_luca')
-    .describe('MBWA project ID for authentication'),
-  token: z.string().default('t_wNDJ7TdyZXKkZzFk6eW7Ds2mGxbUCi65k7y0kTrO25o=')
-    .describe('MBWA auth token for authentication'),
+    .describe('Luca project ID for authentication'),
+  token: z.string().default(DEFAULT_TOKEN)
+    .describe('Luca auth token for authentication'),
   socketPath: z.string().default(DEFAULT_SOCKET_PATH)
-    .describe('Path to the MenuBarWebAgent Unix domain socket'),
+    .describe('Path to the Luca.app Unix domain socket'),
   autoConnect: z.boolean().optional()
     .describe('Automatically connect to the socket when the feature is enabled'),
   reconnect: z.boolean().optional()

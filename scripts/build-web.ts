@@ -1,3 +1,4 @@
+// @ts-nocheck
 import path from "path"
 
 const result = await Bun.build({

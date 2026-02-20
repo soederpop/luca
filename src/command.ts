@@ -73,23 +73,16 @@ export class Command<
 				id: T,
 				options?: ConstructorParameters<AvailableCommands[T]>[0]
 			): NonNullable<InstanceType<AvailableCommands[T]>> {
-				const { hashObject } = container.utils
 				const BaseClass = commands.lookup(id as string) as any
 
-				const cacheKey = hashObject({ __type: 'command', id, options, uuid: container.uuid })
-				const cached = helperCache.get(cacheKey)
-
-				if (cached) {
-					return cached as NonNullable<InstanceType<AvailableCommands[T]>>
-				}
-
-				const instance = new BaseClass(
-					{ ...options, name: (options as any)?.name || id, _cacheKey: cacheKey },
-					container.context,
-				) as NonNullable<InstanceType<AvailableCommands[T]>>
-
-				helperCache.set(cacheKey, instance)
-				return instance
+				return container.createHelperInstance({
+					cache: helperCache,
+					type: 'command',
+					id: String(id),
+					BaseClass,
+					options,
+					fallbackName: String(id),
+				}) as NonNullable<InstanceType<AvailableCommands[T]>>
 			},
 		})
 

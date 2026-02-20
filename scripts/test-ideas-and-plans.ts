@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Proof script: exercises the project-owner's Idea + Plan models and write tools.
  *

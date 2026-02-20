@@ -125,29 +125,16 @@ export class Endpoint<
         id: T,
         options?: ConstructorParameters<AvailableEndpoints[T]>[0]
       ): InstanceType<AvailableEndpoints[T]> {
-        const { hashObject } = container.utils
         const BaseClass = endpoints.lookup(id as string) as any
 
-        const cacheKey = hashObject({
-          __type: 'endpoint',
-          id,
+        return container.createHelperInstance({
+          cache: helperCache,
+          type: 'endpoint',
+          id: String(id),
+          BaseClass,
           options,
-          uuid: container.uuid,
-        })
-        const cached = helperCache.get(cacheKey)
-
-        if (cached) {
-          return cached as InstanceType<AvailableEndpoints[T]>
-        }
-
-        const instance = new BaseClass(
-          options || {},
-          container.context
-        ) as InstanceType<AvailableEndpoints[T]>
-
-        helperCache.set(cacheKey, instance)
-
-        return instance
+          fallbackName: String(id),
+        }) as InstanceType<AvailableEndpoints[T]>
       },
     })
 
