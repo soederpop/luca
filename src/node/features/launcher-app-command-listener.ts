@@ -85,20 +85,19 @@ export class CommandHandle {
 
   /**
    * Mark the command as successfully finished.
-   * Can only be called once per command.
+   * Can only be called once per command. All arguments are optional.
    *
-   * @param result - The result payload to send to the app
-   * @param speech - Optional speech phrase for TTS
+   * @param opts - Optional result payload and/or speech phrase
    */
-  finish(result: Record<string, any> = {}, speech?: string): boolean {
+  finish(opts?: { result?: Record<string, any>; speech?: string }): boolean {
     if (this._finished) return false
     this._finished = true
     return this._send({
       id: this.id,
       status: 'finished',
       success: true,
-      result,
-      ...(speech ? { speech } : {}),
+      ...(opts?.result ? { result: opts.result } : {}),
+      ...(opts?.speech ? { speech: opts.speech } : {}),
       timestamp: new Date().toISOString(),
     })
   }
@@ -107,18 +106,17 @@ export class CommandHandle {
    * Mark the command as failed.
    * Can only be called once per command.
    *
-   * @param error - Error description string
-   * @param speech - Optional speech phrase for TTS
+   * @param opts - Optional error description and/or speech phrase
    */
-  fail(error: string, speech?: string): boolean {
+  fail(opts?: { error?: string; speech?: string }): boolean {
     if (this._finished) return false
     this._finished = true
     return this._send({
       id: this.id,
       status: 'finished',
       success: false,
-      error,
-      ...(speech ? { speech } : {}),
+      ...(opts?.error ? { error: opts.error } : {}),
+      ...(opts?.speech ? { speech: opts.speech } : {}),
       timestamp: new Date().toISOString(),
     })
   }
@@ -187,13 +185,14 @@ interface ClientConnection {
  * })
  *
  * listener.on('command', async (cmd) => {
- *   cmd.ack('Working on it!')
+ *   cmd.ack('Working on it!')     // or just cmd.ack() for silent
  *
  *   // ... do your actual work ...
  *   cmd.progress(0.5, 'Halfway there')
  *
- *   cmd.finish({ action: 'completed', text: cmd.text }, 'All done!')
- *   // or: cmd.fail('something went wrong', 'Sorry, that failed.')
+ *   cmd.finish()                   // silent finish
+ *   cmd.finish({ result: { action: 'completed' }, speech: 'All done!' })
+ *   // or: cmd.fail({ error: 'not found', speech: 'Sorry, that failed.' })
  * })
  * ```
  */
