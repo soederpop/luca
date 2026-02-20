@@ -245,6 +245,7 @@ export class NodeContainer<
     this.feature("networking", { enable: true });
     this.feature("ui", { enable: true });
     this.feature("vm", { enable: true, context: {} });
+    this.feature("esbuild", { enable: true }); 
 
     const enable = castArray(this.options.enable)
       .filter((v) => v && v?.length)
@@ -257,6 +258,8 @@ export class NodeContainer<
     });
 
     this.use(Client).use(Server).use(Command).use(Endpoint);
+
+    loadLocalContainerModule(this as NodeContainer)
   }
 
   override get Feature() {
@@ -321,5 +324,28 @@ export class NodeContainer<
         return relative(cwd, resolve(cwd, ...paths));
       },
     };
+  }
+}
+
+/** */
+function loadLocalContainerModule(container: NodeContainer) {
+  const containerModulePath = container.paths.resolve('container.ts')
+  if (!container.fs.exists(containerModulePath)) {
+    return
+  }
+
+  const vm = container.vm
+
+  const moduleExports = vm.loadModule(containerModulePath, { container }) || {}
+
+  // some ideas, automatically iterate over the exports, if any feature classes, register the feature with the features registry,
+  // same for clients, servers, commands, any helper that is known to the container
+
+  if (typeof moduleExports.main === 'function') {
+    moduleExports.main(container)
+  }
+
+  if (typeof moduleExports.onStart === 'function') {
+    container.once('started', () => moduleExports.onStart(container))
   }
 }
