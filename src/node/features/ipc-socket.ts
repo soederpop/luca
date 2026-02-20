@@ -78,12 +78,15 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
   static override stateSchema = IpcStateSchema
-  
+
   /** The Node.js net Server instance (when in server mode) */
   server?: Server;
-  
+
   /** Set of connected client sockets (server mode only) */
   protected sockets: Set<Socket> = new Set();
+
+  /** Per-socket NDJSON read buffers for accumulating partial lines */
+  private _buffers = new WeakMap<Socket, string>();
 
   /**
    * Attaches the IpcSocket feature to a NodeContainer instance.
@@ -183,15 +186,16 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
     this.server = new Server((socket) => {
       this.sockets.add(socket);
+      this._buffers.set(socket, '');
 
       socket.on("close", () => {
         this.sockets.delete(socket);
       });
-      
-      socket.on('data', (data) => {
-        this.emit('message', JSON.parse(String(data)))
+
+      socket.on('data', (chunk) => {
+        this._handleChunk(socket, chunk)
       })
-      
+
       this.emit('connection', socket)
     });
 
@@ -294,7 +298,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
     this.sockets.forEach((socket) => socket.write(JSON.stringify({
       data: message,
       id: this.container.utils.uuid()
-    })))    
+    }) + '\n'))
 
     return this
   }
@@ -338,7 +342,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
       throw new Error("No connection.")
     }
     
-    this._connection.write(JSON.stringify({ id, data: message }))
+    this._connection.write(JSON.stringify({ id, data: message }) + '\n')
   }
 
   /**
@@ -404,12 +408,41 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
     connection.on("close", () => {
       this._connection = undefined
     })
-    
-    connection.on("data", (data) => {
-      this.emit('message', JSON.parse(String(data)))
+
+    this._buffers.set(connection, '');
+    connection.on("data", (chunk) => {
+      this._handleChunk(connection, chunk)
     })
-    
+
     return this._connection = connection as Socket
+  }
+
+  /**
+   * Accumulates incoming data into a per-socket buffer and emits
+   * a `message` event for each complete NDJSON line (newline-delimited JSON).
+   *
+   * This handles the common stream framing issues:
+   * - Partial messages split across multiple `data` events
+   * - Multiple messages arriving in a single `data` event
+   * - Malformed lines (silently skipped)
+   *
+   * @param socket - The socket the data arrived on
+   * @param chunk - The raw data chunk
+   */
+  private _handleChunk(socket: Socket, chunk: Buffer): void {
+    let buffer = (this._buffers.get(socket) || '') + chunk.toString()
+    const lines = buffer.split('\n')
+    // Last element is either empty (if chunk ended with \n) or an incomplete line
+    this._buffers.set(socket, lines.pop() || '')
+
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        this.emit('message', JSON.parse(line))
+      } catch {
+        // Malformed JSON line — skip
+      }
+    }
   }
 }
 

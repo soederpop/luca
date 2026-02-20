@@ -55,6 +55,7 @@ import "./features/google-sheets";
 import "./features/google-calendar";
 import "./features/google-docs";
 import "./features/window-manager";
+import "./features/launcher-app-command-listener";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -94,6 +95,7 @@ import type { GoogleSheets } from './features/google-sheets';
 import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
 import type { WindowManager } from './features/window-manager';
+import type { LauncherAppCommandListener } from './features/launcher-app-command-listener';
 export { State };
 
 export {
@@ -128,6 +130,7 @@ export {
   type GoogleCalendar,
   type GoogleDocs,
   type WindowManager,
+  type LauncherAppCommandListener,
 };
 
 export type { FeatureOptions };
@@ -188,6 +191,7 @@ export interface NodeFeatures extends AvailableFeatures {
   googleCalendar: typeof GoogleCalendar;
   googleDocs: typeof GoogleDocs;
   windowManager: typeof WindowManager;
+  launcherAppCommandListener: typeof LauncherAppCommandListener;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -231,6 +235,7 @@ export class NodeContainer<
   googleCalendar?: GoogleCalendar;
   googleDocs?: GoogleDocs;
   windowManager?: WindowManager;
+  launcherAppCommandListener?: LauncherAppCommandListener;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
