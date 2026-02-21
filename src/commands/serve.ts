@@ -65,34 +65,48 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 	}
 
 	// Discover the endpoints directory from the project root.
-	// Checks explicit flag, then common conventions, then gives up.
+	// Checks explicit flag, then common conventions, then skips if absent.
 	const endpointsDir = resolveEndpointsDir(options, fs, paths)
 
-	if (!endpointsDir) {
-		console.error(`No endpoints directory found. Looked for: endpoints/, src/endpoints/`)
-		console.error(`Create one of these directories, or pass --endpointsDir <path>`)
+	// Resolve static directory: explicit flag > public/ > cwd (if index.html exists)
+	let resolvedStaticDir: string | undefined
+	if (fs.exists(staticDir)) {
+		resolvedStaticDir = staticDir
+	} else if (fs.exists(paths.resolve('index.html'))) {
+		resolvedStaticDir = paths.resolve('.')
+	}
+
+	// If there's nothing to serve at all, bail out.
+	if (!endpointsDir && !resolvedStaticDir) {
+		console.error(`Can't figure out what to serve in this folder.`)
+		console.error(`Expected one of: endpoints/, src/endpoints/, public/, or an index.html in the current directory.`)
 		process.exit(1)
 	}
 
 	const expressServer = container.server('express', {
 		port,
 		cors: options.cors,
-		static: fs.exists(staticDir) ? staticDir : undefined,
+		static: resolvedStaticDir,
 	}) as ExpressServer
 
-	await expressServer.useEndpoints(endpointsDir)
+	if (endpointsDir) {
+		await expressServer.useEndpoints(endpointsDir)
 
-	expressServer.serveOpenAPISpec({
-		title: manifest.name || 'API',
-		version: manifest.version || '0.0.0',
-		description: manifest.description || '',
-	})
+		expressServer.serveOpenAPISpec({
+			title: manifest.name || 'API',
+			version: manifest.version || '0.0.0',
+			description: manifest.description || '',
+		})
+	}
 
 	await expressServer.start({ port })
 
 	const name = manifest.name || 'Server'
 	console.log(`\n${name} listening on http://localhost:${port}`)
-	console.log(`OpenAPI spec at http://localhost:${port}/openapi.json`)
+
+	if (endpointsDir) {
+		console.log(`OpenAPI spec at http://localhost:${port}/openapi.json`)
+	}
 
 	if (options.open) {
 		try {
@@ -103,13 +117,19 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		}
 	}
 
-	if (expressServer._mountedEndpoints.length) {
-		console.log(`\nEndpoints:`)
-		for (const ep of expressServer._mountedEndpoints) {
-			console.log(`  ${ep.methods.map((m: string) => m.toUpperCase()).join(', ').padEnd(20)} ${ep.path}`)
+	if (resolvedStaticDir) {
+		console.log(`\nStatic files from ${resolvedStaticDir}`)
+	}
+
+	if (endpointsDir) {
+		if (expressServer._mountedEndpoints.length) {
+			console.log(`\nEndpoints:`)
+			for (const ep of expressServer._mountedEndpoints) {
+				console.log(`  ${ep.methods.map((m: string) => m.toUpperCase()).join(', ').padEnd(20)} ${ep.path}`)
+			}
+		} else {
+			console.log(`\nNo endpoints found in ${endpointsDir}`)
 		}
-	} else {
-		console.log(`\nNo endpoints found in ${endpointsDir}`)
 	}
 
 	console.log()
