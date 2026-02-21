@@ -12,10 +12,8 @@ const DEFAULT_SOCKET_PATH = join(
   'Library',
   'Application Support',
   'NativeCommandLauncherApp',
-  'ipc.sock'
+  'ipc-window.sock'
 )
-
-const FALLBACK_SOCKET_PATH = `/tmp/native-command-launcher.${process.getuid?.() ?? 501}.sock`
 
 const ErrorCodes = ['BadRequest', 'NotFound', 'EvalFailed', 'Internal', 'Timeout', 'Disconnected', 'NoClient'] as const
 type WindowManagerErrorCode = typeof ErrorCodes[number]
@@ -39,8 +37,6 @@ export class WindowManagerError extends Error {
 export const WindowManagerOptionsSchema = FeatureOptionsSchema.extend({
   socketPath: z.string().default(DEFAULT_SOCKET_PATH)
     .describe('Path to the Unix domain socket the server listens on'),
-  fallbackSocketPath: z.string().default(FALLBACK_SOCKET_PATH)
-    .describe('Fallback socket path if primary is unavailable'),
   autoListen: z.boolean().optional()
     .describe('Automatically start listening when the feature is enabled'),
   requestTimeoutMs: z.number().default(10000)
@@ -227,6 +223,58 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private _client?: ClientConnection
   private _pending = new Map<string, PendingRequest>()
 
+  private normalizeRequestId(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined
+    return value.toLowerCase()
+  }
+
+  private waitForAnyClientConnection(timeoutMs: number, bridge?: any): Promise<'direct' | 'bridge' | undefined> {
+    if (this._client) return Promise.resolve('direct')
+    if (bridge?.isClientConnected) return Promise.resolve('bridge')
+
+    return new Promise<'direct' | 'bridge' | undefined>((resolve) => {
+      let settled = false
+
+      const cleanup = () => {
+        this.off('clientConnected', onDirectConnected)
+        bridge?.off?.('clientConnected', onBridgeConnected)
+      }
+
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve(undefined)
+      }, timeoutMs)
+
+      const onDirectConnected = () => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        cleanup()
+        resolve('direct')
+      }
+
+      const onBridgeConnected = () => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        cleanup()
+        resolve('bridge')
+      }
+
+      this.once('clientConnected', onDirectConnected)
+      bridge?.once?.('clientConnected', onBridgeConnected)
+    })
+  }
+
+  private getBridgeListener(): any | undefined {
+    const listener = (this.container as any).launcherAppCommandListener
+    if (!listener || listener === this) return undefined
+    if (typeof listener.send !== 'function') return undefined
+    return listener
+  }
+
   override get initialState(): WindowManagerState {
     return {
       ...super.initialState,
@@ -268,13 +316,14 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
 
-    // Ensure the directory exists; fall back if it doesn't
+    // Ensure the directory exists
     const dir = dirname(socketPath)
     if (!existsSync(dir)) {
       try {
         mkdirSync(dir, { recursive: true })
-      } catch {
-        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
+      } catch (error: any) {
+        this.setState({ lastError: `Failed to create socket directory ${dir}: ${error?.message || String(error)}` })
+        return this
       }
     }
 
@@ -282,11 +331,9 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     if (existsSync(socketPath)) {
       try {
         unlinkSync(socketPath)
-      } catch {
-        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
-        if (existsSync(socketPath)) {
-          unlinkSync(socketPath)
-        }
+      } catch (error: any) {
+        this.setState({ lastError: `Failed to remove stale socket at ${socketPath}: ${error?.message || String(error)}` })
+        return this
       }
     }
 
@@ -526,7 +573,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     if (msg.type === 'windowAck') {
       this.emit('windowAck', msg)
 
-      const ackId = typeof msg.id === 'string' ? msg.id.toLowerCase() : msg.id
+      const ackId = this.normalizeRequestId(msg.id)
       if (ackId && this._pending.has(ackId)) {
         const pending = this._pending.get(ackId)!
         this._pending.delete(ackId)
@@ -550,28 +597,79 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Generates a UUID for correlation and sets up a timeout.
    */
   private sendWindowCommand(windowPayload: Record<string, any>): Promise<WindowAckResult> {
-    return new Promise<WindowAckResult>((resolve, reject) => {
-      if (!this._client) {
-        resolve({ ok: false })
+    return new Promise<WindowAckResult>(async (resolve, reject) => {
+      const timeoutMs = this.options.requestTimeoutMs || 10000
+      const bridge = this.getBridgeListener()
+
+      // If the command-listener already owns the socket, bridge through it instead
+      // of binding a competing server on the same path.
+      if (!this._server && !bridge?.isListening) {
+        this.listen()
+      }
+
+      const connectionMode = await this.waitForAnyClientConnection(timeoutMs, bridge)
+      if (!connectionMode) {
+        const error = `No native launcher client connected on socket ${this.state.get('socketPath') || this.options.socketPath}`
+        this.setState({ lastError: error })
+        resolve({ ok: false, error, code: 'NoClient' })
         return
       }
 
-      const id = randomUUID()
-      const timeoutMs = this.options.requestTimeoutMs || 10000
+      const rawId = randomUUID()
+      const id = this.normalizeRequestId(rawId) || rawId
+      const usingBridge = connectionMode === 'bridge'
+
+      let bridgeMessageListener: ((msg: any) => void) | undefined
+      const cleanupBridgeListener = () => {
+        if (usingBridge && bridgeMessageListener) {
+          bridge.off?.('message', bridgeMessageListener)
+          bridgeMessageListener = undefined
+        }
+      }
+
+      if (usingBridge) {
+        bridgeMessageListener = (msg: any) => {
+          if (!msg || msg.type !== 'windowAck') return
+          const ackId = this.normalizeRequestId(msg.id)
+          if (ackId !== id) return
+          this.processLine(JSON.stringify(msg))
+        }
+        bridge.on?.('message', bridgeMessageListener)
+      }
+
+      const completeResolve = (value: any) => {
+        cleanupBridgeListener()
+        resolve(value)
+      }
+
+      const completeReject = (reason: any) => {
+        cleanupBridgeListener()
+        reject(reason)
+      }
 
       const timer = setTimeout(() => {
         this._pending.delete(id)
-        resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms` })
+        completeResolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
       }, timeoutMs)
 
-      this._pending.set(id, { resolve, reject, timer })
+      this._pending.set(id, { resolve: completeResolve, reject: completeReject, timer })
 
-      this.send({
+      const payload = {
         id,
         status: 'processing',
         window: windowPayload,
         timestamp: new Date().toISOString(),
-      })
+      }
+      const sent = usingBridge ? bridge.send(payload) : this.send(payload)
+
+      if (!sent) {
+        clearTimeout(timer)
+        this._pending.delete(id)
+        cleanupBridgeListener()
+        const error = `Failed to send window ${windowPayload.action}: client disconnected`
+        this.setState({ lastError: error })
+        resolve({ ok: false, error, code: 'Disconnected' })
+      }
     })
   }
 

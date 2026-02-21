@@ -11,10 +11,8 @@ const DEFAULT_SOCKET_PATH = join(
   'Library',
   'Application Support',
   'NativeCommandLauncherApp',
-  'ipc.sock'
+  'ipc-command.sock'
 )
-
-const FALLBACK_SOCKET_PATH = `/tmp/native-command-launcher.${process.getuid?.() ?? 501}.sock`
 
 // --- CommandHandle ---
 
@@ -127,8 +125,6 @@ export class CommandHandle {
 export const LauncherAppCommandListenerOptionsSchema = FeatureOptionsSchema.extend({
   socketPath: z.string().default(DEFAULT_SOCKET_PATH)
     .describe('Path to the Unix domain socket to listen on'),
-  fallbackSocketPath: z.string().default(FALLBACK_SOCKET_PATH)
-    .describe('Fallback socket path if primary is unavailable'),
   autoListen: z.boolean().optional()
     .describe('Automatically start listening when the feature is enabled'),
 })
@@ -250,19 +246,18 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
     if (!existsSync(dir)) {
       try {
         mkdirSync(dir, { recursive: true })
-      } catch {
-        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
+      } catch (error: any) {
+        this.setState({ lastError: `Failed to create socket directory ${dir}: ${error?.message || String(error)}` })
+        return this
       }
     }
 
     if (existsSync(socketPath)) {
       try {
         unlinkSync(socketPath)
-      } catch {
-        socketPath = this.options.fallbackSocketPath || FALLBACK_SOCKET_PATH
-        if (existsSync(socketPath)) {
-          unlinkSync(socketPath)
-        }
+      } catch (error: any) {
+        this.setState({ lastError: `Failed to remove stale socket at ${socketPath}: ${error?.message || String(error)}` })
+        return this
       }
     }
 
