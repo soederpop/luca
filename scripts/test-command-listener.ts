@@ -32,9 +32,9 @@ listener.on('command', async (cmd) => {
     console.log('Spawning terminal')
     const result = await windowManager.spawnTTY({ 
       command: '/Users/jon/.bun/bin/bun',
-      args: ['run', '/Users/jon/@luca/src/cli/cli.ts', 'serve', '--force', '--port', '3080', '--no-open'],
-      cwd: '/Users/jon/@soederpop/playground/writing-assistant',
-      title: 'Writing Assistant Server',
+      args: ['run', '/Users/jon/@luca/src/cli/cli.ts', 'console'],
+      cwd: '/Users/jon/@soederpop',
+      title: 'The Console',
       cols: 120,
       rows: 40,
       width: 1000,
@@ -46,8 +46,28 @@ listener.on('command', async (cmd) => {
     cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Check that shit out playboy. Fuckin terminal output.' })
 
     return
+  } else if (normalizedText.includes('code')) {
+    await container.sleep(1000)
+    cmd.ack('Real talk, I feel for the homies we told to learn to code.  Now that claude is on this shit?? I mean.')
+    await container.sleep(1000)
+    console.log('Spawning terminal')
+    const result = await windowManager.spawnTTY({ 
+      command: '/Users/jon/.bun/bin/claude',
+      cwd: '/Users/jon/@soederpop',
+      title: 'Claude',
+      cols: 120,
+      rows: 80,
+      width: 1000,
+      height: 700,
+    })
+
+    await container.sleep(4000)
+
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Good luck with claude bro.' })
+
+    return   
   } else if (normalizedText.includes('web') || normalizedText.includes('browser')) {
-    cmd.ack('YOOOOOO. Fuckin check this out, twin.')
+    cmd.ack('Yo.... Fuckin check this out, twin.')
     await container.sleep(1000)
     const result = await windowManager.spawn({
       url: 'https://google.com',
@@ -62,7 +82,7 @@ listener.on('command', async (cmd) => {
     return
   } else if (normalizedText.includes('write')) {
     await container.sleep(1000)
-    cmd.ack('Writing? Sure thing, playBWAH!')
+    cmd.ack('Aight. Sheeeit. We got a real fuckin earnest hemmingway up in here.')
     const result = await windowManager.spawn({
       url: 'http://localhost:3080',
       width: 1200,
@@ -70,10 +90,28 @@ listener.on('command', async (cmd) => {
     })
     
     await container.sleep(4000)
-    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Let this motherfuckin boy COOK... SON.' })
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Let the boy COOK' })
+    return
+  } else if (normalizedText.includes('track')) {
+    await container.sleep(1000)
+    cmd.ack('Better believe it.  Aint nobody hiding from your boy.')
+
+    container.proc.spawnAndCapture('luca', ['serve', '--force', '--port', '3969', '--no-open'], {
+      cwd: '/Users/jon/@soederpop/playground/enemy-tracker'
+    })
+
+    await container.sleep(4000)
+
+    const result = await windowManager.spawn({
+      url: 'http://localhost:3969',
+      width: 1400,
+      height: 1000,
+    })
+
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Get em dawg.  Me and the homies are ready.' })
+    
     return
   }
-
 
   await container.sleep(4000)
   cmd.ack('Look unc. I dont know the fuck you talmbout.')
