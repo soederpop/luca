@@ -198,7 +198,13 @@ export class FileManager<
     fileIds.forEach((relativePath) => {
       const absolutePath = this.container.paths.resolve(relativePath);
       const { name, ext, dir } = parse(absolutePath);
-      const size = statSync(absolutePath).size;
+
+      let size = 0
+     
+      try {
+        size = statSync(absolutePath).size;
+      } catch (error) {
+      }
 
       this.files.set(relativePath, {
         dirname: dir,
