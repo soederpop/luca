@@ -27,6 +27,8 @@ export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>
  */
 export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override shortcut = 'features.contentDb' as const
+  static override stateSchema = ContentDbStateSchema
+  static override optionsSchema = ContentDbOptionsSchema
 
   override get initialState(): ContentDbState {
     return {

@@ -31,6 +31,10 @@ export { Endpoint, EndpointsRegistry, endpoints } from './endpoint'
 export { Server, ServersRegistry } from './server'
 export { FeaturesRegistry } from './feature'
 
+// Concrete server implementations
+export { ExpressServer } from './servers/express'
+export { WebsocketServer } from './servers/socket'
+
 // Types
 export type { ContainerContext, ContainerArgv, Plugin, Extension } from './container'
 export type { AvailableClients } from './client'
@@ -38,7 +42,7 @@ export type { AvailableCommands, CommandHandler } from './command'
 export type { AvailableEndpoints, EndpointContext } from './endpoint'
 export type { AvailableFeatures, FeatureOptions, FeatureState } from './feature'
 export type { NodeContainer, NodeFeatures } from './node/container'
-export type { AvailableServers } from './server'
+export type { AvailableServers, StartOptions, ServersInterface } from './server'
 export type { HelperState, HelperOptions } from './helper'
 export type { EventMap } from './bus'
 export type { SetStateValue, StateChangeType } from './state'
