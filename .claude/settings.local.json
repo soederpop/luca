@@ -88,11 +88,13 @@
       "mcp__luca-sandbox__eval",
       "Bash(wc:*)",
       "Bash(chmod:*)",
-      "Bash(bun:*)"
+      "Bash(bun:*)",
+      "mcp__luca-sandbox__describe_helper",
+      "mcp__luca-sandbox__list_registry"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "luca-sandbox"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
