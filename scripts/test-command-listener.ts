@@ -2,14 +2,15 @@ import { NodeContainer } from '../src/node/container'
 
 const container = new NodeContainer({ cwd: process.cwd() })
 const listener = container.feature('launcherAppCommandListener', {
-  enable: true,
   autoListen: true,
 })
 
-await listener.enable()
+const windowManager = container.feature('windowManager')
 
 console.log('Listening on:', listener.state.get('socketPath'))
 console.log('Waiting for native app to connect...\n')
+
+listener.enable()
 
 listener.on('clientConnected', () => {
   console.log('[connected] Native app connected')
@@ -22,16 +23,61 @@ listener.on('clientDisconnected', () => {
 listener.on('command', async (cmd) => {
   console.log(`[command] "${cmd.text}" (source: ${cmd.source}, id: ${cmd.id})`)
 
-  cmd.ack('Got it, working on it!')
+  const normalizedText = String(cmd.text).toLowerCase()
 
-  // Simulate some work
-  await new Promise((r) => setTimeout(r, 1500))
-  cmd.progress(0.5, 'Halfway there')
+  if (normalizedText.includes('terminal')) {
+    await container.sleep(1000)
+    cmd.ack('Sheeeeeeeit.  I got you fam!')
+    await container.sleep(1000)
+    console.log('Spawning terminal')
+    const result = await windowManager.spawnTTY({ 
+      command: '/Users/jon/.bun/bin/bun',
+      args: ['run', '/Users/jon/@luca/src/cli/cli.ts', 'serve', '--force', '--port', '3080', '--no-open'],
+      cwd: '/Users/jon/@soederpop/playground/writing-assistant',
+      title: 'Writing Assistant Server',
+      cols: 120,
+      rows: 40,
+      width: 1000,
+      height: 700,
+    })
 
-  await new Promise((r) => setTimeout(r, 1500))
-  cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'All done!' })
+    await container.sleep(4000)
 
-  console.log(`[finished] "${cmd.text}" (${listener.state.get('commandsReceived')} total received)`)
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Check that shit out playboy. Fuckin terminal output.' })
+
+    return
+  } else if (normalizedText.includes('web') || normalizedText.includes('browser')) {
+    cmd.ack('YOOOOOO. Fuckin check this out, twin.')
+    await container.sleep(1000)
+    const result = await windowManager.spawn({
+      url: 'https://google.com',
+      width: 1000,
+      height: 700,
+    })
+
+    console.log('Web browser spawned', result)
+
+    await container.sleep(3000)
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Motherfucker I can even launch web browsers' })
+    return
+  } else if (normalizedText.includes('write')) {
+    await container.sleep(1000)
+    cmd.ack('Writing? Sure thing, playBWAH!')
+    const result = await windowManager.spawn({
+      url: 'http://localhost:3080',
+      width: 1200,
+      height: 900,
+    })
+    
+    await container.sleep(4000)
+    cmd.finish({ result: { action: 'completed', text: cmd.text }, speech: 'Let this motherfuckin boy COOK... SON.' })
+    return
+  }
+
+
+  await container.sleep(4000)
+  cmd.ack('Look unc. I dont know the fuck you talmbout.')
+  cmd.finish({ result: { action: 'unknown' }})
 })
 
 listener.on('message', (msg) => {

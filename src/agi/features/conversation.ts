@@ -42,6 +42,10 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
 	metadata: z.record(z.string(), z.any()).optional().describe('Arbitrary metadata to attach to this conversation'),
+
+	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client'), // the type of options for OpenAI client
+
+	local: z.boolean().optional().describe('Whether to use the local ollama models instead of the remote OpenAI models'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -158,7 +162,17 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
-		return (this.container as any).client('openai') as OpenAIClient
+		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
+
+		if (this.options.local) {
+			baseURL = "http://localhost:11434/v1" 
+		}
+
+		return (this.container as any).client('openai', {
+			defaultModel: this.options.model || (this.options.local ? "qwen2.5:7b" : "gpt-4o"),
+			...this.options.clientOptions,
+			...(baseURL ? { baseURL } : {}),
+		}) as OpenAIClient
 	}
 
 	/** Returns the conversationHistory feature for persistence. */

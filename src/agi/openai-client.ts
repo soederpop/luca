@@ -63,7 +63,8 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
       project: this.options.project,
       dangerouslyAllowBrowser: this.options.dangerouslyAllowBrowser,
       timeout: this.options.timeout,
-      maxRetries: this.options.maxRetries
+      maxRetries: this.options.maxRetries,
+      baseURL: this.options.baseURL,
     });
   }
 
@@ -81,7 +82,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   }
 
   get defaultModel(): string {
-    return this.options.defaultModel || 'gpt-3.5-turbo';
+    return this.options.defaultModel || 'gpt-4o';
   }
 
   private updateTokenUsage(usage?: OpenAI.CompletionUsage | OpenAI.Embeddings.CreateEmbeddingResponse.Usage) {
