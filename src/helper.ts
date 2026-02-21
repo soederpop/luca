@@ -30,6 +30,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   static shortcut: string = "unspecified"
 
   static description: string = "No description provided"
+  static envVars: string[] = []
 
   static stateSchema: z.ZodType = HelperStateSchema
   static optionsSchema: z.ZodType = HelperOptionsSchema
@@ -67,7 +68,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * for the helper's options, state, and the events it emits, as well as the documentation from the helpers code for
    * each of the methods and properties.
    *
-   * Pass a section name to get only that section: `'methods'`, `'getters'`, `'events'`, `'state'`, `'options'`
+   * Pass a section name to get only that section: `'methods'`, `'getters'`, `'events'`, `'state'`, `'options'`, `'envVars'`
   */
   introspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
     const base = (this.constructor as any).introspect()
@@ -205,7 +206,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 }
 
-const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options']
+const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options', 'envVars']
 
 function filterIntrospection(data: HelperIntrospection, section: IntrospectionSection): HelperIntrospection {
   const filtered: HelperIntrospection = {
@@ -217,6 +218,7 @@ function filterIntrospection(data: HelperIntrospection, section: IntrospectionSe
     events: {},
     state: {},
     options: {},
+    envVars: [],
   }
   filtered[section] = data[section] as any
   return filtered
@@ -360,6 +362,16 @@ function renderOptionsSection(introspection: HelperIntrospection, heading: (leve
   return sections
 }
 
+function renderEnvVarsSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+  if (!introspection.envVars || introspection.envVars.length === 0) return sections
+
+  sections.push(`${heading(2)} Environment Variables`)
+  sections.push(introspection.envVars.map((envVar) => `- \`${envVar}\``).join('\n'))
+
+  return sections
+}
+
 function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection) {
   const sections: string[] = []
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
@@ -374,6 +386,7 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
     events: () => renderEventsSection(introspection, heading),
     state: () => renderStateSection(introspection, heading),
     options: () => renderOptionsSection(introspection, heading),
+    envVars: () => renderEnvVarsSection(introspection, heading),
   }
 
   if (section) {

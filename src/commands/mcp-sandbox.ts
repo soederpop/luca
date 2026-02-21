@@ -129,11 +129,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'',
 			'Returns a markdown overview of the container. Optionally filter to a specific section.',
 			'',
-			'Sections: "methods", "getters", "events", "state", "options"',
+			'Sections: "methods", "getters", "events", "state", "options", "envVars"',
 			'Leave section empty for the full overview.',
 		].join('\n'),
 		schema: z.object({
-			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full overview.'),
 		}),
 		handler: (args) => {
@@ -177,14 +177,14 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		description: [
 			'Get full documentation for a specific helper (feature, client, server, command, endpoint).',
 			'',
-			'Returns markdown with options, state schema, methods, getters, events, and descriptions.',
+			'Returns markdown with options, state schema, methods, getters, events, env vars, and descriptions.',
 			'Use list_registry first to see what is available.',
 		].join('\n'),
 		schema: z.object({
 			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
 				.describe('Which registry the helper belongs to'),
 			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express")'),
-			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full documentation.'),
 		}),
 		handler: (args) => {
@@ -215,7 +215,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			type: z.enum(['feature', 'client', 'server'])
 				.describe('What kind of helper to inspect'),
 			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express")'),
-			section: z.enum(['methods', 'getters', 'events', 'state', 'options']).optional()
+			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full introspection.'),
 		}),
 		handler: (args) => {

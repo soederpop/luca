@@ -33,7 +33,7 @@ export type MethodIntrospection = {
 }
 
 /** Sections that can be requested individually from introspect / inspect */
-export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options'
+export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options' | 'envVars'
 
 export type GetterIntrospection = {
 	description: string
@@ -65,6 +65,8 @@ export type HelperIntrospection = {
 	state: Record<string, { type: string, description: string }>
 	// a map of options properties to their introspection
 	options: Record<string, { type: string, description: string }>
+	// environment variables used by this helper
+	envVars?: string[]
 }
 
 export type RegistryIntrospection = {
@@ -151,6 +153,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
 		getters: data.getters || existing?.getters || {},
+		envVars: existing?.envVars || data.envVars || [],
 	})
 }
 
@@ -178,7 +181,10 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		getters: existing?.getters || {},
 		events: existing?.events || {},
 		state: {},
-		options: {}
+		options: {},
+		envVars: Array.isArray(helperConstructor.envVars)
+			? helperConstructor.envVars
+			: (existing?.envVars || [])
 	}
 
 	// Always populate state and options from Zod schemas at runtime

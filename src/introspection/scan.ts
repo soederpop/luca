@@ -196,7 +196,8 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       getters,
       events,
       state: {},
-      options: {}
+      options: {},
+      envVars: []
     };
   }
 
