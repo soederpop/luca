@@ -35,7 +35,7 @@ export const GoogleAuthOptionsSchema = FeatureOptionsSchema.extend({
   scopes: z.array(z.string()).optional()
     .describe('OAuth2 scopes to request'),
   redirectPort: z.number().optional()
-    .describe('Port for OAuth2 callback server (default: auto-detect open port)'),
+    .describe('Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000)'),
   tokenCacheKey: z.string().optional()
     .describe('DiskCache key for storing OAuth2 refresh token'),
 })
@@ -136,6 +136,13 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     ]
   }
 
+  /** Resolved redirect port from options, GOOGLE_OAUTH_REDIRECT_PORT env var, or default 3000. */
+  get redirectPort(): number {
+    return this.options.redirectPort
+      || (process.env.GOOGLE_OAUTH_REDIRECT_PORT ? parseInt(process.env.GOOGLE_OAUTH_REDIRECT_PORT, 10) : undefined)
+      || 3000
+  }
+
   /** DiskCache key used for storing the refresh token. */
   get tokenCacheKey(): string {
     return this.options.tokenCacheKey || `google-auth:refresh:${this.clientId}`
@@ -148,7 +155,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   getOAuth2Client(): OAuth2Client {
     if (this._oauth2Client) return this._oauth2Client
 
-    const redirectUri = this._redirectUri || 'http://localhost:3000/oauth2callback'
+    const redirectUri = this._redirectUri || `http://localhost:${this.redirectPort}/oauth2callback`
     this._oauth2Client = new google.auth.OAuth2(this.clientId, this.clientSecret, redirectUri)
     return this._oauth2Client
   }
@@ -213,7 +220,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
    */
   async authorize(scopes?: string[]): Promise<this> {
     const requestedScopes = scopes || this.options.scopes || this.defaultScopes
-    const port = this.options.redirectPort || await this.container.networking.findOpenPort(9876)
+    const port = this.redirectPort
     const redirectUri = `http://localhost:${port}/oauth2callback`
     this._redirectUri = redirectUri
 
