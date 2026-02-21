@@ -82,6 +82,12 @@ export const GoogleAuthEventsSchema = FeatureEventsSchema.extend({
  */
 export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   static override shortcut = 'features.googleAuth' as const
+  static override envVars = [
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_SERVICE_ACCOUNT_KEY',
+    'GOOGLE_OAUTH_REDIRECT_PORT',
+  ]
   static override stateSchema = GoogleAuthStateSchema
   static override optionsSchema = GoogleAuthOptionsSchema
   static override eventsSchema = GoogleAuthEventsSchema

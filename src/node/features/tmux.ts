@@ -421,6 +421,7 @@ export interface SplitOptions {
  */
 export class Tmux extends Feature<TmuxState, TmuxOptions> {
   static override shortcut = 'features.tmux' as const
+  static override envVars = ['TMUX']
   static override stateSchema = TmuxStateSchema
   static override optionsSchema = TmuxOptionsSchema
   static override eventsSchema = TmuxEventsSchema
