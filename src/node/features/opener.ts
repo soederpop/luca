@@ -2,9 +2,10 @@ import { features, Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 /**
- * The Opener feature opens files and URLs using the system's default application.
+ * The Opener feature opens files, URLs, desktop applications, and code editors.
  *
- * HTTP/HTTPS URLs are opened in Google Chrome. All other paths are opened
+ * HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name.
+ * VS Code and Cursor can be opened to a specific path. All other paths are opened
  * with the platform's default handler (e.g. Preview for images, Finder for folders).
  *
  * @example
@@ -17,15 +18,21 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  * // Open a file with the default application
  * await opener.open('/path/to/image.png')
  *
- * // Open a folder in Finder
- * await opener.open('/Users/jon/projects')
+ * // Open a desktop application
+ * await opener.app('Slack')
+ *
+ * // Open VS Code at a project path
+ * await opener.code('/Users/jon/projects/my-app')
+ *
+ * // Open Cursor at a project path
+ * await opener.cursor('/Users/jon/projects/my-app')
  * ```
  *
  * @extends Feature
  */
 export class Opener extends Feature {
   static override shortcut = "features.opener" as const
-  static override description = "Opens files and URLs with the system default application"
+  static override description = "Opens files, URLs, desktop apps, and code editors"
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
 
@@ -67,6 +74,72 @@ export class Opener extends Feature {
         } catch {
           await proc.spawnAndCapture('xdg-open', [url])
         }
+      }
+    }
+  }
+
+  /**
+   * Opens a desktop application by name.
+   *
+   * On macOS, uses `open -a` to launch the app. On Windows, uses `start`.
+   * On Linux, attempts to run the lowercase app name as a command.
+   *
+   * @param {string} name - The application name (e.g. "Slack", "Finder", "Safari")
+   * @returns {Promise<void>}
+   */
+  async app(name: string): Promise<void> {
+    const platform = process.platform
+    const proc = this.container.proc
+
+    if (platform === 'darwin') {
+      await proc.spawnAndCapture('open', ['-a', name])
+    } else if (platform === 'win32') {
+      await proc.spawnAndCapture('cmd', ['/c', 'start', '', name])
+    } else {
+      await proc.spawnAndCapture(name.toLowerCase(), [])
+    }
+  }
+
+  /**
+   * Opens VS Code at the specified path.
+   *
+   * Uses the `code` CLI command. Falls back to `open -a "Visual Studio Code"` on macOS.
+   *
+   * @param {string} [path="."] - The file or folder path to open
+   * @returns {Promise<void>}
+   */
+  async code(path: string = "."): Promise<void> {
+    const proc = this.container.proc
+
+    try {
+      await proc.spawnAndCapture('code', [path])
+    } catch {
+      if (process.platform === 'darwin') {
+        await proc.spawnAndCapture('open', ['-a', 'Visual Studio Code', path])
+      } else {
+        throw new Error('VS Code CLI (code) not found. Install it from VS Code: Command Palette > "Shell Command: Install code command in PATH"')
+      }
+    }
+  }
+
+  /**
+   * Opens Cursor at the specified path.
+   *
+   * Uses the `cursor` CLI command. Falls back to `open -a "Cursor"` on macOS.
+   *
+   * @param {string} [path="."] - The file or folder path to open
+   * @returns {Promise<void>}
+   */
+  async cursor(path: string = "."): Promise<void> {
+    const proc = this.container.proc
+
+    try {
+      await proc.spawnAndCapture('cursor', [path])
+    } catch {
+      if (process.platform === 'darwin') {
+        await proc.spawnAndCapture('open', ['-a', 'Cursor', path])
+      } else {
+        throw new Error('Cursor CLI (cursor) not found. Install it from Cursor: Command Palette > "Shell Command: Install cursor command in PATH"')
       }
     }
   }
