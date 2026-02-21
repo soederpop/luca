@@ -1,0 +1,1 @@
+- make container.start() meaningful. i like the idea of container.use() accepting in addition to the current shape, an async function and container.start() basically running all of those functions.  
