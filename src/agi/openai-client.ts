@@ -99,6 +99,19 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  private updateResponsesTokenUsage(usage?: OpenAI.Responses.ResponseUsage) {
+    if (usage) {
+      const currentUsage = this.state.get('tokenUsage') || { prompt: 0, completion: 0, total: 0 };
+      this.setState({
+        tokenUsage: {
+          prompt: currentUsage.prompt + (usage.input_tokens || 0),
+          completion: currentUsage.completion + (usage.output_tokens || 0),
+          total: currentUsage.total + (usage.total_tokens || 0),
+        }
+      });
+    }
+  }
+
   private trackRequest() {
     const requestCount = this.state.get('requestCount') || 0;
     this.setState({
@@ -125,6 +138,51 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
       this.emit('completion', response);
       
       return response;
+    } catch (error) {
+      this.emit('failure', error);
+      throw error;
+    }
+  }
+
+  async createResponse(
+    input: OpenAI.Responses.ResponseInput | string,
+    options: Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming> = {}
+  ): Promise<OpenAI.Responses.Response> {
+    this.trackRequest();
+
+    try {
+      const response = await this.openai.responses.create({
+        model: this.defaultModel as OpenAI.Responses.ResponseCreateParams['model'],
+        input,
+        ...options,
+        stream: false,
+      }) as OpenAI.Responses.Response;
+
+      this.updateResponsesTokenUsage(response.usage || undefined);
+      this.emit('completion', response);
+
+      return response;
+    } catch (error) {
+      this.emit('failure', error);
+      throw error;
+    }
+  }
+
+  async streamResponse(
+    input: OpenAI.Responses.ResponseInput | string,
+    options: Partial<OpenAI.Responses.ResponseCreateParamsStreaming> = {}
+  ): Promise<AsyncIterable<OpenAI.Responses.ResponseStreamEvent>> {
+    this.trackRequest();
+
+    try {
+      const stream = await this.openai.responses.create({
+        model: this.defaultModel as OpenAI.Responses.ResponseCreateParams['model'],
+        input,
+        ...options,
+        stream: true,
+      }) as AsyncIterable<OpenAI.Responses.ResponseStreamEvent>;
+
+      return stream;
     } catch (error) {
       this.emit('failure', error);
       throw error;

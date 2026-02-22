@@ -25,6 +25,16 @@ export interface ConversationTool {
 	parameters: Record<string, any>
 }
 
+export interface ConversationMCPServer {
+	url: string
+	headers?: Record<string, string>
+	allowedTools?: string[] | { tool_names?: string[] }
+	requireApproval?: 'always' | 'never' | {
+		always?: { tool_names?: string[] }
+		never?: { tool_names?: string[] }
+	}
+}
+
 export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** A unique identifier for the conversation */
 	id: z.string().optional().describe('A unique identifier for the conversation'),
@@ -38,6 +48,10 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	history: z.array(z.any()).optional().describe('Initial message history to seed the conversation'),
 	/** Tools the model can call during conversation */
 	tools: z.record(z.string(), z.any()).optional().describe('Tools the model can call during conversation'),
+	/** Remote MCP servers to expose as tools when using the OpenAI Responses API */
+	mcpServers: z.record(z.string(), z.any()).optional().describe('Remote MCP servers keyed by server label'),
+	/** Which OpenAI API to use for completions */
+	api: z.enum(['auto', 'responses', 'chat']).optional().describe('Completion API mode. auto uses Responses unless local=true'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
@@ -56,6 +70,8 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	streaming: z.boolean().describe('Whether a streaming response is currently in progress'),
 	lastResponse: z.string().describe('The last assistant response text'),
 	toolCalls: z.number().describe('Total number of tool calls made in this conversation'),
+	api: z.enum(['responses', 'chat']).describe('Which completion API is active for this conversation'),
+	lastResponseId: z.string().nullable().describe('Most recent OpenAI Responses API response ID for continuing conversation state'),
 	tokenUsage: z.object({
 		prompt: z.number().describe('Total prompt tokens consumed'),
 		completion: z.number().describe('Total completion tokens consumed'),
@@ -96,6 +112,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			streaming: false,
 			lastResponse: '',
 			toolCalls: 0,
+			api: this.apiMode,
+			lastResponseId: null,
 			tokenUsage: { prompt: 0, completion: 0, total: 0 }
 		}
 	}
@@ -103,6 +121,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Returns the registered tools available for the model to call. */
 	get tools() : Record<string, any> {
 		return this.options.tools || {}
+	}
+
+	/** Returns configured remote MCP servers keyed by server label. */
+	get mcpServers(): Record<string, ConversationMCPServer> {
+		return (this.options.mcpServers || {}) as Record<string, ConversationMCPServer>
 	}
 
 	/** Returns the full message history of the conversation. */
@@ -113,6 +136,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Returns the OpenAI model name being used for completions. */
 	get model(): string {
 		return this.state.get('model')!
+	}
+
+	/** Returns the active completion API mode after resolving auto/local behavior. */
+	get apiMode(): 'responses' | 'chat' {
+		const mode = this.options.api || 'auto'
+		if (mode === 'chat' || mode === 'responses') return mode
+		return this.options.local ? 'chat' : 'responses'
 	}
 
 	/** Whether a streaming response is currently in progress. */
@@ -137,6 +167,43 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
+	 * Get the OpenAI Responses-formatted tools array from local function tools
+	 * plus configured remote MCP servers.
+	 */
+	private get responseTools(): OpenAI.Responses.Tool[] {
+		const functionTools = Object.entries(this.tools).map(([name, tool]) => ({
+			type: 'function' as const,
+			name,
+			description: tool.description,
+			parameters: tool.parameters,
+			strict: true,
+		}))
+
+		const mcpTools = Object.entries(this.mcpServers)
+			.filter(([, server]) => !!server?.url)
+			.map(([serverLabel, server]) => ({
+				type: 'mcp' as const,
+				server_label: serverLabel,
+				server_url: server.url,
+				...(server.headers ? { headers: server.headers } : {}),
+				...(server.allowedTools ? { allowed_tools: server.allowedTools } : {}),
+				...(server.requireApproval ? { require_approval: server.requireApproval } : {}),
+			}))
+
+		return [...functionTools, ...mcpTools]
+	}
+
+	/** Returns the first system/developer text message to use as Responses instructions. */
+	private get responsesInstructions(): string | undefined {
+		for (const message of this.messages) {
+			if ((message.role === 'system' || message.role === 'developer') && typeof message.content === 'string') {
+				return message.content
+			}
+		}
+		return undefined
+	}
+
+	/**
 	 * Send a message and get a streamed response. Automatically handles
 	 * tool calls by invoking the registered handlers and feeding results
 	 * back to the model until a final text response is produced.
@@ -157,7 +224,45 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.pushMessage(userMessage)
 		this.emit('userMessage', content)
 
-		return this.runCompletionLoop({ turn: 1, accumulated: '' })
+		if (this.apiMode === 'responses') {
+			return this.runResponsesLoop({
+				turn: 1,
+				accumulated: '',
+				input: [this.toResponsesUserMessage(content)],
+				previousResponseId: this.state.get('lastResponseId') || undefined,
+			})
+		}
+
+		return this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+	}
+
+	/** Convert user content into a Responses API input message item. */
+	private toResponsesUserMessage(content: string | ContentPart[]): OpenAI.Responses.ResponseInputItem.Message {
+		if (typeof content === 'string') {
+			return {
+				type: 'message',
+				role: 'user',
+				content: [{ type: 'input_text', text: content }]
+			}
+		}
+
+		const parts = content.map((part) => {
+			if (part.type === 'text') {
+				return { type: 'input_text' as const, text: part.text }
+			}
+
+			return {
+				type: 'input_image' as const,
+				image_url: part.image_url.url,
+				detail: part.image_url.detail || 'auto',
+			}
+		})
+
+		return {
+			type: 'message',
+			role: 'user',
+			content: parts,
+		}
 	}
 
 	/** Returns the OpenAI client instance from the container. */
@@ -215,6 +320,149 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
+	 * Runs the streaming Responses API loop. Handles local function calls by
+	 * executing handlers and submitting `function_call_output` items until
+	 * the model produces a final text response.
+	 */
+	private async runResponsesLoop(context: {
+		turn: number
+		accumulated: string
+		input: OpenAI.Responses.ResponseInput
+		previousResponseId?: string
+	}): Promise<string> {
+		const { turn } = context
+		let accumulated = context.accumulated
+		let turnContent = ''
+		let finalResponse: OpenAI.Responses.Response | undefined
+
+		const toolsParam = this.responseTools.length > 0 ? this.responseTools : undefined
+
+		this.state.set('streaming', true)
+		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
+
+		try {
+			const stream = await this.openai.raw.responses.create({
+				model: this.model as OpenAI.Responses.ResponseCreateParams['model'],
+				input: context.input,
+				stream: true,
+				previous_response_id: context.previousResponseId,
+				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
+				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
+			})
+
+			for await (const event of stream) {
+				if (event.type === 'response.output_text.delta') {
+					const delta = event.delta || ''
+					turnContent += delta
+					accumulated += delta
+					this.emit('chunk', delta)
+					this.emit('preview', accumulated)
+				}
+
+				if (event.type === 'response.completed') {
+					finalResponse = event.response
+				}
+			}
+		} finally {
+			this.state.set('streaming', false)
+		}
+
+		if (!finalResponse) {
+			throw new Error('Responses stream ended without a completed response')
+		}
+
+		this.state.set('lastResponseId', finalResponse.id)
+		this.applyResponsesUsage(finalResponse.usage || undefined)
+
+		const functionCalls = (finalResponse.output || []).filter((item) => item.type === 'function_call') as OpenAI.Responses.ResponseFunctionToolCall[]
+		if (functionCalls.length > 0) {
+			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
+				role: 'assistant',
+				content: turnContent || null,
+				tool_calls: functionCalls.map((call) => ({
+					id: call.call_id,
+					type: 'function',
+					function: {
+						name: call.name,
+						arguments: call.arguments || '{}',
+					}
+				}))
+			}
+			this.pushMessage(assistantMessage)
+
+			this.emit('toolCallsStart', functionCalls)
+
+			const functionOutputs: OpenAI.Responses.ResponseInputItem.FunctionCallOutput[] = []
+			for (const call of functionCalls) {
+				const toolName = call.name
+				const tool = this._tools[toolName]
+				const callCount = (this.state.get('toolCalls') || 0) + 1
+				this.state.set('toolCalls', callCount)
+
+				let result: string
+				if (!tool) {
+					result = JSON.stringify({ error: `Unknown tool: ${toolName}` })
+					this.emit('toolError', toolName, result)
+				} else {
+					try {
+						const args = call.arguments ? JSON.parse(call.arguments) : {}
+						this.emit('toolCall', toolName, args)
+						const output = await tool.handler(args)
+						result = typeof output === 'string' ? output : JSON.stringify(output)
+						this.emit('toolResult', toolName, result)
+					} catch (err: any) {
+						result = JSON.stringify({ error: err.message || String(err) })
+						this.emit('toolError', toolName, err)
+					}
+				}
+
+				this.pushMessage({
+					role: 'tool',
+					tool_call_id: call.call_id,
+					content: result,
+				})
+
+				functionOutputs.push({
+					type: 'function_call_output',
+					call_id: call.call_id,
+					output: result,
+				})
+			}
+
+			this.emit('toolCallsEnd')
+			this.emit('turnEnd', { turn, hasToolCalls: true })
+
+			return this.runResponsesLoop({
+				turn: turn + 1,
+				accumulated,
+				input: functionOutputs,
+				previousResponseId: finalResponse.id,
+			})
+		}
+
+		const finalText = turnContent || finalResponse.output_text || ''
+		const assistantMessage: Message = { role: 'assistant', content: finalText }
+		this.pushMessage(assistantMessage)
+		this.state.set('lastResponse', accumulated || finalText)
+
+		this.emit('turnEnd', { turn, hasToolCalls: false })
+		this.emit('response', accumulated || finalText)
+
+		return accumulated || finalText
+	}
+
+	/** Apply Responses API usage stats to this conversation's token usage counters. */
+	private applyResponsesUsage(usage?: OpenAI.Responses.ResponseUsage) {
+		if (!usage) return
+		const prev = this.state.get('tokenUsage')!
+		this.state.set('tokenUsage', {
+			prompt: prev.prompt + (usage.input_tokens || 0),
+			completion: prev.completion + (usage.output_tokens || 0),
+			total: prev.total + (usage.total_tokens || 0),
+		})
+	}
+
+	/**
 	 * Runs the streaming completion loop. If the model requests tool calls,
 	 * executes them and loops again until a text response is produced.
 	 *
@@ -227,7 +475,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * @param context - Turn tracking: turn number and text accumulated across all turns
 	 * @returns {Promise<string>} The final assistant text response (accumulated across all turns)
 	 */
-	private async runCompletionLoop(context: { turn: number; accumulated: string } = { turn: 1, accumulated: '' }): Promise<string> {
+	private async runChatCompletionLoop(context: { turn: number; accumulated: string } = { turn: 1, accumulated: '' }): Promise<string> {
 		const { turn } = context
 		let accumulated = context.accumulated
 
@@ -339,7 +587,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('turnEnd', { turn, hasToolCalls: true })
 
 			// Loop: let the model respond to tool results
-			return this.runCompletionLoop({ turn: turn + 1, accumulated })
+			return this.runChatCompletionLoop({ turn: turn + 1, accumulated })
 		}
 
 		// Final text response — use this turn's content for the message history,
