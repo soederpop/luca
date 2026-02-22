@@ -351,6 +351,15 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			})
 
 			for await (const event of stream) {
+				this.emit('rawEvent', event)
+				if ((event as any).type?.startsWith?.('response.mcp_')) {
+					this.emit('mcpEvent', event)
+				}
+				if (((event as any).type === 'response.output_item.added' || (event as any).type === 'response.output_item.done')
+					&& (event as any).item?.type?.startsWith?.('mcp_')) {
+					this.emit('mcpEvent', event)
+				}
+
 				if (event.type === 'response.output_text.delta') {
 					const delta = event.delta || ''
 					turnContent += delta
@@ -361,6 +370,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 				if (event.type === 'response.completed') {
 					finalResponse = event.response
+					this.emit('responseCompleted', event.response)
 				}
 			}
 		} finally {
