@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { Database } from 'bun:sqlite'
 import { Feature, features } from '../feature.js'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
 
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null
@@ -24,6 +24,23 @@ export const SqliteOptionsSchema = FeatureOptionsSchema.extend({
 
 export type SqliteState = z.infer<typeof SqliteStateSchema>
 export type SqliteOptions = z.infer<typeof SqliteOptionsSchema>
+
+export const SqliteEventsSchema = FeatureEventsSchema.extend({
+  query: z.tuple([
+    z.string().describe('The SQL query text that was executed'),
+    z.array(z.any()).describe('Bound parameter values'),
+    z.number().describe('Number of rows returned'),
+  ]).describe('Emitted after a SELECT-like query completes successfully'),
+  execute: z.tuple([
+    z.string().describe('The SQL statement text that was executed'),
+    z.array(z.any()).describe('Bound parameter values'),
+    z.number().describe('Number of rows changed'),
+  ]).describe('Emitted after a write/update/delete statement completes successfully'),
+  error: z.tuple([
+    z.any().describe('The error that occurred'),
+  ]).describe('Emitted when a SQL operation fails'),
+  closed: z.tuple([]).describe('Emitted when the database connection is closed'),
+})
 
 /**
  * SQLite feature for safe SQL execution through Bun's native sqlite binding.
@@ -51,9 +68,14 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   static override shortcut = 'features.sqlite' as const
   static override stateSchema = SqliteStateSchema
   static override optionsSchema = SqliteOptionsSchema
+  static override eventsSchema = SqliteEventsSchema
 
   private _db: Database
 
+  /**
+   * Default state for the SQLite feature before a database is opened.
+   * @returns The initial SqliteState with `connected: false` and in-memory path
+   */
   override get initialState(): SqliteState {
     return {
       enabled: false,
@@ -88,6 +110,20 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    * Executes a SELECT-like query and returns result rows.
    *
    * Use sqlite placeholders (`?`) for `params`.
+   *
+   * @param queryText - The SQL query string with optional `?` placeholders
+   * @param params - Ordered array of values to bind to the placeholders
+   * @returns Promise resolving to an array of typed result rows
+   * @throws {Error} When query text is empty or params contain `undefined`
+   *
+   * @example
+   * ```typescript
+   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const users = await db.query<{ id: number; email: string }>(
+   *   'SELECT id, email FROM users WHERE active = ?',
+   *   [1]
+   * )
+   * ```
    */
   async query<T extends object = Record<string, unknown>>(queryText: string, params: SqlValue[] = []): Promise<T[]> {
     assertQueryText(queryText)
@@ -119,6 +155,21 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    * Executes a write/update/delete statement and returns metadata.
    *
    * Use sqlite placeholders (`?`) for `params`.
+   *
+   * @param queryText - The SQL statement string with optional `?` placeholders
+   * @param params - Ordered array of values to bind to the placeholders
+   * @returns Promise resolving to `{ changes, lastInsertRowid }` metadata
+   * @throws {Error} When query text is empty or params contain `undefined`
+   *
+   * @example
+   * ```typescript
+   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const { changes, lastInsertRowid } = await db.execute(
+   *   'INSERT INTO users (email) VALUES (?)',
+   *   ['hello@example.com']
+   * )
+   * console.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)
+   * ```
    */
   async execute(queryText: string, params: SqlValue[] = []): Promise<{ changes: number; lastInsertRowid: number | bigint | null }> {
     assertQueryText(queryText)
@@ -154,14 +205,40 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   /**
    * Safe tagged-template SQL helper.
    *
-   * Values become bound parameters automatically.
+   * Values become bound parameters automatically, preventing SQL injection.
+   *
+   * @param strings - Template literal string segments
+   * @param values - Interpolated values that become bound `?` parameters
+   * @returns Promise resolving to an array of typed result rows
+   *
+   * @example
+   * ```typescript
+   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const email = 'hello@example.com'
+   * const rows = await db.sql<{ id: number }>`
+   *   SELECT id FROM users WHERE email = ${email}
+   * `
+   * ```
    */
   async sql<T extends object = Record<string, unknown>>(strings: TemplateStringsArray, ...values: SqlValue[]): Promise<T[]> {
     const built = buildQuestionQuery(strings, values)
     return this.query<T>(built.text, built.params)
   }
 
-  /** Closes the sqlite database and updates feature state. */
+  /**
+   * Closes the sqlite database and updates feature state.
+   *
+   * Emits `closed` after the database handle is released.
+   *
+   * @returns This Sqlite feature instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * const db = container.feature('sqlite', { path: 'app.db' })
+   * // ... run queries ...
+   * db.close()
+   * ```
+   */
   close() {
     this.db.close()
     this.setState({ connected: false })

@@ -110,10 +110,12 @@ export class Telegram extends Feature<TelegramState, TelegramOptions> {
     return this._bot
   }
 
+  /** Whether the bot is currently receiving updates. */
   get isRunning(): boolean {
     return this.state.get('isRunning') || false
   }
 
+  /** Current operation mode: 'polling', 'webhook', or 'idle'. */
   get mode(): 'polling' | 'webhook' | 'idle' {
     return this.state.get('mode') || 'idle'
   }

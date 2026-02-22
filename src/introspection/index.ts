@@ -25,19 +25,23 @@ import { describeZodShape, describeEventsSchema } from '../schemas/base.js'
  * depending on the container.  In node, we can load it from a file, or from a URL. 
  */
 
+export type ExampleIntrospection = { language: string; code: string }
+
 export type MethodIntrospection = {
 	description: string
 	parameters: Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }>
 	required: string[]
 	returns: string
+	examples?: ExampleIntrospection[]
 }
 
 /** Sections that can be requested individually from introspect / inspect */
-export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options' | 'envVars'
+export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options' | 'envVars' | 'examples'
 
 export type GetterIntrospection = {
 	description: string
 	returns: string
+	examples?: ExampleIntrospection[]
 }
 
 export type EventIntrospection = {
@@ -67,6 +71,8 @@ export type HelperIntrospection = {
 	options: Record<string, { type: string, description: string }>
 	// environment variables used by this helper
 	envVars?: string[]
+	// class-level @example blocks from JSDoc
+	examples?: ExampleIntrospection[]
 }
 
 export type RegistryIntrospection = {
@@ -154,6 +160,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		options: existing?.options || data.options || {},
 		getters: data.getters || existing?.getters || {},
 		envVars: existing?.envVars || data.envVars || [],
+		examples: data.examples || existing?.examples,
 	})
 }
 
@@ -184,7 +191,8 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		options: {},
 		envVars: Array.isArray(helperConstructor.envVars)
 			? helperConstructor.envVars
-			: (existing?.envVars || [])
+			: (existing?.envVars || []),
+		examples: existing?.examples,
 	}
 
 	// Always populate state and options from Zod schemas at runtime

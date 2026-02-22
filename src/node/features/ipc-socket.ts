@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { Server, Socket } from "net";
@@ -13,6 +13,15 @@ export const IpcStateSchema = FeatureStateSchema.extend({
   mode: z.enum(['server', 'client']).optional().describe('The current mode of the IPC socket - either server or client'),
 })
 export type IpcState = z.infer<typeof IpcStateSchema>
+
+export const IpcEventsSchema = FeatureEventsSchema.extend({
+  connection: z.tuple([
+    z.any().describe('The connected net.Socket instance'),
+  ]).describe('Emitted on the server when a new client connects'),
+  message: z.tuple([
+    z.any().describe('The parsed JSON message object received over the socket'),
+  ]).describe('Emitted when a complete JSON message is received (server or client)'),
+})
 
 /**
  * IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets
@@ -78,6 +87,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
   static override stateSchema = IpcStateSchema
+  static override eventsSchema = IpcEventsSchema
 
   /** The Node.js net Server instance (when in server mode) */
   server?: Server;

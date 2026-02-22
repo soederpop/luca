@@ -92,7 +92,8 @@
       "mcp__luca-sandbox__describe_helper",
       "mcp__luca-sandbox__list_registry",
       "WebFetch(domain:console.runpod.io)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(echo === $\\(basename $f\\) ===:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

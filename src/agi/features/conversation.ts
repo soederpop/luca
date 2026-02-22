@@ -89,6 +89,16 @@ export type ConversationState = z.infer<typeof ConversationStateSchema>
  * tool calling, and message state management.
  *
  * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const conversation = container.feature('conversation', {
+ *   model: 'gpt-4.1',
+ *   tools: myToolMap,
+ *   history: [{ role: 'system', content: 'You are a helpful assistant.' }]
+ * })
+ * const reply = await conversation.ask('What is the meaning of life?')
+ * ```
  */
 export class Conversation extends Feature<ConversationState, ConversationOptions> {
 	static override stateSchema = ConversationStateSchema
@@ -104,6 +114,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return container
 	}
 
+	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
 	override get initialState(): ConversationState {
 		return {
 			...super.initialState,

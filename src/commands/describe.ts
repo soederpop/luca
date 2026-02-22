@@ -21,6 +21,7 @@ const SECTION_FLAGS: Record<string, IntrospectionSection> = {
 	'only-options': 'options',
 	'only-env-vars': 'envVars',
 	'only-envvars': 'envVars',
+	'only-examples': 'examples',
 }
 
 export const argsSchema = CommandOptionsSchema.extend({
@@ -32,6 +33,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'only-options': z.boolean().default(false).describe('Show only the options section'),
 	'only-env-vars': z.boolean().default(false).describe('Show only the envVars section'),
 	'only-envvars': z.boolean().default(false).describe('Show only the envVars section'),
+	'only-examples': z.boolean().default(false).describe('Show only the examples section'),
 })
 
 type ResolvedTarget =

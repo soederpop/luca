@@ -131,6 +131,8 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
 
   /**
    * List all calendars accessible to the authenticated user.
+   *
+   * @returns Array of calendar info objects
    */
   async listCalendars(): Promise<CalendarInfo[]> {
     try {
@@ -156,6 +158,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
    * List events from a calendar within a time range.
    *
    * @param options - Filtering options including timeMin, timeMax, query, maxResults
+   * @returns Events array with optional nextPageToken and timeZone
    */
   async listEvents(options: ListEventsOptions = {}): Promise<CalendarEventList> {
     const calendarId = options.calendarId || this.defaultCalendarId
@@ -192,6 +195,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
    * Get today's events from a calendar.
    *
    * @param calendarId - Calendar ID (defaults to options.defaultCalendarId or 'primary')
+   * @returns Array of today's calendar events
    */
   async getToday(calendarId?: string): Promise<CalendarEvent[]> {
     const now = new Date()
@@ -211,6 +215,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
    *
    * @param days - Number of days to look ahead (default: 7)
    * @param calendarId - Calendar ID
+   * @returns Array of upcoming calendar events
    */
   async getUpcoming(days: number = 7, calendarId?: string): Promise<CalendarEvent[]> {
     const now = new Date()
@@ -229,6 +234,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
    *
    * @param eventId - The event ID
    * @param calendarId - Calendar ID
+   * @returns The calendar event
    */
   async getEvent(eventId: string, calendarId?: string): Promise<CalendarEvent> {
     const cid = calendarId || this.defaultCalendarId
@@ -248,6 +254,7 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
    *
    * @param query - Freetext search term
    * @param options - Additional listing options (timeMin, timeMax, calendarId, etc.)
+   * @returns Array of matching calendar events
    */
   async searchEvents(query: string, options: ListEventsOptions = {}): Promise<CalendarEvent[]> {
     const { events } = await this.listEvents({ ...options, query })

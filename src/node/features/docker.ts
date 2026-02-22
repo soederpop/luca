@@ -68,12 +68,20 @@ export interface DockerShell {
 
 /**
  * Docker CLI interface feature for managing containers, images, and executing Docker commands.
- * 
+ *
  * Provides comprehensive Docker operations including:
  * - Container management (list, start, stop, create, remove)
  * - Image management (list, pull, build, remove)
  * - Command execution inside containers
  * - Docker system information
+ *
+ * @extends Feature
+ * @example
+ * ```typescript
+ * const docker = container.feature('docker', { enable: true })
+ * await docker.checkDockerAvailability()
+ * const containers = await docker.listContainers({ all: true })
+ * ```
  */
 export class Docker extends Feature<DockerState, DockerOptions> {
   static override shortcut = 'features.docker' as const
@@ -97,7 +105,14 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Check if Docker is available and working
+   * Check if Docker is available and working.
+   *
+   * @returns Promise resolving to true if Docker CLI is accessible, false otherwise
+   * @example
+   * ```typescript
+   * const available = await docker.checkDockerAvailability()
+   * if (!available) console.log('Docker is not installed or not running')
+   * ```
    */
   async checkDockerAvailability(): Promise<boolean> {
     try {
@@ -121,7 +136,11 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Execute a Docker command and return the result
+   * Execute a Docker command and return the result.
+   *
+   * @param args - Array of CLI arguments to pass to the docker binary
+   * @returns Promise resolving to an object with stdout, stderr, and exitCode
+   * @throws Error if Docker is not available
    */
   private async executeDockerCommand(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     if (!this.state.current.isDockerAvailable) {
@@ -148,7 +167,17 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * List all containers (running and stopped)
+   * List all containers (running and stopped).
+   *
+   * @param options - Listing options
+   * @param options.all - Include stopped containers (default: false)
+   * @returns Promise resolving to an array of DockerContainer objects
+   * @throws Error if the docker ps command fails
+   * @example
+   * ```typescript
+   * const running = await docker.listContainers()
+   * const all = await docker.listContainers({ all: true })
+   * ```
    */
   async listContainers(options: { all?: boolean } = {}): Promise<DockerContainer[]> {
     const args = ['ps', '--format', 'json']
@@ -189,7 +218,15 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * List all images
+   * List all images available locally.
+   *
+   * @returns Promise resolving to an array of DockerImage objects
+   * @throws Error if the docker images command fails
+   * @example
+   * ```typescript
+   * const images = await docker.listImages()
+   * console.log(images.map(i => `${i.repository}:${i.tag}`))
+   * ```
    */
   async listImages(): Promise<DockerImage[]> {
     const result = await this.executeDockerCommand(['images', '--format', 'json'])
@@ -224,7 +261,15 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Start a container
+   * Start a stopped container.
+   *
+   * @param containerIdOrName - Container ID or name to start
+   * @returns Promise that resolves when the container is started
+   * @throws Error if the container cannot be started
+   * @example
+   * ```typescript
+   * await docker.startContainer('my-app')
+   * ```
    */
   async startContainer(containerIdOrName: string): Promise<void> {
     const result = await this.executeDockerCommand(['start', containerIdOrName])
@@ -239,7 +284,17 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Stop a container
+   * Stop a running container.
+   *
+   * @param containerIdOrName - Container ID or name to stop
+   * @param timeout - Seconds to wait before killing the container
+   * @returns Promise that resolves when the container is stopped
+   * @throws Error if the container cannot be stopped
+   * @example
+   * ```typescript
+   * await docker.stopContainer('my-app')
+   * await docker.stopContainer('my-app', 30) // wait up to 30s
+   * ```
    */
   async stopContainer(containerIdOrName: string, timeout?: number): Promise<void> {
     const args = ['stop']
@@ -260,7 +315,18 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Remove a container
+   * Remove a container.
+   *
+   * @param containerIdOrName - Container ID or name to remove
+   * @param options - Removal options
+   * @param options.force - Force removal of a running container
+   * @returns Promise that resolves when the container is removed
+   * @throws Error if the container cannot be removed
+   * @example
+   * ```typescript
+   * await docker.removeContainer('old-container')
+   * await docker.removeContainer('stubborn-container', { force: true })
+   * ```
    */
   async removeContainer(containerIdOrName: string, options: { force?: boolean } = {}): Promise<void> {
     const args = ['rm']
@@ -281,23 +347,63 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Create and run a new container
+   * Create and run a new container from the given image.
+   *
+   * @param image - Docker image to run (e.g. 'nginx:latest')
+   * @param options - Container run options
+   * @param options.name - Assign a name to the container
+   * @param options.ports - Port mappings in 'host:container' format (e.g. ['8080:80'])
+   * @param options.volumes - Volume mounts in 'host:container' format (e.g. ['./data:/app/data'])
+   * @param options.environment - Environment variables as key-value pairs
+   * @param options.detach - Run the container in the background
+   * @param options.interactive - Keep STDIN open
+   * @param options.tty - Allocate a pseudo-TTY
+   * @param options.command - Command and arguments to run inside the container
+   * @param options.workdir - Working directory inside the container
+   * @param options.user - Username or UID to run as
+   * @param options.entrypoint - Override the default entrypoint
+   * @param options.network - Connect the container to a network
+   * @param options.restart - Restart policy (e.g. 'always', 'on-failure')
+   * @returns Promise resolving to the container ID
+   * @throws Error if the container cannot be started
+   * @example
+   * ```typescript
+   * const containerId = await docker.runContainer('nginx:latest', {
+   *   name: 'web',
+   *   ports: ['8080:80'],
+   *   detach: true,
+   *   environment: { NODE_ENV: 'production' }
+   * })
+   * ```
    */
   async runContainer(
-    image: string, 
+    image: string,
     options: {
+      /** Assign a name to the container */
       name?: string
+      /** Port mappings in 'host:container' format */
       ports?: string[]
+      /** Volume mounts in 'host:container' format */
       volumes?: string[]
+      /** Environment variables as key-value pairs */
       environment?: Record<string, string>
+      /** Run the container in the background */
       detach?: boolean
+      /** Keep STDIN open */
       interactive?: boolean
+      /** Allocate a pseudo-TTY */
       tty?: boolean
+      /** Command and arguments to run inside the container */
       command?: string[]
+      /** Working directory inside the container */
       workdir?: string
+      /** Username or UID to run as */
       user?: string
+      /** Override the default entrypoint */
       entrypoint?: string
+      /** Connect the container to a network */
       network?: string
+      /** Restart policy (e.g. 'always', 'on-failure') */
       restart?: string
     } = {}
   ): Promise<string> {
@@ -355,17 +461,41 @@ export class Docker extends Feature<DockerState, DockerOptions> {
    *
    * When volumes are specified, uses `docker run --rm` with the container's image
    * instead of `docker exec`, since exec does not support volume mounts.
+   *
+   * @param containerIdOrName - Container ID or name to execute in
+   * @param command - Command and arguments array (e.g. ['ls', '-la'])
+   * @param options - Execution options
+   * @param options.interactive - Keep STDIN open
+   * @param options.tty - Allocate a pseudo-TTY
+   * @param options.user - Username or UID to run as
+   * @param options.workdir - Working directory inside the container
+   * @param options.detach - Run the command in the background
+   * @param options.environment - Environment variables as key-value pairs
+   * @param options.volumes - Volume mounts; triggers a docker run --rm fallback
+   * @returns Promise resolving to an object with stdout, stderr, and exitCode
+   * @example
+   * ```typescript
+   * const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])
+   * console.log(result.stdout)
+   * ```
    */
   async execCommand(
     containerIdOrName: string,
     command: string[],
     options: {
+      /** Keep STDIN open */
       interactive?: boolean
+      /** Allocate a pseudo-TTY */
       tty?: boolean
+      /** Username or UID to run as */
       user?: string
+      /** Working directory inside the container */
       workdir?: string
+      /** Run the command in the background */
       detach?: boolean
+      /** Environment variables as key-value pairs */
       environment?: Record<string, string>
+      /** Volume mounts; triggers a docker run --rm fallback */
       volumes?: string[]
     } = {}
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -409,6 +539,10 @@ export class Docker extends Feature<DockerState, DockerOptions> {
 
   /**
    * Look up the image name for a running container via docker inspect.
+   *
+   * @param containerIdOrName - Container ID or name to inspect
+   * @returns Promise resolving to the image name string
+   * @throws Error if the container cannot be inspected
    */
   private async getContainerImage(containerIdOrName: string): Promise<string> {
     const result = await this.executeDockerCommand([
@@ -493,7 +627,15 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Pull an image from a registry
+   * Pull an image from a registry.
+   *
+   * @param image - Full image reference (e.g. 'nginx:latest', 'ghcr.io/org/repo:tag')
+   * @returns Promise that resolves when the pull is complete
+   * @throws Error if the pull fails
+   * @example
+   * ```typescript
+   * await docker.pullImage('node:20-alpine')
+   * ```
    */
   async pullImage(image: string): Promise<void> {
     const result = await this.executeDockerCommand(['pull', image])
@@ -508,7 +650,18 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Remove an image
+   * Remove an image from the local store.
+   *
+   * @param imageIdOrName - Image ID, repository, or repository:tag to remove
+   * @param options - Removal options
+   * @param options.force - Force removal even if the image is in use
+   * @returns Promise that resolves when the image is removed
+   * @throws Error if the image cannot be removed
+   * @example
+   * ```typescript
+   * await docker.removeImage('nginx:latest')
+   * await docker.removeImage('old-image', { force: true })
+   * ```
    */
   async removeImage(imageIdOrName: string, options: { force?: boolean } = {}): Promise<void> {
     const args = ['rmi']
@@ -529,15 +682,37 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Build an image from a Dockerfile
+   * Build an image from a Dockerfile.
+   *
+   * @param contextPath - Path to the build context directory
+   * @param options - Build options
+   * @param options.tag - Tag the resulting image (e.g. 'my-app:latest')
+   * @param options.dockerfile - Path to an alternate Dockerfile
+   * @param options.buildArgs - Build-time variables as key-value pairs
+   * @param options.target - Target build stage in a multi-stage Dockerfile
+   * @param options.nocache - Do not use cache when building the image
+   * @returns Promise that resolves when the build is complete
+   * @throws Error if the build fails
+   * @example
+   * ```typescript
+   * await docker.buildImage('./project', {
+   *   tag: 'my-app:latest',
+   *   buildArgs: { NODE_ENV: 'production' }
+   * })
+   * ```
    */
   async buildImage(
-    contextPath: string, 
+    contextPath: string,
     options: {
+      /** Tag the resulting image (e.g. 'my-app:latest') */
       tag?: string
+      /** Path to an alternate Dockerfile */
       dockerfile?: string
+      /** Build-time variables as key-value pairs */
       buildArgs?: Record<string, string>
+      /** Target build stage in a multi-stage Dockerfile */
       target?: string
+      /** Do not use cache when building the image */
       nocache?: boolean
     } = {}
   ): Promise<void> {
@@ -568,14 +743,32 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Get container logs
+   * Get container logs.
+   *
+   * @param containerIdOrName - Container ID or name to fetch logs from
+   * @param options - Log retrieval options
+   * @param options.follow - Follow log output (stream)
+   * @param options.tail - Number of lines to show from the end of the logs
+   * @param options.since - Show logs since a timestamp or relative time (e.g. '10m', '2024-01-01T00:00:00')
+   * @param options.timestamps - Prepend a timestamp to each log line
+   * @returns Promise resolving to the log output string
+   * @throws Error if logs cannot be retrieved
+   * @example
+   * ```typescript
+   * const logs = await docker.getLogs('my-app', { tail: 100, timestamps: true })
+   * console.log(logs)
+   * ```
    */
   async getLogs(
-    containerIdOrName: string, 
+    containerIdOrName: string,
     options: {
+      /** Follow log output (stream) */
       follow?: boolean
+      /** Number of lines to show from the end of the logs */
       tail?: number
+      /** Show logs since a timestamp or relative time */
       since?: string
+      /** Prepend a timestamp to each log line */
       timestamps?: boolean
     } = {}
   ): Promise<string> {
@@ -598,7 +791,15 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Get Docker system information
+   * Get Docker system information (engine version, storage driver, OS, etc.).
+   *
+   * @returns Promise resolving to the parsed JSON system info object
+   * @throws Error if the system info command fails
+   * @example
+   * ```typescript
+   * const info = await docker.getSystemInfo()
+   * console.log(info.ServerVersion)
+   * ```
    */
   async getSystemInfo(): Promise<any> {
     const result = await this.executeDockerCommand(['system', 'info', '--format', 'json'])
@@ -611,14 +812,36 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Prune unused Docker resources
+   * Prune unused Docker resources.
+   *
+   * When no specific resource type is selected, falls back to `docker system prune`.
+   *
+   * @param options - Pruning options
+   * @param options.containers - Prune stopped containers
+   * @param options.images - Prune dangling images
+   * @param options.volumes - Prune unused volumes
+   * @param options.networks - Prune unused networks
+   * @param options.all - Prune all resource types (containers, images, volumes, networks)
+   * @param options.force - Skip confirmation prompts for image pruning
+   * @returns Promise that resolves when pruning is complete
+   * @example
+   * ```typescript
+   * await docker.prune({ all: true })
+   * await docker.prune({ containers: true, images: true })
+   * ```
    */
   async prune(options: {
+    /** Prune stopped containers */
     containers?: boolean
+    /** Prune dangling images */
     images?: boolean
+    /** Prune unused volumes */
     volumes?: boolean
+    /** Prune unused networks */
     networks?: boolean
+    /** Prune all resource types */
     all?: boolean
+    /** Skip confirmation prompts for image pruning */
     force?: boolean
   } = {}): Promise<void> {
     const commands = []
@@ -658,7 +881,10 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Initialize the Docker feature
+   * Initialize the Docker feature by checking availability and optionally refreshing state.
+   *
+   * @param options - Enable options passed to the base Feature
+   * @returns Promise resolving to this Docker instance
    */
   override async enable(options: any = {}): Promise<this> {
     await super.enable(options)

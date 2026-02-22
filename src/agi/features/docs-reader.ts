@@ -36,6 +36,16 @@ export type DocsReaderOptions = z.infer<typeof DocsReaderOptionsSchema>
  * and it will find and read the relevant docs to answer it.
  *
  * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const reader = container.feature('docsReader', {
+ *   contentDb: myContentDb,
+ *   model: 'gpt-4.1'
+ * })
+ * await reader.start()
+ * const answer = await reader.ask('How does authentication work?')
+ * ```
  */
 export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 	static override stateSchema = DocsReaderStateSchema
@@ -47,6 +57,7 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		return container
 	}
 
+	/** @returns Default state with started and docsLoaded both false. */
 	override get initialState(): DocsReaderState {
 		return {
 			...super.initialState,
@@ -55,6 +66,7 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		}
 	}
 
+	/** @returns The parent AGIContainer, narrowed from the base Container type. */
 	override get container(): AGIContainer {
 		return super.container as AGIContainer
 	}
@@ -71,6 +83,12 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 
 	conversation?: Conversation
 
+	/**
+	 * Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs)
+	 * that the conversation model uses to query the content database.
+	 *
+	 * @returns {Record<string, ConversationTool>} Tool map keyed by tool name
+	 */
 	buildTools(): Record<string, ConversationTool> {
 		const db = this.contentDb
 
@@ -158,6 +176,12 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		return tools
 	}
 
+	/**
+	 * Build the system prompt by combining the optional prefix with a
+	 * table of contents generated from the content database.
+	 *
+	 * @returns {string} The assembled system prompt text
+	 */
 	buildSystemPrompt(): string {
 		const prefix = this.options.systemPrompt || 'You are a helpful documentation assistant. You have access to a library of documents. Use the provided tools to look up documents and answer the user\'s questions accurately based on what you find.'
 
@@ -169,6 +193,12 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		return `${prefix}${docsSection}\n\nUse the listDocs tool to see available documents, readDocOutline to scan a document's structure, and readDoc or readDocs to read the full content. Always read the relevant documents before answering.`
 	}
 
+	/**
+	 * Create and return a new Conversation feature configured with the
+	 * docs reader's system prompt and tools.
+	 *
+	 * @returns {Conversation} The configured conversation instance
+	 */
 	createConversation(): Conversation {
 		const systemPrompt = this.buildSystemPrompt()
 		const tools = this.buildTools()
@@ -185,6 +215,12 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		})
 	}
 
+	/**
+	 * Initialize the docs reader by loading the content database,
+	 * creating the conversation, and emitting the start event.
+	 *
+	 * @returns {Promise<this>} This instance, for chaining
+	 */
 	async start() {
 		await this.contentDb.load()
 		this.state.set('docsLoaded', true)

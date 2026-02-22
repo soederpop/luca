@@ -296,6 +296,8 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
 
   /**
    * List all shared drives the user has access to.
+   *
+   * @returns Array of shared drive objects
    */
   async listDrives(): Promise<SharedDrive[]> {
     try {

@@ -7,13 +7,28 @@ export const RunpodStateSchema = FeatureStateSchema.extend({})
 export type RunpodState = z.infer<typeof RunpodStateSchema>
 
 export const RunpodOptionsSchema = FeatureOptionsSchema.extend({
-	apiKey: z.string().optional(),
-	dataCenterId: z.string().optional(),
+	apiKey: z.string().optional().describe('RunPod API key (falls back to RUNPOD_API_KEY env var)'),
+	dataCenterId: z.string().optional().describe('Preferred data center ID (default: US-TX-3)'),
 })
 export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>
 
 /**
- * Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.
+ * RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API.
+ *
+ * Provides a complete interface for provisioning and managing RunPod GPU instances.
+ * Supports creating pods from templates, managing network storage volumes, SSH access
+ * via the SecureShell feature, file transfers, and polling for pod readiness.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const runpod = container.feature('runpod', { enable: true })
+ * const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })
+ * const ready = await runpod.waitForPod(pod.id)
+ * const shell = await runpod.getShell(pod.id)
+ * await shell.exec('nvidia-smi')
+ * ```
  */
 export class Runpod extends Feature<RunpodState, RunpodOptions> {
   static override shortcut = 'features.runpod' as const
@@ -21,14 +36,17 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
   static override stateSchema = RunpodStateSchema
   static override optionsSchema = RunpodOptionsSchema
 
+	/** The proc feature used for executing CLI commands like runpodctl. */
 	get proc() {
 		return this.container.feature('proc')
 	}
 
+	/** RunPod API key from options or the RUNPOD_API_KEY environment variable. */
 	get apiKey() {
 		return this.options.apiKey || process.env.RUNPOD_API_KEY || ''
 	}
 
+	/** Preferred data center ID, defaults to 'US-TX-3'. */
 	get dataCenterId() {
 		return this.options.dataCenterId || 'US-TX-3'
 	}
@@ -45,6 +63,20 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		}).then(r => r.data)
 	}
 
+	/**
+	 * List available pod templates.
+	 *
+	 * @param options - Filter options for templates
+	 * @param options.includePublic - Include public community templates (default: false)
+	 * @param options.includeRunpod - Include RunPod official templates (default: true)
+	 * @returns Array of template info objects
+	 *
+	 * @example
+	 * ```typescript
+	 * const templates = await runpod.listTemplates({ includeRunpod: true })
+	 * console.log(templates.map(t => t.name))
+	 * ```
+	 */
 	async listTemplates(options: { includePublic?: boolean, includeRunpod?: boolean } = {}): Promise<TemplateInfo[]> {
 		return this.api('/templates', {
 			params: {
@@ -54,10 +86,38 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		})
 	}
 
+	/**
+	 * Get details for a specific template by ID.
+	 *
+	 * @param templateId - The template ID to look up
+	 * @returns Template info object
+	 *
+	 * @example
+	 * ```typescript
+	 * const template = await runpod.getTemplate('abc123')
+	 * console.log(template.imageName)
+	 * ```
+	 */
 	async getTemplate(templateId: string): Promise<TemplateInfo> {
 		return this.api(`/templates/${templateId}`)
 	}
 
+	/**
+	 * Create a new GPU pod on RunPod.
+	 *
+	 * @param options - Pod configuration options
+	 * @returns The created pod info
+	 *
+	 * @example
+	 * ```typescript
+	 * const pod = await runpod.createPod({
+	 *   gpuTypeId: 'NVIDIA RTX 4090',
+	 *   templateId: 'abc123',
+	 *   volumeInGb: 50,
+	 * })
+	 * console.log(`Pod ${pod.id} created`)
+	 * ```
+	 */
 	async createPod(options: CreatePodOptions): Promise<PodInfo> {
 		return this.api('/pods', {
 			method: 'POST',
@@ -80,34 +140,104 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		})
 	}
 
+	/**
+	 * Stop a running pod.
+	 *
+	 * @param podId - The pod ID to stop
+	 * @returns API response
+	 *
+	 * @example
+	 * ```typescript
+	 * await runpod.stopPod('pod-abc123')
+	 * ```
+	 */
 	async stopPod(podId: string) {
 		return this.api(`/pods/${podId}/stop`, { method: 'POST' })
 	}
 
+	/**
+	 * Start a stopped pod.
+	 *
+	 * @param podId - The pod ID to start
+	 * @returns API response
+	 *
+	 * @example
+	 * ```typescript
+	 * await runpod.startPod('pod-abc123')
+	 * ```
+	 */
 	async startPod(podId: string) {
 		return this.api(`/pods/${podId}/start`, { method: 'POST' })
 	}
 
+	/**
+	 * Permanently delete a pod.
+	 *
+	 * @param podId - The pod ID to remove
+	 * @returns API response
+	 *
+	 * @example
+	 * ```typescript
+	 * await runpod.removePod('pod-abc123')
+	 * ```
+	 */
 	async removePod(podId: string) {
 		return this.api(`/pods/${podId}`, { method: 'DELETE' })
 	}
 
 	/**
-	 * Get all pods via REST API
+	 * Get all pods via the REST API.
+	 *
+	 * @param filters - Optional filters for name, image, or status
+	 * @param filters.name - Filter by pod name
+	 * @param filters.imageName - Filter by Docker image name
+	 * @param filters.desiredStatus - Filter by status (RUNNING, EXITED, TERMINATED)
+	 * @returns Array of pod info objects
+	 *
+	 * @example
+	 * ```typescript
+	 * const pods = await runpod.getpods({ desiredStatus: 'RUNNING' })
+	 * console.log(pods.map(p => `${p.name}: ${p.desiredStatus}`))
+	 * ```
 	 */
 	async getpods(filters: { name?: string; imageName?: string; desiredStatus?: string } = {}): Promise<RestPodInfo[]> {
 		return this.api('/pods', { params: filters })
 	}
 
 	/**
-	 * Get pod details via REST API (richer than runpodctl output)
+	 * Get detailed pod info via the REST API.
+	 *
+	 * Returns richer data than the CLI-based `getPodInfo`, including port mappings and public IP.
+	 *
+	 * @param podId - The pod ID to look up
+	 * @returns Detailed pod info with port mappings, costs, and GPU details
+	 *
+	 * @example
+	 * ```typescript
+	 * const pod = await runpod.getPod('pod-abc123')
+	 * console.log(`${pod.name} - ${pod.desiredStatus} - $${pod.costPerHr}/hr`)
+	 * ```
 	 */
 	async getPod(podId: string): Promise<RestPodInfo> {
 		return this.api(`/pods/${podId}`)
 	}
 
 	/**
-	 * Poll until a pod reaches a desired status, returns the pod info
+	 * Poll until a pod reaches a desired status.
+	 *
+	 * @param podId - The pod ID to monitor
+	 * @param status - Target status to wait for (default: 'RUNNING')
+	 * @param options - Polling configuration
+	 * @param options.interval - Polling interval in ms (default: 5000)
+	 * @param options.timeout - Max wait time in ms (default: 300000)
+	 * @returns The pod info once it reaches the target status
+	 * @throws If the pod does not reach the target status within the timeout
+	 *
+	 * @example
+	 * ```typescript
+	 * const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc' })
+	 * const ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })
+	 * ```
 	 */
 	async waitForPod(podId: string, status: string = 'RUNNING', { interval = 5000, timeout = 300000 } = {}): Promise<RestPodInfo> {
 		const start = Date.now()
@@ -122,21 +252,47 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	}
 
 	/**
-	 * List all network storage volumes on your account
+	 * List all network storage volumes on your account.
+	 *
+	 * @returns Array of volume info objects
+	 *
+	 * @example
+	 * ```typescript
+	 * const volumes = await runpod.listVolumes()
+	 * console.log(volumes.map(v => `${v.name}: ${v.size}GB`))
+	 * ```
 	 */
 	async listVolumes(): Promise<VolumeInfo[]> {
 		return this.api('/networkvolumes')
 	}
 
 	/**
-	 * Get details for a specific network volume
+	 * Get details for a specific network volume.
+	 *
+	 * @param volumeId - The volume ID to look up
+	 * @returns Volume info object
+	 *
+	 * @example
+	 * ```typescript
+	 * const vol = await runpod.getVolume('vol-abc123')
+	 * console.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)
+	 * ```
 	 */
 	async getVolume(volumeId: string): Promise<VolumeInfo> {
 		return this.api(`/networkvolumes/${volumeId}`)
 	}
 
 	/**
-	 * Create a new network storage volume
+	 * Create a new network storage volume.
+	 *
+	 * @param options - Volume configuration
+	 * @returns The created volume info
+	 *
+	 * @example
+	 * ```typescript
+	 * const vol = await runpod.createVolume({ name: 'my-models', size: 100 })
+	 * console.log(`Created volume ${vol.id}`)
+	 * ```
 	 */
 	async createVolume(options: CreateVolumeOptions): Promise<VolumeInfo> {
 		return this.api('/networkvolumes', {
@@ -150,12 +306,34 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	}
 
 	/**
-	 * Delete a network storage volume
+	 * Delete a network storage volume.
+	 *
+	 * @param volumeId - The volume ID to delete
+	 * @returns API response
+	 *
+	 * @example
+	 * ```typescript
+	 * await runpod.removeVolume('vol-abc123')
+	 * ```
 	 */
 	async removeVolume(volumeId: string) {
 		return this.api(`/networkvolumes/${volumeId}`, { method: 'DELETE' })
 	}
 
+	/**
+	 * Create an SSH connection to a pod using the runpodctl CLI.
+	 *
+	 * Prefer `getShell()` which uses the REST API and is more reliable.
+	 *
+	 * @param podId - The pod ID to connect to
+	 * @returns A SecureShell feature instance connected to the pod
+	 *
+	 * @example
+	 * ```typescript
+	 * const shell = await runpod.createRemoteShell('pod-abc123')
+	 * const output = await shell.exec('nvidia-smi')
+	 * ```
+	 */
 	async createRemoteShell(podId: string) {
 		const podInfo = await this.getPodInfo(podId)!
 		const sshService  = podInfo.ports.find((p:any) => p.serviceType == 'tcp' && p.external == '22')
@@ -173,8 +351,20 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	}
 
 	/**
-	 * Get a SecureShell for a pod using the REST API (portMappings + publicIp).
-	 * Preferred over createRemoteShell which requires runpodctl CLI.
+	 * Get an SSH connection to a pod using the REST API.
+	 *
+	 * Uses port mappings and public IP from the REST API, which is more reliable
+	 * than the CLI-based `createRemoteShell`.
+	 *
+	 * @param podId - The pod ID to connect to
+	 * @returns A SecureShell feature instance connected to the pod
+	 * @throws If no SSH port mapping or public IP is found
+	 *
+	 * @example
+	 * ```typescript
+	 * const shell = await runpod.getShell('pod-abc123')
+	 * const output = await shell.exec('ls /workspace')
+	 * ```
 	 */
 	async getShell(podId: string) {
 		const pod = await this.getPod(podId)
@@ -286,12 +476,38 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		throw new Error(`Timed out waiting for download of ${remotePath} after ${timeout / 1000}s`)
 	}
 
+	/**
+	 * Get the public HTTP proxy URLs for a pod's exposed HTTP ports.
+	 *
+	 * @param podId - The pod ID
+	 * @returns Array of public proxy URLs
+	 *
+	 * @example
+	 * ```typescript
+	 * const urls = await runpod.getPodHttpURLs('pod-abc123')
+	 * // ['https://pod-abc123-8888.proxy.runpod.net']
+	 * ```
+	 */
 	async getPodHttpURLs(podId: string) {
 		const podInfo = await this.getPodInfo(podId)!
 		const httpServices  = podInfo.ports.filter(p => p.serviceType == 'http')
 		return httpServices.map(p => `https://${podInfo.id}-${p.external}.proxy.runpod.net`)
 	}
 
+	/**
+	 * List all pods using the runpodctl CLI.
+	 *
+	 * Parses the tabular output from `runpodctl get pod`. For richer data, use `getpods()`.
+	 *
+	 * @param detailed - Reserved for future use
+	 * @returns Array of pod info objects
+	 *
+	 * @example
+	 * ```typescript
+	 * const pods = await runpod.listPods()
+	 * pods.forEach(p => console.log(`${p.name} (${p.gpu}): ${p.status}`))
+	 * ```
+	 */
 	async listPods(detailed = false): Promise<PodInfo[]> {
 		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'pod', '-a'])
 		const pods = output
@@ -318,6 +534,20 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		return pods as unknown as PodInfo[]
 	}
 
+	/**
+	 * Get pod info using the runpodctl CLI.
+	 *
+	 * For richer data including port mappings and public IP, use `getPod()`.
+	 *
+	 * @param podId - The pod ID to look up
+	 * @returns Pod info parsed from CLI output
+	 *
+	 * @example
+	 * ```typescript
+	 * const info = await runpod.getPodInfo('pod-abc123')
+	 * console.log(`${info.name}: ${info.status}`)
+	 * ```
+	 */
 	async getPodInfo(podId: string): Promise<PodInfo> {
 		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'pod', podId, '-a'])
 
@@ -343,6 +573,19 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 			}))[0] as PodInfo
 	}
 
+	/**
+	 * List available secure GPU types with pricing.
+	 *
+	 * Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.
+	 *
+	 * @returns Array of GPU info with type, memory, CPU count, and pricing
+	 *
+	 * @example
+	 * ```typescript
+	 * const gpus = await runpod.listSecureGPUs()
+	 * gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
+	 * ```
+	 */
 	async listSecureGPUs() {
 		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'cloud', '--secure'])
 
@@ -499,8 +742,11 @@ type VolumeInfo = {
 }
 
 type CreateVolumeOptions = {
+	/** Display name for the volume */
 	name: string
+	/** Size in GB */
 	size: number
+	/** Data center to create in (defaults to feature's dataCenterId) */
 	dataCenterId?: string
 }
 
@@ -525,18 +771,32 @@ type RestPodInfo = {
 }
 
 type CreatePodOptions = {
+	/** Pod display name (default: 'luca-pod') */
 	name?: string
+	/** Docker image name to run */
 	imageName?: string
+	/** GPU type ID or array of acceptable GPU types */
 	gpuTypeId: string | string[]
+	/** Number of GPUs to allocate (default: 1) */
 	gpuCount?: number
+	/** Template ID to use for pod configuration */
 	templateId?: string
+	/** Cloud type: 'SECURE' for dedicated or 'COMMUNITY' for shared (default: 'SECURE') */
 	cloudType?: 'SECURE' | 'COMMUNITY'
+	/** Container disk size in GB (default: 50) */
 	containerDiskInGb?: number
+	/** Persistent volume size in GB (default: 20) */
 	volumeInGb?: number
+	/** Mount path for the volume (default: '/workspace') */
 	volumeMountPath?: string
+	/** Port mappings like ['8888/http', '22/tcp'] */
 	ports?: string[]
+	/** Environment variables to set in the container */
 	env?: Record<string, string>
+	/** Whether the pod can be preempted for spot pricing */
 	interruptible?: boolean
+	/** ID of an existing network volume to attach */
 	networkVolumeId?: string
+	/** Minimum RAM per GPU in GB */
 	minRAMPerGPU?: number
 }

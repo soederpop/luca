@@ -49,6 +49,10 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
 
   private _client: SQL
 
+  /**
+   * Default state for the Postgres feature before a connection is established.
+   * @returns The initial PostgresState with `connected: false` and empty `url`
+   */
   override get initialState(): PostgresState {
     return {
       enabled: false,
@@ -73,7 +77,10 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
     })
   }
 
-  /** Returns the underlying Bun SQL postgres client. */
+  /**
+   * Returns the underlying Bun SQL postgres client.
+   * @returns The raw `SQL` instance used for all database operations
+   */
   get client() {
     return this._client
   }
@@ -82,6 +89,20 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
    * Executes a SELECT-like query and returns result rows.
    *
    * Use postgres placeholders (`$1`, `$2`, ...) for `params`.
+   *
+   * @param queryText - The SQL query string with optional `$N` placeholders
+   * @param params - Ordered array of values to bind to the placeholders
+   * @returns Promise resolving to an array of typed result rows
+   * @throws {Error} When query text is empty or params contain `undefined`
+   *
+   * @example
+   * ```typescript
+   * const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })
+   * const users = await pg.query<{ id: number; email: string }>(
+   *   'SELECT id, email FROM users WHERE active = $1',
+   *   [true]
+   * )
+   * ```
    */
   async query<T extends object = Record<string, unknown>>(queryText: string, params: SqlValue[] = []): Promise<T[]> {
     assertQueryText(queryText)
@@ -115,6 +136,21 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
    * Executes a write/update/delete statement and returns metadata.
    *
    * Use postgres placeholders (`$1`, `$2`, ...) for `params`.
+   *
+   * @param queryText - The SQL statement string with optional `$N` placeholders
+   * @param params - Ordered array of values to bind to the placeholders
+   * @returns Promise resolving to `{ rowCount }` indicating affected rows
+   * @throws {Error} When query text is empty or params contain `undefined`
+   *
+   * @example
+   * ```typescript
+   * const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })
+   * const { rowCount } = await pg.execute(
+   *   'UPDATE users SET active = $1 WHERE last_login < $2',
+   *   [false, '2024-01-01']
+   * )
+   * console.log(`Deactivated ${rowCount} users`)
+   * ```
    */
   async execute(queryText: string, params: SqlValue[] = []): Promise<{ rowCount: number }> {
     assertQueryText(queryText)
@@ -146,14 +182,40 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
   /**
    * Safe tagged-template SQL helper.
    *
-   * Values become bound parameters automatically.
+   * Values become bound parameters automatically, preventing SQL injection.
+   *
+   * @param strings - Template literal string segments
+   * @param values - Interpolated values that become bound `$N` parameters
+   * @returns Promise resolving to an array of typed result rows
+   *
+   * @example
+   * ```typescript
+   * const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })
+   * const email = 'hello@example.com'
+   * const rows = await pg.sql<{ id: number }>`
+   *   SELECT id FROM users WHERE email = ${email}
+   * `
+   * ```
    */
   async sql<T extends object = Record<string, unknown>>(strings: TemplateStringsArray, ...values: SqlValue[]): Promise<T[]> {
     const built = buildDollarQuery(strings, values)
     return this.query<T>(built.text, built.params)
   }
 
-  /** Closes the postgres connection and updates feature state. */
+  /**
+   * Closes the postgres connection and updates feature state.
+   *
+   * Emits `closed` after the connection is torn down.
+   *
+   * @returns This Postgres feature instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })
+   * // ... run queries ...
+   * await pg.close()
+   * ```
+   */
   async close() {
     await this.client.close()
     this.setState({ connected: false })

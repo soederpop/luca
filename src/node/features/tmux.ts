@@ -426,6 +426,7 @@ export class Tmux extends Feature<TmuxState, TmuxOptions> {
   static override optionsSchema = TmuxOptionsSchema
   static override eventsSchema = TmuxEventsSchema
 
+  /** Default state: tmux availability not yet checked, no panes tracked. */
   override get initialState(): TmuxState {
     return {
       ...super.initialState,

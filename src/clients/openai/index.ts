@@ -6,27 +6,40 @@ import type { ClientsInterface } from "@soederpop/luca/client";
 import OpenAI from "openai";
 
 export const OpenAIClientStateSchema = ClientStateSchema.extend({
-  requestCount: z.number().default(0),
-  lastRequestTime: z.number().nullable().default(null),
+  requestCount: z.number().default(0).describe('Total number of API requests made'),
+  lastRequestTime: z.number().nullable().default(null).describe('Timestamp of the last API request'),
   tokenUsage: z.object({
-    prompt: z.number().default(0),
-    completion: z.number().default(0),
-    total: z.number().default(0),
-  }).default({ prompt: 0, completion: 0, total: 0 }),
+    prompt: z.number().default(0).describe('Total prompt tokens consumed'),
+    completion: z.number().default(0).describe('Total completion tokens consumed'),
+    total: z.number().default(0).describe('Total tokens consumed (prompt + completion)'),
+  }).default({ prompt: 0, completion: 0, total: 0 }).describe('Cumulative token usage across all requests'),
 })
 export type OpenAIClientState = z.infer<typeof OpenAIClientStateSchema>
 
 export const OpenAIClientOptionsSchema = ClientOptionsSchema.extend({
-  apiKey: z.string().optional(),
-  organization: z.string().optional(),
-  project: z.string().optional(),
-  dangerouslyAllowBrowser: z.boolean().optional(),
-  defaultModel: z.string().optional(),
-  timeout: z.number().optional(),
-  maxRetries: z.number().optional(),
+  apiKey: z.string().optional().describe('OpenAI API key (falls back to OPENAI_API_KEY env var)'),
+  organization: z.string().optional().describe('OpenAI organization ID'),
+  project: z.string().optional().describe('OpenAI project ID'),
+  dangerouslyAllowBrowser: z.boolean().optional().describe('Allow usage in browser environments'),
+  defaultModel: z.string().optional().describe('Default model for completions (default: gpt-4o)'),
+  timeout: z.number().optional().describe('Request timeout in milliseconds'),
+  maxRetries: z.number().optional().describe('Maximum number of retries on failure'),
 })
 export type OpenAIClientOptions = z.infer<typeof OpenAIClientOptionsSchema>
 
+/**
+ * OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation.
+ *
+ * Provides convenience methods for common operations while tracking token usage and request counts.
+ * Supports both the Chat Completions API and the newer Responses API.
+ *
+ * @example
+ * ```typescript
+ * const openai = container.client('openai', { defaultModel: 'gpt-4o' })
+ * const answer = await openai.ask('What is the meaning of life?')
+ * console.log(answer)
+ * ```
+ */
 export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions> {
   private openai!: OpenAI;
 
@@ -39,6 +52,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     return container;
   }
 
+  /** Initial state with zeroed token usage counters. */
   override get initialState(): OpenAIClientState {
     return {
       ...super.initialState,
@@ -69,6 +83,17 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     });
   }
 
+  /**
+   * Test the API connection by listing models.
+   *
+   * @returns This client instance
+   * @throws If the API key is invalid or the connection fails
+   *
+   * @example
+   * ```typescript
+   * await openai.connect()
+   * ```
+   */
   override async connect(): Promise<this> {
     try {
       // Test the connection by making a simple request
@@ -82,6 +107,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /** The default model used for completions, from options or 'gpt-4o'. */
   get defaultModel(): string {
     return this.options.defaultModel || 'gpt-4o';
   }
@@ -120,6 +146,22 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     });
   }
 
+  /**
+   * Create a chat completion using the Chat Completions API.
+   *
+   * @param messages - Array of chat messages
+   * @param options - Additional parameters for the completion
+   * @returns The complete chat completion response
+   *
+   * @example
+   * ```typescript
+   * const response = await openai.createChatCompletion([
+   *   { role: 'system', content: 'You are a helpful assistant.' },
+   *   { role: 'user', content: 'Hello!' }
+   * ])
+   * console.log(response.choices[0]?.message?.content)
+   * ```
+   */
   async createChatCompletion(
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
     options: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> = {}
@@ -144,6 +186,18 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * Create a response using the Responses API.
+   *
+   * @param input - The input prompt or message array
+   * @param options - Additional parameters for the response
+   * @returns The complete response object
+   *
+   * @example
+   * ```typescript
+   * const response = await openai.createResponse('Explain quantum computing')
+   * ```
+   */
   async createResponse(
     input: OpenAI.Responses.ResponseInput | string,
     options: Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming> = {}
@@ -168,6 +222,23 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * Stream a response using the Responses API.
+   *
+   * @param input - The input prompt or message array
+   * @param options - Additional parameters for the streaming response
+   * @returns An async iterable of response stream events
+   *
+   * @example
+   * ```typescript
+   * const stream = await openai.streamResponse('Write a poem')
+   * for await (const event of stream) {
+   *   if (event.type === 'response.output_text.delta') {
+   *     process.stdout.write(event.delta)
+   *   }
+   * }
+   * ```
+   */
   async streamResponse(
     input: OpenAI.Responses.ResponseInput | string,
     options: Partial<OpenAI.Responses.ResponseCreateParamsStreaming> = {}
@@ -189,6 +260,18 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * Create a legacy text completion.
+   *
+   * @param prompt - The text prompt to complete
+   * @param options - Additional parameters for the completion
+   * @returns The complete completion response
+   *
+   * @example
+   * ```typescript
+   * const response = await openai.createCompletion('Once upon a time')
+   * ```
+   */
   async createCompletion(
     prompt: string,
     options: Partial<OpenAI.Completions.CompletionCreateParams> = {}
@@ -213,6 +296,19 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * Create text embeddings for semantic search or similarity comparisons.
+   *
+   * @param input - A string or array of strings to embed
+   * @param options - Additional parameters (model, etc.)
+   * @returns The embedding response with vectors
+   *
+   * @example
+   * ```typescript
+   * const response = await openai.createEmbedding('Hello world')
+   * console.log(response.data[0].embedding.length)
+   * ```
+   */
   async createEmbedding(
     input: string | string[],
     options: Partial<OpenAI.Embeddings.EmbeddingCreateParams> = {}
@@ -236,6 +332,19 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * Generate an image from a text prompt using DALL-E.
+   *
+   * @param prompt - Description of the image to generate
+   * @param options - Additional parameters (size, n, etc.)
+   * @returns The image response with URLs or base64 data
+   *
+   * @example
+   * ```typescript
+   * const response = await openai.createImage('A sunset over mountains')
+   * console.log(response.data[0].url)
+   * ```
+   */
   async createImage(
     prompt: string,
     options: Partial<OpenAI.Images.ImageGenerateParams> = {}
@@ -259,6 +368,16 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
+  /**
+   * List all available models.
+   *
+   * @returns Paginated list of available models
+   *
+   * @example
+   * ```typescript
+   * const models = await openai.listModels()
+   * ```
+   */
   async listModels(): Promise<OpenAI.Models.ModelsPage> {
     try {
       const response = await this.openai.models.list();
@@ -270,7 +389,21 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     }
   }
 
-  // Convenience methods for common use cases
+  /**
+   * Ask a single question and get a text response.
+   *
+   * Convenience wrapper around `createChatCompletion` for simple Q&A.
+   *
+   * @param question - The question to ask
+   * @param options - Additional completion parameters
+   * @returns The assistant's text response
+   *
+   * @example
+   * ```typescript
+   * const answer = await openai.ask('What is 2 + 2?')
+   * console.log(answer) // '4'
+   * ```
+   */
   async ask(
     question: string,
     options: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> = {}
@@ -282,6 +415,23 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     return response.choices[0]?.message?.content || '';
   }
 
+  /**
+   * Send a multi-turn conversation and get a text response.
+   *
+   * Convenience wrapper around `createChatCompletion` that returns just the text.
+   *
+   * @param messages - Array of chat messages
+   * @param options - Additional completion parameters
+   * @returns The assistant's text response
+   *
+   * @example
+   * ```typescript
+   * const reply = await openai.chat([
+   *   { role: 'system', content: 'You are a pirate.' },
+   *   { role: 'user', content: 'Hello!' }
+   * ])
+   * ```
+   */
   async chat(
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
     options: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> = {}
@@ -290,7 +440,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     return response.choices[0]?.message?.content || '';
   }
 
-  // Access to the raw OpenAI client for advanced use cases
+  /** The underlying OpenAI SDK instance for advanced use cases. */
   get raw(): OpenAI {
     return this.openai;
   }

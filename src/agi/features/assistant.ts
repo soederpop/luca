@@ -87,6 +87,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return container
 	}
 
+	/** @returns Default state with the assistant not started, zero conversations, and the resolved folder path. */
 	override get initialState(): AssistantState {
 		return {
 			...super.initialState,

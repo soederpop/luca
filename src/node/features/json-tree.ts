@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { camelCase, omit, set } from 'lodash-es';
@@ -55,13 +55,21 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.jsonTree" as const
   static override stateSchema = JsonTreeStateSchema
+  static override optionsSchema = FeatureOptionsSchema
 
   /**
    * Attaches the JsonTree feature to a NodeContainer instance.
    * Registers the feature in the container's feature registry for later use.
-   * 
+   *
    * @param container - The NodeContainer to attach to
    * @returns The container for method chaining
+   *
+   * @example
+   * ```typescript
+   * // Typically called during container setup:
+   * JsonTree.attach(container)
+   * const jsonTree = container.feature('jsonTree')
+   * ```
    */
   static attach(container: NodeContainer & { jsonTree?: JsonTree }) {
     container.features.register("jsonTree", JsonTree);

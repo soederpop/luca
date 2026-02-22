@@ -149,6 +149,7 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
    *
    * @param query - Optional additional Drive search query
    * @param options - Pagination options
+   * @returns Array of Google Docs as DriveFile objects
    */
   async listDocs(query?: string, options?: { pageSize?: number; pageToken?: string }): Promise<DriveFile[]> {
     const parts = ["mimeType = 'application/vnd.google-apps.document'", 'trashed = false']
@@ -161,6 +162,7 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
    * Search for Google Docs by name or content.
    *
    * @param term - Search term
+   * @returns Array of matching Google Docs as DriveFile objects
    */
   async searchDocs(term: string): Promise<DriveFile[]> {
     const { files } = await this.drive.search(term, {

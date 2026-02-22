@@ -4,13 +4,21 @@ import { execSync } from "child_process";
 import * as asyncProc from "child-process-promise";
 
 interface SpawnOptions {
+  /** Standard I/O mode for the child process */
   stdio?: "ignore" | "inherit";
+  /** Stdout mode for the child process */
   stdout?: "ignore" | "inherit";
+  /** Stderr mode for the child process */
   stderr?: "ignore" | "inherit";
+  /** Working directory for the child process */
   cwd?: string;
+  /** Environment variables to pass to the child process */
   environment?: Record<string, any>;
+  /** Callback invoked when stderr data is received */
   onError?: (data: string) => void;
+  /** Callback invoked when stdout data is received */
   onOutput?: (data: string) => void;
+  /** Callback invoked when the process exits */
   onExit?: (code: number) => void;
 }
 
@@ -197,42 +205,6 @@ export class ChildProcess extends Feature {
   }
 
   /**
-   * Executes a command synchronously and returns its output.
-   * 
-   * This method runs a command and waits for it to complete before returning.
-   * It's useful for simple commands where you need the result immediately
-   * and don't require real-time output monitoring.
-   * 
-   * @param {string} command - The command to execute
-   * @param {any} [options] - Options for command execution (cwd, encoding, etc.)
-   * @returns {string} The trimmed stdout from the command execution
-   * @throws {Error} Throws an error if the command fails or returns non-zero exit code
-   * 
-   * @example
-   * ```typescript
-   * // Get current git branch
-   * const branch = proc.exec('git branch --show-current')
-   * console.log(`Current branch: ${branch}`)
-   * 
-   * // Get Node.js version
-   * const nodeVersion = proc.exec('node --version')
-   * console.log(`Node.js: ${nodeVersion}`)
-   * 
-   * // Execute in specific directory
-   * const packageName = proc.exec('node -p "require(\'./package.json\').name"', {
-   *   cwd: '/path/to/project'
-   * })
-   * 
-   * // Handle potential errors
-   * try {
-   *   const output = proc.exec('some-command-that-might-fail')
-   *   console.log(output)
-   * } catch (error) {
-   *   console.error('Command failed:', error.message)
-   * }
-   * ```
-   */
-  /**
    * Runs a script file with Bun, inheriting stdout for full TTY passthrough
    * (animations, colors, cursor movement) while capturing stderr in a rolling buffer.
    *
@@ -296,6 +268,23 @@ export class ChildProcess extends Feature {
     return { exitCode, stderr: stderrLines }
   }
 
+  /**
+   * Execute a command synchronously and return its output.
+   *
+   * Runs a shell command and waits for it to complete before returning.
+   * Useful for simple commands where you need the result immediately.
+   *
+   * @param command - The command to execute
+   * @param options - Options for command execution (cwd, encoding, etc.)
+   * @returns The trimmed stdout from the command execution
+   * @throws If the command fails or returns non-zero exit code
+   *
+   * @example
+   * ```typescript
+   * const branch = proc.exec('git branch --show-current')
+   * const version = proc.exec('node --version')
+   * ```
+   */
   exec(command: string, options?: any): string {
     return execSync(command, {
       cwd: this.container.cwd,

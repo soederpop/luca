@@ -240,6 +240,7 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
    * until the native app connects; does nothing visible if it never does.
    *
    * @param socketPath - Override the configured socket path
+   * @returns This feature instance for chaining
    */
   listen(socketPath?: string): this {
     if (this._server) return this
@@ -285,6 +286,8 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
 
   /**
    * Stop the IPC server and clean up all connections.
+   *
+   * @returns This feature instance for chaining
    */
   async stop(): Promise<this> {
     if (this._client) {
@@ -313,6 +316,7 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
    * Write an NDJSON message to the connected app client.
    *
    * @param msg - The message object to send (will be JSON-serialized + newline)
+   * @returns True if the message was written, false if no client is connected
    */
   send(msg: Record<string, any>): boolean {
     if (!this._client) return false

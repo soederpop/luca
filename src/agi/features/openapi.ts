@@ -10,14 +10,14 @@ declare module '../../feature.js' {
 }
 
 export const OpenAPIStateSchema = FeatureStateSchema.extend({
-  loaded: z.boolean().default(false),
-  title: z.string().default(''),
-  version: z.string().default(''),
-  endpointCount: z.number().default(0),
+  loaded: z.boolean().default(false).describe('Whether the OpenAPI spec has been fetched and parsed'),
+  title: z.string().default('').describe('The API title from the spec info block'),
+  version: z.string().default('').describe('The API version from the spec info block'),
+  endpointCount: z.number().default(0).describe('Number of parsed endpoints in the spec'),
 })
 
 export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
-  url: z.string().optional()
+  url: z.string().optional().describe('URL to the OpenAPI/Swagger spec or the API server base URL')
 })
 
 export type OpenAPIOptions = z.infer<typeof OpenAPIOptionsSchema>
@@ -109,6 +109,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   /** Parsed endpoint map keyed by friendly name */
   private _endpoints: Map<string, EndpointInfo> = new Map()
 
+  /** @returns Default state with loaded=false and empty metadata fields. */
   override get initialState(): OpenAPIState {
     return { enabled: false, loaded: false, title: '', version: '', endpointCount: 0 }
   }
@@ -132,8 +133,9 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /**
    * Fetches and parses the OpenAPI spec from the configured URL.
-   *
    * Populates `endpoints`, updates state with spec metadata.
+   *
+   * @returns {Promise<this>} This instance, for chaining
    */
   async load(): Promise<this> {
     const response = await fetch(this.specUrl)
@@ -181,6 +183,9 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /**
    * Get a single endpoint by its friendly name or operationId.
+   *
+   * @param {string} name - The friendly name or operationId to look up
+   * @returns {EndpointInfo | undefined} The endpoint info, or undefined if not found
    */
   endpoint(name: string): EndpointInfo | undefined {
     return this._endpoints.get(name)
@@ -190,7 +195,8 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   /**
    * Convert all endpoints into OpenAI-compatible tool definitions.
    *
-   * @param filter - Optional predicate to select which endpoints to include.
+   * @param {Function} [filter] - Optional predicate to select which endpoints to include
+   * @returns {OpenAIToolDef[]} Array of tool definitions ready for the OpenAI tools parameter
    */
   toTools(filter?: (ep: EndpointInfo) => boolean): OpenAIToolDef[] {
     const eps = filter ? this.endpoints.filter(filter) : this.endpoints
@@ -202,6 +208,9 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /**
    * Convert a single endpoint (by name) to an OpenAI-compatible tool definition.
+   *
+   * @param {string} name - The endpoint friendly name or operationId
+   * @returns {OpenAIToolDef | undefined} The tool definition, or undefined if not found
    */
   toTool(name: string): OpenAIToolDef | undefined {
     const ep = this.endpoint(name)
@@ -212,7 +221,8 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   /**
    * Convert all endpoints into OpenAI-compatible function definitions.
    *
-   * @param filter - Optional predicate to select which endpoints to include.
+   * @param {Function} [filter] - Optional predicate to select which endpoints to include
+   * @returns {OpenAIFunctionDef[]} Array of function definitions
    */
   toFunctions(filter?: (ep: EndpointInfo) => boolean): OpenAIFunctionDef[] {
     const eps = filter ? this.endpoints.filter(filter) : this.endpoints
@@ -221,6 +231,9 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /**
    * Convert a single endpoint (by name) to an OpenAI function definition.
+   *
+   * @param {string} name - The endpoint friendly name or operationId
+   * @returns {OpenAIFunctionDef | undefined} The function definition, or undefined if not found
    */
   toFunction(name: string): OpenAIFunctionDef | undefined {
     const ep = this.endpoint(name)
@@ -230,6 +243,8 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
 
   /**
    * Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.
+   *
+   * @returns {{ title: string, version: string, serverUrl: string, endpointCount: number, endpoints: object[] }} Serializable summary
    */
   toJSON() {
     return {

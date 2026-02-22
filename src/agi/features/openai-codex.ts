@@ -159,12 +159,15 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     }
   }
 
+  /** @returns The path to the codex CLI binary, falling back to 'codex' on the PATH. */
   get codexPath(): string {
     return this.options.codexPath || 'codex'
   }
 
   /**
    * Check if the Codex CLI is available and capture its version.
+   *
+   * @returns {Promise<boolean>} True if the codex binary was found and responded to --version
    */
   async checkAvailability(): Promise<boolean> {
     try {
@@ -332,6 +335,10 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    * Run a prompt in a new Codex session. Spawns a subprocess,
    * streams NDJSON events, and resolves when the session completes.
    *
+   * @param {string} prompt - The natural language instruction for the Codex agent
+   * @param {CodexRunOptions} [options] - Optional overrides for model, cwd, sandbox policy, etc.
+   * @returns {Promise<CodexSession>} The completed session with result, messages, patches, and executions
+   *
    * @example
    * ```typescript
    * const session = await codex.run('Fix the failing tests')
@@ -458,6 +465,10 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    * Run a prompt without waiting for completion. Returns the session ID
    * immediately so you can subscribe to events.
    *
+   * @param {string} prompt - The natural language instruction for the Codex agent
+   * @param {CodexRunOptions} [options] - Optional overrides for model, cwd, sandbox policy, etc.
+   * @returns {string} The session ID, which can be used with getSession() or waitForSession()
+   *
    * @example
    * ```typescript
    * const sessionId = codex.start('Build a REST API for users')
@@ -578,6 +589,9 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
 
   /**
    * Kill a running session's subprocess.
+   *
+   * @param {string} sessionId - The session ID to abort
+   * @returns {void}
    */
   abort(sessionId: string): void {
     const session = this.state.current.sessions[sessionId]
@@ -590,10 +604,24 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     }
   }
 
+  /**
+   * Retrieve the current state of a session by its ID.
+   *
+   * @param {string} sessionId - The session ID to look up
+   * @returns {CodexSession | undefined} The session object, or undefined if not found
+   */
   getSession(sessionId: string): CodexSession | undefined {
     return this.state.current.sessions[sessionId]
   }
 
+  /**
+   * Wait for a running session to complete or error. Resolves immediately
+   * if the session is already in a terminal state.
+   *
+   * @param {string} sessionId - The session ID to wait for
+   * @returns {Promise<CodexSession>} The completed or errored session
+   * @throws {Error} If the session ID is not found
+   */
   async waitForSession(sessionId: string): Promise<CodexSession> {
     const session = this.state.current.sessions[sessionId]
     if (!session) throw new Error(`Session ${sessionId} not found`)
@@ -612,6 +640,12 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     })
   }
 
+  /**
+   * Enable the feature. Delegates to the base Feature enable() lifecycle.
+   *
+   * @param {object} [options] - Options to merge into the feature configuration
+   * @returns {Promise<this>} This instance, for chaining
+   */
   override async enable(options: any = {}): Promise<this> {
     await super.enable(options)
     return this
