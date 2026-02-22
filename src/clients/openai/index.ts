@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema } from '../schemas/base.js'
-import { clients, Client } from "../client.js";
-import type { Container, ContainerContext } from "../container.js";
-import type { ClientsInterface } from "../client.js";
+import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
+import { clients, Client } from "@soederpop/luca/client";
+import type { Container, ContainerContext } from "@soederpop/luca/container";
+import type { ClientsInterface } from "@soederpop/luca/client";
 import OpenAI from "openai";
 
 export const OpenAIClientStateSchema = ClientStateSchema.extend({
@@ -125,7 +125,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     options: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams> = {}
   ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     this.trackRequest();
-    
+
     try {
       const response = await this.openai.chat.completions.create({
         model: this.defaultModel,
@@ -136,7 +136,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
       this.updateTokenUsage(response.usage);
       this.emit('completion', response);
-      
+
       return response;
     } catch (error) {
       this.emit('failure', error);
@@ -194,7 +194,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     options: Partial<OpenAI.Completions.CompletionCreateParams> = {}
   ): Promise<OpenAI.Completions.Completion> {
     this.trackRequest();
-    
+
     try {
       const response = await this.openai.completions.create({
         model: options.model || 'gpt-5',
@@ -205,7 +205,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
       this.updateTokenUsage(response.usage);
       this.emit('completion', response);
-      
+
       return response;
     } catch (error) {
       this.emit('failure', error);
@@ -218,7 +218,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     options: Partial<OpenAI.Embeddings.EmbeddingCreateParams> = {}
   ): Promise<OpenAI.Embeddings.CreateEmbeddingResponse> {
     this.trackRequest();
-    
+
     try {
       const response = await this.openai.embeddings.create({
         model: options.model || 'text-embedding-ada-002',
@@ -228,7 +228,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
       this.updateTokenUsage(response.usage);
       this.emit('embedding', response);
-      
+
       return response;
     } catch (error) {
       this.emit('failure', error);
@@ -241,7 +241,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     options: Partial<OpenAI.Images.ImageGenerateParams> = {}
   ): Promise<OpenAI.Images.ImagesResponse> {
     this.trackRequest();
-    
+
     try {
       const response = await this.openai.images.generate({
         prompt,
@@ -251,7 +251,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
       });
 
       this.emit('image', response);
-      
+
       return response;
     } catch (error) {
       this.emit('failure', error);
@@ -269,8 +269,6 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
       throw error;
     }
   }
-
-
 
   // Convenience methods for common use cases
   async ask(

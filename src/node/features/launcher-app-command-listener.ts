@@ -52,15 +52,17 @@ export class CommandHandle {
 
   /**
    * Send a processing acknowledgement to the app.
-   * Optionally include a speech phrase for TTS.
+   * Optionally include a speech phrase for TTS or an audio file path for playback.
    *
-   * @param speech - Text the app will speak aloud via macOS TTS
+   * @param speechOrOpts - Text the app will speak, or an options object with speech and/or audioFile
    */
-  ack(speech?: string): boolean {
+  ack(speechOrOpts?: string | { speech?: string; audioFile?: string }): boolean {
+    const opts = typeof speechOrOpts === 'string' ? { speech: speechOrOpts } : speechOrOpts
     return this._send({
       id: this.id,
       status: 'processing',
-      ...(speech ? { speech } : {}),
+      ...(opts?.speech ? { speech: opts.speech } : {}),
+      ...(opts?.audioFile ? { audioFile: opts.audioFile } : {}),
       timestamp: new Date().toISOString(),
     })
   }
@@ -85,9 +87,9 @@ export class CommandHandle {
    * Mark the command as successfully finished.
    * Can only be called once per command. All arguments are optional.
    *
-   * @param opts - Optional result payload and/or speech phrase
+   * @param opts - Optional result payload, speech phrase, and/or audio file path
    */
-  finish(opts?: { result?: Record<string, any>; speech?: string }): boolean {
+  finish(opts?: { result?: Record<string, any>; speech?: string; audioFile?: string }): boolean {
     if (this._finished) return false
     this._finished = true
     return this._send({
@@ -96,6 +98,7 @@ export class CommandHandle {
       success: true,
       ...(opts?.result ? { result: opts.result } : {}),
       ...(opts?.speech ? { speech: opts.speech } : {}),
+      ...(opts?.audioFile ? { audioFile: opts.audioFile } : {}),
       timestamp: new Date().toISOString(),
     })
   }
@@ -104,9 +107,9 @@ export class CommandHandle {
    * Mark the command as failed.
    * Can only be called once per command.
    *
-   * @param opts - Optional error description and/or speech phrase
+   * @param opts - Optional error description, speech phrase, and/or audio file path
    */
-  fail(opts?: { error?: string; speech?: string }): boolean {
+  fail(opts?: { error?: string; speech?: string; audioFile?: string }): boolean {
     if (this._finished) return false
     this._finished = true
     return this._send({
@@ -115,6 +118,7 @@ export class CommandHandle {
       success: false,
       ...(opts?.error ? { error: opts.error } : {}),
       ...(opts?.speech ? { speech: opts.speech } : {}),
+      ...(opts?.audioFile ? { audioFile: opts.audioFile } : {}),
       timestamp: new Date().toISOString(),
     })
   }

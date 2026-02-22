@@ -1,7 +1,7 @@
 import type { ContainerState } from '@soederpop/luca/container'
 import { type NodeFeatures, NodeContainer } from '@soederpop/luca/node/container'
 import '@/introspection/generated.agi.js'
-import { OpenAIClient } from '@soederpop/luca/agi/openai-client'
+import { OpenAIClient } from '../clients/openai'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
