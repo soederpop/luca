@@ -11,7 +11,7 @@ const DEFAULT_SOCKET_PATH = join(
   homedir(),
   'Library',
   'Application Support',
-  'NativeCommandLauncherApp',
+  'LucaVoiceLauncher',
   'ipc-window.sock'
 )
 
@@ -179,7 +179,7 @@ interface ClientConnection {
 // --- Feature ---
 
 /**
- * WindowManager Feature — Native window control via NativeCommandLauncher
+ * WindowManager Feature — Native window control via LucaVoiceLauncher
  *
  * Acts as an IPC server that the native macOS launcher app connects to.
  * Communicates over a Unix domain socket using NDJSON (newline-delimited JSON).
