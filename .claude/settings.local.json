@@ -90,7 +90,9 @@
       "Bash(chmod:*)",
       "Bash(bun:*)",
       "mcp__luca-sandbox__describe_helper",
-      "mcp__luca-sandbox__list_registry"
+      "mcp__luca-sandbox__list_registry",
+      "WebFetch(domain:console.runpod.io)",
+      "Bash(cat:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
