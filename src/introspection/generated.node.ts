@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-19T03:16:27.509Z
+// Generated at: 2026-02-22T22:25:08.540Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -117,7 +117,14 @@ setBuildTimeData('features.googleDocs', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
+    }
+  ]
 });
 
 setBuildTimeData('features.yamlTree', {
@@ -140,18 +147,37 @@ setBuildTimeData('features.yamlTree', {
       "required": [
         "basePath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
+        }
+      ]
     }
   },
   "getters": {
     "tree": {
       "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await yamlTree.loadTree('config');\nconst allTrees = yamlTree.tree;\n// Returns: { config: { database: { ... }, api: { ... } } }"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
+    }
+  ]
 });
 
 setBuildTimeData('features.ink', {
@@ -163,7 +189,13 @@ setBuildTimeData('features.ink', {
       "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\n// Now sync getters like ink.React, ink.components, ink.hooks work\nconst { Box, Text } = ink.components"
+        }
+      ]
     },
     "render": {
       "description": "Mount a React element to the terminal. Wraps `ink.render()` — automatically loads modules if needed, tracks the instance for unmount / waitUntilExit, and updates state.",
@@ -193,25 +225,49 @@ setBuildTimeData('features.ink', {
       "required": [
         "node"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\nink.rerender(React.createElement(Text, null, 'Updated!'))"
+        }
+      ]
     },
     "unmount": {
-      "description": "Unmount the currently mounted Ink app.",
+      "description": "Unmount the currently mounted Ink app. Tears down the React tree rendered in the terminal and resets state. Safe to call when no app is mounted (no-op).",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
+        }
+      ]
     },
     "waitUntilExit": {
-      "description": "Returns a promise that resolves when the mounted app exits.",
+      "description": "Returns a promise that resolves when the mounted app exits. Useful for keeping a script alive while the terminal UI is active.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+        }
+      ]
     },
     "clear": {
-      "description": "Clear the terminal output of the mounted app.",
+      "description": "Clear the terminal output of the mounted app. Erases all Ink-rendered content from the terminal. Safe to call when no app is mounted (no-op).",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
+        }
+      ]
     }
   },
   "getters": {
@@ -253,7 +309,8 @@ setBuildTimeData('features.ink', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.git', {
@@ -308,7 +365,13 @@ setBuildTimeData('features.git', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
+        }
+      ]
     },
     "getLatestChanges": {
       "description": "Gets the latest commits from the repository. Returns an array of commit objects containing the title (first line of commit message), full message body, and author name for each commit.",
@@ -319,7 +382,13 @@ setBuildTimeData('features.git', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const changes = await git.getLatestChanges(5)\nfor (const commit of changes) {\n console.log(`${commit.author}: ${commit.title}`)\n}"
+        }
+      ]
     },
     "fileLog": {
       "description": "Gets a lightweight commit log for one or more files. Returns the SHA and message for each commit that touched the given files, without the per-commit overhead of resolving which specific files matched. For richer per-file matching, see {@link getChangeHistoryForFiles}.",
@@ -332,7 +401,13 @@ setBuildTimeData('features.git', {
       "required": [
         "files"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
+        }
+      ]
     },
     "diff": {
       "description": "Gets the diff for a file between two refs. By default compares from the current HEAD to the given ref. You can supply both `compareTo` and `compareFrom` to diff between any two commits, branches, or tags.",
@@ -354,7 +429,13 @@ setBuildTimeData('features.git', {
         "file",
         "compareTo"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
+        }
+      ]
     },
     "displayDiff": {
       "description": "Pretty prints a unified diff string to the terminal using colors. Parses the diff output and applies color coding: - File headers (`diff --git`, `---`, `+++`) are rendered bold - Hunk headers (`@@ ... @@`) are rendered in cyan - Added lines (`+`) are rendered in green - Removed lines (`-`) are rendered in red - Context lines are rendered dim Can be called with a raw diff string, or with the same arguments as {@link diff} to fetch and display in one step.",
@@ -375,7 +456,13 @@ setBuildTimeData('features.git', {
       "required": [
         "diffOrFile"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Display a pre-fetched diff\nconst raw = git.diff('src/index.ts', 'main')\ngit.displayDiff(raw)\n\n// Fetch and display in one call\ngit.displayDiff('src/index.ts', 'abc1234')"
+        }
+      ]
     },
     "getChangeHistoryForFiles": {
       "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
@@ -388,39 +475,82 @@ setBuildTimeData('features.git', {
       "required": [
         "paths"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
+        }
+      ]
     }
   },
   "getters": {
     "branch": {
       "description": "Gets the current Git branch name.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const currentBranch = git.branch\nif (currentBranch) {\n console.log(`Currently on branch: ${currentBranch}`)\n}"
+        }
+      ]
     },
     "sha": {
       "description": "Gets the current Git commit SHA hash.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const commitSha = git.sha\nif (commitSha) {\n console.log(`Current commit: ${commitSha}`)\n}"
+        }
+      ]
     },
     "isRepo": {
       "description": "Checks if the current directory is within a Git repository.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "if (git.isRepo) {\n console.log('This is a Git repository!')\n} else {\n console.log('Not in a Git repository')\n}"
+        }
+      ]
     },
     "isRepoRoot": {
       "description": "Checks if the current working directory is the root of the Git repository.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "if (git.isRepoRoot) {\n console.log('At the repository root')\n} else {\n console.log('In a subdirectory of the repository')\n}"
+        }
+      ]
     },
     "repoRoot": {
       "description": "Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const repoRoot = git.repoRoot\nif (repoRoot) {\n console.log(`Repository root: ${repoRoot}`)\n}"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const git = container.feature('git')\n\nif (git.isRepo) {\n console.log(`Current branch: ${git.branch}`)\n console.log(`Repository root: ${git.repoRoot}`)\n \n const allFiles = await git.lsFiles()\n const modifiedFiles = await git.lsFiles({ modified: true })\n}"
+    }
+  ]
 });
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
-  "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
+  "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses Bun's built-in transpiler.",
   "shortcut": "features.esbuild",
   "methods": {
     "transformSync": {
@@ -431,14 +561,30 @@ setBuildTimeData('features.esbuild', {
           "description": "The code to transform"
         },
         "options": {
-          "type": "esbuild.TransformOptions",
-          "description": "The options to pass to esbuild"
+          "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
+          "description": "Transform options",
+          "properties": {
+            "loader": {
+              "type": "any",
+              "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
+            },
+            "minify": {
+              "type": "any",
+              "description": "Whether to minify whitespace in the output. Defaults to false."
+            }
+          }
         }
       },
       "required": [
         "code"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
+        }
+      ]
     },
     "transform": {
       "description": "Transform code asynchronously",
@@ -448,20 +594,43 @@ setBuildTimeData('features.esbuild', {
           "description": "The code to transform"
         },
         "options": {
-          "type": "esbuild.TransformOptions",
-          "description": "The options to pass to esbuild"
+          "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
+          "description": "Transform options",
+          "properties": {
+            "loader": {
+              "type": "any",
+              "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
+            },
+            "minify": {
+              "type": "any",
+              "description": "Whether to minify whitespace in the output. Defaults to false."
+            }
+          }
         }
       },
       "required": [
         "code"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
+    }
+  ]
 });
 
 setBuildTimeData('features.downloader', {
@@ -485,18 +654,31 @@ setBuildTimeData('features.downloader', {
         "url",
         "targetPath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
+    }
+  ]
 });
 
 setBuildTimeData('features.windowManager', {
   "id": "features.windowManager",
-  "description": "WindowManager Feature — Native window control via MenuBarWebAgent Provides a typed client for the MenuBarWebAgent (MBWA) macOS menu bar app. Communicates over a Unix domain socket using an NDJSON request/response protocol with per-project authentication. **Capabilities:** - Spawn native browser windows with configurable chrome (decorations, transparency, etc.) - Navigate windows to URLs or load HTML content - Evaluate arbitrary JavaScript in any window's web view - Focus, close, and list windows - Receive real-time events for window lifecycle and navigation changes - Automatic reconnection with exponential backoff **Protocol:** Uses NDJSON (newline-delimited JSON) over Unix domain sockets. Each request includes an auto-incrementing `id` for response correlation and `projectId`/`token` for authentication. Unsolicited server events are forwarded to the Luca event bus.",
+  "description": "WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an IPC server that the native macOS launcher app connects to. Communicates over a Unix domain socket using NDJSON (newline-delimited JSON). **Protocol:** - Bun listens on a Unix domain socket; the native app connects as a client - Window dispatch commands are sent as NDJSON with a `window` field - The app executes window commands and sends back `windowAck` messages - Any non-windowAck message from the app is emitted as a `message` event - Other features can use `send()` to write arbitrary NDJSON to the app **Capabilities:** - Spawn native browser windows with configurable chrome - Navigate, focus, close, and eval JavaScript in windows - Automatic socket file cleanup and fallback paths",
   "shortcut": "features.windowManager",
   "methods": {
     "enable": {
@@ -510,36 +692,31 @@ setBuildTimeData('features.windowManager', {
       "required": [],
       "returns": "Promise<this>"
     },
-    "connect": {
-      "description": "Connect to the MenuBarWebAgent Unix domain socket. Wires up data, close, and error handlers for NDJSON communication.",
+    "listen": {
+      "description": "Start listening on the Unix domain socket for the native app to connect. Fire-and-forget — binds the socket and returns immediately. Sits quietly until the native app connects; does nothing visible if it never does.",
+      "parameters": {
+        "socketPath": {
+          "type": "string",
+          "description": "Override the configured socket path"
+        }
+      },
+      "required": [],
+      "returns": "this"
+    },
+    "stop": {
+      "description": "Stop the IPC server and clean up all connections. Rejects any pending window operation requests.",
       "parameters": {},
       "required": [],
       "returns": "Promise<this>"
-    },
-    "disconnect": {
-      "description": "Disconnect from the MenuBarWebAgent socket. Suppresses automatic reconnection.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "ping": {
-      "description": "Ping the MBWA server. Does not require authentication.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any>"
     },
     "spawn": {
-      "description": "Spawn a new native browser window.",
+      "description": "Spawn a new native browser window. Sends a window dispatch to the app and waits for the ack.",
       "parameters": {
         "opts": {
           "type": "SpawnOptions",
-          "description": "Window configuration (url/html, dimensions, chrome options)",
+          "description": "Window configuration (url, dimensions, chrome options)",
           "properties": {
             "url": {
-              "type": "string",
-              "description": ""
-            },
-            "html": {
               "type": "string",
               "description": ""
             },
@@ -559,6 +736,10 @@ setBuildTimeData('features.windowManager', {
               "type": "number",
               "description": ""
             },
+            "alwaysOnTop": {
+              "type": "boolean",
+              "description": ""
+            },
             "window": {
               "type": "{\n    decorations?: 'normal' | 'hiddenTitleBar' | 'none'\n    transparent?: boolean\n    shadow?: boolean\n    alwaysOnTop?: boolean\n    opacity?: number\n    clickThrough?: boolean\n  }",
               "description": ""
@@ -567,46 +748,99 @@ setBuildTimeData('features.windowManager', {
         }
       },
       "required": [],
-      "returns": "Promise<{ windowId: string } & Record<string, any>>"
+      "returns": "Promise<WindowAckResult>"
     },
-    "list": {
-      "description": "List all windows for the authenticated project.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<{ windows: WindowInfo[] }>"
+    "spawnTTY": {
+      "description": "Spawn a native terminal window running a command. The terminal is read-only — stdout/stderr are rendered with ANSI support. Closing the window terminates the process.",
+      "parameters": {
+        "opts": {
+          "type": "SpawnTTYOptions",
+          "description": "Terminal configuration (command, args, cwd, dimensions, etc.)",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Executable name or path (required)."
+            },
+            "args": {
+              "type": "string[]",
+              "description": "Arguments passed after the command."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the process."
+            },
+            "env": {
+              "type": "Record<string, string>",
+              "description": "Environment variable overrides."
+            },
+            "cols": {
+              "type": "number",
+              "description": "Initial terminal columns."
+            },
+            "rows": {
+              "type": "number",
+              "description": "Initial terminal rows."
+            },
+            "title": {
+              "type": "string",
+              "description": "Window title."
+            },
+            "width": {
+              "type": "number",
+              "description": "Window width in points."
+            },
+            "height": {
+              "type": "number",
+              "description": "Window height in points."
+            },
+            "x": {
+              "type": "number",
+              "description": "Window x position."
+            },
+            "y": {
+              "type": "number",
+              "description": "Window y position."
+            },
+            "window": {
+              "type": "SpawnOptions['window']",
+              "description": "Chrome options (decorations, alwaysOnTop, etc.)"
+            }
+          }
+        }
+      },
+      "required": [
+        "opts"
+      ],
+      "returns": "Promise<WindowAckResult>"
     },
     "focus": {
       "description": "Bring a window to the front.",
       "parameters": {
         "windowId": {
           "type": "string",
-          "description": "The ID of the window to focus"
+          "description": "The window ID. If omitted, the app uses the most recent window."
         }
       },
-      "required": [
-        "windowId"
-      ],
-      "returns": "Promise<any>"
+      "required": [],
+      "returns": "Promise<WindowAckResult>"
     },
     "close": {
       "description": "Close a window.",
       "parameters": {
         "windowId": {
           "type": "string",
-          "description": "The ID of the window to close"
+          "description": "The window ID. If omitted, the app closes the most recent window."
         }
       },
-      "required": [
-        "windowId"
-      ],
-      "returns": "Promise<any>"
+      "required": [],
+      "returns": "Promise<WindowAckResult>"
     },
     "navigate": {
       "description": "Navigate a window to a new URL.",
       "parameters": {
         "windowId": {
           "type": "string",
-          "description": "The ID of the window"
+          "description": "The window ID"
         },
         "url": {
           "type": "string",
@@ -617,14 +851,14 @@ setBuildTimeData('features.windowManager', {
         "windowId",
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<WindowAckResult>"
     },
     "eval": {
       "description": "Evaluate JavaScript in a window's web view.",
       "parameters": {
         "windowId": {
           "type": "string",
-          "description": "The ID of the window"
+          "description": "The window ID"
         },
         "code": {
           "type": "string",
@@ -632,59 +866,138 @@ setBuildTimeData('features.windowManager', {
         },
         "opts": {
           "type": "{ timeoutMs?: number; returnJson?: boolean }",
-          "description": "Options: timeoutMs, returnJson"
+          "description": "timeoutMs (default 5000), returnJson (default true)"
         }
       },
       "required": [
         "windowId",
         "code"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<WindowAckResult>"
+    },
+    "screengrab": {
+      "description": "Capture a PNG screenshot from a window.",
+      "parameters": {
+        "opts": {
+          "type": "WindowScreenGrabOptions",
+          "description": "Window target and output path",
+          "properties": {
+            "windowId": {
+              "type": "string",
+              "description": "Window ID. If omitted, the launcher uses the most recent window."
+            },
+            "path": {
+              "type": "string",
+              "description": "Output file path for the PNG image."
+            }
+          }
+        }
+      },
+      "required": [
+        "opts"
+      ],
+      "returns": "Promise<WindowAckResult>"
+    },
+    "video": {
+      "description": "Record a video from a window to disk.",
+      "parameters": {
+        "opts": {
+          "type": "WindowVideoOptions",
+          "description": "Window target, output path, and optional duration",
+          "properties": {
+            "windowId": {
+              "type": "string",
+              "description": "Window ID. If omitted, the launcher uses the most recent window."
+            },
+            "path": {
+              "type": "string",
+              "description": "Output file path for the video file."
+            },
+            "durationMs": {
+              "type": "number",
+              "description": "Recording duration in milliseconds."
+            }
+          }
+        }
+      },
+      "required": [
+        "opts"
+      ],
+      "returns": "Promise<WindowAckResult>"
     },
     "window": {
       "description": "Get a WindowHandle for chainable operations on a specific window.",
       "parameters": {
         "windowId": {
           "type": "string",
-          "description": "The ID of the window"
+          "description": "The window ID"
         }
       },
       "required": [
         "windowId"
       ],
       "returns": "WindowHandle"
+    },
+    "send": {
+      "description": "Write an NDJSON message to the connected app client. Public so other features can send arbitrary protocol messages over the same socket.",
+      "parameters": {
+        "msg": {
+          "type": "Record<string, any>",
+          "description": "The message object to send (will be JSON-serialized + newline)"
+        }
+      },
+      "required": [
+        "msg"
+      ],
+      "returns": "boolean"
     }
   },
   "getters": {
-    "isConnected": {
-      "description": "Whether the socket is currently connected to MBWA.",
+    "isListening": {
+      "description": "Whether the IPC server is currently listening.",
+      "returns": "boolean"
+    },
+    "isClientConnected": {
+      "description": "Whether the native app client is currently connected.",
       "returns": "boolean"
     }
   },
   "events": {
-    "disconnected": {
-      "name": "disconnected",
+    "listening": {
+      "name": "listening",
       "description": "Event emitted by WindowManager",
       "arguments": {}
     },
-    "error": {
-      "name": "error",
+    "clientConnected": {
+      "name": "clientConnected",
       "description": "Event emitted by WindowManager",
       "arguments": {}
     },
-    "connected": {
-      "name": "connected",
+    "clientDisconnected": {
+      "name": "clientDisconnected",
       "description": "Event emitted by WindowManager",
       "arguments": {}
     },
-    "reconnecting": {
-      "name": "reconnecting",
+    "windowAck": {
+      "name": "windowAck",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
       "description": "Event emitted by WindowManager",
       "arguments": {}
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
+    }
+  ]
 });
 
 setBuildTimeData('features.proc', {
@@ -707,7 +1020,13 @@ setBuildTimeData('features.proc', {
       "required": [
         "cmd"
       ],
-      "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
+      "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
+        }
+      ]
     },
     "spawnAndCapture": {
       "description": "Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.",
@@ -726,35 +1045,35 @@ setBuildTimeData('features.proc', {
           "properties": {
             "stdio": {
               "type": "\"ignore\" | \"inherit\"",
-              "description": ""
+              "description": "Standard I/O mode for the child process"
             },
             "stdout": {
               "type": "\"ignore\" | \"inherit\"",
-              "description": ""
+              "description": "Stdout mode for the child process"
             },
             "stderr": {
               "type": "\"ignore\" | \"inherit\"",
-              "description": ""
+              "description": "Stderr mode for the child process"
             },
             "cwd": {
               "type": "string",
-              "description": "Working directory for the process"
+              "description": "Working directory for the child process"
             },
             "environment": {
               "type": "Record<string, any>",
-              "description": ""
+              "description": "Environment variables to pass to the child process"
             },
             "onError": {
               "type": "(data: string) => void",
-              "description": "Callback for stderr data"
+              "description": "Callback invoked when stderr data is received"
             },
             "onOutput": {
               "type": "(data: string) => void",
-              "description": "Callback for stdout data"
+              "description": "Callback invoked when stdout data is received"
             },
             "onExit": {
               "type": "(code: number) => void",
-              "description": "Callback for process exit"
+              "description": "Callback invoked when the process exits"
             }
           }
         }
@@ -763,7 +1082,13 @@ setBuildTimeData('features.proc', {
         "command",
         "args"
       ],
-      "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
+      "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+        }
+      ]
     },
     "runScript": {
       "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
@@ -794,24 +1119,36 @@ setBuildTimeData('features.proc', {
       "required": [
         "scriptPath"
       ],
-      "returns": "Promise<{ exitCode: number; stderr: string[] }>"
+      "returns": "Promise<{ exitCode: number; stderr: string[] }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
+        }
+      ]
     },
     "exec": {
-      "description": "",
+      "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "Parameter command"
+          "description": "The command to execute"
         },
         "options": {
           "type": "any",
-          "description": "Parameter options"
+          "description": "Options for command execution (cwd, encoding, etc.)"
         }
       },
       "required": [
         "command"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
+        }
+      ]
     },
     "kill": {
       "description": "Kills a process by its PID.",
@@ -828,7 +1165,13 @@ setBuildTimeData('features.proc', {
       "required": [
         "pid"
       ],
-      "returns": "boolean"
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
+        }
+      ]
     },
     "findPidsByPort": {
       "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
@@ -841,13 +1184,121 @@ setBuildTimeData('features.proc', {
       "required": [
         "port"
       ],
-      "returns": "number[]"
+      "returns": "number[]",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
+    }
+  ]
+});
+
+setBuildTimeData('features.launcherAppCommandListener', {
+  "id": "features.launcherAppCommandListener",
+  "description": "LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.",
+  "shortcut": "features.launcherAppCommandListener",
+  "methods": {
+    "enable": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "listen": {
+      "description": "Start listening on the Unix domain socket for the native app to connect. Fire-and-forget — binds the socket and returns immediately. Sits quietly until the native app connects; does nothing visible if it never does.",
+      "parameters": {
+        "socketPath": {
+          "type": "string",
+          "description": "Override the configured socket path"
+        }
+      },
+      "required": [],
+      "returns": "this"
+    },
+    "stop": {
+      "description": "Stop the IPC server and clean up all connections.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "send": {
+      "description": "Write an NDJSON message to the connected app client.",
+      "parameters": {
+        "msg": {
+          "type": "Record<string, any>",
+          "description": "The message object to send (will be JSON-serialized + newline)"
+        }
+      },
+      "required": [
+        "msg"
+      ],
+      "returns": "boolean"
+    }
+  },
+  "getters": {
+    "isListening": {
+      "description": "Whether the IPC server is currently listening.",
+      "returns": "boolean"
+    },
+    "isClientConnected": {
+      "description": "Whether the native app client is currently connected.",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "listening": {
+      "name": "listening",
+      "description": "Event emitted by LauncherAppCommandListener",
+      "arguments": {}
+    },
+    "clientConnected": {
+      "name": "clientConnected",
+      "description": "Event emitted by LauncherAppCommandListener",
+      "arguments": {}
+    },
+    "clientDisconnected": {
+      "name": "clientDisconnected",
+      "description": "Event emitted by LauncherAppCommandListener",
+      "arguments": {}
+    },
+    "command": {
+      "name": "command",
+      "description": "Event emitted by LauncherAppCommandListener",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
+      "description": "Event emitted by LauncherAppCommandListener",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const listener = container.feature('launcherAppCommandListener', {\n enable: true,\n autoListen: true,\n})\n\nlistener.on('command', async (cmd) => {\n cmd.ack('Working on it!')     // or just cmd.ack() for silent\n\n // ... do your actual work ...\n cmd.progress(0.5, 'Halfway there')\n\n cmd.finish()                   // silent finish\n cmd.finish({ result: { action: 'completed' }, speech: 'All done!' })\n // or: cmd.fail({ error: 'not found', speech: 'Sorry, that failed.' })\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.vm', {
@@ -870,31 +1321,49 @@ setBuildTimeData('features.vm', {
       "required": [
         "code"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const script = vm.createScript('Math.max(a, b)')\n\n// Execute the script multiple times with different contexts\nconst result1 = script.runInContext(vm.createContext({ a: 5, b: 3 }))\nconst result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))"
+        }
+      ]
     },
     "isContext": {
-      "description": "Returns true if the given object has already been contextified by `vm.createContext()`. Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
+      "description": "Check whether an object has already been contextified by `vm.createContext()`. Useful to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
       "parameters": {
         "ctx": {
           "type": "unknown",
-          "description": "Parameter ctx"
+          "description": "The object to check"
         }
       },
       "required": [
         "ctx"
       ],
-      "returns": "ctx is vm.Context"
+      "returns": "ctx is vm.Context",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ctx = vm.createContext({ x: 1 })\nvm.isContext(ctx)   // true\nvm.isContext({ x: 1 }) // false"
+        }
+      ]
     },
     "createContext": {
-      "description": "",
+      "description": "Create an isolated JavaScript execution context. Combines the container's context with any additional variables provided. If the input is already a VM context, it is returned as-is.",
       "parameters": {
         "ctx": {
           "type": "any",
-          "description": "Parameter ctx"
+          "description": "Additional context variables to include"
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
+        }
+      ]
     },
     "run": {
       "description": "Executes JavaScript code in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code safely. It handles errors gracefully and returns either the result or the error object.",
@@ -911,41 +1380,59 @@ setBuildTimeData('features.vm', {
       "required": [
         "code"
       ],
-      "returns": "Promise<T>"
+      "returns": "Promise<T>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
+        }
+      ]
     },
     "runSync": {
-      "description": "",
+      "description": "Execute JavaScript code synchronously in a controlled environment.",
       "parameters": {
         "code": {
           "type": "string",
-          "description": "Parameter code"
+          "description": "The JavaScript code to execute"
         },
         "ctx": {
           "type": "any",
-          "description": "Parameter ctx"
+          "description": "Context variables to make available to the executing code"
         }
       },
       "required": [
         "code"
       ],
-      "returns": "T"
+      "returns": "T",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const sum = vm.runSync('a + b', { a: 2, b: 3 })\nconsole.log(sum) // 5"
+        }
+      ]
     },
     "perform": {
-      "description": "",
+      "description": "Execute code asynchronously and return both the result and the execution context. Unlike `run`, this method also returns the context object, allowing you to inspect variables set during execution.",
       "parameters": {
         "code": {
           "type": "string",
-          "description": "Parameter code"
+          "description": "The JavaScript code to execute"
         },
         "ctx": {
           "type": "any",
-          "description": "Parameter ctx"
+          "description": "Context variables to make available to the executing code"
         }
       },
       "required": [
         "code"
       ],
-      "returns": "Promise<{ result: T, context: vm.Context }>"
+      "returns": "Promise<{ result: T, context: vm.Context }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })\nconsole.log(result)     // 84\nconsole.log(context.x)  // 42"
+        }
+      ]
     },
     "performSync": {
       "description": "Executes JavaScript code synchronously and returns both the result and the execution context. Unlike `runSync`, this method also returns the context object, allowing you to inspect variables set during execution (e.g. `module.exports`). This is the synchronous equivalent of `perform()`.",
@@ -962,7 +1449,13 @@ setBuildTimeData('features.vm', {
       "required": [
         "code"
       ],
-      "returns": "{ result: T, context: vm.Context }"
+      "returns": "{ result: T, context: vm.Context }",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
+        }
+      ]
     },
     "loadModule": {
       "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
@@ -979,13 +1472,26 @@ setBuildTimeData('features.vm', {
       "required": [
         "filePath"
       ],
-      "returns": "Record<string, any>"
+      "returns": "Record<string, any>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
+    }
+  ]
 });
 
 setBuildTimeData('features.googleDrive', {
@@ -1194,7 +1700,14 @@ setBuildTimeData('features.googleDrive', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
+    }
+  ]
 });
 
 setBuildTimeData('features.ui', {
@@ -1203,11 +1716,11 @@ setBuildTimeData('features.ui', {
   "shortcut": "features.ui",
   "methods": {
     "markdown": {
-      "description": "",
+      "description": "Parse markdown text and render it for terminal display using marked-terminal.",
       "parameters": {
         "text": {
           "type": "string",
-          "description": "Parameter text"
+          "description": "The markdown string to parse and render"
         }
       },
       "required": [
@@ -1226,7 +1739,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "name"
       ],
-      "returns": "(str: string) => string"
+      "returns": "(str: string) => string",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Assign colors to users\nconst johnColor = ui.assignColor('john');\nconst janeColor = ui.assignColor('jane');\n\n// Use consistently throughout the app\nconsole.log(johnColor('John: Hello there!'));\nconsole.log(janeColor('Jane: Hi John!'));\nconsole.log(johnColor('John: How are you?')); // Same color as before\n\n// Different entities get different colors\nconst errorColor = ui.assignColor('error');\nconst successColor = ui.assignColor('success');"
+        }
+      ]
     },
     "wizard": {
       "description": "Creates an interactive wizard using inquirer prompts. This method provides a convenient wrapper around inquirer for creating interactive command-line wizards. It supports all inquirer question types and can handle complex validation and conditional logic. **Supported Question Types:** - input: Text input fields - confirm: Yes/no confirmations - list: Single selection from options - checkbox: Multiple selections - password: Hidden text input - editor: External editor integration **Advanced Features:** - Conditional questions based on previous answers - Input validation and transformation - Custom prompts and styling - Initial answer pre-population",
@@ -1243,14 +1762,20 @@ setBuildTimeData('features.ui', {
       "required": [
         "questions"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
+        }
+      ]
     },
     "askQuestion": {
-      "description": "",
+      "description": "Prompt the user with a single text input question.",
       "parameters": {
         "question": {
           "type": "string",
-          "description": "Parameter question"
+          "description": "The question message to display"
         }
       },
       "required": [
@@ -1273,7 +1798,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
+        }
+      ]
     },
     "asciiArt": {
       "description": "Generates ASCII art from text using the specified font. This method converts regular text into stylized ASCII art using figlet's extensive font collection. Perfect for creating eye-catching headers, logos, and decorative text in terminal applications. **Font Capabilities:** - Large collection of artistic fonts - Various styles: block, script, decorative, technical - Different sizes and character sets - Consistent spacing and alignment",
@@ -1291,7 +1822,13 @@ setBuildTimeData('features.ui', {
         "text",
         "font"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Create a banner\nconst banner = ui.asciiArt('WELCOME', 'Big');\nconsole.log(banner);\n\n// Different fonts for different purposes\nconst title = ui.asciiArt('MyApp', 'Standard');\nconst subtitle = ui.asciiArt('v2.0', 'Small');\n\n// Technical/coding themes\nconst code = ui.asciiArt('CODE', '3D-ASCII');\n\n// List available fonts first\nconsole.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));"
+        }
+      ]
     },
     "banner": {
       "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation",
@@ -1318,14 +1855,20 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Classic patriotic banner\nconst banner = ui.banner('AMERICA', {\n font: 'Big',\n colors: ['red', 'white', 'blue']\n});\nconsole.log(banner);\n\n// Tech company banner\nconst techBanner = ui.banner('TechCorp', {\n font: 'Slant',\n colors: ['cyan', 'blue', 'magenta']\n});\n\n// Warning banner\nconst warningBanner = ui.banner('WARNING', {\n font: 'Standard',\n colors: ['yellow', 'red']\n});\n\n// Available fonts: see ui.fonts property\n// Available colors: any chalk color names"
+        }
+      ]
     },
     "endent": {
-      "description": "",
+      "description": "Dedent and format a tagged template literal using endent. Strips leading indentation while preserving relative indentation.",
       "parameters": {
         "args": {
           "type": "any[]",
-          "description": "Parameter args"
+          "description": "Tagged template literal arguments"
         }
       },
       "required": [
@@ -1352,7 +1895,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Horizontal rainbow effect\nconst rainbow = ui.applyGradient('Hello World!', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'], \n 'horizontal'\n);\n\n// Vertical gradient for multi-line text\nconst multiline = 'Line 1\\nLine 2\\nLine 3\\nLine 4';\nconst vertical = ui.applyGradient(multiline, \n ['red', 'white', 'blue'], \n 'vertical'\n);\n\n// Fire effect\nconst fire = ui.applyGradient('FIRE', ['red', 'yellow'], 'horizontal');\n\n// Ocean effect\nconst ocean = ui.applyGradient('OCEAN', ['blue', 'cyan', 'white'], 'vertical');"
+        }
+      ]
     },
     "applyHorizontalGradient": {
       "description": "Applies horizontal color gradients character by character. This method creates color transitions across characters within the text, cycling through the provided colors to create smooth horizontal gradients. Each character gets assigned a color based on its position in the sequence. **Horizontal Gradient Behavior:** - Each character is individually colored - Colors cycle through the provided array - Creates smooth transitions across text width - Works well with ASCII art and single lines",
@@ -1369,7 +1918,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
+        }
+      ]
     },
     "applyVerticalGradient": {
       "description": "Applies vertical color gradients line by line. This method creates color transitions across lines of text, with each line getting a different color from the sequence. Perfect for multi-line content like ASCII art, banners, and structured output. **Vertical Gradient Behavior:** - Each line is colored uniformly - Colors cycle through the provided array - Creates smooth transitions across text height - Ideal for multi-line ASCII art and structured content",
@@ -1386,7 +1941,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
+        }
+      ]
     },
     "padLeft": {
       "description": "Pads text on the left to reach the specified length. This utility method adds padding characters to the left side of text to achieve a desired total length. Useful for creating aligned columns, formatted tables, and consistent text layout in terminal applications. **Padding Behavior:** - Adds padding to the left (start) of the string - Uses specified padding character (default: space) - Returns original string if already at or beyond target length - Handles multi-character padding by repeating the character",
@@ -1408,7 +1969,13 @@ setBuildTimeData('features.ui', {
         "str",
         "length"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Number alignment\nconst numbers = ['1', '23', '456'];\nnumbers.forEach(num => {\n console.log(ui.padLeft(num, 5, '0')); // '00001', '00023', '00456'\n});\n\n// Text alignment in columns\nconst items = ['apple', 'banana', 'cherry'];\nitems.forEach(item => {\n console.log(ui.padLeft(item, 10) + ' | Price: $1.00');\n});\n\n// Custom padding character\nconst title = ui.padLeft('TITLE', 20, '-'); // '---------------TITLE'"
+        }
+      ]
     },
     "padRight": {
       "description": "Pads text on the right to reach the specified length. This utility method adds padding characters to the right side of text to achieve a desired total length. Essential for creating properly aligned columns, tables, and formatted output in terminal applications. **Padding Behavior:** - Adds padding to the right (end) of the string - Uses specified padding character (default: space) - Returns original string if already at or beyond target length - Handles multi-character padding by repeating the character",
@@ -1430,13 +1997,25 @@ setBuildTimeData('features.ui', {
         "str",
         "length"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Create aligned table columns\nconst data = [\n ['Name', 'Age', 'City'],\n ['John', '25', 'NYC'],\n ['Jane', '30', 'LA'],\n ['Bob', '35', 'Chicago']\n];\n\ndata.forEach(row => {\n const formatted = row.map((cell, i) => {\n   const widths = [15, 5, 10];\n   return ui.padRight(cell, widths[i]);\n }).join(' | ');\n console.log(formatted);\n});\n\n// Progress bars\nconst progress = ui.padRight('████', 20, '░'); // '████░░░░░░░░░░░░░░░░'\n\n// Menu items with dots\nconst menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';"
+        }
+      ]
     }
   },
   "getters": {
     "colors": {
       "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
-      "returns": "typeof colors"
+      "returns": "typeof colors",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Basic colors\nui.colors.red('Error message')\nui.colors.green('Success!')\n\n// Chained styling\nui.colors.blue.bold.underline('Important link')\nui.colors.white.bgRed.bold(' ALERT ')\n\n// Hex and RGB colors\nui.colors.hex('#FF5733')('Custom color')\nui.colors.rgb(255, 87, 51)('RGB color')"
+        }
+      ]
     },
     "colorPalette": {
       "description": "Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application.",
@@ -1444,21 +2023,34 @@ setBuildTimeData('features.ui', {
     },
     "randomColor": {
       "description": "Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
+        }
+      ]
     },
     "fonts": {
       "description": "Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names",
-      "returns": "string[]"
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.opener', {
   "id": "features.opener",
-  "description": "The Opener feature opens files and URLs using the system's default application. HTTP/HTTPS URLs are opened in Google Chrome. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+  "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
   "shortcut": "features.opener",
   "methods": {
     "open": {
@@ -1473,12 +2065,54 @@ setBuildTimeData('features.opener', {
         "target"
       ],
       "returns": "Promise<void>"
+    },
+    "app": {
+      "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The application name (e.g. \"Slack\", \"Finder\", \"Safari\")"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<void>"
+    },
+    "code": {
+      "description": "Opens VS Code at the specified path. Uses the `code` CLI command. Falls back to `open -a \"Visual Studio Code\"` on macOS.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file or folder path to open"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "cursor": {
+      "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to `open -a \"Cursor\"` on macOS.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file or folder path to open"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
+    }
+  ]
 });
 
 setBuildTimeData('features.telegram', {
@@ -1543,7 +2177,13 @@ setBuildTimeData('features.telegram', {
         "filter",
         "handler"
       ],
-      "returns": "this"
+      "returns": "this",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
+        }
+      ]
     },
     "use": {
       "description": "Add grammY middleware.",
@@ -1613,11 +2253,11 @@ setBuildTimeData('features.telegram', {
       "returns": "Bot"
     },
     "isRunning": {
-      "description": "",
+      "description": "Whether the bot is currently receiving updates.",
       "returns": "boolean"
     },
     "mode": {
-      "description": "",
+      "description": "Current operation mode: 'polling', 'webhook', or 'idle'.",
       "returns": "'polling' | 'webhook' | 'idle'"
     }
   },
@@ -1649,39 +2289,69 @@ setBuildTimeData('features.telegram', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
+    }
+  ]
 });
 
 setBuildTimeData('features.repl', {
   "id": "features.repl",
-  "description": "Repl helper",
+  "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
   "shortcut": "features.repl",
   "methods": {
     "start": {
-      "description": "",
+      "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
       "parameters": {
         "options": {
           "type": "{ historyPath?: string, context?: any }",
-          "description": "Parameter options"
+          "description": "Configuration for the REPL session",
+          "properties": {
+            "historyPath": {
+              "type": "any",
+              "description": "Custom path for the history file (defaults to node_modules/.cache/.repl_history)"
+            },
+            "context": {
+              "type": "any",
+              "description": "Additional variables to inject into the VM context"
+            }
+          }
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
+        }
+      ]
     }
   },
   "getters": {
     "isStarted": {
-      "description": "",
+      "description": "Whether the REPL session is currently running.",
       "returns": "any"
     },
     "vmContext": {
-      "description": "",
+      "description": "The VM context object used for evaluating expressions in the REPL.",
       "returns": "any"
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
+    }
+  ]
 });
 
 setBuildTimeData('features.tmux', {
@@ -1858,7 +2528,14 @@ setBuildTimeData('features.tmux', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const tmux = container.feature('tmux', { enable: true })\nawait tmux.ensureSession()\n\nconst layout = tmux.split({ count: 2, orientation: 'horizontal' })\n\nconst tests = await layout.panes[0].run('bun test')\nconst build = await layout.panes[1].run('bun run build')\n\ntests.events.on('output', (data) => console.log('tests:', data))\n\nawait layout.awaitAll()\nawait layout.collapse()"
+    }
+  ]
 });
 
 setBuildTimeData('features.scriptRunner', {
@@ -1869,12 +2546,25 @@ setBuildTimeData('features.scriptRunner', {
   "getters": {
     "scripts": {
       "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
+    }
+  ]
 });
 
 setBuildTimeData('features.os', {
@@ -1885,40 +2575,161 @@ setBuildTimeData('features.os', {
   "getters": {
     "arch": {
       "description": "Gets the operating system CPU architecture.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const arch = os.arch\nconsole.log(`Running on ${arch} architecture`)"
+        }
+      ]
     },
     "tmpdir": {
       "description": "Gets the operating system's default directory for temporary files.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const tempDir = os.tmpdir\nconsole.log(`Temp directory: ${tempDir}`)"
+        }
+      ]
     },
     "homedir": {
       "description": "Gets the current user's home directory path.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const home = os.homedir\nconsole.log(`User home: ${home}`)"
+        }
+      ]
     },
     "cpuCount": {
       "description": "Gets the number of logical CPU cores available on the system.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const cores = os.cpuCount\nconsole.log(`System has ${cores} CPU cores`)"
+        }
+      ]
     },
     "hostname": {
       "description": "Gets the hostname of the operating system.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const hostname = os.hostname\nconsole.log(`Hostname: ${hostname}`)"
+        }
+      ]
     },
     "platform": {
       "description": "Gets the operating system platform.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const platform = os.platform\nif (platform === 'darwin') {\n console.log('Running on macOS')\n}"
+        }
+      ]
     },
     "networkInterfaces": {
       "description": "Gets information about the system's network interfaces.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const interfaces = os.networkInterfaces\nObject.keys(interfaces).forEach(name => {\n console.log(`Interface ${name}:`, interfaces[name])\n})"
+        }
+      ]
     },
     "macAddresses": {
       "description": "Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification.",
-      "returns": "string[]"
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const macAddresses = os.macAddresses\nconsole.log(`External MAC addresses: ${macAddresses.join(', ')}`)"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const osInfo = container.feature('os')\n\nconsole.log(`Platform: ${osInfo.platform}`)\nconsole.log(`Architecture: ${osInfo.arch}`)\nconsole.log(`CPU cores: ${osInfo.cpuCount}`)\nconsole.log(`Home directory: ${osInfo.homedir}`)"
+    }
+  ]
+});
+
+setBuildTimeData('features.tts', {
+  "id": "features.tts",
+  "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
+  "shortcut": "features.tts",
+  "methods": {
+    "synthesize": {
+      "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to synthesize into speech"
+        },
+        "options": {
+          "type": "{\n    voice?: string\n    format?: 'wav' | 'flac' | 'ogg'\n    voiceUrl?: string\n  }",
+          "description": "Override voice, format, or provide a voiceUrl for cloning"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "apiKey": {
+      "description": "RunPod API key from options or environment.",
+      "returns": "string"
+    },
+    "outputDir": {
+      "description": "Directory where generated audio files are saved.",
+      "returns": "string"
+    },
+    "voices": {
+      "description": "The 20 preset voice names available in Chatterbox Turbo.",
+      "returns": "readonly string[]"
+    }
+  },
+  "events": {
+    "synthesized": {
+      "name": "synthesized",
+      "description": "Event emitted by TTS",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by TTS",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
+    }
+  ]
 });
 
 setBuildTimeData('features.grep', {
@@ -1999,7 +2810,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "options"
       ],
-      "returns": "Promise<GrepMatch[]>"
+      "returns": "Promise<GrepMatch[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
+        }
+      ]
     },
     "filesContaining": {
       "description": "Find files containing a pattern. Returns just the relative file paths.",
@@ -2016,7 +2833,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "pattern"
       ],
-      "returns": "Promise<string[]>"
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const files = await grep.filesContaining('TODO')\n// ['src/index.ts', 'src/utils.ts']"
+        }
+      ]
     },
     "imports": {
       "description": "Find import/require statements for a module or path.",
@@ -2033,7 +2856,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "moduleOrPath"
       ],
-      "returns": "Promise<GrepMatch[]>"
+      "returns": "Promise<GrepMatch[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const lodashImports = await grep.imports('lodash')\nconst localImports = await grep.imports('./utils')"
+        }
+      ]
     },
     "definitions": {
       "description": "Find function, class, type, or variable definitions matching a name.",
@@ -2050,7 +2879,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "name"
       ],
-      "returns": "Promise<GrepMatch[]>"
+      "returns": "Promise<GrepMatch[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const defs = await grep.definitions('MyComponent')\nconst classDefs = await grep.definitions('UserService')"
+        }
+      ]
     },
     "todos": {
       "description": "Find TODO, FIXME, HACK, and XXX comments.",
@@ -2061,7 +2896,13 @@ setBuildTimeData('features.grep', {
         }
       },
       "required": [],
-      "returns": "Promise<GrepMatch[]>"
+      "returns": "Promise<GrepMatch[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
+        }
+      ]
     },
     "count": {
       "description": "Count the number of matches for a pattern.",
@@ -2078,7 +2919,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "pattern"
       ],
-      "returns": "Promise<number>"
+      "returns": "Promise<number>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const count = await grep.count('console.log')\nconsole.log(`Found ${count} console.log statements`)"
+        }
+      ]
     },
     "findForReplace": {
       "description": "Search and replace across files. Returns the list of files that would be affected. Does NOT modify files — use the returned file list to do the replacement yourself.",
@@ -2095,7 +2942,13 @@ setBuildTimeData('features.grep', {
       "required": [
         "pattern"
       ],
-      "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>"
+      "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const affected = await grep.findForReplace('oldFunctionName')\n// [{ file: 'src/a.ts', matches: [...] }, { file: 'src/b.ts', matches: [...] }]"
+        }
+      ]
     }
   },
   "getters": {
@@ -2106,7 +2959,14 @@ setBuildTimeData('features.grep', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const grep = container.feature('grep')\n\n// Basic search\nconst results = await grep.search({ pattern: 'TODO' })\n// [{ file: 'src/index.ts', line: 42, column: 5, content: '// TODO: fix this' }, ...]\n\n// Find all imports of a module\nconst imports = await grep.imports('lodash')\n\n// Find function/class/variable definitions\nconst defs = await grep.definitions('MyClass')\n\n// Just get filenames containing a pattern\nconst files = await grep.filesContaining('API_KEY')"
+    }
+  ]
 });
 
 setBuildTimeData('features.googleAuth', {
@@ -2177,6 +3037,10 @@ setBuildTimeData('features.googleAuth', {
       "description": "Default scopes covering Drive, Sheets, Calendar, and Docs read access.",
       "returns": "string[]"
     },
+    "redirectPort": {
+      "description": "Resolved redirect port from options, GOOGLE_OAUTH_REDIRECT_PORT env var, or default 3000.",
+      "returns": "number"
+    },
     "tokenCacheKey": {
       "description": "DiskCache key used for storing the refresh token.",
       "returns": "string"
@@ -2205,7 +3069,14 @@ setBuildTimeData('features.googleAuth', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
+    }
+  ]
 });
 
 setBuildTimeData('features.sqlite', {
@@ -2218,58 +3089,82 @@ setBuildTimeData('features.sqlite', {
       "parameters": {
         "queryText": {
           "type": "string",
-          "description": "Parameter queryText"
+          "description": "The SQL query string with optional `?` placeholders"
         },
         "params": {
           "type": "SqlValue[]",
-          "description": "Parameter params"
+          "description": "Ordered array of values to bind to the placeholders"
         }
       },
       "required": [
         "queryText"
       ],
-      "returns": "Promise<T[]>"
+      "returns": "Promise<T[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
+        }
+      ]
     },
     "execute": {
       "description": "Executes a write/update/delete statement and returns metadata. Use sqlite placeholders (`?`) for `params`.",
       "parameters": {
         "queryText": {
           "type": "string",
-          "description": "Parameter queryText"
+          "description": "The SQL statement string with optional `?` placeholders"
         },
         "params": {
           "type": "SqlValue[]",
-          "description": "Parameter params"
+          "description": "Ordered array of values to bind to the placeholders"
         }
       },
       "required": [
         "queryText"
       ],
-      "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>"
+      "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+        }
+      ]
     },
     "sql": {
-      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically, preventing SQL injection.",
       "parameters": {
         "strings": {
           "type": "TemplateStringsArray",
-          "description": "Parameter strings"
+          "description": "Template literal string segments"
         },
         "values": {
           "type": "SqlValue[]",
-          "description": "Parameter values"
+          "description": "Interpolated values that become bound `?` parameters"
         }
       },
       "required": [
         "strings",
         "values"
       ],
-      "returns": "Promise<T[]>"
+      "returns": "Promise<T[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+        }
+      ]
     },
     "close": {
-      "description": "Closes the sqlite database and updates feature state.",
+      "description": "Closes the sqlite database and updates feature state. Emits `closed` after the database handle is released.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const db = container.feature('sqlite', { path: 'app.db' })\n// ... run queries ...\ndb.close()"
+        }
+      ]
     }
   },
   "getters": {
@@ -2301,7 +3196,14 @@ setBuildTimeData('features.sqlite', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
+    }
+  ]
 });
 
 setBuildTimeData('features.docker', {
@@ -2310,201 +3212,470 @@ setBuildTimeData('features.docker', {
   "shortcut": "features.docker",
   "methods": {
     "checkDockerAvailability": {
-      "description": "Check if Docker is available and working",
+      "description": "Check if Docker is available and working.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<boolean>"
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
+        }
+      ]
     },
     "listContainers": {
-      "description": "List all containers (running and stopped)",
+      "description": "List all containers (running and stopped).",
       "parameters": {
         "options": {
           "type": "{ all?: boolean }",
-          "description": "Parameter options"
+          "description": "Listing options",
+          "properties": {
+            "all": {
+              "type": "any",
+              "description": "Include stopped containers (default: false)"
+            }
+          }
         }
       },
       "required": [],
-      "returns": "Promise<DockerContainer[]>"
+      "returns": "Promise<DockerContainer[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const running = await docker.listContainers()\nconst all = await docker.listContainers({ all: true })"
+        }
+      ]
     },
     "listImages": {
-      "description": "List all images",
+      "description": "List all images available locally.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<DockerImage[]>"
+      "returns": "Promise<DockerImage[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const images = await docker.listImages()\nconsole.log(images.map(i => `${i.repository}:${i.tag}`))"
+        }
+      ]
     },
     "startContainer": {
-      "description": "Start a container",
+      "description": "Start a stopped container.",
       "parameters": {
         "containerIdOrName": {
           "type": "string",
-          "description": "Parameter containerIdOrName"
+          "description": "Container ID or name to start"
         }
       },
       "required": [
         "containerIdOrName"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.startContainer('my-app')"
+        }
+      ]
     },
     "stopContainer": {
-      "description": "Stop a container",
+      "description": "Stop a running container.",
       "parameters": {
         "containerIdOrName": {
           "type": "string",
-          "description": "Parameter containerIdOrName"
+          "description": "Container ID or name to stop"
         },
         "timeout": {
           "type": "number",
-          "description": "Parameter timeout"
+          "description": "Seconds to wait before killing the container"
         }
       },
       "required": [
         "containerIdOrName"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.stopContainer('my-app')\nawait docker.stopContainer('my-app', 30) // wait up to 30s"
+        }
+      ]
     },
     "removeContainer": {
-      "description": "Remove a container",
+      "description": "Remove a container.",
       "parameters": {
         "containerIdOrName": {
           "type": "string",
-          "description": "Parameter containerIdOrName"
+          "description": "Container ID or name to remove"
         },
         "options": {
           "type": "{ force?: boolean }",
-          "description": "Parameter options"
+          "description": "Removal options",
+          "properties": {
+            "force": {
+              "type": "any",
+              "description": "Force removal of a running container"
+            }
+          }
         }
       },
       "required": [
         "containerIdOrName"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.removeContainer('old-container')\nawait docker.removeContainer('stubborn-container', { force: true })"
+        }
+      ]
     },
     "runContainer": {
-      "description": "Create and run a new container",
+      "description": "Create and run a new container from the given image.",
       "parameters": {
         "image": {
           "type": "string",
-          "description": "Parameter image"
+          "description": "Docker image to run (e.g. 'nginx:latest')"
         },
         "options": {
-          "type": "{\n      name?: string\n      ports?: string[]\n      volumes?: string[]\n      environment?: Record<string, string>\n      detach?: boolean\n      interactive?: boolean\n      tty?: boolean\n      command?: string[]\n      workdir?: string\n      user?: string\n      entrypoint?: string\n      network?: string\n      restart?: string\n    }",
-          "description": "Parameter options"
+          "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n    }",
+          "description": "Container run options",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "Assign a name to the container"
+            },
+            "ports": {
+              "type": "any",
+              "description": "Port mappings in 'host:container' format (e.g. ['8080:80'])"
+            },
+            "volumes": {
+              "type": "any",
+              "description": "Volume mounts in 'host:container' format (e.g. ['./data:/app/data'])"
+            },
+            "environment": {
+              "type": "any",
+              "description": "Environment variables as key-value pairs"
+            },
+            "detach": {
+              "type": "any",
+              "description": "Run the container in the background"
+            },
+            "interactive": {
+              "type": "any",
+              "description": "Keep STDIN open"
+            },
+            "tty": {
+              "type": "any",
+              "description": "Allocate a pseudo-TTY"
+            },
+            "command": {
+              "type": "any",
+              "description": "Command and arguments to run inside the container"
+            },
+            "workdir": {
+              "type": "any",
+              "description": "Working directory inside the container"
+            },
+            "user": {
+              "type": "any",
+              "description": "Username or UID to run as"
+            },
+            "entrypoint": {
+              "type": "any",
+              "description": "Override the default entrypoint"
+            },
+            "network": {
+              "type": "any",
+              "description": "Connect the container to a network"
+            },
+            "restart": {
+              "type": "any",
+              "description": "Restart policy (e.g. 'always', 'on-failure')"
+            }
+          }
         }
       },
       "required": [
         "image"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const containerId = await docker.runContainer('nginx:latest', {\n name: 'web',\n ports: ['8080:80'],\n detach: true,\n environment: { NODE_ENV: 'production' }\n})"
+        }
+      ]
     },
     "execCommand": {
-      "description": "Execute a command inside a running container",
+      "description": "Execute a command inside a running container. When volumes are specified, uses `docker run --rm` with the container's image instead of `docker exec`, since exec does not support volume mounts.",
       "parameters": {
         "containerIdOrName": {
           "type": "string",
-          "description": "Parameter containerIdOrName"
+          "description": "Container ID or name to execute in"
         },
         "command": {
           "type": "string[]",
-          "description": "Parameter command"
+          "description": "Command and arguments array (e.g. ['ls', '-la'])"
         },
         "options": {
-          "type": "{\n      interactive?: boolean\n      tty?: boolean\n      user?: string\n      workdir?: string\n      detach?: boolean\n    }",
-          "description": "Parameter options"
+          "type": "{\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Username or UID to run as */\n      user?: string\n      /** Working directory inside the container */\n      workdir?: string\n      /** Run the command in the background */\n      detach?: boolean\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Volume mounts; triggers a docker run --rm fallback */\n      volumes?: string[]\n    }",
+          "description": "Execution options",
+          "properties": {
+            "interactive": {
+              "type": "any",
+              "description": "Keep STDIN open"
+            },
+            "tty": {
+              "type": "any",
+              "description": "Allocate a pseudo-TTY"
+            },
+            "user": {
+              "type": "any",
+              "description": "Username or UID to run as"
+            },
+            "workdir": {
+              "type": "any",
+              "description": "Working directory inside the container"
+            },
+            "detach": {
+              "type": "any",
+              "description": "Run the command in the background"
+            },
+            "environment": {
+              "type": "any",
+              "description": "Environment variables as key-value pairs"
+            },
+            "volumes": {
+              "type": "any",
+              "description": "Volume mounts; triggers a docker run --rm fallback"
+            }
+          }
         }
       },
       "required": [
         "containerIdOrName",
         "command"
       ],
-      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
-    },
-    "pullImage": {
-      "description": "Pull an image from a registry",
-      "parameters": {
-        "image": {
-          "type": "string",
-          "description": "Parameter image"
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])\nconsole.log(result.stdout)"
         }
-      },
-      "required": [
-        "image"
-      ],
-      "returns": "Promise<void>"
+      ]
     },
-    "removeImage": {
-      "description": "Remove an image",
-      "parameters": {
-        "imageIdOrName": {
-          "type": "string",
-          "description": "Parameter imageIdOrName"
-        },
-        "options": {
-          "type": "{ force?: boolean }",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "imageIdOrName"
-      ],
-      "returns": "Promise<void>"
-    },
-    "buildImage": {
-      "description": "Build an image from a Dockerfile",
-      "parameters": {
-        "contextPath": {
-          "type": "string",
-          "description": "Parameter contextPath"
-        },
-        "options": {
-          "type": "{\n      tag?: string\n      dockerfile?: string\n      buildArgs?: Record<string, string>\n      target?: string\n      nocache?: boolean\n    }",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "contextPath"
-      ],
-      "returns": "Promise<void>"
-    },
-    "getLogs": {
-      "description": "Get container logs",
+    "createShell": {
+      "description": "Create a shell-like wrapper for executing multiple commands against a container. When volume mounts are specified, a new long-running container is created from the same image with the mounts applied (since docker exec does not support volumes). Call `destroy()` when finished to clean up the helper container. Returns an object with: - `run(command)` — execute a shell command string via `sh -c` - `last` — getter for the most recent command result - `destroy()` — stop the helper container (no-op when no volumes were needed)",
       "parameters": {
         "containerIdOrName": {
           "type": "string",
           "description": "Parameter containerIdOrName"
         },
         "options": {
-          "type": "{\n      follow?: boolean\n      tail?: number\n      since?: string\n      timestamps?: boolean\n    }",
+          "type": "{\n      volumes?: string[]\n      workdir?: string\n      user?: string\n      environment?: Record<string, string>\n    }",
           "description": "Parameter options"
         }
       },
       "required": [
         "containerIdOrName"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<DockerShell>"
+    },
+    "pullImage": {
+      "description": "Pull an image from a registry.",
+      "parameters": {
+        "image": {
+          "type": "string",
+          "description": "Full image reference (e.g. 'nginx:latest', 'ghcr.io/org/repo:tag')"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.pullImage('node:20-alpine')"
+        }
+      ]
+    },
+    "removeImage": {
+      "description": "Remove an image from the local store.",
+      "parameters": {
+        "imageIdOrName": {
+          "type": "string",
+          "description": "Image ID, repository, or repository:tag to remove"
+        },
+        "options": {
+          "type": "{ force?: boolean }",
+          "description": "Removal options",
+          "properties": {
+            "force": {
+              "type": "any",
+              "description": "Force removal even if the image is in use"
+            }
+          }
+        }
+      },
+      "required": [
+        "imageIdOrName"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.removeImage('nginx:latest')\nawait docker.removeImage('old-image', { force: true })"
+        }
+      ]
+    },
+    "buildImage": {
+      "description": "Build an image from a Dockerfile.",
+      "parameters": {
+        "contextPath": {
+          "type": "string",
+          "description": "Path to the build context directory"
+        },
+        "options": {
+          "type": "{\n      /** Tag the resulting image (e.g. 'my-app:latest') */\n      tag?: string\n      /** Path to an alternate Dockerfile */\n      dockerfile?: string\n      /** Build-time variables as key-value pairs */\n      buildArgs?: Record<string, string>\n      /** Target build stage in a multi-stage Dockerfile */\n      target?: string\n      /** Do not use cache when building the image */\n      nocache?: boolean\n    }",
+          "description": "Build options",
+          "properties": {
+            "tag": {
+              "type": "any",
+              "description": "Tag the resulting image (e.g. 'my-app:latest')"
+            },
+            "dockerfile": {
+              "type": "any",
+              "description": "Path to an alternate Dockerfile"
+            },
+            "buildArgs": {
+              "type": "any",
+              "description": "Build-time variables as key-value pairs"
+            },
+            "target": {
+              "type": "any",
+              "description": "Target build stage in a multi-stage Dockerfile"
+            },
+            "nocache": {
+              "type": "any",
+              "description": "Do not use cache when building the image"
+            }
+          }
+        }
+      },
+      "required": [
+        "contextPath"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.buildImage('./project', {\n tag: 'my-app:latest',\n buildArgs: { NODE_ENV: 'production' }\n})"
+        }
+      ]
+    },
+    "getLogs": {
+      "description": "Get container logs.",
+      "parameters": {
+        "containerIdOrName": {
+          "type": "string",
+          "description": "Container ID or name to fetch logs from"
+        },
+        "options": {
+          "type": "{\n      /** Follow log output (stream) */\n      follow?: boolean\n      /** Number of lines to show from the end of the logs */\n      tail?: number\n      /** Show logs since a timestamp or relative time */\n      since?: string\n      /** Prepend a timestamp to each log line */\n      timestamps?: boolean\n    }",
+          "description": "Log retrieval options",
+          "properties": {
+            "follow": {
+              "type": "any",
+              "description": "Follow log output (stream)"
+            },
+            "tail": {
+              "type": "any",
+              "description": "Number of lines to show from the end of the logs"
+            },
+            "since": {
+              "type": "any",
+              "description": "Show logs since a timestamp or relative time (e.g. '10m', '2024-01-01T00:00:00')"
+            },
+            "timestamps": {
+              "type": "any",
+              "description": "Prepend a timestamp to each log line"
+            }
+          }
+        }
+      },
+      "required": [
+        "containerIdOrName"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const logs = await docker.getLogs('my-app', { tail: 100, timestamps: true })\nconsole.log(logs)"
+        }
+      ]
     },
     "getSystemInfo": {
-      "description": "Get Docker system information",
+      "description": "Get Docker system information (engine version, storage driver, OS, etc.).",
       "parameters": {},
       "required": [],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const info = await docker.getSystemInfo()\nconsole.log(info.ServerVersion)"
+        }
+      ]
     },
     "prune": {
-      "description": "Prune unused Docker resources",
+      "description": "Prune unused Docker resources. When no specific resource type is selected, falls back to `docker system prune`.",
       "parameters": {
         "options": {
-          "type": "{\n    containers?: boolean\n    images?: boolean\n    volumes?: boolean\n    networks?: boolean\n    all?: boolean\n    force?: boolean\n  }",
-          "description": "Parameter options"
+          "type": "{\n    /** Prune stopped containers */\n    containers?: boolean\n    /** Prune dangling images */\n    images?: boolean\n    /** Prune unused volumes */\n    volumes?: boolean\n    /** Prune unused networks */\n    networks?: boolean\n    /** Prune all resource types */\n    all?: boolean\n    /** Skip confirmation prompts for image pruning */\n    force?: boolean\n  }",
+          "description": "Pruning options",
+          "properties": {
+            "containers": {
+              "type": "any",
+              "description": "Prune stopped containers"
+            },
+            "images": {
+              "type": "any",
+              "description": "Prune dangling images"
+            },
+            "volumes": {
+              "type": "any",
+              "description": "Prune unused volumes"
+            },
+            "networks": {
+              "type": "any",
+              "description": "Prune unused networks"
+            },
+            "all": {
+              "type": "any",
+              "description": "Prune all resource types (containers, images, volumes, networks)"
+            },
+            "force": {
+              "type": "any",
+              "description": "Skip confirmation prompts for image pruning"
+            }
+          }
         }
       },
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await docker.prune({ all: true })\nawait docker.prune({ containers: true, images: true })"
+        }
+      ]
     },
     "enable": {
-      "description": "Initialize the Docker feature",
+      "description": "Initialize the Docker feature by checking availability and optionally refreshing state.",
       "parameters": {
         "options": {
           "type": "any",
-          "description": "Parameter options"
+          "description": "Enable options passed to the base Feature"
         }
       },
       "required": [],
@@ -2519,7 +3690,14 @@ setBuildTimeData('features.docker', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const docker = container.feature('docker', { enable: true })\nawait docker.checkDockerAvailability()\nconst containers = await docker.listContainers({ all: true })"
+    }
+  ]
 });
 
 setBuildTimeData('features.yaml', {
@@ -2538,7 +3716,13 @@ setBuildTimeData('features.yaml', {
       "required": [
         "data"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const config = {\n name: 'MyApp',\n version: '1.0.0',\n settings: {\n   debug: true,\n   ports: [3000, 3001]\n }\n}\n\nconst yamlString = yaml.stringify(config)\nconsole.log(yamlString)\n// Output:\n// name: MyApp\n// version: 1.0.0\n// settings:\n//   debug: true\n//   ports:\n//     - 3000\n//     - 3001"
+        }
+      ]
     },
     "parse": {
       "description": "Parses a YAML string into a JavaScript object. This method deserializes YAML content into JavaScript data structures. It supports all standard YAML features including nested objects, arrays, and various data types.",
@@ -2551,13 +3735,102 @@ setBuildTimeData('features.yaml', {
       "required": [
         "yamlStr"
       ],
-      "returns": "T"
+      "returns": "T",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
+    }
+  ]
+});
+
+setBuildTimeData('features.nlp', {
+  "id": "features.nlp",
+  "description": "The NLP feature provides natural language processing utilities for parsing utterances into structured data. Combines two complementary libraries: - **compromise**: Verb normalization (toInfinitive), POS pattern matching - **wink-nlp**: High-accuracy POS tagging (~95%), named entity recognition Three methods at increasing levels of detail: - `parse()` — compromise-powered quick structure + verb normalization - `analyze()` — wink-powered high-accuracy POS + entity extraction - `understand()` — combined parse + analyze merged",
+  "shortcut": "features.nlp",
+  "methods": {
+    "parse": {
+      "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The raw utterance to parse"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "ParsedCommand",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
+        }
+      ]
+    },
+    "analyze": {
+      "description": "Analyze text with high-accuracy POS tagging and named entity recognition using wink-nlp.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to analyze"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Analysis",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "nlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, {value:\"john\",pos:\"PROPN\"}, ...],\n//   entities: [{value:\"john\",type:\"PERSON\"}, {value:\"3pm\",type:\"TIME\"}],\n//   raw: \"meet john at 3pm about the deployment\" }"
+        }
+      ]
+    },
+    "understand": {
+      "description": "Full understanding: combines compromise parsing with wink-nlp analysis. Returns intent, target, subject, modifiers (from parse) plus tokens and entities (from analyze).",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to understand"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "ParsedCommand & Analysis",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "nlp.understand(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [],\n//   tokens: [{value:\"draw\",pos:\"VERB\"}, ...], entities: [...], raw: \"...\" }"
+        }
+      ]
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const nlp = container.feature('nlp', { enable: true })\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\nnlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, ...], entities: [{value:\"john\",type:\"PERSON\"}, ...] }\n\nnlp.understand(\"draw a diagram of the auth flow\")\n// { intent, target, subject, modifiers, tokens, entities, raw }"
+    }
+  ]
 });
 
 setBuildTimeData('features.networking', {
@@ -2574,7 +3847,13 @@ setBuildTimeData('features.networking', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Find any available port\nconst anyPort = await networking.findOpenPort()\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Server can use port: ${port}`)"
+        }
+      ]
     },
     "isPortOpen": {
       "description": "Checks if a specific port is available for use. This method attempts to detect if the specified port is available. It returns true if the port is available, false if it's already in use.",
@@ -2585,13 +3864,26 @@ setBuildTimeData('features.networking', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
+    }
+  ]
 });
 
 setBuildTimeData('features.vault', {
@@ -2645,7 +3937,14 @@ setBuildTimeData('features.vault', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
+    }
+  ]
 });
 
 setBuildTimeData('features.googleCalendar', {
@@ -2822,7 +4121,14 @@ setBuildTimeData('features.googleCalendar', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.fs', {
@@ -2831,7 +4137,7 @@ setBuildTimeData('features.fs', {
   "shortcut": "features.fs",
   "methods": {
     "readFileAsync": {
-      "description": "Asynchronously reads a file and returns its contents as a string.",
+      "description": "Asynchronously reads a file and returns its contents as a Buffer.",
       "parameters": {
         "path": {
           "type": "string",
@@ -2841,7 +4147,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const fs = container.feature('fs')\nconst buffer = await fs.readFileAsync('data.txt')\nconsole.log(buffer.toString())"
+        }
+      ]
     },
     "readdir": {
       "description": "Asynchronously reads the contents of a directory.",
@@ -2854,7 +4166,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const fs = container.feature('fs')\nconst entries = await fs.readdir('src')\nconsole.log(entries) // ['index.ts', 'utils.ts', 'components']"
+        }
+      ]
     },
     "walk": {
       "description": "Recursively walks a directory and returns an array of relative path names for each file and directory.",
@@ -2889,7 +4207,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "basePath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const result = fs.walk('src', { files: true, directories: false })\nconsole.log(result.files) // ['src/index.ts', 'src/utils.ts', 'src/components/Button.tsx']"
+        }
+      ]
     },
     "walkAsync": {
       "description": "Asynchronously and recursively walks a directory and returns an array of relative path names.",
@@ -2924,7 +4248,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "baseDir"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconsole.log(`Found ${result.files.length} files and ${result.directories.length} directories`)"
+        }
+      ]
     },
     "ensureFileAsync": {
       "description": "Asynchronously ensures a file exists with the specified content, creating directories as needed.",
@@ -2946,7 +4276,13 @@ setBuildTimeData('features.fs', {
         "path",
         "content"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await fs.ensureFileAsync('config/settings.json', '{}', true)\n// Creates config directory and settings.json file with '{}' content"
+        }
+      ]
     },
     "writeFileAsync": {
       "description": "Asynchronously writes content to a file.",
@@ -2964,7 +4300,13 @@ setBuildTimeData('features.fs', {
         "path",
         "content"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
+        }
+      ]
     },
     "ensureFolder": {
       "description": "Synchronously ensures a directory exists, creating parent directories as needed.",
@@ -2977,7 +4319,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "fs.ensureFolder('logs/debug')\n// Creates logs and logs/debug directories if they don't exist"
+        }
+      ]
     },
     "ensureFile": {
       "description": "Synchronously ensures a file exists with the specified content, creating directories as needed.",
@@ -2999,7 +4347,13 @@ setBuildTimeData('features.fs', {
         "path",
         "content"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "fs.ensureFile('logs/app.log', '', false)\n// Creates logs directory and app.log file if they don't exist"
+        }
+      ]
     },
     "findUp": {
       "description": "Synchronously finds a file by walking up the directory tree from the current working directory.",
@@ -3022,7 +4376,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "fileName"
       ],
-      "returns": "string | null"
+      "returns": "string | null",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const packageJson = fs.findUp('package.json')\nif (packageJson) {\n console.log(`Found package.json at: ${packageJson}`)\n}"
+        }
+      ]
     },
     "existsAsync": {
       "description": "Asynchronously checks if a file or directory exists.",
@@ -3035,7 +4395,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "if (await fs.existsAsync('config.json')) {\n console.log('Config file exists!')\n}"
+        }
+      ]
     },
     "exists": {
       "description": "Synchronously checks if a file or directory exists.",
@@ -3048,7 +4414,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "boolean"
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
+        }
+      ]
     },
     "rm": {
       "description": "Asynchronously removes a file.",
@@ -3061,7 +4433,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await fs.rm('temp/cache.tmp')"
+        }
+      ]
     },
     "readJson": {
       "description": "Synchronously reads and parses a JSON file.",
@@ -3074,7 +4452,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
+        }
+      ]
     },
     "readFile": {
       "description": "Synchronously reads a file and returns its contents as a string.",
@@ -3087,7 +4471,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const content = fs.readFile('README.md')\nconsole.log(content)"
+        }
+      ]
     },
     "rmdir": {
       "description": "Asynchronously removes a directory and all its contents.",
@@ -3100,7 +4490,13 @@ setBuildTimeData('features.fs', {
       "required": [
         "dirPath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await fs.rmdir('temp/cache')\n// Removes the cache directory and all its contents"
+        }
+      ]
     },
     "findUpAsync": {
       "description": "Asynchronously finds a file by walking up the directory tree.",
@@ -3127,13 +4523,26 @@ setBuildTimeData('features.fs', {
       "required": [
         "fileName"
       ],
-      "returns": "Promise<string | string[] | null>"
+      "returns": "Promise<string | string[] | null>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const packageJson = await fs.findUpAsync('package.json')\nconst allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const fs = container.feature('fs')\nconst content = fs.readFile('package.json')\nconst exists = fs.exists('tsconfig.json')\nawait fs.ensureFileAsync('output/result.json', '{}')"
+    }
+  ]
 });
 
 setBuildTimeData('features.ipcSocket', {
@@ -3156,13 +4565,25 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "socketPath"
       ],
-      "returns": "Promise<Server>"
+      "returns": "Promise<Server>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
+        }
+      ]
     },
     "stopServer": {
       "description": "Stops the IPC server and cleans up all connections. This method gracefully shuts down the server by: 1. Closing the server listener 2. Destroying all active client connections 3. Clearing the sockets tracking set 4. Resetting the server instance",
       "parameters": {},
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Graceful shutdown\ntry {\n await ipc.stopServer();\n console.log('IPC server stopped successfully');\n} catch (error) {\n console.error('Failed to stop server:', error.message);\n}"
+        }
+      ]
     },
     "broadcast": {
       "description": "Broadcasts a message to all connected clients (server mode only). This method sends a JSON-encoded message with a unique ID to every client currently connected to the server. Each message is automatically wrapped with metadata including a UUID for tracking. **Message Format:** Messages are automatically wrapped in the format: ```json { \"data\": <your_message>, \"id\": \"<uuid>\" } ```",
@@ -3175,7 +4596,13 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "message"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Broadcast to all connected clients\nipc.broadcast({ \n type: 'notification',\n message: 'Server is shutting down in 30 seconds',\n timestamp: Date.now()\n});\n\n// Chain multiple operations\nipc.broadcast({ status: 'ready' })\n  .broadcast({ time: new Date().toISOString() });"
+        }
+      ]
     },
     "send": {
       "description": "Sends a message to the server (client mode only). This method sends a JSON-encoded message with a unique ID to the connected server. The message is automatically wrapped with metadata for tracking purposes. **Message Format:** Messages are automatically wrapped in the format: ```json { \"data\": <your_message>, \"id\": \"<uuid>\" } ```",
@@ -3188,7 +4615,13 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "message"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Send a simple message\nawait ipc.send({ type: 'ping' });\n\n// Send complex data\nawait ipc.send({\n type: 'data_update',\n payload: { users: [...], timestamp: Date.now() }\n});"
+        }
+      ]
     },
     "connect": {
       "description": "Connects to an IPC server at the specified socket path (client mode). This method establishes a client connection to an existing IPC server. Once connected, the client can send messages to the server and receive responses. The connection is maintained until explicitly closed or the server terminates. **Connection Behavior:** - Sets the socket mode to 'client' - Returns existing connection if already connected - Automatically handles connection events and cleanup - JSON-parses incoming messages and emits 'message' events - Cleans up connection reference when socket closes **Error Handling:** - Throws error if already in server mode - Rejects promise on connection failures - Automatically cleans up on connection close",
@@ -3201,7 +4634,13 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "socketPath"
       ],
-      "returns": "Promise<Socket>"
+      "returns": "Promise<Socket>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Connect to server\nconst socket = await ipc.connect('/tmp/myapp.sock');\nconsole.log('Connected to IPC server');\n\n// Handle incoming messages\nipc.on('message', (data) => {\n console.log('Server message:', data);\n});\n\n// Send messages\nawait ipc.send({ type: 'hello', client_id: 'client_001' });"
+        }
+      ]
     }
   },
   "getters": {
@@ -3219,24 +4658,25 @@ setBuildTimeData('features.ipcSocket', {
     }
   },
   "events": {
-    "message": {
-      "name": "message",
+    "connection": {
+      "name": "connection",
       "description": "Event emitted by IpcSocket",
       "arguments": {}
     },
-    "connection": {
-      "name": "connection",
+    "message": {
+      "name": "message",
       "description": "Event emitted by IpcSocket",
       "arguments": {}
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.diskCache', {
   "id": "features.diskCache",
-  "description": "DiskCache helper",
+  "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
   "shortcut": "features.diskCache",
   "methods": {
     "saveFile": {
@@ -3259,7 +4699,13 @@ setBuildTimeData('features.diskCache', {
         "key",
         "outputPath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
+        }
+      ]
     },
     "ensure": {
       "description": "Ensure a key exists in the cache, setting it with the provided content if it doesn't exist",
@@ -3277,7 +4723,13 @@ setBuildTimeData('features.diskCache', {
         "key",
         "content"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
+        }
+      ]
     },
     "copy": {
       "description": "Copy a cached item from one key to another",
@@ -3299,7 +4751,13 @@ setBuildTimeData('features.diskCache', {
         "source",
         "destination"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
+        }
+      ]
     },
     "move": {
       "description": "Move a cached item from one key to another (copy then delete source)",
@@ -3321,7 +4779,13 @@ setBuildTimeData('features.diskCache', {
         "source",
         "destination"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
+        }
+      ]
     },
     "has": {
       "description": "Check if a key exists in the cache",
@@ -3334,7 +4798,13 @@ setBuildTimeData('features.diskCache', {
       "required": [
         "key"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "if (await diskCache.has('myKey')) {\n console.log('Key exists!')\n}"
+        }
+      ]
     },
     "get": {
       "description": "Retrieve a value from the cache",
@@ -3351,7 +4821,13 @@ setBuildTimeData('features.diskCache', {
       "required": [
         "key"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
+        }
+      ]
     },
     "set": {
       "description": "Store a value in the cache",
@@ -3373,7 +4849,13 @@ setBuildTimeData('features.diskCache', {
         "key",
         "value"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
+        }
+      ]
     },
     "rm": {
       "description": "Remove a cached item",
@@ -3386,7 +4868,13 @@ setBuildTimeData('features.diskCache', {
       "required": [
         "key"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.rm('obsoleteKey')"
+        }
+      ]
     },
     "clearAll": {
       "description": "Clear all cached items",
@@ -3397,19 +4885,37 @@ setBuildTimeData('features.diskCache', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await diskCache.clearAll(true) // Must explicitly confirm"
+        }
+      ]
     },
     "keys": {
       "description": "Get all cache keys",
       "parameters": {},
       "required": [],
-      "returns": "Promise<string[]>"
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const allKeys = await diskCache.keys()\nconsole.log(`Cache contains ${allKeys.length} items`)"
+        }
+      ]
     },
     "listKeys": {
       "description": "List all cache keys (alias for keys())",
       "parameters": {},
       "required": [],
-      "returns": "Promise<string[]>"
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const keyList = await diskCache.listKeys()"
+        }
+      ]
     },
     "create": {
       "description": "Create a cacache instance with the specified path",
@@ -3420,7 +4926,13 @@ setBuildTimeData('features.diskCache', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const customCache = diskCache.create('/custom/cache/path')"
+        }
+      ]
     }
   },
   "getters": {
@@ -3430,12 +4942,25 @@ setBuildTimeData('features.diskCache', {
     },
     "securely": {
       "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
+    }
+  ]
 });
 
 setBuildTimeData('features.postgres', {
@@ -3448,58 +4973,82 @@ setBuildTimeData('features.postgres', {
       "parameters": {
         "queryText": {
           "type": "string",
-          "description": "Parameter queryText"
+          "description": "The SQL query string with optional `$N` placeholders"
         },
         "params": {
           "type": "SqlValue[]",
-          "description": "Parameter params"
+          "description": "Ordered array of values to bind to the placeholders"
         }
       },
       "required": [
         "queryText"
       ],
-      "returns": "Promise<T[]>"
+      "returns": "Promise<T[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst users = await pg.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = $1',\n [true]\n)"
+        }
+      ]
     },
     "execute": {
       "description": "Executes a write/update/delete statement and returns metadata. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
       "parameters": {
         "queryText": {
           "type": "string",
-          "description": "Parameter queryText"
+          "description": "The SQL statement string with optional `$N` placeholders"
         },
         "params": {
           "type": "SqlValue[]",
-          "description": "Parameter params"
+          "description": "Ordered array of values to bind to the placeholders"
         }
       },
       "required": [
         "queryText"
       ],
-      "returns": "Promise<{ rowCount: number }>"
+      "returns": "Promise<{ rowCount: number }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst { rowCount } = await pg.execute(\n 'UPDATE users SET active = $1 WHERE last_login < $2',\n [false, '2024-01-01']\n)\nconsole.log(`Deactivated ${rowCount} users`)"
+        }
+      ]
     },
     "sql": {
-      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+      "description": "Safe tagged-template SQL helper. Values become bound parameters automatically, preventing SQL injection.",
       "parameters": {
         "strings": {
           "type": "TemplateStringsArray",
-          "description": "Parameter strings"
+          "description": "Template literal string segments"
         },
         "values": {
           "type": "SqlValue[]",
-          "description": "Parameter values"
+          "description": "Interpolated values that become bound `$N` parameters"
         }
       },
       "required": [
         "strings",
         "values"
       ],
-      "returns": "Promise<T[]>"
+      "returns": "Promise<T[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst email = 'hello@example.com'\nconst rows = await pg.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+        }
+      ]
     },
     "close": {
-      "description": "Closes the postgres connection and updates feature state.",
+      "description": "Closes the postgres connection and updates feature state. Emits `closed` after the connection is torn down.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\n// ... run queries ...\nawait pg.close()"
+        }
+      ]
     }
   },
   "getters": {
@@ -3531,7 +5080,14 @@ setBuildTimeData('features.postgres', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
+    }
+  ]
 });
 
 setBuildTimeData('features.python', {
@@ -3554,13 +5110,25 @@ setBuildTimeData('features.python', {
       "description": "Detects the Python environment type and sets the appropriate Python path. This method checks for various Python environment managers in order of preference: uv, conda, venv, then falls back to system Python. It sets the pythonPath and environmentType in the state.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await python.detectEnvironment()\nconsole.log(python.state.get('environmentType')) // 'uv' | 'conda' | 'venv' | 'system'\nconsole.log(python.state.get('pythonPath')) // '/path/to/python/executable'"
+        }
+      ]
     },
     "installDependencies": {
       "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Auto-detect and install\nconst result = await python.installDependencies()\n\n// With custom install command\nconst python = container.feature('python', { \n installCommand: 'pip install -r requirements.txt' \n})\nconst result = await python.installDependencies()"
+        }
+      ]
     },
     "execute": {
       "description": "Executes Python code and returns the result. This method creates a temporary Python script with the provided code and variables, executes it using the detected Python environment, and captures the output.",
@@ -3587,7 +5155,13 @@ setBuildTimeData('features.python', {
       "required": [
         "code"
       ],
-      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>"
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Simple execution\nconst result = await python.execute('print(\"Hello World\")')\nconsole.log(result.stdout) // 'Hello World'\n\n// With variables\nconst result = await python.execute('print(f\"Hello {name}!\")', { name: 'Alice' })\n\n// Capture locals\nconst result = await python.execute('x = 42\\ny = x * 2', {}, { captureLocals: true })\nconsole.log(result.locals) // { x: 42, y: 84 }"
+        }
+      ]
     },
     "executeFile": {
       "description": "Executes a Python file and returns the result.",
@@ -3604,7 +5178,13 @@ setBuildTimeData('features.python', {
       "required": [
         "filePath"
       ],
-      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const result = await python.executeFile('/path/to/script.py')\nconsole.log(result.stdout)"
+        }
+      ]
     },
     "getEnvironmentInfo": {
       "description": "Gets information about the current Python environment.",
@@ -3670,7 +5250,14 @@ setBuildTimeData('features.python', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
+    }
+  ]
 });
 
 setBuildTimeData('features.jsonTree', {
@@ -3693,18 +5280,31 @@ setBuildTimeData('features.jsonTree', {
       "required": [
         "basePath"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
+        }
+      ]
     }
   },
   "getters": {
     "tree": {
       "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree().",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await jsonTree.loadTree('data');\nawait jsonTree.loadTree('config', 'appConfig');\n\nconst allTrees = jsonTree.tree;\n// Returns: { \n//   data: { users: { ... }, products: { ... } },\n//   appConfig: { database: { ... }, api: { ... } }\n// }\n\n// Access specific trees\nconst userData = jsonTree.tree.data.users;\nconst dbConfig = jsonTree.tree.appConfig.database;"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.packageFinder', {
@@ -3764,13 +5364,25 @@ setBuildTimeData('features.packageFinder', {
         "manifest",
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "finder.addPackage({\n name: 'lodash',\n version: '4.17.21',\n description: 'A modern JavaScript utility library'\n}, '/project/node_modules/lodash/package.json');"
+        }
+      ]
     },
     "start": {
       "description": "Starts the package finder and performs the initial workspace scan. This method is idempotent - calling it multiple times will not re-scan if already started. It triggers the complete workspace scanning process.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await finder.start();\nconsole.log(`Found ${finder.packageNames.length} unique packages`);"
+        }
+      ]
     },
     "scan": {
       "description": "Performs a comprehensive scan of all node_modules directories in the workspace. This method orchestrates the complete scanning process: 1. Discovers all node_modules directories recursively 2. Finds all package directories (including scoped packages) 3. Reads and parses all package.json files in parallel 4. Indexes all packages for fast querying The scan is performed in parallel for optimal performance, reading multiple package.json files simultaneously.",
@@ -3787,7 +5399,13 @@ setBuildTimeData('features.packageFinder', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Manual scan (usually called automatically by start())\nawait finder.scan();\n\n// Check results\nconsole.log(`Scanned ${finder.manifests.length} packages`);"
+        }
+      ]
     },
     "findByName": {
       "description": "Finds the first package manifest matching the given name. If multiple versions of the package exist, returns the first one found. Use the packages property directly if you need all versions.",
@@ -3800,7 +5418,13 @@ setBuildTimeData('features.packageFinder', {
       "required": [
         "name"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const lodash = finder.findByName('lodash');\nif (lodash) {\n console.log(`Found lodash version ${lodash.version}`);\n}"
+        }
+      ]
     },
     "findDependentsOf": {
       "description": "Finds all packages that declare the specified package as a dependency. Searches through dependencies and devDependencies of all packages to find which ones depend on the target package. Useful for impact analysis when considering package updates or removals.",
@@ -3813,7 +5437,13 @@ setBuildTimeData('features.packageFinder', {
       "required": [
         "packageName"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const reactDependents = finder.findDependentsOf('react');\nconsole.log(`${reactDependents.length} packages depend on React:`);\nreactDependents.forEach(pkg => {\n console.log(`- ${pkg.name}@${pkg.version}`);\n});"
+        }
+      ]
     },
     "find": {
       "description": "Finds the first package manifest matching the provided filter function.",
@@ -3826,7 +5456,13 @@ setBuildTimeData('features.packageFinder', {
       "required": [
         "filter"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Find a package with specific version\nconst specific = finder.find(pkg => pkg.name === 'lodash' && pkg.version.startsWith('4.'));\n\n// Find a package with description containing keyword\nconst utility = finder.find(pkg => pkg.description?.includes('utility'));"
+        }
+      ]
     },
     "filter": {
       "description": "Finds all package manifests matching the provided filter function.",
@@ -3839,7 +5475,13 @@ setBuildTimeData('features.packageFinder', {
       "required": [
         "filter"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Find all packages with 'babel' in the name\nconst babelPackages = finder.filter(pkg => pkg.name.includes('babel'));\n\n// Find all packages with no description\nconst undocumented = finder.filter(pkg => !pkg.description);\n\n// Find all scoped packages\nconst scoped = finder.filter(pkg => pkg.name.startsWith('@'));"
+        }
+      ]
     },
     "exclude": {
       "description": "Returns all packages that do NOT match the provided filter function. This is the inverse of filter() - returns packages where filter returns false.",
@@ -3852,13 +5494,25 @@ setBuildTimeData('features.packageFinder', {
       "required": [
         "filter"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
+        }
+      ]
     }
   },
   "getters": {
     "duplicates": {
       "description": "Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const duplicates = finder.duplicates;\n// ['lodash', 'react', '@types/node'] - packages with multiple versions\n\nduplicates.forEach(name => {\n console.log(`${name} has ${finder.packages[name].length} versions`);\n});"
+        }
+      ]
     },
     "isStarted": {
       "description": "Checks if the package finder has completed its initial scan.",
@@ -3866,24 +5520,236 @@ setBuildTimeData('features.packageFinder', {
     },
     "packageNames": {
       "description": "Gets an array of all unique package names discovered in the workspace.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const names = finder.packageNames;\nconsole.log(`Found ${names.length} unique packages`);"
+        }
+      ]
     },
     "scopes": {
       "description": "Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel').",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const scopes = finder.scopes;\n// ['@types', '@babel', '@angular'] - all scopes in use\n\nscopes.forEach(scope => {\n const scopedPackages = finder.packageNames.filter(name => name.startsWith(scope));\n console.log(`${scope}: ${scopedPackages.length} packages`);\n});"
+        }
+      ]
     },
     "manifests": {
       "description": "Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const all = finder.manifests;\nconsole.log(`Total package instances: ${all.length}`);\n\n// Group by name to see duplicates\nconst grouped = all.reduce((acc, pkg) => {\n acc[pkg.name] = (acc[pkg.name] || 0) + 1;\n return acc;\n}, {});"
+        }
+      ]
     },
     "counts": {
       "description": "Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist.",
-      "returns": "any"
+      "returns": "any",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const counts = finder.counts;\n// { 'lodash': 3, 'react': 2, 'express': 1 }\n\nObject.entries(counts)\n .filter(([name, count]) => count > 1)\n .forEach(([name, count]) => {\n   console.log(`${name}: ${count} versions installed`);\n });"
+        }
+      ]
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
+});
+
+setBuildTimeData('features.processManager', {
+  "id": "features.processManager",
+  "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.",
+  "shortcut": "features.processManager",
+  "methods": {
+    "spawn": {
+      "description": "Spawn a long-running process and return a handle immediately. The returned SpawnHandler provides events for stdout/stderr streaming, exit/crash notifications, and methods to kill or await the process.",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "The command to execute (e.g. 'node', 'bun', 'python')"
+        },
+        "args": {
+          "type": "string[]",
+          "description": "Arguments to pass to the command"
+        },
+        "options": {
+          "type": "SpawnOptions",
+          "description": "Spawn configuration",
+          "properties": {
+            "tag": {
+              "type": "string",
+              "description": "User-defined tag for later lookups via getByTag()"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the spawned process (defaults to container cwd)"
+            },
+            "env": {
+              "type": "Record<string, string>",
+              "description": "Additional environment variables merged with process.env"
+            },
+            "stdin": {
+              "type": "'pipe' | 'inherit' | 'ignore' | null",
+              "description": "stdin mode: 'pipe' to write to the process, 'inherit', or 'ignore' (default: 'ignore')"
+            },
+            "stdout": {
+              "type": "'pipe' | 'inherit' | 'ignore' | null",
+              "description": "stdout mode: 'pipe' to capture output, 'inherit', or 'ignore' (default: 'pipe')"
+            },
+            "stderr": {
+              "type": "'pipe' | 'inherit' | 'ignore' | null",
+              "description": "stderr mode: 'pipe' to capture errors, 'inherit', or 'ignore' (default: 'pipe')"
+            }
+          }
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "returns": "SpawnHandler"
+    },
+    "get": {
+      "description": "Get a SpawnHandler by its unique ID.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The process ID returned by spawn"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "SpawnHandler | undefined"
+    },
+    "getByTag": {
+      "description": "Find a SpawnHandler by its user-defined tag.",
+      "parameters": {
+        "tag": {
+          "type": "string",
+          "description": "The tag passed to spawn()"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "returns": "SpawnHandler | undefined"
+    },
+    "list": {
+      "description": "List all tracked SpawnHandlers (running and finished).",
+      "parameters": {},
+      "required": [],
+      "returns": "SpawnHandler[]"
+    },
+    "killAll": {
+      "description": "Kill all running processes.",
+      "parameters": {
+        "signal": {
+          "type": "NodeJS.Signals | number",
+          "description": "Signal to send (default: SIGTERM)"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "Stop the process manager: kill all running processes and remove cleanup handlers.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "remove": {
+      "description": "Remove a finished handler from tracking.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The process ID to remove"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "boolean"
+    },
+    "enable": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "_onHandlerDone": {
+      "description": "Called by SpawnHandler when a process finishes. Updates feature-level state.",
+      "parameters": {
+        "handler": {
+          "type": "SpawnHandler",
+          "description": "Parameter handler"
+        },
+        "status": {
+          "type": "'exited' | 'crashed' | 'killed'",
+          "description": "Parameter status"
+        },
+        "exitCode": {
+          "type": "number",
+          "description": "Parameter exitCode"
+        }
+      },
+      "required": [
+        "handler",
+        "status"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {},
+  "events": {
+    "spawned": {
+      "name": "spawned",
+      "description": "Event emitted by ProcessManager",
+      "arguments": {}
+    },
+    "exited": {
+      "name": "exited",
+      "description": "Event emitted by ProcessManager",
+      "arguments": {}
+    },
+    "crashed": {
+      "name": "crashed",
+      "description": "Event emitted by ProcessManager",
+      "arguments": {}
+    },
+    "killed": {
+      "name": "killed",
+      "description": "Event emitted by ProcessManager",
+      "arguments": {}
+    },
+    "allStopped": {
+      "name": "allStopped",
+      "description": "Event emitted by ProcessManager",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
+    }
+  ]
 });
 
 setBuildTimeData('portExposer', {
@@ -3892,56 +5758,98 @@ setBuildTimeData('portExposer', {
   "shortcut": "portExposer",
   "methods": {
     "expose": {
-      "description": "Expose the local port via ngrok",
+      "description": "Expose the local port via ngrok. Creates an ngrok tunnel to the specified local port and returns the SSL-enabled public URL. Emits `exposed` on success or `error` on failure.",
       "parameters": {
         "port": {
           "type": "number",
-          "description": "Optional port override"
+          "description": "Optional port override; falls back to `options.port`"
         }
       },
       "required": [],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Public URL: ${url}`)\n\n// Override port at call time\nconst url2 = await exposer.expose(8080)"
+        }
+      ]
     },
     "close": {
-      "description": "Stop exposing the port and close the ngrok tunnel",
+      "description": "Stop exposing the port and close the ngrok tunnel. Tears down the ngrok listener, resets connection state, and emits `closed`. Safe to call when no tunnel is active (no-op).",
       "parameters": {},
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// ... later\nawait exposer.close()\nconsole.log(exposer.isConnected()) // false"
+        }
+      ]
     },
     "getPublicUrl": {
-      "description": "Get the current public URL if connected",
+      "description": "Get the current public URL if connected. Returns the live URL from the ngrok listener, or `undefined` if no tunnel is active.",
       "parameters": {},
       "required": [],
-      "returns": "string | undefined"
+      "returns": "string | undefined",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconsole.log(exposer.getPublicUrl()) // 'https://abc123.ngrok.io'"
+        }
+      ]
     },
     "isConnected": {
-      "description": "Check if currently connected",
+      "description": "Check if the ngrok tunnel is currently connected.",
       "parameters": {},
       "required": [],
-      "returns": "boolean"
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconsole.log(exposer.isConnected()) // false\nawait exposer.expose()\nconsole.log(exposer.isConnected()) // true"
+        }
+      ]
     },
     "getConnectionInfo": {
-      "description": "Get connection information",
+      "description": "Get a snapshot of the current connection information. Returns an object with the tunnel's connected status, public URL, local port, connection timestamp, and session metadata.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconst info = exposer.getConnectionInfo()\nconsole.log(info.publicUrl, info.localPort, info.connectedAt)"
+        }
+      ]
     },
     "reconnect": {
-      "description": "Reconnect with new options",
+      "description": "Close the existing tunnel and re-expose with optionally updated options. Calls `close()` first, merges any new options, then calls `expose()`.",
       "parameters": {
         "newOptions": {
           "type": "Partial<PortExposerOptions>",
-          "description": "Parameter newOptions"
+          "description": "Optional partial options to merge before reconnecting"
         }
       },
       "required": [],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// Switch to a different port\nconst newUrl = await exposer.reconnect({ port: 8080 })"
+        }
+      ]
     },
     "disable": {
-      "description": "Override disable to ensure cleanup",
+      "description": "Disable the feature, ensuring the ngrok tunnel is closed first. Overrides the base `disable()` to guarantee that the tunnel is torn down before the feature is marked as disabled.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nawait exposer.disable()"
+        }
+      ]
     }
   },
   "getters": {},
@@ -3963,7 +5871,14 @@ setBuildTimeData('portExposer', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "// Basic usage\nconst exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Service available at: ${url}`)\n\n// With custom subdomain\nconst exposer = container.feature('portExposer', {\n port: 8080,\n subdomain: 'my-app',\n authToken: 'your-ngrok-token'\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.googleSheets', {
@@ -4102,167 +6017,227 @@ setBuildTimeData('features.googleSheets', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
+    }
+  ]
 });
 
 setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
-  "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+  "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
   "shortcut": "features.secureShell",
   "methods": {
     "testConnection": {
-      "description": "Test the SSH connection",
+      "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<boolean>"
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
+        }
+      ]
     },
     "exec": {
       "description": "Executes a command on the remote host.",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "The command to execute."
+          "description": "The command to execute on the remote shell"
         }
       },
       "required": [
         "command"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+        }
+      ]
     },
     "download": {
-      "description": "Downloads a file from the remote host.",
+      "description": "Downloads a file from the remote host via SCP.",
       "parameters": {
         "source": {
           "type": "string",
-          "description": "The source file path on the remote host."
+          "description": "The source file path on the remote host"
         },
         "target": {
           "type": "string",
-          "description": "The target file path on the local machine."
+          "description": "The target file path on the local machine"
         }
       },
       "required": [
         "source",
         "target"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
+        }
+      ]
     },
     "upload": {
-      "description": "Uploads a file to the remote host.",
+      "description": "Uploads a file to the remote host via SCP.",
       "parameters": {
         "source": {
           "type": "string",
-          "description": "The source file path on the local machine."
+          "description": "The source file path on the local machine"
         },
         "target": {
           "type": "string",
-          "description": "The target file path on the remote host."
+          "description": "The target file path on the remote host"
         }
       },
       "required": [
         "source",
         "target"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
+        }
+      ]
     }
   },
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
+    }
+  ]
 });
 
 setBuildTimeData('features.runpod', {
   "id": "features.runpod",
-  "description": "Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.",
+  "description": "RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. Provides a complete interface for provisioning and managing RunPod GPU instances. Supports creating pods from templates, managing network storage volumes, SSH access via the SecureShell feature, file transfers, and polling for pod readiness.",
   "shortcut": "features.runpod",
   "methods": {
     "listTemplates": {
-      "description": "",
+      "description": "List available pod templates.",
       "parameters": {
         "options": {
           "type": "{ includePublic?: boolean, includeRunpod?: boolean }",
-          "description": "Parameter options"
+          "description": "Filter options for templates",
+          "properties": {
+            "includePublic": {
+              "type": "any",
+              "description": "Include public community templates (default: false)"
+            },
+            "includeRunpod": {
+              "type": "any",
+              "description": "Include RunPod official templates (default: true)"
+            }
+          }
         }
       },
       "required": [],
-      "returns": "Promise<TemplateInfo[]>"
+      "returns": "Promise<TemplateInfo[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const templates = await runpod.listTemplates({ includeRunpod: true })\nconsole.log(templates.map(t => t.name))"
+        }
+      ]
     },
     "getTemplate": {
-      "description": "",
+      "description": "Get details for a specific template by ID.",
       "parameters": {
         "templateId": {
           "type": "string",
-          "description": "Parameter templateId"
+          "description": "The template ID to look up"
         }
       },
       "required": [
         "templateId"
       ],
-      "returns": "Promise<TemplateInfo>"
+      "returns": "Promise<TemplateInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const template = await runpod.getTemplate('abc123')\nconsole.log(template.imageName)"
+        }
+      ]
     },
     "createPod": {
-      "description": "",
+      "description": "Create a new GPU pod on RunPod.",
       "parameters": {
         "options": {
           "type": "CreatePodOptions",
-          "description": "Parameter options",
+          "description": "Pod configuration options",
           "properties": {
             "name": {
               "type": "string",
-              "description": ""
+              "description": "Pod display name (default: 'luca-pod')"
             },
             "imageName": {
               "type": "string",
-              "description": ""
+              "description": "Docker image name to run"
             },
             "gpuTypeId": {
               "type": "string | string[]",
-              "description": ""
+              "description": "GPU type ID or array of acceptable GPU types"
             },
             "gpuCount": {
               "type": "number",
-              "description": ""
+              "description": "Number of GPUs to allocate (default: 1)"
             },
             "templateId": {
               "type": "string",
-              "description": ""
+              "description": "Template ID to use for pod configuration"
             },
             "cloudType": {
               "type": "'SECURE' | 'COMMUNITY'",
-              "description": ""
+              "description": "Cloud type: 'SECURE' for dedicated or 'COMMUNITY' for shared (default: 'SECURE')"
             },
             "containerDiskInGb": {
               "type": "number",
-              "description": ""
+              "description": "Container disk size in GB (default: 50)"
             },
             "volumeInGb": {
               "type": "number",
-              "description": ""
+              "description": "Persistent volume size in GB (default: 20)"
             },
             "volumeMountPath": {
               "type": "string",
-              "description": ""
+              "description": "Mount path for the volume (default: '/workspace')"
             },
             "ports": {
               "type": "string[]",
-              "description": ""
+              "description": "Port mappings like ['8888/http', '22/tcp']"
             },
             "env": {
               "type": "Record<string, string>",
-              "description": ""
+              "description": "Environment variables to set in the container"
             },
             "interruptible": {
               "type": "boolean",
-              "description": ""
+              "description": "Whether the pod can be preempted for spot pricing"
             },
             "networkVolumeId": {
               "type": "string",
-              "description": ""
+              "description": "ID of an existing network volume to attach"
             },
             "minRAMPerGPU": {
               "type": "number",
-              "description": ""
+              "description": "Minimum RAM per GPU in GB"
             }
           }
         }
@@ -4270,81 +6245,131 @@ setBuildTimeData('features.runpod', {
       "required": [
         "options"
       ],
-      "returns": "Promise<PodInfo>"
+      "returns": "Promise<PodInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pod = await runpod.createPod({\n gpuTypeId: 'NVIDIA RTX 4090',\n templateId: 'abc123',\n volumeInGb: 50,\n})\nconsole.log(`Pod ${pod.id} created`)"
+        }
+      ]
     },
     "stopPod": {
-      "description": "",
+      "description": "Stop a running pod.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to stop"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await runpod.stopPod('pod-abc123')"
+        }
+      ]
     },
     "startPod": {
-      "description": "",
+      "description": "Start a stopped pod.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to start"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await runpod.startPod('pod-abc123')"
+        }
+      ]
     },
     "removePod": {
-      "description": "",
+      "description": "Permanently delete a pod.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to remove"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await runpod.removePod('pod-abc123')"
+        }
+      ]
     },
     "getpods": {
-      "description": "Get all pods via REST API",
+      "description": "Get all pods via the REST API.",
       "parameters": {
         "filters": {
           "type": "{ name?: string; imageName?: string; desiredStatus?: string }",
-          "description": "Parameter filters"
+          "description": "Optional filters for name, image, or status",
+          "properties": {
+            "name": {
+              "type": "any",
+              "description": "Filter by pod name"
+            },
+            "imageName": {
+              "type": "any",
+              "description": "Filter by Docker image name"
+            },
+            "desiredStatus": {
+              "type": "any",
+              "description": "Filter by status (RUNNING, EXITED, TERMINATED)"
+            }
+          }
         }
       },
       "required": [],
-      "returns": "Promise<RestPodInfo[]>"
+      "returns": "Promise<RestPodInfo[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pods = await runpod.getpods({ desiredStatus: 'RUNNING' })\nconsole.log(pods.map(p => `${p.name}: ${p.desiredStatus}`))"
+        }
+      ]
     },
     "getPod": {
-      "description": "Get pod details via REST API (richer than runpodctl output)",
+      "description": "Get detailed pod info via the REST API. Returns richer data than the CLI-based `getPodInfo`, including port mappings and public IP.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to look up"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "Promise<RestPodInfo>"
+      "returns": "Promise<RestPodInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pod = await runpod.getPod('pod-abc123')\nconsole.log(`${pod.name} - ${pod.desiredStatus} - $${pod.costPerHr}/hr`)"
+        }
+      ]
     },
     "waitForPod": {
-      "description": "Poll until a pod reaches a desired status, returns the pod info",
+      "description": "Poll until a pod reaches a desired status.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to monitor"
         },
         "status": {
           "type": "string",
-          "description": "Parameter status"
+          "description": "Target status to wait for (default: 'RUNNING')"
         },
         "{ interval = 5000, timeout = 300000 }": {
           "type": "any",
@@ -4354,45 +6379,63 @@ setBuildTimeData('features.runpod', {
       "required": [
         "podId"
       ],
-      "returns": "Promise<RestPodInfo>"
+      "returns": "Promise<RestPodInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc' })\nconst ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })"
+        }
+      ]
     },
     "listVolumes": {
-      "description": "List all network storage volumes on your account",
+      "description": "List all network storage volumes on your account.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<VolumeInfo[]>"
+      "returns": "Promise<VolumeInfo[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const volumes = await runpod.listVolumes()\nconsole.log(volumes.map(v => `${v.name}: ${v.size}GB`))"
+        }
+      ]
     },
     "getVolume": {
-      "description": "Get details for a specific network volume",
+      "description": "Get details for a specific network volume.",
       "parameters": {
         "volumeId": {
           "type": "string",
-          "description": "Parameter volumeId"
+          "description": "The volume ID to look up"
         }
       },
       "required": [
         "volumeId"
       ],
-      "returns": "Promise<VolumeInfo>"
+      "returns": "Promise<VolumeInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const vol = await runpod.getVolume('vol-abc123')\nconsole.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)"
+        }
+      ]
     },
     "createVolume": {
-      "description": "Create a new network storage volume",
+      "description": "Create a new network storage volume.",
       "parameters": {
         "options": {
           "type": "CreateVolumeOptions",
-          "description": "Parameter options",
+          "description": "Volume configuration",
           "properties": {
             "name": {
               "type": "string",
-              "description": ""
+              "description": "Display name for the volume"
             },
             "size": {
               "type": "number",
-              "description": ""
+              "description": "Size in GB"
             },
             "dataCenterId": {
               "type": "string",
-              "description": ""
+              "description": "Data center to create in (defaults to feature's dataCenterId)"
             }
           }
         }
@@ -4400,46 +6443,70 @@ setBuildTimeData('features.runpod', {
       "required": [
         "options"
       ],
-      "returns": "Promise<VolumeInfo>"
+      "returns": "Promise<VolumeInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const vol = await runpod.createVolume({ name: 'my-models', size: 100 })\nconsole.log(`Created volume ${vol.id}`)"
+        }
+      ]
     },
     "removeVolume": {
-      "description": "Delete a network storage volume",
+      "description": "Delete a network storage volume.",
       "parameters": {
         "volumeId": {
           "type": "string",
-          "description": "Parameter volumeId"
+          "description": "The volume ID to delete"
         }
       },
       "required": [
         "volumeId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "await runpod.removeVolume('vol-abc123')"
+        }
+      ]
     },
     "createRemoteShell": {
-      "description": "",
+      "description": "Create an SSH connection to a pod using the runpodctl CLI. Prefer `getShell()` which uses the REST API and is more reliable.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to connect to"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const shell = await runpod.createRemoteShell('pod-abc123')\nconst output = await shell.exec('nvidia-smi')"
+        }
+      ]
     },
     "getShell": {
-      "description": "Get a SecureShell for a pod using the REST API (portMappings + publicIp). Preferred over createRemoteShell which requires runpodctl CLI.",
+      "description": "Get an SSH connection to a pod using the REST API. Uses port mappings and public IP from the REST API, which is more reliable than the CLI-based `createRemoteShell`.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to connect to"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const shell = await runpod.getShell('pod-abc123')\nconst output = await shell.exec('ls /workspace')"
+        }
+      ]
     },
     "ensureFileExists": {
       "description": "Ensure a file exists on a pod's filesystem. If missing, kicks off a background download via a helper script and polls until the file appears.",
@@ -4480,69 +6547,106 @@ setBuildTimeData('features.runpod', {
         "remotePath",
         "fallbackUrl"
       ],
-      "returns": "Promise<{ existed: boolean; path: string }>"
+      "returns": "Promise<{ existed: boolean; path: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await runpod.ensureFileExists(\n podId,\n '/workspace/ComfyUI/models/checkpoints/juggernaut_xl.safetensors',\n 'https://civitai.com/api/download/models/456789',\n { onProgress: (bytes) => console.log(`${(bytes / 1e9).toFixed(2)} GB downloaded`) }\n)"
+        }
+      ]
     },
     "getPodHttpURLs": {
-      "description": "",
+      "description": "Get the public HTTP proxy URLs for a pod's exposed HTTP ports.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const urls = await runpod.getPodHttpURLs('pod-abc123')\n// ['https://pod-abc123-8888.proxy.runpod.net']"
+        }
+      ]
     },
     "listPods": {
-      "description": "",
+      "description": "List all pods using the runpodctl CLI. Parses the tabular output from `runpodctl get pod`. For richer data, use `getpods()`.",
       "parameters": {
         "detailed": {
           "type": "any",
-          "description": "Parameter detailed"
+          "description": "Reserved for future use"
         }
       },
       "required": [],
-      "returns": "Promise<PodInfo[]>"
+      "returns": "Promise<PodInfo[]>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const pods = await runpod.listPods()\npods.forEach(p => console.log(`${p.name} (${p.gpu}): ${p.status}`))"
+        }
+      ]
     },
     "getPodInfo": {
-      "description": "",
+      "description": "Get pod info using the runpodctl CLI. For richer data including port mappings and public IP, use `getPod()`.",
       "parameters": {
         "podId": {
           "type": "string",
-          "description": "Parameter podId"
+          "description": "The pod ID to look up"
         }
       },
       "required": [
         "podId"
       ],
-      "returns": "Promise<PodInfo>"
+      "returns": "Promise<PodInfo>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const info = await runpod.getPodInfo('pod-abc123')\nconsole.log(`${info.name}: ${info.status}`)"
+        }
+      ]
     },
     "listSecureGPUs": {
-      "description": "",
+      "description": "List available secure GPU types with pricing. Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const gpus = await runpod.listSecureGPUs()\ngpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))"
+        }
+      ]
     }
   },
   "getters": {
     "proc": {
-      "description": "",
+      "description": "The proc feature used for executing CLI commands like runpodctl.",
       "returns": "any"
     },
     "apiKey": {
-      "description": "",
+      "description": "RunPod API key from options or the RUNPOD_API_KEY environment variable.",
       "returns": "any"
     },
     "dataCenterId": {
-      "description": "",
+      "description": "Preferred data center ID, defaults to 'US-TX-3'.",
       "returns": "any"
     }
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
+    }
+  ]
 });
 
 setBuildTimeData('features.fileManager', {
@@ -4702,7 +6806,14 @@ setBuildTimeData('features.fileManager', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
+    }
+  ]
 });
 
 setBuildTimeData('features.contentDb', {
@@ -4710,24 +6821,55 @@ setBuildTimeData('features.contentDb', {
   "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
   "shortcut": "features.contentDb",
   "methods": {
+    "query": {
+      "description": "Query documents belonging to a specific model definition.",
+      "parameters": {
+        "model": {
+          "type": "T",
+          "description": "The model definition to query against"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
+        }
+      ]
+    },
     "parseMarkdownAtPath": {
       "description": "Parse a markdown file at the given path without loading the full collection.",
       "parameters": {
         "path": {
           "type": "string",
-          "description": "Parameter path"
+          "description": "Absolute or relative path to the markdown file"
         }
       },
       "required": [
         "path"
       ],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+        }
+      ]
     },
     "load": {
       "description": "Load the collection, discovering models from models.ts and parsing all documents.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<ContentDb>"
+      "returns": "Promise<ContentDb>",
+      "examples": [
+        {
+          "language": "typescript",
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
+        }
+      ]
     }
   },
   "getters": {
@@ -4740,7 +6882,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "any"
     },
     "collectionPath": {
-      "description": "",
+      "description": "Returns the absolute resolved path to the collection root directory.",
       "returns": "any"
     },
     "models": {
@@ -4754,7 +6896,14 @@ setBuildTimeData('features.contentDb', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "typescript",
+      "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.modelNames) // ['Article', 'Page', ...]"
+    }
+  ]
 });
 
 setBuildTimeData('servers.mcp', {
@@ -4911,7 +7060,14 @@ setBuildTimeData('servers.mcp', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const mcp = container.server('mcp', { serverName: 'my-server', serverVersion: '1.0.0' })\n\nmcp.tool('search_files', {\n schema: z.object({ pattern: z.string() }),\n description: 'Search for files',\n handler: async (args, ctx) => {\n   return ctx.container.feature('fs').walk('.', { include: [args.pattern] }).files.join('\\n')\n }\n})\n\nawait mcp.start()"
+    }
+  ]
 });
 
 setBuildTimeData('servers.express', {
@@ -5001,7 +7157,8 @@ setBuildTimeData('servers.express', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('servers.websocket', {
@@ -5075,7 +7232,8 @@ setBuildTimeData('servers.websocket', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 // Container introspection data
@@ -5129,6 +7287,68 @@ setContainerBuildTimeData('Container', {
         }
       },
       "required": [],
+      "returns": "void"
+    },
+    "normalizeHelperOptions": {
+      "description": "Parse helper options through the helper's static options schema so defaults are materialized.",
+      "parameters": {
+        "BaseClass": {
+          "type": "any",
+          "description": "Parameter BaseClass"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        },
+        "fallbackName": {
+          "type": "string",
+          "description": "Parameter fallbackName"
+        }
+      },
+      "required": [
+        "BaseClass",
+        "options"
+      ],
+      "returns": "void"
+    },
+    "buildHelperCacheKey": {
+      "description": "",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Parameter type"
+        },
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        },
+        "omitOptionKeys": {
+          "type": "string[]",
+          "description": "Parameter omitOptionKeys"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "options"
+      ],
+      "returns": "void"
+    },
+    "createHelperInstance": {
+      "description": "",
+      "parameters": {
+        "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }": {
+          "type": "{\n    cache: Map<string, any>\n    type: string\n    id: string\n    BaseClass: any\n    options?: any\n    fallbackName?: string\n    omitOptionKeys?: string[]\n    context?: any\n  }",
+          "description": "Parameter {\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+        }
+      },
+      "required": [
+        "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+      ],
       "returns": "void"
     },
     "feature": {
@@ -5516,7 +7736,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
+      }
+    ]
   },
   {
     "id": "features.yamlTree",
@@ -5538,18 +7765,37 @@ export const introspectionData = [
         "required": [
           "basePath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
+          }
+        ]
       }
     },
     "getters": {
       "tree": {
         "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await yamlTree.loadTree('config');\nconst allTrees = yamlTree.tree;\n// Returns: { config: { database: { ... }, api: { ... } } }"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
+      }
+    ]
   },
   {
     "id": "features.ink",
@@ -5560,7 +7806,13 @@ export const introspectionData = [
         "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\n// Now sync getters like ink.React, ink.components, ink.hooks work\nconst { Box, Text } = ink.components"
+          }
+        ]
       },
       "render": {
         "description": "Mount a React element to the terminal. Wraps `ink.render()` — automatically loads modules if needed, tracks the instance for unmount / waitUntilExit, and updates state.",
@@ -5590,25 +7842,49 @@ export const introspectionData = [
         "required": [
           "node"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\nink.rerender(React.createElement(Text, null, 'Updated!'))"
+          }
+        ]
       },
       "unmount": {
-        "description": "Unmount the currently mounted Ink app.",
+        "description": "Unmount the currently mounted Ink app. Tears down the React tree rendered in the terminal and resets state. Safe to call when no app is mounted (no-op).",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
+          }
+        ]
       },
       "waitUntilExit": {
-        "description": "Returns a promise that resolves when the mounted app exits.",
+        "description": "Returns a promise that resolves when the mounted app exits. Useful for keeping a script alive while the terminal UI is active.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+          }
+        ]
       },
       "clear": {
-        "description": "Clear the terminal output of the mounted app.",
+        "description": "Clear the terminal output of the mounted app. Erases all Ink-rendered content from the terminal. Safe to call when no app is mounted (no-op).",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
+          }
+        ]
       }
     },
     "getters": {
@@ -5650,7 +7926,8 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.git",
@@ -5704,7 +7981,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
+          }
+        ]
       },
       "getLatestChanges": {
         "description": "Gets the latest commits from the repository. Returns an array of commit objects containing the title (first line of commit message), full message body, and author name for each commit.",
@@ -5715,7 +7998,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const changes = await git.getLatestChanges(5)\nfor (const commit of changes) {\n console.log(`${commit.author}: ${commit.title}`)\n}"
+          }
+        ]
       },
       "fileLog": {
         "description": "Gets a lightweight commit log for one or more files. Returns the SHA and message for each commit that touched the given files, without the per-commit overhead of resolving which specific files matched. For richer per-file matching, see {@link getChangeHistoryForFiles}.",
@@ -5728,7 +8017,13 @@ export const introspectionData = [
         "required": [
           "files"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
+          }
+        ]
       },
       "diff": {
         "description": "Gets the diff for a file between two refs. By default compares from the current HEAD to the given ref. You can supply both `compareTo` and `compareFrom` to diff between any two commits, branches, or tags.",
@@ -5750,7 +8045,13 @@ export const introspectionData = [
           "file",
           "compareTo"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
+          }
+        ]
       },
       "displayDiff": {
         "description": "Pretty prints a unified diff string to the terminal using colors. Parses the diff output and applies color coding: - File headers (`diff --git`, `---`, `+++`) are rendered bold - Hunk headers (`@@ ... @@`) are rendered in cyan - Added lines (`+`) are rendered in green - Removed lines (`-`) are rendered in red - Context lines are rendered dim Can be called with a raw diff string, or with the same arguments as {@link diff} to fetch and display in one step.",
@@ -5771,7 +8072,13 @@ export const introspectionData = [
         "required": [
           "diffOrFile"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Display a pre-fetched diff\nconst raw = git.diff('src/index.ts', 'main')\ngit.displayDiff(raw)\n\n// Fetch and display in one call\ngit.displayDiff('src/index.ts', 'abc1234')"
+          }
+        ]
       },
       "getChangeHistoryForFiles": {
         "description": "Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.",
@@ -5784,38 +8091,81 @@ export const introspectionData = [
         "required": [
           "paths"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
+          }
+        ]
       }
     },
     "getters": {
       "branch": {
         "description": "Gets the current Git branch name.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const currentBranch = git.branch\nif (currentBranch) {\n console.log(`Currently on branch: ${currentBranch}`)\n}"
+          }
+        ]
       },
       "sha": {
         "description": "Gets the current Git commit SHA hash.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const commitSha = git.sha\nif (commitSha) {\n console.log(`Current commit: ${commitSha}`)\n}"
+          }
+        ]
       },
       "isRepo": {
         "description": "Checks if the current directory is within a Git repository.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "if (git.isRepo) {\n console.log('This is a Git repository!')\n} else {\n console.log('Not in a Git repository')\n}"
+          }
+        ]
       },
       "isRepoRoot": {
         "description": "Checks if the current working directory is the root of the Git repository.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "if (git.isRepoRoot) {\n console.log('At the repository root')\n} else {\n console.log('In a subdirectory of the repository')\n}"
+          }
+        ]
       },
       "repoRoot": {
         "description": "Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const repoRoot = git.repoRoot\nif (repoRoot) {\n console.log(`Repository root: ${repoRoot}`)\n}"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const git = container.feature('git')\n\nif (git.isRepo) {\n console.log(`Current branch: ${git.branch}`)\n console.log(`Repository root: ${git.repoRoot}`)\n \n const allFiles = await git.lsFiles()\n const modifiedFiles = await git.lsFiles({ modified: true })\n}"
+      }
+    ]
   },
   {
     "id": "features.esbuild",
-    "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime.",
+    "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses Bun's built-in transpiler.",
     "shortcut": "features.esbuild",
     "methods": {
       "transformSync": {
@@ -5826,14 +8176,30 @@ export const introspectionData = [
             "description": "The code to transform"
           },
           "options": {
-            "type": "esbuild.TransformOptions",
-            "description": "The options to pass to esbuild"
+            "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
+            "description": "Transform options",
+            "properties": {
+              "loader": {
+                "type": "any",
+                "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
+              },
+              "minify": {
+                "type": "any",
+                "description": "Whether to minify whitespace in the output. Defaults to false."
+              }
+            }
           }
         },
         "required": [
           "code"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
+          }
+        ]
       },
       "transform": {
         "description": "Transform code asynchronously",
@@ -5843,20 +8209,43 @@ export const introspectionData = [
             "description": "The code to transform"
           },
           "options": {
-            "type": "esbuild.TransformOptions",
-            "description": "The options to pass to esbuild"
+            "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
+            "description": "Transform options",
+            "properties": {
+              "loader": {
+                "type": "any",
+                "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
+              },
+              "minify": {
+                "type": "any",
+                "description": "Whether to minify whitespace in the output. Defaults to false."
+              }
+            }
           }
         },
         "required": [
           "code"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
+      }
+    ]
   },
   {
     "id": "features.downloader",
@@ -5879,17 +8268,30 @@ export const introspectionData = [
           "url",
           "targetPath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
+      }
+    ]
   },
   {
     "id": "features.windowManager",
-    "description": "WindowManager Feature — Native window control via MenuBarWebAgent Provides a typed client for the MenuBarWebAgent (MBWA) macOS menu bar app. Communicates over a Unix domain socket using an NDJSON request/response protocol with per-project authentication. **Capabilities:** - Spawn native browser windows with configurable chrome (decorations, transparency, etc.) - Navigate windows to URLs or load HTML content - Evaluate arbitrary JavaScript in any window's web view - Focus, close, and list windows - Receive real-time events for window lifecycle and navigation changes - Automatic reconnection with exponential backoff **Protocol:** Uses NDJSON (newline-delimited JSON) over Unix domain sockets. Each request includes an auto-incrementing `id` for response correlation and `projectId`/`token` for authentication. Unsolicited server events are forwarded to the Luca event bus.",
+    "description": "WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an IPC server that the native macOS launcher app connects to. Communicates over a Unix domain socket using NDJSON (newline-delimited JSON). **Protocol:** - Bun listens on a Unix domain socket; the native app connects as a client - Window dispatch commands are sent as NDJSON with a `window` field - The app executes window commands and sends back `windowAck` messages - Any non-windowAck message from the app is emitted as a `message` event - Other features can use `send()` to write arbitrary NDJSON to the app **Capabilities:** - Spawn native browser windows with configurable chrome - Navigate, focus, close, and eval JavaScript in windows - Automatic socket file cleanup and fallback paths",
     "shortcut": "features.windowManager",
     "methods": {
       "enable": {
@@ -5903,36 +8305,31 @@ export const introspectionData = [
         "required": [],
         "returns": "Promise<this>"
       },
-      "connect": {
-        "description": "Connect to the MenuBarWebAgent Unix domain socket. Wires up data, close, and error handlers for NDJSON communication.",
+      "listen": {
+        "description": "Start listening on the Unix domain socket for the native app to connect. Fire-and-forget — binds the socket and returns immediately. Sits quietly until the native app connects; does nothing visible if it never does.",
+        "parameters": {
+          "socketPath": {
+            "type": "string",
+            "description": "Override the configured socket path"
+          }
+        },
+        "required": [],
+        "returns": "this"
+      },
+      "stop": {
+        "description": "Stop the IPC server and clean up all connections. Rejects any pending window operation requests.",
         "parameters": {},
         "required": [],
         "returns": "Promise<this>"
-      },
-      "disconnect": {
-        "description": "Disconnect from the MenuBarWebAgent socket. Suppresses automatic reconnection.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "ping": {
-        "description": "Ping the MBWA server. Does not require authentication.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any>"
       },
       "spawn": {
-        "description": "Spawn a new native browser window.",
+        "description": "Spawn a new native browser window. Sends a window dispatch to the app and waits for the ack.",
         "parameters": {
           "opts": {
             "type": "SpawnOptions",
-            "description": "Window configuration (url/html, dimensions, chrome options)",
+            "description": "Window configuration (url, dimensions, chrome options)",
             "properties": {
               "url": {
-                "type": "string",
-                "description": ""
-              },
-              "html": {
                 "type": "string",
                 "description": ""
               },
@@ -5952,6 +8349,10 @@ export const introspectionData = [
                 "type": "number",
                 "description": ""
               },
+              "alwaysOnTop": {
+                "type": "boolean",
+                "description": ""
+              },
               "window": {
                 "type": "{\n    decorations?: 'normal' | 'hiddenTitleBar' | 'none'\n    transparent?: boolean\n    shadow?: boolean\n    alwaysOnTop?: boolean\n    opacity?: number\n    clickThrough?: boolean\n  }",
                 "description": ""
@@ -5960,46 +8361,99 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<{ windowId: string } & Record<string, any>>"
+        "returns": "Promise<WindowAckResult>"
       },
-      "list": {
-        "description": "List all windows for the authenticated project.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<{ windows: WindowInfo[] }>"
+      "spawnTTY": {
+        "description": "Spawn a native terminal window running a command. The terminal is read-only — stdout/stderr are rendered with ANSI support. Closing the window terminates the process.",
+        "parameters": {
+          "opts": {
+            "type": "SpawnTTYOptions",
+            "description": "Terminal configuration (command, args, cwd, dimensions, etc.)",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Executable name or path (required)."
+              },
+              "args": {
+                "type": "string[]",
+                "description": "Arguments passed after the command."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the process."
+              },
+              "env": {
+                "type": "Record<string, string>",
+                "description": "Environment variable overrides."
+              },
+              "cols": {
+                "type": "number",
+                "description": "Initial terminal columns."
+              },
+              "rows": {
+                "type": "number",
+                "description": "Initial terminal rows."
+              },
+              "title": {
+                "type": "string",
+                "description": "Window title."
+              },
+              "width": {
+                "type": "number",
+                "description": "Window width in points."
+              },
+              "height": {
+                "type": "number",
+                "description": "Window height in points."
+              },
+              "x": {
+                "type": "number",
+                "description": "Window x position."
+              },
+              "y": {
+                "type": "number",
+                "description": "Window y position."
+              },
+              "window": {
+                "type": "SpawnOptions['window']",
+                "description": "Chrome options (decorations, alwaysOnTop, etc.)"
+              }
+            }
+          }
+        },
+        "required": [
+          "opts"
+        ],
+        "returns": "Promise<WindowAckResult>"
       },
       "focus": {
         "description": "Bring a window to the front.",
         "parameters": {
           "windowId": {
             "type": "string",
-            "description": "The ID of the window to focus"
+            "description": "The window ID. If omitted, the app uses the most recent window."
           }
         },
-        "required": [
-          "windowId"
-        ],
-        "returns": "Promise<any>"
+        "required": [],
+        "returns": "Promise<WindowAckResult>"
       },
       "close": {
         "description": "Close a window.",
         "parameters": {
           "windowId": {
             "type": "string",
-            "description": "The ID of the window to close"
+            "description": "The window ID. If omitted, the app closes the most recent window."
           }
         },
-        "required": [
-          "windowId"
-        ],
-        "returns": "Promise<any>"
+        "required": [],
+        "returns": "Promise<WindowAckResult>"
       },
       "navigate": {
         "description": "Navigate a window to a new URL.",
         "parameters": {
           "windowId": {
             "type": "string",
-            "description": "The ID of the window"
+            "description": "The window ID"
           },
           "url": {
             "type": "string",
@@ -6010,14 +8464,14 @@ export const introspectionData = [
           "windowId",
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<WindowAckResult>"
       },
       "eval": {
         "description": "Evaluate JavaScript in a window's web view.",
         "parameters": {
           "windowId": {
             "type": "string",
-            "description": "The ID of the window"
+            "description": "The window ID"
           },
           "code": {
             "type": "string",
@@ -6025,59 +8479,138 @@ export const introspectionData = [
           },
           "opts": {
             "type": "{ timeoutMs?: number; returnJson?: boolean }",
-            "description": "Options: timeoutMs, returnJson"
+            "description": "timeoutMs (default 5000), returnJson (default true)"
           }
         },
         "required": [
           "windowId",
           "code"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<WindowAckResult>"
+      },
+      "screengrab": {
+        "description": "Capture a PNG screenshot from a window.",
+        "parameters": {
+          "opts": {
+            "type": "WindowScreenGrabOptions",
+            "description": "Window target and output path",
+            "properties": {
+              "windowId": {
+                "type": "string",
+                "description": "Window ID. If omitted, the launcher uses the most recent window."
+              },
+              "path": {
+                "type": "string",
+                "description": "Output file path for the PNG image."
+              }
+            }
+          }
+        },
+        "required": [
+          "opts"
+        ],
+        "returns": "Promise<WindowAckResult>"
+      },
+      "video": {
+        "description": "Record a video from a window to disk.",
+        "parameters": {
+          "opts": {
+            "type": "WindowVideoOptions",
+            "description": "Window target, output path, and optional duration",
+            "properties": {
+              "windowId": {
+                "type": "string",
+                "description": "Window ID. If omitted, the launcher uses the most recent window."
+              },
+              "path": {
+                "type": "string",
+                "description": "Output file path for the video file."
+              },
+              "durationMs": {
+                "type": "number",
+                "description": "Recording duration in milliseconds."
+              }
+            }
+          }
+        },
+        "required": [
+          "opts"
+        ],
+        "returns": "Promise<WindowAckResult>"
       },
       "window": {
         "description": "Get a WindowHandle for chainable operations on a specific window.",
         "parameters": {
           "windowId": {
             "type": "string",
-            "description": "The ID of the window"
+            "description": "The window ID"
           }
         },
         "required": [
           "windowId"
         ],
         "returns": "WindowHandle"
+      },
+      "send": {
+        "description": "Write an NDJSON message to the connected app client. Public so other features can send arbitrary protocol messages over the same socket.",
+        "parameters": {
+          "msg": {
+            "type": "Record<string, any>",
+            "description": "The message object to send (will be JSON-serialized + newline)"
+          }
+        },
+        "required": [
+          "msg"
+        ],
+        "returns": "boolean"
       }
     },
     "getters": {
-      "isConnected": {
-        "description": "Whether the socket is currently connected to MBWA.",
+      "isListening": {
+        "description": "Whether the IPC server is currently listening.",
+        "returns": "boolean"
+      },
+      "isClientConnected": {
+        "description": "Whether the native app client is currently connected.",
         "returns": "boolean"
       }
     },
     "events": {
-      "disconnected": {
-        "name": "disconnected",
+      "listening": {
+        "name": "listening",
         "description": "Event emitted by WindowManager",
         "arguments": {}
       },
-      "error": {
-        "name": "error",
+      "clientConnected": {
+        "name": "clientConnected",
         "description": "Event emitted by WindowManager",
         "arguments": {}
       },
-      "connected": {
-        "name": "connected",
+      "clientDisconnected": {
+        "name": "clientDisconnected",
         "description": "Event emitted by WindowManager",
         "arguments": {}
       },
-      "reconnecting": {
-        "name": "reconnecting",
+      "windowAck": {
+        "name": "windowAck",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
         "description": "Event emitted by WindowManager",
         "arguments": {}
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
+      }
+    ]
   },
   {
     "id": "features.proc",
@@ -6099,7 +8632,13 @@ export const introspectionData = [
         "required": [
           "cmd"
         ],
-        "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
+        "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
+          }
+        ]
       },
       "spawnAndCapture": {
         "description": "Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.",
@@ -6118,35 +8657,35 @@ export const introspectionData = [
             "properties": {
               "stdio": {
                 "type": "\"ignore\" | \"inherit\"",
-                "description": ""
+                "description": "Standard I/O mode for the child process"
               },
               "stdout": {
                 "type": "\"ignore\" | \"inherit\"",
-                "description": ""
+                "description": "Stdout mode for the child process"
               },
               "stderr": {
                 "type": "\"ignore\" | \"inherit\"",
-                "description": ""
+                "description": "Stderr mode for the child process"
               },
               "cwd": {
                 "type": "string",
-                "description": "Working directory for the process"
+                "description": "Working directory for the child process"
               },
               "environment": {
                 "type": "Record<string, any>",
-                "description": ""
+                "description": "Environment variables to pass to the child process"
               },
               "onError": {
                 "type": "(data: string) => void",
-                "description": "Callback for stderr data"
+                "description": "Callback invoked when stderr data is received"
               },
               "onOutput": {
                 "type": "(data: string) => void",
-                "description": "Callback for stdout data"
+                "description": "Callback invoked when stdout data is received"
               },
               "onExit": {
                 "type": "(code: number) => void",
-                "description": "Callback for process exit"
+                "description": "Callback invoked when the process exits"
               }
             }
           }
@@ -6155,7 +8694,13 @@ export const introspectionData = [
           "command",
           "args"
         ],
-        "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>"
+        "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+          }
+        ]
       },
       "runScript": {
         "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
@@ -6186,24 +8731,36 @@ export const introspectionData = [
         "required": [
           "scriptPath"
         ],
-        "returns": "Promise<{ exitCode: number; stderr: string[] }>"
+        "returns": "Promise<{ exitCode: number; stderr: string[] }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
+          }
+        ]
       },
       "exec": {
-        "description": "",
+        "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "Parameter command"
+            "description": "The command to execute"
           },
           "options": {
             "type": "any",
-            "description": "Parameter options"
+            "description": "Options for command execution (cwd, encoding, etc.)"
           }
         },
         "required": [
           "command"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
+          }
+        ]
       },
       "kill": {
         "description": "Kills a process by its PID.",
@@ -6220,7 +8777,13 @@ export const introspectionData = [
         "required": [
           "pid"
         ],
-        "returns": "boolean"
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
+          }
+        ]
       },
       "findPidsByPort": {
         "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
@@ -6233,13 +8796,120 @@ export const introspectionData = [
         "required": [
           "port"
         ],
-        "returns": "number[]"
+        "returns": "number[]",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
+      }
+    ]
+  },
+  {
+    "id": "features.launcherAppCommandListener",
+    "description": "LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.",
+    "shortcut": "features.launcherAppCommandListener",
+    "methods": {
+      "enable": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "listen": {
+        "description": "Start listening on the Unix domain socket for the native app to connect. Fire-and-forget — binds the socket and returns immediately. Sits quietly until the native app connects; does nothing visible if it never does.",
+        "parameters": {
+          "socketPath": {
+            "type": "string",
+            "description": "Override the configured socket path"
+          }
+        },
+        "required": [],
+        "returns": "this"
+      },
+      "stop": {
+        "description": "Stop the IPC server and clean up all connections.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "send": {
+        "description": "Write an NDJSON message to the connected app client.",
+        "parameters": {
+          "msg": {
+            "type": "Record<string, any>",
+            "description": "The message object to send (will be JSON-serialized + newline)"
+          }
+        },
+        "required": [
+          "msg"
+        ],
+        "returns": "boolean"
+      }
+    },
+    "getters": {
+      "isListening": {
+        "description": "Whether the IPC server is currently listening.",
+        "returns": "boolean"
+      },
+      "isClientConnected": {
+        "description": "Whether the native app client is currently connected.",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "listening": {
+        "name": "listening",
+        "description": "Event emitted by LauncherAppCommandListener",
+        "arguments": {}
+      },
+      "clientConnected": {
+        "name": "clientConnected",
+        "description": "Event emitted by LauncherAppCommandListener",
+        "arguments": {}
+      },
+      "clientDisconnected": {
+        "name": "clientDisconnected",
+        "description": "Event emitted by LauncherAppCommandListener",
+        "arguments": {}
+      },
+      "command": {
+        "name": "command",
+        "description": "Event emitted by LauncherAppCommandListener",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
+        "description": "Event emitted by LauncherAppCommandListener",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const listener = container.feature('launcherAppCommandListener', {\n enable: true,\n autoListen: true,\n})\n\nlistener.on('command', async (cmd) => {\n cmd.ack('Working on it!')     // or just cmd.ack() for silent\n\n // ... do your actual work ...\n cmd.progress(0.5, 'Halfway there')\n\n cmd.finish()                   // silent finish\n cmd.finish({ result: { action: 'completed' }, speech: 'All done!' })\n // or: cmd.fail({ error: 'not found', speech: 'Sorry, that failed.' })\n})"
+      }
+    ]
   },
   {
     "id": "features.vm",
@@ -6261,31 +8931,49 @@ export const introspectionData = [
         "required": [
           "code"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const script = vm.createScript('Math.max(a, b)')\n\n// Execute the script multiple times with different contexts\nconst result1 = script.runInContext(vm.createContext({ a: 5, b: 3 }))\nconst result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))"
+          }
+        ]
       },
       "isContext": {
-        "description": "Returns true if the given object has already been contextified by `vm.createContext()`. Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
+        "description": "Check whether an object has already been contextified by `vm.createContext()`. Useful to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.",
         "parameters": {
           "ctx": {
             "type": "unknown",
-            "description": "Parameter ctx"
+            "description": "The object to check"
           }
         },
         "required": [
           "ctx"
         ],
-        "returns": "ctx is vm.Context"
+        "returns": "ctx is vm.Context",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ctx = vm.createContext({ x: 1 })\nvm.isContext(ctx)   // true\nvm.isContext({ x: 1 }) // false"
+          }
+        ]
       },
       "createContext": {
-        "description": "",
+        "description": "Create an isolated JavaScript execution context. Combines the container's context with any additional variables provided. If the input is already a VM context, it is returned as-is.",
         "parameters": {
           "ctx": {
             "type": "any",
-            "description": "Parameter ctx"
+            "description": "Additional context variables to include"
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
+          }
+        ]
       },
       "run": {
         "description": "Executes JavaScript code in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code safely. It handles errors gracefully and returns either the result or the error object.",
@@ -6302,41 +8990,59 @@ export const introspectionData = [
         "required": [
           "code"
         ],
-        "returns": "Promise<T>"
+        "returns": "Promise<T>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
+          }
+        ]
       },
       "runSync": {
-        "description": "",
+        "description": "Execute JavaScript code synchronously in a controlled environment.",
         "parameters": {
           "code": {
             "type": "string",
-            "description": "Parameter code"
+            "description": "The JavaScript code to execute"
           },
           "ctx": {
             "type": "any",
-            "description": "Parameter ctx"
+            "description": "Context variables to make available to the executing code"
           }
         },
         "required": [
           "code"
         ],
-        "returns": "T"
+        "returns": "T",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const sum = vm.runSync('a + b', { a: 2, b: 3 })\nconsole.log(sum) // 5"
+          }
+        ]
       },
       "perform": {
-        "description": "",
+        "description": "Execute code asynchronously and return both the result and the execution context. Unlike `run`, this method also returns the context object, allowing you to inspect variables set during execution.",
         "parameters": {
           "code": {
             "type": "string",
-            "description": "Parameter code"
+            "description": "The JavaScript code to execute"
           },
           "ctx": {
             "type": "any",
-            "description": "Parameter ctx"
+            "description": "Context variables to make available to the executing code"
           }
         },
         "required": [
           "code"
         ],
-        "returns": "Promise<{ result: T, context: vm.Context }>"
+        "returns": "Promise<{ result: T, context: vm.Context }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })\nconsole.log(result)     // 84\nconsole.log(context.x)  // 42"
+          }
+        ]
       },
       "performSync": {
         "description": "Executes JavaScript code synchronously and returns both the result and the execution context. Unlike `runSync`, this method also returns the context object, allowing you to inspect variables set during execution (e.g. `module.exports`). This is the synchronous equivalent of `perform()`.",
@@ -6353,7 +9059,13 @@ export const introspectionData = [
         "required": [
           "code"
         ],
-        "returns": "{ result: T, context: vm.Context }"
+        "returns": "{ result: T, context: vm.Context }",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
+          }
+        ]
       },
       "loadModule": {
         "description": "Synchronously loads a JavaScript/TypeScript module from a file path, executing it in an isolated VM context and returning its exports. The module gets `require`, `exports`, and `module` globals automatically, plus any additional context you provide.",
@@ -6370,13 +9082,26 @@ export const introspectionData = [
         "required": [
           "filePath"
         ],
-        "returns": "Record<string, any>"
+        "returns": "Record<string, any>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
+      }
+    ]
   },
   {
     "id": "features.googleDrive",
@@ -6584,7 +9309,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
+      }
+    ]
   },
   {
     "id": "features.ui",
@@ -6592,11 +9324,11 @@ export const introspectionData = [
     "shortcut": "features.ui",
     "methods": {
       "markdown": {
-        "description": "",
+        "description": "Parse markdown text and render it for terminal display using marked-terminal.",
         "parameters": {
           "text": {
             "type": "string",
-            "description": "Parameter text"
+            "description": "The markdown string to parse and render"
           }
         },
         "required": [
@@ -6615,7 +9347,13 @@ export const introspectionData = [
         "required": [
           "name"
         ],
-        "returns": "(str: string) => string"
+        "returns": "(str: string) => string",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Assign colors to users\nconst johnColor = ui.assignColor('john');\nconst janeColor = ui.assignColor('jane');\n\n// Use consistently throughout the app\nconsole.log(johnColor('John: Hello there!'));\nconsole.log(janeColor('Jane: Hi John!'));\nconsole.log(johnColor('John: How are you?')); // Same color as before\n\n// Different entities get different colors\nconst errorColor = ui.assignColor('error');\nconst successColor = ui.assignColor('success');"
+          }
+        ]
       },
       "wizard": {
         "description": "Creates an interactive wizard using inquirer prompts. This method provides a convenient wrapper around inquirer for creating interactive command-line wizards. It supports all inquirer question types and can handle complex validation and conditional logic. **Supported Question Types:** - input: Text input fields - confirm: Yes/no confirmations - list: Single selection from options - checkbox: Multiple selections - password: Hidden text input - editor: External editor integration **Advanced Features:** - Conditional questions based on previous answers - Input validation and transformation - Custom prompts and styling - Initial answer pre-population",
@@ -6632,14 +9370,20 @@ export const introspectionData = [
         "required": [
           "questions"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
+          }
+        ]
       },
       "askQuestion": {
-        "description": "",
+        "description": "Prompt the user with a single text input question.",
         "parameters": {
           "question": {
             "type": "string",
-            "description": "Parameter question"
+            "description": "The question message to display"
           }
         },
         "required": [
@@ -6662,7 +9406,13 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
+          }
+        ]
       },
       "asciiArt": {
         "description": "Generates ASCII art from text using the specified font. This method converts regular text into stylized ASCII art using figlet's extensive font collection. Perfect for creating eye-catching headers, logos, and decorative text in terminal applications. **Font Capabilities:** - Large collection of artistic fonts - Various styles: block, script, decorative, technical - Different sizes and character sets - Consistent spacing and alignment",
@@ -6680,7 +9430,13 @@ export const introspectionData = [
           "text",
           "font"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Create a banner\nconst banner = ui.asciiArt('WELCOME', 'Big');\nconsole.log(banner);\n\n// Different fonts for different purposes\nconst title = ui.asciiArt('MyApp', 'Standard');\nconst subtitle = ui.asciiArt('v2.0', 'Small');\n\n// Technical/coding themes\nconst code = ui.asciiArt('CODE', '3D-ASCII');\n\n// List available fonts first\nconsole.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));"
+          }
+        ]
       },
       "banner": {
         "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation",
@@ -6707,14 +9463,20 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Classic patriotic banner\nconst banner = ui.banner('AMERICA', {\n font: 'Big',\n colors: ['red', 'white', 'blue']\n});\nconsole.log(banner);\n\n// Tech company banner\nconst techBanner = ui.banner('TechCorp', {\n font: 'Slant',\n colors: ['cyan', 'blue', 'magenta']\n});\n\n// Warning banner\nconst warningBanner = ui.banner('WARNING', {\n font: 'Standard',\n colors: ['yellow', 'red']\n});\n\n// Available fonts: see ui.fonts property\n// Available colors: any chalk color names"
+          }
+        ]
       },
       "endent": {
-        "description": "",
+        "description": "Dedent and format a tagged template literal using endent. Strips leading indentation while preserving relative indentation.",
         "parameters": {
           "args": {
             "type": "any[]",
-            "description": "Parameter args"
+            "description": "Tagged template literal arguments"
           }
         },
         "required": [
@@ -6741,7 +9503,13 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Horizontal rainbow effect\nconst rainbow = ui.applyGradient('Hello World!', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'], \n 'horizontal'\n);\n\n// Vertical gradient for multi-line text\nconst multiline = 'Line 1\\nLine 2\\nLine 3\\nLine 4';\nconst vertical = ui.applyGradient(multiline, \n ['red', 'white', 'blue'], \n 'vertical'\n);\n\n// Fire effect\nconst fire = ui.applyGradient('FIRE', ['red', 'yellow'], 'horizontal');\n\n// Ocean effect\nconst ocean = ui.applyGradient('OCEAN', ['blue', 'cyan', 'white'], 'vertical');"
+          }
+        ]
       },
       "applyHorizontalGradient": {
         "description": "Applies horizontal color gradients character by character. This method creates color transitions across characters within the text, cycling through the provided colors to create smooth horizontal gradients. Each character gets assigned a color based on its position in the sequence. **Horizontal Gradient Behavior:** - Each character is individually colored - Colors cycle through the provided array - Creates smooth transitions across text width - Works well with ASCII art and single lines",
@@ -6758,7 +9526,13 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
+          }
+        ]
       },
       "applyVerticalGradient": {
         "description": "Applies vertical color gradients line by line. This method creates color transitions across lines of text, with each line getting a different color from the sequence. Perfect for multi-line content like ASCII art, banners, and structured output. **Vertical Gradient Behavior:** - Each line is colored uniformly - Colors cycle through the provided array - Creates smooth transitions across text height - Ideal for multi-line ASCII art and structured content",
@@ -6775,7 +9549,13 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
+          }
+        ]
       },
       "padLeft": {
         "description": "Pads text on the left to reach the specified length. This utility method adds padding characters to the left side of text to achieve a desired total length. Useful for creating aligned columns, formatted tables, and consistent text layout in terminal applications. **Padding Behavior:** - Adds padding to the left (start) of the string - Uses specified padding character (default: space) - Returns original string if already at or beyond target length - Handles multi-character padding by repeating the character",
@@ -6797,7 +9577,13 @@ export const introspectionData = [
           "str",
           "length"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Number alignment\nconst numbers = ['1', '23', '456'];\nnumbers.forEach(num => {\n console.log(ui.padLeft(num, 5, '0')); // '00001', '00023', '00456'\n});\n\n// Text alignment in columns\nconst items = ['apple', 'banana', 'cherry'];\nitems.forEach(item => {\n console.log(ui.padLeft(item, 10) + ' | Price: $1.00');\n});\n\n// Custom padding character\nconst title = ui.padLeft('TITLE', 20, '-'); // '---------------TITLE'"
+          }
+        ]
       },
       "padRight": {
         "description": "Pads text on the right to reach the specified length. This utility method adds padding characters to the right side of text to achieve a desired total length. Essential for creating properly aligned columns, tables, and formatted output in terminal applications. **Padding Behavior:** - Adds padding to the right (end) of the string - Uses specified padding character (default: space) - Returns original string if already at or beyond target length - Handles multi-character padding by repeating the character",
@@ -6819,13 +9605,25 @@ export const introspectionData = [
           "str",
           "length"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Create aligned table columns\nconst data = [\n ['Name', 'Age', 'City'],\n ['John', '25', 'NYC'],\n ['Jane', '30', 'LA'],\n ['Bob', '35', 'Chicago']\n];\n\ndata.forEach(row => {\n const formatted = row.map((cell, i) => {\n   const widths = [15, 5, 10];\n   return ui.padRight(cell, widths[i]);\n }).join(' | ');\n console.log(formatted);\n});\n\n// Progress bars\nconst progress = ui.padRight('████', 20, '░'); // '████░░░░░░░░░░░░░░░░'\n\n// Menu items with dots\nconst menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';"
+          }
+        ]
       }
     },
     "getters": {
       "colors": {
         "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
-        "returns": "typeof colors"
+        "returns": "typeof colors",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Basic colors\nui.colors.red('Error message')\nui.colors.green('Success!')\n\n// Chained styling\nui.colors.blue.bold.underline('Important link')\nui.colors.white.bgRed.bold(' ALERT ')\n\n// Hex and RGB colors\nui.colors.hex('#FF5733')('Custom color')\nui.colors.rgb(255, 87, 51)('RGB color')"
+          }
+        ]
       },
       "colorPalette": {
         "description": "Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application.",
@@ -6833,20 +9631,33 @@ export const introspectionData = [
       },
       "randomColor": {
         "description": "Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
+          }
+        ]
       },
       "fonts": {
         "description": "Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names",
-        "returns": "string[]"
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.opener",
-    "description": "The Opener feature opens files and URLs using the system's default application. HTTP/HTTPS URLs are opened in Google Chrome. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+    "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
     "shortcut": "features.opener",
     "methods": {
       "open": {
@@ -6861,12 +9672,54 @@ export const introspectionData = [
           "target"
         ],
         "returns": "Promise<void>"
+      },
+      "app": {
+        "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The application name (e.g. \"Slack\", \"Finder\", \"Safari\")"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<void>"
+      },
+      "code": {
+        "description": "Opens VS Code at the specified path. Uses the `code` CLI command. Falls back to `open -a \"Visual Studio Code\"` on macOS.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file or folder path to open"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "cursor": {
+        "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to `open -a \"Cursor\"` on macOS.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file or folder path to open"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
+      }
+    ]
   },
   {
     "id": "features.telegram",
@@ -6930,7 +9783,13 @@ export const introspectionData = [
           "filter",
           "handler"
         ],
-        "returns": "this"
+        "returns": "this",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
+          }
+        ]
       },
       "use": {
         "description": "Add grammY middleware.",
@@ -7000,11 +9859,11 @@ export const introspectionData = [
         "returns": "Bot"
       },
       "isRunning": {
-        "description": "",
+        "description": "Whether the bot is currently receiving updates.",
         "returns": "boolean"
       },
       "mode": {
-        "description": "",
+        "description": "Current operation mode: 'polling', 'webhook', or 'idle'.",
         "returns": "'polling' | 'webhook' | 'idle'"
       }
     },
@@ -7036,38 +9895,68 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
+      }
+    ]
   },
   {
     "id": "features.repl",
-    "description": "Repl helper",
+    "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
     "shortcut": "features.repl",
     "methods": {
       "start": {
-        "description": "",
+        "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
         "parameters": {
           "options": {
             "type": "{ historyPath?: string, context?: any }",
-            "description": "Parameter options"
+            "description": "Configuration for the REPL session",
+            "properties": {
+              "historyPath": {
+                "type": "any",
+                "description": "Custom path for the history file (defaults to node_modules/.cache/.repl_history)"
+              },
+              "context": {
+                "type": "any",
+                "description": "Additional variables to inject into the VM context"
+              }
+            }
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
+          }
+        ]
       }
     },
     "getters": {
       "isStarted": {
-        "description": "",
+        "description": "Whether the REPL session is currently running.",
         "returns": "any"
       },
       "vmContext": {
-        "description": "",
+        "description": "The VM context object used for evaluating expressions in the REPL.",
         "returns": "any"
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
+      }
+    ]
   },
   {
     "id": "features.tmux",
@@ -7243,7 +10132,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const tmux = container.feature('tmux', { enable: true })\nawait tmux.ensureSession()\n\nconst layout = tmux.split({ count: 2, orientation: 'horizontal' })\n\nconst tests = await layout.panes[0].run('bun test')\nconst build = await layout.panes[1].run('bun run build')\n\ntests.events.on('output', (data) => console.log('tests:', data))\n\nawait layout.awaitAll()\nawait layout.collapse()"
+      }
+    ]
   },
   {
     "id": "features.scriptRunner",
@@ -7253,12 +10149,25 @@ export const introspectionData = [
     "getters": {
       "scripts": {
         "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
+      }
+    ]
   },
   {
     "id": "features.os",
@@ -7268,40 +10177,160 @@ export const introspectionData = [
     "getters": {
       "arch": {
         "description": "Gets the operating system CPU architecture.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const arch = os.arch\nconsole.log(`Running on ${arch} architecture`)"
+          }
+        ]
       },
       "tmpdir": {
         "description": "Gets the operating system's default directory for temporary files.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const tempDir = os.tmpdir\nconsole.log(`Temp directory: ${tempDir}`)"
+          }
+        ]
       },
       "homedir": {
         "description": "Gets the current user's home directory path.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const home = os.homedir\nconsole.log(`User home: ${home}`)"
+          }
+        ]
       },
       "cpuCount": {
         "description": "Gets the number of logical CPU cores available on the system.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const cores = os.cpuCount\nconsole.log(`System has ${cores} CPU cores`)"
+          }
+        ]
       },
       "hostname": {
         "description": "Gets the hostname of the operating system.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const hostname = os.hostname\nconsole.log(`Hostname: ${hostname}`)"
+          }
+        ]
       },
       "platform": {
         "description": "Gets the operating system platform.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const platform = os.platform\nif (platform === 'darwin') {\n console.log('Running on macOS')\n}"
+          }
+        ]
       },
       "networkInterfaces": {
         "description": "Gets information about the system's network interfaces.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const interfaces = os.networkInterfaces\nObject.keys(interfaces).forEach(name => {\n console.log(`Interface ${name}:`, interfaces[name])\n})"
+          }
+        ]
       },
       "macAddresses": {
         "description": "Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification.",
-        "returns": "string[]"
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const macAddresses = os.macAddresses\nconsole.log(`External MAC addresses: ${macAddresses.join(', ')}`)"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const osInfo = container.feature('os')\n\nconsole.log(`Platform: ${osInfo.platform}`)\nconsole.log(`Architecture: ${osInfo.arch}`)\nconsole.log(`CPU cores: ${osInfo.cpuCount}`)\nconsole.log(`Home directory: ${osInfo.homedir}`)"
+      }
+    ]
+  },
+  {
+    "id": "features.tts",
+    "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
+    "shortcut": "features.tts",
+    "methods": {
+      "synthesize": {
+        "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to synthesize into speech"
+          },
+          "options": {
+            "type": "{\n    voice?: string\n    format?: 'wav' | 'flac' | 'ogg'\n    voiceUrl?: string\n  }",
+            "description": "Override voice, format, or provide a voiceUrl for cloning"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "apiKey": {
+        "description": "RunPod API key from options or environment.",
+        "returns": "string"
+      },
+      "outputDir": {
+        "description": "Directory where generated audio files are saved.",
+        "returns": "string"
+      },
+      "voices": {
+        "description": "The 20 preset voice names available in Chatterbox Turbo.",
+        "returns": "readonly string[]"
+      }
+    },
+    "events": {
+      "synthesized": {
+        "name": "synthesized",
+        "description": "Event emitted by TTS",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by TTS",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
+      }
+    ]
   },
   {
     "id": "features.grep",
@@ -7381,7 +10410,13 @@ export const introspectionData = [
         "required": [
           "options"
         ],
-        "returns": "Promise<GrepMatch[]>"
+        "returns": "Promise<GrepMatch[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
+          }
+        ]
       },
       "filesContaining": {
         "description": "Find files containing a pattern. Returns just the relative file paths.",
@@ -7398,7 +10433,13 @@ export const introspectionData = [
         "required": [
           "pattern"
         ],
-        "returns": "Promise<string[]>"
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const files = await grep.filesContaining('TODO')\n// ['src/index.ts', 'src/utils.ts']"
+          }
+        ]
       },
       "imports": {
         "description": "Find import/require statements for a module or path.",
@@ -7415,7 +10456,13 @@ export const introspectionData = [
         "required": [
           "moduleOrPath"
         ],
-        "returns": "Promise<GrepMatch[]>"
+        "returns": "Promise<GrepMatch[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const lodashImports = await grep.imports('lodash')\nconst localImports = await grep.imports('./utils')"
+          }
+        ]
       },
       "definitions": {
         "description": "Find function, class, type, or variable definitions matching a name.",
@@ -7432,7 +10479,13 @@ export const introspectionData = [
         "required": [
           "name"
         ],
-        "returns": "Promise<GrepMatch[]>"
+        "returns": "Promise<GrepMatch[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const defs = await grep.definitions('MyComponent')\nconst classDefs = await grep.definitions('UserService')"
+          }
+        ]
       },
       "todos": {
         "description": "Find TODO, FIXME, HACK, and XXX comments.",
@@ -7443,7 +10496,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<GrepMatch[]>"
+        "returns": "Promise<GrepMatch[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
+          }
+        ]
       },
       "count": {
         "description": "Count the number of matches for a pattern.",
@@ -7460,7 +10519,13 @@ export const introspectionData = [
         "required": [
           "pattern"
         ],
-        "returns": "Promise<number>"
+        "returns": "Promise<number>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const count = await grep.count('console.log')\nconsole.log(`Found ${count} console.log statements`)"
+          }
+        ]
       },
       "findForReplace": {
         "description": "Search and replace across files. Returns the list of files that would be affected. Does NOT modify files — use the returned file list to do the replacement yourself.",
@@ -7477,7 +10542,13 @@ export const introspectionData = [
         "required": [
           "pattern"
         ],
-        "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>"
+        "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const affected = await grep.findForReplace('oldFunctionName')\n// [{ file: 'src/a.ts', matches: [...] }, { file: 'src/b.ts', matches: [...] }]"
+          }
+        ]
       }
     },
     "getters": {
@@ -7488,7 +10559,14 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const grep = container.feature('grep')\n\n// Basic search\nconst results = await grep.search({ pattern: 'TODO' })\n// [{ file: 'src/index.ts', line: 42, column: 5, content: '// TODO: fix this' }, ...]\n\n// Find all imports of a module\nconst imports = await grep.imports('lodash')\n\n// Find function/class/variable definitions\nconst defs = await grep.definitions('MyClass')\n\n// Just get filenames containing a pattern\nconst files = await grep.filesContaining('API_KEY')"
+      }
+    ]
   },
   {
     "id": "features.googleAuth",
@@ -7558,6 +10636,10 @@ export const introspectionData = [
         "description": "Default scopes covering Drive, Sheets, Calendar, and Docs read access.",
         "returns": "string[]"
       },
+      "redirectPort": {
+        "description": "Resolved redirect port from options, GOOGLE_OAUTH_REDIRECT_PORT env var, or default 3000.",
+        "returns": "number"
+      },
       "tokenCacheKey": {
         "description": "DiskCache key used for storing the refresh token.",
         "returns": "string"
@@ -7586,7 +10668,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
+      }
+    ]
   },
   {
     "id": "features.sqlite",
@@ -7598,58 +10687,82 @@ export const introspectionData = [
         "parameters": {
           "queryText": {
             "type": "string",
-            "description": "Parameter queryText"
+            "description": "The SQL query string with optional `?` placeholders"
           },
           "params": {
             "type": "SqlValue[]",
-            "description": "Parameter params"
+            "description": "Ordered array of values to bind to the placeholders"
           }
         },
         "required": [
           "queryText"
         ],
-        "returns": "Promise<T[]>"
+        "returns": "Promise<T[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
+          }
+        ]
       },
       "execute": {
         "description": "Executes a write/update/delete statement and returns metadata. Use sqlite placeholders (`?`) for `params`.",
         "parameters": {
           "queryText": {
             "type": "string",
-            "description": "Parameter queryText"
+            "description": "The SQL statement string with optional `?` placeholders"
           },
           "params": {
             "type": "SqlValue[]",
-            "description": "Parameter params"
+            "description": "Ordered array of values to bind to the placeholders"
           }
         },
         "required": [
           "queryText"
         ],
-        "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>"
+        "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+          }
+        ]
       },
       "sql": {
-        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically, preventing SQL injection.",
         "parameters": {
           "strings": {
             "type": "TemplateStringsArray",
-            "description": "Parameter strings"
+            "description": "Template literal string segments"
           },
           "values": {
             "type": "SqlValue[]",
-            "description": "Parameter values"
+            "description": "Interpolated values that become bound `?` parameters"
           }
         },
         "required": [
           "strings",
           "values"
         ],
-        "returns": "Promise<T[]>"
+        "returns": "Promise<T[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+          }
+        ]
       },
       "close": {
-        "description": "Closes the sqlite database and updates feature state.",
+        "description": "Closes the sqlite database and updates feature state. Emits `closed` after the database handle is released.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const db = container.feature('sqlite', { path: 'app.db' })\n// ... run queries ...\ndb.close()"
+          }
+        ]
       }
     },
     "getters": {
@@ -7681,7 +10794,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
+      }
+    ]
   },
   {
     "id": "features.docker",
@@ -7689,201 +10809,470 @@ export const introspectionData = [
     "shortcut": "features.docker",
     "methods": {
       "checkDockerAvailability": {
-        "description": "Check if Docker is available and working",
+        "description": "Check if Docker is available and working.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<boolean>"
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
+          }
+        ]
       },
       "listContainers": {
-        "description": "List all containers (running and stopped)",
+        "description": "List all containers (running and stopped).",
         "parameters": {
           "options": {
             "type": "{ all?: boolean }",
-            "description": "Parameter options"
+            "description": "Listing options",
+            "properties": {
+              "all": {
+                "type": "any",
+                "description": "Include stopped containers (default: false)"
+              }
+            }
           }
         },
         "required": [],
-        "returns": "Promise<DockerContainer[]>"
+        "returns": "Promise<DockerContainer[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const running = await docker.listContainers()\nconst all = await docker.listContainers({ all: true })"
+          }
+        ]
       },
       "listImages": {
-        "description": "List all images",
+        "description": "List all images available locally.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<DockerImage[]>"
+        "returns": "Promise<DockerImage[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const images = await docker.listImages()\nconsole.log(images.map(i => `${i.repository}:${i.tag}`))"
+          }
+        ]
       },
       "startContainer": {
-        "description": "Start a container",
+        "description": "Start a stopped container.",
         "parameters": {
           "containerIdOrName": {
             "type": "string",
-            "description": "Parameter containerIdOrName"
+            "description": "Container ID or name to start"
           }
         },
         "required": [
           "containerIdOrName"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.startContainer('my-app')"
+          }
+        ]
       },
       "stopContainer": {
-        "description": "Stop a container",
+        "description": "Stop a running container.",
         "parameters": {
           "containerIdOrName": {
             "type": "string",
-            "description": "Parameter containerIdOrName"
+            "description": "Container ID or name to stop"
           },
           "timeout": {
             "type": "number",
-            "description": "Parameter timeout"
+            "description": "Seconds to wait before killing the container"
           }
         },
         "required": [
           "containerIdOrName"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.stopContainer('my-app')\nawait docker.stopContainer('my-app', 30) // wait up to 30s"
+          }
+        ]
       },
       "removeContainer": {
-        "description": "Remove a container",
+        "description": "Remove a container.",
         "parameters": {
           "containerIdOrName": {
             "type": "string",
-            "description": "Parameter containerIdOrName"
+            "description": "Container ID or name to remove"
           },
           "options": {
             "type": "{ force?: boolean }",
-            "description": "Parameter options"
+            "description": "Removal options",
+            "properties": {
+              "force": {
+                "type": "any",
+                "description": "Force removal of a running container"
+              }
+            }
           }
         },
         "required": [
           "containerIdOrName"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.removeContainer('old-container')\nawait docker.removeContainer('stubborn-container', { force: true })"
+          }
+        ]
       },
       "runContainer": {
-        "description": "Create and run a new container",
+        "description": "Create and run a new container from the given image.",
         "parameters": {
           "image": {
             "type": "string",
-            "description": "Parameter image"
+            "description": "Docker image to run (e.g. 'nginx:latest')"
           },
           "options": {
-            "type": "{\n      name?: string\n      ports?: string[]\n      volumes?: string[]\n      environment?: Record<string, string>\n      detach?: boolean\n      interactive?: boolean\n      tty?: boolean\n      command?: string[]\n      workdir?: string\n      user?: string\n      entrypoint?: string\n      network?: string\n      restart?: string\n    }",
-            "description": "Parameter options"
+            "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n    }",
+            "description": "Container run options",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "Assign a name to the container"
+              },
+              "ports": {
+                "type": "any",
+                "description": "Port mappings in 'host:container' format (e.g. ['8080:80'])"
+              },
+              "volumes": {
+                "type": "any",
+                "description": "Volume mounts in 'host:container' format (e.g. ['./data:/app/data'])"
+              },
+              "environment": {
+                "type": "any",
+                "description": "Environment variables as key-value pairs"
+              },
+              "detach": {
+                "type": "any",
+                "description": "Run the container in the background"
+              },
+              "interactive": {
+                "type": "any",
+                "description": "Keep STDIN open"
+              },
+              "tty": {
+                "type": "any",
+                "description": "Allocate a pseudo-TTY"
+              },
+              "command": {
+                "type": "any",
+                "description": "Command and arguments to run inside the container"
+              },
+              "workdir": {
+                "type": "any",
+                "description": "Working directory inside the container"
+              },
+              "user": {
+                "type": "any",
+                "description": "Username or UID to run as"
+              },
+              "entrypoint": {
+                "type": "any",
+                "description": "Override the default entrypoint"
+              },
+              "network": {
+                "type": "any",
+                "description": "Connect the container to a network"
+              },
+              "restart": {
+                "type": "any",
+                "description": "Restart policy (e.g. 'always', 'on-failure')"
+              }
+            }
           }
         },
         "required": [
           "image"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const containerId = await docker.runContainer('nginx:latest', {\n name: 'web',\n ports: ['8080:80'],\n detach: true,\n environment: { NODE_ENV: 'production' }\n})"
+          }
+        ]
       },
       "execCommand": {
-        "description": "Execute a command inside a running container",
+        "description": "Execute a command inside a running container. When volumes are specified, uses `docker run --rm` with the container's image instead of `docker exec`, since exec does not support volume mounts.",
         "parameters": {
           "containerIdOrName": {
             "type": "string",
-            "description": "Parameter containerIdOrName"
+            "description": "Container ID or name to execute in"
           },
           "command": {
             "type": "string[]",
-            "description": "Parameter command"
+            "description": "Command and arguments array (e.g. ['ls', '-la'])"
           },
           "options": {
-            "type": "{\n      interactive?: boolean\n      tty?: boolean\n      user?: string\n      workdir?: string\n      detach?: boolean\n    }",
-            "description": "Parameter options"
+            "type": "{\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Username or UID to run as */\n      user?: string\n      /** Working directory inside the container */\n      workdir?: string\n      /** Run the command in the background */\n      detach?: boolean\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Volume mounts; triggers a docker run --rm fallback */\n      volumes?: string[]\n    }",
+            "description": "Execution options",
+            "properties": {
+              "interactive": {
+                "type": "any",
+                "description": "Keep STDIN open"
+              },
+              "tty": {
+                "type": "any",
+                "description": "Allocate a pseudo-TTY"
+              },
+              "user": {
+                "type": "any",
+                "description": "Username or UID to run as"
+              },
+              "workdir": {
+                "type": "any",
+                "description": "Working directory inside the container"
+              },
+              "detach": {
+                "type": "any",
+                "description": "Run the command in the background"
+              },
+              "environment": {
+                "type": "any",
+                "description": "Environment variables as key-value pairs"
+              },
+              "volumes": {
+                "type": "any",
+                "description": "Volume mounts; triggers a docker run --rm fallback"
+              }
+            }
           }
         },
         "required": [
           "containerIdOrName",
           "command"
         ],
-        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
-      },
-      "pullImage": {
-        "description": "Pull an image from a registry",
-        "parameters": {
-          "image": {
-            "type": "string",
-            "description": "Parameter image"
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])\nconsole.log(result.stdout)"
           }
-        },
-        "required": [
-          "image"
-        ],
-        "returns": "Promise<void>"
+        ]
       },
-      "removeImage": {
-        "description": "Remove an image",
-        "parameters": {
-          "imageIdOrName": {
-            "type": "string",
-            "description": "Parameter imageIdOrName"
-          },
-          "options": {
-            "type": "{ force?: boolean }",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "imageIdOrName"
-        ],
-        "returns": "Promise<void>"
-      },
-      "buildImage": {
-        "description": "Build an image from a Dockerfile",
-        "parameters": {
-          "contextPath": {
-            "type": "string",
-            "description": "Parameter contextPath"
-          },
-          "options": {
-            "type": "{\n      tag?: string\n      dockerfile?: string\n      buildArgs?: Record<string, string>\n      target?: string\n      nocache?: boolean\n    }",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "contextPath"
-        ],
-        "returns": "Promise<void>"
-      },
-      "getLogs": {
-        "description": "Get container logs",
+      "createShell": {
+        "description": "Create a shell-like wrapper for executing multiple commands against a container. When volume mounts are specified, a new long-running container is created from the same image with the mounts applied (since docker exec does not support volumes). Call `destroy()` when finished to clean up the helper container. Returns an object with: - `run(command)` — execute a shell command string via `sh -c` - `last` — getter for the most recent command result - `destroy()` — stop the helper container (no-op when no volumes were needed)",
         "parameters": {
           "containerIdOrName": {
             "type": "string",
             "description": "Parameter containerIdOrName"
           },
           "options": {
-            "type": "{\n      follow?: boolean\n      tail?: number\n      since?: string\n      timestamps?: boolean\n    }",
+            "type": "{\n      volumes?: string[]\n      workdir?: string\n      user?: string\n      environment?: Record<string, string>\n    }",
             "description": "Parameter options"
           }
         },
         "required": [
           "containerIdOrName"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<DockerShell>"
+      },
+      "pullImage": {
+        "description": "Pull an image from a registry.",
+        "parameters": {
+          "image": {
+            "type": "string",
+            "description": "Full image reference (e.g. 'nginx:latest', 'ghcr.io/org/repo:tag')"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.pullImage('node:20-alpine')"
+          }
+        ]
+      },
+      "removeImage": {
+        "description": "Remove an image from the local store.",
+        "parameters": {
+          "imageIdOrName": {
+            "type": "string",
+            "description": "Image ID, repository, or repository:tag to remove"
+          },
+          "options": {
+            "type": "{ force?: boolean }",
+            "description": "Removal options",
+            "properties": {
+              "force": {
+                "type": "any",
+                "description": "Force removal even if the image is in use"
+              }
+            }
+          }
+        },
+        "required": [
+          "imageIdOrName"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.removeImage('nginx:latest')\nawait docker.removeImage('old-image', { force: true })"
+          }
+        ]
+      },
+      "buildImage": {
+        "description": "Build an image from a Dockerfile.",
+        "parameters": {
+          "contextPath": {
+            "type": "string",
+            "description": "Path to the build context directory"
+          },
+          "options": {
+            "type": "{\n      /** Tag the resulting image (e.g. 'my-app:latest') */\n      tag?: string\n      /** Path to an alternate Dockerfile */\n      dockerfile?: string\n      /** Build-time variables as key-value pairs */\n      buildArgs?: Record<string, string>\n      /** Target build stage in a multi-stage Dockerfile */\n      target?: string\n      /** Do not use cache when building the image */\n      nocache?: boolean\n    }",
+            "description": "Build options",
+            "properties": {
+              "tag": {
+                "type": "any",
+                "description": "Tag the resulting image (e.g. 'my-app:latest')"
+              },
+              "dockerfile": {
+                "type": "any",
+                "description": "Path to an alternate Dockerfile"
+              },
+              "buildArgs": {
+                "type": "any",
+                "description": "Build-time variables as key-value pairs"
+              },
+              "target": {
+                "type": "any",
+                "description": "Target build stage in a multi-stage Dockerfile"
+              },
+              "nocache": {
+                "type": "any",
+                "description": "Do not use cache when building the image"
+              }
+            }
+          }
+        },
+        "required": [
+          "contextPath"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.buildImage('./project', {\n tag: 'my-app:latest',\n buildArgs: { NODE_ENV: 'production' }\n})"
+          }
+        ]
+      },
+      "getLogs": {
+        "description": "Get container logs.",
+        "parameters": {
+          "containerIdOrName": {
+            "type": "string",
+            "description": "Container ID or name to fetch logs from"
+          },
+          "options": {
+            "type": "{\n      /** Follow log output (stream) */\n      follow?: boolean\n      /** Number of lines to show from the end of the logs */\n      tail?: number\n      /** Show logs since a timestamp or relative time */\n      since?: string\n      /** Prepend a timestamp to each log line */\n      timestamps?: boolean\n    }",
+            "description": "Log retrieval options",
+            "properties": {
+              "follow": {
+                "type": "any",
+                "description": "Follow log output (stream)"
+              },
+              "tail": {
+                "type": "any",
+                "description": "Number of lines to show from the end of the logs"
+              },
+              "since": {
+                "type": "any",
+                "description": "Show logs since a timestamp or relative time (e.g. '10m', '2024-01-01T00:00:00')"
+              },
+              "timestamps": {
+                "type": "any",
+                "description": "Prepend a timestamp to each log line"
+              }
+            }
+          }
+        },
+        "required": [
+          "containerIdOrName"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const logs = await docker.getLogs('my-app', { tail: 100, timestamps: true })\nconsole.log(logs)"
+          }
+        ]
       },
       "getSystemInfo": {
-        "description": "Get Docker system information",
+        "description": "Get Docker system information (engine version, storage driver, OS, etc.).",
         "parameters": {},
         "required": [],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const info = await docker.getSystemInfo()\nconsole.log(info.ServerVersion)"
+          }
+        ]
       },
       "prune": {
-        "description": "Prune unused Docker resources",
+        "description": "Prune unused Docker resources. When no specific resource type is selected, falls back to `docker system prune`.",
         "parameters": {
           "options": {
-            "type": "{\n    containers?: boolean\n    images?: boolean\n    volumes?: boolean\n    networks?: boolean\n    all?: boolean\n    force?: boolean\n  }",
-            "description": "Parameter options"
+            "type": "{\n    /** Prune stopped containers */\n    containers?: boolean\n    /** Prune dangling images */\n    images?: boolean\n    /** Prune unused volumes */\n    volumes?: boolean\n    /** Prune unused networks */\n    networks?: boolean\n    /** Prune all resource types */\n    all?: boolean\n    /** Skip confirmation prompts for image pruning */\n    force?: boolean\n  }",
+            "description": "Pruning options",
+            "properties": {
+              "containers": {
+                "type": "any",
+                "description": "Prune stopped containers"
+              },
+              "images": {
+                "type": "any",
+                "description": "Prune dangling images"
+              },
+              "volumes": {
+                "type": "any",
+                "description": "Prune unused volumes"
+              },
+              "networks": {
+                "type": "any",
+                "description": "Prune unused networks"
+              },
+              "all": {
+                "type": "any",
+                "description": "Prune all resource types (containers, images, volumes, networks)"
+              },
+              "force": {
+                "type": "any",
+                "description": "Skip confirmation prompts for image pruning"
+              }
+            }
           }
         },
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await docker.prune({ all: true })\nawait docker.prune({ containers: true, images: true })"
+          }
+        ]
       },
       "enable": {
-        "description": "Initialize the Docker feature",
+        "description": "Initialize the Docker feature by checking availability and optionally refreshing state.",
         "parameters": {
           "options": {
             "type": "any",
-            "description": "Parameter options"
+            "description": "Enable options passed to the base Feature"
           }
         },
         "required": [],
@@ -7898,7 +11287,14 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const docker = container.feature('docker', { enable: true })\nawait docker.checkDockerAvailability()\nconst containers = await docker.listContainers({ all: true })"
+      }
+    ]
   },
   {
     "id": "features.yaml",
@@ -7916,7 +11312,13 @@ export const introspectionData = [
         "required": [
           "data"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const config = {\n name: 'MyApp',\n version: '1.0.0',\n settings: {\n   debug: true,\n   ports: [3000, 3001]\n }\n}\n\nconst yamlString = yaml.stringify(config)\nconsole.log(yamlString)\n// Output:\n// name: MyApp\n// version: 1.0.0\n// settings:\n//   debug: true\n//   ports:\n//     - 3000\n//     - 3001"
+          }
+        ]
       },
       "parse": {
         "description": "Parses a YAML string into a JavaScript object. This method deserializes YAML content into JavaScript data structures. It supports all standard YAML features including nested objects, arrays, and various data types.",
@@ -7929,13 +11331,101 @@ export const introspectionData = [
         "required": [
           "yamlStr"
         ],
-        "returns": "T"
+        "returns": "T",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
+      }
+    ]
+  },
+  {
+    "id": "features.nlp",
+    "description": "The NLP feature provides natural language processing utilities for parsing utterances into structured data. Combines two complementary libraries: - **compromise**: Verb normalization (toInfinitive), POS pattern matching - **wink-nlp**: High-accuracy POS tagging (~95%), named entity recognition Three methods at increasing levels of detail: - `parse()` — compromise-powered quick structure + verb normalization - `analyze()` — wink-powered high-accuracy POS + entity extraction - `understand()` — combined parse + analyze merged",
+    "shortcut": "features.nlp",
+    "methods": {
+      "parse": {
+        "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The raw utterance to parse"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "ParsedCommand",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
+          }
+        ]
+      },
+      "analyze": {
+        "description": "Analyze text with high-accuracy POS tagging and named entity recognition using wink-nlp.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to analyze"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Analysis",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "nlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, {value:\"john\",pos:\"PROPN\"}, ...],\n//   entities: [{value:\"john\",type:\"PERSON\"}, {value:\"3pm\",type:\"TIME\"}],\n//   raw: \"meet john at 3pm about the deployment\" }"
+          }
+        ]
+      },
+      "understand": {
+        "description": "Full understanding: combines compromise parsing with wink-nlp analysis. Returns intent, target, subject, modifiers (from parse) plus tokens and entities (from analyze).",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to understand"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "ParsedCommand & Analysis",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "nlp.understand(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [],\n//   tokens: [{value:\"draw\",pos:\"VERB\"}, ...], entities: [...], raw: \"...\" }"
+          }
+        ]
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const nlp = container.feature('nlp', { enable: true })\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\nnlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, ...], entities: [{value:\"john\",type:\"PERSON\"}, ...] }\n\nnlp.understand(\"draw a diagram of the auth flow\")\n// { intent, target, subject, modifiers, tokens, entities, raw }"
+      }
+    ]
   },
   {
     "id": "features.networking",
@@ -7951,7 +11441,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Find any available port\nconst anyPort = await networking.findOpenPort()\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Server can use port: ${port}`)"
+          }
+        ]
       },
       "isPortOpen": {
         "description": "Checks if a specific port is available for use. This method attempts to detect if the specified port is available. It returns true if the port is available, false if it's already in use.",
@@ -7962,13 +11458,26 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
+      }
+    ]
   },
   {
     "id": "features.vault",
@@ -8021,7 +11530,14 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
+      }
+    ]
   },
   {
     "id": "features.googleCalendar",
@@ -8197,7 +11713,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
+      }
+    ]
   },
   {
     "id": "features.fs",
@@ -8205,7 +11728,7 @@ export const introspectionData = [
     "shortcut": "features.fs",
     "methods": {
       "readFileAsync": {
-        "description": "Asynchronously reads a file and returns its contents as a string.",
+        "description": "Asynchronously reads a file and returns its contents as a Buffer.",
         "parameters": {
           "path": {
             "type": "string",
@@ -8215,7 +11738,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const fs = container.feature('fs')\nconst buffer = await fs.readFileAsync('data.txt')\nconsole.log(buffer.toString())"
+          }
+        ]
       },
       "readdir": {
         "description": "Asynchronously reads the contents of a directory.",
@@ -8228,7 +11757,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const fs = container.feature('fs')\nconst entries = await fs.readdir('src')\nconsole.log(entries) // ['index.ts', 'utils.ts', 'components']"
+          }
+        ]
       },
       "walk": {
         "description": "Recursively walks a directory and returns an array of relative path names for each file and directory.",
@@ -8263,7 +11798,13 @@ export const introspectionData = [
         "required": [
           "basePath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const result = fs.walk('src', { files: true, directories: false })\nconsole.log(result.files) // ['src/index.ts', 'src/utils.ts', 'src/components/Button.tsx']"
+          }
+        ]
       },
       "walkAsync": {
         "description": "Asynchronously and recursively walks a directory and returns an array of relative path names.",
@@ -8298,7 +11839,13 @@ export const introspectionData = [
         "required": [
           "baseDir"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconsole.log(`Found ${result.files.length} files and ${result.directories.length} directories`)"
+          }
+        ]
       },
       "ensureFileAsync": {
         "description": "Asynchronously ensures a file exists with the specified content, creating directories as needed.",
@@ -8320,7 +11867,13 @@ export const introspectionData = [
           "path",
           "content"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await fs.ensureFileAsync('config/settings.json', '{}', true)\n// Creates config directory and settings.json file with '{}' content"
+          }
+        ]
       },
       "writeFileAsync": {
         "description": "Asynchronously writes content to a file.",
@@ -8338,7 +11891,13 @@ export const introspectionData = [
           "path",
           "content"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
+          }
+        ]
       },
       "ensureFolder": {
         "description": "Synchronously ensures a directory exists, creating parent directories as needed.",
@@ -8351,7 +11910,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "fs.ensureFolder('logs/debug')\n// Creates logs and logs/debug directories if they don't exist"
+          }
+        ]
       },
       "ensureFile": {
         "description": "Synchronously ensures a file exists with the specified content, creating directories as needed.",
@@ -8373,7 +11938,13 @@ export const introspectionData = [
           "path",
           "content"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "fs.ensureFile('logs/app.log', '', false)\n// Creates logs directory and app.log file if they don't exist"
+          }
+        ]
       },
       "findUp": {
         "description": "Synchronously finds a file by walking up the directory tree from the current working directory.",
@@ -8396,7 +11967,13 @@ export const introspectionData = [
         "required": [
           "fileName"
         ],
-        "returns": "string | null"
+        "returns": "string | null",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const packageJson = fs.findUp('package.json')\nif (packageJson) {\n console.log(`Found package.json at: ${packageJson}`)\n}"
+          }
+        ]
       },
       "existsAsync": {
         "description": "Asynchronously checks if a file or directory exists.",
@@ -8409,7 +11986,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "if (await fs.existsAsync('config.json')) {\n console.log('Config file exists!')\n}"
+          }
+        ]
       },
       "exists": {
         "description": "Synchronously checks if a file or directory exists.",
@@ -8422,7 +12005,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "boolean"
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
+          }
+        ]
       },
       "rm": {
         "description": "Asynchronously removes a file.",
@@ -8435,7 +12024,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await fs.rm('temp/cache.tmp')"
+          }
+        ]
       },
       "readJson": {
         "description": "Synchronously reads and parses a JSON file.",
@@ -8448,7 +12043,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
+          }
+        ]
       },
       "readFile": {
         "description": "Synchronously reads a file and returns its contents as a string.",
@@ -8461,7 +12062,13 @@ export const introspectionData = [
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const content = fs.readFile('README.md')\nconsole.log(content)"
+          }
+        ]
       },
       "rmdir": {
         "description": "Asynchronously removes a directory and all its contents.",
@@ -8474,7 +12081,13 @@ export const introspectionData = [
         "required": [
           "dirPath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await fs.rmdir('temp/cache')\n// Removes the cache directory and all its contents"
+          }
+        ]
       },
       "findUpAsync": {
         "description": "Asynchronously finds a file by walking up the directory tree.",
@@ -8501,13 +12114,26 @@ export const introspectionData = [
         "required": [
           "fileName"
         ],
-        "returns": "Promise<string | string[] | null>"
+        "returns": "Promise<string | string[] | null>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const packageJson = await fs.findUpAsync('package.json')\nconst allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const fs = container.feature('fs')\nconst content = fs.readFile('package.json')\nconst exists = fs.exists('tsconfig.json')\nawait fs.ensureFileAsync('output/result.json', '{}')"
+      }
+    ]
   },
   {
     "id": "features.ipcSocket",
@@ -8529,13 +12155,25 @@ export const introspectionData = [
         "required": [
           "socketPath"
         ],
-        "returns": "Promise<Server>"
+        "returns": "Promise<Server>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
+          }
+        ]
       },
       "stopServer": {
         "description": "Stops the IPC server and cleans up all connections. This method gracefully shuts down the server by: 1. Closing the server listener 2. Destroying all active client connections 3. Clearing the sockets tracking set 4. Resetting the server instance",
         "parameters": {},
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Graceful shutdown\ntry {\n await ipc.stopServer();\n console.log('IPC server stopped successfully');\n} catch (error) {\n console.error('Failed to stop server:', error.message);\n}"
+          }
+        ]
       },
       "broadcast": {
         "description": "Broadcasts a message to all connected clients (server mode only). This method sends a JSON-encoded message with a unique ID to every client currently connected to the server. Each message is automatically wrapped with metadata including a UUID for tracking. **Message Format:** Messages are automatically wrapped in the format: ```json { \"data\": <your_message>, \"id\": \"<uuid>\" } ```",
@@ -8548,7 +12186,13 @@ export const introspectionData = [
         "required": [
           "message"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Broadcast to all connected clients\nipc.broadcast({ \n type: 'notification',\n message: 'Server is shutting down in 30 seconds',\n timestamp: Date.now()\n});\n\n// Chain multiple operations\nipc.broadcast({ status: 'ready' })\n  .broadcast({ time: new Date().toISOString() });"
+          }
+        ]
       },
       "send": {
         "description": "Sends a message to the server (client mode only). This method sends a JSON-encoded message with a unique ID to the connected server. The message is automatically wrapped with metadata for tracking purposes. **Message Format:** Messages are automatically wrapped in the format: ```json { \"data\": <your_message>, \"id\": \"<uuid>\" } ```",
@@ -8561,7 +12205,13 @@ export const introspectionData = [
         "required": [
           "message"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Send a simple message\nawait ipc.send({ type: 'ping' });\n\n// Send complex data\nawait ipc.send({\n type: 'data_update',\n payload: { users: [...], timestamp: Date.now() }\n});"
+          }
+        ]
       },
       "connect": {
         "description": "Connects to an IPC server at the specified socket path (client mode). This method establishes a client connection to an existing IPC server. Once connected, the client can send messages to the server and receive responses. The connection is maintained until explicitly closed or the server terminates. **Connection Behavior:** - Sets the socket mode to 'client' - Returns existing connection if already connected - Automatically handles connection events and cleanup - JSON-parses incoming messages and emits 'message' events - Cleans up connection reference when socket closes **Error Handling:** - Throws error if already in server mode - Rejects promise on connection failures - Automatically cleans up on connection close",
@@ -8574,7 +12224,13 @@ export const introspectionData = [
         "required": [
           "socketPath"
         ],
-        "returns": "Promise<Socket>"
+        "returns": "Promise<Socket>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Connect to server\nconst socket = await ipc.connect('/tmp/myapp.sock');\nconsole.log('Connected to IPC server');\n\n// Handle incoming messages\nipc.on('message', (data) => {\n console.log('Server message:', data);\n});\n\n// Send messages\nawait ipc.send({ type: 'hello', client_id: 'client_001' });"
+          }
+        ]
       }
     },
     "getters": {
@@ -8592,23 +12248,24 @@ export const introspectionData = [
       }
     },
     "events": {
-      "message": {
-        "name": "message",
+      "connection": {
+        "name": "connection",
         "description": "Event emitted by IpcSocket",
         "arguments": {}
       },
-      "connection": {
-        "name": "connection",
+      "message": {
+        "name": "message",
         "description": "Event emitted by IpcSocket",
         "arguments": {}
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.diskCache",
-    "description": "DiskCache helper",
+    "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
     "shortcut": "features.diskCache",
     "methods": {
       "saveFile": {
@@ -8631,7 +12288,13 @@ export const introspectionData = [
           "key",
           "outputPath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
+          }
+        ]
       },
       "ensure": {
         "description": "Ensure a key exists in the cache, setting it with the provided content if it doesn't exist",
@@ -8649,7 +12312,13 @@ export const introspectionData = [
           "key",
           "content"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
+          }
+        ]
       },
       "copy": {
         "description": "Copy a cached item from one key to another",
@@ -8671,7 +12340,13 @@ export const introspectionData = [
           "source",
           "destination"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
+          }
+        ]
       },
       "move": {
         "description": "Move a cached item from one key to another (copy then delete source)",
@@ -8693,7 +12368,13 @@ export const introspectionData = [
           "source",
           "destination"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
+          }
+        ]
       },
       "has": {
         "description": "Check if a key exists in the cache",
@@ -8706,7 +12387,13 @@ export const introspectionData = [
         "required": [
           "key"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "if (await diskCache.has('myKey')) {\n console.log('Key exists!')\n}"
+          }
+        ]
       },
       "get": {
         "description": "Retrieve a value from the cache",
@@ -8723,7 +12410,13 @@ export const introspectionData = [
         "required": [
           "key"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
+          }
+        ]
       },
       "set": {
         "description": "Store a value in the cache",
@@ -8745,7 +12438,13 @@ export const introspectionData = [
           "key",
           "value"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
+          }
+        ]
       },
       "rm": {
         "description": "Remove a cached item",
@@ -8758,7 +12457,13 @@ export const introspectionData = [
         "required": [
           "key"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.rm('obsoleteKey')"
+          }
+        ]
       },
       "clearAll": {
         "description": "Clear all cached items",
@@ -8769,19 +12474,37 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await diskCache.clearAll(true) // Must explicitly confirm"
+          }
+        ]
       },
       "keys": {
         "description": "Get all cache keys",
         "parameters": {},
         "required": [],
-        "returns": "Promise<string[]>"
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const allKeys = await diskCache.keys()\nconsole.log(`Cache contains ${allKeys.length} items`)"
+          }
+        ]
       },
       "listKeys": {
         "description": "List all cache keys (alias for keys())",
         "parameters": {},
         "required": [],
-        "returns": "Promise<string[]>"
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const keyList = await diskCache.listKeys()"
+          }
+        ]
       },
       "create": {
         "description": "Create a cacache instance with the specified path",
@@ -8792,7 +12515,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const customCache = diskCache.create('/custom/cache/path')"
+          }
+        ]
       }
     },
     "getters": {
@@ -8802,12 +12531,25 @@ export const introspectionData = [
       },
       "securely": {
         "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
+      }
+    ]
   },
   {
     "id": "features.postgres",
@@ -8819,58 +12561,82 @@ export const introspectionData = [
         "parameters": {
           "queryText": {
             "type": "string",
-            "description": "Parameter queryText"
+            "description": "The SQL query string with optional `$N` placeholders"
           },
           "params": {
             "type": "SqlValue[]",
-            "description": "Parameter params"
+            "description": "Ordered array of values to bind to the placeholders"
           }
         },
         "required": [
           "queryText"
         ],
-        "returns": "Promise<T[]>"
+        "returns": "Promise<T[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst users = await pg.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = $1',\n [true]\n)"
+          }
+        ]
       },
       "execute": {
         "description": "Executes a write/update/delete statement and returns metadata. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
         "parameters": {
           "queryText": {
             "type": "string",
-            "description": "Parameter queryText"
+            "description": "The SQL statement string with optional `$N` placeholders"
           },
           "params": {
             "type": "SqlValue[]",
-            "description": "Parameter params"
+            "description": "Ordered array of values to bind to the placeholders"
           }
         },
         "required": [
           "queryText"
         ],
-        "returns": "Promise<{ rowCount: number }>"
+        "returns": "Promise<{ rowCount: number }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst { rowCount } = await pg.execute(\n 'UPDATE users SET active = $1 WHERE last_login < $2',\n [false, '2024-01-01']\n)\nconsole.log(`Deactivated ${rowCount} users`)"
+          }
+        ]
       },
       "sql": {
-        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically.",
+        "description": "Safe tagged-template SQL helper. Values become bound parameters automatically, preventing SQL injection.",
         "parameters": {
           "strings": {
             "type": "TemplateStringsArray",
-            "description": "Parameter strings"
+            "description": "Template literal string segments"
           },
           "values": {
             "type": "SqlValue[]",
-            "description": "Parameter values"
+            "description": "Interpolated values that become bound `$N` parameters"
           }
         },
         "required": [
           "strings",
           "values"
         ],
-        "returns": "Promise<T[]>"
+        "returns": "Promise<T[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst email = 'hello@example.com'\nconst rows = await pg.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+          }
+        ]
       },
       "close": {
-        "description": "Closes the postgres connection and updates feature state.",
+        "description": "Closes the postgres connection and updates feature state. Emits `closed` after the connection is torn down.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\n// ... run queries ...\nawait pg.close()"
+          }
+        ]
       }
     },
     "getters": {
@@ -8902,7 +12668,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
+      }
+    ]
   },
   {
     "id": "features.python",
@@ -8924,13 +12697,25 @@ export const introspectionData = [
         "description": "Detects the Python environment type and sets the appropriate Python path. This method checks for various Python environment managers in order of preference: uv, conda, venv, then falls back to system Python. It sets the pythonPath and environmentType in the state.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await python.detectEnvironment()\nconsole.log(python.state.get('environmentType')) // 'uv' | 'conda' | 'venv' | 'system'\nconsole.log(python.state.get('pythonPath')) // '/path/to/python/executable'"
+          }
+        ]
       },
       "installDependencies": {
         "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Auto-detect and install\nconst result = await python.installDependencies()\n\n// With custom install command\nconst python = container.feature('python', { \n installCommand: 'pip install -r requirements.txt' \n})\nconst result = await python.installDependencies()"
+          }
+        ]
       },
       "execute": {
         "description": "Executes Python code and returns the result. This method creates a temporary Python script with the provided code and variables, executes it using the detected Python environment, and captures the output.",
@@ -8957,7 +12742,13 @@ export const introspectionData = [
         "required": [
           "code"
         ],
-        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>"
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Simple execution\nconst result = await python.execute('print(\"Hello World\")')\nconsole.log(result.stdout) // 'Hello World'\n\n// With variables\nconst result = await python.execute('print(f\"Hello {name}!\")', { name: 'Alice' })\n\n// Capture locals\nconst result = await python.execute('x = 42\\ny = x * 2', {}, { captureLocals: true })\nconsole.log(result.locals) // { x: 42, y: 84 }"
+          }
+        ]
       },
       "executeFile": {
         "description": "Executes a Python file and returns the result.",
@@ -8974,7 +12765,13 @@ export const introspectionData = [
         "required": [
           "filePath"
         ],
-        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
+        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const result = await python.executeFile('/path/to/script.py')\nconsole.log(result.stdout)"
+          }
+        ]
       },
       "getEnvironmentInfo": {
         "description": "Gets information about the current Python environment.",
@@ -9040,7 +12837,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
+      }
+    ]
   },
   {
     "id": "features.jsonTree",
@@ -9062,18 +12866,31 @@ export const introspectionData = [
         "required": [
           "basePath"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
+          }
+        ]
       }
     },
     "getters": {
       "tree": {
         "description": "Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree().",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await jsonTree.loadTree('data');\nawait jsonTree.loadTree('config', 'appConfig');\n\nconst allTrees = jsonTree.tree;\n// Returns: { \n//   data: { users: { ... }, products: { ... } },\n//   appConfig: { database: { ... }, api: { ... } }\n// }\n\n// Access specific trees\nconst userData = jsonTree.tree.data.users;\nconst dbConfig = jsonTree.tree.appConfig.database;"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.packageFinder",
@@ -9132,13 +12949,25 @@ export const introspectionData = [
           "manifest",
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "finder.addPackage({\n name: 'lodash',\n version: '4.17.21',\n description: 'A modern JavaScript utility library'\n}, '/project/node_modules/lodash/package.json');"
+          }
+        ]
       },
       "start": {
         "description": "Starts the package finder and performs the initial workspace scan. This method is idempotent - calling it multiple times will not re-scan if already started. It triggers the complete workspace scanning process.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await finder.start();\nconsole.log(`Found ${finder.packageNames.length} unique packages`);"
+          }
+        ]
       },
       "scan": {
         "description": "Performs a comprehensive scan of all node_modules directories in the workspace. This method orchestrates the complete scanning process: 1. Discovers all node_modules directories recursively 2. Finds all package directories (including scoped packages) 3. Reads and parses all package.json files in parallel 4. Indexes all packages for fast querying The scan is performed in parallel for optimal performance, reading multiple package.json files simultaneously.",
@@ -9155,7 +12984,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Manual scan (usually called automatically by start())\nawait finder.scan();\n\n// Check results\nconsole.log(`Scanned ${finder.manifests.length} packages`);"
+          }
+        ]
       },
       "findByName": {
         "description": "Finds the first package manifest matching the given name. If multiple versions of the package exist, returns the first one found. Use the packages property directly if you need all versions.",
@@ -9168,7 +13003,13 @@ export const introspectionData = [
         "required": [
           "name"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const lodash = finder.findByName('lodash');\nif (lodash) {\n console.log(`Found lodash version ${lodash.version}`);\n}"
+          }
+        ]
       },
       "findDependentsOf": {
         "description": "Finds all packages that declare the specified package as a dependency. Searches through dependencies and devDependencies of all packages to find which ones depend on the target package. Useful for impact analysis when considering package updates or removals.",
@@ -9181,7 +13022,13 @@ export const introspectionData = [
         "required": [
           "packageName"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const reactDependents = finder.findDependentsOf('react');\nconsole.log(`${reactDependents.length} packages depend on React:`);\nreactDependents.forEach(pkg => {\n console.log(`- ${pkg.name}@${pkg.version}`);\n});"
+          }
+        ]
       },
       "find": {
         "description": "Finds the first package manifest matching the provided filter function.",
@@ -9194,7 +13041,13 @@ export const introspectionData = [
         "required": [
           "filter"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Find a package with specific version\nconst specific = finder.find(pkg => pkg.name === 'lodash' && pkg.version.startsWith('4.'));\n\n// Find a package with description containing keyword\nconst utility = finder.find(pkg => pkg.description?.includes('utility'));"
+          }
+        ]
       },
       "filter": {
         "description": "Finds all package manifests matching the provided filter function.",
@@ -9207,7 +13060,13 @@ export const introspectionData = [
         "required": [
           "filter"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Find all packages with 'babel' in the name\nconst babelPackages = finder.filter(pkg => pkg.name.includes('babel'));\n\n// Find all packages with no description\nconst undocumented = finder.filter(pkg => !pkg.description);\n\n// Find all scoped packages\nconst scoped = finder.filter(pkg => pkg.name.startsWith('@'));"
+          }
+        ]
       },
       "exclude": {
         "description": "Returns all packages that do NOT match the provided filter function. This is the inverse of filter() - returns packages where filter returns false.",
@@ -9220,13 +13079,25 @@ export const introspectionData = [
         "required": [
           "filter"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
+          }
+        ]
       }
     },
     "getters": {
       "duplicates": {
         "description": "Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const duplicates = finder.duplicates;\n// ['lodash', 'react', '@types/node'] - packages with multiple versions\n\nduplicates.forEach(name => {\n console.log(`${name} has ${finder.packages[name].length} versions`);\n});"
+          }
+        ]
       },
       "isStarted": {
         "description": "Checks if the package finder has completed its initial scan.",
@@ -9234,24 +13105,235 @@ export const introspectionData = [
       },
       "packageNames": {
         "description": "Gets an array of all unique package names discovered in the workspace.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const names = finder.packageNames;\nconsole.log(`Found ${names.length} unique packages`);"
+          }
+        ]
       },
       "scopes": {
         "description": "Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel').",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const scopes = finder.scopes;\n// ['@types', '@babel', '@angular'] - all scopes in use\n\nscopes.forEach(scope => {\n const scopedPackages = finder.packageNames.filter(name => name.startsWith(scope));\n console.log(`${scope}: ${scopedPackages.length} packages`);\n});"
+          }
+        ]
       },
       "manifests": {
         "description": "Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const all = finder.manifests;\nconsole.log(`Total package instances: ${all.length}`);\n\n// Group by name to see duplicates\nconst grouped = all.reduce((acc, pkg) => {\n acc[pkg.name] = (acc[pkg.name] || 0) + 1;\n return acc;\n}, {});"
+          }
+        ]
       },
       "counts": {
         "description": "Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist.",
-        "returns": "any"
+        "returns": "any",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const counts = finder.counts;\n// { 'lodash': 3, 'react': 2, 'express': 1 }\n\nObject.entries(counts)\n .filter(([name, count]) => count > 1)\n .forEach(([name, count]) => {\n   console.log(`${name}: ${count} versions installed`);\n });"
+          }
+        ]
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
+  },
+  {
+    "id": "features.processManager",
+    "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.",
+    "shortcut": "features.processManager",
+    "methods": {
+      "spawn": {
+        "description": "Spawn a long-running process and return a handle immediately. The returned SpawnHandler provides events for stdout/stderr streaming, exit/crash notifications, and methods to kill or await the process.",
+        "parameters": {
+          "command": {
+            "type": "string",
+            "description": "The command to execute (e.g. 'node', 'bun', 'python')"
+          },
+          "args": {
+            "type": "string[]",
+            "description": "Arguments to pass to the command"
+          },
+          "options": {
+            "type": "SpawnOptions",
+            "description": "Spawn configuration",
+            "properties": {
+              "tag": {
+                "type": "string",
+                "description": "User-defined tag for later lookups via getByTag()"
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the spawned process (defaults to container cwd)"
+              },
+              "env": {
+                "type": "Record<string, string>",
+                "description": "Additional environment variables merged with process.env"
+              },
+              "stdin": {
+                "type": "'pipe' | 'inherit' | 'ignore' | null",
+                "description": "stdin mode: 'pipe' to write to the process, 'inherit', or 'ignore' (default: 'ignore')"
+              },
+              "stdout": {
+                "type": "'pipe' | 'inherit' | 'ignore' | null",
+                "description": "stdout mode: 'pipe' to capture output, 'inherit', or 'ignore' (default: 'pipe')"
+              },
+              "stderr": {
+                "type": "'pipe' | 'inherit' | 'ignore' | null",
+                "description": "stderr mode: 'pipe' to capture errors, 'inherit', or 'ignore' (default: 'pipe')"
+              }
+            }
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "returns": "SpawnHandler"
+      },
+      "get": {
+        "description": "Get a SpawnHandler by its unique ID.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "The process ID returned by spawn"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "SpawnHandler | undefined"
+      },
+      "getByTag": {
+        "description": "Find a SpawnHandler by its user-defined tag.",
+        "parameters": {
+          "tag": {
+            "type": "string",
+            "description": "The tag passed to spawn()"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "returns": "SpawnHandler | undefined"
+      },
+      "list": {
+        "description": "List all tracked SpawnHandlers (running and finished).",
+        "parameters": {},
+        "required": [],
+        "returns": "SpawnHandler[]"
+      },
+      "killAll": {
+        "description": "Kill all running processes.",
+        "parameters": {
+          "signal": {
+            "type": "NodeJS.Signals | number",
+            "description": "Signal to send (default: SIGTERM)"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "Stop the process manager: kill all running processes and remove cleanup handlers.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "remove": {
+        "description": "Remove a finished handler from tracking.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "The process ID to remove"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "boolean"
+      },
+      "enable": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "_onHandlerDone": {
+        "description": "Called by SpawnHandler when a process finishes. Updates feature-level state.",
+        "parameters": {
+          "handler": {
+            "type": "SpawnHandler",
+            "description": "Parameter handler"
+          },
+          "status": {
+            "type": "'exited' | 'crashed' | 'killed'",
+            "description": "Parameter status"
+          },
+          "exitCode": {
+            "type": "number",
+            "description": "Parameter exitCode"
+          }
+        },
+        "required": [
+          "handler",
+          "status"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {},
+    "events": {
+      "spawned": {
+        "name": "spawned",
+        "description": "Event emitted by ProcessManager",
+        "arguments": {}
+      },
+      "exited": {
+        "name": "exited",
+        "description": "Event emitted by ProcessManager",
+        "arguments": {}
+      },
+      "crashed": {
+        "name": "crashed",
+        "description": "Event emitted by ProcessManager",
+        "arguments": {}
+      },
+      "killed": {
+        "name": "killed",
+        "description": "Event emitted by ProcessManager",
+        "arguments": {}
+      },
+      "allStopped": {
+        "name": "allStopped",
+        "description": "Event emitted by ProcessManager",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
+      }
+    ]
   },
   {
     "id": "portExposer",
@@ -9259,56 +13341,98 @@ export const introspectionData = [
     "shortcut": "portExposer",
     "methods": {
       "expose": {
-        "description": "Expose the local port via ngrok",
+        "description": "Expose the local port via ngrok. Creates an ngrok tunnel to the specified local port and returns the SSL-enabled public URL. Emits `exposed` on success or `error` on failure.",
         "parameters": {
           "port": {
             "type": "number",
-            "description": "Optional port override"
+            "description": "Optional port override; falls back to `options.port`"
           }
         },
         "required": [],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Public URL: ${url}`)\n\n// Override port at call time\nconst url2 = await exposer.expose(8080)"
+          }
+        ]
       },
       "close": {
-        "description": "Stop exposing the port and close the ngrok tunnel",
+        "description": "Stop exposing the port and close the ngrok tunnel. Tears down the ngrok listener, resets connection state, and emits `closed`. Safe to call when no tunnel is active (no-op).",
         "parameters": {},
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// ... later\nawait exposer.close()\nconsole.log(exposer.isConnected()) // false"
+          }
+        ]
       },
       "getPublicUrl": {
-        "description": "Get the current public URL if connected",
+        "description": "Get the current public URL if connected. Returns the live URL from the ngrok listener, or `undefined` if no tunnel is active.",
         "parameters": {},
         "required": [],
-        "returns": "string | undefined"
+        "returns": "string | undefined",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconsole.log(exposer.getPublicUrl()) // 'https://abc123.ngrok.io'"
+          }
+        ]
       },
       "isConnected": {
-        "description": "Check if currently connected",
+        "description": "Check if the ngrok tunnel is currently connected.",
         "parameters": {},
         "required": [],
-        "returns": "boolean"
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconsole.log(exposer.isConnected()) // false\nawait exposer.expose()\nconsole.log(exposer.isConnected()) // true"
+          }
+        ]
       },
       "getConnectionInfo": {
-        "description": "Get connection information",
+        "description": "Get a snapshot of the current connection information. Returns an object with the tunnel's connected status, public URL, local port, connection timestamp, and session metadata.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconst info = exposer.getConnectionInfo()\nconsole.log(info.publicUrl, info.localPort, info.connectedAt)"
+          }
+        ]
       },
       "reconnect": {
-        "description": "Reconnect with new options",
+        "description": "Close the existing tunnel and re-expose with optionally updated options. Calls `close()` first, merges any new options, then calls `expose()`.",
         "parameters": {
           "newOptions": {
             "type": "Partial<PortExposerOptions>",
-            "description": "Parameter newOptions"
+            "description": "Optional partial options to merge before reconnecting"
           }
         },
         "required": [],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// Switch to a different port\nconst newUrl = await exposer.reconnect({ port: 8080 })"
+          }
+        ]
       },
       "disable": {
-        "description": "Override disable to ensure cleanup",
+        "description": "Disable the feature, ensuring the ngrok tunnel is closed first. Overrides the base `disable()` to guarantee that the tunnel is torn down before the feature is marked as disabled.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nawait exposer.disable()"
+          }
+        ]
       }
     },
     "getters": {},
@@ -9330,7 +13454,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "// Basic usage\nconst exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Service available at: ${url}`)\n\n// With custom subdomain\nconst exposer = container.feature('portExposer', {\n port: 8080,\n subdomain: 'my-app',\n authToken: 'your-ngrok-token'\n})"
+      }
+    ]
   },
   {
     "id": "features.googleSheets",
@@ -9468,165 +13599,225 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
+      }
+    ]
   },
   {
     "id": "features.secureShell",
-    "description": "Uses ssh to run commands, or scp to transfer files between a remote host.",
+    "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
     "shortcut": "features.secureShell",
     "methods": {
       "testConnection": {
-        "description": "Test the SSH connection",
+        "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<boolean>"
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
+          }
+        ]
       },
       "exec": {
         "description": "Executes a command on the remote host.",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "The command to execute."
+            "description": "The command to execute on the remote shell"
           }
         },
         "required": [
           "command"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+          }
+        ]
       },
       "download": {
-        "description": "Downloads a file from the remote host.",
+        "description": "Downloads a file from the remote host via SCP.",
         "parameters": {
           "source": {
             "type": "string",
-            "description": "The source file path on the remote host."
+            "description": "The source file path on the remote host"
           },
           "target": {
             "type": "string",
-            "description": "The target file path on the local machine."
+            "description": "The target file path on the local machine"
           }
         },
         "required": [
           "source",
           "target"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
+          }
+        ]
       },
       "upload": {
-        "description": "Uploads a file to the remote host.",
+        "description": "Uploads a file to the remote host via SCP.",
         "parameters": {
           "source": {
             "type": "string",
-            "description": "The source file path on the local machine."
+            "description": "The source file path on the local machine"
           },
           "target": {
             "type": "string",
-            "description": "The target file path on the remote host."
+            "description": "The target file path on the remote host"
           }
         },
         "required": [
           "source",
           "target"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
+          }
+        ]
       }
     },
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
+      }
+    ]
   },
   {
     "id": "features.runpod",
-    "description": "Manage RunPod GPU cloud pods: list templates, available GPUs, create and manage pods.",
+    "description": "RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. Provides a complete interface for provisioning and managing RunPod GPU instances. Supports creating pods from templates, managing network storage volumes, SSH access via the SecureShell feature, file transfers, and polling for pod readiness.",
     "shortcut": "features.runpod",
     "methods": {
       "listTemplates": {
-        "description": "",
+        "description": "List available pod templates.",
         "parameters": {
           "options": {
             "type": "{ includePublic?: boolean, includeRunpod?: boolean }",
-            "description": "Parameter options"
+            "description": "Filter options for templates",
+            "properties": {
+              "includePublic": {
+                "type": "any",
+                "description": "Include public community templates (default: false)"
+              },
+              "includeRunpod": {
+                "type": "any",
+                "description": "Include RunPod official templates (default: true)"
+              }
+            }
           }
         },
         "required": [],
-        "returns": "Promise<TemplateInfo[]>"
+        "returns": "Promise<TemplateInfo[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const templates = await runpod.listTemplates({ includeRunpod: true })\nconsole.log(templates.map(t => t.name))"
+          }
+        ]
       },
       "getTemplate": {
-        "description": "",
+        "description": "Get details for a specific template by ID.",
         "parameters": {
           "templateId": {
             "type": "string",
-            "description": "Parameter templateId"
+            "description": "The template ID to look up"
           }
         },
         "required": [
           "templateId"
         ],
-        "returns": "Promise<TemplateInfo>"
+        "returns": "Promise<TemplateInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const template = await runpod.getTemplate('abc123')\nconsole.log(template.imageName)"
+          }
+        ]
       },
       "createPod": {
-        "description": "",
+        "description": "Create a new GPU pod on RunPod.",
         "parameters": {
           "options": {
             "type": "CreatePodOptions",
-            "description": "Parameter options",
+            "description": "Pod configuration options",
             "properties": {
               "name": {
                 "type": "string",
-                "description": ""
+                "description": "Pod display name (default: 'luca-pod')"
               },
               "imageName": {
                 "type": "string",
-                "description": ""
+                "description": "Docker image name to run"
               },
               "gpuTypeId": {
                 "type": "string | string[]",
-                "description": ""
+                "description": "GPU type ID or array of acceptable GPU types"
               },
               "gpuCount": {
                 "type": "number",
-                "description": ""
+                "description": "Number of GPUs to allocate (default: 1)"
               },
               "templateId": {
                 "type": "string",
-                "description": ""
+                "description": "Template ID to use for pod configuration"
               },
               "cloudType": {
                 "type": "'SECURE' | 'COMMUNITY'",
-                "description": ""
+                "description": "Cloud type: 'SECURE' for dedicated or 'COMMUNITY' for shared (default: 'SECURE')"
               },
               "containerDiskInGb": {
                 "type": "number",
-                "description": ""
+                "description": "Container disk size in GB (default: 50)"
               },
               "volumeInGb": {
                 "type": "number",
-                "description": ""
+                "description": "Persistent volume size in GB (default: 20)"
               },
               "volumeMountPath": {
                 "type": "string",
-                "description": ""
+                "description": "Mount path for the volume (default: '/workspace')"
               },
               "ports": {
                 "type": "string[]",
-                "description": ""
+                "description": "Port mappings like ['8888/http', '22/tcp']"
               },
               "env": {
                 "type": "Record<string, string>",
-                "description": ""
+                "description": "Environment variables to set in the container"
               },
               "interruptible": {
                 "type": "boolean",
-                "description": ""
+                "description": "Whether the pod can be preempted for spot pricing"
               },
               "networkVolumeId": {
                 "type": "string",
-                "description": ""
+                "description": "ID of an existing network volume to attach"
               },
               "minRAMPerGPU": {
                 "type": "number",
-                "description": ""
+                "description": "Minimum RAM per GPU in GB"
               }
             }
           }
@@ -9634,81 +13825,131 @@ export const introspectionData = [
         "required": [
           "options"
         ],
-        "returns": "Promise<PodInfo>"
+        "returns": "Promise<PodInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pod = await runpod.createPod({\n gpuTypeId: 'NVIDIA RTX 4090',\n templateId: 'abc123',\n volumeInGb: 50,\n})\nconsole.log(`Pod ${pod.id} created`)"
+          }
+        ]
       },
       "stopPod": {
-        "description": "",
+        "description": "Stop a running pod.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to stop"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await runpod.stopPod('pod-abc123')"
+          }
+        ]
       },
       "startPod": {
-        "description": "",
+        "description": "Start a stopped pod.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to start"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await runpod.startPod('pod-abc123')"
+          }
+        ]
       },
       "removePod": {
-        "description": "",
+        "description": "Permanently delete a pod.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to remove"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await runpod.removePod('pod-abc123')"
+          }
+        ]
       },
       "getpods": {
-        "description": "Get all pods via REST API",
+        "description": "Get all pods via the REST API.",
         "parameters": {
           "filters": {
             "type": "{ name?: string; imageName?: string; desiredStatus?: string }",
-            "description": "Parameter filters"
+            "description": "Optional filters for name, image, or status",
+            "properties": {
+              "name": {
+                "type": "any",
+                "description": "Filter by pod name"
+              },
+              "imageName": {
+                "type": "any",
+                "description": "Filter by Docker image name"
+              },
+              "desiredStatus": {
+                "type": "any",
+                "description": "Filter by status (RUNNING, EXITED, TERMINATED)"
+              }
+            }
           }
         },
         "required": [],
-        "returns": "Promise<RestPodInfo[]>"
+        "returns": "Promise<RestPodInfo[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pods = await runpod.getpods({ desiredStatus: 'RUNNING' })\nconsole.log(pods.map(p => `${p.name}: ${p.desiredStatus}`))"
+          }
+        ]
       },
       "getPod": {
-        "description": "Get pod details via REST API (richer than runpodctl output)",
+        "description": "Get detailed pod info via the REST API. Returns richer data than the CLI-based `getPodInfo`, including port mappings and public IP.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to look up"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "Promise<RestPodInfo>"
+        "returns": "Promise<RestPodInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pod = await runpod.getPod('pod-abc123')\nconsole.log(`${pod.name} - ${pod.desiredStatus} - $${pod.costPerHr}/hr`)"
+          }
+        ]
       },
       "waitForPod": {
-        "description": "Poll until a pod reaches a desired status, returns the pod info",
+        "description": "Poll until a pod reaches a desired status.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to monitor"
           },
           "status": {
             "type": "string",
-            "description": "Parameter status"
+            "description": "Target status to wait for (default: 'RUNNING')"
           },
           "{ interval = 5000, timeout = 300000 }": {
             "type": "any",
@@ -9718,45 +13959,63 @@ export const introspectionData = [
         "required": [
           "podId"
         ],
-        "returns": "Promise<RestPodInfo>"
+        "returns": "Promise<RestPodInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc' })\nconst ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })"
+          }
+        ]
       },
       "listVolumes": {
-        "description": "List all network storage volumes on your account",
+        "description": "List all network storage volumes on your account.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<VolumeInfo[]>"
+        "returns": "Promise<VolumeInfo[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const volumes = await runpod.listVolumes()\nconsole.log(volumes.map(v => `${v.name}: ${v.size}GB`))"
+          }
+        ]
       },
       "getVolume": {
-        "description": "Get details for a specific network volume",
+        "description": "Get details for a specific network volume.",
         "parameters": {
           "volumeId": {
             "type": "string",
-            "description": "Parameter volumeId"
+            "description": "The volume ID to look up"
           }
         },
         "required": [
           "volumeId"
         ],
-        "returns": "Promise<VolumeInfo>"
+        "returns": "Promise<VolumeInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const vol = await runpod.getVolume('vol-abc123')\nconsole.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)"
+          }
+        ]
       },
       "createVolume": {
-        "description": "Create a new network storage volume",
+        "description": "Create a new network storage volume.",
         "parameters": {
           "options": {
             "type": "CreateVolumeOptions",
-            "description": "Parameter options",
+            "description": "Volume configuration",
             "properties": {
               "name": {
                 "type": "string",
-                "description": ""
+                "description": "Display name for the volume"
               },
               "size": {
                 "type": "number",
-                "description": ""
+                "description": "Size in GB"
               },
               "dataCenterId": {
                 "type": "string",
-                "description": ""
+                "description": "Data center to create in (defaults to feature's dataCenterId)"
               }
             }
           }
@@ -9764,46 +14023,70 @@ export const introspectionData = [
         "required": [
           "options"
         ],
-        "returns": "Promise<VolumeInfo>"
+        "returns": "Promise<VolumeInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const vol = await runpod.createVolume({ name: 'my-models', size: 100 })\nconsole.log(`Created volume ${vol.id}`)"
+          }
+        ]
       },
       "removeVolume": {
-        "description": "Delete a network storage volume",
+        "description": "Delete a network storage volume.",
         "parameters": {
           "volumeId": {
             "type": "string",
-            "description": "Parameter volumeId"
+            "description": "The volume ID to delete"
           }
         },
         "required": [
           "volumeId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "await runpod.removeVolume('vol-abc123')"
+          }
+        ]
       },
       "createRemoteShell": {
-        "description": "",
+        "description": "Create an SSH connection to a pod using the runpodctl CLI. Prefer `getShell()` which uses the REST API and is more reliable.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to connect to"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const shell = await runpod.createRemoteShell('pod-abc123')\nconst output = await shell.exec('nvidia-smi')"
+          }
+        ]
       },
       "getShell": {
-        "description": "Get a SecureShell for a pod using the REST API (portMappings + publicIp). Preferred over createRemoteShell which requires runpodctl CLI.",
+        "description": "Get an SSH connection to a pod using the REST API. Uses port mappings and public IP from the REST API, which is more reliable than the CLI-based `createRemoteShell`.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to connect to"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const shell = await runpod.getShell('pod-abc123')\nconst output = await shell.exec('ls /workspace')"
+          }
+        ]
       },
       "ensureFileExists": {
         "description": "Ensure a file exists on a pod's filesystem. If missing, kicks off a background download via a helper script and polls until the file appears.",
@@ -9844,69 +14127,106 @@ export const introspectionData = [
           "remotePath",
           "fallbackUrl"
         ],
-        "returns": "Promise<{ existed: boolean; path: string }>"
+        "returns": "Promise<{ existed: boolean; path: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await runpod.ensureFileExists(\n podId,\n '/workspace/ComfyUI/models/checkpoints/juggernaut_xl.safetensors',\n 'https://civitai.com/api/download/models/456789',\n { onProgress: (bytes) => console.log(`${(bytes / 1e9).toFixed(2)} GB downloaded`) }\n)"
+          }
+        ]
       },
       "getPodHttpURLs": {
-        "description": "",
+        "description": "Get the public HTTP proxy URLs for a pod's exposed HTTP ports.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const urls = await runpod.getPodHttpURLs('pod-abc123')\n// ['https://pod-abc123-8888.proxy.runpod.net']"
+          }
+        ]
       },
       "listPods": {
-        "description": "",
+        "description": "List all pods using the runpodctl CLI. Parses the tabular output from `runpodctl get pod`. For richer data, use `getpods()`.",
         "parameters": {
           "detailed": {
             "type": "any",
-            "description": "Parameter detailed"
+            "description": "Reserved for future use"
           }
         },
         "required": [],
-        "returns": "Promise<PodInfo[]>"
+        "returns": "Promise<PodInfo[]>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const pods = await runpod.listPods()\npods.forEach(p => console.log(`${p.name} (${p.gpu}): ${p.status}`))"
+          }
+        ]
       },
       "getPodInfo": {
-        "description": "",
+        "description": "Get pod info using the runpodctl CLI. For richer data including port mappings and public IP, use `getPod()`.",
         "parameters": {
           "podId": {
             "type": "string",
-            "description": "Parameter podId"
+            "description": "The pod ID to look up"
           }
         },
         "required": [
           "podId"
         ],
-        "returns": "Promise<PodInfo>"
+        "returns": "Promise<PodInfo>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const info = await runpod.getPodInfo('pod-abc123')\nconsole.log(`${info.name}: ${info.status}`)"
+          }
+        ]
       },
       "listSecureGPUs": {
-        "description": "",
+        "description": "List available secure GPU types with pricing. Uses the runpodctl CLI to query available secure cloud GPUs, filtering out reserved instances.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const gpus = await runpod.listSecureGPUs()\ngpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))"
+          }
+        ]
       }
     },
     "getters": {
       "proc": {
-        "description": "",
+        "description": "The proc feature used for executing CLI commands like runpodctl.",
         "returns": "any"
       },
       "apiKey": {
-        "description": "",
+        "description": "RunPod API key from options or the RUNPOD_API_KEY environment variable.",
         "returns": "any"
       },
       "dataCenterId": {
-        "description": "",
+        "description": "Preferred data center ID, defaults to 'US-TX-3'.",
         "returns": "any"
       }
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
+      }
+    ]
   },
   {
     "id": "features.fileManager",
@@ -10065,31 +14385,69 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
+      }
+    ]
   },
   {
     "id": "features.contentDb",
     "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
     "shortcut": "features.contentDb",
     "methods": {
+      "query": {
+        "description": "Query documents belonging to a specific model definition.",
+        "parameters": {
+          "model": {
+            "type": "T",
+            "description": "The model definition to query against"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
+          }
+        ]
+      },
       "parseMarkdownAtPath": {
         "description": "Parse a markdown file at the given path without loading the full collection.",
         "parameters": {
           "path": {
             "type": "string",
-            "description": "Parameter path"
+            "description": "Absolute or relative path to the markdown file"
           }
         },
         "required": [
           "path"
         ],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+          }
+        ]
       },
       "load": {
         "description": "Load the collection, discovering models from models.ts and parsing all documents.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<ContentDb>"
+        "returns": "Promise<ContentDb>",
+        "examples": [
+          {
+            "language": "typescript",
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
+          }
+        ]
       }
     },
     "getters": {
@@ -10102,7 +14460,7 @@ export const introspectionData = [
         "returns": "any"
       },
       "collectionPath": {
-        "description": "",
+        "description": "Returns the absolute resolved path to the collection root directory.",
         "returns": "any"
       },
       "models": {
@@ -10116,7 +14474,14 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "typescript",
+        "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.modelNames) // ['Article', 'Page', ...]"
+      }
+    ]
   },
   {
     "id": "servers.mcp",
@@ -10272,7 +14637,14 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const mcp = container.server('mcp', { serverName: 'my-server', serverVersion: '1.0.0' })\n\nmcp.tool('search_files', {\n schema: z.object({ pattern: z.string() }),\n description: 'Search for files',\n handler: async (args, ctx) => {\n   return ctx.container.feature('fs').walk('.', { include: [args.pattern] }).files.join('\\n')\n }\n})\n\nawait mcp.start()"
+      }
+    ]
   },
   {
     "id": "servers.express",
@@ -10361,7 +14733,8 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "servers.websocket",
@@ -10434,7 +14807,8 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   }
 ];
 
@@ -10489,6 +14863,68 @@ export const containerIntrospectionData = [
           }
         },
         "required": [],
+        "returns": "void"
+      },
+      "normalizeHelperOptions": {
+        "description": "Parse helper options through the helper's static options schema so defaults are materialized.",
+        "parameters": {
+          "BaseClass": {
+            "type": "any",
+            "description": "Parameter BaseClass"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          },
+          "fallbackName": {
+            "type": "string",
+            "description": "Parameter fallbackName"
+          }
+        },
+        "required": [
+          "BaseClass",
+          "options"
+        ],
+        "returns": "void"
+      },
+      "buildHelperCacheKey": {
+        "description": "",
+        "parameters": {
+          "type": {
+            "type": "string",
+            "description": "Parameter type"
+          },
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          },
+          "omitOptionKeys": {
+            "type": "string[]",
+            "description": "Parameter omitOptionKeys"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "options"
+        ],
+        "returns": "void"
+      },
+      "createHelperInstance": {
+        "description": "",
+        "parameters": {
+          "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }": {
+            "type": "{\n    cache: Map<string, any>\n    type: string\n    id: string\n    BaseClass: any\n    options?: any\n    fallbackName?: string\n    omitOptionKeys?: string[]\n    context?: any\n  }",
+            "description": "Parameter {\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+          }
+        },
+        "required": [
+          "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+        ],
         "returns": "void"
       },
       "feature": {

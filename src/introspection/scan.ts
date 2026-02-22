@@ -26,6 +26,8 @@ export type IntrospectionScannerOptions = z.infer<typeof IntrospectionScannerOpt
 export class IntrospectionScannerFeature extends Feature<IntrospectionScannerState, IntrospectionScannerOptions> {
   static override shortcut = 'introspectionScanner';
   static override description = 'Scans TypeScript files for Helper classes and generates introspection data using AST analysis';
+  static override stateSchema = IntrospectionScannerStateSchema;
+  static override optionsSchema = IntrospectionScannerOptionsSchema;
 
   override get initialState(): IntrospectionScannerState {
     return {

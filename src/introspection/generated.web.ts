@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-19T03:16:27.524Z
+// Generated at: 2026-02-22T22:25:08.556Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -46,7 +46,8 @@ setBuildTimeData('features.esbuild', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.voice', {
@@ -113,7 +114,8 @@ setBuildTimeData('features.voice', {
     }
   },
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.vm', {
@@ -170,7 +172,8 @@ setBuildTimeData('features.vm', {
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.assetLoader', {
@@ -226,7 +229,8 @@ setBuildTimeData('features.assetLoader', {
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.vault', {
@@ -275,7 +279,8 @@ setBuildTimeData('features.vault', {
   "getters": {},
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.network', {
@@ -308,7 +313,8 @@ setBuildTimeData('features.network', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 setBuildTimeData('features.speech', {
@@ -371,7 +377,8 @@ setBuildTimeData('features.speech', {
   },
   "events": {},
   "state": {},
-  "options": {}
+  "options": {},
+  "envVars": []
 });
 
 // Container introspection data
@@ -425,6 +432,68 @@ setContainerBuildTimeData('Container', {
         }
       },
       "required": [],
+      "returns": "void"
+    },
+    "normalizeHelperOptions": {
+      "description": "Parse helper options through the helper's static options schema so defaults are materialized.",
+      "parameters": {
+        "BaseClass": {
+          "type": "any",
+          "description": "Parameter BaseClass"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        },
+        "fallbackName": {
+          "type": "string",
+          "description": "Parameter fallbackName"
+        }
+      },
+      "required": [
+        "BaseClass",
+        "options"
+      ],
+      "returns": "void"
+    },
+    "buildHelperCacheKey": {
+      "description": "",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Parameter type"
+        },
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        },
+        "omitOptionKeys": {
+          "type": "string[]",
+          "description": "Parameter omitOptionKeys"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "options"
+      ],
+      "returns": "void"
+    },
+    "createHelperInstance": {
+      "description": "",
+      "parameters": {
+        "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }": {
+          "type": "{\n    cache: Map<string, any>\n    type: string\n    id: string\n    BaseClass: any\n    options?: any\n    fallbackName?: string\n    omitOptionKeys?: string[]\n    context?: any\n  }",
+          "description": "Parameter {\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+        }
+      },
+      "required": [
+        "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+      ],
       "returns": "void"
     },
     "feature": {
@@ -733,7 +802,8 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.voice",
@@ -799,7 +869,8 @@ export const introspectionData = [
       }
     },
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.vm",
@@ -855,7 +926,8 @@ export const introspectionData = [
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.assetLoader",
@@ -910,7 +982,8 @@ export const introspectionData = [
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.vault",
@@ -958,7 +1031,8 @@ export const introspectionData = [
     "getters": {},
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.network",
@@ -990,7 +1064,8 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.speech",
@@ -1052,7 +1127,8 @@ export const introspectionData = [
     },
     "events": {},
     "state": {},
-    "options": {}
+    "options": {},
+    "envVars": []
   }
 ];
 
@@ -1107,6 +1183,68 @@ export const containerIntrospectionData = [
           }
         },
         "required": [],
+        "returns": "void"
+      },
+      "normalizeHelperOptions": {
+        "description": "Parse helper options through the helper's static options schema so defaults are materialized.",
+        "parameters": {
+          "BaseClass": {
+            "type": "any",
+            "description": "Parameter BaseClass"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          },
+          "fallbackName": {
+            "type": "string",
+            "description": "Parameter fallbackName"
+          }
+        },
+        "required": [
+          "BaseClass",
+          "options"
+        ],
+        "returns": "void"
+      },
+      "buildHelperCacheKey": {
+        "description": "",
+        "parameters": {
+          "type": {
+            "type": "string",
+            "description": "Parameter type"
+          },
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          },
+          "omitOptionKeys": {
+            "type": "string[]",
+            "description": "Parameter omitOptionKeys"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "options"
+        ],
+        "returns": "void"
+      },
+      "createHelperInstance": {
+        "description": "",
+        "parameters": {
+          "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }": {
+            "type": "{\n    cache: Map<string, any>\n    type: string\n    id: string\n    BaseClass: any\n    options?: any\n    fallbackName?: string\n    omitOptionKeys?: string[]\n    context?: any\n  }",
+            "description": "Parameter {\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+          }
+        },
+        "required": [
+          "{\n    cache,\n    type,\n    id,\n    BaseClass,\n    options,\n    fallbackName,\n    omitOptionKeys = [],\n    context,\n  }"
+        ],
         "returns": "void"
       },
       "feature": {
