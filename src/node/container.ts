@@ -57,7 +57,8 @@ import "./features/google-docs";
 import "./features/window-manager";
 import "./features/launcher-app-command-listener";
 import "./features/nlp";
-import "./features/process-manager";
+import "./features/process-manager"
+import "./features/tts";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -99,7 +100,8 @@ import type { GoogleDocs } from './features/google-docs';
 import type { WindowManager } from './features/window-manager';
 import type { LauncherAppCommandListener } from './features/launcher-app-command-listener';
 import type { NLP } from './features/nlp';
-import type { ProcessManager } from './features/process-manager';
+import type { ProcessManager } from './features/process-manager'
+import type { TTS } from './features/tts';
 export { State };
 
 export {
@@ -137,6 +139,7 @@ export {
   type LauncherAppCommandListener,
   type NLP,
   type ProcessManager,
+  type TTS,
 };
 
 export type { FeatureOptions };
@@ -200,6 +203,7 @@ export interface NodeFeatures extends AvailableFeatures {
   launcherAppCommandListener: typeof LauncherAppCommandListener;
   nlp: typeof NLP;
   processManager: typeof ProcessManager;
+  tts: typeof TTS;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -246,6 +250,7 @@ export class NodeContainer<
   launcherAppCommandListener?: LauncherAppCommandListener;
   nlp?: NLP;
   processManager?: ProcessManager;
+  tts?: TTS;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

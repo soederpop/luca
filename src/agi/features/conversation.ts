@@ -3,7 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@soederpop/luca/container';
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { features, Feature } from '@soederpop/luca/feature'
-import type { OpenAIClient } from '../openai-client';
+import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
 
