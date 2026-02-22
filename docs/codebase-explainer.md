@@ -294,7 +294,7 @@ File-based routing (Remix-style). Each file exports HTTP method handlers.
 |------|------------|---------|
 | `explain-codebase.ts` | `bun run explain-codebase` | Uses Claude Code to generate an AI-powered explanation of the project structure. Tracks tokens and elapsed time. |
 | `scaffold.ts` | `bun run scripts/scaffold.ts` | Interactive CLI tool to generate boilerplate for new Features, Clients, Servers, or Endpoints with proper naming conventions. |
-| `update-introspection-data.ts` | `bun run build:introspection` | Runs IntrospectionScannerFeature against three source trees (node, web, agi) and outputs generated metadata files. |
+| `update-introspection-data.ts` | `luca update-introspection` | Runs IntrospectionScannerFeature against three source trees (node, web, agi) and outputs generated metadata files. Now a proper luca command in `commands/update-introspection.ts`. |
 | `scratch.ts` | `bun run scripts/scratch.ts` | Quick scratch/test script for ad-hoc experimentation. |
 
 ### `scripts/examples/` — Usage Examples
@@ -369,7 +369,7 @@ container.feature('fs', { different: true }) // Different options → different 
 Cache key = `hashObject({ id, options, uuid: container.uuid })` — same args always return the same instance.
 
 ### Introspection Pipeline
-1. **Build time:** `scripts/update-introspection-data.ts` runs `IntrospectionScannerFeature` to AST-parse all Helper subclasses, extracting JSDoc comments, method signatures, getter types, event definitions
+1. **Build time:** `luca update-introspection` (command in `commands/update-introspection.ts`) runs `IntrospectionScannerFeature` to AST-parse all Helper subclasses, extracting JSDoc comments, method signatures, getter types, event definitions
 2. **Output:** `src/introspection/generated.{node,web,agi}.ts` files that call `setBuildTimeData()`
 3. **Runtime:** `interceptRegistration()` merges Zod schema info (state shape, options shape, event args) when features register with a registry
 4. **Access:** `helper.introspect()` or `Helper.introspect()` returns `HelperIntrospection`, `helper.introspectAsText()` returns formatted markdown. `container.inspect()` / `container.inspectAsText()` for container-level introspection.
@@ -432,7 +432,7 @@ Helper<State, Options, Events>   # Abstract base for all helpers
 | Script | Command | Purpose |
 |--------|---------|---------|
 | `build` | `mkdist --declaration --ext=js` | Build library to `dist/` with type declarations |
-| `build:introspection` | `bun run scripts/update-introspection-data` | Regenerate introspection metadata files |
+| `build:introspection` | `luca update-introspection` | Regenerate introspection metadata files |
 | `compile` | `bun build ./src/cli/cli.ts --compile --outfile dist/luca` | Build single-file `luca` CLI executable |
 | `typecheck` | `tsc -p tsconfig.json --noEmit` | Type-check the entire project |
 | `explain-codebase` | `bun run scripts/explain-codebase.ts` | AI-generated codebase explanation |
