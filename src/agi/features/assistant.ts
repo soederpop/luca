@@ -22,6 +22,8 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	chunk: z.tuple([z.string().describe('A chunk of streamed text')]).describe('Emitted as tokens stream in'),
 	preview: z.tuple([z.string().describe('The accumulated response so far')]).describe('Emitted with the full response text accumulated across all turns'),
 	response: z.tuple([z.string().describe('The final response text')]).describe('Emitted when a complete response is produced (accumulated across all turns)'),
+	rawEvent: z.tuple([z.any().describe('A raw streaming event from the active model API')]).describe('Emitted for each raw streaming event from the underlying conversation transport'),
+	mcpEvent: z.tuple([z.any().describe('A raw MCP-related streaming event')]).describe('Emitted for MCP-specific streaming and output-item events when using Responses API MCP tools'),
 	toolCall: z.tuple([z.string().describe('Tool name'), z.any().describe('Tool arguments')]).describe('Emitted when a tool is called'),
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
@@ -499,6 +501,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			this.state.set('lastResponse', text)
 			this.fireHook('response', text)
 		})
+		this.conversation.on('rawEvent', (event: any) => {
+			this.emit('rawEvent', event)
+			this.fireHook('rawEvent', event)
+		})
+		this.conversation.on('mcpEvent', (event: any) => {
+			this.emit('mcpEvent', event)
+			this.fireHook('mcpEvent', event)
+		})
 		this.conversation.on('toolCall', (name: string, args: any) => {
 			this.emit('toolCall', name, args)
 			this.fireHook('toolCall', name, args)
@@ -529,7 +539,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	private bindHooks() {
 		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
 			// Only bind hooks that aren't already forwarded from conversation events
-			const forwardedEvents = ['created', 'chunk', 'preview', 'response', 'toolCall', 'toolResult', 'toolError', 'started']
+			const forwardedEvents = ['created', 'chunk', 'preview', 'response', 'rawEvent', 'mcpEvent', 'toolCall', 'toolResult', 'toolError', 'started']
 			if (!forwardedEvents.includes(eventName)) {
 				this.on(eventName as any, (...args: any[]) => {
 					this.emit('hookFired', eventName)
