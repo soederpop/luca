@@ -10,7 +10,7 @@
  *   bun run scripts/side-by-side-processes.tsx -- "ping localhost" "curl -s http://example.com"
  */
 import React from 'react'
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 const ink = container.feature('ink', { enable: true })
 const proc = container.feature('proc')

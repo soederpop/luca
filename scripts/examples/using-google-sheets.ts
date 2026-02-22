@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 // Pass a spreadsheet ID as the first argument, or set DEFAULT_SPREADSHEET_ID env var.
 // You can find the ID in a Google Sheets URL:

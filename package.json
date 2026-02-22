@@ -19,9 +19,16 @@
   "exports": {
     ".": "./src/node.ts",
     "./node": "./src/node.ts",
+    "./node/*": "./src/node/*",
     "./web": "./src/browser.ts",
+    "./web/*": "./src/web/*",
     "./agi": "./src/agi/index.ts",
-    "./schemas": "./src/schemas/base.ts"
+    "./agi/*": "./src/agi/*",
+    "./schemas": "./src/schemas/base.ts",
+    "./schemas/*": "./src/schemas/*",
+    "./container": "./src/container.ts",
+    "./client": "./src/client.ts",
+    "./feature": "./src/feature.ts"
   },
   "bin": {
     "luca": "./src/cli/cli.ts"

@@ -2,12 +2,12 @@ import {
   type ClientsInterface,
   clients,
   RestClient,
-} from "@/client";
-import type { Container, ContainerContext } from "@/container";
+} from "@soederpop/luca/client";
+import type { Container, ContainerContext } from "@soederpop/luca/container";
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema } from '@/schemas/base.js'
+import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
 
-declare module "@/client" {
+declare module "@soederpop/luca/client" {
   interface AvailableClients {
     comfyui: typeof ComfyUIClient;
   }

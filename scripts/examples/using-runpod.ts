@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 async function main() {
 	const runpod = container.feature('runpod')

@@ -2,7 +2,7 @@ import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import path from 'node:path'
 import { existsSync } from 'node:fs'
-import container from '@/node'
+import container from '@soederpop/luca/node'
 import { resolveAnimation } from './animations'
 
 type ProcessStatus = 'idle' | 'running' | 'exited' | 'error'

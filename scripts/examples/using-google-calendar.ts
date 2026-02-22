@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 async function main() {
 	// GoogleAuth reads GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET from env.

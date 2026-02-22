@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 const DEFAULT_DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
 

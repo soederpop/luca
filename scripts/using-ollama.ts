@@ -1,4 +1,4 @@
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 
 const conversation = container.feature('conversation', {
 	local: true,

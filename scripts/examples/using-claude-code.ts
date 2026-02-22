@@ -1,4 +1,4 @@
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 
 const claude = container.feature('claudeCode')
 

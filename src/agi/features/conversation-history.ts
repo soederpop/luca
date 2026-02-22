@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@/container'
-import { type AvailableFeatures } from '@/feature'
-import { features, Feature } from '@/feature'
-import { NodeContainer, type DiskCache, type NodeFeatures } from '@/node/container'
+import type { Container } from '@soederpop/luca/container'
+import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { features, Feature } from '@soederpop/luca/feature'
+import { NodeContainer, type DiskCache, type NodeFeatures } from '@soederpop/luca/node/container'
 import type { Message } from './conversation'
 
-declare module '@/feature' {
+declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
 		conversationHistory: typeof ConversationHistory
 	}

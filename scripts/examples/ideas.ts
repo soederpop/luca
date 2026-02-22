@@ -1,4 +1,4 @@
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 // @ts-ignore - module not yet implemented
 import createCollection, { Idea } from '@/ideas'
 

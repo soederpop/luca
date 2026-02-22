@@ -12,7 +12,7 @@
  *   bun run scripts/examples/excalidraw-expert.ts "a microservices architecture with api gateway"
  *   bun run scripts/examples/excalidraw-expert.ts "user auth flow" --style blueprint
  */
-import container from '@/agi/container.server'
+import container from '@soederpop/luca/agi/container.server'
 
 const args = process.argv.slice(2)
 const styleFlag = args.indexOf('--style')

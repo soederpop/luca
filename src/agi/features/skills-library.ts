@@ -5,12 +5,12 @@ import fs from 'fs/promises'
 import yaml from 'js-yaml'
 import { kebabCase } from 'lodash-es'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@/container'
-import { type AvailableFeatures, features, Feature } from '@/feature'
+import type { Container } from '@soederpop/luca/container'
+import { type AvailableFeatures, features, Feature } from '@soederpop/luca/feature'
 import { Collection, defineModel } from 'contentbase'
 import type { ConversationTool } from './conversation'
 
-declare module '@/feature' {
+declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
 		skillsLibrary: typeof SkillsLibrary
 	}
