@@ -82,6 +82,7 @@
     "child-process-promise": "^2.2.1",
     "chokidar": "^3.5.3",
     "cli-markdown": "^3.5.0",
+    "compromise": "^14.14.5",
     "contentbase": "file:../contentbase",
     "cors": "^2.8.5",
     "detect-port": "^1.5.1",
@@ -126,6 +127,8 @@
     "unist-util-find-before": "^3.0.1",
     "unist-util-select": "^4.0.3",
     "unist-util-visit": "^4.1.2",
+    "wink-eng-lite-web-model": "^1.8.1",
+    "wink-nlp": "^2.4.0",
     "ws": "^8.13.0",
     "zod": "^4.0.0"
   }
