@@ -67,7 +67,7 @@ bun run build:introspection
 This document is intended to be a summary of the layout of each file and its purpose, mainly for a new developer or an AI coder.  We should periodically update this document as the project evolves and things are added or removed.  No need to do it after every minor change.
 
 ```shell
-bun run explain-codebase
+luca explain-codebase
 ```
 
 ### Typecheck
