@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 const nlp = container.feature('nlp', { enable: true })
 

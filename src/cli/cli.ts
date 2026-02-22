@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 import '@/commands/index.js'
 import { homedir } from 'os'
 import { join } from 'path'

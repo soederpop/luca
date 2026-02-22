@@ -4,7 +4,7 @@
  *
  * Run with:  bun scripts/test-ideas-and-plans.ts
  */
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 
 const ui = container.feature('ui')
 const { bold, cyan, green, yellow, dim, red } = ui.colors

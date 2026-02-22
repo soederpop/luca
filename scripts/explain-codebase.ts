@@ -1,5 +1,5 @@
-import container from '@/agi'
-import type { ClaudeAssistantMessage } from '@/agi/features/claude-code'
+import container from '@soederpop/luca/agi'
+import type { ClaudeAssistantMessage } from '@soederpop/luca/agi/features/claude-code'
 
 const claude = container.feature('claudeCode')
 

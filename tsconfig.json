@@ -20,7 +20,19 @@
       "@/experts/*": ["identities/*"],
       "@/*": ["src/*"],
       "@/web/*": ["src/web/*"],
-      "@/node/*": ["src/node/*"]
+      "@/node/*": ["src/node/*"],
+      "@soederpop/luca": ["src/node.ts"],
+      "@soederpop/luca/node": ["src/node.ts"],
+      "@soederpop/luca/node/*": ["src/node/*"],
+      "@soederpop/luca/agi": ["src/agi/index.ts"],
+      "@soederpop/luca/agi/*": ["src/agi/*"],
+      "@soederpop/luca/web": ["src/browser.ts"],
+      "@soederpop/luca/web/*": ["src/web/*"],
+      "@soederpop/luca/schemas": ["src/schemas/base.ts"],
+      "@soederpop/luca/schemas/*": ["src/schemas/*"],
+      "@soederpop/luca/container": ["src/container.ts"],
+      "@soederpop/luca/client": ["src/client.ts"],
+      "@soederpop/luca/feature": ["src/feature.ts"]
     },
 
     // Best practices

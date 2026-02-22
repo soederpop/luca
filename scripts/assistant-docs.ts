@@ -1,4 +1,4 @@
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 
 const assistant = await container.feature('assistant', {
 	folder: "assistants/project-owner",

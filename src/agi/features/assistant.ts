@@ -1,14 +1,14 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import type { Container } from '@/container'
-import { type AvailableFeatures } from '@/feature'
-import { features, Feature } from '@/feature'
+import type { Container } from '@soederpop/luca/container'
+import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { features, Feature } from '@soederpop/luca/feature'
 import type { Conversation, ConversationTool, ContentPart } from './conversation'
 import type { DocsReader } from './docs-reader'
 import type { AGIContainer } from '../container.server.js'
-import type { ContentDb } from '@/node/features/content-db.js'
+import type { ContentDb } from '@soederpop/luca/node/features/content-db.js'
 
-declare module '@/feature' {
+declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
 		assistant: typeof Assistant
 	}

@@ -1,4 +1,4 @@
-import container from '@/node'
+import container from '@soederpop/luca/node'
 
 // Pass a document ID as the first argument, or omit to list available docs.
 // You can find the ID in a Google Docs URL:

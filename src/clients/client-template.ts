@@ -3,12 +3,12 @@ import {
   type ClientsInterface,
   clients,
   RestClient,
-} from "@/client";
-import { type ContainerContext } from "@/container";
+} from "@soederpop/luca/client";
+import { type ContainerContext } from "@soederpop/luca/container";
 import { z } from 'zod'
-import { ClientStateSchema } from '@/schemas/base.js'
+import { ClientStateSchema } from '@soederpop/luca/schemas/base.js'
 
-declare module "@/client" {
+declare module "@soederpop/luca/client" {
   interface AvailableClients {
     myClient: typeof MyClient;
   }

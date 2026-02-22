@@ -3,14 +3,14 @@ import {
   type ClientOptions,
   type ClientsInterface,
   clients,
-} from "@/client";
-import type { Container, ContainerContext } from "@/container";
+} from "@soederpop/luca/client";
+import type { Container, ContainerContext } from "@soederpop/luca/container";
 import { z } from "zod";
 import {
   ClientStateSchema,
   ClientOptionsSchema,
   ClientEventsSchema,
-} from "@/schemas/base.js";
+} from "@soederpop/luca/schemas/base.js";
 import {
   createClient,
   type SupabaseClient as SupabaseSDKClient,
@@ -18,7 +18,7 @@ import {
   type RealtimeChannel,
 } from "@supabase/supabase-js";
 
-declare module "@/client" {
+declare module "@soederpop/luca/client" {
   interface AvailableClients {
     supabase: typeof SupabaseClient;
   }

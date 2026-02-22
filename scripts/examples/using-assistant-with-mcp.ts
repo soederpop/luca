@@ -11,7 +11,7 @@
  * Usage:
  *   bun run scripts/examples/using-assistant-with-mcp.ts
  */
-import container from '@/agi'
+import container from '@soederpop/luca/agi'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ type ServerInfo = {
   port: number
   status: 'checking' | 'spawning' | 'running' | 'external' | 'error' | 'exited'
   spawned: boolean
+  publicUrl?: string
 }
 
 type ChatMessage = {
@@ -128,6 +129,22 @@ async function main() {
     }
   }
 
+  // ── Phase 1b: Expose MCP Servers via ngrok ─────────────────────────────
+
+  const publicUrls: Record<string, string> = {}
+  const exposers: Array<{ close(): Promise<void> }> = []
+
+  for (const def of MCP_SERVERS) {
+    const entry = serverMap[def.tag]!
+    if (entry.status === 'running' || entry.status === 'external') {
+      const exposer = container.feature('portExposer', { port: def.port, enable: true })
+      const url = await exposer.expose()
+      publicUrls[def.tag] = `${url}/mcp`
+      entry.publicUrl = url
+      exposers.push(exposer)
+    }
+  }
+
   // ── Phase 2: Setup Assistant ────────────────────────────────────────────
 
   const assistant = container.feature('assistant', {
@@ -144,10 +161,12 @@ async function main() {
   await assistant.start()
 
   assistant.conversation!.options.mcpServers = Object.fromEntries(
-    MCP_SERVERS.map((s) => [
-      s.tag,
-      { url: `http://localhost:${s.port}/mcp`, requireApproval: 'never' },
-    ]),
+    MCP_SERVERS
+      .filter((s) => publicUrls[s.tag])
+      .map((s) => [
+        s.tag,
+        { url: publicUrls[s.tag], requireApproval: 'never' },
+      ]),
   )
 
   // ── Phase 3: Load Ink & Render ──────────────────────────────────────────
@@ -224,6 +243,9 @@ async function main() {
       h(Text, { color: dotColor }, statusText),
       info.spawned
         ? h(Text, { dimColor: true }, ' (auto)')
+        : null,
+      info.publicUrl
+        ? h(Text, { dimColor: true }, ` ${info.publicUrl.replace('https://', '')}`)
         : null,
     )
   }
@@ -474,6 +496,7 @@ async function main() {
     useInput(
       (input, key) => {
         if (key.ctrl && input === 'c') {
+          for (const e of exposers) e.close().catch(() => {})
           pm.killAll()
           exit()
         }
@@ -530,6 +553,7 @@ async function main() {
   await ink.render(h(App))
   await ink.waitUntilExit()
 
+  for (const e of exposers) await e.close().catch(() => {})
   pm.killAll()
 }
 

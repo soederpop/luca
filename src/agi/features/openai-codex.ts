@@ -1,12 +1,12 @@
 // @ts-nocheck
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@/container'
-import { type AvailableFeatures } from '@/feature'
-import { features, Feature } from '@/feature'
+import type { Container } from '@soederpop/luca/container'
+import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { features, Feature } from '@soederpop/luca/feature'
 import type { Subprocess } from 'bun'
 
-declare module '@/feature' {
+declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
     openaiCodex: typeof OpenAICodex
   }

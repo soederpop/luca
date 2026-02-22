@@ -3,14 +3,14 @@ import {
   type ClientOptions,
   type ClientsInterface,
   RestClient,
-} from "@/client";
-import { Container, type ContainerContext } from "@/container";
+} from "@soederpop/luca/client";
+import { Container, type ContainerContext } from "@soederpop/luca/container";
 import { isEmpty, maxBy, omitBy } from "lodash-es";
-import { NodeContainer } from "@/node/container";
+import { NodeContainer } from "@soederpop/luca/node/container";
 import { z } from 'zod'
-import { ClientStateSchema } from '@/schemas/base.js'
+import { ClientStateSchema } from '@soederpop/luca/schemas/base.js'
 
-declare module "@/client" {
+declare module "@soederpop/luca/client" {
   interface AvailableClients {
     civitai: typeof CivitaiClient;
   }
