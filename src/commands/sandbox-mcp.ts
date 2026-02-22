@@ -6,7 +6,7 @@ import type { MCPServer } from '../servers/mcp.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
-		'mcp-sandbox': ReturnType<typeof commands.registerHandler>
+		'sandbox-mcp': ReturnType<typeof commands.registerHandler>
 	}
 }
 
@@ -351,7 +351,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	}
 }
 
-commands.registerHandler('mcp-sandbox', {
+commands.registerHandler('sandbox-mcp', {
 	description: 'Start an MCP server with a Luca container sandbox for AI agents to explore and test code',
 	argsSchema,
 	handler: mcpSandbox,
