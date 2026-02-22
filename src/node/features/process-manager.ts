@@ -68,11 +68,17 @@ interface SpawnHandlerEvents extends EventMap {
 }
 
 export interface SpawnOptions {
+  /** User-defined tag for later lookups via getByTag() */
   tag?: string
+  /** Working directory for the spawned process (defaults to container cwd) */
   cwd?: string
+  /** Additional environment variables merged with process.env */
   env?: Record<string, string>
+  /** stdin mode: 'pipe' to write to the process, 'inherit', or 'ignore' (default: 'ignore') */
   stdin?: 'pipe' | 'inherit' | 'ignore' | null
+  /** stdout mode: 'pipe' to capture output, 'inherit', or 'ignore' (default: 'pipe') */
   stdout?: 'pipe' | 'inherit' | 'ignore' | null
+  /** stderr mode: 'pipe' to capture errors, 'inherit', or 'ignore' (default: 'pipe') */
   stderr?: 'pipe' | 'inherit' | 'ignore' | null
 }
 

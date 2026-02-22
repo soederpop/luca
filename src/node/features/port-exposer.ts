@@ -65,13 +65,13 @@ export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
  * @example
  * ```typescript
  * // Basic usage
- * const exposer = container.use('portExposer', { port: 3000 })
+ * const exposer = container.feature('portExposer', { port: 3000 })
  * const url = await exposer.expose()
  * console.log(`Service available at: ${url}`)
- * 
+ *
  * // With custom subdomain
- * const exposer = container.use('portExposer', { 
- *   port: 8080, 
+ * const exposer = container.feature('portExposer', {
+ *   port: 8080,
  *   subdomain: 'my-app',
  *   authToken: 'your-ngrok-token'
  * })
@@ -92,10 +92,24 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 
 	/**
-	 * Expose the local port via ngrok
-	 * 
-	 * @param port Optional port override
-	 * @returns Promise resolving to the public URL
+	 * Expose the local port via ngrok.
+	 *
+	 * Creates an ngrok tunnel to the specified local port and returns
+	 * the SSL-enabled public URL. Emits `exposed` on success or `error` on failure.
+	 *
+	 * @param port - Optional port override; falls back to `options.port`
+	 * @returns Promise resolving to the public URL string
+	 * @throws {Error} When no port is specified in options or parameter
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * const url = await exposer.expose()
+	 * console.log(`Public URL: ${url}`)
+	 *
+	 * // Override port at call time
+	 * const url2 = await exposer.expose(8080)
+	 * ```
 	 */
 	async expose(port?: number): Promise<string> {
 		const targetPort = port || this.options.port
@@ -167,7 +181,22 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 
 	/**
-	 * Stop exposing the port and close the ngrok tunnel
+	 * Stop exposing the port and close the ngrok tunnel.
+	 *
+	 * Tears down the ngrok listener, resets connection state, and emits `closed`.
+	 * Safe to call when no tunnel is active (no-op).
+	 *
+	 * @returns Promise that resolves when the tunnel is fully closed
+	 * @throws {Error} When the ngrok listener fails to close
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * await exposer.expose()
+	 * // ... later
+	 * await exposer.close()
+	 * console.log(exposer.isConnected()) // false
+	 * ```
 	 */
 	async close(): Promise<void> {
 		if (this.ngrokListener) {
@@ -193,21 +222,55 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 
 	/**
-	 * Get the current public URL if connected
+	 * Get the current public URL if connected.
+	 *
+	 * Returns the live URL from the ngrok listener, or `undefined` if no tunnel is active.
+	 *
+	 * @returns The public HTTPS URL string, or undefined when disconnected
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * await exposer.expose()
+	 * console.log(exposer.getPublicUrl()) // 'https://abc123.ngrok.io'
+	 * ```
 	 */
 	getPublicUrl(): string | undefined {
 		return this.ngrokListener?.url() || undefined
 	}
 
 	/**
-	 * Check if currently connected
+	 * Check if the ngrok tunnel is currently connected.
+	 *
+	 * @returns `true` when an active tunnel exists, `false` otherwise
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * console.log(exposer.isConnected()) // false
+	 * await exposer.expose()
+	 * console.log(exposer.isConnected()) // true
+	 * ```
 	 */
 	isConnected(): boolean {
 		return this.state.get('connected') ?? false
 	}
 
 	/**
-	 * Get connection information
+	 * Get a snapshot of the current connection information.
+	 *
+	 * Returns an object with the tunnel's connected status, public URL,
+	 * local port, connection timestamp, and session metadata.
+	 *
+	 * @returns An object containing `connected`, `publicUrl`, `localPort`, `connectedAt`, and `sessionInfo`
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * await exposer.expose()
+	 * const info = exposer.getConnectionInfo()
+	 * console.log(info.publicUrl, info.localPort, info.connectedAt)
+	 * ```
 	 */
 	getConnectionInfo() {
 		const state = this.state.current
@@ -221,7 +284,20 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 
 	/**
-	 * Reconnect with new options
+	 * Close the existing tunnel and re-expose with optionally updated options.
+	 *
+	 * Calls `close()` first, merges any new options, then calls `expose()`.
+	 *
+	 * @param newOptions - Optional partial options to merge before reconnecting
+	 * @returns Promise resolving to the new public URL string
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * await exposer.expose()
+	 * // Switch to a different port
+	 * const newUrl = await exposer.reconnect({ port: 8080 })
+	 * ```
 	 */
 	async reconnect(newOptions?: Partial<PortExposerOptions>): Promise<string> {
 		await this.close()
@@ -234,7 +310,19 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 
 	/**
-	 * Override disable to ensure cleanup
+	 * Disable the feature, ensuring the ngrok tunnel is closed first.
+	 *
+	 * Overrides the base `disable()` to guarantee that the tunnel is
+	 * torn down before the feature is marked as disabled.
+	 *
+	 * @returns This PortExposer instance
+	 *
+	 * @example
+	 * ```typescript
+	 * const exposer = container.feature('portExposer', { port: 3000 })
+	 * await exposer.expose()
+	 * await exposer.disable()
+	 * ```
 	 */
 	async disable(): Promise<this> {
 		await this.close()

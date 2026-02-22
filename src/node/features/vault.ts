@@ -44,6 +44,12 @@ export class Vault extends Feature<VaultState, VaultOptions> {
   static override stateSchema = VaultStateSchema
   static override optionsSchema = VaultOptionsSchema
 
+  /**
+   * Attach hook for the Vault feature. Currently a no-op placeholder
+   * for future container-level initialization logic.
+   *
+   * @param c - The node container instance
+   */
   static attach(c: NodeContainer) {
 
   }

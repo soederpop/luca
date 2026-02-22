@@ -307,6 +307,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     return listener
   }
 
+  /** Default state: not listening, no client connected, zero windows tracked. */
   override get initialState(): WindowManagerState {
     return {
       ...super.initialState,
@@ -342,6 +343,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * until the native app connects; does nothing visible if it never does.
    *
    * @param socketPath - Override the configured socket path
+   * @returns This feature instance for chaining
    */
   listen(socketPath?: string): this {
     if (this._server) return this
@@ -390,6 +392,8 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   /**
    * Stop the IPC server and clean up all connections.
    * Rejects any pending window operation requests.
+   *
+   * @returns This feature instance for chaining
    */
   async stop(): Promise<this> {
     for (const [, pending] of this._pending) {
@@ -479,6 +483,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Bring a window to the front.
    *
    * @param windowId - The window ID. If omitted, the app uses the most recent window.
+   * @returns The window ack result
    */
   async focus(windowId?: string): Promise<WindowAckResult> {
     return this.sendWindowCommand({
@@ -491,6 +496,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Close a window.
    *
    * @param windowId - The window ID. If omitted, the app closes the most recent window.
+   * @returns The window ack result
    */
   async close(windowId?: string): Promise<WindowAckResult> {
     return this.sendWindowCommand({
@@ -504,6 +510,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    *
    * @param windowId - The window ID
    * @param url - The URL to navigate to
+   * @returns The window ack result
    */
   async navigate(windowId: string, url: string): Promise<WindowAckResult> {
     return this.sendWindowCommand({
@@ -535,6 +542,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Capture a PNG screenshot from a window.
    *
    * @param opts - Window target and output path
+   * @returns The window ack result
    */
   async screengrab(opts: WindowScreenGrabOptions): Promise<WindowAckResult> {
     return this.sendWindowCommand({
@@ -548,6 +556,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Record a video from a window to disk.
    *
    * @param opts - Window target, output path, and optional duration
+   * @returns The window ack result
    */
   async video(opts: WindowVideoOptions): Promise<WindowAckResult> {
     return this.sendWindowCommand({
@@ -737,6 +746,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Public so other features can send arbitrary protocol messages over the same socket.
    *
    * @param msg - The message object to send (will be JSON-serialized + newline)
+   * @returns True if the message was written, false if no client is connected
    */
   send(msg: Record<string, any>): boolean {
     if (!this._client) return false

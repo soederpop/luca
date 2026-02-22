@@ -16,6 +16,19 @@ export const ReplOptionsSchema = FeatureOptionsSchema.extend({
 })
 export type ReplOptions = z.infer<typeof ReplOptionsSchema>
 
+/**
+ * REPL feature — provides an interactive read-eval-print loop with tab completion and history.
+ *
+ * Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed
+ * VM context populated with the container and its helpers. Supports tab completion for
+ * dot-notation property access, command history persistence, and async/await.
+ *
+ * @example
+ * ```typescript
+ * const repl = container.feature('repl', { enable: true })
+ * await repl.start({ context: { myVar: 42 } })
+ * ```
+ */
 export class Repl<
   T extends ReplState = ReplState,
   K extends ReplOptions = ReplOptions
@@ -24,6 +37,7 @@ export class Repl<
   static override stateSchema = ReplStateSchema
   static override optionsSchema = ReplOptionsSchema
 
+  /** Whether the REPL session is currently running. */
   get isStarted() {
     return !!this.state.get("started");
   }
@@ -33,10 +47,32 @@ export class Repl<
   _history: string[] = []
   _historyPath?: string
 
+  /** The VM context object used for evaluating expressions in the REPL. */
   get vmContext() {
     return this._vmContext
   }
 
+  /**
+   * Start the REPL session.
+   *
+   * Creates a VM context populated with the container and its helpers, sets up
+   * readline with tab completion and history, then enters the interactive loop.
+   * Type `.exit` or `exit` to quit. Supports top-level await.
+   *
+   * @param options - Configuration for the REPL session
+   * @param options.historyPath - Custom path for the history file (defaults to node_modules/.cache/.repl_history)
+   * @param options.context - Additional variables to inject into the VM context
+   * @returns The Repl instance
+   *
+   * @example
+   * ```typescript
+   * const repl = container.feature('repl', { enable: true })
+   * await repl.start({
+   *   context: { db: myDatabase },
+   *   historyPath: '.repl-history'
+   * })
+   * ```
+   */
   async start(options: { historyPath?: string, context?: any } = {}) {
     if (this.isStarted) {
       return this;

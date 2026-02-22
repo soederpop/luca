@@ -73,35 +73,40 @@ export class VM<
   }
  
   /**
-   * Creates a new execution context for running VM scripts.
-   * 
-   * This method creates an isolated JavaScript execution context that combines
-   * the container's context with any additional context variables provided.
-   * The resulting context can be used to run scripts with controlled variable access.
-   * 
-   * @param {any} [ctx={}] - Additional context variables to include in the execution environment
-   * @returns {vm.Context} A VM context ready for script execution
-   * 
+   * Check whether an object has already been contextified by `vm.createContext()`.
+   *
+   * Useful to avoid double-contextifying when you're not sure if the caller
+   * passed a plain object or an existing context.
+   *
+   * @param ctx - The object to check
+   * @returns True if the object is a VM context
+   *
    * @example
    * ```typescript
-   * // Create context with custom variables
-   * const context = vm.createContext({ 
-   *   user: { name: 'John', age: 30 },
-   *   config: { debug: true }
-   * })
-   * 
-   * // Create context inheriting from container
-   * const containerContext = vm.createContext()
+   * const ctx = vm.createContext({ x: 1 })
+   * vm.isContext(ctx)   // true
+   * vm.isContext({ x: 1 }) // false
    * ```
-   */
-  /**
-   * Returns true if the given object has already been contextified by `vm.createContext()`.
-   * Use this to avoid double-contextifying when you're not sure if the caller passed a plain object or an existing context.
    */
   isContext(ctx: unknown): ctx is vm.Context {
     return typeof ctx === 'object' && ctx !== null && vm.isContext(ctx as vm.Context)
   }
 
+  /**
+   * Create an isolated JavaScript execution context.
+   *
+   * Combines the container's context with any additional variables provided.
+   * If the input is already a VM context, it is returned as-is.
+   *
+   * @param ctx - Additional context variables to include
+   * @returns A VM context ready for script execution
+   *
+   * @example
+   * ```typescript
+   * const context = vm.createContext({ user: { name: 'John' } })
+   * const result = vm.runSync('user.name', context)
+   * ```
+   */
   createContext(ctx: any = {}) {
     if (this.isContext(ctx)) return ctx
     return vm.createContext({
@@ -151,12 +156,19 @@ export class VM<
     return (await script.runInContext(context)) as T
   }
 
-  /*
-   * Executes JavaScript code in a controlled environment synchronously.
-   * @param {string} code - The JavaScript code to execute
-   * @param {any} [ctx={}] - Context variables to make available to the executing code
-   * @returns {any} The result of the code execution, or an Error object if execution failed
-  */
+  /**
+   * Execute JavaScript code synchronously in a controlled environment.
+   *
+   * @param code - The JavaScript code to execute
+   * @param ctx - Context variables to make available to the executing code
+   * @returns The result of the code execution
+   *
+   * @example
+   * ```typescript
+   * const sum = vm.runSync('a + b', { a: 2, b: 3 })
+   * console.log(sum) // 5
+   * ```
+   */
   runSync<T extends any = any>(code: string, ctx: any = {}): T {
     const script = this.createScript(code)
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
@@ -164,6 +176,23 @@ export class VM<
     return script.runInContext(context) as T
   }
 
+  /**
+   * Execute code asynchronously and return both the result and the execution context.
+   *
+   * Unlike `run`, this method also returns the context object, allowing you to inspect
+   * variables set during execution.
+   *
+   * @param code - The JavaScript code to execute
+   * @param ctx - Context variables to make available to the executing code
+   * @returns The execution result and the context object
+   *
+   * @example
+   * ```typescript
+   * const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })
+   * console.log(result)     // 84
+   * console.log(context.x)  // 42
+   * ```
+   */
   async perform<T extends any>(code: string, ctx: any = {}): Promise<{ result: T, context: vm.Context }> {
     const script = this.createScript(code)
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)

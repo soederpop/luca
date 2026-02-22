@@ -109,6 +109,25 @@ export type SupabaseClientState = z.infer<typeof SupabaseClientStateSchema>;
  *
  * Use `client.sdk` for full SDK access, or use the convenience wrappers for
  * common operations (auth, database queries, storage, edge functions, realtime).
+ *
+ * @example
+ * ```typescript
+ * const supabase = container.client('supabase', {
+ *   supabaseUrl: 'https://xyz.supabase.co',
+ *   supabaseKey: 'your-anon-key',
+ * })
+ *
+ * // Query data
+ * const { data } = await supabase.from('users').select('*')
+ *
+ * // Auth
+ * await supabase.signInWithPassword('user@example.com', 'password')
+ *
+ * // Realtime
+ * supabase.subscribe('changes', 'users', (payload) => {
+ *   console.log('Change:', payload)
+ * })
+ * ```
  */
 export class SupabaseClient extends Client<
   SupabaseClientState,

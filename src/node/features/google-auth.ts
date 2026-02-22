@@ -157,6 +157,8 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   /**
    * Get the OAuth2Client instance, creating it lazily.
    * After authentication, this client has valid credentials set.
+   *
+   * @returns The OAuth2Client instance
    */
   getOAuth2Client(): OAuth2Client {
     if (this._oauth2Client) return this._oauth2Client
@@ -342,6 +344,8 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
    * Authenticate using a service account JSON key file.
    * Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey,
    * or the GOOGLE_SERVICE_ACCOUNT_KEY env var.
+   *
+   * @returns This feature instance for chaining
    */
   async authenticateServiceAccount(): Promise<this> {
     try {
@@ -426,6 +430,8 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
 
   /**
    * Revoke the current credentials and clear cached tokens.
+   *
+   * @returns This feature instance for chaining
    */
   async revoke(): Promise<this> {
     try {

@@ -14,14 +14,13 @@ declare module "@soederpop/luca/client" {
 }
 
 export const ComfyUIClientStateSchema = ClientStateSchema.extend({
-  clientId: z.string().default(''),
-  queueRemaining: z.number().default(0),
-  executing: z.string().nullable().default(null),
+  clientId: z.string().default('').describe('Unique client ID used for WebSocket session tracking'),
+  queueRemaining: z.number().default(0).describe('Number of prompts remaining in the queue'),
+  executing: z.string().nullable().default(null).describe('Prompt ID currently being executed, or null'),
 })
 
 export const ComfyUIClientOptionsSchema = ClientOptionsSchema.extend({
-  /** Override the WebSocket URL (defaults to ws version of baseURL) */
-  wsURL: z.string().optional(),
+  wsURL: z.string().optional().describe('Override the WebSocket URL (defaults to ws version of baseURL)'),
 })
 
 export type ComfyUIClientState = z.infer<typeof ComfyUIClientStateSchema>
@@ -47,6 +46,22 @@ export type WorkflowResult = {
   images?: Array<{ filename: string; subfolder: string; type: string; localPath?: string }>;
 };
 
+/**
+ * ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API.
+ *
+ * Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling,
+ * and download generated images. Supports both UI-format and API-format workflows with
+ * automatic conversion.
+ *
+ * @example
+ * ```typescript
+ * const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })
+ * const result = await comfy.runWorkflow(workflow, {
+ *   '6': { text: 'a beautiful sunset' }
+ * })
+ * console.log(result.images)
+ * ```
+ */
 export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientOptions> {
   static override shortcut = "clients.comfyui" as const;
   static override description = "ComfyUI workflow execution client";
@@ -69,6 +84,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     );
   }
 
+  /** Initial state with a random client ID. */
   override get initialState(): ComfyUIClientState {
     return {
       connected: false,
@@ -78,10 +94,12 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     } as ComfyUIClientState;
   }
 
+  /** The unique client ID used for WebSocket session tracking. */
   get clientId(): string {
     return this.state.get("clientId")!;
   }
 
+  /** The WebSocket URL derived from baseURL or overridden via options. */
   get wsURL(): string {
     if (this.options.wsURL) return this.options.wsURL;
     return this.baseURL.replace(/^http/, "ws") + "/ws";
@@ -91,6 +109,18 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   // Core API methods
   // ---------------------------------------------------------------------------
 
+  /**
+   * Queue a prompt (API-format workflow) for execution.
+   *
+   * @param prompt - The API-format workflow object
+   * @param clientId - Override the client ID for this request
+   * @returns The prompt ID and queue number
+   *
+   * @example
+   * ```typescript
+   * const { prompt_id } = await comfy.queuePrompt(apiWorkflow)
+   * ```
+   */
   async queuePrompt(prompt: Record<string, any>, clientId?: string): Promise<{ prompt_id: string; number: number }> {
     return this.post("/prompt", {
       prompt,
@@ -98,34 +128,72 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     });
   }
 
+  /**
+   * Get the current prompt queue status.
+   *
+   * @returns Running and pending queue items
+   */
   async getQueue(): Promise<{ queue_running: any[]; queue_pending: any[] }> {
     return this.get("/queue");
   }
 
+  /**
+   * Get execution history, optionally for a specific prompt.
+   *
+   * @param promptId - If provided, returns history for this prompt only
+   * @returns History records keyed by prompt ID
+   */
   async getHistory(promptId?: string): Promise<Record<string, any>> {
     return this.get(promptId ? `/history/${promptId}` : "/history");
   }
 
+  /**
+   * Get system stats including GPU memory and queue info.
+   *
+   * @returns System statistics
+   */
   async getSystemStats(): Promise<any> {
     return this.get("/system_stats");
   }
 
+  /**
+   * Get node type info with input/output schemas.
+   *
+   * @param nodeClass - If provided, returns info for this node type only
+   * @returns Object info keyed by node class name
+   */
   async getObjectInfo(nodeClass?: string): Promise<any> {
     return this.get(nodeClass ? `/object_info/${nodeClass}` : "/object_info");
   }
 
+  /** Interrupt the currently executing prompt. */
   async interrupt(): Promise<void> {
     await this.post("/interrupt", {});
   }
 
+  /**
+   * List available models, optionally filtered by type.
+   *
+   * @param type - Model type filter (e.g., 'checkpoints', 'loras')
+   * @returns Array of model file names
+   */
   async getModels(type?: string): Promise<string[]> {
     return this.get(type ? `/models/${type}` : "/models");
   }
 
+  /** List available embedding models. */
   async getEmbeddings(): Promise<string[]> {
     return this.get("/embeddings");
   }
 
+  /**
+   * Upload an image to ComfyUI's input directory.
+   *
+   * @param file - The image data as Buffer or Blob
+   * @param filename - File name for the upload
+   * @param opts - Upload options (subfolder, type, overwrite)
+   * @returns Upload result from ComfyUI
+   */
   async uploadImage(
     file: Buffer | Blob,
     filename: string,
@@ -145,6 +213,14 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
       .then((r) => r.data);
   }
 
+  /**
+   * Download a generated image from ComfyUI as a Buffer.
+   *
+   * @param filename - The image filename
+   * @param subfolder - Subfolder within the output directory
+   * @param type - Image type ('output', 'input', 'temp')
+   * @returns The image data as a Buffer
+   */
   async viewImage(
     filename: string,
     subfolder = "",
@@ -161,6 +237,12 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   // WebSocket connection
   // ---------------------------------------------------------------------------
 
+  /**
+   * Open a WebSocket connection to ComfyUI for real-time execution tracking.
+   *
+   * Events emitted: `execution_start`, `executing`, `progress`, `executed`,
+   * `execution_cached`, `execution_error`, `execution_complete`.
+   */
   async connectWs(): Promise<void> {
     if (this.ws) return;
 
@@ -195,6 +277,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
     });
   }
 
+  /** Close the WebSocket connection. */
   disconnectWs(): void {
     if (this.ws) {
       this.ws.close();

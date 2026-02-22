@@ -84,6 +84,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		return container
 	}
 
+	/** @returns Default state with discovery not yet run and zero counts. */
 	override get initialState(): AssistantsManagerState {
 		return {
 			...super.initialState,

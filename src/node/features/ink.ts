@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { features, Feature } from '../feature.js'
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -21,6 +21,11 @@ export const InkOptionsSchema = FeatureOptionsSchema.extend({
   concurrent: z.boolean().optional().describe('Enable React concurrent rendering mode'),
 })
 type InkOptions = z.infer<typeof InkOptionsSchema>
+
+export const InkEventsSchema = FeatureEventsSchema.extend({
+  mounted: z.tuple([]).describe('Emitted when a React element is mounted to the terminal via render()'),
+  unmounted: z.tuple([]).describe('Emitted when the mounted Ink app exits or is unmounted'),
+})
 
 /**
  * Ink Feature — React-powered Terminal UI via Ink
@@ -78,6 +83,7 @@ export class Ink extends Feature<InkState, InkOptions> {
   static override shortcut = 'features.ink' as const
   static override stateSchema = InkStateSchema
   static override optionsSchema = InkOptionsSchema
+  static override eventsSchema = InkEventsSchema
 
   private _instance: any | null = null
   private _inkModule: typeof import('ink') | null = null
@@ -132,6 +138,16 @@ export class Ink extends Feature<InkState, InkOptions> {
   /**
    * Pre-load ink + react modules so the sync getters work.
    * Called automatically by render(), but you can call it early.
+   *
+   * @returns This Ink feature instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * await ink.loadModules()
+   * // Now sync getters like ink.React, ink.components, ink.hooks work
+   * const { Box, Text } = ink.components
+   * ```
    */
   async loadModules() {
     await Promise.all([this._getInk(), this._getReact()])
@@ -249,6 +265,18 @@ export class Ink extends Feature<InkState, InkOptions> {
 
   /**
    * Re-render the currently mounted app with a new root element.
+   *
+   * @returns void
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * const { React } = await ink.loadModules()
+   * const { Text } = ink.components
+   *
+   * await ink.render(React.createElement(Text, null, 'Hello'))
+   * ink.rerender(React.createElement(Text, null, 'Updated!'))
+   * ```
    */
   rerender(node: any) {
     if (!this._instance) {
@@ -259,6 +287,20 @@ export class Ink extends Feature<InkState, InkOptions> {
 
   /**
    * Unmount the currently mounted Ink app.
+   *
+   * Tears down the React tree rendered in the terminal and resets state.
+   * Safe to call when no app is mounted (no-op).
+   *
+   * @returns void
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * await ink.render(myElement)
+   * // ... later
+   * ink.unmount()
+   * console.log(ink.isMounted) // false
+   * ```
    */
   unmount() {
     if (this._instance) {
@@ -270,6 +312,19 @@ export class Ink extends Feature<InkState, InkOptions> {
 
   /**
    * Returns a promise that resolves when the mounted app exits.
+   *
+   * Useful for keeping a script alive while the terminal UI is active.
+   *
+   * @returns Promise that resolves when the Ink app exits
+   * @throws {Error} When no app is currently mounted
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * await ink.render(myElement)
+   * await ink.waitUntilExit()
+   * console.log('App exited')
+   * ```
    */
   async waitUntilExit(): Promise<void> {
     if (!this._instance) {
@@ -280,6 +335,19 @@ export class Ink extends Feature<InkState, InkOptions> {
 
   /**
    * Clear the terminal output of the mounted app.
+   *
+   * Erases all Ink-rendered content from the terminal. Safe to call
+   * when no app is mounted (no-op).
+   *
+   * @returns void
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * await ink.render(myElement)
+   * // ... later, wipe the screen
+   * ink.clear()
+   * ```
    */
   clear() {
     if (this._instance) {

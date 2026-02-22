@@ -23,8 +23,27 @@ export const SecureShellOptionsSchema = FeatureOptionsSchema.extend({
 export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
 
 /**
- * Uses ssh to run commands, or scp to transfer files between a remote host. 
- * 
+ * SecureShell Feature -- SSH command execution and SCP file transfers.
+ *
+ * Uses the system `ssh` and `scp` binaries to run commands on remote hosts
+ * and transfer files. Supports key-based and password-based authentication
+ * through the container's `proc` feature.
+ *
+ * @example
+ * ```typescript
+ * const ssh = container.feature('secureShell', {
+ *   host: '192.168.1.100',
+ *   username: 'deploy',
+ *   key: '~/.ssh/id_ed25519',
+ * })
+ *
+ * if (await ssh.testConnection()) {
+ *   const uptime = await ssh.exec('uptime')
+ *   console.log(uptime)
+ * }
+ * ```
+ *
+ * @extends Feature
  */
 export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
   static override shortcut = 'features.secureShell' as const
@@ -99,7 +118,18 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	}
 
 	/**
-	 * Test the SSH connection
+	 * Test the SSH connection by running a simple echo command on the remote host.
+	 *
+	 * Updates `state.connected` based on the result.
+	 *
+	 * @returns `true` if the connection succeeds, `false` otherwise (never throws)
+	 *
+	 * @example
+	 * ```typescript
+	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
+	 * const ok = await ssh.testConnection()
+	 * if (!ok) console.error('SSH connection failed')
+	 * ```
 	 */
 	async testConnection(): Promise<boolean> {
 		try {
@@ -121,9 +151,17 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 
 	/**
 	 * Executes a command on the remote host.
-	 * 
-	 * @param command - The command to execute.
-	 * @returns The output of the command.
+	 *
+	 * @param command - The command to execute on the remote shell
+	 * @returns The trimmed stdout output of the command
+	 * @throws {Error} When the SSH command exits with a non-zero code
+	 *
+	 * @example
+	 * ```typescript
+	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
+	 * const listing = await ssh.exec('ls -la /var/log')
+	 * console.log(listing)
+	 * ```
 	 */
 	async exec(command: string): Promise<string> {
 		const sshCmd = `${this.buildSSHConnectionString()} "${command}"`
@@ -145,11 +183,18 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	}
 
 	/**
-	 * Downloads a file from the remote host.
-	 * 
-	 * @param source - The source file path on the remote host.
-	 * @param target - The target file path on the local machine.
-	 * @returns The output of the scp command.
+	 * Downloads a file from the remote host via SCP.
+	 *
+	 * @param source - The source file path on the remote host
+	 * @param target - The target file path on the local machine
+	 * @returns A confirmation message or the scp stdout output
+	 * @throws {Error} When the SCP transfer fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
+	 * await ssh.download('/var/log/app.log', './logs/app.log')
+	 * ```
 	 */
 	async download(source: string, target: string): Promise<string> {
 		const { host, username } = this.options
@@ -168,13 +213,20 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 		}
 	}
 
-	/** 
-	 * Uploads a file to the remote host.
-	 * 
-	 * @param source - The source file path on the local machine.
-	 * @param target - The target file path on the remote host.
-	 * @returns The output of the scp command.
-	*/
+	/**
+	 * Uploads a file to the remote host via SCP.
+	 *
+	 * @param source - The source file path on the local machine
+	 * @param target - The target file path on the remote host
+	 * @returns A confirmation message or the scp stdout output
+	 * @throws {Error} When the SCP transfer fails
+	 *
+	 * @example
+	 * ```typescript
+	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
+	 * await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
+	 * ```
+	 */
 	async upload(source: string, target: string): Promise<string> {
 		const { host, username } = this.options
 		const scpCmd = `${this.buildSCPConnectionString()} "${source}" ${username}@${host}:"${target}"`

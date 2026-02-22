@@ -18,11 +18,19 @@ type WalkOptions = {
   include?: string | string[];
 };
 
-/** 
- * The FS feature provides methods for interacting with the file system, relative to the 
- * container's cwd. 
+/**
+ * The FS feature provides methods for interacting with the file system, relative to the
+ * container's cwd.
  *
  * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const fs = container.feature('fs')
+ * const content = fs.readFile('package.json')
+ * const exists = fs.exists('tsconfig.json')
+ * await fs.ensureFileAsync('output/result.json', '{}')
+ * ```
  */
 export class FS extends Feature {
   static override shortcut = "features.fs" as const
@@ -30,12 +38,18 @@ export class FS extends Feature {
   static override optionsSchema = FeatureOptionsSchema
 
   /**
-   * Asynchronously reads a file and returns its contents as a string.
+   * Asynchronously reads a file and returns its contents as a Buffer.
    *
    * @param {string} path - The file path relative to the container's working directory
    * @returns {Promise<Buffer>} A promise that resolves to the file contents as a Buffer
    * @throws {Error} Throws an error if the file doesn't exist or cannot be read
-   * 
+   *
+   * @example
+   * ```typescript
+   * const fs = container.feature('fs')
+   * const buffer = await fs.readFileAsync('data.txt')
+   * console.log(buffer.toString())
+   * ```
    */
   async readFileAsync(path: string) {
     return await readFile(this.container.paths.resolve(path)) 
@@ -47,6 +61,13 @@ export class FS extends Feature {
    * @param {string} path - The directory path relative to the container's working directory
    * @returns {Promise<string[]>} A promise that resolves to an array of file and directory names
    * @throws {Error} Throws an error if the directory doesn't exist or cannot be read
+   *
+   * @example
+   * ```typescript
+   * const fs = container.feature('fs')
+   * const entries = await fs.readdir('src')
+   * console.log(entries) // ['index.ts', 'utils.ts', 'components']
+   * ```
    */
   async readdir(path: string) {
     return await readdir(this.container.paths.resolve(path))

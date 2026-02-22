@@ -17,11 +17,25 @@ declare module "@soederpop/luca/client" {
 }
 
 export const CivitaiClientStateSchema = ClientStateSchema.extend({
-  checkpoints: z.array(z.string()).default([]),
+  checkpoints: z.array(z.string()).default([]).describe('List of downloaded checkpoint file IDs'),
 })
 
 export type CivitaiClientState = z.infer<typeof CivitaiClientStateSchema>
 
+/**
+ * Civitai client — search, browse, and download AI models from civitai.com.
+ *
+ * Wraps the Civitai REST API to search for checkpoints, LoRA models, embeddings,
+ * and other model types. Supports downloading models directly to disk with
+ * metadata extraction.
+ *
+ * @example
+ * ```typescript
+ * const civitai = container.client('civitai')
+ * const results = await civitai.search({ query: 'anime', type: 'Checkpoint' })
+ * console.log(results.items.map(m => m.name))
+ * ```
+ */
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   // @ts-ignore
   static attach(container: Container & ClientsInterface, options?: any) {
@@ -48,6 +62,18 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     "Poses",
   ];
 
+  /**
+   * Search models by tag.
+   *
+   * @param tag - The tag to search for
+   * @param options - Additional search filters
+   * @returns Search results with items array
+   *
+   * @example
+   * ```typescript
+   * const results = await civitai.searchByTag('anime')
+   * ```
+   */
   async searchByTag(
     tag: string,
     { limit = 100, page = 1, query, type, username }: any = {}
@@ -55,6 +81,18 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     return this.search({ tag, limit, page, type, username, query });
   }
 
+  /**
+   * Search models by creator username.
+   *
+   * @param username - The creator's username
+   * @param options - Additional search filters
+   * @returns Search results with items array
+   *
+   * @example
+   * ```typescript
+   * const results = await civitai.searchByUsername('stabilityai')
+   * ```
+   */
   async searchByUsername(
     username: string,
     { limit = 100, page = 1, type, query }: any = {}
@@ -62,6 +100,17 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     return this.search({ username, limit, page, type, query });
   }
 
+  /**
+   * Search for models with full filter support.
+   *
+   * @param options - Search parameters (query, tag, username, type, sorting, pagination)
+   * @returns Search results with items array
+   *
+   * @example
+   * ```typescript
+   * const results = await civitai.search({ query: 'portrait', type: 'LORA', newest: true })
+   * ```
+   */
   async search({
     limit = 100,
     page = 1,
@@ -90,6 +139,18 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     });
   }
 
+  /**
+   * Get full model details by ID.
+   *
+   * @param modelId - The Civitai model ID
+   * @returns Complete model info including versions and files
+   *
+   * @example
+   * ```typescript
+   * const model = await civitai.getModel('12345')
+   * console.log(model.name, model.type)
+   * ```
+   */
   async getModel(modelId: string): Promise<ModelInfo> {
     return this.get(`/api/v1/models/${modelId}`);
   }
@@ -98,6 +159,22 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     return this.context.container as NodeContainer;
   }
 
+  /**
+   * Download a checkpoint model to a local folder.
+   *
+   * Fetches model info, saves metadata as YAML, and optionally downloads the safetensors file.
+   *
+   * @param modelId - The Civitai model ID
+   * @param destinationFolder - Local folder path to download into
+   * @param skipDownloadFile - If true, only save metadata without downloading the file
+   * @returns Model info with downloadPath
+   *
+   * @example
+   * ```typescript
+   * const result = await civitai.downloadCheckpoint('12345', '/models/checkpoints')
+   * console.log(`Downloaded to: ${result.downloadPath}`)
+   * ```
+   */
   async downloadCheckpoint(modelId: string, destinationFolder: string, skipDownloadFile = false) {
     const { paths, utils } = this.container;
     const { stringUtils } = utils;
@@ -136,6 +213,20 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     }
   }
 
+  /**
+   * Download a textual inversion / embedding model to a local folder.
+   *
+   * @param modelId - The Civitai model ID
+   * @param destinationFolder - Local folder path to download into
+   * @param skipDownloadFile - If true, only save metadata without downloading
+   * @param modelFileId - Specific version ID to download
+   * @returns Model info with downloadPath
+   *
+   * @example
+   * ```typescript
+   * const result = await civitai.downloadEmbedding('67890', '/models/embeddings')
+   * ```
+   */
   async downloadEmbedding(modelId: string, destinationFolder: string,skipDownloadFile = false, modelFileId?: string) {
     const { paths, utils } = this.container;
     const downloader = this.container.feature("downloader");
@@ -176,6 +267,21 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   }
 
 
+  /**
+   * Download a LoRA model to a local folder.
+   *
+   * @param modelId - The Civitai model ID
+   * @param fileId - The specific file/version ID to download
+   * @param destinationFolder - Local folder path to download into
+   * @param skipDownloadFile - If true, only return info without downloading
+   * @returns Model info with downloadPath and LoRA tag
+   *
+   * @example
+   * ```typescript
+   * const result = await civitai.downloadLoraModel('12345', '67890', '/models/loras')
+   * console.log(result.tag) // '<lora:model_name:1>'
+   * ```
+   */
   async downloadLoraModel(modelId: string, fileId: string | number, destinationFolder: string, skipDownloadFile = false) {
     const { paths } = this.container;
     const downloader = this.container.feature("downloader");
@@ -205,6 +311,18 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     };
   }
 
+  /**
+   * Get metadata for the latest checkpoint version of a model.
+   *
+   * @param modelId - The Civitai model ID
+   * @returns Checkpoint info with download URL, file name, and image URLs
+   *
+   * @example
+   * ```typescript
+   * const info = await civitai.getCheckpointInfo('12345')
+   * console.log(info.fileName, info.downloadUrl)
+   * ```
+   */
   async getCheckpointInfo(modelId: string) {
     const { utils } = this.container;
     const model = await this.getModel(modelId);
@@ -236,6 +354,19 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     };
   }
 
+  /**
+   * Get metadata for a LoRA model including trained words and LoRA tag.
+   *
+   * @param modelId - The Civitai model ID
+   * @param downloadFileId - Specific version ID (defaults to latest)
+   * @returns LoRA info with download URL, tag, trained words, and images
+   *
+   * @example
+   * ```typescript
+   * const info = await civitai.getLoraModelInfo('12345')
+   * console.log(info.tag, info.words)
+   * ```
+   */
   async getLoraModelInfo(modelId: string, downloadFileId?: string | number) {
     const { utils } = this.container;
 
@@ -275,6 +406,19 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
     };
   }
 
+  /**
+   * Get metadata for an embedding model including trained words.
+   *
+   * @param modelId - The Civitai model ID
+   * @param modelFileId - Specific version ID (defaults to latest)
+   * @returns Embedding info with download URL, trained words, and images
+   *
+   * @example
+   * ```typescript
+   * const info = await civitai.getEmbeddingModelInfo('12345')
+   * console.log(info.words)
+   * ```
+   */
   async getEmbeddingModelInfo(modelId: string, modelFileId?: string) {
     const { utils } = this.container;
 

@@ -56,6 +56,23 @@ export type ConversationHistoryState = z.infer<typeof ConversationHistoryStateSc
  * Persists conversations to disk using the diskCache feature (cacache).
  * Each conversation is stored as a JSON blob keyed by ID, with metadata
  * stored alongside for efficient listing and search without loading full message arrays.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const history = container.feature('conversationHistory', {
+ *   namespace: 'my-app',
+ *   cachePath: '/tmp/conversations'
+ * })
+ *
+ * // Create and retrieve conversations
+ * const record = await history.create({ messages, title: 'My Chat' })
+ * const loaded = await history.load(record.id)
+ *
+ * // Search and filter
+ * const results = await history.search({ tag: 'important', limit: 10 })
+ * ```
  */
 export class ConversationHistory extends Feature<ConversationHistoryState, ConversationHistoryOptions> {
 	static override stateSchema = ConversationHistoryStateSchema
@@ -67,6 +84,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		return container
 	}
 
+	/** @returns Default state with zero conversations and no last-saved timestamp. */
 	override get initialState(): ConversationHistoryState {
 		return {
 			...super.initialState,
@@ -75,10 +93,12 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		}
 	}
 
+	/** @returns The parent NodeContainer, narrowed from the base Container type. */
 	override get container() {
 		return super.container as NodeContainer<NodeFeatures, any>
 	}
 
+	/** @returns The diskCache feature instance used for persistence, configured with the optional cachePath. */
 	get diskCache(): DiskCache {
 		const opts: Record<string, any> = {}
 		if (this.options.cachePath) {
@@ -87,6 +107,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		return this.container.feature('diskCache', opts) as DiskCache
 	}
 
+	/** @returns The namespace prefix used for all cache keys, defaults to 'conversation-history'. */
 	get namespace(): string {
 		return this.options.namespace || 'conversation-history'
 	}
@@ -106,7 +127,8 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	/**
 	 * Save a conversation. Creates or overwrites by ID.
 	 *
-	 * @param record - The full conversation record to persist
+	 * @param {ConversationRecord} record - The full conversation record to persist
+	 * @returns {Promise<void>}
 	 */
 	async save(record: ConversationRecord): Promise<void> {
 		record.updatedAt = new Date().toISOString()
@@ -129,6 +151,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Create a new conversation from messages, returning the saved record.
+	 *
+	 * @param {object} opts - Creation options including messages, optional title, model, tags, thread, and metadata
+	 * @returns {Promise<ConversationRecord>} The newly created and persisted conversation record
 	 */
 	async create(opts: {
 		id?: string
@@ -159,6 +184,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Load a full conversation by ID, including all messages.
+	 *
+	 * @param {string} id - The conversation ID
+	 * @returns {Promise<ConversationRecord | null>} The full record, or null if not found
 	 */
 	async load(id: string): Promise<ConversationRecord | null> {
 		const exists = await this.diskCache.has(this.buildCacheKey(id))
@@ -168,6 +196,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Load just the metadata for a conversation (no messages).
+	 *
+	 * @param {string} id - The conversation ID
+	 * @returns {Promise<ConversationMeta | null>} The lightweight metadata record, or null if not found
 	 */
 	async getMeta(id: string): Promise<ConversationMeta | null> {
 		const exists = await this.diskCache.has(this.metaKey(id))
@@ -177,6 +208,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Append messages to an existing conversation.
+	 *
+	 * @param {string} id - The conversation ID to append to
+	 * @param {Message[]} messages - The messages to append
+	 * @returns {Promise<ConversationRecord | null>} The updated record, or null if the conversation was not found
 	 */
 	async append(id: string, messages: Message[]): Promise<ConversationRecord | null> {
 		const record = await this.load(id)
@@ -189,6 +224,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Delete a conversation by ID.
+	 *
+	 * @param {string} id - The conversation ID to delete
+	 * @returns {Promise<boolean>} True if the conversation existed and was deleted
 	 */
 	async delete(id: string): Promise<boolean> {
 		const exists = await this.diskCache.has(this.buildCacheKey(id))
@@ -205,6 +243,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	/**
 	 * List all conversation metadata, with optional search/filter.
 	 * Loads only the lightweight meta records, never the full messages.
+	 *
+	 * @param {SearchOptions} [options] - Optional filters for tag, thread, model, date range, and text query
+	 * @returns {Promise<ConversationMeta[]>} Filtered and sorted metadata records (newest first)
 	 */
 	async list(options?: SearchOptions): Promise<ConversationMeta[]> {
 		const ids = await this.getIndex()
@@ -221,6 +262,9 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	/**
 	 * Search conversations by text query across titles, tags, and metadata.
 	 * Also supports filtering by tag, thread, model, and date range.
+	 *
+	 * @param {SearchOptions} options - Search and filter criteria
+	 * @returns {Promise<ConversationMeta[]>} Matching metadata records (newest first)
 	 */
 	async search(options: SearchOptions): Promise<ConversationMeta[]> {
 		return this.list(options)
@@ -228,6 +272,8 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Get all unique tags across all conversations.
+	 *
+	 * @returns {Promise<string[]>} Sorted array of unique tag strings
 	 */
 	async allTags(): Promise<string[]> {
 		const metas = await this.list()
@@ -242,6 +288,8 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Get all unique threads across all conversations.
+	 *
+	 * @returns {Promise<string[]>} Sorted array of unique thread identifiers
 	 */
 	async allThreads(): Promise<string[]> {
 		const metas = await this.list()
@@ -254,6 +302,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Tag a conversation. Adds tags without duplicates.
+	 *
+	 * @param {string} id - The conversation ID
+	 * @param {...string} tags - One or more tags to add
+	 * @returns {Promise<boolean>} True if the conversation was found and updated
 	 */
 	async tag(id: string, ...tags: string[]): Promise<boolean> {
 		const record = await this.load(id)
@@ -269,6 +321,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Remove tags from a conversation.
+	 *
+	 * @param {string} id - The conversation ID
+	 * @param {...string} tags - One or more tags to remove
+	 * @returns {Promise<boolean>} True if the conversation was found and updated
 	 */
 	async untag(id: string, ...tags: string[]): Promise<boolean> {
 		const record = await this.load(id)
@@ -283,6 +339,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 
 	/**
 	 * Update metadata on a conversation without touching messages.
+	 *
+	 * @param {string} id - The conversation ID
+	 * @param {object} updates - Partial updates for title, tags, thread, and/or metadata
+	 * @returns {Promise<boolean>} True if the conversation was found and updated
 	 */
 	async updateMeta(id: string, updates: Partial<Pick<ConversationRecord, 'title' | 'tags' | 'thread' | 'metadata'>>): Promise<boolean> {
 		const record = await this.load(id)

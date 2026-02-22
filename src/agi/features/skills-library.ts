@@ -71,6 +71,23 @@ export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
  * Skills can be discovered, searched, created, updated, and removed at runtime.
  *
  * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const skills = container.feature('skillsLibrary')
+ * await skills.load()
+ *
+ * // List and search
+ * const allSkills = skills.list()
+ * const matches = skills.search('code review')
+ *
+ * // Create a new skill
+ * await skills.create({
+ *   name: 'summarize',
+ *   description: 'Summarize a document',
+ *   body: '## Instructions\nRead the document and produce a concise summary.'
+ * })
+ * ```
  */
 export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOptions> {
 	static override stateSchema = SkillsLibraryStateSchema
@@ -85,6 +102,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		return container
 	}
 
+	/** @returns Default state with loaded=false and zero skill counts across both collections. */
 	override get initialState(): SkillsLibraryState {
 		return {
 			...super.initialState,

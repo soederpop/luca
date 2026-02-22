@@ -3,7 +3,7 @@ import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
-import { introspect, type HelperIntrospection, type IntrospectionSection } from "./introspection/index.js";
+import { introspect, type HelperIntrospection, type IntrospectionSection, type ExampleIntrospection } from "./introspection/index.js";
 import { z } from 'zod'
 import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
@@ -206,7 +206,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 }
 
-const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options', 'envVars']
+const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples']
 
 function filterIntrospection(data: HelperIntrospection, section: IntrospectionSection): HelperIntrospection {
   const filtered: HelperIntrospection = {
@@ -220,7 +220,16 @@ function filterIntrospection(data: HelperIntrospection, section: IntrospectionSe
     options: {},
     envVars: [],
   }
-  filtered[section] = data[section] as any
+
+  if (section === 'examples') {
+    // For examples section, include class-level examples and full methods/getters (they carry inline examples)
+    filtered.examples = data.examples
+    filtered.methods = data.methods
+    filtered.getters = data.getters
+  } else {
+    filtered[section] = data[section] as any
+  }
+
   return filtered
 }
 
@@ -278,6 +287,12 @@ function renderMethodsSection(introspection: HelperIntrospection, heading: (leve
 
     if (methodInfo.returns) {
       sections.push(`**Returns:** \`${methodInfo.returns}\``)
+    }
+
+    if (methodInfo.examples && methodInfo.examples.length > 0) {
+      for (const example of methodInfo.examples) {
+        sections.push(`\`\`\`${example.language}\n${example.code}\n\`\`\``)
+      }
     }
 
     sections.push('')
@@ -372,6 +387,43 @@ function renderEnvVarsSection(introspection: HelperIntrospection, heading: (leve
   return sections
 }
 
+function renderExamplesSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+
+  // Collect all examples: class-level, method-level, getter-level
+  const allExamples: { source: string; examples: ExampleIntrospection[] }[] = []
+
+  if (introspection.examples && introspection.examples.length > 0) {
+    allExamples.push({ source: introspection.id, examples: introspection.examples })
+  }
+
+  for (const [name, method] of Object.entries(introspection.methods || {})) {
+    if (method.examples && method.examples.length > 0) {
+      allExamples.push({ source: name, examples: method.examples })
+    }
+  }
+
+  for (const [name, getter] of Object.entries(introspection.getters || {})) {
+    if (getter.examples && getter.examples.length > 0) {
+      allExamples.push({ source: name, examples: getter.examples })
+    }
+  }
+
+  if (allExamples.length === 0) return sections
+
+  sections.push(`${heading(2)} Examples`)
+
+  for (const { source, examples } of allExamples) {
+    sections.push(`**${source}**`)
+    for (const example of examples) {
+      sections.push(`\`\`\`${example.language}\n${example.code}\n\`\`\``)
+    }
+    sections.push('')
+  }
+
+  return sections
+}
+
 function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection) {
   const sections: string[] = []
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
@@ -387,6 +439,7 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
     state: () => renderStateSection(introspection, heading),
     options: () => renderOptionsSection(introspection, heading),
     envVars: () => renderEnvVarsSection(introspection, heading),
+    examples: () => renderExamplesSection(introspection, heading),
   }
 
   if (section) {

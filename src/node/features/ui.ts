@@ -155,6 +155,12 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     bgWhite: (text: string) => console.log(colors.bgWhite(text)),
   }) as ColoredPrintFunction
 
+  /**
+   * Parse markdown text and render it for terminal display using marked-terminal.
+   *
+   * @param text - The markdown string to parse and render
+   * @returns The rendered terminal-formatted string
+   */
   markdown(text: string) {
     return marked.parse(text)
   }
@@ -376,6 +382,12 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     return inquirer.createPromptModule()(questions, initialAnswers);
   }
 
+  /**
+   * Prompt the user with a single text input question.
+   *
+   * @param question - The question message to display
+   * @returns Promise resolving to the answers object with a `question` key
+   */
   askQuestion(question: string) {
     return inquirer.createPromptModule()([{
       type: 'input',
@@ -532,8 +544,15 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     return colored;
   }
 
+  /**
+   * Dedent and format a tagged template literal using endent.
+   * Strips leading indentation while preserving relative indentation.
+   *
+   * @param args - Tagged template literal arguments
+   * @returns The dedented string
+   */
   endent(...args: any[]) {
-    // @ts-ignore 
+    // @ts-ignore
     return endent(...args)
   }
 

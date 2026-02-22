@@ -1,5 +1,5 @@
 import { Feature } from '../feature.js';
-import type { HelperIntrospection, MethodIntrospection, GetterIntrospection, EventIntrospection, ContainerIntrospection } from './index.js';
+import type { HelperIntrospection, MethodIntrospection, GetterIntrospection, EventIntrospection, ContainerIntrospection, ExampleIntrospection } from './index.js';
 import * as ts from 'typescript';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -185,6 +185,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     const methods = this.extractMethods(classNode, sourceFile);
     const getters = this.extractGetters(classNode, sourceFile);
     const events = this.extractEvents(classNode, sourceFile);
+    const examples = this.extractJSDocExamples(classNode);
 
     // state and options are derived at runtime from Zod schemas
     // via interceptRegistration — no need to extract them at build time
@@ -197,7 +198,8 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       events,
       state: {},
       options: {},
-      envVars: []
+      envVars: [],
+      ...(examples.length > 0 ? { examples } : {}),
     };
   }
 
@@ -273,6 +275,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     };
   }
 
+
   private extractContainerMethods(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, MethodIntrospection> {
     const methods: Record<string, MethodIntrospection> = {};
 
@@ -295,12 +298,14 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         const parameters = this.extractParameters(member);
         const required = this.extractRequiredParameters(member);
         const returns = this.extractReturnType(member);
+        const examples = this.extractJSDocExamples(member);
 
         methods[methodName] = {
           description,
           parameters,
           required,
-          returns
+          returns,
+          ...(examples.length > 0 ? { examples } : {}),
         };
       }
     }
@@ -328,10 +333,12 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
 
         const description = this.extractJSDocDescriptionFromAccessor(member) || '';
         const returns = member.type ? member.type.getText() : 'any';
+        const examples = this.extractJSDocExamples(member);
 
         getters[getterName] = {
           description,
-          returns
+          returns,
+          ...(examples.length > 0 ? { examples } : {}),
         };
       }
     }
@@ -466,7 +473,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     for (const member of classNode.members) {
       if (ts.isMethodDeclaration(member) && member.name) {
         const methodName = member.name.getText();
-        
+
         // Skip private methods unless includePrivate is true
         const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
         if (isPrivate && !this.options.includePrivate) continue;
@@ -479,12 +486,14 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         const parameters = this.extractParameters(member);
         const required = this.extractRequiredParameters(member);
         const returns = this.extractReturnType(member);
+        const examples = this.extractJSDocExamples(member);
 
         methods[methodName] = {
           description,
           parameters,
           required,
-          returns
+          returns,
+          ...(examples.length > 0 ? { examples } : {}),
         };
       }
     }
@@ -520,10 +529,12 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
 
         const description = this.extractJSDocDescriptionFromAccessor(member) || '';
         const returns = member.type ? member.type.getText() : 'any';
+        const examples = this.extractJSDocExamples(member);
 
         getters[getterName] = {
           description,
-          returns
+          returns,
+          ...(examples.length > 0 ? { examples } : {}),
         };
       }
     }
@@ -564,6 +575,95 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     }
 
     return null;
+  }
+
+  /**
+   * Extract @example blocks from JSDoc comments on any node type.
+   * Supports fenced code blocks (```lang ... ```) within @example tags.
+   * Returns an empty array if no examples are found.
+   */
+  private extractJSDocExamples(node: ts.Node): ExampleIntrospection[] {
+    const sourceFile = node.getSourceFile();
+    const fullText = sourceFile.getFullText();
+    const ranges = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+
+    if (!ranges || ranges.length === 0) return [];
+
+    for (let i = ranges.length - 1; i >= 0; i--) {
+      const range = ranges[i];
+      if (!range) continue;
+      const commentText = fullText.substring(range.pos, range.end);
+      if (!commentText.startsWith('/**')) continue;
+
+      const content = commentText.slice(3, -2);
+      const lines = content.split('\n');
+      const examples: ExampleIntrospection[] = [];
+
+      let inExample = false;
+      let inFence = false;
+      let language = 'ts';
+      let codeLines: string[] = [];
+
+      for (const line of lines) {
+        const cleaned = line.replace(/^\s*\*\s?/, '');
+
+        if (cleaned.trim().startsWith('@example')) {
+          // If we were already collecting an example, save it
+          if (inExample && codeLines.length > 0) {
+            examples.push({ language, code: codeLines.join('\n').trim() });
+          }
+          inExample = true;
+          inFence = false;
+          language = 'ts';
+          codeLines = [];
+          continue;
+        }
+
+        if (!inExample) continue;
+
+        // Another @tag ends the current example
+        if (cleaned.trim().startsWith('@') && !cleaned.trim().startsWith('@example')) {
+          if (codeLines.length > 0) {
+            examples.push({ language, code: codeLines.join('\n').trim() });
+          }
+          inExample = false;
+          inFence = false;
+          codeLines = [];
+          continue;
+        }
+
+        const trimmed = cleaned.trim();
+
+        if (!inFence && trimmed.startsWith('```')) {
+          inFence = true;
+          const lang = trimmed.slice(3).trim();
+          if (lang) language = lang;
+          continue;
+        }
+
+        if (inFence && trimmed === '```') {
+          inFence = false;
+          // Don't end the example yet — there could be more fences or text
+          continue;
+        }
+
+        if (inFence) {
+          codeLines.push(cleaned.replace(/^\s?/, ''));
+        } else if (inExample && trimmed) {
+          // Unfenced example code line
+          codeLines.push(cleaned.replace(/^\s?/, ''));
+        }
+      }
+
+      // Flush final example
+      if (inExample && codeLines.length > 0) {
+        examples.push({ language, code: codeLines.join('\n').trim() });
+      }
+
+      return examples;
+    }
+
+    return [];
   }
 
   private static PRIMITIVE_TYPES = new Set([
