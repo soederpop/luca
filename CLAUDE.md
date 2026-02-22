@@ -59,7 +59,7 @@ bun test
 You'll run this command to capture method, getter, class descriptions from the various helper implementations contained in this project. Run this any time you add or change a feature and are happy with its interface and documentation.
 
 ```shell
-bun run build:introspection 
+luca update-introspection
 ```
 
 ### Update Codebase Explainer
