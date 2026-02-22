@@ -18,6 +18,8 @@ export type Message = OpenAI.Chat.Completions.ChatCompletionMessageParam
 export type ContentPart =
 	| { type: 'text'; text: string }
 	| { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }
+	| { type: 'input_audio'; data: string; format: 'mp3' | 'wav' }
+	| { type: 'input_file'; file_data: string; filename: string }
 
 export interface ConversationTool {
 	handler: (...args: any[]) => Promise<any>
@@ -175,7 +177,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			type: 'function' as const,
 			name,
 			description: tool.description,
-			parameters: tool.parameters,
+			parameters: { ...tool.parameters, additionalProperties: false },
 			strict: true,
 		}))
 
@@ -250,13 +252,19 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			if (part.type === 'text') {
 				return { type: 'input_text' as const, text: part.text }
 			}
+			if (part.type === 'input_audio') {
+				return { type: 'input_audio' as const, data: part.data, format: part.format }
+			}
+			if (part.type === 'input_file') {
+				return { type: 'input_file' as const, file_data: part.file_data, filename: part.filename }
+			}
 
 			return {
 				type: 'input_image' as const,
 				image_url: part.image_url.url,
 				detail: part.image_url.detail || 'auto',
 			}
-		})
+		}) as OpenAI.Responses.ResponseInputMessageContentList
 
 		return {
 			type: 'message',
