@@ -120,6 +120,28 @@ export interface SpawnTTYOptions {
 }
 
 /**
+ * Options for capturing a screenshot from a native window.
+ */
+export interface WindowScreenGrabOptions {
+  /** Window ID. If omitted, the launcher uses the most recent window. */
+  windowId?: string
+  /** Output file path for the PNG image. */
+  path: string
+}
+
+/**
+ * Options for recording video from a native window.
+ */
+export interface WindowVideoOptions {
+  /** Window ID. If omitted, the launcher uses the most recent window. */
+  windowId?: string
+  /** Output file path for the video file. */
+  path: string
+  /** Recording duration in milliseconds. */
+  durationMs?: number
+}
+
+/**
  * The result returned from a window ack.
  */
 export interface WindowAckResult {
@@ -160,6 +182,16 @@ export class WindowHandle {
   /** Evaluate JavaScript in this window's web view. */
   async eval(code: string, opts?: { timeoutMs?: number; returnJson?: boolean }): Promise<WindowAckResult> {
     return this.manager.eval(this.windowId, code, opts)
+  }
+
+  /** Capture a PNG screenshot of this window. */
+  async screengrab(path: string): Promise<WindowAckResult> {
+    return this.manager.screengrab({ windowId: this.windowId, path })
+  }
+
+  /** Record a video of this window to disk. */
+  async video(path: string, opts?: { durationMs?: number }): Promise<WindowAckResult> {
+    return this.manager.video({ windowId: this.windowId, path, durationMs: opts?.durationMs })
   }
 }
 
@@ -496,6 +528,33 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       code,
       ...(opts?.timeoutMs != null ? { timeoutMs: opts.timeoutMs } : {}),
       ...(opts?.returnJson != null ? { returnJson: opts.returnJson } : {}),
+    })
+  }
+
+  /**
+   * Capture a PNG screenshot from a window.
+   *
+   * @param opts - Window target and output path
+   */
+  async screengrab(opts: WindowScreenGrabOptions): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'screengrab',
+      ...(opts.windowId ? { windowId: opts.windowId } : {}),
+      path: opts.path,
+    })
+  }
+
+  /**
+   * Record a video from a window to disk.
+   *
+   * @param opts - Window target, output path, and optional duration
+   */
+  async video(opts: WindowVideoOptions): Promise<WindowAckResult> {
+    return this.sendWindowCommand({
+      action: 'video',
+      ...(opts.windowId ? { windowId: opts.windowId } : {}),
+      path: opts.path,
+      ...(opts.durationMs != null ? { durationMs: opts.durationMs } : {}),
     })
   }
 
