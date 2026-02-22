@@ -85,7 +85,7 @@ async function main() {
   const { useEffect, useMemo, useRef, useState } = React
 
   const { Box, Text } = ink.components
-  const { useApp, useInput, useStdout } = ink.hooks
+  const { useApp, useInput, useStdout, useStdin } = ink.hooks
 
   const animation = resolveAnimation(DEFAULT_ANIMATION)
   const botProcess = createBotCommand()
@@ -110,6 +110,7 @@ async function main() {
 
   function App() {
     const { stdout } = useStdout()
+    const { isRawModeSupported } = useStdin()
     const { exit } = useApp()
 
     const [status, setStatus] = useState<ProcessStatus>('idle')
@@ -209,19 +210,22 @@ async function main() {
       }
     }, [])
 
-    useInput((input: string, key: any) => {
-      if (input === 'q' || (key.ctrl && input === 'c')) {
-        const proc = processRef.current
-        if (proc && !proc.killed) {
-          try {
-            proc.kill('SIGTERM')
-          } catch {
-            // no-op
+    useInput(
+      (input: string, key: any) => {
+        if (input === 'q' || (key.ctrl && input === 'c')) {
+          const proc = processRef.current
+          if (proc && !proc.killed) {
+            try {
+              proc.kill('SIGTERM')
+            } catch {
+              // no-op
+            }
           }
+          exit()
         }
-        exit()
-      }
-    })
+      },
+      { isActive: !!isRawModeSupported },
+    )
 
     const statusColor = status === 'running' ? 'green' : status === 'exited' ? 'cyan' : status === 'error' ? 'red' : 'yellow'
     const statusLabel = status === 'running' ? 'LIVE' : status === 'exited' ? `EXIT ${exitCode ?? 0}` : status === 'error' ? `ERR ${exitCode ?? '?'}` : 'BOOT'
@@ -285,6 +289,9 @@ async function main() {
       ),
       h(Text, null, ''),
       h(Text, { dimColor: true }, 'q: quit  ctrl+c: quit  env: LUCA_TELEGRAM_SCRIPT | LUCA_TELEGRAM_COMMAND | LUCA_BOT_ANIMATION'),
+      !isRawModeSupported
+        ? h(Text, { dimColor: true }, 'note: raw stdin unavailable; keyboard shortcuts disabled in this terminal')
+        : null,
     )
   }
 

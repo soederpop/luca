@@ -10,7 +10,7 @@ const DEFAULT_SOCKET_PATH = join(
   homedir(),
   'Library',
   'Application Support',
-  'NativeCommandLauncherApp',
+  'LucaVoiceLauncher',
   'ipc-command.sock'
 )
 
@@ -164,7 +164,7 @@ interface ClientConnection {
 // --- Feature ---
 
 /**
- * LauncherAppCommandListener — IPC transport for commands from the NativeCommandLauncher app
+ * LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app
  *
  * Listens on a Unix domain socket for the native macOS launcher app to connect.
  * When a command event arrives (voice, hotkey, text input), it wraps it in a
