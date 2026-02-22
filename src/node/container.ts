@@ -56,6 +56,7 @@ import "./features/google-calendar";
 import "./features/google-docs";
 import "./features/window-manager";
 import "./features/launcher-app-command-listener";
+import "./features/nlp";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -96,6 +97,7 @@ import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
 import type { WindowManager } from './features/window-manager';
 import type { LauncherAppCommandListener } from './features/launcher-app-command-listener';
+import type { NLP } from './features/nlp';
 export { State };
 
 export {
@@ -131,6 +133,7 @@ export {
   type GoogleDocs,
   type WindowManager,
   type LauncherAppCommandListener,
+  type NLP,
 };
 
 export type { FeatureOptions };
@@ -192,6 +195,7 @@ export interface NodeFeatures extends AvailableFeatures {
   googleDocs: typeof GoogleDocs;
   windowManager: typeof WindowManager;
   launcherAppCommandListener: typeof LauncherAppCommandListener;
+  nlp: typeof NLP;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -236,6 +240,7 @@ export class NodeContainer<
   googleDocs?: GoogleDocs;
   windowManager?: WindowManager;
   launcherAppCommandListener?: LauncherAppCommandListener;
+  nlp?: NLP;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
@@ -263,8 +268,6 @@ export class NodeContainer<
     });
 
     this.use(Client).use(Server).use(Command).use(Endpoint);
-
-    loadLocalContainerModule(this as NodeContainer)
   }
 
   override get Feature() {
@@ -329,28 +332,5 @@ export class NodeContainer<
         return relative(cwd, resolve(cwd, ...paths));
       },
     };
-  }
-}
-
-/** */
-function loadLocalContainerModule(container: NodeContainer) {
-  const containerModulePath = container.paths.resolve('container.ts')
-  if (!container.fs.exists(containerModulePath)) {
-    return
-  }
-
-  const vm = container.vm
-
-  const moduleExports = vm.loadModule(containerModulePath, { container }) || {}
-
-  // some ideas, automatically iterate over the exports, if any feature classes, register the feature with the features registry,
-  // same for clients, servers, commands, any helper that is known to the container
-
-  if (typeof moduleExports.main === 'function') {
-    moduleExports.main(container)
-  }
-
-  if (typeof moduleExports.onStart === 'function') {
-    container.once('started', () => moduleExports.onStart(container))
   }
 }

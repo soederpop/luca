@@ -5,6 +5,8 @@ import { homedir } from 'os'
 import { join } from 'path'
 
 async function main() {
+	// Load project-level CLI module (luca.cli.ts) for container customization
+	await loadCliModule()
 	// Discover project-local commands (commands/ or src/commands/)
 	await discoverProjectCommands()
 	// Discover user-level commands (~/.luca/commands/)
@@ -47,6 +49,22 @@ function printHelp() {
 	console.error()
 	console.error(c.dim('  Run ') + c.cyan('luca <file>') + c.dim(' to execute a script directly.'))
 	console.error()
+}
+
+async function loadCliModule() {
+	const modulePath = container.paths.resolve('luca.cli.ts')
+	if (!container.fs.exists(modulePath)) return
+
+	const mod = await import(modulePath)
+	const exports = mod.default || mod
+
+	if (typeof exports.main === 'function') {
+		await exports.main(container)
+	}
+
+	if (typeof exports.onStart === 'function') {
+		container.once('started', () => exports.onStart(container))
+	}
 }
 
 async function discoverProjectCommands() {
