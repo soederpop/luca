@@ -47,6 +47,30 @@ class DescribeError extends Error {
 }
 
 /**
+ * Normalize an identifier to a comparable form by stripping file extensions,
+ * converting kebab-case and snake_case to lowercase-no-separators.
+ * e.g. "disk-cache.ts" | "diskCache" | "disk_cache" → "diskcache"
+ */
+function normalize(name: string): string {
+	return name
+		.replace(/\.[tj]sx?$/, '')   // strip .ts/.js/.tsx/.jsx
+		.replace(/[-_]/g, '')        // remove dashes and underscores
+		.toLowerCase()
+}
+
+/**
+ * Find a registry entry by normalized name.
+ * Returns the canonical registered id, or undefined if no match.
+ */
+function fuzzyFind(registry: any, input: string): string | undefined {
+	// Exact match first
+	if (registry.has(input)) return input
+
+	const norm = normalize(input)
+	return (registry.available as string[]).find((id: string) => normalize(id) === norm)
+}
+
+/**
  * Parse a single target string into a resolved target.
  * Accepts: "container", "features", "features.fs", "fs", etc.
  */
@@ -76,31 +100,22 @@ function resolveTarget(target: string, container: any): ResolvedTarget {
 
 		if (registry) {
 			const reg = container[registry]
-			if (!reg.has(id)) {
+			const resolved = fuzzyFind(reg, id)
+			if (!resolved) {
 				throw new DescribeError(`"${id}" is not registered in ${registry}. Available: ${reg.available.join(', ')}`)
 			}
-			return { kind: 'helper', registry, id }
+			return { kind: 'helper', registry, id: resolved }
 		}
 	}
 
-	// Unqualified name: search all registries
+	// Unqualified name: search all registries (fuzzy)
 	const matches: { registry: RegistryName; id: string }[] = []
 	for (const registryName of REGISTRY_NAMES) {
 		const reg = container[registryName]
-		if (reg && reg.has(target)) {
-			matches.push({ registry: registryName, id: target })
-		}
-	}
-
-	if (matches.length === 0) {
-		// Try case-insensitive search across all registries
-		for (const registryName of REGISTRY_NAMES) {
-			const reg = container[registryName]
-			if (!reg) continue
-			const found = reg.available.find((a: string) => a.toLowerCase() === lower)
-			if (found) {
-				matches.push({ registry: registryName, id: found })
-			}
+		if (!reg) continue
+		const found = fuzzyFind(reg, target)
+		if (found) {
+			matches.push({ registry: registryName, id: found })
 		}
 	}
 
