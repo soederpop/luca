@@ -54,6 +54,18 @@ export const DockerOptionsSchema = FeatureOptionsSchema.extend({
 })
 export type DockerOptions = z.infer<typeof DockerOptionsSchema>
 
+/** Shell-like interface for executing commands against a Docker container */
+export interface DockerShell {
+  /** The ID of the container being targeted */
+  readonly containerId: string
+  /** The result of the most recently executed command, or null if no command has been run */
+  readonly last: { stdout: string; stderr: string; exitCode: number } | null
+  /** Execute a command string in the container via sh -c */
+  run(command: string): Promise<{ stdout: string; stderr: string; exitCode: number }>
+  /** Destroy the shell container (only needed when volumes created a new container) */
+  destroy(): Promise<void>
+}
+
 /**
  * Docker CLI interface feature for managing containers, images, and executing Docker commands.
  * 
@@ -339,31 +351,145 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 
   /**
-   * Execute a command inside a running container
+   * Execute a command inside a running container.
+   *
+   * When volumes are specified, uses `docker run --rm` with the container's image
+   * instead of `docker exec`, since exec does not support volume mounts.
    */
   async execCommand(
-    containerIdOrName: string, 
-    command: string[], 
+    containerIdOrName: string,
+    command: string[],
     options: {
       interactive?: boolean
       tty?: boolean
       user?: string
       workdir?: string
       detach?: boolean
+      environment?: Record<string, string>
+      volumes?: string[]
     } = {}
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    // docker exec does not support volume mounts; fall back to docker run --rm
+    if (options.volumes?.length) {
+      const image = await this.getContainerImage(containerIdOrName)
+
+      const args = ['run', '--rm']
+      for (const vol of options.volumes) { args.push('--volume', vol) }
+      if (options.interactive) args.push('--interactive')
+      if (options.tty) args.push('--tty')
+      if (options.user) args.push('--user', options.user)
+      if (options.workdir) args.push('--workdir', options.workdir)
+      if (options.environment) {
+        for (const [key, value] of Object.entries(options.environment)) {
+          args.push('--env', `${key}=${value}`)
+        }
+      }
+      args.push(image, ...command)
+      return this.executeDockerCommand(args)
+    }
+
     const args = ['exec']
-    
+
     if (options.interactive) args.push('--interactive')
     if (options.tty) args.push('--tty')
     if (options.user) args.push('--user', options.user)
     if (options.workdir) args.push('--workdir', options.workdir)
     if (options.detach) args.push('--detach')
-    
+    if (options.environment) {
+      for (const [key, value] of Object.entries(options.environment)) {
+        args.push('--env', `${key}=${value}`)
+      }
+    }
+
     args.push(containerIdOrName, ...command)
-    
+
     const result = await this.executeDockerCommand(args)
     return result
+  }
+
+  /**
+   * Look up the image name for a running container via docker inspect.
+   */
+  private async getContainerImage(containerIdOrName: string): Promise<string> {
+    const result = await this.executeDockerCommand([
+      'inspect', '--format', '{{.Config.Image}}', containerIdOrName
+    ])
+    if (result.exitCode !== 0) {
+      throw new Error(`Failed to inspect container ${containerIdOrName}: ${result.stderr}`)
+    }
+    return result.stdout.trim()
+  }
+
+  /**
+   * Create a shell-like wrapper for executing multiple commands against a container.
+   *
+   * When volume mounts are specified, a new long-running container is created from
+   * the same image with the mounts applied (since docker exec does not support volumes).
+   * Call `destroy()` when finished to clean up the helper container.
+   *
+   * Returns an object with:
+   * - `run(command)` — execute a shell command string via `sh -c`
+   * - `last` — getter for the most recent command result
+   * - `destroy()` — stop the helper container (no-op when no volumes were needed)
+   */
+  async createShell(
+    containerIdOrName: string,
+    options: {
+      volumes?: string[]
+      workdir?: string
+      user?: string
+      environment?: Record<string, string>
+    } = {}
+  ): Promise<DockerShell> {
+    const docker = this
+    let targetContainer = containerIdOrName
+    let createdContainer: string | null = null
+
+    if (options.volumes?.length) {
+      const image = await this.getContainerImage(containerIdOrName)
+
+      const runArgs = ['run', '-d', '--rm']
+      for (const vol of options.volumes) { runArgs.push('--volume', vol) }
+      if (options.workdir) runArgs.push('--workdir', options.workdir)
+      if (options.user) runArgs.push('--user', options.user)
+      if (options.environment) {
+        for (const [key, value] of Object.entries(options.environment)) {
+          runArgs.push('--env', `${key}=${value}`)
+        }
+      }
+      runArgs.push(image, 'sleep', 'infinity')
+
+      const runResult = await this.executeDockerCommand(runArgs)
+      if (runResult.exitCode !== 0) {
+        throw new Error(`Failed to create shell container: ${runResult.stderr}`)
+      }
+      targetContainer = runResult.stdout.trim()
+      createdContainer = targetContainer
+    }
+
+    // Only pass workdir/user to exec when we didn't bake them into the container
+    const execOpts: { workdir?: string; user?: string } = {}
+    if (!createdContainer) {
+      if (options.workdir) execOpts.workdir = options.workdir
+      if (options.user) execOpts.user = options.user
+    }
+
+    let _last: { stdout: string; stderr: string; exitCode: number } | null = null
+
+    return {
+      get containerId() { return targetContainer },
+      get last() { return _last },
+      run: async (command: string) => {
+        _last = await docker.execCommand(targetContainer, ['sh', '-c', command], execOpts)
+        return _last
+      },
+      destroy: async () => {
+        if (createdContainer) {
+          await docker.executeDockerCommand(['stop', createdContainer])
+          createdContainer = null
+        }
+      }
+    }
   }
 
   /**
