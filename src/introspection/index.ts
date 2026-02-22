@@ -176,6 +176,27 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		return
 	}
 
+	// Warn if a concrete Helper subclass inherits its schemas from a parent
+	// instead of setting its own. This usually means a custom schema was
+	// defined but never assigned via `static override optionsSchema = ...`,
+	// causing Zod's safeParse to silently strip custom option/state keys.
+	if (helperConstructor.shortcut !== 'unspecified') {
+		if (!helperConstructor.hasOwnProperty('optionsSchema')) {
+			console.warn(
+				`[luca] ${helperConstructor.shortcut}: no \`static override optionsSchema\` — ` +
+				`custom options will be stripped during construction. ` +
+				`Set \`static override optionsSchema\` on the class if it accepts custom options.`
+			)
+		}
+		if (!helperConstructor.hasOwnProperty('stateSchema')) {
+			console.warn(
+				`[luca] ${helperConstructor.shortcut}: no \`static override stateSchema\` — ` +
+				`introspection will report the base state shape. ` +
+				`Set \`static override stateSchema\` on the class if it has custom state.`
+			)
+		}
+	}
+
 	const key = helperConstructor.shortcut
 	const existing = __INTROSPECTION__.get(key)
 

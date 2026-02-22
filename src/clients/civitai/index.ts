@@ -37,6 +37,7 @@ export type CivitaiClientState = z.infer<typeof CivitaiClientStateSchema>
  * ```
  */
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
+  static override stateSchema = CivitaiClientStateSchema;
   // @ts-ignore
   static attach(container: Container & ClientsInterface, options?: any) {
     container.clients.register("civitai", CivitaiClient);

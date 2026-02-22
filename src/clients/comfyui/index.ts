@@ -65,6 +65,8 @@ export type WorkflowResult = {
 export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientOptions> {
   static override shortcut = "clients.comfyui" as const;
   static override description = "ComfyUI workflow execution client";
+  static override stateSchema = ComfyUIClientStateSchema;
+  static override optionsSchema = ComfyUIClientOptionsSchema;
 
   private ws: WebSocket | null = null;
 

@@ -21,6 +21,7 @@ export const MyClientStateSchema = ClientStateSchema.extend({
 export type MyClientState = z.infer<typeof MyClientStateSchema>
 
 export class MyClient<T extends MyClientState> extends RestClient<T> {
+  static override stateSchema = MyClientStateSchema;
   // @ts-ignore
   static attach(container: Container & ClientsInterface, options?: any) {
     container.clients.register("civitai", MyClient);
