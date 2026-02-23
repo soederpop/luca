@@ -639,7 +639,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         if (!inFence && trimmed.startsWith('```')) {
           inFence = true;
           const lang = trimmed.slice(3).trim();
-          if (lang) language = lang;
+          if (lang) language = lang === 'typescript' ? 'ts' : lang === 'javascript' ? 'js' : lang;
           continue;
         }
 

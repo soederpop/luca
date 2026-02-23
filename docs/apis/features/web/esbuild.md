@@ -1,0 +1,68 @@
+# features.esbuild
+
+Esbuild helper
+
+## Methods
+
+### compile
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `code` | `string` | ✓ | Parameter code |
+
+| `options` | `esbuild.TransformOptions` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### clearCache
+
+**Returns:** `void`
+
+
+
+### start
+
+**Returns:** `void`
+
+
+
+## Getters
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `assetLoader` | `any` | Returns the assetLoader feature for loading external libraries from unpkg. |
+
+## State
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enable` | `boolean` | Whether to automatically enable the feature on creation |
+
+## Examples
+
+**features.esbuild**
+
+```ts
+const esbuild = container.feature('esbuild')
+const result = esbuild.transformSync('const x: number = 1')
+console.log(result.code) // 'const x = 1;\n'
+```
+

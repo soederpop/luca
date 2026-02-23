@@ -125,6 +125,8 @@ Discovers and indexes package.json files across a monorepo or project tree. Prov
 
 ### [portExposer](src/node/features/port-exposer.ts)
 
+**NOTE**: This seems to be wrong.  ngrok is what is used not cloudflare.
+
 Expose local ports to the internet via Cloudflare Tunnel (`cloudflared`). Creates temporary public URLs for local development servers, webhook testing, and demos.
 
 - Expose a local dev server to the internet for webhook testing or demos

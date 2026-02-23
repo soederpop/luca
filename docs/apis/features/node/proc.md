@@ -1,0 +1,362 @@
+# features.proc
+
+The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.
+
+## Methods
+
+### execAndCapture
+
+Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `cmd` | `string` | ✓ | The complete command string to execute (e.g., "git status --porcelain") |
+
+| `options` | `any` |  | Options to pass to the underlying spawn process |
+
+**Returns:** `Promise<{
+    stderr: string;
+    stdout: string;
+    error: null | any;
+    exitCode: number;
+    pid: number | null;
+  }>`
+
+```ts
+// Execute a git command
+const result = await proc.execAndCapture('git status --porcelain')
+if (result.exitCode === 0) {
+ console.log('Git status:', result.stdout)
+} else {
+ console.error('Git error:', result.stderr)
+}
+
+// Execute with options
+const result = await proc.execAndCapture('npm list --depth=0', {
+ cwd: '/path/to/project'
+})
+```
+
+
+
+### spawnAndCapture
+
+Spawns a process and captures its output with real-time monitoring capabilities. This method provides comprehensive process execution with the ability to capture output, monitor real-time data streams, and handle process lifecycle events. It's ideal for long-running processes where you need to capture output as it happens.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `command` | `string` | ✓ | The command to execute (e.g., 'node', 'npm', 'git') |
+
+| `args` | `string[]` | ✓ | Array of arguments to pass to the command |
+
+| `options` | `SpawnOptions` |  | Options for process execution and monitoring |
+
+
+
+`SpawnOptions` properties:
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `stdio` | `"ignore" | "inherit"` | Standard I/O mode for the child process |
+
+| `stdout` | `"ignore" | "inherit"` | Stdout mode for the child process |
+
+| `stderr` | `"ignore" | "inherit"` | Stderr mode for the child process |
+
+| `cwd` | `string` | Working directory for the child process |
+
+| `environment` | `Record<string, any>` | Environment variables to pass to the child process |
+
+| `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
+
+| `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
+
+| `onExit` | `(code: number) => void` | Callback invoked when the process exits |
+
+**Returns:** `Promise<{
+    stderr: string;
+    stdout: string;
+    error: null | any;
+    exitCode: number;
+    pid: number | null;
+  }>`
+
+```ts
+// Basic usage
+const result = await proc.spawnAndCapture('node', ['--version'])
+console.log(`Node version: ${result.stdout}`)
+
+// With real-time output monitoring
+const result = await proc.spawnAndCapture('npm', ['install'], {
+ onOutput: (data) => console.log('📦 ', data.trim()),
+ onError: (data) => console.error('❌ ', data.trim()),
+ onExit: (code) => console.log(`Process exited with code ${code}`)
+})
+
+// Long-running process with custom working directory
+const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
+ cwd: '/path/to/project',
+ onOutput: (data) => {
+   if (data.includes('error')) {
+     console.error('Build error detected:', data)
+   }
+ }
+})
+```
+
+
+
+### runScript
+
+Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `scriptPath` | `string` | ✓ | Absolute path to the script file |
+
+| `options` | `{ cwd?: string; maxLines?: number; env?: Record<string, string> }` |  | Options |
+
+
+
+`{ cwd?: string; maxLines?: number; env?: Record<string, string> }` properties:
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `cwd` | `any` | Working directory |
+
+| `maxLines` | `any` | Max stderr lines to keep |
+
+| `env` | `any` | Extra environment variables |
+
+**Returns:** `Promise<{ exitCode: number; stderr: string[] }>`
+
+```ts
+const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')
+if (exitCode !== 0) {
+ console.log('Error:', stderr.join('\n'))
+}
+```
+
+
+
+### exec
+
+Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `command` | `string` | ✓ | The command to execute |
+
+| `options` | `any` |  | Options for command execution (cwd, encoding, etc.) |
+
+**Returns:** `string`
+
+```ts
+const branch = proc.exec('git branch --show-current')
+const version = proc.exec('node --version')
+```
+
+
+
+### kill
+
+Kills a process by its PID.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `pid` | `number` | ✓ | The process ID to kill |
+
+| `signal` | `NodeJS.Signals | number` |  | The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9) |
+
+**Returns:** `boolean`
+
+```ts
+// Gracefully terminate a process
+proc.kill(12345)
+
+// Force kill a process
+proc.kill(12345, 'SIGKILL')
+```
+
+
+
+### findPidsByPort
+
+Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `port` | `number` | ✓ | The port number to search for |
+
+**Returns:** `number[]`
+
+```ts
+const pids = proc.findPidsByPort(3000)
+console.log(`Processes on port 3000: ${pids}`)
+
+// Kill everything on port 3000
+for (const pid of proc.findPidsByPort(3000)) {
+ proc.kill(pid)
+}
+```
+
+
+
+## State
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enable` | `boolean` | Whether to automatically enable the feature on creation |
+
+## Examples
+
+**features.proc**
+
+```ts
+const proc = container.feature('proc')
+
+// Execute a simple command synchronously
+const result = proc.exec('echo "Hello World"')
+console.log(result) // 'Hello World'
+
+// Execute and capture output asynchronously
+const { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])
+console.log(`npm version: ${stdout}`)
+
+// Execute with callbacks for real-time output
+await proc.spawnAndCapture('npm', ['install'], {
+ onOutput: (data) => console.log('OUT:', data),
+ onError: (data) => console.log('ERR:', data)
+})
+```
+
+
+
+**execAndCapture**
+
+```ts
+// Execute a git command
+const result = await proc.execAndCapture('git status --porcelain')
+if (result.exitCode === 0) {
+ console.log('Git status:', result.stdout)
+} else {
+ console.error('Git error:', result.stderr)
+}
+
+// Execute with options
+const result = await proc.execAndCapture('npm list --depth=0', {
+ cwd: '/path/to/project'
+})
+```
+
+
+
+**spawnAndCapture**
+
+```ts
+// Basic usage
+const result = await proc.spawnAndCapture('node', ['--version'])
+console.log(`Node version: ${result.stdout}`)
+
+// With real-time output monitoring
+const result = await proc.spawnAndCapture('npm', ['install'], {
+ onOutput: (data) => console.log('📦 ', data.trim()),
+ onError: (data) => console.error('❌ ', data.trim()),
+ onExit: (code) => console.log(`Process exited with code ${code}`)
+})
+
+// Long-running process with custom working directory
+const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
+ cwd: '/path/to/project',
+ onOutput: (data) => {
+   if (data.includes('error')) {
+     console.error('Build error detected:', data)
+   }
+ }
+})
+```
+
+
+
+**runScript**
+
+```ts
+const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')
+if (exitCode !== 0) {
+ console.log('Error:', stderr.join('\n'))
+}
+```
+
+
+
+**exec**
+
+```ts
+const branch = proc.exec('git branch --show-current')
+const version = proc.exec('node --version')
+```
+
+
+
+**kill**
+
+```ts
+// Gracefully terminate a process
+proc.kill(12345)
+
+// Force kill a process
+proc.kill(12345, 'SIGKILL')
+```
+
+
+
+**findPidsByPort**
+
+```ts
+const pids = proc.findPidsByPort(3000)
+console.log(`Processes on port 3000: ${pids}`)
+
+// Kill everything on port 3000
+for (const pid of proc.findPidsByPort(3000)) {
+ proc.kill(pid)
+}
+```
+

@@ -291,7 +291,7 @@ function renderMethodsSection(introspection: HelperIntrospection, heading: (leve
 
     if (methodInfo.examples && methodInfo.examples.length > 0) {
       for (const example of methodInfo.examples) {
-        sections.push(`\`\`\`${example.language}\n${example.code}\n\`\`\``)
+        sections.push(`\`\`\`${normalizeLang(example.language)}\n${example.code}\n\`\`\``)
       }
     }
 
@@ -416,13 +416,22 @@ function renderExamplesSection(introspection: HelperIntrospection, heading: (lev
   for (const { source, examples } of allExamples) {
     sections.push(`**${source}**`)
     for (const example of examples) {
-      sections.push(`\`\`\`${example.language}\n${example.code}\n\`\`\``)
+      sections.push(`\`\`\`${normalizeLang(example.language)}\n${example.code}\n\`\`\``)
     }
     sections.push('')
   }
 
   return sections
 }
+
+/** Normalize verbose language names to short tags for code fences */
+function normalizeLang(lang: string): string {
+  if (lang === 'typescript') return 'ts'
+  if (lang === 'javascript') return 'js'
+  return lang
+}
+
+export { presentIntrospectionJSONAsMarkdown as presentIntrospectionAsMarkdown }
 
 function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection) {
   const sections: string[] = []

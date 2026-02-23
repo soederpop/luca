@@ -1,0 +1,261 @@
+# features.conversation
+
+No description provided
+
+## Methods
+
+### ask
+
+Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `content` | `string | ContentPart[]` | ✓ | The user message, either a string or array of content parts (text + images) |
+
+**Returns:** `Promise<string>`
+
+```ts
+const reply = await conversation.ask("What's the weather in SF?")
+// With image:
+const reply = await conversation.ask([
+ { type: 'text', text: 'What is in this diagram?' },
+ { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
+])
+```
+
+
+
+### save
+
+Persist this conversation to disk via conversationHistory. Creates a new record if this conversation hasn't been saved before, or updates the existing one.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `opts` | `{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }` |  | Optional overrides for title, tags, thread, or metadata |
+
+**Returns:** `void`
+
+
+
+## Getters
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `tools` | `Record<string, any>` | Returns the registered tools available for the model to call. |
+
+| `mcpServers` | `Record<string, ConversationMCPServer>` | Returns configured remote MCP servers keyed by server label. |
+
+| `messages` | `Message[]` | Returns the full message history of the conversation. |
+
+| `model` | `string` | Returns the OpenAI model name being used for completions. |
+
+| `apiMode` | `'responses' | 'chat'` | Returns the active completion API mode after resolving auto/local behavior. |
+
+| `isStreaming` | `boolean` | Whether a streaming response is currently in progress. |
+
+| `openai` | `any` | Returns the OpenAI client instance from the container. |
+
+| `history` | `ConversationHistory` | Returns the conversationHistory feature for persistence. |
+
+## Events
+
+### userMessage
+
+Event emitted by Conversation
+
+
+
+### turnStart
+
+Event emitted by Conversation
+
+
+
+### rawEvent
+
+Event emitted by Conversation
+
+
+
+### mcpEvent
+
+Event emitted by Conversation
+
+
+
+### chunk
+
+Event emitted by Conversation
+
+
+
+### preview
+
+Event emitted by Conversation
+
+
+
+### responseCompleted
+
+Event emitted by Conversation
+
+
+
+### toolCallsStart
+
+Event emitted by Conversation
+
+
+
+### toolError
+
+Event emitted by Conversation
+
+
+
+### toolCall
+
+Event emitted by Conversation
+
+
+
+### toolResult
+
+Event emitted by Conversation
+
+
+
+### toolCallsEnd
+
+Event emitted by Conversation
+
+
+
+### turnEnd
+
+Event emitted by Conversation
+
+
+
+### response
+
+Event emitted by Conversation
+
+
+
+### stateChange
+
+Event: stateChange
+
+**Event Arguments:**
+
+| Name | Type | Description |
+
+|------|------|-------------|
+
+| `arg0` | `any` | The current state object |
+
+
+
+### enabled
+
+Emitted when the feature is enabled
+
+
+
+## State
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
+| `id` | `string` | Unique identifier for this conversation instance |
+
+| `thread` | `string` | Thread identifier for grouping conversations |
+
+| `model` | `string` | The OpenAI model being used |
+
+| `messages` | `array` | Full message history of the conversation |
+
+| `streaming` | `boolean` | Whether a streaming response is currently in progress |
+
+| `lastResponse` | `string` | The last assistant response text |
+
+| `toolCalls` | `number` | Total number of tool calls made in this conversation |
+
+| `api` | `string` | Which completion API is active for this conversation |
+
+| `lastResponseId` | `any` | Most recent OpenAI Responses API response ID for continuing conversation state |
+
+| `tokenUsage` | `object` | Cumulative token usage statistics |
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `enable` | `boolean` | Whether to automatically enable the feature on creation |
+
+| `id` | `string` | A unique identifier for the conversation |
+
+| `title` | `string` | A human-readable title for the conversation |
+
+| `thread` | `string` | A unique identifier for threads, an arbitrary grouping mechanism |
+
+| `model` | `string` | Any available OpenAI model |
+
+| `history` | `array` | Initial message history to seed the conversation |
+
+| `tools` | `object` | Tools the model can call during conversation |
+
+| `mcpServers` | `object` | Remote MCP servers keyed by server label |
+
+| `api` | `string` | Completion API mode. auto uses Responses unless local=true |
+
+| `tags` | `array` | Tags for categorizing and searching this conversation |
+
+| `metadata` | `object` | Arbitrary metadata to attach to this conversation |
+
+| `clientOptions` | `object` | Options for the OpenAI client |
+
+| `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
+
+## Examples
+
+**features.conversation**
+
+```ts
+const conversation = container.feature('conversation', {
+ model: 'gpt-4.1',
+ tools: myToolMap,
+ history: [{ role: 'system', content: 'You are a helpful assistant.' }]
+})
+const reply = await conversation.ask('What is the meaning of life?')
+```
+
+
+
+**ask**
+
+```ts
+const reply = await conversation.ask("What's the weather in SF?")
+// With image:
+const reply = await conversation.ask([
+ { type: 'text', text: 'What is in this diagram?' },
+ { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
+])
+```
+

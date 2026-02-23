@@ -93,11 +93,19 @@
       "mcp__luca-sandbox__list_registry",
       "WebFetch(domain:console.runpod.io)",
       "Bash(cat:*)",
-      "Bash(echo === $\\(basename $f\\) ===:*)"
+      "Bash(echo === $\\(basename $f\\) ===:*)",
+      "Bash(echo ===== $f =====:*)",
+      "mcp__luca-sandbox__inspect_helper_instance",
+      "Bash(tail:*)",
+      "Bash(for f in docs/examples/*.md)",
+      "Bash(do head -6 \"$f\")",
+      "Bash(echo \"MISSING title: $f\")",
+      "Bash(done)"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "luca-sandbox"
+    "luca-sandbox",
+    "contentbase"
   ]
 }
