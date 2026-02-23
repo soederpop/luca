@@ -2,6 +2,31 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.client('graph', {
+  // Base URL for the client connection
+  baseURL,
+  // Whether to automatically parse responses as JSON
+  json,
+  // The GraphQL endpoint path, defaults to /graphql
+  endpoint,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `baseURL` | `string` | Base URL for the client connection |
+
+| `json` | `boolean` | Whether to automatically parse responses as JSON |
+
+| `endpoint` | `string` | The GraphQL endpoint path, defaults to /graphql |
+
 ## Events
 
 ### stateChange
@@ -53,15 +78,3 @@ Emitted when GraphQL-level errors are present in the response
 |----------|------|-------------|
 
 | `connected` | `boolean` | Whether the client is currently connected |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `baseURL` | `string` | Base URL for the client connection |
-
-| `json` | `boolean` | Whether to automatically parse responses as JSON |
-
-| `endpoint` | `string` | The GraphQL endpoint path, defaults to /graphql |

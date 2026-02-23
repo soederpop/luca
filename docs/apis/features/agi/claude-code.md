@@ -2,6 +2,71 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('claudeCode', {
+  // Path to the claude CLI binary
+  claudePath,
+  // Default model to use for sessions
+  model,
+  // Default working directory for sessions
+  cwd,
+  // Default system prompt prepended to all sessions
+  systemPrompt,
+  // Default append system prompt for all sessions
+  appendSystemPrompt,
+  // Default permission mode for Claude CLI sessions
+  permissionMode,
+  // Default allowed tools for sessions
+  allowedTools,
+  // Default disallowed tools for sessions
+  disallowedTools,
+  // Whether to stream partial messages token-by-token
+  streaming,
+  // MCP config file paths to pass to sessions
+  mcpConfig,
+  // MCP server configs keyed by name, injected into sessions via temp config file
+  mcpServers,
+  // Path to write a parseable NDJSON session log file
+  fileLogPath,
+  // Verbosity level for file logging. Defaults to "normal"
+  fileLogLevel,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `claudePath` | `string` | Path to the claude CLI binary |
+
+| `model` | `string` | Default model to use for sessions |
+
+| `cwd` | `string` | Default working directory for sessions |
+
+| `systemPrompt` | `string` | Default system prompt prepended to all sessions |
+
+| `appendSystemPrompt` | `string` | Default append system prompt for all sessions |
+
+| `permissionMode` | `string` | Default permission mode for Claude CLI sessions |
+
+| `allowedTools` | `array` | Default allowed tools for sessions |
+
+| `disallowedTools` | `array` | Default disallowed tools for sessions |
+
+| `streaming` | `boolean` | Whether to stream partial messages token-by-token |
+
+| `mcpConfig` | `array` | MCP config file paths to pass to sessions |
+
+| `mcpServers` | `object` | MCP server configs keyed by name, injected into sessions via temp config file |
+
+| `fileLogPath` | `string` | Path to write a parseable NDJSON session log file |
+
+| `fileLogLevel` | `string` | Verbosity level for file logging. Defaults to "normal" |
+
 ## Methods
 
 ### checkAvailability
@@ -401,38 +466,6 @@ Emitted when the feature is enabled
 | `claudeAvailable` | `boolean` | Whether the Claude CLI binary is available |
 
 | `claudeVersion` | `string` | Detected Claude CLI version string |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `claudePath` | `string` | Path to the claude CLI binary |
-
-| `model` | `string` | Default model to use for sessions |
-
-| `cwd` | `string` | Default working directory for sessions |
-
-| `systemPrompt` | `string` | Default system prompt prepended to all sessions |
-
-| `appendSystemPrompt` | `string` | Default append system prompt for all sessions |
-
-| `permissionMode` | `string` | Default permission mode for Claude CLI sessions |
-
-| `allowedTools` | `array` | Default allowed tools for sessions |
-
-| `disallowedTools` | `array` | Default disallowed tools for sessions |
-
-| `streaming` | `boolean` | Whether to stream partial messages token-by-token |
-
-| `mcpConfig` | `array` | MCP config file paths to pass to sessions |
-
-| `mcpServers` | `object` | MCP server configs keyed by name, injected into sessions via temp config file |
-
-| `fileLogPath` | `string` | Path to write a parseable NDJSON session log file |
-
-| `fileLogLevel` | `string` | Verbosity level for file logging. Defaults to "normal" |
 
 ## Environment Variables
 

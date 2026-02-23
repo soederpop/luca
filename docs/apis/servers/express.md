@@ -2,6 +2,43 @@
 
 ExpressServer helper
 
+## Usage
+
+```ts
+container.server('express', {
+  // Port number to listen on
+  port,
+  // Hostname or IP address to bind to
+  host,
+  // Whether to enable CORS middleware
+  cors,
+  // Path to serve static files from
+  static,
+  // (app: Express, server: Server) => Express
+  create,
+  // (options: StartOptions, server: Server) => Promise<any>
+  beforeStart,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `port` | `number` | Port number to listen on |
+
+| `host` | `string` | Hostname or IP address to bind to |
+
+| `cors` | `boolean` | Whether to enable CORS middleware |
+
+| `static` | `string` | Path to serve static files from |
+
+| `create` | `any` | (app: Express, server: Server) => Express |
+
+| `beforeStart` | `any` | (options: StartOptions, server: Server) => Promise<any> |
+
 ## Methods
 
 ### start
@@ -105,21 +142,3 @@ ExpressServer helper
 | `configured` | `boolean` | Whether the server has been configured |
 
 | `stopped` | `boolean` | Whether the server has been stopped |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `port` | `number` | Port number to listen on |
-
-| `host` | `string` | Hostname or IP address to bind to |
-
-| `cors` | `boolean` | Whether to enable CORS middleware |
-
-| `static` | `string` | Path to serve static files from |
-
-| `create` | `any` | (app: Express, server: Server) => Express |
-
-| `beforeStart` | `any` | (options: StartOptions, server: Server) => Promise<any> |

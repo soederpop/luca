@@ -2,6 +2,27 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('skillsLibrary', {
+  // Path to project-level skills directory
+  projectSkillsPath,
+  // Path to user-level global skills directory
+  userSkillsPath,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `projectSkillsPath` | `string` | Path to project-level skills directory |
+
+| `userSkillsPath` | `string` | Path to user-level global skills directory |
+
 ## Methods
 
 ### load
@@ -220,16 +241,6 @@ Emitted when the feature is enabled
 | `userSkillCount` | `number` | Number of skills in the user-level collection |
 
 | `totalSkillCount` | `number` | Total number of skills across both collections |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `projectSkillsPath` | `string` | Path to project-level skills directory |
-
-| `userSkillsPath` | `string` | Path to user-level global skills directory |
 
 ## Examples
 

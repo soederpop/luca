@@ -2,6 +2,23 @@
 
 The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.
 
+## Usage
+
+```ts
+container.feature('vm', {
+  // Default context object to inject into the VM execution environment
+  context,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `context` | `any` | Default context object to inject into the VM execution environment |
+
 ## Methods
 
 ### createScript
@@ -57,14 +74,6 @@ The VM features providers a virtual machine for executing JavaScript code in a s
 |----------|------|-------------|
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `context` | `any` | Default context object to inject into the VM execution environment |
 
 ## Examples
 

@@ -2,6 +2,39 @@
 
 MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly with Zod 4 native JSON Schema conversion. Register tools, resources, and prompts programmatically, then start the server over stdio (for CLI integration) or HTTP (for remote access).
 
+## Usage
+
+```ts
+container.server('mcp', {
+  // Port number to listen on
+  port,
+  // Hostname or IP address to bind to
+  host,
+  // Transport type for MCP communication
+  transport,
+  // Server name reported to MCP clients
+  serverName,
+  // Server version reported to MCP clients
+  serverVersion,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `port` | `number` | Port number to listen on |
+
+| `host` | `string` | Hostname or IP address to bind to |
+
+| `transport` | `string` | Transport type for MCP communication |
+
+| `serverName` | `string` | Server name reported to MCP clients |
+
+| `serverVersion` | `string` | Server version reported to MCP clients |
+
 ## Methods
 
 ### tool
@@ -187,22 +220,6 @@ Event emitted by MCPServer
 | `resourceCount` | `number` | Number of registered resources |
 
 | `promptCount` | `number` | Number of registered prompts |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `port` | `number` | Port number to listen on |
-
-| `host` | `string` | Hostname or IP address to bind to |
-
-| `transport` | `string` | Transport type for MCP communication |
-
-| `serverName` | `string` | Server name reported to MCP clients |
-
-| `serverVersion` | `string` | Server version reported to MCP clients |
 
 ## Examples
 

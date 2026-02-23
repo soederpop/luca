@@ -2,6 +2,23 @@
 
 Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.
 
+## Usage
+
+```ts
+container.feature('contentDb', {
+  // Root directory path containing the structured markdown collection
+  rootPath,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `rootPath` | `string` | Root directory path containing the structured markdown collection |
+
 ## Methods
 
 ### query
@@ -90,14 +107,6 @@ console.log(contentDb.isLoaded) // true
 | `tableOfContents` | `string` | Generated table of contents string for the collection |
 
 | `modelSummary` | `string` | Summary of all discovered content models and their document counts |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `rootPath` | `string` | Root directory path containing the structured markdown collection |
 
 ## Examples
 

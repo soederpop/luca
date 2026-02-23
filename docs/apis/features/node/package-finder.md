@@ -2,6 +2,23 @@
 
 PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. It recursively scans all node_modules directories and builds a comprehensive index of packages, enabling: **Core Functionality:** - Recursive node_modules scanning across the workspace - Package manifest parsing and indexing - Duplicate package detection and analysis - Dependency relationship mapping - Scoped package organization (@scope/package) - Package count and statistics **Use Cases:** - Dependency auditing and analysis - Duplicate package identification - Package version conflict detection - Dependency tree analysis - Workspace package inventory **Performance Features:** - Parallel manifest reading for fast scanning - Efficient duplicate detection using unique paths - Lazy initialization - only scans when started - In-memory indexing for fast queries **Usage Example:** ```typescript const finder = container.feature('packageFinder'); await finder.start(); // Find duplicates console.log('Duplicate packages:', finder.duplicates); // Find package by name const lodash = finder.findByName('lodash'); // Find dependents of a package const dependents = finder.findDependentsOf('react'); ```
 
+## Usage
+
+```ts
+container.feature('packageFinder', {
+  // Optional configuration parameter
+  option,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `option` | `string` | Optional configuration parameter |
+
 ## Methods
 
 ### afterInitialize
@@ -256,14 +273,6 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 | `started` | `boolean` | Whether the package finder has been started and initial scan completed |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `option` | `string` | Optional configuration parameter |
 
 ## Examples
 

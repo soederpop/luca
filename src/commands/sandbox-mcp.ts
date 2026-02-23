@@ -250,7 +250,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				'The container has registries for each helper type. Each registry has:',
 				'- `.available` — array of registered names',
 				'- `.describe(name)` — returns markdown docs for one helper',
-				'- `.describeAll()` — returns markdown docs for all helpers',
+				'- `.describeAll()` — returns a condensed overview of all helpers (name + description)',
 				'',
 				'### Registries',
 				'```',

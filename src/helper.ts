@@ -206,7 +206,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   }
 }
 
-const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples']
+const INTROSPECTION_SECTIONS: IntrospectionSection[] = ['methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples', 'usage']
 
 function filterIntrospection(data: HelperIntrospection, section: IntrospectionSection): HelperIntrospection {
   const filtered: HelperIntrospection = {
@@ -226,6 +226,9 @@ function filterIntrospection(data: HelperIntrospection, section: IntrospectionSe
     filtered.examples = data.examples
     filtered.methods = data.methods
     filtered.getters = data.getters
+  } else if (section === 'usage') {
+    // Usage is derived from options + shortcut, so pass those through
+    filtered.options = data.options
   } else {
     filtered[section] = data[section] as any
   }
@@ -377,6 +380,38 @@ function renderOptionsSection(introspection: HelperIntrospection, heading: (leve
   return sections
 }
 
+function renderUsageSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
+  const sections: string[] = []
+
+  // Derive the factory method from the shortcut, e.g. "features.diskCache" -> container.feature('diskCache', { ... })
+  const shortcut = introspection.shortcut || introspection.id || ''
+  const parts = shortcut.split('.')
+  if (parts.length < 2) return sections
+
+  const scope = parts[0]! // e.g. "features"
+  const name = parts.slice(1).join('.') // e.g. "diskCache"
+  // Singular form: features -> feature, clients -> client, servers -> server, commands -> command, endpoints -> endpoint
+  const factoryMethod = scope.endsWith('s') ? scope.slice(0, -1) : scope
+
+  const options = introspection.options || {}
+  const optionEntries = Object.entries(options)
+
+  sections.push(`${heading(2)} Usage`)
+
+  if (optionEntries.length === 0) {
+    sections.push(`\`\`\`ts\ncontainer.${factoryMethod}('${name}')\n\`\`\``)
+  } else {
+    const optionLines = optionEntries.map(([optName, optInfo]) => {
+      const desc = optInfo.description ? `// ${optInfo.description}` : ''
+      return `  ${desc}\n  ${optName},`
+    }).join('\n')
+
+    sections.push(`\`\`\`ts\ncontainer.${factoryMethod}('${name}', {\n${optionLines}\n})\n\`\`\``)
+  }
+
+  return sections
+}
+
 function renderEnvVarsSection(introspection: HelperIntrospection, heading: (level: number) => string): string[] {
   const sections: string[] = []
   if (!introspection.envVars || introspection.envVars.length === 0) return sections
@@ -442,11 +477,12 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
   }
 
   const renderers: Record<IntrospectionSection, () => string[]> = {
+    usage: () => renderUsageSection(introspection, heading),
+    options: () => renderOptionsSection(introspection, heading),
     methods: () => renderMethodsSection(introspection, heading),
     getters: () => renderGettersSection(introspection, heading),
     events: () => renderEventsSection(introspection, heading),
     state: () => renderStateSection(introspection, heading),
-    options: () => renderOptionsSection(introspection, heading),
     envVars: () => renderEnvVarsSection(introspection, heading),
     examples: () => renderExamplesSection(introspection, heading),
   }

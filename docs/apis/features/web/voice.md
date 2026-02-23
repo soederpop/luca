@@ -2,6 +2,12 @@
 
 VoiceRecognition helper
 
+## Usage
+
+```ts
+container.feature('voice')
+```
+
 ## Methods
 
 ### whenFinished

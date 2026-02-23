@@ -2,6 +2,51 @@
 
 Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.
 
+## Usage
+
+```ts
+container.feature('googleAuth', {
+  // Authentication mode. Auto-detected if serviceAccountKeyPath is set
+  mode,
+  // OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var)
+  clientId,
+  // OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var)
+  clientSecret,
+  // Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var)
+  serviceAccountKeyPath,
+  // Service account key as a parsed JSON object (alternative to file path)
+  serviceAccountKey,
+  // OAuth2 scopes to request
+  scopes,
+  // Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000)
+  redirectPort,
+  // DiskCache key for storing OAuth2 refresh token
+  tokenCacheKey,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `mode` | `string` | Authentication mode. Auto-detected if serviceAccountKeyPath is set |
+
+| `clientId` | `string` | OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var) |
+
+| `clientSecret` | `string` | OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var) |
+
+| `serviceAccountKeyPath` | `string` | Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var) |
+
+| `serviceAccountKey` | `object` | Service account key as a parsed JSON object (alternative to file path) |
+
+| `scopes` | `array` | OAuth2 scopes to request |
+
+| `redirectPort` | `number` | Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000) |
+
+| `tokenCacheKey` | `string` | DiskCache key for storing OAuth2 refresh token |
+
 ## Methods
 
 ### getOAuth2Client
@@ -125,28 +170,6 @@ Event emitted by GoogleAuth
 | `tokenExpiry` | `string` | ISO timestamp when the current access token expires |
 
 | `lastError` | `string` | Last authentication error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `mode` | `string` | Authentication mode. Auto-detected if serviceAccountKeyPath is set |
-
-| `clientId` | `string` | OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var) |
-
-| `clientSecret` | `string` | OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var) |
-
-| `serviceAccountKeyPath` | `string` | Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var) |
-
-| `serviceAccountKey` | `object` | Service account key as a parsed JSON object (alternative to file path) |
-
-| `scopes` | `array` | OAuth2 scopes to request |
-
-| `redirectPort` | `number` | Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000) |
-
-| `tokenCacheKey` | `string` | DiskCache key for storing OAuth2 refresh token |
 
 ## Environment Variables
 

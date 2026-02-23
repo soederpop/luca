@@ -2,6 +2,12 @@
 
 Speech helper
 
+## Usage
+
+```ts
+container.feature('speech')
+```
+
 ## Methods
 
 ### loadVoices

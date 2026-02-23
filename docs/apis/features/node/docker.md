@@ -2,6 +2,31 @@
 
 Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information
 
+## Usage
+
+```ts
+container.feature('docker', {
+  // Path to docker executable
+  dockerPath,
+  // Command timeout in milliseconds
+  timeout,
+  // Auto refresh containers/images after operations
+  autoRefresh,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `dockerPath` | `string` | Path to docker executable |
+
+| `timeout` | `number` | Command timeout in milliseconds |
+
+| `autoRefresh` | `boolean` | Auto refresh containers/images after operations |
+
 ## Methods
 
 ### checkDockerAvailability
@@ -646,18 +671,6 @@ Initialize the Docker feature by checking availability and optionally refreshing
 | `isDockerAvailable` | `boolean` | Whether Docker CLI is available on this system |
 
 | `lastError` | `string` | Last error message from a Docker operation |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `dockerPath` | `string` | Path to docker executable |
-
-| `timeout` | `number` | Command timeout in milliseconds |
-
-| `autoRefresh` | `boolean` | Auto refresh containers/images after operations |
 
 ## Examples
 

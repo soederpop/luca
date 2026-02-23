@@ -2,6 +2,27 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('assistantsManager', {
+  // Folder to scan for assistant subdirectories
+  folder,
+  // Automatically discover assistants on init
+  autoDiscover,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `folder` | `string` | Folder to scan for assistant subdirectories |
+
+| `autoDiscover` | `boolean` | Automatically discover assistants on init |
+
 ## Methods
 
 ### afterInitialize
@@ -153,16 +174,6 @@ Emitted when the feature is enabled
 | `assistantCount` | `number` | Number of discovered assistant definitions |
 
 | `activeCount` | `number` | Number of currently instantiated assistants |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `folder` | `string` | Folder to scan for assistant subdirectories |
-
-| `autoDiscover` | `boolean` | Automatically discover assistants on init |
 
 ## Examples
 

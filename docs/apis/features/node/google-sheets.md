@@ -2,6 +2,23 @@
 
 Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.
 
+## Usage
+
+```ts
+container.feature('googleSheets', {
+  // Default spreadsheet ID for operations
+  defaultSpreadsheetId,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `defaultSpreadsheetId` | `string` | Default spreadsheet ID for operations |
+
 ## Methods
 
 ### getSpreadsheet
@@ -167,14 +184,6 @@ Event emitted by GoogleSheets
 | `lastRowCount` | `number` | Number of rows returned in last read |
 
 | `lastError` | `string` | Last Sheets API error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `defaultSpreadsheetId` | `string` | Default spreadsheet ID for operations |
 
 ## Examples
 

@@ -2,6 +2,35 @@
 
 Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection="column"> <Text color="green">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```
 
+## Usage
+
+```ts
+container.feature('ink', {
+  // Maximum frames per second for render updates
+  maxFps,
+  // Patch console methods to avoid mixing with Ink output
+  patchConsole,
+  // Enable incremental rendering mode
+  incrementalRendering,
+  // Enable React concurrent rendering mode
+  concurrent,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `maxFps` | `number` | Maximum frames per second for render updates |
+
+| `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |
+
+| `incrementalRendering` | `boolean` | Enable incremental rendering mode |
+
+| `concurrent` | `boolean` | Enable React concurrent rendering mode |
+
 ## Methods
 
 ### loadModules
@@ -149,20 +178,6 @@ Event emitted by Ink
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 | `mounted` | `boolean` | Whether an ink app is currently rendered / mounted |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `maxFps` | `number` | Maximum frames per second for render updates |
-
-| `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |
-
-| `incrementalRendering` | `boolean` | Enable incremental rendering mode |
-
-| `concurrent` | `boolean` | Enable React concurrent rendering mode |
 
 ## Examples
 

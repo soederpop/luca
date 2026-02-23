@@ -2,6 +2,39 @@
 
 SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.
 
+## Usage
+
+```ts
+container.feature('secureShell', {
+  // Remote host address
+  host,
+  // SSH port number (default: 22)
+  port,
+  // Username for SSH authentication
+  username,
+  // Password for SSH authentication
+  password,
+  // Path to SSH private key file
+  key,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `host` | `string` | Remote host address |
+
+| `port` | `number` | SSH port number (default: 22) |
+
+| `username` | `string` | Username for SSH authentication |
+
+| `password` | `string` | Password for SSH authentication |
+
+| `key` | `string` | Path to SSH private key file |
+
 ## Methods
 
 ### testConnection
@@ -95,22 +128,6 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 | `connected` | `boolean` | Whether an SSH connection is currently active |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `host` | `string` | Remote host address |
-
-| `port` | `number` | SSH port number (default: 22) |
-
-| `username` | `string` | Username for SSH authentication |
-
-| `password` | `string` | Password for SSH authentication |
-
-| `key` | `string` | Path to SSH private key file |
 
 ## Examples
 

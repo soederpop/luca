@@ -2,6 +2,12 @@
 
 Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.
 
+## Usage
+
+```ts
+container.feature('googleDocs')
+```
+
 ## Methods
 
 ### getDocument

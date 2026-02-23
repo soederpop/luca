@@ -2,6 +2,23 @@
 
 Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.
 
+## Usage
+
+```ts
+container.feature('processManager', {
+  // Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes
+  autoCleanup,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
+
 ## Methods
 
 ### spawn
@@ -201,14 +218,6 @@ Event emitted by ProcessManager
 | `processes` | `object` | Map of process ID to metadata |
 
 | `totalSpawned` | `number` | Total number of processes spawned since feature creation |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
 
 ## Examples
 

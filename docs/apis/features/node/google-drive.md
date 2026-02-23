@@ -2,6 +2,27 @@
 
 Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.
 
+## Usage
+
+```ts
+container.feature('googleDrive', {
+  // Default corpus for file queries (default: user)
+  defaultCorpora,
+  // Default number of results per page (default: 100)
+  pageSize,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `defaultCorpora` | `string` | Default corpus for file queries (default: user) |
+
+| `pageSize` | `number` | Default number of results per page (default: 100) |
+
 ## Methods
 
 ### listFiles
@@ -229,16 +250,6 @@ Event emitted by GoogleDrive
 | `lastResultCount` | `number` | Number of results from last list/search operation |
 
 | `lastError` | `string` | Last Drive API error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `defaultCorpora` | `string` | Default corpus for file queries (default: user) |
-
-| `pageSize` | `number` | Default number of results per page (default: 100) |
 
 ## Examples
 

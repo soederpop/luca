@@ -2,6 +2,23 @@
 
 The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.
 
+## Usage
+
+```ts
+container.feature('fileManager', {
+  // Glob patterns to exclude from file scanning
+  exclude,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `exclude` | `any` | Glob patterns to exclude from file scanning |
+
 ## Methods
 
 ### match
@@ -193,14 +210,6 @@ Event emitted by FileManager
 | `watching` | `boolean` | Whether the file watcher is actively monitoring for changes |
 
 | `failed` | `boolean` | Whether the initial file scan failed |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `exclude` | `any` | Glob patterns to exclude from file scanning |
 
 ## Examples
 

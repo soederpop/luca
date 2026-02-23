@@ -2,6 +2,59 @@
 
 Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.
 
+## Usage
+
+```ts
+container.feature('telegram', {
+  // Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var)
+  token,
+  // Update mode: polling for long-polling, webhook for HTTP callbacks
+  mode,
+  // Public HTTPS URL for webhook mode
+  webhookUrl,
+  // HTTP path for the webhook endpoint
+  webhookPath,
+  // Port for webhook Express server
+  webhookPort,
+  // Automatically start the bot when enabled
+  autoStart,
+  // Drop pending updates on start (polling mode)
+  dropPendingUpdates,
+  // Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s.
+  pollingTimeout,
+  // Max updates per polling request (1-100, default 100)
+  pollingLimit,
+  // Update types to receive (e.g. ["message", "callback_query"])
+  allowedUpdates,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `token` | `string` | Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var) |
+
+| `mode` | `string` | Update mode: polling for long-polling, webhook for HTTP callbacks |
+
+| `webhookUrl` | `string` | Public HTTPS URL for webhook mode |
+
+| `webhookPath` | `string` | HTTP path for the webhook endpoint |
+
+| `webhookPort` | `number` | Port for webhook Express server |
+
+| `autoStart` | `boolean` | Automatically start the bot when enabled |
+
+| `dropPendingUpdates` | `boolean` | Drop pending updates on start (polling mode) |
+
+| `pollingTimeout` | `number` | Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s. |
+
+| `pollingLimit` | `number` | Max updates per polling request (1-100, default 100) |
+
+| `allowedUpdates` | `array` | Update types to receive (e.g. ["message", "callback_query"]) |
+
 ## Methods
 
 ### enable
@@ -214,32 +267,6 @@ Event emitted by Telegram
 | `lastError` | `string` | Last error message |
 
 | `botInfo` | `object` | Bot user information from Telegram API |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `token` | `string` | Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var) |
-
-| `mode` | `string` | Update mode: polling for long-polling, webhook for HTTP callbacks |
-
-| `webhookUrl` | `string` | Public HTTPS URL for webhook mode |
-
-| `webhookPath` | `string` | HTTP path for the webhook endpoint |
-
-| `webhookPort` | `number` | Port for webhook Express server |
-
-| `autoStart` | `boolean` | Automatically start the bot when enabled |
-
-| `dropPendingUpdates` | `boolean` | Drop pending updates on start (polling mode) |
-
-| `pollingTimeout` | `number` | Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s. |
-
-| `pollingLimit` | `number` | Max updates per polling request (1-100, default 100) |
-
-| `allowedUpdates` | `array` | Update types to receive (e.g. ["message", "callback_query"]) |
 
 ## Environment Variables
 

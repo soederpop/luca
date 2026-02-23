@@ -2,6 +2,39 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.client('websocket', {
+  // Base URL for the client connection
+  baseURL,
+  // Whether to automatically parse responses as JSON
+  json,
+  // Whether to automatically reconnect on disconnection
+  reconnect,
+  // Base interval in milliseconds between reconnection attempts
+  reconnectInterval,
+  // Maximum number of reconnection attempts before giving up
+  maxReconnectAttempts,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `baseURL` | `string` | Base URL for the client connection |
+
+| `json` | `boolean` | Whether to automatically parse responses as JSON |
+
+| `reconnect` | `boolean` | Whether to automatically reconnect on disconnection |
+
+| `reconnectInterval` | `number` | Base interval in milliseconds between reconnection attempts |
+
+| `maxReconnectAttempts` | `number` | Maximum number of reconnection attempts before giving up |
+
 ## Events
 
 ### stateChange
@@ -107,19 +140,3 @@ Emitted when attempting to reconnect
 | `connectionError` | `any` | The last connection error, if any |
 
 | `reconnectAttempts` | `number` | Number of reconnection attempts made |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `baseURL` | `string` | Base URL for the client connection |
-
-| `json` | `boolean` | Whether to automatically parse responses as JSON |
-
-| `reconnect` | `boolean` | Whether to automatically reconnect on disconnection |
-
-| `reconnectInterval` | `number` | Base interval in milliseconds between reconnection attempts |
-
-| `maxReconnectAttempts` | `number` | Maximum number of reconnection attempts before giving up |
