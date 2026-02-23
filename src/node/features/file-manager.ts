@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { State } from "../../state.js";
 import { Feature, features } from "../feature.js";
-import { parse } from "path";
+import { parse, relative } from "path";
 import { statSync } from "fs";
 import micromatch from "micromatch";
 import { castArray } from "lodash-es";
@@ -186,11 +186,25 @@ export class FileManager<
     exclude.push("dist");
 
     if (git.isRepo) {
-      const deleted = await git.lsFiles({ deleted: true })
-      await git.lsFiles().then((results) => fileIds.push(...results.filter((id:string) => !deleted.includes(id))));
+      const repoRoot = git.repoRoot;
+      const cwdRelative = repoRoot ? relative(repoRoot, cwd) : '';
+      const baseDir = cwdRelative || '';
+
+      const deleted = await git.lsFiles({ deleted: true, baseDir })
+      await git.lsFiles({ baseDir }).then((results) => fileIds.push(...results.filter((id:string) => !deleted.includes(id))));
       await git
-        .lsFiles({ others: true, includeIgnored: true, exclude })
+        .lsFiles({ others: true, includeIgnored: true, exclude, baseDir })
         .then((results) => fileIds.push(...results.filter((id:string) => !deleted.includes(id))));
+
+      // git ls-files returns paths relative to repo root; make them relative to cwd
+      if (cwdRelative) {
+        const prefix = cwdRelative + '/';
+        for (let i = 0; i < fileIds.length; i++) {
+          if (fileIds[i].startsWith(prefix)) {
+            fileIds[i] = fileIds[i].slice(prefix.length);
+          }
+        }
+      }
     } else {
       await fs.walkAsync(cwd).then(({ files } : { files: string[] }) => fileIds.push(...files));
     }
