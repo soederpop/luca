@@ -200,8 +200,6 @@ Event emitted by FileManager
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `exclude` | `any` | Glob patterns to exclude from file scanning |
 
 ## Examples

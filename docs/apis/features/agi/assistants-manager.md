@@ -160,8 +160,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `folder` | `string` | Folder to scan for assistant subdirectories |
 
 | `autoDiscover` | `boolean` | Automatically discover assistants on init |

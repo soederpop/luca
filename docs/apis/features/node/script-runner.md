@@ -18,14 +18,6 @@ The ScriptRunner feature provides convenient access to npm scripts defined in pa
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.scriptRunner**

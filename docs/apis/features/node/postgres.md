@@ -155,8 +155,6 @@ Event emitted by Postgres
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
 
 ## Examples

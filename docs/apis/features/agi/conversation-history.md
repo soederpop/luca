@@ -354,8 +354,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `cachePath` | `string` | Custom cache directory for conversation storage |
 
 | `namespace` | `string` | Namespace prefix for cache keys to isolate datasets |

@@ -408,8 +408,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `claudePath` | `string` | Path to the claude CLI binary |
 
 | `model` | `string` | Default model to use for sessions |

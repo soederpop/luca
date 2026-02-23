@@ -32,14 +32,6 @@ The OS feature provides access to operating system utilities and information. Th
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.os**

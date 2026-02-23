@@ -97,8 +97,6 @@ console.log(contentDb.isLoaded) // true
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `rootPath` | `string` | Root directory path containing the structured markdown collection |
 
 ## Examples

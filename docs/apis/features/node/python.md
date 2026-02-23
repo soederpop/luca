@@ -211,8 +211,6 @@ Event emitted by Python
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `dir` | `string` | Directory containing the Python project |
 
 | `installCommand` | `string` | Custom install command to override auto-detection |

@@ -50,14 +50,6 @@ const apiEndpoints = jsonTree.tree.data.api.endpoints;
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **loadTree**

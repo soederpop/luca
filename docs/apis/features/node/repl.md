@@ -66,8 +66,6 @@ await repl.start({
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `prompt` | `string` | The prompt string to display in the REPL (default: "> ") |
 
 | `historyPath` | `string` | Path to the REPL history file for command persistence |

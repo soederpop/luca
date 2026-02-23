@@ -211,14 +211,6 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 
 | `repoRoot` | `string` | Absolute path to the Git repository root directory |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.git**

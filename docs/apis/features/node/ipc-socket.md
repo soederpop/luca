@@ -181,14 +181,6 @@ Event emitted by IpcSocket
 
 | `mode` | `string` | The current mode of the IPC socket - either server or client |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **listen**

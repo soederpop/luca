@@ -156,8 +156,6 @@ Event emitted by Ink
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `maxFps` | `number` | Maximum frames per second for render updates |
 
 | `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |

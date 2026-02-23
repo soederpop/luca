@@ -236,8 +236,6 @@ Event emitted by GoogleDrive
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `defaultCorpora` | `string` | Default corpus for file queries (default: user) |
 
 | `pageSize` | `number` | Default number of results per page (default: 100) |

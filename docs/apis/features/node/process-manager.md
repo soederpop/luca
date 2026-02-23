@@ -208,8 +208,6 @@ Event emitted by ProcessManager
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
 
 ## Examples

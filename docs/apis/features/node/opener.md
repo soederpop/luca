@@ -76,14 +76,6 @@ Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.opener**

@@ -174,8 +174,6 @@ Event emitted by GoogleSheets
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `defaultSpreadsheetId` | `string` | Default spreadsheet ID for operations |
 
 ## Examples

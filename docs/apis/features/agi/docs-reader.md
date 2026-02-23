@@ -120,8 +120,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `contentDb` | `any` | A ContentDb instance to read documents from |
 
 | `systemPrompt` | `string` | Optional system prompt to prepend before the docs listing |
