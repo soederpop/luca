@@ -1,10 +1,12 @@
+import * as esbuild from 'esbuild'
 import { Feature, features } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { NodeContainer } from '../container.js'
 
 /**
  * A Feature for compiling typescript / esm modules, etc to JavaScript
- * that the container can run at runtime. Uses Bun's built-in transpiler.
+ * that the container can run at runtime. Uses esbuild for fast, reliable
+ * TypeScript/ESM transformation with full format support (esm, cjs, iife).
  *
  * @example
  * ```typescript
@@ -31,54 +33,35 @@ export class ESBuild extends Feature {
   /**
    * Transform code synchronously
    * @param code - The code to transform
-   * @param options - Transform options
-   * @param options.loader - The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'.
-   * @param options.minify - Whether to minify whitespace in the output. Defaults to false.
-   * @returns Object with code and warnings properties
-   *
-   * @example
-   * ```typescript
-   * const esbuild = container.feature('esbuild')
-   * const result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })
-   * console.log(result.code)
-   * ```
+   * @param options - The options to pass to esbuild
+   * @returns The transformed code
    */
-  transformSync(code: string, options?: { loader?: string; minify?: boolean; [key: string]: any }) {
-    const transpiler = new Bun.Transpiler({
-      loader: (options?.loader as any) ?? 'ts',
-      minifyWhitespace: options?.minify ?? false,
+  transformSync(code: string, options?: esbuild.TransformOptions) {
+    return esbuild.transformSync(code, {
+      loader: 'ts',
+      format: 'esm',
+      target: 'es2020',
+      sourcemap: false,
+      minify: false,
+      ...options
     })
-    return {
-      code: transpiler.transformSync(code),
-      warnings: [] as string[],
-    }
   }
 
   /**
    * Transform code asynchronously
    * @param code - The code to transform
-   * @param options - Transform options
-   * @param options.loader - The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'.
-   * @param options.minify - Whether to minify whitespace in the output. Defaults to false.
-   * @returns Promise resolving to object with code and warnings properties
-   *
-   * @example
-   * ```typescript
-   * const esbuild = container.feature('esbuild')
-   * const result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })
-   * console.log(result.code)
-   * ```
+   * @param options - The options to pass to esbuild
+   * @returns The transformed code
    */
-  async transform(code: string, options?: { loader?: string; minify?: boolean; [key: string]: any }) {
-    const transpiler = new Bun.Transpiler({
-      loader: (options?.loader as any) ?? 'ts',
-      minifyWhitespace: options?.minify ?? false,
+  async transform(code: string, options?: esbuild.TransformOptions) {
+    return esbuild.transform(code, {
+      loader: 'ts',
+      format: 'esm',
+      target: 'es2020',
+      sourcemap: false,
+      minify: false,
+      ...options
     })
-    const result = await transpiler.transform(code)
-    return {
-      code: result,
-      warnings: [] as string[],
-    }
   }
 }
 
