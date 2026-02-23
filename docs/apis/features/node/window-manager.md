@@ -361,8 +361,6 @@ Event emitted by WindowManager
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `socketPath` | `string` | Path to the Unix domain socket the server listens on |
 
 | `autoListen` | `boolean` | Automatically start listening when the feature is enabled |

@@ -546,8 +546,6 @@ gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
 
 | `dataCenterId` | `string` | Preferred data center ID (default: US-TX-3) |

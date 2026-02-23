@@ -95,14 +95,6 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.yaml**

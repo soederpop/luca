@@ -227,8 +227,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `projectSkillsPath` | `string` | Path to project-level skills directory |
 
 | `userSkillsPath` | `string` | Path to user-level global skills directory |

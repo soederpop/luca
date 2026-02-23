@@ -85,14 +85,6 @@ nlp.understand("draw a diagram of the auth flow")
 
 | `analyzeCalls` | `number` | Total analyze() invocations |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.nlp**

@@ -466,14 +466,6 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 
 | `colorPalette` | `array` | Color palette of hex colors for automatic color assignment |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **assignColor**

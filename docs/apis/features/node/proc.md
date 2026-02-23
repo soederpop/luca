@@ -238,14 +238,6 @@ for (const pid of proc.findPidsByPort(3000)) {
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.proc**

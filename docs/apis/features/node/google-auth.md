@@ -132,8 +132,6 @@ Event emitted by GoogleAuth
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `mode` | `string` | Authentication mode. Auto-detected if serviceAccountKeyPath is set |
 
 | `clientId` | `string` | OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var) |

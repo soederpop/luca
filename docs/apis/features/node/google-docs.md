@@ -142,14 +142,6 @@ Event emitted by GoogleDocs
 
 | `lastError` | `string` | Last Docs API error message |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.googleDocs**

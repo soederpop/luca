@@ -102,8 +102,6 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `host` | `string` | Remote host address |
 
 | `port` | `number` | SSH port number (default: 22) |

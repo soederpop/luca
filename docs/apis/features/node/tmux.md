@@ -228,8 +228,6 @@ Event emitted by Tmux
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `sessionName` | `string` | Custom session name (auto-generated if omitted) |
 
 | `tmuxPath` | `string` | Path to tmux executable |

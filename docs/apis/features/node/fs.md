@@ -425,14 +425,6 @@ const allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 ## Examples
 
 **features.fs**

@@ -346,8 +346,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `folder` | `string` | The folder containing the assistant definition |
 
 | `docsPath` | `string` | Path to the docs subfolder relative to the assistant folder |

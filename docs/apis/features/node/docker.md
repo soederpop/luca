@@ -653,8 +653,6 @@ Initialize the Docker feature by checking availability and optionally refreshing
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `dockerPath` | `string` | Path to docker executable |
 
 | `timeout` | `number` | Command timeout in milliseconds |

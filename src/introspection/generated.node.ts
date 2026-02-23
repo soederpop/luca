@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-22T22:25:08.540Z
+// Generated at: 2026-02-23T02:24:45.600Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -121,7 +121,7 @@ setBuildTimeData('features.googleDocs', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
     }
   ]
@@ -150,7 +150,7 @@ setBuildTimeData('features.yamlTree', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
         }
       ]
@@ -162,7 +162,7 @@ setBuildTimeData('features.yamlTree', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await yamlTree.loadTree('config');\nconst allTrees = yamlTree.tree;\n// Returns: { config: { database: { ... }, api: { ... } } }"
         }
       ]
@@ -174,7 +174,7 @@ setBuildTimeData('features.yamlTree', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
     }
   ]
@@ -192,7 +192,7 @@ setBuildTimeData('features.ink', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\n// Now sync getters like ink.React, ink.components, ink.hooks work\nconst { Box, Text } = ink.components"
         }
       ]
@@ -228,7 +228,7 @@ setBuildTimeData('features.ink', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\nink.rerender(React.createElement(Text, null, 'Updated!'))"
         }
       ]
@@ -240,7 +240,7 @@ setBuildTimeData('features.ink', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
         }
       ]
@@ -252,7 +252,7 @@ setBuildTimeData('features.ink', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
         }
       ]
@@ -264,7 +264,7 @@ setBuildTimeData('features.ink', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
         }
       ]
@@ -368,7 +368,7 @@ setBuildTimeData('features.git', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
         }
       ]
@@ -385,7 +385,7 @@ setBuildTimeData('features.git', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const changes = await git.getLatestChanges(5)\nfor (const commit of changes) {\n console.log(`${commit.author}: ${commit.title}`)\n}"
         }
       ]
@@ -404,7 +404,7 @@ setBuildTimeData('features.git', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
         }
       ]
@@ -432,7 +432,7 @@ setBuildTimeData('features.git', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
         }
       ]
@@ -459,7 +459,7 @@ setBuildTimeData('features.git', {
       "returns": "string",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Display a pre-fetched diff\nconst raw = git.diff('src/index.ts', 'main')\ngit.displayDiff(raw)\n\n// Fetch and display in one call\ngit.displayDiff('src/index.ts', 'abc1234')"
         }
       ]
@@ -478,7 +478,7 @@ setBuildTimeData('features.git', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
         }
       ]
@@ -490,7 +490,7 @@ setBuildTimeData('features.git', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const currentBranch = git.branch\nif (currentBranch) {\n console.log(`Currently on branch: ${currentBranch}`)\n}"
         }
       ]
@@ -500,7 +500,7 @@ setBuildTimeData('features.git', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const commitSha = git.sha\nif (commitSha) {\n console.log(`Current commit: ${commitSha}`)\n}"
         }
       ]
@@ -510,7 +510,7 @@ setBuildTimeData('features.git', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "if (git.isRepo) {\n console.log('This is a Git repository!')\n} else {\n console.log('Not in a Git repository')\n}"
         }
       ]
@@ -520,7 +520,7 @@ setBuildTimeData('features.git', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "if (git.isRepoRoot) {\n console.log('At the repository root')\n} else {\n console.log('In a subdirectory of the repository')\n}"
         }
       ]
@@ -530,7 +530,7 @@ setBuildTimeData('features.git', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const repoRoot = git.repoRoot\nif (repoRoot) {\n console.log(`Repository root: ${repoRoot}`)\n}"
         }
       ]
@@ -542,7 +542,7 @@ setBuildTimeData('features.git', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const git = container.feature('git')\n\nif (git.isRepo) {\n console.log(`Current branch: ${git.branch}`)\n console.log(`Repository root: ${git.repoRoot}`)\n \n const allFiles = await git.lsFiles()\n const modifiedFiles = await git.lsFiles({ modified: true })\n}"
     }
   ]
@@ -581,7 +581,7 @@ setBuildTimeData('features.esbuild', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
         }
       ]
@@ -614,7 +614,7 @@ setBuildTimeData('features.esbuild', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
         }
       ]
@@ -627,7 +627,7 @@ setBuildTimeData('features.esbuild', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
     }
   ]
@@ -657,7 +657,7 @@ setBuildTimeData('features.downloader', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
         }
       ]
@@ -670,7 +670,7 @@ setBuildTimeData('features.downloader', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
     }
   ]
@@ -994,7 +994,7 @@ setBuildTimeData('features.windowManager', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
     }
   ]
@@ -1023,7 +1023,7 @@ setBuildTimeData('features.proc', {
       "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
         }
       ]
@@ -1085,7 +1085,7 @@ setBuildTimeData('features.proc', {
       "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
         }
       ]
@@ -1122,7 +1122,7 @@ setBuildTimeData('features.proc', {
       "returns": "Promise<{ exitCode: number; stderr: string[] }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
         }
       ]
@@ -1145,7 +1145,7 @@ setBuildTimeData('features.proc', {
       "returns": "string",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
         }
       ]
@@ -1168,7 +1168,7 @@ setBuildTimeData('features.proc', {
       "returns": "boolean",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
         }
       ]
@@ -1187,7 +1187,7 @@ setBuildTimeData('features.proc', {
       "returns": "number[]",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
         }
       ]
@@ -1200,7 +1200,7 @@ setBuildTimeData('features.proc', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
     }
   ]
@@ -1295,7 +1295,7 @@ setBuildTimeData('features.launcherAppCommandListener', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const listener = container.feature('launcherAppCommandListener', {\n enable: true,\n autoListen: true,\n})\n\nlistener.on('command', async (cmd) => {\n cmd.ack('Working on it!')     // or just cmd.ack() for silent\n\n // ... do your actual work ...\n cmd.progress(0.5, 'Halfway there')\n\n cmd.finish()                   // silent finish\n cmd.finish({ result: { action: 'completed' }, speech: 'All done!' })\n // or: cmd.fail({ error: 'not found', speech: 'Sorry, that failed.' })\n})"
     }
   ]
@@ -1324,7 +1324,7 @@ setBuildTimeData('features.vm', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const script = vm.createScript('Math.max(a, b)')\n\n// Execute the script multiple times with different contexts\nconst result1 = script.runInContext(vm.createContext({ a: 5, b: 3 }))\nconst result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))"
         }
       ]
@@ -1343,7 +1343,7 @@ setBuildTimeData('features.vm', {
       "returns": "ctx is vm.Context",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ctx = vm.createContext({ x: 1 })\nvm.isContext(ctx)   // true\nvm.isContext({ x: 1 }) // false"
         }
       ]
@@ -1360,7 +1360,7 @@ setBuildTimeData('features.vm', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
         }
       ]
@@ -1383,7 +1383,7 @@ setBuildTimeData('features.vm', {
       "returns": "Promise<T>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
         }
       ]
@@ -1406,7 +1406,7 @@ setBuildTimeData('features.vm', {
       "returns": "T",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const sum = vm.runSync('a + b', { a: 2, b: 3 })\nconsole.log(sum) // 5"
         }
       ]
@@ -1429,7 +1429,7 @@ setBuildTimeData('features.vm', {
       "returns": "Promise<{ result: T, context: vm.Context }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })\nconsole.log(result)     // 84\nconsole.log(context.x)  // 42"
         }
       ]
@@ -1452,7 +1452,7 @@ setBuildTimeData('features.vm', {
       "returns": "{ result: T, context: vm.Context }",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
         }
       ]
@@ -1475,7 +1475,7 @@ setBuildTimeData('features.vm', {
       "returns": "Record<string, any>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
         }
       ]
@@ -1488,7 +1488,7 @@ setBuildTimeData('features.vm', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
     }
   ]
@@ -1704,7 +1704,7 @@ setBuildTimeData('features.googleDrive', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
     }
   ]
@@ -1742,7 +1742,7 @@ setBuildTimeData('features.ui', {
       "returns": "(str: string) => string",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Assign colors to users\nconst johnColor = ui.assignColor('john');\nconst janeColor = ui.assignColor('jane');\n\n// Use consistently throughout the app\nconsole.log(johnColor('John: Hello there!'));\nconsole.log(janeColor('Jane: Hi John!'));\nconsole.log(johnColor('John: How are you?')); // Same color as before\n\n// Different entities get different colors\nconst errorColor = ui.assignColor('error');\nconst successColor = ui.assignColor('success');"
         }
       ]
@@ -1765,7 +1765,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
         }
       ]
@@ -1801,7 +1801,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
         }
       ]
@@ -1825,7 +1825,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Create a banner\nconst banner = ui.asciiArt('WELCOME', 'Big');\nconsole.log(banner);\n\n// Different fonts for different purposes\nconst title = ui.asciiArt('MyApp', 'Standard');\nconst subtitle = ui.asciiArt('v2.0', 'Small');\n\n// Technical/coding themes\nconst code = ui.asciiArt('CODE', '3D-ASCII');\n\n// List available fonts first\nconsole.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));"
         }
       ]
@@ -1858,7 +1858,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Classic patriotic banner\nconst banner = ui.banner('AMERICA', {\n font: 'Big',\n colors: ['red', 'white', 'blue']\n});\nconsole.log(banner);\n\n// Tech company banner\nconst techBanner = ui.banner('TechCorp', {\n font: 'Slant',\n colors: ['cyan', 'blue', 'magenta']\n});\n\n// Warning banner\nconst warningBanner = ui.banner('WARNING', {\n font: 'Standard',\n colors: ['yellow', 'red']\n});\n\n// Available fonts: see ui.fonts property\n// Available colors: any chalk color names"
         }
       ]
@@ -1898,7 +1898,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Horizontal rainbow effect\nconst rainbow = ui.applyGradient('Hello World!', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'], \n 'horizontal'\n);\n\n// Vertical gradient for multi-line text\nconst multiline = 'Line 1\\nLine 2\\nLine 3\\nLine 4';\nconst vertical = ui.applyGradient(multiline, \n ['red', 'white', 'blue'], \n 'vertical'\n);\n\n// Fire effect\nconst fire = ui.applyGradient('FIRE', ['red', 'yellow'], 'horizontal');\n\n// Ocean effect\nconst ocean = ui.applyGradient('OCEAN', ['blue', 'cyan', 'white'], 'vertical');"
         }
       ]
@@ -1921,7 +1921,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
         }
       ]
@@ -1944,7 +1944,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
         }
       ]
@@ -1972,7 +1972,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Number alignment\nconst numbers = ['1', '23', '456'];\nnumbers.forEach(num => {\n console.log(ui.padLeft(num, 5, '0')); // '00001', '00023', '00456'\n});\n\n// Text alignment in columns\nconst items = ['apple', 'banana', 'cherry'];\nitems.forEach(item => {\n console.log(ui.padLeft(item, 10) + ' | Price: $1.00');\n});\n\n// Custom padding character\nconst title = ui.padLeft('TITLE', 20, '-'); // '---------------TITLE'"
         }
       ]
@@ -2000,7 +2000,7 @@ setBuildTimeData('features.ui', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Create aligned table columns\nconst data = [\n ['Name', 'Age', 'City'],\n ['John', '25', 'NYC'],\n ['Jane', '30', 'LA'],\n ['Bob', '35', 'Chicago']\n];\n\ndata.forEach(row => {\n const formatted = row.map((cell, i) => {\n   const widths = [15, 5, 10];\n   return ui.padRight(cell, widths[i]);\n }).join(' | ');\n console.log(formatted);\n});\n\n// Progress bars\nconst progress = ui.padRight('████', 20, '░'); // '████░░░░░░░░░░░░░░░░'\n\n// Menu items with dots\nconst menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';"
         }
       ]
@@ -2012,7 +2012,7 @@ setBuildTimeData('features.ui', {
       "returns": "typeof colors",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Basic colors\nui.colors.red('Error message')\nui.colors.green('Success!')\n\n// Chained styling\nui.colors.blue.bold.underline('Important link')\nui.colors.white.bgRed.bold(' ALERT ')\n\n// Hex and RGB colors\nui.colors.hex('#FF5733')('Custom color')\nui.colors.rgb(255, 87, 51)('RGB color')"
         }
       ]
@@ -2026,7 +2026,7 @@ setBuildTimeData('features.ui', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
         }
       ]
@@ -2036,7 +2036,7 @@ setBuildTimeData('features.ui', {
       "returns": "string[]",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
         }
       ]
@@ -2109,7 +2109,7 @@ setBuildTimeData('features.opener', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
     }
   ]
@@ -2180,7 +2180,7 @@ setBuildTimeData('features.telegram', {
       "returns": "this",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
         }
       ]
@@ -2293,7 +2293,7 @@ setBuildTimeData('features.telegram', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
     }
   ]
@@ -2326,7 +2326,7 @@ setBuildTimeData('features.repl', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
         }
       ]
@@ -2348,7 +2348,7 @@ setBuildTimeData('features.repl', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
     }
   ]
@@ -2549,7 +2549,7 @@ setBuildTimeData('features.scriptRunner', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
         }
       ]
@@ -2561,7 +2561,7 @@ setBuildTimeData('features.scriptRunner', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
     }
   ]
@@ -2578,7 +2578,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const arch = os.arch\nconsole.log(`Running on ${arch} architecture`)"
         }
       ]
@@ -2588,7 +2588,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const tempDir = os.tmpdir\nconsole.log(`Temp directory: ${tempDir}`)"
         }
       ]
@@ -2598,7 +2598,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const home = os.homedir\nconsole.log(`User home: ${home}`)"
         }
       ]
@@ -2608,7 +2608,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const cores = os.cpuCount\nconsole.log(`System has ${cores} CPU cores`)"
         }
       ]
@@ -2618,7 +2618,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const hostname = os.hostname\nconsole.log(`Hostname: ${hostname}`)"
         }
       ]
@@ -2628,7 +2628,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const platform = os.platform\nif (platform === 'darwin') {\n console.log('Running on macOS')\n}"
         }
       ]
@@ -2638,7 +2638,7 @@ setBuildTimeData('features.os', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const interfaces = os.networkInterfaces\nObject.keys(interfaces).forEach(name => {\n console.log(`Interface ${name}:`, interfaces[name])\n})"
         }
       ]
@@ -2648,7 +2648,7 @@ setBuildTimeData('features.os', {
       "returns": "string[]",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const macAddresses = os.macAddresses\nconsole.log(`External MAC addresses: ${macAddresses.join(', ')}`)"
         }
       ]
@@ -2660,7 +2660,7 @@ setBuildTimeData('features.os', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const osInfo = container.feature('os')\n\nconsole.log(`Platform: ${osInfo.platform}`)\nconsole.log(`Architecture: ${osInfo.arch}`)\nconsole.log(`CPU cores: ${osInfo.cpuCount}`)\nconsole.log(`Home directory: ${osInfo.homedir}`)"
     }
   ]
@@ -2689,7 +2689,7 @@ setBuildTimeData('features.tts', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
         }
       ]
@@ -2726,7 +2726,7 @@ setBuildTimeData('features.tts', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
     }
   ]
@@ -2813,7 +2813,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<GrepMatch[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
         }
       ]
@@ -2836,7 +2836,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<string[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const files = await grep.filesContaining('TODO')\n// ['src/index.ts', 'src/utils.ts']"
         }
       ]
@@ -2859,7 +2859,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<GrepMatch[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const lodashImports = await grep.imports('lodash')\nconst localImports = await grep.imports('./utils')"
         }
       ]
@@ -2882,7 +2882,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<GrepMatch[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const defs = await grep.definitions('MyComponent')\nconst classDefs = await grep.definitions('UserService')"
         }
       ]
@@ -2899,7 +2899,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<GrepMatch[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
         }
       ]
@@ -2922,7 +2922,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<number>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const count = await grep.count('console.log')\nconsole.log(`Found ${count} console.log statements`)"
         }
       ]
@@ -2945,7 +2945,7 @@ setBuildTimeData('features.grep', {
       "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const affected = await grep.findForReplace('oldFunctionName')\n// [{ file: 'src/a.ts', matches: [...] }, { file: 'src/b.ts', matches: [...] }]"
         }
       ]
@@ -2963,7 +2963,7 @@ setBuildTimeData('features.grep', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const grep = container.feature('grep')\n\n// Basic search\nconst results = await grep.search({ pattern: 'TODO' })\n// [{ file: 'src/index.ts', line: 42, column: 5, content: '// TODO: fix this' }, ...]\n\n// Find all imports of a module\nconst imports = await grep.imports('lodash')\n\n// Find function/class/variable definitions\nconst defs = await grep.definitions('MyClass')\n\n// Just get filenames containing a pattern\nconst files = await grep.filesContaining('API_KEY')"
     }
   ]
@@ -3073,7 +3073,7 @@ setBuildTimeData('features.googleAuth', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
     }
   ]
@@ -3102,7 +3102,7 @@ setBuildTimeData('features.sqlite', {
       "returns": "Promise<T[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
         }
       ]
@@ -3125,7 +3125,7 @@ setBuildTimeData('features.sqlite', {
       "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
         }
       ]
@@ -3149,7 +3149,7 @@ setBuildTimeData('features.sqlite', {
       "returns": "Promise<T[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
         }
       ]
@@ -3161,7 +3161,7 @@ setBuildTimeData('features.sqlite', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const db = container.feature('sqlite', { path: 'app.db' })\n// ... run queries ...\ndb.close()"
         }
       ]
@@ -3200,7 +3200,7 @@ setBuildTimeData('features.sqlite', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
     }
   ]
@@ -3218,7 +3218,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<boolean>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
         }
       ]
@@ -3241,7 +3241,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<DockerContainer[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const running = await docker.listContainers()\nconst all = await docker.listContainers({ all: true })"
         }
       ]
@@ -3253,7 +3253,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<DockerImage[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const images = await docker.listImages()\nconsole.log(images.map(i => `${i.repository}:${i.tag}`))"
         }
       ]
@@ -3272,7 +3272,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.startContainer('my-app')"
         }
       ]
@@ -3295,7 +3295,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.stopContainer('my-app')\nawait docker.stopContainer('my-app', 30) // wait up to 30s"
         }
       ]
@@ -3324,7 +3324,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.removeContainer('old-container')\nawait docker.removeContainer('stubborn-container', { force: true })"
         }
       ]
@@ -3401,7 +3401,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const containerId = await docker.runContainer('nginx:latest', {\n name: 'web',\n ports: ['8080:80'],\n detach: true,\n environment: { NODE_ENV: 'production' }\n})"
         }
       ]
@@ -3459,7 +3459,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])\nconsole.log(result.stdout)"
         }
       ]
@@ -3495,7 +3495,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.pullImage('node:20-alpine')"
         }
       ]
@@ -3524,7 +3524,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.removeImage('nginx:latest')\nawait docker.removeImage('old-image', { force: true })"
         }
       ]
@@ -3569,7 +3569,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.buildImage('./project', {\n tag: 'my-app:latest',\n buildArgs: { NODE_ENV: 'production' }\n})"
         }
       ]
@@ -3610,7 +3610,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const logs = await docker.getLogs('my-app', { tail: 100, timestamps: true })\nconsole.log(logs)"
         }
       ]
@@ -3622,7 +3622,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<any>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const info = await docker.getSystemInfo()\nconsole.log(info.ServerVersion)"
         }
       ]
@@ -3665,7 +3665,7 @@ setBuildTimeData('features.docker', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await docker.prune({ all: true })\nawait docker.prune({ containers: true, images: true })"
         }
       ]
@@ -3694,7 +3694,7 @@ setBuildTimeData('features.docker', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const docker = container.feature('docker', { enable: true })\nawait docker.checkDockerAvailability()\nconst containers = await docker.listContainers({ all: true })"
     }
   ]
@@ -3719,7 +3719,7 @@ setBuildTimeData('features.yaml', {
       "returns": "string",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const config = {\n name: 'MyApp',\n version: '1.0.0',\n settings: {\n   debug: true,\n   ports: [3000, 3001]\n }\n}\n\nconst yamlString = yaml.stringify(config)\nconsole.log(yamlString)\n// Output:\n// name: MyApp\n// version: 1.0.0\n// settings:\n//   debug: true\n//   ports:\n//     - 3000\n//     - 3001"
         }
       ]
@@ -3738,7 +3738,7 @@ setBuildTimeData('features.yaml', {
       "returns": "T",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
         }
       ]
@@ -3751,7 +3751,7 @@ setBuildTimeData('features.yaml', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
     }
   ]
@@ -3776,7 +3776,7 @@ setBuildTimeData('features.nlp', {
       "returns": "ParsedCommand",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
         }
       ]
@@ -3795,7 +3795,7 @@ setBuildTimeData('features.nlp', {
       "returns": "Analysis",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "nlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, {value:\"john\",pos:\"PROPN\"}, ...],\n//   entities: [{value:\"john\",type:\"PERSON\"}, {value:\"3pm\",type:\"TIME\"}],\n//   raw: \"meet john at 3pm about the deployment\" }"
         }
       ]
@@ -3814,7 +3814,7 @@ setBuildTimeData('features.nlp', {
       "returns": "ParsedCommand & Analysis",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "nlp.understand(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [],\n//   tokens: [{value:\"draw\",pos:\"VERB\"}, ...], entities: [...], raw: \"...\" }"
         }
       ]
@@ -3827,7 +3827,7 @@ setBuildTimeData('features.nlp', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const nlp = container.feature('nlp', { enable: true })\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\nnlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, ...], entities: [{value:\"john\",type:\"PERSON\"}, ...] }\n\nnlp.understand(\"draw a diagram of the auth flow\")\n// { intent, target, subject, modifiers, tokens, entities, raw }"
     }
   ]
@@ -3850,7 +3850,7 @@ setBuildTimeData('features.networking', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Find any available port\nconst anyPort = await networking.findOpenPort()\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Server can use port: ${port}`)"
         }
       ]
@@ -3867,7 +3867,7 @@ setBuildTimeData('features.networking', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
         }
       ]
@@ -3880,7 +3880,7 @@ setBuildTimeData('features.networking', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
     }
   ]
@@ -3941,7 +3941,7 @@ setBuildTimeData('features.vault', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
     }
   ]
@@ -4125,7 +4125,7 @@ setBuildTimeData('features.googleCalendar', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
     }
   ]
@@ -4150,7 +4150,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const fs = container.feature('fs')\nconst buffer = await fs.readFileAsync('data.txt')\nconsole.log(buffer.toString())"
         }
       ]
@@ -4169,7 +4169,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const fs = container.feature('fs')\nconst entries = await fs.readdir('src')\nconsole.log(entries) // ['index.ts', 'utils.ts', 'components']"
         }
       ]
@@ -4210,7 +4210,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const result = fs.walk('src', { files: true, directories: false })\nconsole.log(result.files) // ['src/index.ts', 'src/utils.ts', 'src/components/Button.tsx']"
         }
       ]
@@ -4251,7 +4251,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconsole.log(`Found ${result.files.length} files and ${result.directories.length} directories`)"
         }
       ]
@@ -4279,7 +4279,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await fs.ensureFileAsync('config/settings.json', '{}', true)\n// Creates config directory and settings.json file with '{}' content"
         }
       ]
@@ -4303,7 +4303,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
         }
       ]
@@ -4322,7 +4322,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "fs.ensureFolder('logs/debug')\n// Creates logs and logs/debug directories if they don't exist"
         }
       ]
@@ -4350,7 +4350,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "fs.ensureFile('logs/app.log', '', false)\n// Creates logs directory and app.log file if they don't exist"
         }
       ]
@@ -4379,7 +4379,7 @@ setBuildTimeData('features.fs', {
       "returns": "string | null",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const packageJson = fs.findUp('package.json')\nif (packageJson) {\n console.log(`Found package.json at: ${packageJson}`)\n}"
         }
       ]
@@ -4398,7 +4398,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "if (await fs.existsAsync('config.json')) {\n console.log('Config file exists!')\n}"
         }
       ]
@@ -4417,7 +4417,7 @@ setBuildTimeData('features.fs', {
       "returns": "boolean",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
         }
       ]
@@ -4436,7 +4436,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await fs.rm('temp/cache.tmp')"
         }
       ]
@@ -4455,7 +4455,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
         }
       ]
@@ -4474,7 +4474,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const content = fs.readFile('README.md')\nconsole.log(content)"
         }
       ]
@@ -4493,7 +4493,7 @@ setBuildTimeData('features.fs', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await fs.rmdir('temp/cache')\n// Removes the cache directory and all its contents"
         }
       ]
@@ -4526,7 +4526,7 @@ setBuildTimeData('features.fs', {
       "returns": "Promise<string | string[] | null>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const packageJson = await fs.findUpAsync('package.json')\nconst allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })"
         }
       ]
@@ -4539,7 +4539,7 @@ setBuildTimeData('features.fs', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const fs = container.feature('fs')\nconst content = fs.readFile('package.json')\nconst exists = fs.exists('tsconfig.json')\nawait fs.ensureFileAsync('output/result.json', '{}')"
     }
   ]
@@ -4568,7 +4568,7 @@ setBuildTimeData('features.ipcSocket', {
       "returns": "Promise<Server>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
         }
       ]
@@ -4580,7 +4580,7 @@ setBuildTimeData('features.ipcSocket', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Graceful shutdown\ntry {\n await ipc.stopServer();\n console.log('IPC server stopped successfully');\n} catch (error) {\n console.error('Failed to stop server:', error.message);\n}"
         }
       ]
@@ -4599,7 +4599,7 @@ setBuildTimeData('features.ipcSocket', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Broadcast to all connected clients\nipc.broadcast({ \n type: 'notification',\n message: 'Server is shutting down in 30 seconds',\n timestamp: Date.now()\n});\n\n// Chain multiple operations\nipc.broadcast({ status: 'ready' })\n  .broadcast({ time: new Date().toISOString() });"
         }
       ]
@@ -4618,7 +4618,7 @@ setBuildTimeData('features.ipcSocket', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Send a simple message\nawait ipc.send({ type: 'ping' });\n\n// Send complex data\nawait ipc.send({\n type: 'data_update',\n payload: { users: [...], timestamp: Date.now() }\n});"
         }
       ]
@@ -4637,7 +4637,7 @@ setBuildTimeData('features.ipcSocket', {
       "returns": "Promise<Socket>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Connect to server\nconst socket = await ipc.connect('/tmp/myapp.sock');\nconsole.log('Connected to IPC server');\n\n// Handle incoming messages\nipc.on('message', (data) => {\n console.log('Server message:', data);\n});\n\n// Send messages\nawait ipc.send({ type: 'hello', client_id: 'client_001' });"
         }
       ]
@@ -4702,7 +4702,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
         }
       ]
@@ -4726,7 +4726,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
         }
       ]
@@ -4754,7 +4754,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
         }
       ]
@@ -4782,7 +4782,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
         }
       ]
@@ -4801,7 +4801,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "if (await diskCache.has('myKey')) {\n console.log('Key exists!')\n}"
         }
       ]
@@ -4824,7 +4824,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
         }
       ]
@@ -4852,7 +4852,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
         }
       ]
@@ -4871,7 +4871,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.rm('obsoleteKey')"
         }
       ]
@@ -4888,7 +4888,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await diskCache.clearAll(true) // Must explicitly confirm"
         }
       ]
@@ -4900,7 +4900,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "Promise<string[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const allKeys = await diskCache.keys()\nconsole.log(`Cache contains ${allKeys.length} items`)"
         }
       ]
@@ -4912,7 +4912,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "Promise<string[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const keyList = await diskCache.listKeys()"
         }
       ]
@@ -4929,7 +4929,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const customCache = diskCache.create('/custom/cache/path')"
         }
       ]
@@ -4945,7 +4945,7 @@ setBuildTimeData('features.diskCache', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
         }
       ]
@@ -4957,7 +4957,7 @@ setBuildTimeData('features.diskCache', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
     }
   ]
@@ -4986,7 +4986,7 @@ setBuildTimeData('features.postgres', {
       "returns": "Promise<T[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst users = await pg.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = $1',\n [true]\n)"
         }
       ]
@@ -5009,7 +5009,7 @@ setBuildTimeData('features.postgres', {
       "returns": "Promise<{ rowCount: number }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst { rowCount } = await pg.execute(\n 'UPDATE users SET active = $1 WHERE last_login < $2',\n [false, '2024-01-01']\n)\nconsole.log(`Deactivated ${rowCount} users`)"
         }
       ]
@@ -5033,7 +5033,7 @@ setBuildTimeData('features.postgres', {
       "returns": "Promise<T[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst email = 'hello@example.com'\nconst rows = await pg.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
         }
       ]
@@ -5045,7 +5045,7 @@ setBuildTimeData('features.postgres', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\n// ... run queries ...\nawait pg.close()"
         }
       ]
@@ -5084,7 +5084,7 @@ setBuildTimeData('features.postgres', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
     }
   ]
@@ -5113,7 +5113,7 @@ setBuildTimeData('features.python', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await python.detectEnvironment()\nconsole.log(python.state.get('environmentType')) // 'uv' | 'conda' | 'venv' | 'system'\nconsole.log(python.state.get('pythonPath')) // '/path/to/python/executable'"
         }
       ]
@@ -5125,7 +5125,7 @@ setBuildTimeData('features.python', {
       "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Auto-detect and install\nconst result = await python.installDependencies()\n\n// With custom install command\nconst python = container.feature('python', { \n installCommand: 'pip install -r requirements.txt' \n})\nconst result = await python.installDependencies()"
         }
       ]
@@ -5158,7 +5158,7 @@ setBuildTimeData('features.python', {
       "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Simple execution\nconst result = await python.execute('print(\"Hello World\")')\nconsole.log(result.stdout) // 'Hello World'\n\n// With variables\nconst result = await python.execute('print(f\"Hello {name}!\")', { name: 'Alice' })\n\n// Capture locals\nconst result = await python.execute('x = 42\\ny = x * 2', {}, { captureLocals: true })\nconsole.log(result.locals) // { x: 42, y: 84 }"
         }
       ]
@@ -5181,7 +5181,7 @@ setBuildTimeData('features.python', {
       "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const result = await python.executeFile('/path/to/script.py')\nconsole.log(result.stdout)"
         }
       ]
@@ -5254,7 +5254,7 @@ setBuildTimeData('features.python', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
     }
   ]
@@ -5283,7 +5283,7 @@ setBuildTimeData('features.jsonTree', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
         }
       ]
@@ -5295,7 +5295,7 @@ setBuildTimeData('features.jsonTree', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await jsonTree.loadTree('data');\nawait jsonTree.loadTree('config', 'appConfig');\n\nconst allTrees = jsonTree.tree;\n// Returns: { \n//   data: { users: { ... }, products: { ... } },\n//   appConfig: { database: { ... }, api: { ... } }\n// }\n\n// Access specific trees\nconst userData = jsonTree.tree.data.users;\nconst dbConfig = jsonTree.tree.appConfig.database;"
         }
       ]
@@ -5367,7 +5367,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "finder.addPackage({\n name: 'lodash',\n version: '4.17.21',\n description: 'A modern JavaScript utility library'\n}, '/project/node_modules/lodash/package.json');"
         }
       ]
@@ -5379,7 +5379,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await finder.start();\nconsole.log(`Found ${finder.packageNames.length} unique packages`);"
         }
       ]
@@ -5402,7 +5402,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Manual scan (usually called automatically by start())\nawait finder.scan();\n\n// Check results\nconsole.log(`Scanned ${finder.manifests.length} packages`);"
         }
       ]
@@ -5421,7 +5421,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const lodash = finder.findByName('lodash');\nif (lodash) {\n console.log(`Found lodash version ${lodash.version}`);\n}"
         }
       ]
@@ -5440,7 +5440,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const reactDependents = finder.findDependentsOf('react');\nconsole.log(`${reactDependents.length} packages depend on React:`);\nreactDependents.forEach(pkg => {\n console.log(`- ${pkg.name}@${pkg.version}`);\n});"
         }
       ]
@@ -5459,7 +5459,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Find a package with specific version\nconst specific = finder.find(pkg => pkg.name === 'lodash' && pkg.version.startsWith('4.'));\n\n// Find a package with description containing keyword\nconst utility = finder.find(pkg => pkg.description?.includes('utility'));"
         }
       ]
@@ -5478,7 +5478,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Find all packages with 'babel' in the name\nconst babelPackages = finder.filter(pkg => pkg.name.includes('babel'));\n\n// Find all packages with no description\nconst undocumented = finder.filter(pkg => !pkg.description);\n\n// Find all scoped packages\nconst scoped = finder.filter(pkg => pkg.name.startsWith('@'));"
         }
       ]
@@ -5497,7 +5497,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
         }
       ]
@@ -5509,7 +5509,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const duplicates = finder.duplicates;\n// ['lodash', 'react', '@types/node'] - packages with multiple versions\n\nduplicates.forEach(name => {\n console.log(`${name} has ${finder.packages[name].length} versions`);\n});"
         }
       ]
@@ -5523,7 +5523,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const names = finder.packageNames;\nconsole.log(`Found ${names.length} unique packages`);"
         }
       ]
@@ -5533,7 +5533,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const scopes = finder.scopes;\n// ['@types', '@babel', '@angular'] - all scopes in use\n\nscopes.forEach(scope => {\n const scopedPackages = finder.packageNames.filter(name => name.startsWith(scope));\n console.log(`${scope}: ${scopedPackages.length} packages`);\n});"
         }
       ]
@@ -5543,7 +5543,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const all = finder.manifests;\nconsole.log(`Total package instances: ${all.length}`);\n\n// Group by name to see duplicates\nconst grouped = all.reduce((acc, pkg) => {\n acc[pkg.name] = (acc[pkg.name] || 0) + 1;\n return acc;\n}, {});"
         }
       ]
@@ -5553,7 +5553,7 @@ setBuildTimeData('features.packageFinder', {
       "returns": "any",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const counts = finder.counts;\n// { 'lodash': 3, 'react': 2, 'express': 1 }\n\nObject.entries(counts)\n .filter(([name, count]) => count > 1)\n .forEach(([name, count]) => {\n   console.log(`${name}: ${count} versions installed`);\n });"
         }
       ]
@@ -5746,7 +5746,7 @@ setBuildTimeData('features.processManager', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
     }
   ]
@@ -5769,7 +5769,7 @@ setBuildTimeData('portExposer', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Public URL: ${url}`)\n\n// Override port at call time\nconst url2 = await exposer.expose(8080)"
         }
       ]
@@ -5781,7 +5781,7 @@ setBuildTimeData('portExposer', {
       "returns": "Promise<void>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// ... later\nawait exposer.close()\nconsole.log(exposer.isConnected()) // false"
         }
       ]
@@ -5793,7 +5793,7 @@ setBuildTimeData('portExposer', {
       "returns": "string | undefined",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconsole.log(exposer.getPublicUrl()) // 'https://abc123.ngrok.io'"
         }
       ]
@@ -5805,7 +5805,7 @@ setBuildTimeData('portExposer', {
       "returns": "boolean",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconsole.log(exposer.isConnected()) // false\nawait exposer.expose()\nconsole.log(exposer.isConnected()) // true"
         }
       ]
@@ -5817,7 +5817,7 @@ setBuildTimeData('portExposer', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconst info = exposer.getConnectionInfo()\nconsole.log(info.publicUrl, info.localPort, info.connectedAt)"
         }
       ]
@@ -5834,7 +5834,7 @@ setBuildTimeData('portExposer', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// Switch to a different port\nconst newUrl = await exposer.reconnect({ port: 8080 })"
         }
       ]
@@ -5846,7 +5846,7 @@ setBuildTimeData('portExposer', {
       "returns": "Promise<this>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nawait exposer.disable()"
         }
       ]
@@ -5875,7 +5875,7 @@ setBuildTimeData('portExposer', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "// Basic usage\nconst exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Service available at: ${url}`)\n\n// With custom subdomain\nconst exposer = container.feature('portExposer', {\n port: 8080,\n subdomain: 'my-app',\n authToken: 'your-ngrok-token'\n})"
     }
   ]
@@ -6021,7 +6021,7 @@ setBuildTimeData('features.googleSheets', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
     }
   ]
@@ -6039,7 +6039,7 @@ setBuildTimeData('features.secureShell', {
       "returns": "Promise<boolean>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
         }
       ]
@@ -6058,7 +6058,7 @@ setBuildTimeData('features.secureShell', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
         }
       ]
@@ -6082,7 +6082,7 @@ setBuildTimeData('features.secureShell', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
         }
       ]
@@ -6106,7 +6106,7 @@ setBuildTimeData('features.secureShell', {
       "returns": "Promise<string>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
         }
       ]
@@ -6119,7 +6119,7 @@ setBuildTimeData('features.secureShell', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
     }
   ]
@@ -6152,7 +6152,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<TemplateInfo[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const templates = await runpod.listTemplates({ includeRunpod: true })\nconsole.log(templates.map(t => t.name))"
         }
       ]
@@ -6171,7 +6171,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<TemplateInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const template = await runpod.getTemplate('abc123')\nconsole.log(template.imageName)"
         }
       ]
@@ -6248,7 +6248,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<PodInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pod = await runpod.createPod({\n gpuTypeId: 'NVIDIA RTX 4090',\n templateId: 'abc123',\n volumeInGb: 50,\n})\nconsole.log(`Pod ${pod.id} created`)"
         }
       ]
@@ -6267,7 +6267,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await runpod.stopPod('pod-abc123')"
         }
       ]
@@ -6286,7 +6286,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await runpod.startPod('pod-abc123')"
         }
       ]
@@ -6305,7 +6305,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await runpod.removePod('pod-abc123')"
         }
       ]
@@ -6336,7 +6336,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<RestPodInfo[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pods = await runpod.getpods({ desiredStatus: 'RUNNING' })\nconsole.log(pods.map(p => `${p.name}: ${p.desiredStatus}`))"
         }
       ]
@@ -6355,7 +6355,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<RestPodInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pod = await runpod.getPod('pod-abc123')\nconsole.log(`${pod.name} - ${pod.desiredStatus} - $${pod.costPerHr}/hr`)"
         }
       ]
@@ -6382,7 +6382,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<RestPodInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc' })\nconst ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })"
         }
       ]
@@ -6394,7 +6394,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<VolumeInfo[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const volumes = await runpod.listVolumes()\nconsole.log(volumes.map(v => `${v.name}: ${v.size}GB`))"
         }
       ]
@@ -6413,7 +6413,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<VolumeInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const vol = await runpod.getVolume('vol-abc123')\nconsole.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)"
         }
       ]
@@ -6446,7 +6446,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<VolumeInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const vol = await runpod.createVolume({ name: 'my-models', size: 100 })\nconsole.log(`Created volume ${vol.id}`)"
         }
       ]
@@ -6465,7 +6465,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "await runpod.removeVolume('vol-abc123')"
         }
       ]
@@ -6484,7 +6484,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const shell = await runpod.createRemoteShell('pod-abc123')\nconst output = await shell.exec('nvidia-smi')"
         }
       ]
@@ -6503,7 +6503,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const shell = await runpod.getShell('pod-abc123')\nconst output = await shell.exec('ls /workspace')"
         }
       ]
@@ -6569,7 +6569,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const urls = await runpod.getPodHttpURLs('pod-abc123')\n// ['https://pod-abc123-8888.proxy.runpod.net']"
         }
       ]
@@ -6586,7 +6586,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<PodInfo[]>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const pods = await runpod.listPods()\npods.forEach(p => console.log(`${p.name} (${p.gpu}): ${p.status}`))"
         }
       ]
@@ -6605,7 +6605,7 @@ setBuildTimeData('features.runpod', {
       "returns": "Promise<PodInfo>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const info = await runpod.getPodInfo('pod-abc123')\nconsole.log(`${info.name}: ${info.status}`)"
         }
       ]
@@ -6617,7 +6617,7 @@ setBuildTimeData('features.runpod', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const gpus = await runpod.listSecureGPUs()\ngpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))"
         }
       ]
@@ -6643,7 +6643,7 @@ setBuildTimeData('features.runpod', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
     }
   ]
@@ -6810,7 +6810,7 @@ setBuildTimeData('features.fileManager', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
     }
   ]
@@ -6835,7 +6835,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
         }
       ]
@@ -6854,7 +6854,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "void",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
         }
       ]
@@ -6866,7 +6866,7 @@ setBuildTimeData('features.contentDb', {
       "returns": "Promise<ContentDb>",
       "examples": [
         {
-          "language": "typescript",
+          "language": "ts",
           "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
         }
       ]
@@ -6900,7 +6900,7 @@ setBuildTimeData('features.contentDb', {
   "envVars": [],
   "examples": [
     {
-      "language": "typescript",
+      "language": "ts",
       "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.modelNames) // ['Article', 'Page', ...]"
     }
   ]
@@ -7740,7 +7740,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
       }
     ]
@@ -7768,7 +7768,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
           }
         ]
@@ -7780,7 +7780,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await yamlTree.loadTree('config');\nconst allTrees = yamlTree.tree;\n// Returns: { config: { database: { ... }, api: { ... } } }"
           }
         ]
@@ -7792,7 +7792,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
       }
     ]
@@ -7809,7 +7809,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\n// Now sync getters like ink.React, ink.components, ink.hooks work\nconst { Box, Text } = ink.components"
           }
         ]
@@ -7845,7 +7845,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\nink.rerender(React.createElement(Text, null, 'Updated!'))"
           }
         ]
@@ -7857,7 +7857,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
           }
         ]
@@ -7869,7 +7869,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
           }
         ]
@@ -7881,7 +7881,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
           }
         ]
@@ -7984,7 +7984,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
           }
         ]
@@ -8001,7 +8001,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const changes = await git.getLatestChanges(5)\nfor (const commit of changes) {\n console.log(`${commit.author}: ${commit.title}`)\n}"
           }
         ]
@@ -8020,7 +8020,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
           }
         ]
@@ -8048,7 +8048,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
           }
         ]
@@ -8075,7 +8075,7 @@ export const introspectionData = [
         "returns": "string",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Display a pre-fetched diff\nconst raw = git.diff('src/index.ts', 'main')\ngit.displayDiff(raw)\n\n// Fetch and display in one call\ngit.displayDiff('src/index.ts', 'abc1234')"
           }
         ]
@@ -8094,7 +8094,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
           }
         ]
@@ -8106,7 +8106,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const currentBranch = git.branch\nif (currentBranch) {\n console.log(`Currently on branch: ${currentBranch}`)\n}"
           }
         ]
@@ -8116,7 +8116,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const commitSha = git.sha\nif (commitSha) {\n console.log(`Current commit: ${commitSha}`)\n}"
           }
         ]
@@ -8126,7 +8126,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "if (git.isRepo) {\n console.log('This is a Git repository!')\n} else {\n console.log('Not in a Git repository')\n}"
           }
         ]
@@ -8136,7 +8136,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "if (git.isRepoRoot) {\n console.log('At the repository root')\n} else {\n console.log('In a subdirectory of the repository')\n}"
           }
         ]
@@ -8146,7 +8146,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const repoRoot = git.repoRoot\nif (repoRoot) {\n console.log(`Repository root: ${repoRoot}`)\n}"
           }
         ]
@@ -8158,7 +8158,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const git = container.feature('git')\n\nif (git.isRepo) {\n console.log(`Current branch: ${git.branch}`)\n console.log(`Repository root: ${git.repoRoot}`)\n \n const allFiles = await git.lsFiles()\n const modifiedFiles = await git.lsFiles({ modified: true })\n}"
       }
     ]
@@ -8196,7 +8196,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
           }
         ]
@@ -8229,7 +8229,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
           }
         ]
@@ -8242,7 +8242,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
       }
     ]
@@ -8271,7 +8271,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
           }
         ]
@@ -8284,7 +8284,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
       }
     ]
@@ -8607,7 +8607,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
       }
     ]
@@ -8635,7 +8635,7 @@ export const introspectionData = [
         "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
           }
         ]
@@ -8697,7 +8697,7 @@ export const introspectionData = [
         "returns": "Promise<{\n    stderr: string;\n    stdout: string;\n    error: null | any;\n    exitCode: number;\n    pid: number | null;\n  }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
           }
         ]
@@ -8734,7 +8734,7 @@ export const introspectionData = [
         "returns": "Promise<{ exitCode: number; stderr: string[] }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
           }
         ]
@@ -8757,7 +8757,7 @@ export const introspectionData = [
         "returns": "string",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
           }
         ]
@@ -8780,7 +8780,7 @@ export const introspectionData = [
         "returns": "boolean",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
           }
         ]
@@ -8799,7 +8799,7 @@ export const introspectionData = [
         "returns": "number[]",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
           }
         ]
@@ -8812,7 +8812,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const proc = container.feature('proc')\n\n// Execute a simple command synchronously\nconst result = proc.exec('echo \"Hello World\"')\nconsole.log(result) // 'Hello World'\n\n// Execute and capture output asynchronously\nconst { stdout, stderr } = await proc.spawnAndCapture('npm', ['--version'])\nconsole.log(`npm version: ${stdout}`)\n\n// Execute with callbacks for real-time output\nawait proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('OUT:', data),\n onError: (data) => console.log('ERR:', data)\n})"
       }
     ]
@@ -8906,7 +8906,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const listener = container.feature('launcherAppCommandListener', {\n enable: true,\n autoListen: true,\n})\n\nlistener.on('command', async (cmd) => {\n cmd.ack('Working on it!')     // or just cmd.ack() for silent\n\n // ... do your actual work ...\n cmd.progress(0.5, 'Halfway there')\n\n cmd.finish()                   // silent finish\n cmd.finish({ result: { action: 'completed' }, speech: 'All done!' })\n // or: cmd.fail({ error: 'not found', speech: 'Sorry, that failed.' })\n})"
       }
     ]
@@ -8934,7 +8934,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const script = vm.createScript('Math.max(a, b)')\n\n// Execute the script multiple times with different contexts\nconst result1 = script.runInContext(vm.createContext({ a: 5, b: 3 }))\nconst result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))"
           }
         ]
@@ -8953,7 +8953,7 @@ export const introspectionData = [
         "returns": "ctx is vm.Context",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ctx = vm.createContext({ x: 1 })\nvm.isContext(ctx)   // true\nvm.isContext({ x: 1 }) // false"
           }
         ]
@@ -8970,7 +8970,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
           }
         ]
@@ -8993,7 +8993,7 @@ export const introspectionData = [
         "returns": "Promise<T>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
           }
         ]
@@ -9016,7 +9016,7 @@ export const introspectionData = [
         "returns": "T",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const sum = vm.runSync('a + b', { a: 2, b: 3 })\nconsole.log(sum) // 5"
           }
         ]
@@ -9039,7 +9039,7 @@ export const introspectionData = [
         "returns": "Promise<{ result: T, context: vm.Context }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })\nconsole.log(result)     // 84\nconsole.log(context.x)  // 42"
           }
         ]
@@ -9062,7 +9062,7 @@ export const introspectionData = [
         "returns": "{ result: T, context: vm.Context }",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
           }
         ]
@@ -9085,7 +9085,7 @@ export const introspectionData = [
         "returns": "Record<string, any>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
           }
         ]
@@ -9098,7 +9098,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
       }
     ]
@@ -9313,7 +9313,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
       }
     ]
@@ -9350,7 +9350,7 @@ export const introspectionData = [
         "returns": "(str: string) => string",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Assign colors to users\nconst johnColor = ui.assignColor('john');\nconst janeColor = ui.assignColor('jane');\n\n// Use consistently throughout the app\nconsole.log(johnColor('John: Hello there!'));\nconsole.log(janeColor('Jane: Hi John!'));\nconsole.log(johnColor('John: How are you?')); // Same color as before\n\n// Different entities get different colors\nconst errorColor = ui.assignColor('error');\nconst successColor = ui.assignColor('success');"
           }
         ]
@@ -9373,7 +9373,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
           }
         ]
@@ -9409,7 +9409,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
           }
         ]
@@ -9433,7 +9433,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Create a banner\nconst banner = ui.asciiArt('WELCOME', 'Big');\nconsole.log(banner);\n\n// Different fonts for different purposes\nconst title = ui.asciiArt('MyApp', 'Standard');\nconst subtitle = ui.asciiArt('v2.0', 'Small');\n\n// Technical/coding themes\nconst code = ui.asciiArt('CODE', '3D-ASCII');\n\n// List available fonts first\nconsole.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));"
           }
         ]
@@ -9466,7 +9466,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Classic patriotic banner\nconst banner = ui.banner('AMERICA', {\n font: 'Big',\n colors: ['red', 'white', 'blue']\n});\nconsole.log(banner);\n\n// Tech company banner\nconst techBanner = ui.banner('TechCorp', {\n font: 'Slant',\n colors: ['cyan', 'blue', 'magenta']\n});\n\n// Warning banner\nconst warningBanner = ui.banner('WARNING', {\n font: 'Standard',\n colors: ['yellow', 'red']\n});\n\n// Available fonts: see ui.fonts property\n// Available colors: any chalk color names"
           }
         ]
@@ -9506,7 +9506,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Horizontal rainbow effect\nconst rainbow = ui.applyGradient('Hello World!', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta'], \n 'horizontal'\n);\n\n// Vertical gradient for multi-line text\nconst multiline = 'Line 1\\nLine 2\\nLine 3\\nLine 4';\nconst vertical = ui.applyGradient(multiline, \n ['red', 'white', 'blue'], \n 'vertical'\n);\n\n// Fire effect\nconst fire = ui.applyGradient('FIRE', ['red', 'yellow'], 'horizontal');\n\n// Ocean effect\nconst ocean = ui.applyGradient('OCEAN', ['blue', 'cyan', 'white'], 'vertical');"
           }
         ]
@@ -9529,7 +9529,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
           }
         ]
@@ -9552,7 +9552,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
           }
         ]
@@ -9580,7 +9580,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Number alignment\nconst numbers = ['1', '23', '456'];\nnumbers.forEach(num => {\n console.log(ui.padLeft(num, 5, '0')); // '00001', '00023', '00456'\n});\n\n// Text alignment in columns\nconst items = ['apple', 'banana', 'cherry'];\nitems.forEach(item => {\n console.log(ui.padLeft(item, 10) + ' | Price: $1.00');\n});\n\n// Custom padding character\nconst title = ui.padLeft('TITLE', 20, '-'); // '---------------TITLE'"
           }
         ]
@@ -9608,7 +9608,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Create aligned table columns\nconst data = [\n ['Name', 'Age', 'City'],\n ['John', '25', 'NYC'],\n ['Jane', '30', 'LA'],\n ['Bob', '35', 'Chicago']\n];\n\ndata.forEach(row => {\n const formatted = row.map((cell, i) => {\n   const widths = [15, 5, 10];\n   return ui.padRight(cell, widths[i]);\n }).join(' | ');\n console.log(formatted);\n});\n\n// Progress bars\nconst progress = ui.padRight('████', 20, '░'); // '████░░░░░░░░░░░░░░░░'\n\n// Menu items with dots\nconst menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';"
           }
         ]
@@ -9620,7 +9620,7 @@ export const introspectionData = [
         "returns": "typeof colors",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Basic colors\nui.colors.red('Error message')\nui.colors.green('Success!')\n\n// Chained styling\nui.colors.blue.bold.underline('Important link')\nui.colors.white.bgRed.bold(' ALERT ')\n\n// Hex and RGB colors\nui.colors.hex('#FF5733')('Custom color')\nui.colors.rgb(255, 87, 51)('RGB color')"
           }
         ]
@@ -9634,7 +9634,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
           }
         ]
@@ -9644,7 +9644,7 @@ export const introspectionData = [
         "returns": "string[]",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// List all available fonts\nconst fonts = ui.fonts;\nconsole.log(`Available fonts: ${fonts.join(', ')}`);\n\n// Use random font for variety\nconst randomFont = fonts[Math.floor(Math.random() * fonts.length)];\nconst art = ui.asciiArt('Hello', randomFont);\n\n// Common fonts: 'Big', 'Standard', 'Small', 'Slant', '3D-ASCII'"
           }
         ]
@@ -9716,7 +9716,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
       }
     ]
@@ -9786,7 +9786,7 @@ export const introspectionData = [
         "returns": "this",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
           }
         ]
@@ -9899,7 +9899,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
       }
     ]
@@ -9931,7 +9931,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
           }
         ]
@@ -9953,7 +9953,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
       }
     ]
@@ -10152,7 +10152,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
           }
         ]
@@ -10164,7 +10164,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
       }
     ]
@@ -10180,7 +10180,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const arch = os.arch\nconsole.log(`Running on ${arch} architecture`)"
           }
         ]
@@ -10190,7 +10190,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const tempDir = os.tmpdir\nconsole.log(`Temp directory: ${tempDir}`)"
           }
         ]
@@ -10200,7 +10200,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const home = os.homedir\nconsole.log(`User home: ${home}`)"
           }
         ]
@@ -10210,7 +10210,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const cores = os.cpuCount\nconsole.log(`System has ${cores} CPU cores`)"
           }
         ]
@@ -10220,7 +10220,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const hostname = os.hostname\nconsole.log(`Hostname: ${hostname}`)"
           }
         ]
@@ -10230,7 +10230,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const platform = os.platform\nif (platform === 'darwin') {\n console.log('Running on macOS')\n}"
           }
         ]
@@ -10240,7 +10240,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const interfaces = os.networkInterfaces\nObject.keys(interfaces).forEach(name => {\n console.log(`Interface ${name}:`, interfaces[name])\n})"
           }
         ]
@@ -10250,7 +10250,7 @@ export const introspectionData = [
         "returns": "string[]",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const macAddresses = os.macAddresses\nconsole.log(`External MAC addresses: ${macAddresses.join(', ')}`)"
           }
         ]
@@ -10262,7 +10262,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const osInfo = container.feature('os')\n\nconsole.log(`Platform: ${osInfo.platform}`)\nconsole.log(`Architecture: ${osInfo.arch}`)\nconsole.log(`CPU cores: ${osInfo.cpuCount}`)\nconsole.log(`Home directory: ${osInfo.homedir}`)"
       }
     ]
@@ -10290,7 +10290,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
           }
         ]
@@ -10327,7 +10327,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
       }
     ]
@@ -10413,7 +10413,7 @@ export const introspectionData = [
         "returns": "Promise<GrepMatch[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
           }
         ]
@@ -10436,7 +10436,7 @@ export const introspectionData = [
         "returns": "Promise<string[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const files = await grep.filesContaining('TODO')\n// ['src/index.ts', 'src/utils.ts']"
           }
         ]
@@ -10459,7 +10459,7 @@ export const introspectionData = [
         "returns": "Promise<GrepMatch[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const lodashImports = await grep.imports('lodash')\nconst localImports = await grep.imports('./utils')"
           }
         ]
@@ -10482,7 +10482,7 @@ export const introspectionData = [
         "returns": "Promise<GrepMatch[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const defs = await grep.definitions('MyComponent')\nconst classDefs = await grep.definitions('UserService')"
           }
         ]
@@ -10499,7 +10499,7 @@ export const introspectionData = [
         "returns": "Promise<GrepMatch[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
           }
         ]
@@ -10522,7 +10522,7 @@ export const introspectionData = [
         "returns": "Promise<number>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const count = await grep.count('console.log')\nconsole.log(`Found ${count} console.log statements`)"
           }
         ]
@@ -10545,7 +10545,7 @@ export const introspectionData = [
         "returns": "Promise<{ file: string, matches: GrepMatch[] }[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const affected = await grep.findForReplace('oldFunctionName')\n// [{ file: 'src/a.ts', matches: [...] }, { file: 'src/b.ts', matches: [...] }]"
           }
         ]
@@ -10563,7 +10563,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const grep = container.feature('grep')\n\n// Basic search\nconst results = await grep.search({ pattern: 'TODO' })\n// [{ file: 'src/index.ts', line: 42, column: 5, content: '// TODO: fix this' }, ...]\n\n// Find all imports of a module\nconst imports = await grep.imports('lodash')\n\n// Find function/class/variable definitions\nconst defs = await grep.definitions('MyClass')\n\n// Just get filenames containing a pattern\nconst files = await grep.filesContaining('API_KEY')"
       }
     ]
@@ -10672,7 +10672,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
       }
     ]
@@ -10700,7 +10700,7 @@ export const introspectionData = [
         "returns": "Promise<T[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
           }
         ]
@@ -10723,7 +10723,7 @@ export const introspectionData = [
         "returns": "Promise<{ changes: number; lastInsertRowid: number | bigint | null }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
           }
         ]
@@ -10747,7 +10747,7 @@ export const introspectionData = [
         "returns": "Promise<T[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
           }
         ]
@@ -10759,7 +10759,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const db = container.feature('sqlite', { path: 'app.db' })\n// ... run queries ...\ndb.close()"
           }
         ]
@@ -10798,7 +10798,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
       }
     ]
@@ -10815,7 +10815,7 @@ export const introspectionData = [
         "returns": "Promise<boolean>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const available = await docker.checkDockerAvailability()\nif (!available) console.log('Docker is not installed or not running')"
           }
         ]
@@ -10838,7 +10838,7 @@ export const introspectionData = [
         "returns": "Promise<DockerContainer[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const running = await docker.listContainers()\nconst all = await docker.listContainers({ all: true })"
           }
         ]
@@ -10850,7 +10850,7 @@ export const introspectionData = [
         "returns": "Promise<DockerImage[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const images = await docker.listImages()\nconsole.log(images.map(i => `${i.repository}:${i.tag}`))"
           }
         ]
@@ -10869,7 +10869,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.startContainer('my-app')"
           }
         ]
@@ -10892,7 +10892,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.stopContainer('my-app')\nawait docker.stopContainer('my-app', 30) // wait up to 30s"
           }
         ]
@@ -10921,7 +10921,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.removeContainer('old-container')\nawait docker.removeContainer('stubborn-container', { force: true })"
           }
         ]
@@ -10998,7 +10998,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const containerId = await docker.runContainer('nginx:latest', {\n name: 'web',\n ports: ['8080:80'],\n detach: true,\n environment: { NODE_ENV: 'production' }\n})"
           }
         ]
@@ -11056,7 +11056,7 @@ export const introspectionData = [
         "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])\nconsole.log(result.stdout)"
           }
         ]
@@ -11092,7 +11092,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.pullImage('node:20-alpine')"
           }
         ]
@@ -11121,7 +11121,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.removeImage('nginx:latest')\nawait docker.removeImage('old-image', { force: true })"
           }
         ]
@@ -11166,7 +11166,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.buildImage('./project', {\n tag: 'my-app:latest',\n buildArgs: { NODE_ENV: 'production' }\n})"
           }
         ]
@@ -11207,7 +11207,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const logs = await docker.getLogs('my-app', { tail: 100, timestamps: true })\nconsole.log(logs)"
           }
         ]
@@ -11219,7 +11219,7 @@ export const introspectionData = [
         "returns": "Promise<any>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const info = await docker.getSystemInfo()\nconsole.log(info.ServerVersion)"
           }
         ]
@@ -11262,7 +11262,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await docker.prune({ all: true })\nawait docker.prune({ containers: true, images: true })"
           }
         ]
@@ -11291,7 +11291,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const docker = container.feature('docker', { enable: true })\nawait docker.checkDockerAvailability()\nconst containers = await docker.listContainers({ all: true })"
       }
     ]
@@ -11315,7 +11315,7 @@ export const introspectionData = [
         "returns": "string",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const config = {\n name: 'MyApp',\n version: '1.0.0',\n settings: {\n   debug: true,\n   ports: [3000, 3001]\n }\n}\n\nconst yamlString = yaml.stringify(config)\nconsole.log(yamlString)\n// Output:\n// name: MyApp\n// version: 1.0.0\n// settings:\n//   debug: true\n//   ports:\n//     - 3000\n//     - 3001"
           }
         ]
@@ -11334,7 +11334,7 @@ export const introspectionData = [
         "returns": "T",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const yamlContent = `\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n   ports:\n     - 3000\n     - 3001\n`\n\n// Parse with type inference\nconst config = yaml.parse(yamlContent)\nconsole.log(config.name) // 'MyApp'\n\n// Parse with explicit typing\ninterface AppConfig {\n name: string\n version: string\n settings: {\n   debug: boolean\n   ports: number[]\n }\n}\n\nconst typedConfig = yaml.parse<AppConfig>(yamlContent)\nconsole.log(typedConfig.settings.ports) // [3000, 3001]"
           }
         ]
@@ -11347,7 +11347,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
       }
     ]
@@ -11371,7 +11371,7 @@ export const introspectionData = [
         "returns": "ParsedCommand",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
           }
         ]
@@ -11390,7 +11390,7 @@ export const introspectionData = [
         "returns": "Analysis",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "nlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, {value:\"john\",pos:\"PROPN\"}, ...],\n//   entities: [{value:\"john\",type:\"PERSON\"}, {value:\"3pm\",type:\"TIME\"}],\n//   raw: \"meet john at 3pm about the deployment\" }"
           }
         ]
@@ -11409,7 +11409,7 @@ export const introspectionData = [
         "returns": "ParsedCommand & Analysis",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "nlp.understand(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [],\n//   tokens: [{value:\"draw\",pos:\"VERB\"}, ...], entities: [...], raw: \"...\" }"
           }
         ]
@@ -11422,7 +11422,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const nlp = container.feature('nlp', { enable: true })\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\nnlp.analyze(\"meet john at 3pm about the deployment\")\n// { tokens: [{value:\"meet\",pos:\"VERB\"}, ...], entities: [{value:\"john\",type:\"PERSON\"}, ...] }\n\nnlp.understand(\"draw a diagram of the auth flow\")\n// { intent, target, subject, modifiers, tokens, entities, raw }"
       }
     ]
@@ -11444,7 +11444,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Find any available port\nconst anyPort = await networking.findOpenPort()\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Server can use port: ${port}`)"
           }
         ]
@@ -11461,7 +11461,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
           }
         ]
@@ -11474,7 +11474,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
       }
     ]
@@ -11534,7 +11534,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
       }
     ]
@@ -11717,7 +11717,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
       }
     ]
@@ -11741,7 +11741,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const fs = container.feature('fs')\nconst buffer = await fs.readFileAsync('data.txt')\nconsole.log(buffer.toString())"
           }
         ]
@@ -11760,7 +11760,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const fs = container.feature('fs')\nconst entries = await fs.readdir('src')\nconsole.log(entries) // ['index.ts', 'utils.ts', 'components']"
           }
         ]
@@ -11801,7 +11801,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const result = fs.walk('src', { files: true, directories: false })\nconsole.log(result.files) // ['src/index.ts', 'src/utils.ts', 'src/components/Button.tsx']"
           }
         ]
@@ -11842,7 +11842,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconsole.log(`Found ${result.files.length} files and ${result.directories.length} directories`)"
           }
         ]
@@ -11870,7 +11870,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await fs.ensureFileAsync('config/settings.json', '{}', true)\n// Creates config directory and settings.json file with '{}' content"
           }
         ]
@@ -11894,7 +11894,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
           }
         ]
@@ -11913,7 +11913,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "fs.ensureFolder('logs/debug')\n// Creates logs and logs/debug directories if they don't exist"
           }
         ]
@@ -11941,7 +11941,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "fs.ensureFile('logs/app.log', '', false)\n// Creates logs directory and app.log file if they don't exist"
           }
         ]
@@ -11970,7 +11970,7 @@ export const introspectionData = [
         "returns": "string | null",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const packageJson = fs.findUp('package.json')\nif (packageJson) {\n console.log(`Found package.json at: ${packageJson}`)\n}"
           }
         ]
@@ -11989,7 +11989,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "if (await fs.existsAsync('config.json')) {\n console.log('Config file exists!')\n}"
           }
         ]
@@ -12008,7 +12008,7 @@ export const introspectionData = [
         "returns": "boolean",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
           }
         ]
@@ -12027,7 +12027,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await fs.rm('temp/cache.tmp')"
           }
         ]
@@ -12046,7 +12046,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
           }
         ]
@@ -12065,7 +12065,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const content = fs.readFile('README.md')\nconsole.log(content)"
           }
         ]
@@ -12084,7 +12084,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await fs.rmdir('temp/cache')\n// Removes the cache directory and all its contents"
           }
         ]
@@ -12117,7 +12117,7 @@ export const introspectionData = [
         "returns": "Promise<string | string[] | null>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const packageJson = await fs.findUpAsync('package.json')\nconst allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })"
           }
         ]
@@ -12130,7 +12130,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const fs = container.feature('fs')\nconst content = fs.readFile('package.json')\nconst exists = fs.exists('tsconfig.json')\nawait fs.ensureFileAsync('output/result.json', '{}')"
       }
     ]
@@ -12158,7 +12158,7 @@ export const introspectionData = [
         "returns": "Promise<Server>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
           }
         ]
@@ -12170,7 +12170,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Graceful shutdown\ntry {\n await ipc.stopServer();\n console.log('IPC server stopped successfully');\n} catch (error) {\n console.error('Failed to stop server:', error.message);\n}"
           }
         ]
@@ -12189,7 +12189,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Broadcast to all connected clients\nipc.broadcast({ \n type: 'notification',\n message: 'Server is shutting down in 30 seconds',\n timestamp: Date.now()\n});\n\n// Chain multiple operations\nipc.broadcast({ status: 'ready' })\n  .broadcast({ time: new Date().toISOString() });"
           }
         ]
@@ -12208,7 +12208,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Send a simple message\nawait ipc.send({ type: 'ping' });\n\n// Send complex data\nawait ipc.send({\n type: 'data_update',\n payload: { users: [...], timestamp: Date.now() }\n});"
           }
         ]
@@ -12227,7 +12227,7 @@ export const introspectionData = [
         "returns": "Promise<Socket>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Connect to server\nconst socket = await ipc.connect('/tmp/myapp.sock');\nconsole.log('Connected to IPC server');\n\n// Handle incoming messages\nipc.on('message', (data) => {\n console.log('Server message:', data);\n});\n\n// Send messages\nawait ipc.send({ type: 'hello', client_id: 'client_001' });"
           }
         ]
@@ -12291,7 +12291,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
           }
         ]
@@ -12315,7 +12315,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
           }
         ]
@@ -12343,7 +12343,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
           }
         ]
@@ -12371,7 +12371,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
           }
         ]
@@ -12390,7 +12390,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "if (await diskCache.has('myKey')) {\n console.log('Key exists!')\n}"
           }
         ]
@@ -12413,7 +12413,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
           }
         ]
@@ -12441,7 +12441,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
           }
         ]
@@ -12460,7 +12460,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.rm('obsoleteKey')"
           }
         ]
@@ -12477,7 +12477,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await diskCache.clearAll(true) // Must explicitly confirm"
           }
         ]
@@ -12489,7 +12489,7 @@ export const introspectionData = [
         "returns": "Promise<string[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const allKeys = await diskCache.keys()\nconsole.log(`Cache contains ${allKeys.length} items`)"
           }
         ]
@@ -12501,7 +12501,7 @@ export const introspectionData = [
         "returns": "Promise<string[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const keyList = await diskCache.listKeys()"
           }
         ]
@@ -12518,7 +12518,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const customCache = diskCache.create('/custom/cache/path')"
           }
         ]
@@ -12534,7 +12534,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
           }
         ]
@@ -12546,7 +12546,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
       }
     ]
@@ -12574,7 +12574,7 @@ export const introspectionData = [
         "returns": "Promise<T[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst users = await pg.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = $1',\n [true]\n)"
           }
         ]
@@ -12597,7 +12597,7 @@ export const introspectionData = [
         "returns": "Promise<{ rowCount: number }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst { rowCount } = await pg.execute(\n 'UPDATE users SET active = $1 WHERE last_login < $2',\n [false, '2024-01-01']\n)\nconsole.log(`Deactivated ${rowCount} users`)"
           }
         ]
@@ -12621,7 +12621,7 @@ export const introspectionData = [
         "returns": "Promise<T[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\nconst email = 'hello@example.com'\nconst rows = await pg.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
           }
         ]
@@ -12633,7 +12633,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pg = container.feature('postgres', { url: process.env.DATABASE_URL! })\n// ... run queries ...\nawait pg.close()"
           }
         ]
@@ -12672,7 +12672,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })\n\nconst users = await postgres.query<{ id: number; email: string }>(\n 'select id, email from users where id = $1',\n [123]\n)\n\nconst rows = await postgres.sql<{ id: number }>`\n select id from users where email = ${'hello@example.com'}\n`"
       }
     ]
@@ -12700,7 +12700,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await python.detectEnvironment()\nconsole.log(python.state.get('environmentType')) // 'uv' | 'conda' | 'venv' | 'system'\nconsole.log(python.state.get('pythonPath')) // '/path/to/python/executable'"
           }
         ]
@@ -12712,7 +12712,7 @@ export const introspectionData = [
         "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Auto-detect and install\nconst result = await python.installDependencies()\n\n// With custom install command\nconst python = container.feature('python', { \n installCommand: 'pip install -r requirements.txt' \n})\nconst result = await python.installDependencies()"
           }
         ]
@@ -12745,7 +12745,7 @@ export const introspectionData = [
         "returns": "Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Simple execution\nconst result = await python.execute('print(\"Hello World\")')\nconsole.log(result.stdout) // 'Hello World'\n\n// With variables\nconst result = await python.execute('print(f\"Hello {name}!\")', { name: 'Alice' })\n\n// Capture locals\nconst result = await python.execute('x = 42\\ny = x * 2', {}, { captureLocals: true })\nconsole.log(result.locals) // { x: 42, y: 84 }"
           }
         ]
@@ -12768,7 +12768,7 @@ export const introspectionData = [
         "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const result = await python.executeFile('/path/to/script.py')\nconsole.log(result.stdout)"
           }
         ]
@@ -12841,7 +12841,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
       }
     ]
@@ -12869,7 +12869,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
           }
         ]
@@ -12881,7 +12881,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await jsonTree.loadTree('data');\nawait jsonTree.loadTree('config', 'appConfig');\n\nconst allTrees = jsonTree.tree;\n// Returns: { \n//   data: { users: { ... }, products: { ... } },\n//   appConfig: { database: { ... }, api: { ... } }\n// }\n\n// Access specific trees\nconst userData = jsonTree.tree.data.users;\nconst dbConfig = jsonTree.tree.appConfig.database;"
           }
         ]
@@ -12952,7 +12952,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "finder.addPackage({\n name: 'lodash',\n version: '4.17.21',\n description: 'A modern JavaScript utility library'\n}, '/project/node_modules/lodash/package.json');"
           }
         ]
@@ -12964,7 +12964,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await finder.start();\nconsole.log(`Found ${finder.packageNames.length} unique packages`);"
           }
         ]
@@ -12987,7 +12987,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Manual scan (usually called automatically by start())\nawait finder.scan();\n\n// Check results\nconsole.log(`Scanned ${finder.manifests.length} packages`);"
           }
         ]
@@ -13006,7 +13006,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const lodash = finder.findByName('lodash');\nif (lodash) {\n console.log(`Found lodash version ${lodash.version}`);\n}"
           }
         ]
@@ -13025,7 +13025,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const reactDependents = finder.findDependentsOf('react');\nconsole.log(`${reactDependents.length} packages depend on React:`);\nreactDependents.forEach(pkg => {\n console.log(`- ${pkg.name}@${pkg.version}`);\n});"
           }
         ]
@@ -13044,7 +13044,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Find a package with specific version\nconst specific = finder.find(pkg => pkg.name === 'lodash' && pkg.version.startsWith('4.'));\n\n// Find a package with description containing keyword\nconst utility = finder.find(pkg => pkg.description?.includes('utility'));"
           }
         ]
@@ -13063,7 +13063,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Find all packages with 'babel' in the name\nconst babelPackages = finder.filter(pkg => pkg.name.includes('babel'));\n\n// Find all packages with no description\nconst undocumented = finder.filter(pkg => !pkg.description);\n\n// Find all scoped packages\nconst scoped = finder.filter(pkg => pkg.name.startsWith('@'));"
           }
         ]
@@ -13082,7 +13082,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
           }
         ]
@@ -13094,7 +13094,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const duplicates = finder.duplicates;\n// ['lodash', 'react', '@types/node'] - packages with multiple versions\n\nduplicates.forEach(name => {\n console.log(`${name} has ${finder.packages[name].length} versions`);\n});"
           }
         ]
@@ -13108,7 +13108,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const names = finder.packageNames;\nconsole.log(`Found ${names.length} unique packages`);"
           }
         ]
@@ -13118,7 +13118,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const scopes = finder.scopes;\n// ['@types', '@babel', '@angular'] - all scopes in use\n\nscopes.forEach(scope => {\n const scopedPackages = finder.packageNames.filter(name => name.startsWith(scope));\n console.log(`${scope}: ${scopedPackages.length} packages`);\n});"
           }
         ]
@@ -13128,7 +13128,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const all = finder.manifests;\nconsole.log(`Total package instances: ${all.length}`);\n\n// Group by name to see duplicates\nconst grouped = all.reduce((acc, pkg) => {\n acc[pkg.name] = (acc[pkg.name] || 0) + 1;\n return acc;\n}, {});"
           }
         ]
@@ -13138,7 +13138,7 @@ export const introspectionData = [
         "returns": "any",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const counts = finder.counts;\n// { 'lodash': 3, 'react': 2, 'express': 1 }\n\nObject.entries(counts)\n .filter(([name, count]) => count > 1)\n .forEach(([name, count]) => {\n   console.log(`${name}: ${count} versions installed`);\n });"
           }
         ]
@@ -13330,7 +13330,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
       }
     ]
@@ -13352,7 +13352,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Public URL: ${url}`)\n\n// Override port at call time\nconst url2 = await exposer.expose(8080)"
           }
         ]
@@ -13364,7 +13364,7 @@ export const introspectionData = [
         "returns": "Promise<void>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// ... later\nawait exposer.close()\nconsole.log(exposer.isConnected()) // false"
           }
         ]
@@ -13376,7 +13376,7 @@ export const introspectionData = [
         "returns": "string | undefined",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconsole.log(exposer.getPublicUrl()) // 'https://abc123.ngrok.io'"
           }
         ]
@@ -13388,7 +13388,7 @@ export const introspectionData = [
         "returns": "boolean",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nconsole.log(exposer.isConnected()) // false\nawait exposer.expose()\nconsole.log(exposer.isConnected()) // true"
           }
         ]
@@ -13400,7 +13400,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nconst info = exposer.getConnectionInfo()\nconsole.log(info.publicUrl, info.localPort, info.connectedAt)"
           }
         ]
@@ -13417,7 +13417,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\n// Switch to a different port\nconst newUrl = await exposer.reconnect({ port: 8080 })"
           }
         ]
@@ -13429,7 +13429,7 @@ export const introspectionData = [
         "returns": "Promise<this>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const exposer = container.feature('portExposer', { port: 3000 })\nawait exposer.expose()\nawait exposer.disable()"
           }
         ]
@@ -13458,7 +13458,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "// Basic usage\nconst exposer = container.feature('portExposer', { port: 3000 })\nconst url = await exposer.expose()\nconsole.log(`Service available at: ${url}`)\n\n// With custom subdomain\nconst exposer = container.feature('portExposer', {\n port: 8080,\n subdomain: 'my-app',\n authToken: 'your-ngrok-token'\n})"
       }
     ]
@@ -13603,7 +13603,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
       }
     ]
@@ -13620,7 +13620,7 @@ export const introspectionData = [
         "returns": "Promise<boolean>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
           }
         ]
@@ -13639,7 +13639,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
           }
         ]
@@ -13663,7 +13663,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
           }
         ]
@@ -13687,7 +13687,7 @@ export const introspectionData = [
         "returns": "Promise<string>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
           }
         ]
@@ -13700,7 +13700,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
       }
     ]
@@ -13732,7 +13732,7 @@ export const introspectionData = [
         "returns": "Promise<TemplateInfo[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const templates = await runpod.listTemplates({ includeRunpod: true })\nconsole.log(templates.map(t => t.name))"
           }
         ]
@@ -13751,7 +13751,7 @@ export const introspectionData = [
         "returns": "Promise<TemplateInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const template = await runpod.getTemplate('abc123')\nconsole.log(template.imageName)"
           }
         ]
@@ -13828,7 +13828,7 @@ export const introspectionData = [
         "returns": "Promise<PodInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pod = await runpod.createPod({\n gpuTypeId: 'NVIDIA RTX 4090',\n templateId: 'abc123',\n volumeInGb: 50,\n})\nconsole.log(`Pod ${pod.id} created`)"
           }
         ]
@@ -13847,7 +13847,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await runpod.stopPod('pod-abc123')"
           }
         ]
@@ -13866,7 +13866,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await runpod.startPod('pod-abc123')"
           }
         ]
@@ -13885,7 +13885,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await runpod.removePod('pod-abc123')"
           }
         ]
@@ -13916,7 +13916,7 @@ export const introspectionData = [
         "returns": "Promise<RestPodInfo[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pods = await runpod.getpods({ desiredStatus: 'RUNNING' })\nconsole.log(pods.map(p => `${p.name}: ${p.desiredStatus}`))"
           }
         ]
@@ -13935,7 +13935,7 @@ export const introspectionData = [
         "returns": "Promise<RestPodInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pod = await runpod.getPod('pod-abc123')\nconsole.log(`${pod.name} - ${pod.desiredStatus} - $${pod.costPerHr}/hr`)"
           }
         ]
@@ -13962,7 +13962,7 @@ export const introspectionData = [
         "returns": "Promise<RestPodInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc' })\nconst ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })"
           }
         ]
@@ -13974,7 +13974,7 @@ export const introspectionData = [
         "returns": "Promise<VolumeInfo[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const volumes = await runpod.listVolumes()\nconsole.log(volumes.map(v => `${v.name}: ${v.size}GB`))"
           }
         ]
@@ -13993,7 +13993,7 @@ export const introspectionData = [
         "returns": "Promise<VolumeInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const vol = await runpod.getVolume('vol-abc123')\nconsole.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)"
           }
         ]
@@ -14026,7 +14026,7 @@ export const introspectionData = [
         "returns": "Promise<VolumeInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const vol = await runpod.createVolume({ name: 'my-models', size: 100 })\nconsole.log(`Created volume ${vol.id}`)"
           }
         ]
@@ -14045,7 +14045,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "await runpod.removeVolume('vol-abc123')"
           }
         ]
@@ -14064,7 +14064,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const shell = await runpod.createRemoteShell('pod-abc123')\nconst output = await shell.exec('nvidia-smi')"
           }
         ]
@@ -14083,7 +14083,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const shell = await runpod.getShell('pod-abc123')\nconst output = await shell.exec('ls /workspace')"
           }
         ]
@@ -14149,7 +14149,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const urls = await runpod.getPodHttpURLs('pod-abc123')\n// ['https://pod-abc123-8888.proxy.runpod.net']"
           }
         ]
@@ -14166,7 +14166,7 @@ export const introspectionData = [
         "returns": "Promise<PodInfo[]>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const pods = await runpod.listPods()\npods.forEach(p => console.log(`${p.name} (${p.gpu}): ${p.status}`))"
           }
         ]
@@ -14185,7 +14185,7 @@ export const introspectionData = [
         "returns": "Promise<PodInfo>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const info = await runpod.getPodInfo('pod-abc123')\nconsole.log(`${info.name}: ${info.status}`)"
           }
         ]
@@ -14197,7 +14197,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const gpus = await runpod.listSecureGPUs()\ngpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))"
           }
         ]
@@ -14223,7 +14223,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
       }
     ]
@@ -14389,7 +14389,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
       }
     ]
@@ -14413,7 +14413,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
           }
         ]
@@ -14432,7 +14432,7 @@ export const introspectionData = [
         "returns": "void",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
           }
         ]
@@ -14444,7 +14444,7 @@ export const introspectionData = [
         "returns": "Promise<ContentDb>",
         "examples": [
           {
-            "language": "typescript",
+            "language": "ts",
             "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
           }
         ]
@@ -14478,7 +14478,7 @@ export const introspectionData = [
     "envVars": [],
     "examples": [
       {
-        "language": "typescript",
+        "language": "ts",
         "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.modelNames) // ['Article', 'Page', ...]"
       }
     ]

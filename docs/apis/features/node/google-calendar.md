@@ -190,8 +190,6 @@ Event emitted by GoogleCalendar
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
 
 | `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |

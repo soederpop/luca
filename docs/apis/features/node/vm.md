@@ -64,8 +64,6 @@ The VM features providers a virtual machine for executing JavaScript code in a s
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `context` | `any` | Default context object to inject into the VM execution environment |
 
 ## Examples

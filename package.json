@@ -41,7 +41,8 @@
     "build:introspection": "bun run src/cli/cli.ts update-introspection",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "explain-codebase": "luca explain-codebase"
+    "explain-codebase": "luca explain-codebase",
+    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",

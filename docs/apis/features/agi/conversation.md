@@ -207,8 +207,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `id` | `string` | A unique identifier for the conversation |
 
 | `title` | `string` | A human-readable title for the conversation |

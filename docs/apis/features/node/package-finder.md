@@ -263,8 +263,6 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `option` | `string` | Optional configuration parameter |
 
 ## Examples

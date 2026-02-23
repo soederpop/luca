@@ -323,8 +323,6 @@ Emitted when the feature is enabled
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `codexPath` | `string` | Path to the codex CLI binary |
 
 | `model` | `string` | Default model to use for sessions |

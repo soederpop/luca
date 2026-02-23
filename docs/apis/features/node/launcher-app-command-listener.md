@@ -126,8 +126,6 @@ Event emitted by LauncherAppCommandListener
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `socketPath` | `string` | Path to the Unix domain socket to listen on |
 
 | `autoListen` | `boolean` | Automatically start listening when the feature is enabled |

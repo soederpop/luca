@@ -82,8 +82,6 @@ Event emitted by TTS
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
 
 | `voice` | `string` | Default preset voice name |

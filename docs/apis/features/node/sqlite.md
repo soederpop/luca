@@ -137,8 +137,6 @@ Event emitted by Sqlite
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `path` | `string` | Path to sqlite file. Use :memory: for in-memory database |
 
 | `readonly` | `boolean` | Open sqlite database in readonly mode |

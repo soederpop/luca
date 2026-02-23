@@ -221,8 +221,6 @@ Event emitted by Telegram
 
 |----------|------|-------------|
 
-| `enable` | `boolean` | Whether to automatically enable the feature on creation |
-
 | `token` | `string` | Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var) |
 
 | `mode` | `string` | Update mode: polling for long-polling, webhook for HTTP callbacks |
