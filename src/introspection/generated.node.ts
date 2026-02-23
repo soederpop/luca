@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T04:22:37.333Z
+// Generated at: 2026-02-23T04:43:56.958Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -6645,6 +6645,123 @@ setBuildTimeData('features.runpod', {
     {
       "language": "ts",
       "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
+    }
+  ]
+});
+
+setBuildTimeData('features.helpers', {
+  "id": "features.helpers",
+  "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints): Delegate to existing discovery mechanisms",
+  "shortcut": "features.helpers",
+  "methods": {
+    "discover": {
+      "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "Which type of helpers to discover"
+        },
+        "options": {
+          "type": "{ directory?: string }",
+          "description": "Optional overrides",
+          "properties": {
+            "directory": {
+              "type": "any",
+              "description": "Override the directory to scan"
+            }
+          }
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const names = await container.helpers.discover('features')\nconsole.log(names) // ['myCustomFeature']"
+        }
+      ]
+    },
+    "discoverAll": {
+      "description": "Discover all helper types from their conventional folder locations.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, string[]>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const results = await container.helpers.discoverAll()\n// { features: ['myFeature'], clients: [], servers: [], commands: ['deploy'], endpoints: [] }"
+        }
+      ]
+    },
+    "lookup": {
+      "description": "Look up a helper class by type and name.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type (features, clients, servers, commands, endpoints)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name within that registry"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "any",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const FsClass = container.helpers.lookup('features', 'fs')"
+        }
+      ]
+    },
+    "describe": {
+      "description": "Get the introspection description for a specific helper.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "string"
+    }
+  },
+  "getters": {
+    "rootDir": {
+      "description": "The root directory to scan for helper folders.",
+      "returns": "string"
+    },
+    "available": {
+      "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+      "returns": "Record<string, string[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.helpers.available\n// { features: ['fs', 'git', ...], clients: ['rest', 'websocket'], ... }"
+        }
+      ]
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
     }
   ]
 });
@@ -14225,6 +14342,122 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const runpod = container.feature('runpod', { enable: true })\nconst pod = await runpod.createPod({ gpuTypeId: 'NVIDIA RTX 4090', templateId: 'abc123' })\nconst ready = await runpod.waitForPod(pod.id)\nconst shell = await runpod.getShell(pod.id)\nawait shell.exec('nvidia-smi')"
+      }
+    ]
+  },
+  {
+    "id": "features.helpers",
+    "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints): Delegate to existing discovery mechanisms",
+    "shortcut": "features.helpers",
+    "methods": {
+      "discover": {
+        "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "Which type of helpers to discover"
+          },
+          "options": {
+            "type": "{ directory?: string }",
+            "description": "Optional overrides",
+            "properties": {
+              "directory": {
+                "type": "any",
+                "description": "Override the directory to scan"
+              }
+            }
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const names = await container.helpers.discover('features')\nconsole.log(names) // ['myCustomFeature']"
+          }
+        ]
+      },
+      "discoverAll": {
+        "description": "Discover all helper types from their conventional folder locations.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, string[]>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const results = await container.helpers.discoverAll()\n// { features: ['myFeature'], clients: [], servers: [], commands: ['deploy'], endpoints: [] }"
+          }
+        ]
+      },
+      "lookup": {
+        "description": "Look up a helper class by type and name.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type (features, clients, servers, commands, endpoints)"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name within that registry"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "any",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const FsClass = container.helpers.lookup('features', 'fs')"
+          }
+        ]
+      },
+      "describe": {
+        "description": "Get the introspection description for a specific helper.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "string"
+      }
+    },
+    "getters": {
+      "rootDir": {
+        "description": "The root directory to scan for helper folders.",
+        "returns": "string"
+      },
+      "available": {
+        "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+        "returns": "Record<string, string[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.helpers.available\n// { features: ['fs', 'git', ...], clients: ['rest', 'websocket'], ... }"
+          }
+        ]
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
       }
     ]
   },

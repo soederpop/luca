@@ -28,7 +28,6 @@ import { writeFile } from 'fs/promises'
 export class Downloader extends Feature {
   /**
    * The shortcut path for accessing this feature through the container.
-   * Allows access via `container.features.downloader`.
    *
    * @static
    * @readonly

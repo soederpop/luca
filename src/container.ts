@@ -188,23 +188,8 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return State
   }
 
-  get features(): FeaturesRegistry & AvailableInstanceTypes<Features> {
-    const container = this
-
-    return new Proxy(features, {
-      get(target, prop) {
-        if (prop in target) {
-          return target[prop]
-        } else {
-          const cached = helperCache.get(featureIdToHelperCacheKeyMap.get(`${container.uuid}/${prop}`))
-          if (cached) {
-            return cached
-          } else {
-            return container.feature(prop)
-          }
-        }
-      }
-    }) as FeaturesRegistry & AvailableInstanceTypes<Features>
+  get features(): FeaturesRegistry {
+    return features
   }
   
   /** 
