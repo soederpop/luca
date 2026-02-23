@@ -1,12 +1,13 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T18:46:50.263Z
+// Generated at: 2026-02-23T19:53:55.643Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
   "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
   "shortcut": "features.googleDocs",
+  "className": "GoogleDocs",
   "methods": {
     "getDocument": {
       "description": "Get the raw document structure from the Docs API.",
@@ -131,6 +132,7 @@ setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
   "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
   "shortcut": "features.yamlTree",
+  "className": "YamlTree",
   "methods": {
     "loadTree": {
       "description": "Loads a tree of YAML files from the specified base path and stores them in state. This method recursively scans the provided directory for YAML files (.yml and .yaml), processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Path Processing:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes file extensions (.yml/.yaml) **Example:** ``` config/ database/ production.yml  -> tree.config.database.production staging.yml     -> tree.config.database.staging api/ endpoints.yaml  -> tree.config.api.endpoints ```",
@@ -184,6 +186,7 @@ setBuildTimeData('features.ink', {
   "id": "features.ink",
   "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
   "shortcut": "features.ink",
+  "className": "Ink",
   "methods": {
     "loadModules": {
       "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
@@ -317,6 +320,7 @@ setBuildTimeData('features.git', {
   "id": "features.git",
   "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
   "shortcut": "features.git",
+  "className": "Git",
   "methods": {
     "lsFiles": {
       "description": "Lists files in the Git repository using git ls-files command. This method provides a flexible interface to the git ls-files command, allowing you to filter files by various criteria such as cached, deleted, modified, untracked, and ignored files.",
@@ -552,6 +556,7 @@ setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses esbuild for fast, reliable TypeScript/ESM transformation with full format support (esm, cjs, iife).",
   "shortcut": "features.esbuild",
+  "className": "ESBuild",
   "methods": {
     "transformSync": {
       "description": "Transform code synchronously",
@@ -605,6 +610,7 @@ setBuildTimeData('features.downloader', {
   "id": "features.downloader",
   "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
   "shortcut": "features.downloader",
+  "className": "Downloader",
   "methods": {
     "download": {
       "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, converts it to a buffer, and writes it to the filesystem at the target path. The target path is resolved relative to the container's configured paths.",
@@ -648,6 +654,7 @@ setBuildTimeData('features.windowManager', {
   "id": "features.windowManager",
   "description": "WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an IPC server that the native macOS launcher app connects to. Communicates over a Unix domain socket using NDJSON (newline-delimited JSON). **Protocol:** - Bun listens on a Unix domain socket; the native app connects as a client - Window dispatch commands are sent as NDJSON with a `window` field - The app executes window commands and sends back `windowAck` messages - Any non-windowAck message from the app is emitted as a `message` event - Other features can use `send()` to write arbitrary NDJSON to the app **Capabilities:** - Spawn native browser windows with configurable chrome - Navigate, focus, close, and eval JavaScript in windows - Automatic socket file cleanup and fallback paths",
   "shortcut": "features.windowManager",
+  "className": "WindowManager",
   "methods": {
     "enable": {
       "description": "",
@@ -972,6 +979,7 @@ setBuildTimeData('features.proc', {
   "id": "features.proc",
   "description": "The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.",
   "shortcut": "features.proc",
+  "className": "ChildProcess",
   "methods": {
     "execAndCapture": {
       "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.",
@@ -1178,6 +1186,7 @@ setBuildTimeData('features.launcherAppCommandListener', {
   "id": "features.launcherAppCommandListener",
   "description": "LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.",
   "shortcut": "features.launcherAppCommandListener",
+  "className": "LauncherAppCommandListener",
   "methods": {
     "enable": {
       "description": "",
@@ -1273,6 +1282,7 @@ setBuildTimeData('features.vm', {
   "id": "features.vm",
   "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
   "shortcut": "features.vm",
+  "className": "VM",
   "methods": {
     "createScript": {
       "description": "Creates a new VM script from the provided code. This method compiles JavaScript code into a VM script that can be executed multiple times in different contexts. The script is pre-compiled for better performance when executing the same code repeatedly.",
@@ -1466,6 +1476,7 @@ setBuildTimeData('features.googleDrive', {
   "id": "features.googleDrive",
   "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
   "shortcut": "features.googleDrive",
+  "className": "GoogleDrive",
   "methods": {
     "listFiles": {
       "description": "List files in the user's Drive with an optional query filter.",
@@ -1682,6 +1693,7 @@ setBuildTimeData('features.ui', {
   "id": "features.ui",
   "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
   "shortcut": "features.ui",
+  "className": "UI",
   "methods": {
     "markdown": {
       "description": "Parse markdown text and render it for terminal display using marked-terminal.",
@@ -2020,6 +2032,7 @@ setBuildTimeData('features.opener', {
   "id": "features.opener",
   "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
   "shortcut": "features.opener",
+  "className": "Opener",
   "methods": {
     "open": {
       "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
@@ -2087,6 +2100,7 @@ setBuildTimeData('features.telegram', {
   "id": "features.telegram",
   "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
   "shortcut": "features.telegram",
+  "className": "Telegram",
   "methods": {
     "enable": {
       "description": "",
@@ -2271,6 +2285,7 @@ setBuildTimeData('features.repl', {
   "id": "features.repl",
   "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
   "shortcut": "features.repl",
+  "className": "Repl",
   "methods": {
     "start": {
       "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
@@ -2326,6 +2341,7 @@ setBuildTimeData('features.tmux', {
   "id": "features.tmux",
   "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
   "shortcut": "features.tmux",
+  "className": "Tmux",
   "methods": {
     "executeTmuxCommand": {
       "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
@@ -2510,6 +2526,7 @@ setBuildTimeData('features.scriptRunner', {
   "id": "features.scriptRunner",
   "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
   "shortcut": "features.scriptRunner",
+  "className": "ScriptRunner",
   "methods": {},
   "getters": {
     "scripts": {
@@ -2539,6 +2556,7 @@ setBuildTimeData('features.os', {
   "id": "features.os",
   "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
   "shortcut": "features.os",
+  "className": "OS",
   "methods": {},
   "getters": {
     "arch": {
@@ -2638,6 +2656,7 @@ setBuildTimeData('features.tts', {
   "id": "features.tts",
   "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
   "shortcut": "features.tts",
+  "className": "TTS",
   "methods": {
     "synthesize": {
       "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
@@ -2704,6 +2723,7 @@ setBuildTimeData('features.grep', {
   "id": "features.grep",
   "description": "The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.",
   "shortcut": "features.grep",
+  "className": "Grep",
   "methods": {
     "search": {
       "description": "Search for a pattern in files and return structured results.",
@@ -2941,6 +2961,7 @@ setBuildTimeData('features.googleAuth', {
   "id": "features.googleAuth",
   "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
   "shortcut": "features.googleAuth",
+  "className": "GoogleAuth",
   "methods": {
     "getOAuth2Client": {
       "description": "Get the OAuth2Client instance, creating it lazily. After authentication, this client has valid credentials set.",
@@ -3051,6 +3072,7 @@ setBuildTimeData('features.sqlite', {
   "id": "features.sqlite",
   "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
   "shortcut": "features.sqlite",
+  "className": "Sqlite",
   "methods": {
     "query": {
       "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
@@ -3178,6 +3200,7 @@ setBuildTimeData('features.docker', {
   "id": "features.docker",
   "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
   "shortcut": "features.docker",
+  "className": "Docker",
   "methods": {
     "checkDockerAvailability": {
       "description": "Check if Docker is available and working.",
@@ -3672,6 +3695,7 @@ setBuildTimeData('features.yaml', {
   "id": "features.yaml",
   "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
   "shortcut": "features.yaml",
+  "className": "YAML",
   "methods": {
     "stringify": {
       "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
@@ -3729,6 +3753,7 @@ setBuildTimeData('features.nlp', {
   "id": "features.nlp",
   "description": "The NLP feature provides natural language processing utilities for parsing utterances into structured data. Combines two complementary libraries: - **compromise**: Verb normalization (toInfinitive), POS pattern matching - **wink-nlp**: High-accuracy POS tagging (~95%), named entity recognition Three methods at increasing levels of detail: - `parse()` — compromise-powered quick structure + verb normalization - `analyze()` — wink-powered high-accuracy POS + entity extraction - `understand()` — combined parse + analyze merged",
   "shortcut": "features.nlp",
+  "className": "NLP",
   "methods": {
     "parse": {
       "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
@@ -3805,6 +3830,7 @@ setBuildTimeData('features.networking', {
   "id": "features.networking",
   "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
   "shortcut": "features.networking",
+  "className": "Networking",
   "methods": {
     "findOpenPort": {
       "description": "Finds the next available port starting from the specified port number. This method will search for the first available port starting from the given port number. If the specified port is available, it returns that port. Otherwise, it returns the next available port.",
@@ -3858,6 +3884,7 @@ setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
   "shortcut": "features.vault",
+  "className": "Vault",
   "methods": {
     "secret": {
       "description": "Gets or generates a secret key for encryption operations.",
@@ -3919,6 +3946,7 @@ setBuildTimeData('features.googleCalendar', {
   "id": "features.googleCalendar",
   "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
   "shortcut": "features.googleCalendar",
+  "className": "GoogleCalendar",
   "methods": {
     "listCalendars": {
       "description": "List all calendars accessible to the authenticated user.",
@@ -4103,6 +4131,7 @@ setBuildTimeData('features.fs', {
   "id": "features.fs",
   "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
   "shortcut": "features.fs",
+  "className": "FS",
   "methods": {
     "readFileAsync": {
       "description": "Asynchronously reads a file and returns its contents as a Buffer.",
@@ -4517,6 +4546,7 @@ setBuildTimeData('features.ipcSocket', {
   "id": "features.ipcSocket",
   "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
   "shortcut": "features.ipcSocket",
+  "className": "IpcSocket",
   "methods": {
     "listen": {
       "description": "Starts the IPC server listening on the specified socket path. This method sets up a Unix domain socket server that can accept multiple client connections. Each connected client is tracked, and the server automatically handles connection lifecycle events. Messages received from clients are JSON-parsed and emitted as 'message' events. **Server Behavior:** - Tracks all connected clients in the sockets Set - Automatically removes clients when they disconnect - JSON-parses incoming messages and emits 'message' events - Emits 'connection' events when clients connect - Prevents starting multiple servers on the same instance **Socket File Management:** - Resolves the socket path relative to the container's working directory - Optionally removes existing socket files to prevent \"address in use\" errors - Throws error if socket file exists and removeLock is false",
@@ -4646,6 +4676,7 @@ setBuildTimeData('features.diskCache', {
   "id": "features.diskCache",
   "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
   "shortcut": "features.diskCache",
+  "className": "DiskCache",
   "methods": {
     "saveFile": {
       "description": "Retrieve a file from the disk cache and save it to the local disk",
@@ -4935,6 +4966,7 @@ setBuildTimeData('features.postgres', {
   "id": "features.postgres",
   "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
   "shortcut": "features.postgres",
+  "className": "Postgres",
   "methods": {
     "query": {
       "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
@@ -5062,6 +5094,7 @@ setBuildTimeData('features.python', {
   "id": "features.python",
   "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
   "shortcut": "features.python",
+  "className": "Python",
   "methods": {
     "enable": {
       "description": "",
@@ -5232,6 +5265,7 @@ setBuildTimeData('features.jsonTree', {
   "id": "features.jsonTree",
   "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
   "shortcut": "features.jsonTree",
+  "className": "JsonTree",
   "methods": {
     "loadTree": {
       "description": "Loads a tree of JSON files from the specified base path and stores them in state. This method recursively scans the provided directory for JSON files, processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Processing Steps:** 1. Uses FileManager to discover all .json files recursively 2. Reads each file's content using the file system feature 3. Parses JSON content using native JSON.parse() 4. Converts file paths to nested object properties 5. Stores the complete tree in feature state **Path Transformation:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes .json file extension **Example Transformation:** ``` config/ database/ production.json  -> tree.config.database.production staging.json     -> tree.config.database.staging api/ endpoints.json   -> tree.config.api.endpoints ```",
@@ -5279,6 +5313,7 @@ setBuildTimeData('features.packageFinder', {
   "id": "features.packageFinder",
   "description": "PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. It recursively scans all node_modules directories and builds a comprehensive index of packages, enabling: **Core Functionality:** - Recursive node_modules scanning across the workspace - Package manifest parsing and indexing - Duplicate package detection and analysis - Dependency relationship mapping - Scoped package organization (@scope/package) - Package count and statistics **Use Cases:** - Dependency auditing and analysis - Duplicate package identification - Package version conflict detection - Dependency tree analysis - Workspace package inventory **Performance Features:** - Parallel manifest reading for fast scanning - Efficient duplicate detection using unique paths - Lazy initialization - only scans when started - In-memory indexing for fast queries **Usage Example:** ```typescript const finder = container.feature('packageFinder'); await finder.start(); // Find duplicates console.log('Duplicate packages:', finder.duplicates); // Find package by name const lodash = finder.findByName('lodash'); // Find dependents of a package const dependents = finder.findDependentsOf('react'); ```",
   "shortcut": "features.packageFinder",
+  "className": "PackageFinder",
   "methods": {
     "afterInitialize": {
       "description": "Initializes the feature state after construction. Sets the started flag to false, indicating the initial scan hasn't completed.",
@@ -5537,6 +5572,7 @@ setBuildTimeData('features.processManager', {
   "id": "features.processManager",
   "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.",
   "shortcut": "features.processManager",
+  "className": "ProcessManager",
   "methods": {
     "spawn": {
       "description": "Spawn a long-running process and return a handle immediately. The returned SpawnHandler provides events for stdout/stderr streaming, exit/crash notifications, and methods to kill or await the process.",
@@ -5724,6 +5760,7 @@ setBuildTimeData('portExposer', {
   "id": "portExposer",
   "description": "Port Exposer Feature Exposes local HTTP services via ngrok with SSL-enabled public URLs. Perfect for development, testing, and sharing local services securely. Features: - SSL-enabled public URLs for local services - Custom subdomains and domains (with paid plans) - Authentication options (basic auth, OAuth) - Regional endpoint selection - Connection state management",
   "shortcut": "portExposer",
+  "className": "PortExposer",
   "methods": {
     "expose": {
       "description": "Expose the local port via ngrok. Creates an ngrok tunnel to the specified local port and returns the SSL-enabled public URL. Emits `exposed` on success or `error` on failure.",
@@ -5853,6 +5890,7 @@ setBuildTimeData('features.googleSheets', {
   "id": "features.googleSheets",
   "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
   "shortcut": "features.googleSheets",
+  "className": "GoogleSheets",
   "methods": {
     "getSpreadsheet": {
       "description": "Get spreadsheet metadata including title, locale, and sheet list.",
@@ -5999,6 +6037,7 @@ setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
   "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
   "shortcut": "features.secureShell",
+  "className": "SecureShell",
   "methods": {
     "testConnection": {
       "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
@@ -6097,6 +6136,7 @@ setBuildTimeData('features.runpod', {
   "id": "features.runpod",
   "description": "RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. Provides a complete interface for provisioning and managing RunPod GPU instances. Supports creating pods from templates, managing network storage volumes, SSH access via the SecureShell feature, file transfers, and polling for pod readiness.",
   "shortcut": "features.runpod",
+  "className": "Runpod",
   "methods": {
     "listTemplates": {
       "description": "List available pod templates.",
@@ -6621,6 +6661,7 @@ setBuildTimeData('features.helpers', {
   "id": "features.helpers",
   "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints): Delegate to existing discovery mechanisms",
   "shortcut": "features.helpers",
+  "className": "Helpers",
   "methods": {
     "discover": {
       "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
@@ -6738,6 +6779,7 @@ setBuildTimeData('features.fileManager', {
   "id": "features.fileManager",
   "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
   "shortcut": "features.fileManager",
+  "className": "FileManager",
   "methods": {
     "match": {
       "description": "Matches the file IDs against the pattern(s) provided",
@@ -6905,6 +6947,7 @@ setBuildTimeData('features.contentDb', {
   "id": "features.contentDb",
   "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
   "shortcut": "features.contentDb",
+  "className": "ContentDb",
   "methods": {
     "query": {
       "description": "Query documents belonging to a specific model definition.",
@@ -6995,6 +7038,7 @@ setBuildTimeData('servers.mcp', {
   "id": "servers.mcp",
   "description": "MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly with Zod 4 native JSON Schema conversion. Register tools, resources, and prompts programmatically, then start the server over stdio (for CLI integration) or HTTP (for remote access).",
   "shortcut": "servers.mcp",
+  "className": "MCPServer",
   "methods": {
     "tool": {
       "description": "Register an MCP tool. The tool's Zod schema is converted to JSON Schema for the protocol listing, and used for runtime argument validation. Tool handlers can return a string (auto-wrapped as text content) or a full CallToolResult object for advanced responses (images, errors, etc).",
@@ -7159,6 +7203,7 @@ setBuildTimeData('servers.express', {
   "id": "servers.express",
   "description": "ExpressServer helper",
   "shortcut": "servers.express",
+  "className": "ExpressServer",
   "methods": {
     "start": {
       "description": "",
@@ -7250,6 +7295,7 @@ setBuildTimeData('servers.websocket', {
   "id": "servers.websocket",
   "description": "WebsocketServer helper",
   "shortcut": "servers.websocket",
+  "className": "WebsocketServer",
   "methods": {
     "broadcast": {
       "description": "",
@@ -7325,6 +7371,7 @@ setBuildTimeData('features.assistantsManager', {
   "id": "features.assistantsManager",
   "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
   "shortcut": "features.assistantsManager",
+  "className": "AssistantsManager",
   "methods": {
     "afterInitialize": {
       "description": "",
@@ -7433,6 +7480,7 @@ setBuildTimeData('features.conversation', {
   "id": "features.conversation",
   "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
   "shortcut": "features.conversation",
+  "className": "Conversation",
   "methods": {
     "ask": {
       "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
@@ -7586,6 +7634,7 @@ setBuildTimeData('features.openapi', {
   "id": "features.openapi",
   "description": "The OpenAPI feature loads an OpenAPI/Swagger spec from a URL and provides inspection and conversion utilities. Works in both browser and node environments since it uses fetch.",
   "shortcut": "features.openapi",
+  "className": "OpenAPI",
   "methods": {
     "load": {
       "description": "Fetches and parses the OpenAPI spec from the configured URL. Populates `endpoints`, updates state with spec metadata.",
@@ -7709,6 +7758,7 @@ setBuildTimeData('features.docsReader', {
   "id": "features.docsReader",
   "description": "A docs reader that wraps a ContentDb and provides a Conversation with tools to list, outline, and read documents. Ask it a question and it will find and read the relevant docs to answer it.",
   "shortcut": "features.docsReader",
+  "className": "DocsReader",
   "methods": {
     "buildTools": {
       "description": "Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs) that the conversation model uses to query the content database.",
@@ -7790,6 +7840,7 @@ setBuildTimeData('features.skillsLibrary', {
   "id": "features.skillsLibrary",
   "description": "Manages two contentbase collections of skills following the Claude Code SKILL.md format. Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/. Skills can be discovered, searched, created, updated, and removed at runtime.",
   "shortcut": "features.skillsLibrary",
+  "className": "SkillsLibrary",
   "methods": {
     "load": {
       "description": "Loads both project and user skill collections from disk. Gracefully handles missing directories.",
@@ -7958,6 +8009,7 @@ setBuildTimeData('features.assistant', {
   "id": "features.assistant",
   "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
   "shortcut": "features.assistant",
+  "className": "Assistant",
   "methods": {
     "afterInitialize": {
       "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks using the VM's runSync, creates the contentDb if a docs/ folder exists, then fires the `created` hook.",
@@ -8161,6 +8213,7 @@ setBuildTimeData('features.claudeCode', {
   "id": "features.claudeCode",
   "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
   "shortcut": "features.claudeCode",
+  "className": "ClaudeCode",
   "methods": {
     "checkAvailability": {
       "description": "Check if the Claude CLI is available and capture its version.",
@@ -8532,6 +8585,7 @@ setBuildTimeData('features.openaiCodex', {
   "id": "features.openaiCodex",
   "description": "OpenAI Codex CLI wrapper feature. Spawns and manages Codex sessions as subprocesses, streaming structured JSON events back through the container's event system. Mirrors the ClaudeCode feature pattern: each call to `run()` spawns a `codex exec --json` process, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
   "shortcut": "features.openaiCodex",
+  "className": "OpenAICodex",
   "methods": {
     "checkAvailability": {
       "description": "Check if the Codex CLI is available and capture its version.",
@@ -8827,6 +8881,7 @@ setBuildTimeData('features.conversationHistory', {
   "id": "features.conversationHistory",
   "description": "Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.",
   "shortcut": "features.conversationHistory",
+  "className": "ConversationHistory",
   "methods": {
     "save": {
       "description": "Save a conversation. Creates or overwrites by ID.",
@@ -9597,6 +9652,7 @@ export const introspectionData = [
     "id": "features.googleDocs",
     "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
     "shortcut": "features.googleDocs",
+    "className": "GoogleDocs",
     "methods": {
       "getDocument": {
         "description": "Get the raw document structure from the Docs API.",
@@ -9720,6 +9776,7 @@ export const introspectionData = [
     "id": "features.yamlTree",
     "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
     "shortcut": "features.yamlTree",
+    "className": "YamlTree",
     "methods": {
       "loadTree": {
         "description": "Loads a tree of YAML files from the specified base path and stores them in state. This method recursively scans the provided directory for YAML files (.yml and .yaml), processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Path Processing:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes file extensions (.yml/.yaml) **Example:** ``` config/ database/ production.yml  -> tree.config.database.production staging.yml     -> tree.config.database.staging api/ endpoints.yaml  -> tree.config.api.endpoints ```",
@@ -9772,6 +9829,7 @@ export const introspectionData = [
     "id": "features.ink",
     "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
     "shortcut": "features.ink",
+    "className": "Ink",
     "methods": {
       "loadModules": {
         "description": "Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.",
@@ -9904,6 +9962,7 @@ export const introspectionData = [
     "id": "features.git",
     "description": "The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.",
     "shortcut": "features.git",
+    "className": "Git",
     "methods": {
       "lsFiles": {
         "description": "Lists files in the Git repository using git ls-files command. This method provides a flexible interface to the git ls-files command, allowing you to filter files by various criteria such as cached, deleted, modified, untracked, and ignored files.",
@@ -10138,6 +10197,7 @@ export const introspectionData = [
     "id": "features.esbuild",
     "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses esbuild for fast, reliable TypeScript/ESM transformation with full format support (esm, cjs, iife).",
     "shortcut": "features.esbuild",
+    "className": "ESBuild",
     "methods": {
       "transformSync": {
         "description": "Transform code synchronously",
@@ -10190,6 +10250,7 @@ export const introspectionData = [
     "id": "features.downloader",
     "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
     "shortcut": "features.downloader",
+    "className": "Downloader",
     "methods": {
       "download": {
         "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, converts it to a buffer, and writes it to the filesystem at the target path. The target path is resolved relative to the container's configured paths.",
@@ -10232,6 +10293,7 @@ export const introspectionData = [
     "id": "features.windowManager",
     "description": "WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an IPC server that the native macOS launcher app connects to. Communicates over a Unix domain socket using NDJSON (newline-delimited JSON). **Protocol:** - Bun listens on a Unix domain socket; the native app connects as a client - Window dispatch commands are sent as NDJSON with a `window` field - The app executes window commands and sends back `windowAck` messages - Any non-windowAck message from the app is emitted as a `message` event - Other features can use `send()` to write arbitrary NDJSON to the app **Capabilities:** - Spawn native browser windows with configurable chrome - Navigate, focus, close, and eval JavaScript in windows - Automatic socket file cleanup and fallback paths",
     "shortcut": "features.windowManager",
+    "className": "WindowManager",
     "methods": {
       "enable": {
         "description": "",
@@ -10555,6 +10617,7 @@ export const introspectionData = [
     "id": "features.proc",
     "description": "The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.",
     "shortcut": "features.proc",
+    "className": "ChildProcess",
     "methods": {
       "execAndCapture": {
         "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.",
@@ -10760,6 +10823,7 @@ export const introspectionData = [
     "id": "features.launcherAppCommandListener",
     "description": "LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.",
     "shortcut": "features.launcherAppCommandListener",
+    "className": "LauncherAppCommandListener",
     "methods": {
       "enable": {
         "description": "",
@@ -10854,6 +10918,7 @@ export const introspectionData = [
     "id": "features.vm",
     "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
     "shortcut": "features.vm",
+    "className": "VM",
     "methods": {
       "createScript": {
         "description": "Creates a new VM script from the provided code. This method compiles JavaScript code into a VM script that can be executed multiple times in different contexts. The script is pre-compiled for better performance when executing the same code repeatedly.",
@@ -11046,6 +11111,7 @@ export const introspectionData = [
     "id": "features.googleDrive",
     "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
     "shortcut": "features.googleDrive",
+    "className": "GoogleDrive",
     "methods": {
       "listFiles": {
         "description": "List files in the user's Drive with an optional query filter.",
@@ -11261,6 +11327,7 @@ export const introspectionData = [
     "id": "features.ui",
     "description": "UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\\'s message')); console.log(adminColor('Admin notice')); ```",
     "shortcut": "features.ui",
+    "className": "UI",
     "methods": {
       "markdown": {
         "description": "Parse markdown text and render it for terminal display using marked-terminal.",
@@ -11598,6 +11665,7 @@ export const introspectionData = [
     "id": "features.opener",
     "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
     "shortcut": "features.opener",
+    "className": "Opener",
     "methods": {
       "open": {
         "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
@@ -11664,6 +11732,7 @@ export const introspectionData = [
     "id": "features.telegram",
     "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
     "shortcut": "features.telegram",
+    "className": "Telegram",
     "methods": {
       "enable": {
         "description": "",
@@ -11847,6 +11916,7 @@ export const introspectionData = [
     "id": "features.repl",
     "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
     "shortcut": "features.repl",
+    "className": "Repl",
     "methods": {
       "start": {
         "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
@@ -11901,6 +11971,7 @@ export const introspectionData = [
     "id": "features.tmux",
     "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
     "shortcut": "features.tmux",
+    "className": "Tmux",
     "methods": {
       "executeTmuxCommand": {
         "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
@@ -12084,6 +12155,7 @@ export const introspectionData = [
     "id": "features.scriptRunner",
     "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
     "shortcut": "features.scriptRunner",
+    "className": "ScriptRunner",
     "methods": {},
     "getters": {
       "scripts": {
@@ -12112,6 +12184,7 @@ export const introspectionData = [
     "id": "features.os",
     "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
     "shortcut": "features.os",
+    "className": "OS",
     "methods": {},
     "getters": {
       "arch": {
@@ -12210,6 +12283,7 @@ export const introspectionData = [
     "id": "features.tts",
     "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
     "shortcut": "features.tts",
+    "className": "TTS",
     "methods": {
       "synthesize": {
         "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
@@ -12275,6 +12349,7 @@ export const introspectionData = [
     "id": "features.grep",
     "description": "The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.",
     "shortcut": "features.grep",
+    "className": "Grep",
     "methods": {
       "search": {
         "description": "Search for a pattern in files and return structured results.",
@@ -12511,6 +12586,7 @@ export const introspectionData = [
     "id": "features.googleAuth",
     "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
     "shortcut": "features.googleAuth",
+    "className": "GoogleAuth",
     "methods": {
       "getOAuth2Client": {
         "description": "Get the OAuth2Client instance, creating it lazily. After authentication, this client has valid credentials set.",
@@ -12620,6 +12696,7 @@ export const introspectionData = [
     "id": "features.sqlite",
     "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
     "shortcut": "features.sqlite",
+    "className": "Sqlite",
     "methods": {
       "query": {
         "description": "Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`?`) for `params`.",
@@ -12746,6 +12823,7 @@ export const introspectionData = [
     "id": "features.docker",
     "description": "Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information",
     "shortcut": "features.docker",
+    "className": "Docker",
     "methods": {
       "checkDockerAvailability": {
         "description": "Check if Docker is available and working.",
@@ -13239,6 +13317,7 @@ export const introspectionData = [
     "id": "features.yaml",
     "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
     "shortcut": "features.yaml",
+    "className": "YAML",
     "methods": {
       "stringify": {
         "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
@@ -13295,6 +13374,7 @@ export const introspectionData = [
     "id": "features.nlp",
     "description": "The NLP feature provides natural language processing utilities for parsing utterances into structured data. Combines two complementary libraries: - **compromise**: Verb normalization (toInfinitive), POS pattern matching - **wink-nlp**: High-accuracy POS tagging (~95%), named entity recognition Three methods at increasing levels of detail: - `parse()` — compromise-powered quick structure + verb normalization - `analyze()` — wink-powered high-accuracy POS + entity extraction - `understand()` — combined parse + analyze merged",
     "shortcut": "features.nlp",
+    "className": "NLP",
     "methods": {
       "parse": {
         "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
@@ -13370,6 +13450,7 @@ export const introspectionData = [
     "id": "features.networking",
     "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
     "shortcut": "features.networking",
+    "className": "Networking",
     "methods": {
       "findOpenPort": {
         "description": "Finds the next available port starting from the specified port number. This method will search for the first available port starting from the given port number. If the specified port is available, it returns that port. Otherwise, it returns the next available port.",
@@ -13422,6 +13503,7 @@ export const introspectionData = [
     "id": "features.vault",
     "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
     "shortcut": "features.vault",
+    "className": "Vault",
     "methods": {
       "secret": {
         "description": "Gets or generates a secret key for encryption operations.",
@@ -13482,6 +13564,7 @@ export const introspectionData = [
     "id": "features.googleCalendar",
     "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
     "shortcut": "features.googleCalendar",
+    "className": "GoogleCalendar",
     "methods": {
       "listCalendars": {
         "description": "List all calendars accessible to the authenticated user.",
@@ -13665,6 +13748,7 @@ export const introspectionData = [
     "id": "features.fs",
     "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
     "shortcut": "features.fs",
+    "className": "FS",
     "methods": {
       "readFileAsync": {
         "description": "Asynchronously reads a file and returns its contents as a Buffer.",
@@ -14078,6 +14162,7 @@ export const introspectionData = [
     "id": "features.ipcSocket",
     "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```",
     "shortcut": "features.ipcSocket",
+    "className": "IpcSocket",
     "methods": {
       "listen": {
         "description": "Starts the IPC server listening on the specified socket path. This method sets up a Unix domain socket server that can accept multiple client connections. Each connected client is tracked, and the server automatically handles connection lifecycle events. Messages received from clients are JSON-parsed and emitted as 'message' events. **Server Behavior:** - Tracks all connected clients in the sockets Set - Automatically removes clients when they disconnect - JSON-parses incoming messages and emits 'message' events - Emits 'connection' events when clients connect - Prevents starting multiple servers on the same instance **Socket File Management:** - Resolves the socket path relative to the container's working directory - Optionally removes existing socket files to prevent \"address in use\" errors - Throws error if socket file exists and removeLock is false",
@@ -14206,6 +14291,7 @@ export const introspectionData = [
     "id": "features.diskCache",
     "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
     "shortcut": "features.diskCache",
+    "className": "DiskCache",
     "methods": {
       "saveFile": {
         "description": "Retrieve a file from the disk cache and save it to the local disk",
@@ -14494,6 +14580,7 @@ export const introspectionData = [
     "id": "features.postgres",
     "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
     "shortcut": "features.postgres",
+    "className": "Postgres",
     "methods": {
       "query": {
         "description": "Executes a SELECT-like query and returns result rows. Use postgres placeholders (`$1`, `$2`, ...) for `params`.",
@@ -14620,6 +14707,7 @@ export const introspectionData = [
     "id": "features.python",
     "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
     "shortcut": "features.python",
+    "className": "Python",
     "methods": {
       "enable": {
         "description": "",
@@ -14789,6 +14877,7 @@ export const introspectionData = [
     "id": "features.jsonTree",
     "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
     "shortcut": "features.jsonTree",
+    "className": "JsonTree",
     "methods": {
       "loadTree": {
         "description": "Loads a tree of JSON files from the specified base path and stores them in state. This method recursively scans the provided directory for JSON files, processes their content, and builds a hierarchical object structure. File paths are converted to camelCase property names, and the resulting tree is stored in the feature's state. **Processing Steps:** 1. Uses FileManager to discover all .json files recursively 2. Reads each file's content using the file system feature 3. Parses JSON content using native JSON.parse() 4. Converts file paths to nested object properties 5. Stores the complete tree in feature state **Path Transformation:** - Removes the base path prefix from file paths - Converts directory/file names to camelCase - Creates nested objects based on directory structure - Removes .json file extension **Example Transformation:** ``` config/ database/ production.json  -> tree.config.database.production staging.json     -> tree.config.database.staging api/ endpoints.json   -> tree.config.api.endpoints ```",
@@ -14835,6 +14924,7 @@ export const introspectionData = [
     "id": "features.packageFinder",
     "description": "PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. It recursively scans all node_modules directories and builds a comprehensive index of packages, enabling: **Core Functionality:** - Recursive node_modules scanning across the workspace - Package manifest parsing and indexing - Duplicate package detection and analysis - Dependency relationship mapping - Scoped package organization (@scope/package) - Package count and statistics **Use Cases:** - Dependency auditing and analysis - Duplicate package identification - Package version conflict detection - Dependency tree analysis - Workspace package inventory **Performance Features:** - Parallel manifest reading for fast scanning - Efficient duplicate detection using unique paths - Lazy initialization - only scans when started - In-memory indexing for fast queries **Usage Example:** ```typescript const finder = container.feature('packageFinder'); await finder.start(); // Find duplicates console.log('Duplicate packages:', finder.duplicates); // Find package by name const lodash = finder.findByName('lodash'); // Find dependents of a package const dependents = finder.findDependentsOf('react'); ```",
     "shortcut": "features.packageFinder",
+    "className": "PackageFinder",
     "methods": {
       "afterInitialize": {
         "description": "Initializes the feature state after construction. Sets the started flag to false, indicating the initial scan hasn't completed.",
@@ -15092,6 +15182,7 @@ export const introspectionData = [
     "id": "features.processManager",
     "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.",
     "shortcut": "features.processManager",
+    "className": "ProcessManager",
     "methods": {
       "spawn": {
         "description": "Spawn a long-running process and return a handle immediately. The returned SpawnHandler provides events for stdout/stderr streaming, exit/crash notifications, and methods to kill or await the process.",
@@ -15278,6 +15369,7 @@ export const introspectionData = [
     "id": "portExposer",
     "description": "Port Exposer Feature Exposes local HTTP services via ngrok with SSL-enabled public URLs. Perfect for development, testing, and sharing local services securely. Features: - SSL-enabled public URLs for local services - Custom subdomains and domains (with paid plans) - Authentication options (basic auth, OAuth) - Regional endpoint selection - Connection state management",
     "shortcut": "portExposer",
+    "className": "PortExposer",
     "methods": {
       "expose": {
         "description": "Expose the local port via ngrok. Creates an ngrok tunnel to the specified local port and returns the SSL-enabled public URL. Emits `exposed` on success or `error` on failure.",
@@ -15406,6 +15498,7 @@ export const introspectionData = [
     "id": "features.googleSheets",
     "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
     "shortcut": "features.googleSheets",
+    "className": "GoogleSheets",
     "methods": {
       "getSpreadsheet": {
         "description": "Get spreadsheet metadata including title, locale, and sheet list.",
@@ -15551,6 +15644,7 @@ export const introspectionData = [
     "id": "features.secureShell",
     "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
     "shortcut": "features.secureShell",
+    "className": "SecureShell",
     "methods": {
       "testConnection": {
         "description": "Test the SSH connection by running a simple echo command on the remote host. Updates `state.connected` based on the result.",
@@ -15648,6 +15742,7 @@ export const introspectionData = [
     "id": "features.runpod",
     "description": "RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. Provides a complete interface for provisioning and managing RunPod GPU instances. Supports creating pods from templates, managing network storage volumes, SSH access via the SecureShell feature, file transfers, and polling for pod readiness.",
     "shortcut": "features.runpod",
+    "className": "Runpod",
     "methods": {
       "listTemplates": {
         "description": "List available pod templates.",
@@ -16171,6 +16266,7 @@ export const introspectionData = [
     "id": "features.helpers",
     "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints): Delegate to existing discovery mechanisms",
     "shortcut": "features.helpers",
+    "className": "Helpers",
     "methods": {
       "discover": {
         "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
@@ -16287,6 +16383,7 @@ export const introspectionData = [
     "id": "features.fileManager",
     "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
     "shortcut": "features.fileManager",
+    "className": "FileManager",
     "methods": {
       "match": {
         "description": "Matches the file IDs against the pattern(s) provided",
@@ -16453,6 +16550,7 @@ export const introspectionData = [
     "id": "features.contentDb",
     "description": "Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.",
     "shortcut": "features.contentDb",
+    "className": "ContentDb",
     "methods": {
       "query": {
         "description": "Query documents belonging to a specific model definition.",
@@ -16542,6 +16640,7 @@ export const introspectionData = [
     "id": "servers.mcp",
     "description": "MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly with Zod 4 native JSON Schema conversion. Register tools, resources, and prompts programmatically, then start the server over stdio (for CLI integration) or HTTP (for remote access).",
     "shortcut": "servers.mcp",
+    "className": "MCPServer",
     "methods": {
       "tool": {
         "description": "Register an MCP tool. The tool's Zod schema is converted to JSON Schema for the protocol listing, and used for runtime argument validation. Tool handlers can return a string (auto-wrapped as text content) or a full CallToolResult object for advanced responses (images, errors, etc).",
@@ -16705,6 +16804,7 @@ export const introspectionData = [
     "id": "servers.express",
     "description": "ExpressServer helper",
     "shortcut": "servers.express",
+    "className": "ExpressServer",
     "methods": {
       "start": {
         "description": "",
@@ -16795,6 +16895,7 @@ export const introspectionData = [
     "id": "servers.websocket",
     "description": "WebsocketServer helper",
     "shortcut": "servers.websocket",
+    "className": "WebsocketServer",
     "methods": {
       "broadcast": {
         "description": "",
@@ -16869,6 +16970,7 @@ export const introspectionData = [
     "id": "features.assistantsManager",
     "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
     "shortcut": "features.assistantsManager",
+    "className": "AssistantsManager",
     "methods": {
       "afterInitialize": {
         "description": "",
@@ -16976,6 +17078,7 @@ export const introspectionData = [
     "id": "features.conversation",
     "description": "A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.",
     "shortcut": "features.conversation",
+    "className": "Conversation",
     "methods": {
       "ask": {
         "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
@@ -17128,6 +17231,7 @@ export const introspectionData = [
     "id": "features.openapi",
     "description": "The OpenAPI feature loads an OpenAPI/Swagger spec from a URL and provides inspection and conversion utilities. Works in both browser and node environments since it uses fetch.",
     "shortcut": "features.openapi",
+    "className": "OpenAPI",
     "methods": {
       "load": {
         "description": "Fetches and parses the OpenAPI spec from the configured URL. Populates `endpoints`, updates state with spec metadata.",
@@ -17250,6 +17354,7 @@ export const introspectionData = [
     "id": "features.docsReader",
     "description": "A docs reader that wraps a ContentDb and provides a Conversation with tools to list, outline, and read documents. Ask it a question and it will find and read the relevant docs to answer it.",
     "shortcut": "features.docsReader",
+    "className": "DocsReader",
     "methods": {
       "buildTools": {
         "description": "Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs) that the conversation model uses to query the content database.",
@@ -17330,6 +17435,7 @@ export const introspectionData = [
     "id": "features.skillsLibrary",
     "description": "Manages two contentbase collections of skills following the Claude Code SKILL.md format. Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/. Skills can be discovered, searched, created, updated, and removed at runtime.",
     "shortcut": "features.skillsLibrary",
+    "className": "SkillsLibrary",
     "methods": {
       "load": {
         "description": "Loads both project and user skill collections from disk. Gracefully handles missing directories.",
@@ -17497,6 +17603,7 @@ export const introspectionData = [
     "id": "features.assistant",
     "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
     "shortcut": "features.assistant",
+    "className": "Assistant",
     "methods": {
       "afterInitialize": {
         "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks using the VM's runSync, creates the contentDb if a docs/ folder exists, then fires the `created` hook.",
@@ -17699,6 +17806,7 @@ export const introspectionData = [
     "id": "features.claudeCode",
     "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
     "shortcut": "features.claudeCode",
+    "className": "ClaudeCode",
     "methods": {
       "checkAvailability": {
         "description": "Check if the Claude CLI is available and capture its version.",
@@ -18069,6 +18177,7 @@ export const introspectionData = [
     "id": "features.openaiCodex",
     "description": "OpenAI Codex CLI wrapper feature. Spawns and manages Codex sessions as subprocesses, streaming structured JSON events back through the container's event system. Mirrors the ClaudeCode feature pattern: each call to `run()` spawns a `codex exec --json` process, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
     "shortcut": "features.openaiCodex",
+    "className": "OpenAICodex",
     "methods": {
       "checkAvailability": {
         "description": "Check if the Codex CLI is available and capture its version.",
@@ -18363,6 +18472,7 @@ export const introspectionData = [
     "id": "features.conversationHistory",
     "description": "Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.",
     "shortcut": "features.conversationHistory",
+    "className": "ConversationHistory",
     "methods": {
       "save": {
         "description": "Save a conversation. Creates or overwrites by ID.",

@@ -1,4 +1,4 @@
-# clients.graph
+# GraphClient (clients.graph)
 
 No description provided
 
@@ -28,20 +28,6 @@ container.client('graph', {
 | `endpoint` | `string` | The GraphQL endpoint path, defaults to /graphql |
 
 ## Events
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
 
 ### failure
 

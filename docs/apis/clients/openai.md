@@ -1,4 +1,4 @@
-# clients.openai
+# OpenAIClient (clients.openai)
 
 No description provided
 
@@ -52,20 +52,6 @@ container.client('openai', {
 | `maxRetries` | `number` | Maximum number of retries on failure |
 
 ## Events
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
 
 ### failure
 

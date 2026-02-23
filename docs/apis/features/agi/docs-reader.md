@@ -1,4 +1,4 @@
-# features.docsReader
+# DocsReader (features.docsReader)
 
 No description provided
 
@@ -104,26 +104,6 @@ Event emitted by DocsReader
 ### answered
 
 Event emitted by DocsReader
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

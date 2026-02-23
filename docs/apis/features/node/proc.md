@@ -1,4 +1,4 @@
-# features.proc
+# ChildProcess (features.proc)
 
 The ChildProcess feature provides utilities for executing external processes and commands. This feature wraps Node.js child process functionality to provide convenient methods for executing shell commands, spawning processes, and capturing their output. It supports both synchronous and asynchronous execution with various options.
 

@@ -1,12 +1,13 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T18:46:50.148Z
+// Generated at: 2026-02-23T19:53:55.526Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "Esbuild helper",
   "shortcut": "features.esbuild",
+  "className": "Esbuild",
   "methods": {
     "compile": {
       "description": "",
@@ -54,6 +55,7 @@ setBuildTimeData('features.voice', {
   "id": "features.voice",
   "description": "VoiceRecognition helper",
   "shortcut": "features.voice",
+  "className": "VoiceRecognition",
   "methods": {
     "whenFinished": {
       "description": "",
@@ -122,6 +124,7 @@ setBuildTimeData('features.vm', {
   "id": "features.vm",
   "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
   "shortcut": "features.vm",
+  "className": "VM",
   "methods": {
     "createScript": {
       "description": "",
@@ -180,6 +183,7 @@ setBuildTimeData('features.assetLoader', {
   "id": "features.assetLoader",
   "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
   "shortcut": "features.assetLoader",
+  "className": "AssetLoader",
   "methods": {
     "removeStylesheet": {
       "description": "",
@@ -237,6 +241,7 @@ setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "WebVault helper",
   "shortcut": "features.vault",
+  "className": "WebVault",
   "methods": {
     "secret": {
       "description": "",
@@ -287,6 +292,7 @@ setBuildTimeData('features.network', {
   "id": "features.network",
   "description": "Network helper",
   "shortcut": "features.network",
+  "className": "Network",
   "methods": {
     "start": {
       "description": "",
@@ -321,6 +327,7 @@ setBuildTimeData('features.speech', {
   "id": "features.speech",
   "description": "Speech helper",
   "shortcut": "features.speech",
+  "className": "Speech",
   "methods": {
     "loadVoices": {
       "description": "",
@@ -763,6 +770,7 @@ export const introspectionData = [
     "id": "features.esbuild",
     "description": "Esbuild helper",
     "shortcut": "features.esbuild",
+    "className": "Esbuild",
     "methods": {
       "compile": {
         "description": "",
@@ -809,6 +817,7 @@ export const introspectionData = [
     "id": "features.voice",
     "description": "VoiceRecognition helper",
     "shortcut": "features.voice",
+    "className": "VoiceRecognition",
     "methods": {
       "whenFinished": {
         "description": "",
@@ -876,6 +885,7 @@ export const introspectionData = [
     "id": "features.vm",
     "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
     "shortcut": "features.vm",
+    "className": "VM",
     "methods": {
       "createScript": {
         "description": "",
@@ -933,6 +943,7 @@ export const introspectionData = [
     "id": "features.assetLoader",
     "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
     "shortcut": "features.assetLoader",
+    "className": "AssetLoader",
     "methods": {
       "removeStylesheet": {
         "description": "",
@@ -989,6 +1000,7 @@ export const introspectionData = [
     "id": "features.vault",
     "description": "WebVault helper",
     "shortcut": "features.vault",
+    "className": "WebVault",
     "methods": {
       "secret": {
         "description": "",
@@ -1038,6 +1050,7 @@ export const introspectionData = [
     "id": "features.network",
     "description": "Network helper",
     "shortcut": "features.network",
+    "className": "Network",
     "methods": {
       "start": {
         "description": "",
@@ -1071,6 +1084,7 @@ export const introspectionData = [
     "id": "features.speech",
     "description": "Speech helper",
     "shortcut": "features.speech",
+    "className": "Speech",
     "methods": {
       "loadVoices": {
         "description": "",

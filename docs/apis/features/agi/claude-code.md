@@ -1,4 +1,4 @@
-# features.claudeCode
+# ClaudeCode (features.claudeCode)
 
 No description provided
 
@@ -428,26 +428,6 @@ Event emitted by ClaudeCode
 ### session:abort
 
 Event emitted by ClaudeCode
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

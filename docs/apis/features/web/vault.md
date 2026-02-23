@@ -1,4 +1,4 @@
-# features.vault
+# WebVault (features.vault)
 
 WebVault helper
 

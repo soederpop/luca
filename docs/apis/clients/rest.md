@@ -1,4 +1,4 @@
-# clients.rest
+# RestClient (clients.rest)
 
 No description provided
 
@@ -24,20 +24,6 @@ container.client('rest', {
 | `json` | `boolean` | Whether to automatically parse responses as JSON |
 
 ## Events
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
 
 ### failure
 

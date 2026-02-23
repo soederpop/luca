@@ -1,4 +1,4 @@
-# features.conversation
+# Conversation (features.conversation)
 
 No description provided
 
@@ -211,26 +211,6 @@ Event emitted by Conversation
 ### response
 
 Event emitted by Conversation
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

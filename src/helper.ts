@@ -473,7 +473,10 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))
 
   if (!section) {
-    sections.push(`${heading(1)} ${introspection.id}\n\n${introspection.description}`)
+    const title = introspection.className
+      ? `${heading(1)} ${introspection.className} (${introspection.id})`
+      : `${heading(1)} ${introspection.id}`
+    sections.push(`${title}\n\n${introspection.description}`)
   }
 
   const renderers: Record<IntrospectionSection, () => string[]> = {

@@ -1,4 +1,4 @@
-# features.googleDrive
+# GoogleDrive (features.googleDrive)
 
 Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.
 

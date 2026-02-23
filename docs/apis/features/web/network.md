@@ -1,4 +1,4 @@
-# features.network
+# Network (features.network)
 
 Network helper
 

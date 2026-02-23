@@ -1,4 +1,4 @@
-# features.esbuild
+# Esbuild (features.esbuild)
 
 Esbuild helper
 

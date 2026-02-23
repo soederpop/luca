@@ -59,6 +59,8 @@ export type HelperIntrospection = {
 	description: string;
 	// a shortcut for the helper, e.g. "vm" for the VM feature, which will be what it is registered as with the registry and what the key is in AvailableFeatures, etc
 	shortcut: string;
+	// the class name, e.g. "FileManagerFeature", "RESTClient"
+	className?: string;
 	// a map of method names to their introspection
 	methods: Record<string, MethodIntrospection>
 	// a map of getter names to their introspection
@@ -123,6 +125,9 @@ export const __CONTAINER_INTROSPECTION__ = new Map<string, Partial<ContainerIntr
 /** Option keys inherited from base schemas that are internal and should be hidden from introspection output */
 const INTERNAL_OPTION_KEYS = new Set(['name', '_cacheKey', 'cached', 'enable'])
 
+/** Event names inherited from the base Helper lifecycle that are internal and should be hidden from introspection output */
+const INTERNAL_EVENT_NAMES = new Set(['stateChange', 'enabled'])
+
 export function introspect(id: string) : HelperIntrospection | undefined {
 	return __INTROSPECTION__.get(id)
 }
@@ -158,7 +163,8 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 
 	__INTROSPECTION__.set(key, {
 		...data,
-		// preserve runtime-derived state/options if registration already happened
+		// preserve runtime-derived className/state/options if registration already happened
+		className: data.className || existing?.className,
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
 		getters: data.getters || existing?.getters || {},
@@ -209,6 +215,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		id: key,
 		description: helperConstructor.description || existing?.description || '',
 		shortcut: helperConstructor.shortcut,
+		className: helperConstructor.name || existing?.className,
 		// preserve build-time AST data if generated file already loaded
 		methods: existing?.methods || {},
 		getters: existing?.getters || {},
@@ -237,6 +244,9 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 	if (helperConstructor.eventsSchema && helperConstructor.eventsSchema instanceof z.ZodObject) {
 		introspection.events = describeEventsSchema(helperConstructor.eventsSchema, introspection.events)
 	}
+
+	// Strip internal/base event names so introspection only shows helper-specific events
+	for (const name of INTERNAL_EVENT_NAMES) delete introspection.events[name]
 
 	__INTROSPECTION__.set(key, introspection)
 

@@ -1,4 +1,4 @@
-# features.fs
+# FS (features.fs)
 
 The FS feature provides methods for interacting with the file system, relative to the container's cwd.
 

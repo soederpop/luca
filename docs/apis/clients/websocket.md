@@ -1,4 +1,4 @@
-# clients.websocket
+# WebSocketClient (clients.websocket)
 
 No description provided
 
@@ -36,20 +36,6 @@ container.client('websocket', {
 | `maxReconnectAttempts` | `number` | Maximum number of reconnection attempts before giving up |
 
 ## Events
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
 
 ### failure
 

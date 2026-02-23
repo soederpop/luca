@@ -1,4 +1,4 @@
-# features.secureShell
+# SecureShell (features.secureShell)
 
 SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.
 

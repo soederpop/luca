@@ -1,4 +1,4 @@
-# features.assetLoader
+# AssetLoader (features.assetLoader)
 
 The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com
 

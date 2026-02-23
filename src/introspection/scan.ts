@@ -195,6 +195,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       id: shortcut,
       description: description || `${className} helper`,
       shortcut,
+      className,
       methods,
       getters,
       events,
@@ -509,6 +510,14 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
    */
   private static BASE_GETTERS = new Set([
     'initialState', 'container', 'options', 'context', 'cacheKey', 'isEnabled', 'shortcut'
+  ]);
+
+  /**
+   * Base class events that should be excluded from introspection output.
+   * These are inherited from Helper lifecycle and not specific to individual helpers.
+   */
+  private static BASE_EVENTS = new Set([
+    'stateChange', 'enabled'
   ]);
 
   private extractGetters(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, GetterIntrospection> {
@@ -837,7 +846,10 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         
         if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0]!)) {
           const eventName = node.arguments[0]!.text;
-          
+
+          // Skip base class lifecycle events
+          if (IntrospectionScannerFeature.BASE_EVENTS.has(eventName)) return;
+
           if (!events[eventName]) {
             events[eventName] = {
               name: eventName,

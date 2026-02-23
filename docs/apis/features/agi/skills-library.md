@@ -1,4 +1,4 @@
-# features.skillsLibrary
+# SkillsLibrary (features.skillsLibrary)
 
 No description provided
 
@@ -203,26 +203,6 @@ Event emitted by SkillsLibrary
 ### skillRemoved
 
 Event emitted by SkillsLibrary
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

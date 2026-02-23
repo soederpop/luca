@@ -1,4 +1,4 @@
-# features.docker
+# Docker (features.docker)
 
 Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information
 

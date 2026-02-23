@@ -1,4 +1,4 @@
-# features.vm
+# VM (features.vm)
 
 The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.
 

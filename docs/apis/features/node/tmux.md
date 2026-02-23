@@ -1,4 +1,4 @@
-# features.tmux
+# Tmux (features.tmux)
 
 Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.
 

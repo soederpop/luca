@@ -1,4 +1,4 @@
-# features.contentDb
+# ContentDb (features.contentDb)
 
 Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.
 

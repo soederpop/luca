@@ -1,4 +1,4 @@
-# features.diskCache
+# DiskCache (features.diskCache)
 
 File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.
 

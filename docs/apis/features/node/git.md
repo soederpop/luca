@@ -1,4 +1,4 @@
-# features.git
+# Git (features.git)
 
 The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.
 

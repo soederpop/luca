@@ -1,4 +1,4 @@
-# features.openaiCodex
+# OpenAICodex (features.openaiCodex)
 
 No description provided
 
@@ -323,26 +323,6 @@ Event emitted by OpenAICodex
 ### session:abort
 
 Event emitted by OpenAICodex
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

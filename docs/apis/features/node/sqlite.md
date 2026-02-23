@@ -1,4 +1,4 @@
-# features.sqlite
+# Sqlite (features.sqlite)
 
 SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring
 

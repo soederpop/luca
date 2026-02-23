@@ -1,4 +1,4 @@
-# features.assistantsManager
+# AssistantsManager (features.assistantsManager)
 
 No description provided
 
@@ -138,26 +138,6 @@ Emitted when a new assistant instance is created
 | `arg0` | `string` | The assistant name |
 
 | `arg1` | `any` | The assistant instance |
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

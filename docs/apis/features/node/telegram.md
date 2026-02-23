@@ -1,4 +1,4 @@
-# features.telegram
+# Telegram (features.telegram)
 
 Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.
 

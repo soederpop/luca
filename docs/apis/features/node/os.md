@@ -1,4 +1,4 @@
-# features.os
+# OS (features.os)
 
 The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.
 

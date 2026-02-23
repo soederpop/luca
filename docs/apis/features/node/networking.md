@@ -1,4 +1,4 @@
-# features.networking
+# Networking (features.networking)
 
 The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.
 

@@ -1,4 +1,4 @@
-# features.conversationHistory
+# ConversationHistory (features.conversationHistory)
 
 No description provided
 
@@ -334,26 +334,6 @@ Event emitted by ConversationHistory
 ### deleted
 
 Event emitted by ConversationHistory
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

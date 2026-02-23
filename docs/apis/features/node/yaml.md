@@ -1,4 +1,4 @@
-# features.yaml
+# YAML (features.yaml)
 
 The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.
 

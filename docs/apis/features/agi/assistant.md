@@ -1,4 +1,4 @@
-# features.assistant
+# Assistant (features.assistant)
 
 No description provided
 
@@ -342,26 +342,6 @@ Event emitted by Assistant
 ### answered
 
 Event emitted by Assistant
-
-
-
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
 
 
 

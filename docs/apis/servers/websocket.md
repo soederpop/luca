@@ -1,4 +1,4 @@
-# servers.websocket
+# WebsocketServer (servers.websocket)
 
 WebsocketServer helper
 

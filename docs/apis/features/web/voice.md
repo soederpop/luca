@@ -1,4 +1,4 @@
-# features.voice
+# VoiceRecognition (features.voice)
 
 VoiceRecognition helper
 
