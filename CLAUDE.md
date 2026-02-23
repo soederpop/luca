@@ -12,72 +12,26 @@ The `container` and its helpers are perfect for scripts and long running service
 
 On the frontend the browser container is perfect for highly reactive, stateful web applications, especially works well with React.
 
-## Dev-time and Run-time typed interfaces
+## The `luca` CLI
 
-Helpers, registries, and factory functions on the container are all typed, and as you add your own components to a container, you can use module augmentation to extend the `AvailableFeatures` and `AvailableClients` etc.  Defining subclasses of the helpers involves using types for the `HelperOptions` and `HelperState` and `HelperEvents` which provide dev-time autocompletion through types when creating instances through the factories, as well as working with the `helper.state` and using helper events `helper.on()`, `helper.once()` etc.  
+- in dev, `bun run src/cli/cli.ts` is the same as `luca`
 
-Since these types are based on Zod schemas, we also get runtime introspection of these things. Every helper, as well as the container, have methods like `introspect()` and `introspectAsText()` that contain information derived from the Zod schemas, as well as static metadata derived from the docblocks on the classes, methods, and properties.
+- in prod, or educational material, `luca` refers to the binary build.  In this mode, it can work in any project, and load `commands/` and `endpoints/` through its VM and therefore allows folders of these modules which don't depend on anything from NPM to extend the CLI and be used in commands like `luca serve` to run a local express server
 
-This allows every server, feature, endpoint, command, to have built in help for working with it.
+## Coding style and guidelines
 
-What is a `Feature`? A `Feature` is a thing, that emits events, has state, and provide an interface for doing something meaningful.  It has a well typed, well documented interface.  A `Feature` can combine other features, clients, servers.  
+- The container is intended to provide a collection of blessed, approved, audited modules that we've built and curated together.  It is intended to be the primary API and interface through the system  
+- The container should provide you with everything you need, and you should not need to be importing dependencies or other modules.  If you find yourself stuck by this constraint, raise this concern, and we can work on finding a way to bring in a feature or client
+- When trying to find paths in the project, use `container.paths.resolve()` or `container.paths.join()` instead of `import { resolve } from 'path'`
 
-Like all helpers, features, clients, servers, etc can access the container that created them:  `feature.container` 
+## Type Safety and Introspection
 
-For more information about why we did all this consult the [Philosophy](./docs/philosophy.md)
+- Zod does a lot of the heavy lifting for us with its type inference
+- For more descriptive things like class descriptions, method descriptions, we rely on jsdoc blocks.  These are parsed and used to generate modules we commit to source.  We shouldn't let these drift, so for this reason we have a pre-commit hook which ensures they're up to date
+- We rely on module augmentation a lot to make sure `container.feature()` can provide type signatures for everything that gets added to it by extension modules down the road.  ( kind of like we did with AGIContainer extending NodeContainer )
 
-## Optimized for Developer and LLM Agent Experience
+## API Docs
 
-Luca is optimized for developers authoring applications, as well as AI Agents, because you can learn about it at dev time and run time.  If all you know is the general purpose of the container and its registries and factories, the existence of basic primitives like state and event buses, you could learn about everything that is available to you and build an application without reading very many docs. `container.features.available` will tell you everything that is there.  `container.features.describeAll()` will give you documentation for all features.
-
-## Development Guidelines
-
-Never break the type system.  I should always be able to get type information as I complete each component of this: `const someFeature : NowIShouldKnowTheType = container.feature('nowIShouldGEtAutoComplete', andNowHereAsWellIShouldGetAvailableKeysDescriptionsTypeEtc)`
-
-Document the classes you create when creating any Helper subclass.  Document all methods on the helpers you create, and document all getters as well.
-
-Types are based on Zod and zod's type inference system.  `.describe()` things when you can.
-
-Use the components that are available, the features, etc.  Instead of reinventing things that the features might already do.
-
-Commit all your changes after you're done.  Only include the changes you made. Leave a commit message that is descriptive, and an explanation in the body or whatever of the message not just the title.
-
-Folders of markdown should be organized as `contentbase` collections. See [docs/contentbase-readme.md](./docs/contentbase-readme.md) for its API and usage.
-
-## Project Commands
-
-Generally, before every commit, you'll want to run the typecheck, tests.  After the commit you should compile.
-
-### Run the Test Suite
-
-```shell
-bun test
-```
-
-### Generate Introspection Metadata
-
-You'll run this command to capture method, getter, class descriptions from the various helper implementations contained in this project. Run this any time you add or change a feature and are happy with its interface and documentation.
-
-```shell
-luca update-introspection
-```
-
-### Update Codebase Explainer
-
-This document is intended to be a summary of the layout of each file and its purpose, mainly for a new developer or an AI coder.  We should periodically update this document as the project evolves and things are added or removed.  No need to do it after every minor change.
-
-```shell
-luca explain-codebase
-```
-
-### Typecheck
-
-The type information is very important, and maintaining the `container.feature(string, options)` type system even as new features are added on top of the core is a big priority.
-
-```shell
-bun run typecheck
-```
-
-### Compile
-
-Builds the single file `luca` executable.  This CLI will run commands available in `src/commands/*.ts` which are instances of the `Command` helper. 
+- See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers
+- See [docs/examples](./docs/examples/) for examples of using each feature
+- See [docs/tutorials](./docs/tutorials/) for longer form tutorials on various subjects and best practices
