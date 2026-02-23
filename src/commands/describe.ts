@@ -13,7 +13,20 @@ declare module '../command.js' {
 const REGISTRY_NAMES = ['features', 'clients', 'servers', 'commands', 'endpoints'] as const
 type RegistryName = (typeof REGISTRY_NAMES)[number]
 
-const SECTION_FLAGS: Record<string, IntrospectionSection> = {
+/** Maps flag names to the section they represent. 'description' is handled specially. */
+const SECTION_FLAGS: Record<string, IntrospectionSection | 'description'> = {
+	// Clean flag names (combinable)
+	'description': 'description',
+	'usage': 'usage',
+	'methods': 'methods',
+	'getters': 'getters',
+	'events': 'events',
+	'state': 'state',
+	'options': 'options',
+	'env-vars': 'envVars',
+	'envvars': 'envVars',
+	'examples': 'examples',
+	// Legacy --only-* flags (still work, map into same system)
 	'only-methods': 'methods',
 	'only-getters': 'getters',
 	'only-events': 'events',
@@ -26,6 +39,18 @@ const SECTION_FLAGS: Record<string, IntrospectionSection> = {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	json: z.boolean().default(false).describe('Output introspection data as JSON instead of markdown'),
+	// Clean section flags (can be combined: --description --usage)
+	description: z.boolean().default(false).describe('Show the description section'),
+	usage: z.boolean().default(false).describe('Show the usage section'),
+	methods: z.boolean().default(false).describe('Show the methods section'),
+	getters: z.boolean().default(false).describe('Show the getters section'),
+	events: z.boolean().default(false).describe('Show the events section'),
+	state: z.boolean().default(false).describe('Show the state section'),
+	options: z.boolean().default(false).describe('Show the options section'),
+	'env-vars': z.boolean().default(false).describe('Show the envVars section'),
+	envvars: z.boolean().default(false).describe('Show the envVars section'),
+	examples: z.boolean().default(false).describe('Show the examples section'),
+	// Legacy --only-* flags
 	'only-methods': z.boolean().default(false).describe('Show only the methods section'),
 	'only-getters': z.boolean().default(false).describe('Show only the getters section'),
 	'only-events': z.boolean().default(false).describe('Show only the events section'),
@@ -144,22 +169,102 @@ function resolveTarget(target: string, container: any): ResolvedTarget {
 	return { kind: 'helper', registry: matches[0]!.registry, id: matches[0]!.id }
 }
 
-function getSection(options: z.infer<typeof argsSchema>): IntrospectionSection | undefined {
+/** Collect all requested sections from flags. Empty array = show everything. */
+function getSections(options: z.infer<typeof argsSchema>): (IntrospectionSection | 'description')[] {
+	const sections: (IntrospectionSection | 'description')[] = []
 	for (const [flag, section] of Object.entries(SECTION_FLAGS)) {
-		if ((options as any)[flag]) return section
+		if ((options as any)[flag] && !sections.includes(section)) {
+			sections.push(section)
+		}
 	}
-	return undefined
+	return sections
 }
 
-function getContainerData(container: any, section?: IntrospectionSection): { json: any; text: string } {
+/**
+ * Render text output for a helper given requested sections.
+ * When sections is empty, renders everything. When sections are specified,
+ * renders only those sections (calling introspectAsText per section and concatenating).
+ * 'description' is handled specially as the header line.
+ */
+function renderHelperText(Ctor: any, sections: (IntrospectionSection | 'description')[]): string {
+	if (sections.length === 0) {
+		return Ctor.introspectAsText?.() ?? `# ${Ctor.shortcut || Ctor.name}\n\nNo introspection data available.`
+	}
+
+	const introspectionSections = sections.filter((s): s is IntrospectionSection => s !== 'description')
+	const includeDescription = sections.includes('description')
+	const parts: string[] = []
+
+	if (includeDescription) {
+		const data = Ctor.introspect?.()
+		if (data) {
+			parts.push(`# ${data.id}\n\n${data.description}`)
+		}
+	}
+
+	for (const section of introspectionSections) {
+		const text = Ctor.introspectAsText?.(section)
+		if (text) parts.push(text)
+	}
+
+	return parts.join('\n\n') || `# ${Ctor.shortcut || Ctor.name}\n\nNo introspection data available.`
+}
+
+function renderHelperJson(Ctor: any, sections: (IntrospectionSection | 'description')[]): any {
+	if (sections.length === 0) {
+		return Ctor.introspect?.() ?? {}
+	}
+
+	const data = Ctor.introspect?.() ?? {}
+	const result: Record<string, any> = {}
+
+	for (const section of sections) {
+		if (section === 'description') {
+			result.id = data.id
+			result.description = data.description
+		} else if (section === 'usage') {
+			// Usage is a derived section — include shortcut and options as its JSON form
+			result.usage = { shortcut: data.shortcut, options: data.options }
+		} else {
+			const sectionData = Ctor.introspect?.(section)
+			if (sectionData) {
+				result[section] = sectionData[section]
+			}
+		}
+	}
+
+	return result
+}
+
+function getContainerData(container: any, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
+	if (sections.length === 0) {
+		const data = container.inspect()
+		return { json: data, text: container.inspectAsText() }
+	}
+
 	const data = container.inspect()
+	const introspectionSections = sections.filter((s): s is IntrospectionSection => s !== 'description')
+	const includeDescription = sections.includes('description')
+	const textParts: string[] = []
+	const jsonResult: Record<string, any> = {}
+
+	if (includeDescription) {
+		textParts.push(`# Container\n\n${data.description || ''}`)
+		jsonResult.description = data.description
+	}
+
+	for (const section of introspectionSections) {
+		textParts.push(container.inspectAsText(section))
+		jsonResult[section] = data[section]
+	}
+
 	return {
-		json: section ? { [section]: data[section] } : data,
-		text: container.inspectAsText(section),
+		json: jsonResult,
+		text: textParts.join('\n\n'),
 	}
 }
 
-function getRegistryData(container: any, registryName: RegistryName, section?: IntrospectionSection): { json: any; text: string } {
+function getRegistryData(container: any, registryName: RegistryName, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
 	const registry = container[registryName]
 	const available: string[] = registry.available
 
@@ -171,20 +276,20 @@ function getRegistryData(container: any, registryName: RegistryName, section?: I
 	const textParts: string[] = []
 	for (const id of available) {
 		const Ctor = registry.lookup(id)
-		jsonResult[id] = Ctor.introspect?.(section) ?? {}
-		textParts.push(Ctor.introspectAsText?.(section) ?? `# ${id}\n\nNo introspection data available.`)
+		jsonResult[id] = renderHelperJson(Ctor, sections)
+		textParts.push(renderHelperText(Ctor, sections))
 	}
 
 	return { json: jsonResult, text: textParts.join('\n\n---\n\n') }
 }
 
-function getHelperData(container: any, registryName: RegistryName, id: string, section?: IntrospectionSection): { json: any; text: string } {
+function getHelperData(container: any, registryName: RegistryName, id: string, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
 	const registry = container[registryName]
 	const Ctor = registry.lookup(id)
 
 	return {
-		json: Ctor.introspect?.(section) ?? {},
-		text: Ctor.introspectAsText?.(section) ?? `# ${id}\n\nNo introspection data available.`,
+		json: renderHelperJson(Ctor, sections),
+		text: renderHelperText(Ctor, sections),
 	}
 }
 
@@ -197,11 +302,11 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	// args[0] is "describe", the rest are targets
 	const targets = args.slice(1)
 	const json = options.json
-	const section = getSection(options)
+	const sections = getSections(options)
 
 	// Default: describe the container
 	if (targets.length === 0) {
-		const data = getContainerData(container, section)
+		const data = getContainerData(container, sections)
 		console.log(json ? JSON.stringify(data.json, null, 2) : data.text)
 		return
 	}
@@ -223,11 +328,11 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	function getData(item: ResolvedTarget) {
 		switch (item.kind) {
 			case 'container':
-				return getContainerData(container, section)
+				return getContainerData(container, sections)
 			case 'registry':
-				return getRegistryData(container, item.name, section)
+				return getRegistryData(container, item.name, sections)
 			case 'helper':
-				return getHelperData(container, item.registry, item.id, section)
+				return getHelperData(container, item.registry, item.id, sections)
 		}
 	}
 
