@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T04:43:57.091Z
+// Generated at: 2026-02-23T04:59:45.344Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -550,7 +550,7 @@ setBuildTimeData('features.git', {
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
-  "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses Bun's built-in transpiler.",
+  "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses esbuild for fast, reliable TypeScript/ESM transformation with full format support (esm, cjs, iife).",
   "shortcut": "features.esbuild",
   "methods": {
     "transformSync": {
@@ -561,30 +561,14 @@ setBuildTimeData('features.esbuild', {
           "description": "The code to transform"
         },
         "options": {
-          "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
-          "description": "Transform options",
-          "properties": {
-            "loader": {
-              "type": "any",
-              "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
-            },
-            "minify": {
-              "type": "any",
-              "description": "Whether to minify whitespace in the output. Defaults to false."
-            }
-          }
+          "type": "esbuild.TransformOptions",
+          "description": "The options to pass to esbuild"
         }
       },
       "required": [
         "code"
       ],
-      "returns": "void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
-        }
-      ]
+      "returns": "void"
     },
     "transform": {
       "description": "Transform code asynchronously",
@@ -594,30 +578,14 @@ setBuildTimeData('features.esbuild', {
           "description": "The code to transform"
         },
         "options": {
-          "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
-          "description": "Transform options",
-          "properties": {
-            "loader": {
-              "type": "any",
-              "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
-            },
-            "minify": {
-              "type": "any",
-              "description": "Whether to minify whitespace in the output. Defaults to false."
-            }
-          }
+          "type": "esbuild.TransformOptions",
+          "description": "The options to pass to esbuild"
         }
       },
       "required": [
         "code"
       ],
-      "returns": "void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
-        }
-      ]
+      "returns": "void"
     }
   },
   "getters": {},
@@ -10168,7 +10136,7 @@ export const introspectionData = [
   },
   {
     "id": "features.esbuild",
-    "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses Bun's built-in transpiler.",
+    "description": "A Feature for compiling typescript / esm modules, etc to JavaScript that the container can run at runtime. Uses esbuild for fast, reliable TypeScript/ESM transformation with full format support (esm, cjs, iife).",
     "shortcut": "features.esbuild",
     "methods": {
       "transformSync": {
@@ -10179,30 +10147,14 @@ export const introspectionData = [
             "description": "The code to transform"
           },
           "options": {
-            "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
-            "description": "Transform options",
-            "properties": {
-              "loader": {
-                "type": "any",
-                "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
-              },
-              "minify": {
-                "type": "any",
-                "description": "Whether to minify whitespace in the output. Defaults to false."
-              }
-            }
+            "type": "esbuild.TransformOptions",
+            "description": "The options to pass to esbuild"
           }
         },
         "required": [
           "code"
         ],
-        "returns": "void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1', { loader: 'ts', minify: true })\nconsole.log(result.code)"
-          }
-        ]
+        "returns": "void"
       },
       "transform": {
         "description": "Transform code asynchronously",
@@ -10212,30 +10164,14 @@ export const introspectionData = [
             "description": "The code to transform"
           },
           "options": {
-            "type": "{ loader?: string; minify?: boolean; [key: string]: any }",
-            "description": "Transform options",
-            "properties": {
-              "loader": {
-                "type": "any",
-                "description": "The source language loader (e.g. 'ts', 'tsx', 'jsx'). Defaults to 'ts'."
-              },
-              "minify": {
-                "type": "any",
-                "description": "Whether to minify whitespace in the output. Defaults to false."
-              }
-            }
+            "type": "esbuild.TransformOptions",
+            "description": "The options to pass to esbuild"
           }
         },
         "required": [
           "code"
         ],
-        "returns": "void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const esbuild = container.feature('esbuild')\nconst result = await esbuild.transform('const x: number = 1', { loader: 'tsx' })\nconsole.log(result.code)"
-          }
-        ]
+        "returns": "void"
       }
     },
     "getters": {},
