@@ -15,6 +15,8 @@ export default async function lucaConsole(_options: z.infer<typeof argsSchema>, 
 	const container = context.container as any
 	const ui = container.feature('ui')
 
+	await container.helpers.discoverAll()
+
 	const featureContext: Record<string, any> = {}
 	for (const name of container.features.available) {
 		try {

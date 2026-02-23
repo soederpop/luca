@@ -15,6 +15,9 @@ export const argsSchema = CommandOptionsSchema.extend({
 
 export default async function evalCommand(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+
+	await container.helpers.discoverAll()
+	
 	const args = container.argv._ as string[]
 	// args[0] is "eval", the rest is the code snippet
 	const code = args.slice(1).join(' ')

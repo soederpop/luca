@@ -190,6 +190,9 @@ function getHelperData(container: any, registryName: RegistryName, id: string, s
 
 export default async function describe(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+
+	await container.helpers.discoverAll()
+
 	const args = container.argv._ as string[]
 	// args[0] is "describe", the rest are targets
 	const targets = args.slice(1)

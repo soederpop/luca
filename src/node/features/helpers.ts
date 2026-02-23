@@ -251,13 +251,14 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const fm = await this.ensureFileManager()
     const discovered: string[] = []
 
-    const files = fm.match(`${this.container.paths.relative(dir)}/**/*.ts`)
+    const tests = [`${type}/*/*.ts`, `${type}/*.ts`]
+    const files = fm.match(tests)
 
     for (const file of files) {
       const absPath = resolve(this.rootDir, file)
       const { name: fileName } = parse(absPath)
 
-      if (fileName.endsWith('.test') || fileName.endsWith('.spec')) {
+      if (fileName.includes('.test.') || fileName.includes('.spec.')) {
         continue
       }
 
@@ -278,19 +279,14 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
           ? shortcut.replace(`${type}.`, '')
           : this.fileNameToRegistryName(fileName)
 
-        if (registry.has(registryName)) {
-          throw new Error(
-            `Helpers gateway: name collision for "${registryName}" in ${type} registry. ` +
-            `A built-in ${type.slice(0, -1)} with this name already exists. ` +
-            `Rename your class or its static shortcut to avoid this conflict. ` +
-            `Source file: ${absPath}`
-          )
-        }
-
-        registry.register(registryName, ExportedClass)
         discovered.push(registryName)
 
-        this.emit('registered' as any, type, registryName, ExportedClass)
+        if (!registry.has(registryName)) {
+          registry.register(registryName, ExportedClass)
+          // this is only if they didn't export it by default
+          this.emit('registered' as any, type, registryName, ExportedClass)
+        }
+
       } catch (err: any) {
         if (err.message?.includes('name collision')) {
           throw err
