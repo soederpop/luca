@@ -18,6 +18,16 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 
 - in prod, or educational material, `luca` refers to the binary build.  In this mode, it can work in any project, and load `commands/` and `endpoints/` through its VM and therefore allows folders of these modules which don't depend on anything from NPM to extend the CLI and be used in commands like `luca serve` to run a local express server
 
+- The `luca` cli is an extremely helpful tool.  
+	- it runs code `luca eval "container.features.available"` 
+	- it generates docs:
+		- `luca describe diskCache`
+		- `luca describe` describe the container itself
+		- `luca describe servers` describe which servers are available
+		- the arguments to describe are pretty forgiving and permissive
+
+**IMPORTANT NOTE** When trying to investigate features, clients, servers, etc, see if these tools can help you first instead of searching for files and reading them that way.  If youw ant to understand what they do, vs how theyre actually implemented
+
 ## Coding style and guidelines
 
 - The container is intended to provide a collection of blessed, approved, audited modules that we've built and curated together.  It is intended to be the primary API and interface through the system  
@@ -33,5 +43,5 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 ## API Docs
 
 - See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers
-- See [docs/examples](./docs/examples/) for examples of using each feature
+- See [docs/examples](./docs/examples/) for examples of using each feature.  NOTE: These docs are runnable so you can see the output of the code blocks.  `luca run docs/examples/grep` for example
 - See [docs/tutorials](./docs/tutorials/) for longer form tutorials on various subjects and best practices
