@@ -124,7 +124,7 @@ export class CommandsRegistry extends Registry<Command<any>> {
 		return this.register(name, CommandClass as any)
 	}
 
-	override async discover(options: { directory: string }) {
+	async discover(options: { directory: string }) {
 		const { Glob } = globalThis.Bun || (await import('bun'))
 		const glob = new Glob('*.ts')
 

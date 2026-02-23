@@ -59,6 +59,7 @@ import "./features/launcher-app-command-listener";
 import "./features/nlp";
 import "./features/process-manager"
 import "./features/tts";
+import "./features/helpers";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -102,6 +103,7 @@ import type { LauncherAppCommandListener } from './features/launcher-app-command
 import type { NLP } from './features/nlp';
 import type { ProcessManager } from './features/process-manager'
 import type { TTS } from './features/tts';
+import type { Helpers } from './features/helpers';
 export { State };
 
 export {
@@ -140,6 +142,7 @@ export {
   type NLP,
   type ProcessManager,
   type TTS,
+  type Helpers,
 };
 
 export type { FeatureOptions };
@@ -204,6 +207,7 @@ export interface NodeFeatures extends AvailableFeatures {
   nlp: typeof NLP;
   processManager: typeof ProcessManager;
   tts: typeof TTS;
+  helpers: typeof Helpers;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -251,6 +255,7 @@ export class NodeContainer<
   nlp?: NLP;
   processManager?: ProcessManager;
   tts?: TTS;
+  helpers!: Helpers;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
@@ -265,7 +270,8 @@ export class NodeContainer<
     this.feature("networking", { enable: true });
     this.feature("ui", { enable: true });
     this.feature("vm", { enable: true, context: {} });
-    this.feature("esbuild", { enable: true }); 
+    this.feature("esbuild", { enable: true });
+    this.feature("helpers", { enable: true });
 
     const enable = castArray(this.options.enable)
       .filter((v) => v && v?.length)

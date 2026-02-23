@@ -18,16 +18,7 @@ abstract class Registry<T extends Helper> {
 
   constructor() {}
 
-  /** 
-   * A registry can discover members from a variety of sources.
-   * 
-   * Imagine a Remix or Next.js app which has a pages directory from which
-   * it wires up all of your routes.  You could do something similar and register
-   * a page helper for each file in the pages subtree.
-  */
-  async discover(options: any) {}
-
-  /** 
+  /**
    * Lists the keys of all available helpers in this registry.
   */
   get available() : string[] {

@@ -100,7 +100,8 @@
       "Bash(for f in docs/examples/*.md)",
       "Bash(do head -6 \"$f\")",
       "Bash(echo \"MISSING title: $f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "mcp__plugin_claude-mem_mcp-search__search"
     ]
   },
   "enableAllProjectMcpServers": true,
