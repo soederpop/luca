@@ -36,7 +36,7 @@ export type MethodIntrospection = {
 }
 
 /** Sections that can be requested individually from introspect / inspect */
-export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options' | 'envVars' | 'examples'
+export type IntrospectionSection = 'methods' | 'getters' | 'events' | 'state' | 'options' | 'envVars' | 'examples' | 'usage'
 
 export type GetterIntrospection = {
 	description: string

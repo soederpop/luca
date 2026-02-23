@@ -2,6 +2,31 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('docsReader', {
+  // A ContentDb instance to read documents from
+  contentDb,
+  // Optional system prompt to prepend before the docs listing
+  systemPrompt,
+  // OpenAI model to use for the conversation
+  model,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `contentDb` | `any` | A ContentDb instance to read documents from |
+
+| `systemPrompt` | `string` | Optional system prompt to prepend before the docs listing |
+
+| `model` | `string` | OpenAI model to use for the conversation |
+
 ## Methods
 
 ### buildTools
@@ -113,18 +138,6 @@ Emitted when the feature is enabled
 | `started` | `boolean` | Whether the docs reader has been initialized |
 
 | `docsLoaded` | `boolean` | Whether the content database has been loaded |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `contentDb` | `any` | A ContentDb instance to read documents from |
-
-| `systemPrompt` | `string` | Optional system prompt to prepend before the docs listing |
-
-| `model` | `string` | OpenAI model to use for the conversation |
 
 ## Examples
 

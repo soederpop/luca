@@ -2,6 +2,27 @@
 
 Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.
 
+## Usage
+
+```ts
+container.feature('googleCalendar', {
+  // Default calendar ID (default: "primary")
+  defaultCalendarId,
+  // Default timezone for event queries (e.g. "America/Chicago")
+  timeZone,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
+
+| `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |
+
 ## Methods
 
 ### listCalendars
@@ -183,16 +204,6 @@ Event emitted by GoogleCalendar
 | `lastEventCount` | `number` | Number of events returned in last query |
 
 | `lastError` | `string` | Last Calendar API error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
-
-| `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |
 
 ## Examples
 

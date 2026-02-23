@@ -2,6 +2,35 @@
 
 The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.
 
+## Usage
+
+```ts
+container.feature('python', {
+  // Directory containing the Python project
+  dir,
+  // Custom install command to override auto-detection
+  installCommand,
+  // Path to Python script that will populate locals/context
+  contextScript,
+  // Specific Python executable path to use
+  pythonPath,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `dir` | `string` | Directory containing the Python project |
+
+| `installCommand` | `string` | Custom install command to override auto-detection |
+
+| `contextScript` | `string` | Path to Python script that will populate locals/context |
+
+| `pythonPath` | `string` | Specific Python executable path to use |
+
 ## Methods
 
 ### enable
@@ -204,20 +233,6 @@ Event emitted by Python
 | `isReady` | `boolean` | Whether the Python environment is ready for execution |
 
 | `lastExecutedScript` | `any` | Path to the last executed Python script |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `dir` | `string` | Directory containing the Python project |
-
-| `installCommand` | `string` | Custom install command to override auto-detection |
-
-| `contextScript` | `string` | Path to Python script that will populate locals/context |
-
-| `pythonPath` | `string` | Specific Python executable path to use |
 
 ## Examples
 

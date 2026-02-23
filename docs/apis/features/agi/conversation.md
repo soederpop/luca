@@ -2,6 +2,67 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('conversation', {
+  // A unique identifier for the conversation
+  id,
+  // A human-readable title for the conversation
+  title,
+  // A unique identifier for threads, an arbitrary grouping mechanism
+  thread,
+  // Any available OpenAI model
+  model,
+  // Initial message history to seed the conversation
+  history,
+  // Tools the model can call during conversation
+  tools,
+  // Remote MCP servers keyed by server label
+  mcpServers,
+  // Completion API mode. auto uses Responses unless local=true
+  api,
+  // Tags for categorizing and searching this conversation
+  tags,
+  // Arbitrary metadata to attach to this conversation
+  metadata,
+  // Options for the OpenAI client
+  clientOptions,
+  // Whether to use the local ollama models instead of the remote OpenAI models
+  local,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `id` | `string` | A unique identifier for the conversation |
+
+| `title` | `string` | A human-readable title for the conversation |
+
+| `thread` | `string` | A unique identifier for threads, an arbitrary grouping mechanism |
+
+| `model` | `string` | Any available OpenAI model |
+
+| `history` | `array` | Initial message history to seed the conversation |
+
+| `tools` | `object` | Tools the model can call during conversation |
+
+| `mcpServers` | `object` | Remote MCP servers keyed by server label |
+
+| `api` | `string` | Completion API mode. auto uses Responses unless local=true |
+
+| `tags` | `array` | Tags for categorizing and searching this conversation |
+
+| `metadata` | `object` | Arbitrary metadata to attach to this conversation |
+
+| `clientOptions` | `object` | Options for the OpenAI client |
+
+| `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
+
 ## Methods
 
 ### ask
@@ -200,36 +261,6 @@ Emitted when the feature is enabled
 | `lastResponseId` | `any` | Most recent OpenAI Responses API response ID for continuing conversation state |
 
 | `tokenUsage` | `object` | Cumulative token usage statistics |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `id` | `string` | A unique identifier for the conversation |
-
-| `title` | `string` | A human-readable title for the conversation |
-
-| `thread` | `string` | A unique identifier for threads, an arbitrary grouping mechanism |
-
-| `model` | `string` | Any available OpenAI model |
-
-| `history` | `array` | Initial message history to seed the conversation |
-
-| `tools` | `object` | Tools the model can call during conversation |
-
-| `mcpServers` | `object` | Remote MCP servers keyed by server label |
-
-| `api` | `string` | Completion API mode. auto uses Responses unless local=true |
-
-| `tags` | `array` | Tags for categorizing and searching this conversation |
-
-| `metadata` | `object` | Arbitrary metadata to attach to this conversation |
-
-| `clientOptions` | `object` | Options for the OpenAI client |
-
-| `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
 
 ## Examples
 

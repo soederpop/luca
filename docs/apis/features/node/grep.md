@@ -2,6 +2,12 @@
 
 The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.
 
+## Usage
+
+```ts
+container.feature('grep')
+```
+
 ## Methods
 
 ### search

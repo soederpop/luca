@@ -2,6 +2,47 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('assistant', {
+  // The folder containing the assistant definition
+  folder,
+  // Path to the docs subfolder relative to the assistant folder
+  docsPath,
+  // Text to prepend to the system prompt
+  prependPrompt,
+  // Text to append to the system prompt
+  appendPrompt,
+  // Override or extend the tools loaded from tools.ts
+  tools,
+  // Override or extend schemas whose keys match tool names
+  schemas,
+  // OpenAI model to use
+  model,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `folder` | `string` | The folder containing the assistant definition |
+
+| `docsPath` | `string` | Path to the docs subfolder relative to the assistant folder |
+
+| `prependPrompt` | `string` | Text to prepend to the system prompt |
+
+| `appendPrompt` | `string` | Text to append to the system prompt |
+
+| `tools` | `object` | Override or extend the tools loaded from tools.ts |
+
+| `schemas` | `object` | Override or extend schemas whose keys match tool names |
+
+| `model` | `string` | OpenAI model to use |
+
 ## Methods
 
 ### afterInitialize
@@ -339,26 +380,6 @@ Emitted when the feature is enabled
 | `lastResponse` | `string` | The most recent response text |
 
 | `folder` | `string` | The resolved assistant folder path |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `folder` | `string` | The folder containing the assistant definition |
-
-| `docsPath` | `string` | Path to the docs subfolder relative to the assistant folder |
-
-| `prependPrompt` | `string` | Text to prepend to the system prompt |
-
-| `appendPrompt` | `string` | Text to append to the system prompt |
-
-| `tools` | `object` | Override or extend the tools loaded from tools.ts |
-
-| `schemas` | `object` | Override or extend schemas whose keys match tool names |
-
-| `model` | `string` | OpenAI model to use |
 
 ## Examples
 

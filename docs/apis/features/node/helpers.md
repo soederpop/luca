@@ -2,6 +2,23 @@
 
 The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints): Delegate to existing discovery mechanisms
 
+## Usage
+
+```ts
+container.feature('helpers', {
+  // Root directory to scan for helper folders. Defaults to container.cwd
+  rootDir,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `rootDir` | `string` | Root directory to scan for helper folders. Defaults to container.cwd |
+
 ## Methods
 
 ### discover
@@ -111,14 +128,6 @@ Get the introspection description for a specific helper.
 | `discovered` | `object` | Which registry types have been discovered |
 
 | `registered` | `array` | Names of project-level helpers that were discovered (type.name) |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `rootDir` | `string` | Root directory to scan for helper folders. Defaults to container.cwd |
 
 ## Examples
 

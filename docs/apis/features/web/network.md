@@ -2,6 +2,12 @@
 
 Network helper
 
+## Usage
+
+```ts
+container.feature('network')
+```
+
 ## Methods
 
 ### start

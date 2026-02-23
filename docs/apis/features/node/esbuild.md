@@ -2,6 +2,12 @@
 
 Esbuild helper
 
+## Usage
+
+```ts
+container.feature('esbuild')
+```
+
 ## Methods
 
 ### compile

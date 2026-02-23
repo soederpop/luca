@@ -97,17 +97,23 @@ abstract class Registry<T extends Helper> {
   }
  
 
-  /** 
-   * Learn about the interface for all available helpers in this registry.  Will tell you about the options
-   * to create one, the state it maintains, the methods and properties it has, and the events it emits.
-   * 
-   * Will return information as a markdown string.
+  /**
+   * Returns a condensed overview of all available helpers in this registry.
+   * Shows each helper's name and description, without the full introspection details.
+   *
+   * Use `describe(id)` to get the full details for a specific helper.
   */
-  describeAll() : string[] {
-    return this.available.map(id => {
+  describeAll() : string {
+    const sections: string[] = [`# Available ${this.scope}\n`]
+
+    for (const id of this.available) {
       const Constructor = this.lookup(id) as any
-      return Constructor.introspectAsText()
-    })
+      const introspection = Constructor.introspect?.()
+      const description = introspection?.description || Constructor.description || 'No description provided'
+      sections.push(`## ${id}\n\n${description}\n`)
+    }
+
+    return sections.join('\n')
   }
 
   /** 

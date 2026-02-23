@@ -2,6 +2,27 @@
 
 LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.
 
+## Usage
+
+```ts
+container.feature('launcherAppCommandListener', {
+  // Path to the Unix domain socket to listen on
+  socketPath,
+  // Automatically start listening when the feature is enabled
+  autoListen,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `socketPath` | `string` | Path to the Unix domain socket to listen on |
+
+| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
+
 ## Methods
 
 ### enable
@@ -119,16 +140,6 @@ Event emitted by LauncherAppCommandListener
 | `lastCommandText` | `string` | The text of the last received command |
 
 | `lastError` | `string` | Last error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `socketPath` | `string` | Path to the Unix domain socket to listen on |
-
-| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
 
 ## Examples
 

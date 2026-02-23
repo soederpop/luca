@@ -2,6 +2,35 @@
 
 TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.
 
+## Usage
+
+```ts
+container.feature('tts', {
+  // RunPod API key (falls back to RUNPOD_API_KEY env var)
+  apiKey,
+  // Default preset voice name
+  voice,
+  // Directory to save generated audio files
+  outputDir,
+  // Audio output format
+  format,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
+
+| `voice` | `string` | Default preset voice name |
+
+| `outputDir` | `string` | Directory to save generated audio files |
+
+| `format` | `string` | Audio output format |
+
 ## Methods
 
 ### synthesize
@@ -75,20 +104,6 @@ Event emitted by TTS
 | `lastText` | `string` | Text of the last synthesis request |
 
 | `generating` | `boolean` | Whether audio is currently being generated |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
-
-| `voice` | `string` | Default preset voice name |
-
-| `outputDir` | `string` | Directory to save generated audio files |
-
-| `format` | `string` | Audio output format |
 
 ## Environment Variables
 

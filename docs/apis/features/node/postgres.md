@@ -2,6 +2,23 @@
 
 Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring
 
+## Usage
+
+```ts
+container.feature('postgres', {
+  // Postgres connection URL, e.g. postgres://user:pass@host:5432/db
+  url,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
+
 ## Methods
 
 ### query
@@ -148,14 +165,6 @@ Event emitted by Postgres
 | `lastRowCount` | `number` | Row count returned by the most recent query execution |
 
 | `lastError` | `string` | Most recent postgres error message, if any |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
 
 ## Examples
 

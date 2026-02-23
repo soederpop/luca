@@ -2,6 +2,31 @@
 
 Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.
 
+## Usage
+
+```ts
+container.feature('tmux', {
+  // Custom session name (auto-generated if omitted)
+  sessionName,
+  // Path to tmux executable
+  tmuxPath,
+  // Output capture polling interval in ms
+  pollInterval,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `sessionName` | `string` | Custom session name (auto-generated if omitted) |
+
+| `tmuxPath` | `string` | Path to tmux executable |
+
+| `pollInterval` | `number` | Output capture polling interval in ms |
+
 ## Methods
 
 ### executeTmuxCommand
@@ -221,18 +246,6 @@ Event emitted by Tmux
 | `paneIds` | `array` | Active pane IDs managed by this feature |
 
 | `lastError` | `string` | Last error message from a tmux operation |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `sessionName` | `string` | Custom session name (auto-generated if omitted) |
-
-| `tmuxPath` | `string` | Path to tmux executable |
-
-| `pollInterval` | `number` | Output capture polling interval in ms |
 
 ## Environment Variables
 

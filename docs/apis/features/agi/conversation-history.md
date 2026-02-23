@@ -2,6 +2,27 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('conversationHistory', {
+  // Custom cache directory for conversation storage
+  cachePath,
+  // Namespace prefix for cache keys to isolate datasets
+  namespace,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `cachePath` | `string` | Custom cache directory for conversation storage |
+
+| `namespace` | `string` | Namespace prefix for cache keys to isolate datasets |
+
 ## Methods
 
 ### save
@@ -347,16 +368,6 @@ Emitted when the feature is enabled
 | `conversationCount` | `number` | Total number of stored conversations |
 
 | `lastSaved` | `string` | ISO timestamp of the last save operation |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `cachePath` | `string` | Custom cache directory for conversation storage |
-
-| `namespace` | `string` | Namespace prefix for cache keys to isolate datasets |
 
 ## Examples
 

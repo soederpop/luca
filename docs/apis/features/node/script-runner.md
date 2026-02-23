@@ -2,6 +2,12 @@
 
 The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.
 
+## Usage
+
+```ts
+container.feature('scriptRunner')
+```
+
 ## Getters
 
 | Property | Type | Description |

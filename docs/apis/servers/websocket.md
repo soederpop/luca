@@ -2,6 +2,31 @@
 
 WebsocketServer helper
 
+## Usage
+
+```ts
+container.server('websocket', {
+  // Port number to listen on
+  port,
+  // Hostname or IP address to bind to
+  host,
+  // Whether to automatically JSON parse/stringify messages
+  json,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `port` | `number` | Port number to listen on |
+
+| `host` | `string` | Hostname or IP address to bind to |
+
+| `json` | `boolean` | Whether to automatically JSON parse/stringify messages |
+
 ## Methods
 
 ### broadcast
@@ -85,15 +110,3 @@ Event emitted by WebsocketServer
 | `configured` | `boolean` | Whether the server has been configured |
 
 | `stopped` | `boolean` | Whether the server has been stopped |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `port` | `number` | Port number to listen on |
-
-| `host` | `string` | Hostname or IP address to bind to |
-
-| `json` | `boolean` | Whether to automatically JSON parse/stringify messages |

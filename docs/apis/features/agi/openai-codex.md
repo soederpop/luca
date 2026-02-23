@@ -2,6 +2,51 @@
 
 No description provided
 
+## Usage
+
+```ts
+container.feature('openaiCodex', {
+  // Path to the codex CLI binary
+  codexPath,
+  // Default model to use for sessions
+  model,
+  // Default working directory for sessions
+  cwd,
+  // Sandbox policy for shell commands
+  sandbox,
+  // Approval mode for codex operations
+  approvalMode,
+  // Path to additional project doc to include
+  projectDoc,
+  // Disable automatic codex.md inclusion
+  noProjectDoc,
+  // Do not truncate stdout/stderr from command outputs
+  fullStdout,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `codexPath` | `string` | Path to the codex CLI binary |
+
+| `model` | `string` | Default model to use for sessions |
+
+| `cwd` | `string` | Default working directory for sessions |
+
+| `sandbox` | `string` | Sandbox policy for shell commands |
+
+| `approvalMode` | `string` | Approval mode for codex operations |
+
+| `projectDoc` | `string` | Path to additional project doc to include |
+
+| `noProjectDoc` | `boolean` | Disable automatic codex.md inclusion |
+
+| `fullStdout` | `boolean` | Do not truncate stdout/stderr from command outputs |
+
 ## Methods
 
 ### checkAvailability
@@ -316,28 +361,6 @@ Emitted when the feature is enabled
 | `codexAvailable` | `boolean` | Whether the codex CLI binary is available |
 
 | `codexVersion` | `string` | Detected codex CLI version string |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `codexPath` | `string` | Path to the codex CLI binary |
-
-| `model` | `string` | Default model to use for sessions |
-
-| `cwd` | `string` | Default working directory for sessions |
-
-| `sandbox` | `string` | Sandbox policy for shell commands |
-
-| `approvalMode` | `string` | Approval mode for codex operations |
-
-| `projectDoc` | `string` | Path to additional project doc to include |
-
-| `noProjectDoc` | `boolean` | Disable automatic codex.md inclusion |
-
-| `fullStdout` | `boolean` | Do not truncate stdout/stderr from command outputs |
 
 ## Examples
 

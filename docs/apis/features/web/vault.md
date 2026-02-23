@@ -2,6 +2,12 @@
 
 WebVault helper
 
+## Usage
+
+```ts
+container.feature('vault')
+```
+
 ## Methods
 
 ### secret

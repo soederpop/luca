@@ -2,6 +2,31 @@
 
 WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an IPC server that the native macOS launcher app connects to. Communicates over a Unix domain socket using NDJSON (newline-delimited JSON). **Protocol:** - Bun listens on a Unix domain socket; the native app connects as a client - Window dispatch commands are sent as NDJSON with a `window` field - The app executes window commands and sends back `windowAck` messages - Any non-windowAck message from the app is emitted as a `message` event - Other features can use `send()` to write arbitrary NDJSON to the app **Capabilities:** - Spawn native browser windows with configurable chrome - Navigate, focus, close, and eval JavaScript in windows - Automatic socket file cleanup and fallback paths
 
+## Usage
+
+```ts
+container.feature('windowManager', {
+  // Path to the Unix domain socket the server listens on
+  socketPath,
+  // Automatically start listening when the feature is enabled
+  autoListen,
+  // Per-request timeout in milliseconds for window operations
+  requestTimeoutMs,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `socketPath` | `string` | Path to the Unix domain socket the server listens on |
+
+| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
+
+| `requestTimeoutMs` | `number` | Per-request timeout in milliseconds for window operations |
+
 ## Methods
 
 ### enable
@@ -354,18 +379,6 @@ Event emitted by WindowManager
 | `windowCount` | `number` | Number of tracked windows |
 
 | `lastError` | `string` | Last error message |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `socketPath` | `string` | Path to the Unix domain socket the server listens on |
-
-| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
-
-| `requestTimeoutMs` | `number` | Per-request timeout in milliseconds for window operations |
 
 ## Examples
 

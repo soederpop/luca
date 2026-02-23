@@ -2,6 +2,27 @@
 
 REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.
 
+## Usage
+
+```ts
+container.feature('repl', {
+  // The prompt string to display in the REPL (default: "> ")
+  prompt,
+  // Path to the REPL history file for command persistence
+  historyPath,
+})
+```
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `prompt` | `string` | The prompt string to display in the REPL (default: "> ") |
+
+| `historyPath` | `string` | Path to the REPL history file for command persistence |
+
 ## Methods
 
 ### start
@@ -59,16 +80,6 @@ await repl.start({
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 | `started` | `boolean` | Whether the REPL server has been started |
-
-## Options
-
-| Property | Type | Description |
-
-|----------|------|-------------|
-
-| `prompt` | `string` | The prompt string to display in the REPL (default: "> ") |
-
-| `historyPath` | `string` | Path to the REPL history file for command persistence |
 
 ## Examples
 

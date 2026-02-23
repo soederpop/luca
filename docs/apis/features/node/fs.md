@@ -2,6 +2,12 @@
 
 The FS feature provides methods for interacting with the file system, relative to the container's cwd.
 
+## Usage
+
+```ts
+container.feature('fs')
+```
+
 ## Methods
 
 ### readFileAsync
