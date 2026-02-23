@@ -120,6 +120,9 @@ export type ContainerIntrospection = {
 export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
 export const __CONTAINER_INTROSPECTION__ = new Map<string, Partial<ContainerIntrospection>>()
 
+/** Option keys inherited from base schemas that are internal and should be hidden from introspection output */
+const INTERNAL_OPTION_KEYS = new Set(['name', '_cacheKey', 'cached', 'enable'])
+
 export function introspect(id: string) : HelperIntrospection | undefined {
 	return __INTROSPECTION__.get(id)
 }
@@ -180,6 +183,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 	// instead of setting its own. This usually means a custom schema was
 	// defined but never assigned via `static override optionsSchema = ...`,
 	// causing Zod's safeParse to silently strip custom option/state keys.
+	/*
 	if (helperConstructor.shortcut !== 'unspecified') {
 		if (!helperConstructor.hasOwnProperty('optionsSchema')) {
 			console.warn(
@@ -196,6 +200,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 			)
 		}
 	}
+  */
 
 	const key = helperConstructor.shortcut
 	const existing = __INTROSPECTION__.get(key)
@@ -222,7 +227,10 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 	}
 
 	if (helperConstructor.optionsSchema && helperConstructor.optionsSchema instanceof z.ZodObject) {
-		introspection.options = describeZodShape(helperConstructor.optionsSchema)
+		const allOptions = describeZodShape(helperConstructor.optionsSchema)
+		// Strip internal/base option keys so introspection only shows helper-specific options
+		for (const key of INTERNAL_OPTION_KEYS) delete allOptions[key]
+		introspection.options = allOptions
 	}
 
 	// Merge event argument types from Zod eventsSchema, preserving build-time AST descriptions

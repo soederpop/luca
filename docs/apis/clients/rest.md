@@ -1,0 +1,51 @@
+# clients.rest
+
+No description provided
+
+## Events
+
+### stateChange
+
+Event: stateChange
+
+**Event Arguments:**
+
+| Name | Type | Description |
+
+|------|------|-------------|
+
+| `arg0` | `any` | The current state object |
+
+
+
+### failure
+
+Emitted when a request fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+
+|------|------|-------------|
+
+| `arg0` | `any` | The error object |
+
+
+
+## State
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `connected` | `boolean` | Whether the client is currently connected |
+
+## Options
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `baseURL` | `string` | Base URL for the client connection |
+
+| `json` | `boolean` | Whether to automatically parse responses as JSON |
