@@ -49,6 +49,15 @@ export class Command<
 	}
 
 	async run(): Promise<void> {
+		// Intercept --help before the command executes
+		if (this.container.argv.help) {
+			const { formatCommandHelp } = await import('./commands/help.js')
+			const ui = (this.container as any).feature('ui')
+			const name = (this.constructor as typeof Command).shortcut?.replace('commands.', '') || 'unknown'
+			console.log(formatCommandHelp(name, this.constructor, ui.colors))
+			return
+		}
+
 		this.state.set('running', true)
 		this.emit('started')
 
