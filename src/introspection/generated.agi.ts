@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T19:53:55.643Z
+// Generated at: 2026-02-24T20:48:59.476Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -9214,22 +9214,21 @@ setContainerBuildTimeData('Container', {
   "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
   "methods": {
     "addContext": {
-      "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+      "description": "",
       "parameters": {
-        "key": {
-          "type": "K",
-          "description": "The context key"
+        "keyOrContext": {
+          "type": "keyof ContainerContext | Partial<ContainerContext>",
+          "description": "Parameter keyOrContext"
         },
         "value": {
-          "type": "ContainerContext[K]",
-          "description": "The context value"
+          "type": "ContainerContext[keyof ContainerContext]",
+          "description": "Parameter value"
         }
       },
       "required": [
-        "key",
-        "value"
+        "keyOrContext"
       ],
-      "returns": "void"
+      "returns": "this"
     },
     "setState": {
       "description": "Sets the state of the container.",
@@ -18806,22 +18805,21 @@ export const containerIntrospectionData = [
     "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
     "methods": {
       "addContext": {
-        "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+        "description": "",
         "parameters": {
-          "key": {
-            "type": "K",
-            "description": "The context key"
+          "keyOrContext": {
+            "type": "keyof ContainerContext | Partial<ContainerContext>",
+            "description": "Parameter keyOrContext"
           },
           "value": {
-            "type": "ContainerContext[K]",
-            "description": "The context value"
+            "type": "ContainerContext[keyof ContainerContext]",
+            "description": "Parameter value"
           }
         },
         "required": [
-          "key",
-          "value"
+          "keyOrContext"
         ],
-        "returns": "void"
+        "returns": "this"
       },
       "setState": {
         "description": "Sets the state of the container.",

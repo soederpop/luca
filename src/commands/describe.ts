@@ -106,8 +106,8 @@ function fuzzyFind(registry: any, input: string): string | undefined {
 function resolveTarget(target: string, container: any): ResolvedTarget {
 	const lower = target.toLowerCase()
 
-	// "container"
-	if (lower === 'container') {
+	// "container" or "self"
+	if (lower === 'container' || lower === 'self') {
 		return { kind: 'container' }
 	}
 
@@ -370,14 +370,12 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 		}
 	}
 
-	// Default: describe the container
+	// No targets: show help screen
 	if (targets.length === 0) {
-		const data = getContainerData(container, sections, noTitle)
-		if (json) {
-			console.log(JSON.stringify(data.json, null, 2))
-		} else {
-			output(data.text)
-		}
+		const { formatCommandHelp } = await import('./help.js')
+		const ui = container.feature('ui') as any
+		const Cmd = container.commands.lookup('describe')
+		console.log(formatCommandHelp('describe', Cmd, ui.colors))
 		return
 	}
 

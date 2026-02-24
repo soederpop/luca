@@ -1,33 +1,74 @@
-# LUCA
-> Malleable, self-teaching, AI Native Typescript Programs you can talk to.
+# Luca: Lightweight Universal Conversational Architecture
 
-Luca allows you to build observable, stateful, event emitting, dependency injectors called `containers` for server side and browser side application development.  A `container` is something that can be extended in layers, adding new `clients`, `servers`, `features`, `commands` and other registries of `helper` module patterns that can be combined like legos to build any kind of application.
+`luca` is a CLI you can download that comes with 40+ self-documenting feature, client, and server modules and types that you can use to build full featured, secure applications, without any complication, or without any `npm install` step.
 
-Besides being fully typed for developers, every `container` and `helper` can `introspect()` at runtime and tell consumers about its methods, properties, observable state, the events it emits.
+Luca has the concept of a `container` object that is, metaphorically, very similar to a Docker container.  
 
-Luca provides a `NodeContainer` and a `WebContainer` primitive.  The NodeContainer provides easy express based Rest servers, Websocket servers, IPC Socket servers, MCP servers, and the corresponding clients, as well as features for interacting with git, the file system, and more.  The `WebContainer` provides features for loading assets from unpkg, compiling code with esbuild, speech, voice, webcam, as well as REST, Websocket clients.
+Like Docker containers, you can build layers on top of the base luca `NodeContainer` or `WebContainer` and `use()` your own `Feature`, `Client`, `Command`, `Endpoint` and `Server` patterns.  Bundle that up into your own single file executable, or browser bundle, and provide a standard foundation for all of your custom applications to build on top of.
 
-An `AGIContainer` is built on top of `NodeContainer` and contains a multitude of features and clients suitable for building and orchestrating AI Agents and Agent workflows.
+This library provides a `NodeContainer` for server side applications, `WebContainer` for the browser, and an `AGIContainer` that demonstrates another layer on top of the standard node server / script stack.
 
-Because everything can be discovered and learned at runtime, and you only need to know a handful of patterns, Luca is perfect for Agentic AI coding with minimal context requirements.  (This is true for humans too!) 
+The `AGIContainer` provides features, clients, and servers suitable for building a whole manner of AI Assistants, and comes with its own Assistants to write framework code for you or architect and design applications.  It provides wrappers around all of the major coding assistants, so you can build cool UI applications to visualize them working.  
 
-## What is in this project
+## Fully typed at Author-time / Self-Documenting at Runtime
 
-The goal of this project now is to prove the above, and build a fully online BEING which can construct different interfaces for itself (publish APIs and MCP servers to the world) and fully use a computer, modify its own code via the `claudeCode` feature, and even deploy copies of itself to other systems.
+Besides being fully typed, The `container`'s JavaScript API is self documenting at runtime.  All of the constructor options, the shape of observable state, events emitted, environment variables used, method descriptions, are documented and fully typed.  This helps while debugging, working in the chrome console or a CLI REPL, allows for insane metaprogramming and is a great way to learn about the framework and its components. 
 
-It will be connected to a heartbeat prompt which runs every hour say, and autonomously allows it to move forward.
+```ts
+import container from '@soederpop/luca'
 
-## Requirements
+container.features.available // ['fs','git','proc','vault',...]
+container.clients.available // ['rest','websocket']
+container.servers.available // ['express','websocket','ipc','mcp']
 
-- OpenAI API Key
-- Claude Code Installed 
-- Docker Desktop Installed
+container.features.describe() // markdown or json summary of all features
+container.feature.describe('fileManager') // describe an individual feature 
 
-## Optional Requirements
+container.introspect() // a json structure that describes the container, its registries, their members
+container.introspectAsText() // a markdown description of the same
+```
 
-- OpenAI Codex Installed
-- Runpod API Key - if you want to spawn GPU instances in the cloud
-- ComfyUI URL - if you want to use the image generation features.  desktop app, or running in the cloud.
-- A Supabase server (supabase init, supabase start locally if docker desktop is installed)
-- Postgres database
+You can pass args to these things to only get a small slice of information, e.g. just usage examples, or a list of events it emits, or documentation for a single method.
+
+And the individual components also respond to the same
+
+```
+const fileManager = container.feature('fileManager')
+
+fileManager.introspect() // json
+fileManager.introspectAsText() // markdown
+fileManager.introspectAsText("usage", "examples") // just summarize it for me my boy
+```
+
+## Self Documentation on steroids actually
+
+The node container has a `container.docs` feature that uses [Contentbase](https://contentbase.soederpop.com) to be able to understand and interact with the local project markdown documentation 
+
+```ts
+await container.docs.load()
+const { Tutorial } = container.docs.models
+const tutorials = await container.docs.query(Tutorial).fetchAll()
+```
+
+## A Perfect Companion for AI Coding Assistants and Students alike
+
+The `luca` CLI [Full Docs Here](./CLI.md) has a few interesting commands.
+
+- The `luca eval` command lets you run snippets of code to see what they produce.  The `container` is already defined for you
+- The `luca describe` command lets you view docs, or just parts of docs, of any group of features, clients, etc, as a single markdown doc
+- The `luca console` command will bring you into a full blown REPL
+- The `luca chat` command will put you in touch with a tutor
+- The `luca sandbox-mcp` provides a REPL for your coding assistant and a documentation browser
+
+## Installation
+
+To install the CLI
+
+```sh
+echo 'i will eventually have a url to download the CLI and stuff'
+```
+
+
+
+
 

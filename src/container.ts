@@ -128,13 +128,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   /**
    * Add a value to the container's shared context, which is passed to all helper instances.
+   * Accepts either a key and value, or an object of key-value pairs to add.
    *
-   * @param {K} key - The context key
-   * @param {ContainerContext[K]} value - The context value
+   * @param {K} key - The context key (or object of key-value pairs)
+   * @param {ContainerContext[K]} value - The context value (omit when passing an object)
    */
-  addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]) {
+  addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]): this
+  addContext(context: Partial<ContainerContext>): this
+  addContext(keyOrContext: keyof ContainerContext | Partial<ContainerContext>, value?: ContainerContext[keyof ContainerContext]): this {
+    if (arguments.length === 1 && typeof keyOrContext === 'object' && keyOrContext !== null) {
+      for (const [k, v] of Object.entries(keyOrContext)) {
+        if (v !== undefined) {
+          this.addContext(k as keyof ContainerContext, v as ContainerContext[keyof ContainerContext])
+        }
+      }
+      return this
+    }
     const contexts = contextMap.get(this) || new Map()
-    contexts.set(key, value)
+    contexts.set(keyOrContext as keyof ContainerContext, value)
     contextMap.set(this, contexts)
     return this
   }
