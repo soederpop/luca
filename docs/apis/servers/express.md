@@ -14,6 +14,8 @@ container.server('express', {
   cors,
   // Path to serve static files from
   static,
+  // Serve index.html for unmatched routes (SPA history fallback)
+  historyFallback,
   // (app: Express, server: Server) => Express
   create,
   // (options: StartOptions, server: Server) => Promise<any>
@@ -34,6 +36,8 @@ container.server('express', {
 | `cors` | `boolean` | Whether to enable CORS middleware |
 
 | `static` | `string` | Path to serve static files from |
+
+| `historyFallback` | `boolean` | Serve index.html for unmatched routes (SPA history fallback) |
 
 | `create` | `any` | (app: Express, server: Server) => Express |
 

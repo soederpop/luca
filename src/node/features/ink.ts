@@ -88,6 +88,7 @@ export class Ink extends Feature<InkState, InkOptions> {
   private _instance: any | null = null
   private _inkModule: typeof import('ink') | null = null
   private _reactModule: typeof import('react') | null = null
+  private _blocks = new Map<string, Function>()
 
   override get initialState(): InkState {
     return {
@@ -367,6 +368,116 @@ export class Ink extends Feature<InkState, InkOptions> {
    */
   get instance() {
     return this._instance
+  }
+
+  // ─── Block Registry ─────────────────────────────────────────────────
+
+  /**
+   * Register a named React function component as a renderable block.
+   *
+   * @param name - Unique block name
+   * @param component - A React function component
+   * @returns This Ink feature instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * ink.registerBlock('Greeting', ({ name }) =>
+   *   React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+   * )
+   * ```
+   */
+  registerBlock(name: string, component: Function) {
+    this._blocks.set(name, component)
+    return this
+  }
+
+  /**
+   * Render a registered block by name with optional props.
+   *
+   * Looks up the component, creates a React element, renders it via ink,
+   * then immediately unmounts so the static output stays on screen while
+   * freeing the React tree.
+   *
+   * @param name - The registered block name
+   * @param data - Props to pass to the component
+   *
+   * @example
+   * ```typescript
+   * await ink.renderBlock('Greeting', { name: 'Jon' })
+   * ```
+   */
+  async renderBlock(name: string, data?: Record<string, any>) {
+    const component = this._blocks.get(name)
+    if (!component) {
+      throw new Error(`No block registered with name "${name}". Available: ${[...this._blocks.keys()].join(', ') || '(none)'}`)
+    }
+
+    await this.loadModules()
+    const React = this.React
+    const element = React.createElement(component as any, data || {})
+    const instance = await this.render(element, { patchConsole: false })
+    instance.unmount()
+  }
+
+  /**
+   * Render a registered block that needs to stay mounted for async work.
+   *
+   * The component receives a `done` prop — a callback it must invoke when
+   * it has finished rendering its final output. The React tree stays alive
+   * until `done()` is called or the timeout expires.
+   *
+   * @param name - The registered block name
+   * @param data - Props to pass to the component (a `done` prop is added automatically)
+   * @param options - `timeout` in ms before force-unmounting (default 30 000)
+   *
+   * @example
+   * ```tsx
+   * // In a ## Blocks section:
+   * function AsyncChart({ url, done }) {
+   *   const [rows, setRows] = React.useState(null)
+   *   React.useEffect(() => {
+   *     fetch(url).then(r => r.json()).then(data => {
+   *       setRows(data)
+   *       done()
+   *     })
+   *   }, [])
+   *   if (!rows) return <Text dimColor>Loading...</Text>
+   *   return <Box><Text>{JSON.stringify(rows)}</Text></Box>
+   * }
+   *
+   * // In a code block:
+   * await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
+   * ```
+   */
+  async renderBlockAsync(name: string, data?: Record<string, any>, options?: { timeout?: number }) {
+    const component = this._blocks.get(name)
+    if (!component) {
+      throw new Error(`No block registered with name "${name}". Available: ${[...this._blocks.keys()].join(', ') || '(none)'}`)
+    }
+
+    const timeout = options?.timeout ?? 30_000
+
+    await this.loadModules()
+    const React = this.React
+
+    const { promise, resolve } = Promise.withResolvers<void>()
+
+    const done = () => resolve()
+    const element = React.createElement(component as any, { ...data, done })
+    const instance = await this.render(element, { patchConsole: false })
+
+    const timer = setTimeout(() => resolve(), timeout)
+
+    await promise
+    clearTimeout(timer)
+    instance.unmount()
+  }
+
+  /**
+   * List all registered block names.
+   */
+  get blocks(): string[] {
+    return [...this._blocks.keys()]
   }
 }
 

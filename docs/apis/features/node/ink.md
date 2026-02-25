@@ -137,6 +137,90 @@ ink.clear()
 
 
 
+### registerBlock
+
+Register a named React function component as a renderable block.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `name` | `string` | ✓ | Unique block name |
+
+| `component` | `Function` | ✓ | A React function component |
+
+**Returns:** `void`
+
+```ts
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
+```
+
+
+
+### renderBlock
+
+Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `name` | `string` | ✓ | The registered block name |
+
+| `data` | `Record<string, any>` |  | Props to pass to the component |
+
+**Returns:** `void`
+
+```ts
+await ink.renderBlock('Greeting', { name: 'Jon' })
+```
+
+
+
+### renderBlockAsync
+
+Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `name` | `string` | ✓ | The registered block name |
+
+| `data` | `Record<string, any>` |  | Props to pass to the component (a `done` prop is added automatically) |
+
+| `options` | `{ timeout?: number }` |  | `timeout` in ms before force-unmounting (default 30 000) |
+
+**Returns:** `void`
+
+```tsx
+// In a ## Blocks section:
+function AsyncChart({ url, done }) {
+ const [rows, setRows] = React.useState(null)
+ React.useEffect(() => {
+   fetch(url).then(r => r.json()).then(data => {
+     setRows(data)
+     done()
+   })
+ }, [])
+ if (!rows) return <Text dimColor>Loading...</Text>
+ return <Box><Text>{JSON.stringify(rows)}</Text></Box>
+}
+
+// In a code block:
+await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -154,6 +238,8 @@ ink.clear()
 | `isMounted` | `boolean` | Whether an ink app is currently mounted. |
 
 | `instance` | `any` | The raw ink render instance if you need low-level access. |
+
+| `blocks` | `string[]` | List all registered block names. |
 
 ## Events
 
@@ -235,5 +321,45 @@ const ink = container.feature('ink', { enable: true })
 await ink.render(myElement)
 // ... later, wipe the screen
 ink.clear()
+```
+
+
+
+**registerBlock**
+
+```ts
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
+```
+
+
+
+**renderBlock**
+
+```ts
+await ink.renderBlock('Greeting', { name: 'Jon' })
+```
+
+
+
+**renderBlockAsync**
+
+```tsx
+// In a ## Blocks section:
+function AsyncChart({ url, done }) {
+ const [rows, setRows] = React.useState(null)
+ React.useEffect(() => {
+   fetch(url).then(r => r.json()).then(data => {
+     setRows(data)
+     done()
+   })
+ }, [])
+ if (!rows) return <Text dimColor>Loading...</Text>
+ return <Box><Text>{JSON.stringify(rows)}</Text></Box>
+}
+
+// In a code block:
+await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 ```
 

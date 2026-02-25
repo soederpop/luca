@@ -30,6 +30,8 @@ container.feature('conversation', {
   clientOptions,
   // Whether to use the local ollama models instead of the remote OpenAI models
   local,
+  // Maximum number of output tokens per completion
+  maxTokens,
 })
 ```
 
@@ -63,6 +65,8 @@ container.feature('conversation', {
 
 | `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
 
+| `maxTokens` | `number` | Maximum number of output tokens per completion |
+
 ## Methods
 
 ### ask
@@ -76,6 +80,18 @@ Send a message and get a streamed response. Automatically handles tool calls by 
 |------|------|----------|-------------|
 
 | `content` | `string | ContentPart[]` | ✓ | The user message, either a string or array of content parts (text + images) |
+
+| `options` | `AskOptions` |  | Parameter options |
+
+
+
+`AskOptions` properties:
+
+| Property | Type | Description |
+
+|----------|------|-------------|
+
+| `maxTokens` | `number` |  |
 
 **Returns:** `Promise<string>`
 

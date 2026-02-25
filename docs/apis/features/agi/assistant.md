@@ -20,6 +20,10 @@ container.feature('assistant', {
   schemas,
   // OpenAI model to use
   model,
+  // Whether to enable docs tools
+  enableDocsTools,
+  // Maximum number of output tokens per completion
+  maxTokens,
 })
 ```
 
@@ -42,6 +46,10 @@ container.feature('assistant', {
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
 
 | `model` | `string` | OpenAI model to use |
+
+| `enableDocsTools` | `boolean` | Whether to enable docs tools |
+
+| `maxTokens` | `number` | Maximum number of output tokens per completion |
 
 ## Methods
 
@@ -104,6 +112,8 @@ Ask the assistant a question. It will use its tools and docs to produce a stream
 |------|------|----------|-------------|
 
 | `question` | `string | ContentPart[]` | ✓ | The question to ask |
+
+| `options` | `AskOptions` |  | Parameter options |
 
 **Returns:** `Promise<string>`
 

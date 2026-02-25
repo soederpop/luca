@@ -31,22 +31,95 @@ function resolveScript(ref: string, context: ContainerContext): string | null {
 	return null
 }
 
+/**
+ * Find the ## Blocks section in the AST and return the indices to skip
+ * plus the tsx/jsx code block values to register.
+ */
+function extractBlocksSection(children: any[]): { skipIndices: Set<number>, blockSources: string[] } {
+	const skipIndices = new Set<number>()
+	const blockSources: string[] = []
+
+	let inBlocks = false
+	for (let i = 0; i < children.length; i++) {
+		const node = children[i]
+
+		if (node.type === 'heading' && node.depth === 2) {
+			const text = (node.children || []).map((c: any) => c.value || '').join('').trim()
+			if (text === 'Blocks') {
+				inBlocks = true
+				skipIndices.add(i)
+				continue
+			} else if (inBlocks) {
+				// hit the next ## heading — stop collecting
+				break
+			}
+		}
+
+		if (inBlocks) {
+			skipIndices.add(i)
+			if (node.type === 'code' && (node.lang === 'tsx' || node.lang === 'jsx')) {
+				blockSources.push(node.value)
+			}
+		}
+	}
+
+	return { skipIndices, blockSources }
+}
+
 async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchema>, context: ContainerContext) {
-        console.clear()
+	console.clear()
 	const container = context.container as any
 	const requireApproval = options.safe
 	await container.docs.load()
 
 	const doc = await container.docs.parseMarkdownAtPath(scriptPath)
 
-	const vm = container.feature('vm')
-	const shared = vm.createContext({ console, ...container.context })
+	const esbuild = container.feature('esbuild')
+	const ink = container.feature('ink', { enable: true })
+	await ink.loadModules()
 
-	for (const node of doc.ast.children) {
+	const vm = container.feature('vm')
+	const render = async (name: string, data?: any) => ink.renderBlock(name, data)
+	const renderAsync = async (name: string, data?: any, options?: { timeout?: number }) => ink.renderBlockAsync(name, data, options)
+	const shared = vm.createContext({
+		console, ink, render, renderAsync,
+		setTimeout, clearTimeout, setInterval, clearInterval,
+		fetch, URL, URLSearchParams,
+		...container.context,
+	})
+
+	// ─── Parse and register ## Blocks section ──────────────────────────
+	const { skipIndices, blockSources } = extractBlocksSection(doc.ast.children)
+
+	for (const source of blockSources) {
+		const keysBefore = new Set(Object.keys(shared))
+		const { code: transformed } = esbuild.transformSync(source, { loader: 'tsx', format: 'cjs' })
+
+		const hasTopLevelAwait = /\bawait\b/.test(transformed)
+		const wrapped = hasTopLevelAwait
+			? `(async function() { ${transformed} })()`
+			: transformed
+
+		await vm.run(wrapped, shared)
+
+		// auto-register any new functions as blocks
+		for (const key of Object.keys(shared)) {
+			if (!keysBefore.has(key) && typeof shared[key] === 'function') {
+				ink.registerBlock(key, shared[key])
+			}
+		}
+	}
+
+	// ─── Execute document ──────────────────────────────────────────────
+	const children = doc.ast.children
+	for (let i = 0; i < children.length; i++) {
+		if (skipIndices.has(i)) continue
+
+		const node = children[i]
 		if (node.type === 'code') {
 			const { value, lang, meta } = node
 
-			if (lang !== 'ts' && lang !== 'js') continue
+			if (lang !== 'ts' && lang !== 'js' && lang !== 'tsx' && lang !== 'jsx') continue
 
 			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
 
@@ -57,10 +130,22 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				if (answer.question.toLowerCase() !== 'y') continue
 			}
 
-			const hasTopLevelAwait = /\bawait\b/.test(value)
-			const code = hasTopLevelAwait
-				? `(async function() { ${value} })()`
-				: value
+			// Transform tsx/jsx through esbuild, and also ts for consistency
+			const needsTransform = lang === 'tsx' || lang === 'jsx'
+			let code = value
+
+			if (needsTransform) {
+				const { code: transformed } = esbuild.transformSync(value, {
+					loader: lang as 'tsx' | 'jsx',
+					format: 'cjs',
+				})
+				code = transformed
+			}
+
+			const hasTopLevelAwait = /\bawait\b/.test(code)
+			code = hasTopLevelAwait
+				? `(async function() { ${code} })()`
+				: code
 
 			await vm.run(code, shared)
 
@@ -143,7 +228,7 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 }
 
 commands.registerHandler('run', {
-	description: 'Run a script file with auto-error-diagnosis',
+	description: 'Run a script or markdown file (.ts, .js, .md)',
 	argsSchema,
 	handler: run,
 })

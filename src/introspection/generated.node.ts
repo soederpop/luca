@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-24T22:54:18.617Z
+// Generated at: 2026-02-25T08:48:06.587Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -271,6 +271,80 @@ setBuildTimeData('features.ink', {
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
         }
       ]
+    },
+    "registerBlock": {
+      "description": "Register a named React function component as a renderable block.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Unique block name"
+        },
+        "component": {
+          "type": "Function",
+          "description": "A React function component"
+        }
+      },
+      "required": [
+        "name",
+        "component"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "ink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)"
+        }
+      ]
+    },
+    "renderBlock": {
+      "description": "Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The registered block name"
+        },
+        "data": {
+          "type": "Record<string, any>",
+          "description": "Props to pass to the component"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+        }
+      ]
+    },
+    "renderBlockAsync": {
+      "description": "Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The registered block name"
+        },
+        "data": {
+          "type": "Record<string, any>",
+          "description": "Props to pass to the component (a `done` prop is added automatically)"
+        },
+        "options": {
+          "type": "{ timeout?: number }",
+          "description": "`timeout` in ms before force-unmounting (default 30 000)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "tsx",
+          "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+        }
+      ]
     }
   },
   "getters": {
@@ -297,6 +371,10 @@ setBuildTimeData('features.ink', {
     "instance": {
       "description": "The raw ink render instance if you need low-level access.",
       "returns": "any"
+    },
+    "blocks": {
+      "description": "List all registered block names.",
+      "returns": "string[]"
     }
   },
   "events": {
@@ -8018,6 +8096,80 @@ export const introspectionData = [
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
           }
         ]
+      },
+      "registerBlock": {
+        "description": "Register a named React function component as a renderable block.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Unique block name"
+          },
+          "component": {
+            "type": "Function",
+            "description": "A React function component"
+          }
+        },
+        "required": [
+          "name",
+          "component"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "ink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)"
+          }
+        ]
+      },
+      "renderBlock": {
+        "description": "Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The registered block name"
+          },
+          "data": {
+            "type": "Record<string, any>",
+            "description": "Props to pass to the component"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+          }
+        ]
+      },
+      "renderBlockAsync": {
+        "description": "Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The registered block name"
+          },
+          "data": {
+            "type": "Record<string, any>",
+            "description": "Props to pass to the component (a `done` prop is added automatically)"
+          },
+          "options": {
+            "type": "{ timeout?: number }",
+            "description": "`timeout` in ms before force-unmounting (default 30 000)"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "tsx",
+            "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+          }
+        ]
       }
     },
     "getters": {
@@ -8044,6 +8196,10 @@ export const introspectionData = [
       "instance": {
         "description": "The raw ink render instance if you need low-level access.",
         "returns": "any"
+      },
+      "blocks": {
+        "description": "List all registered block names.",
+        "returns": "string[]"
       }
     },
     "events": {

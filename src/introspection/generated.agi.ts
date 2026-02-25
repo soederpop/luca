@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-24T22:54:18.713Z
+// Generated at: 2026-02-25T08:48:06.714Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -271,6 +271,80 @@ setBuildTimeData('features.ink', {
           "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
         }
       ]
+    },
+    "registerBlock": {
+      "description": "Register a named React function component as a renderable block.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Unique block name"
+        },
+        "component": {
+          "type": "Function",
+          "description": "A React function component"
+        }
+      },
+      "required": [
+        "name",
+        "component"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "ink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)"
+        }
+      ]
+    },
+    "renderBlock": {
+      "description": "Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The registered block name"
+        },
+        "data": {
+          "type": "Record<string, any>",
+          "description": "Props to pass to the component"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+        }
+      ]
+    },
+    "renderBlockAsync": {
+      "description": "Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The registered block name"
+        },
+        "data": {
+          "type": "Record<string, any>",
+          "description": "Props to pass to the component (a `done` prop is added automatically)"
+        },
+        "options": {
+          "type": "{ timeout?: number }",
+          "description": "`timeout` in ms before force-unmounting (default 30 000)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "tsx",
+          "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+        }
+      ]
     }
   },
   "getters": {
@@ -297,6 +371,10 @@ setBuildTimeData('features.ink', {
     "instance": {
       "description": "The raw ink render instance if you need low-level access.",
       "returns": "any"
+    },
+    "blocks": {
+      "description": "List all registered block names.",
+      "returns": "string[]"
     }
   },
   "events": {
@@ -7488,6 +7566,16 @@ setBuildTimeData('features.conversation', {
         "content": {
           "type": "string | ContentPart[]",
           "description": "The user message, either a string or array of content parts (text + images)"
+        },
+        "options": {
+          "type": "AskOptions",
+          "description": "Parameter options",
+          "properties": {
+            "maxTokens": {
+              "type": "number",
+              "description": ""
+            }
+          }
         }
       },
       "required": [
@@ -8053,6 +8141,10 @@ setBuildTimeData('features.assistant', {
         "question": {
           "type": "string | ContentPart[]",
           "description": "The question to ask"
+        },
+        "options": {
+          "type": "AskOptions",
+          "description": "Parameter options"
         }
       },
       "required": [
@@ -8873,6 +8965,90 @@ setBuildTimeData('features.openaiCodex', {
     {
       "language": "ts",
       "code": "const codex = container.feature('openaiCodex')\n\n// Listen for events\ncodex.on('session:message', ({ sessionId, message }) => console.log(message))\ncodex.on('session:patch', ({ sessionId, patch }) => console.log('File changed:', patch.path))\n\n// Run a prompt\nconst session = await codex.run('Fix the failing tests in src/')\nconsole.log(session.result)"
+    }
+  ]
+});
+
+setBuildTimeData('features.heartbeat', {
+  "id": "features.heartbeat",
+  "description": "Heartbeat is a scheduled play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes them on a configurable interval.",
+  "shortcut": "features.heartbeat",
+  "className": "Heartbeat",
+  "methods": {
+    "loadPlays": {
+      "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval from frontmatter. Parses the ## Plays section for tier headings (h3) and their code blocks / prompt sub-headings (h4).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Tier[]>"
+    },
+    "start": {
+      "description": "Start the heartbeat timer. Loads plays from the document on first call.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Stop the heartbeat timer.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "tick": {
+      "description": "Execute a single tick. Determines which tiers should fire based on the current time and last-run state, then executes all plays for those tiers.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "tiers": {
+      "description": "The parsed tiers and their plays.",
+      "returns": "Tier[]"
+    },
+    "minuteInterval": {
+      "description": "The resolved interval in minutes.",
+      "returns": "number"
+    }
+  },
+  "events": {
+    "started": {
+      "name": "started",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "stopped": {
+      "name": "stopped",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "tick": {
+      "name": "tick",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "playStarted": {
+      "name": "playStarted",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "playCompleted": {
+      "name": "playCompleted",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "playError": {
+      "name": "playError",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.start()\n// ... runs until stopped\nawait heartbeat.stop()"
     }
   ]
 });
@@ -9913,6 +10089,80 @@ export const introspectionData = [
             "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
           }
         ]
+      },
+      "registerBlock": {
+        "description": "Register a named React function component as a renderable block.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Unique block name"
+          },
+          "component": {
+            "type": "Function",
+            "description": "A React function component"
+          }
+        },
+        "required": [
+          "name",
+          "component"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "ink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)"
+          }
+        ]
+      },
+      "renderBlock": {
+        "description": "Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The registered block name"
+          },
+          "data": {
+            "type": "Record<string, any>",
+            "description": "Props to pass to the component"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+          }
+        ]
+      },
+      "renderBlockAsync": {
+        "description": "Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The registered block name"
+          },
+          "data": {
+            "type": "Record<string, any>",
+            "description": "Props to pass to the component (a `done` prop is added automatically)"
+          },
+          "options": {
+            "type": "{ timeout?: number }",
+            "description": "`timeout` in ms before force-unmounting (default 30 000)"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "tsx",
+            "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+          }
+        ]
       }
     },
     "getters": {
@@ -9939,6 +10189,10 @@ export const introspectionData = [
       "instance": {
         "description": "The raw ink render instance if you need low-level access.",
         "returns": "any"
+      },
+      "blocks": {
+        "description": "List all registered block names.",
+        "returns": "string[]"
       }
     },
     "events": {
@@ -17085,6 +17339,16 @@ export const introspectionData = [
           "content": {
             "type": "string | ContentPart[]",
             "description": "The user message, either a string or array of content parts (text + images)"
+          },
+          "options": {
+            "type": "AskOptions",
+            "description": "Parameter options",
+            "properties": {
+              "maxTokens": {
+                "type": "number",
+                "description": ""
+              }
+            }
           }
         },
         "required": [
@@ -17646,6 +17910,10 @@ export const introspectionData = [
           "question": {
             "type": "string | ContentPart[]",
             "description": "The question to ask"
+          },
+          "options": {
+            "type": "AskOptions",
+            "description": "Parameter options"
           }
         },
         "required": [
@@ -18464,6 +18732,89 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const codex = container.feature('openaiCodex')\n\n// Listen for events\ncodex.on('session:message', ({ sessionId, message }) => console.log(message))\ncodex.on('session:patch', ({ sessionId, patch }) => console.log('File changed:', patch.path))\n\n// Run a prompt\nconst session = await codex.run('Fix the failing tests in src/')\nconsole.log(session.result)"
+      }
+    ]
+  },
+  {
+    "id": "features.heartbeat",
+    "description": "Heartbeat is a scheduled play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes them on a configurable interval.",
+    "shortcut": "features.heartbeat",
+    "className": "Heartbeat",
+    "methods": {
+      "loadPlays": {
+        "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval from frontmatter. Parses the ## Plays section for tier headings (h3) and their code blocks / prompt sub-headings (h4).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Tier[]>"
+      },
+      "start": {
+        "description": "Start the heartbeat timer. Loads plays from the document on first call.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Stop the heartbeat timer.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "tick": {
+        "description": "Execute a single tick. Determines which tiers should fire based on the current time and last-run state, then executes all plays for those tiers.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "tiers": {
+        "description": "The parsed tiers and their plays.",
+        "returns": "Tier[]"
+      },
+      "minuteInterval": {
+        "description": "The resolved interval in minutes.",
+        "returns": "number"
+      }
+    },
+    "events": {
+      "started": {
+        "name": "started",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "stopped": {
+        "name": "stopped",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "tick": {
+        "name": "tick",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "playStarted": {
+        "name": "playStarted",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "playCompleted": {
+        "name": "playCompleted",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "playError": {
+        "name": "playError",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.start()\n// ... runs until stopped\nawait heartbeat.stop()"
       }
     ]
   },
