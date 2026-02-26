@@ -28,6 +28,7 @@
     "./schemas/*": "./src/schemas/*",
     "./container": "./src/container.ts",
     "./client": "./src/client.ts",
+    "./clients/*": "./src/clients/*",
     "./feature": "./src/feature.ts"
   },
   "bin": {

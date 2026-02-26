@@ -16,6 +16,7 @@ declare module '../server' {
 export const ExpressServerOptionsSchema = ServerOptionsSchema.extend({
   cors: z.boolean().optional().describe('Whether to enable CORS middleware'),
   static: z.string().optional().describe('Path to serve static files from'),
+  historyFallback: z.boolean().optional().describe('Serve index.html for unmatched routes (SPA history fallback)'),
   create: z.any().optional().describe('(app: Express, server: Server) => Express'),
   beforeStart: z.any().optional().describe('(options: StartOptions, server: Server) => Promise<any>'),
 })
@@ -88,7 +89,15 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
 
       // @ts-ignore-next-line
       await this.hooks.beforeStart(options, this)
-      
+
+      // SPA history fallback: serve index.html for unmatched GET routes
+      if (this.options.historyFallback && this.options.static) {
+        const indexPath = `${this.options.static}/index.html`
+        this.app.get('*', (_req: any, res: any) => {
+          res.sendFile(indexPath)
+        })
+      }
+
       await new Promise((res) => {
         this.app.listen(options?.port!, options?.host!, () => {
           this.state.set('listening', true)

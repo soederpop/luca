@@ -62,6 +62,9 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client'), // the type of options for OpenAI client
 
 	local: z.boolean().optional().describe('Whether to use the local ollama models instead of the remote OpenAI models'),
+
+	/** Maximum number of output tokens per completion */
+	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -84,6 +87,10 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
 export type ConversationState = z.infer<typeof ConversationStateSchema>
 
+export type AskOptions = {
+	maxTokens?: number
+}
+
 /**
  * A self-contained conversation with OpenAI that supports streaming,
  * tool calling, and message state management.
@@ -104,6 +111,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	static override stateSchema = ConversationStateSchema
 	static override optionsSchema = ConversationOptionsSchema
 	static override shortcut = 'features.conversation' as const
+
+	private _callMaxTokens: number | undefined = undefined
+
+	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
+	private get maxTokens(): number | undefined {
+		return this._callMaxTokens ?? this.options.maxTokens ?? undefined
+	}
 
 	private get _tools(): Record<string, ConversationTool> {
 		return this.options.tools || {}
@@ -232,21 +246,26 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 *   { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
 	 * ])
 	 */
-	async ask(content: string | ContentPart[]): Promise<string> {
+	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
+		this._callMaxTokens = options?.maxTokens
 		const userMessage: Message = { role: 'user', content: content as any }
 		this.pushMessage(userMessage)
 		this.emit('userMessage', content)
 
-		if (this.apiMode === 'responses') {
-			return this.runResponsesLoop({
-				turn: 1,
-				accumulated: '',
-				input: [this.toResponsesUserMessage(content)],
-				previousResponseId: this.state.get('lastResponseId') || undefined,
-			})
-		}
+		try {
+			if (this.apiMode === 'responses') {
+				return await this.runResponsesLoop({
+					turn: 1,
+					accumulated: '',
+					input: [this.toResponsesUserMessage(content)],
+					previousResponseId: this.state.get('lastResponseId') || undefined,
+				})
+			}
 
-		return this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+			return await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+		} finally {
+			this._callMaxTokens = undefined
+		}
 	}
 
 	/** Convert user content into a Responses API input message item. */
@@ -367,6 +386,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				previous_response_id: context.previousResponseId,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
 				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
+				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
 			})
 
 			for await (const event of stream) {
@@ -522,7 +542,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				model: this.model,
 				messages: this.messages,
 				stream: true,
-				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {})
+				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
+				...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
 			})
 
 			for await (const chunk of stream) {

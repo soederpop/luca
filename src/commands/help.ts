@@ -114,6 +114,37 @@ export function formatCommandHelp(name: string, Cmd: any, colors: any): string {
 	return lines.join('\n')
 }
 
+/** Strip ANSI escape codes for visible width calculation. */
+function stripAnsi(s: string): string {
+	return s.replace(/\x1B\[[0-9;]*m/g, '')
+}
+
+/** Merge two multi-line blocks side by side with a gap. */
+function sideBySide(left: string[], right: string[], gap = 3): string[] {
+	const maxLeftWidth = Math.max(...left.map((l) => stripAnsi(l).length))
+	const maxLines = Math.max(left.length, right.length)
+	const result: string[] = []
+
+	for (let i = 0; i < maxLines; i++) {
+		const l = left[i] || ''
+		const r = right[i] || ''
+		const visLen = stripAnsi(l).length
+		const pad = Math.max(0, maxLeftWidth - visLen) + gap
+		result.push(l + ' '.repeat(pad) + r)
+	}
+
+	return result
+}
+
+const LEGO_ROBOT = [
+	' ┌─○○─┐ ',
+	' │ ●● │ ',
+	' ├○──○┤ ',
+	' └─╨╨─┘ ',
+]
+
+const BANNER_COLORS: string[] = ['cyan', 'blue', 'magenta']
+
 export default async function help(_options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
 	const ui = container.feature('ui') as any
@@ -123,8 +154,24 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 	const target = args[1] as string
 
 	if (!target) {
-		// Global help: banner + all commands
-		console.log(ui.banner('luca', { font: 'Small Slant', colors: ['cyan', 'blue', 'magenta'] }))
+		// Robot (left) + banner (right), same height — direct 1:1 alignment
+		const banner = ui.banner('luca', { font: 'Small Slant', colors: BANNER_COLORS })
+		const bannerLines = banner.split('\n').filter((l: string) => l.trim())
+		const coloredRobot = ui.applyGradient(LEGO_ROBOT.join('\n'), BANNER_COLORS)
+		const robotLines = coloredRobot.split('\n') as string[]
+		const robotWidth = Math.max(...LEGO_ROBOT.map((l: string) => l.length))
+
+		const headerLines: string[] = []
+		const maxLines = Math.max(robotLines.length, bannerLines.length)
+		for (let i = 0; i < maxLines; i++) {
+			const rLine = robotLines[i] || ''
+			const rPad = robotWidth - stripAnsi(rLine).length
+			const bLine = bannerLines[i] || ''
+			headerLines.push(rLine + ' '.repeat(rPad + 2) + bLine)
+		}
+
+		console.log('\n')
+		console.log(headerLines.join('\n'))
 		console.log(c.dim('  Lightweight Universal Conversational Architecture'))
 		console.log()
 		console.log(c.white('  Usage: ') + c.cyan('luca') + c.dim(' <command|file> [options]'))
@@ -132,16 +179,19 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 		console.log(c.white('  Commands:'))
 		console.log()
 
-		for (const name of container.commands.available) {
-			if (name === 'help') continue
+		// Dynamic padding based on longest command name
+		const commandNames = (container.commands.available as string[]).filter((n: string) => n !== 'help')
+		const maxNameLen = Math.max(...commandNames.map((n: string) => n.length)) + 2
+
+		for (const name of commandNames) {
 			const Cmd = container.commands.lookup(name) as any
 			const desc = Cmd.commandDescription || ''
-			console.log(`    ${c.cyan(name.padEnd(20))} ${c.dim(desc)}`)
+			console.log(`    ${c.cyan(name.padEnd(maxNameLen))} ${c.dim(desc)}`)
 		}
 
 		console.log()
-		console.log(c.dim('  Run ') + c.cyan('luca <file>') + c.dim(' to execute a script directly.'))
-		console.log(c.dim('  Run ') + c.cyan('luca help <command>') + c.dim(' for detailed usage of a command.'))
+		console.log(c.dim('  Run ') + c.cyan('luca <file>') + c.dim(' to execute a script or markdown (.ts, .js, .md)'))
+		console.log(c.dim('  Run ') + c.cyan('luca help <command>') + c.dim(' for detailed usage of a command'))
 		console.log()
 		return
 	}

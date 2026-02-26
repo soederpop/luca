@@ -3,7 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { features, Feature } from '@soederpop/luca/feature'
-import type { Conversation, ConversationTool, ContentPart } from './conversation'
+import type { Conversation, ConversationTool, ContentPart, AskOptions } from './conversation'
 import type { DocsReader } from './docs-reader'
 import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@soederpop/luca/node/features/content-db.js'
@@ -52,6 +52,10 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	schemas: z.record(z.string(), z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
 	/** OpenAI model to use for the conversation */
 	model: z.string().optional().describe('OpenAI model to use'),
+	/** Whether to enable docs tools */
+	enableDocsTools: z.boolean().default(true).describe('Whether to enable docs tools'),
+	/** Maximum number of output tokens per completion */
+	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -130,9 +134,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	conversation?: Conversation
 	docsReader?: DocsReader
 
-	private _tools: Record<string, ConversationTool> = {}
-	private _hooks: Record<string, (...args: any[]) => any> = {}
-	private _systemPrompt: string = ''
+	// Using `declare` to prevent class field initializers from overwriting
+	// values set during afterInitialize() (called from the base constructor).
+	declare private _tools: Record<string, ConversationTool>
+	declare private _hooks: Record<string, (...args: any[]) => any>
+	declare private _systemPrompt: string
 
 	get contentDb(): ContentDb {
 		return this.container.feature('contentDb', {
@@ -458,7 +464,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.docsReader = await this.initDocsReader()
 
 		// Add docs tools and table of contents if docs are available
-		if (this.docsReader) {
+		if (this.docsReader && this.options.enableDocsTools) {
 			this._tools.researchInternalDocs = this.buildDocsResearchTool()
 			this._tools.listDocs = this.buildListDocsTool()
 			this._tools.readDocOutlines = this.buildReadDocOutlinesTool()
@@ -475,6 +481,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.conversation = this.container.feature('conversation', {
 			model: this.options.model || 'gpt-4.1',
 			tools: this._tools,
+			...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
 			history: [
 				{ role: 'system', content: this._systemPrompt },
 			],
@@ -589,7 +596,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * const answer = await assistant.ask('What capabilities do you have?')
 	 * ```
 	 */
-	async ask(question: string | ContentPart[]): Promise<string> {
+	async ask(question: string | ContentPart[], options?: AskOptions): Promise<string> {
 		if (!this.isStarted) {
 			await this.start()
 		}
@@ -601,7 +608,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const count = (this.state.get('conversationCount') || 0) + 1
 		this.state.set('conversationCount', count)
 
-		const result = await this.conversation.ask(question)
+		const result = await this.conversation.ask(question, options)
 
 		this.emit('answered', result)
 		this.fireHook('answered', result)

@@ -87,6 +87,7 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		port,
 		cors: options.cors,
 		static: resolvedStaticDir,
+		historyFallback: resolvedStaticDir && !options.staticDir,
 	}) as ExpressServer
 
 	if (endpointsDir) {
