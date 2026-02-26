@@ -12,6 +12,8 @@ container.feature('heartbeat', {
   minuteInterval,
   // Log plays without executing them
   dryRun,
+  // Run even outside configured working hours
+  overtime,
 })
 ```
 
@@ -27,35 +29,45 @@ container.feature('heartbeat', {
 
 | `dryRun` | `boolean` | Log plays without executing them |
 
+| `overtime` | `boolean` | Run even outside configured working hours |
+
 ## Methods
+
+### describe
+
+Returns a human-readable description of the heartbeat schedule. Shows each tier, when it fires, and what plays it contains.
+
+**Returns:** `string`
+
+
 
 ### loadPlays
 
-Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval from frontmatter. Parses the ## Plays section for tier headings (h3) and their code blocks / prompt sub-headings (h4).
+Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval, startHour, endHour from frontmatter.
 
 **Returns:** `Promise<Tier[]>`
 
 
 
-### start
+### loadState
 
-Start the heartbeat timer. Loads plays from the document on first call.
-
-**Returns:** `Promise<this>`
-
-
-
-### stop
-
-Stop the heartbeat timer.
+Load persisted state from diskCache. Hydrates this.state with saved values.
 
 **Returns:** `Promise<void>`
 
 
 
-### tick
+### saveState
 
-Execute a single tick. Determines which tiers should fire based on the current time and last-run state, then executes all plays for those tiers.
+Save current state to diskCache for persistence across runs.
+
+**Returns:** `Promise<void>`
+
+
+
+### run
+
+Main entry point. Loads plays, hydrates state from disk, checks working hours, determines which tiers are due, executes them, and saves state.
 
 **Returns:** `Promise<void>`
 
@@ -71,23 +83,15 @@ Execute a single tick. Determines which tiers should fire based on the current t
 
 | `minuteInterval` | `number` | The resolved interval in minutes. |
 
+| `startHour` | `number` | Configured start hour for working hours. |
+
+| `endHour` | `number` | Configured end hour for working hours. |
+
 ## Events
-
-### started
-
-Emitted when the heartbeat loop starts
-
-
-
-### stopped
-
-Emitted when the heartbeat loop stops
-
-
 
 ### tick
 
-Emitted on each interval tick
+Emitted on each run
 
 **Event Arguments:**
 
@@ -159,11 +163,9 @@ Emitted when a play fails
 
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
-| `running` | `boolean` | Whether the heartbeat timer is active |
+| `tickCount` | `number` | Number of runs |
 
-| `tickCount` | `number` | Number of ticks since start |
-
-| `lastTick` | `string` | ISO timestamp of last tick |
+| `lastTick` | `string` | ISO timestamp of last run |
 
 | `lastRunEveryTime` | `string` | ISO timestamp of last everyTime run |
 
@@ -193,8 +195,6 @@ Emitted when a play fails
 
 ```ts
 const heartbeat = container.feature('heartbeat', { enable: true })
-await heartbeat.start()
-// ... runs until stopped
-await heartbeat.stop()
+await heartbeat.run() // loads, checks schedule, runs due tiers, saves state
 ```
 

@@ -184,6 +184,30 @@ const version = proc.exec('node --version')
 
 
 
+### establishLock
+
+Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `pidPath` | `string` | ✓ | Path to the PID file, resolved relative to container.cwd |
+
+**Returns:** `{ release: () => void }`
+
+```ts
+// In a command handler — exits if already running
+const lock = proc.establishLock('tmp/luca-main.pid')
+
+// Later, if you need to release manually
+lock.release()
+```
+
+
+
 ### kill
 
 Kills a process by its PID.
@@ -210,9 +234,9 @@ proc.kill(12345, 'SIGKILL')
 
 
 
-### findPidsByPort
+### onSignal
 
-Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.
+Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.
 
 **Parameters:**
 
@@ -220,19 +244,39 @@ Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to
 
 |------|------|----------|-------------|
 
-| `port` | `number` | ✓ | The port number to search for |
+| `signal` | `NodeJS.Signals` | ✓ | The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2') |
 
-**Returns:** `number[]`
+| `handler` | `() => void` | ✓ | The function to call when the signal is received |
+
+**Returns:** `{ off: () => void }`
 
 ```ts
-const pids = proc.findPidsByPort(3000)
-console.log(`Processes on port 3000: ${pids}`)
+// Graceful shutdown
+proc.onSignal('SIGTERM', () => {
+ console.log('Shutting down gracefully...')
+ process.exit(0)
+})
 
-// Kill everything on port 3000
-for (const pid of proc.findPidsByPort(3000)) {
- proc.kill(pid)
-}
+// Remove the listener later
+const { off } = proc.onSignal('SIGUSR2', () => {
+ console.log('Received SIGUSR2')
+})
+off()
 ```
+
+
+
+### findPidsByPort
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `port` | `number` | ✓ | Parameter port |
+
+**Returns:** `number[]`
 
 
 
@@ -334,6 +378,18 @@ const version = proc.exec('node --version')
 
 
 
+**establishLock**
+
+```ts
+// In a command handler — exits if already running
+const lock = proc.establishLock('tmp/luca-main.pid')
+
+// Later, if you need to release manually
+lock.release()
+```
+
+
+
 **kill**
 
 ```ts
@@ -346,15 +402,19 @@ proc.kill(12345, 'SIGKILL')
 
 
 
-**findPidsByPort**
+**onSignal**
 
 ```ts
-const pids = proc.findPidsByPort(3000)
-console.log(`Processes on port 3000: ${pids}`)
+// Graceful shutdown
+proc.onSignal('SIGTERM', () => {
+ console.log('Shutting down gracefully...')
+ process.exit(0)
+})
 
-// Kill everything on port 3000
-for (const pid of proc.findPidsByPort(3000)) {
- proc.kill(pid)
-}
+// Remove the listener later
+const { off } = proc.onSignal('SIGUSR2', () => {
+ console.log('Received SIGUSR2')
+})
+off()
 ```
 

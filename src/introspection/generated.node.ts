@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-25T08:48:06.587Z
+// Generated at: 2026-02-26T00:18:51.110Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1204,6 +1204,25 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "establishLock": {
+      "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
+      "parameters": {
+        "pidPath": {
+          "type": "string",
+          "description": "Path to the PID file, resolved relative to container.cwd"
+        }
+      },
+      "required": [
+        "pidPath"
+      ],
+      "returns": "{ release: () => void }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// In a command handler — exits if already running\nconst lock = proc.establishLock('tmp/luca-main.pid')\n\n// Later, if you need to release manually\nlock.release()"
+        }
+      ]
+    },
     "kill": {
       "description": "Kills a process by its PID.",
       "parameters": {
@@ -1227,24 +1246,42 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "onSignal": {
+      "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+      "parameters": {
+        "signal": {
+          "type": "NodeJS.Signals",
+          "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+        },
+        "handler": {
+          "type": "() => void",
+          "description": "The function to call when the signal is received"
+        }
+      },
+      "required": [
+        "signal",
+        "handler"
+      ],
+      "returns": "{ off: () => void }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+        }
+      ]
+    },
     "findPidsByPort": {
-      "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+      "description": "",
       "parameters": {
         "port": {
           "type": "number",
-          "description": "The port number to search for"
+          "description": "Parameter port"
         }
       },
       "required": [
         "port"
       ],
-      "returns": "number[]",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
-        }
-      ]
+      "returns": "number[]"
     }
   },
   "getters": {},
@@ -9024,6 +9061,25 @@ export const introspectionData = [
           }
         ]
       },
+      "establishLock": {
+        "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
+        "parameters": {
+          "pidPath": {
+            "type": "string",
+            "description": "Path to the PID file, resolved relative to container.cwd"
+          }
+        },
+        "required": [
+          "pidPath"
+        ],
+        "returns": "{ release: () => void }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// In a command handler — exits if already running\nconst lock = proc.establishLock('tmp/luca-main.pid')\n\n// Later, if you need to release manually\nlock.release()"
+          }
+        ]
+      },
       "kill": {
         "description": "Kills a process by its PID.",
         "parameters": {
@@ -9047,24 +9103,42 @@ export const introspectionData = [
           }
         ]
       },
+      "onSignal": {
+        "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+        "parameters": {
+          "signal": {
+            "type": "NodeJS.Signals",
+            "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+          },
+          "handler": {
+            "type": "() => void",
+            "description": "The function to call when the signal is received"
+          }
+        },
+        "required": [
+          "signal",
+          "handler"
+        ],
+        "returns": "{ off: () => void }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+          }
+        ]
+      },
       "findPidsByPort": {
-        "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+        "description": "",
         "parameters": {
           "port": {
             "type": "number",
-            "description": "The port number to search for"
+            "description": "Parameter port"
           }
         },
         "required": [
           "port"
         ],
-        "returns": "number[]",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
-          }
-        ]
+        "returns": "number[]"
       }
     },
     "getters": {},

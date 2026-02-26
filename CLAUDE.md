@@ -33,6 +33,7 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 - The container is intended to provide a collection of blessed, approved, audited modules that we've built and curated together.  It is intended to be the primary API and interface through the system  
 - The container should provide you with everything you need, and you should not need to be importing dependencies or other modules.  If you find yourself stuck by this constraint, raise this concern, and we can work on finding a way to bring in a feature or client
 - When trying to find paths in the project, use `container.paths.resolve()` or `container.paths.join()` instead of `import { resolve } from 'path'`
+- **NEVER import from `fs`, `path`, or other Node builtins when the container provides equivalents.** Use `container.feature('fs')` for file operations, `container.paths` for path operations. This applies to command handlers, scripts, and any code that has access to a container. The only exception is inside feature implementations themselves (e.g. `proc.ts`, `fs.ts`) where you ARE building the container primitive — those may use Node builtins directly since they can't depend on themselves.
 
 ## Type Safety and Introspection
 

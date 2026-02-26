@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-25T08:48:06.714Z
+// Generated at: 2026-02-26T00:18:51.242Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1204,6 +1204,25 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "establishLock": {
+      "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
+      "parameters": {
+        "pidPath": {
+          "type": "string",
+          "description": "Path to the PID file, resolved relative to container.cwd"
+        }
+      },
+      "required": [
+        "pidPath"
+      ],
+      "returns": "{ release: () => void }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// In a command handler — exits if already running\nconst lock = proc.establishLock('tmp/luca-main.pid')\n\n// Later, if you need to release manually\nlock.release()"
+        }
+      ]
+    },
     "kill": {
       "description": "Kills a process by its PID.",
       "parameters": {
@@ -1227,24 +1246,42 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "onSignal": {
+      "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+      "parameters": {
+        "signal": {
+          "type": "NodeJS.Signals",
+          "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+        },
+        "handler": {
+          "type": "() => void",
+          "description": "The function to call when the signal is received"
+        }
+      },
+      "required": [
+        "signal",
+        "handler"
+      ],
+      "returns": "{ off: () => void }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+        }
+      ]
+    },
     "findPidsByPort": {
-      "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+      "description": "",
       "parameters": {
         "port": {
           "type": "number",
-          "description": "The port number to search for"
+          "description": "Parameter port"
         }
       },
       "required": [
         "port"
       ],
-      "returns": "number[]",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
-        }
-      ]
+      "returns": "number[]"
     }
   },
   "getters": {},
@@ -8971,30 +9008,36 @@ setBuildTimeData('features.openaiCodex', {
 
 setBuildTimeData('features.heartbeat', {
   "id": "features.heartbeat",
-  "description": "Heartbeat is a scheduled play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes them on a configurable interval.",
+  "description": "Heartbeat is a single-shot play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes due tiers based on persisted state from disk.",
   "shortcut": "features.heartbeat",
   "className": "Heartbeat",
   "methods": {
+    "describe": {
+      "description": "Returns a human-readable description of the heartbeat schedule. Shows each tier, when it fires, and what plays it contains.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
     "loadPlays": {
-      "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval from frontmatter. Parses the ## Plays section for tier headings (h3) and their code blocks / prompt sub-headings (h4).",
+      "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval, startHour, endHour from frontmatter.",
       "parameters": {},
       "required": [],
       "returns": "Promise<Tier[]>"
     },
-    "start": {
-      "description": "Start the heartbeat timer. Loads plays from the document on first call.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "stop": {
-      "description": "Stop the heartbeat timer.",
+    "loadState": {
+      "description": "Load persisted state from diskCache. Hydrates this.state with saved values.",
       "parameters": {},
       "required": [],
       "returns": "Promise<void>"
     },
-    "tick": {
-      "description": "Execute a single tick. Determines which tiers should fire based on the current time and last-run state, then executes all plays for those tiers.",
+    "saveState": {
+      "description": "Save current state to diskCache for persistence across runs.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "run": {
+      "description": "Main entry point. Loads plays, hydrates state from disk, checks working hours, determines which tiers are due, executes them, and saves state.",
       "parameters": {},
       "required": [],
       "returns": "Promise<void>"
@@ -9008,19 +9051,17 @@ setBuildTimeData('features.heartbeat', {
     "minuteInterval": {
       "description": "The resolved interval in minutes.",
       "returns": "number"
+    },
+    "startHour": {
+      "description": "Configured start hour for working hours.",
+      "returns": "number"
+    },
+    "endHour": {
+      "description": "Configured end hour for working hours.",
+      "returns": "number"
     }
   },
   "events": {
-    "started": {
-      "name": "started",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "stopped": {
-      "name": "stopped",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
     "tick": {
       "name": "tick",
       "description": "Event emitted by Heartbeat",
@@ -9048,7 +9089,7 @@ setBuildTimeData('features.heartbeat', {
   "examples": [
     {
       "language": "ts",
-      "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.start()\n// ... runs until stopped\nawait heartbeat.stop()"
+      "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.run() // loads, checks schedule, runs due tiers, saves state"
     }
   ]
 });
@@ -11017,6 +11058,25 @@ export const introspectionData = [
           }
         ]
       },
+      "establishLock": {
+        "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
+        "parameters": {
+          "pidPath": {
+            "type": "string",
+            "description": "Path to the PID file, resolved relative to container.cwd"
+          }
+        },
+        "required": [
+          "pidPath"
+        ],
+        "returns": "{ release: () => void }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// In a command handler — exits if already running\nconst lock = proc.establishLock('tmp/luca-main.pid')\n\n// Later, if you need to release manually\nlock.release()"
+          }
+        ]
+      },
       "kill": {
         "description": "Kills a process by its PID.",
         "parameters": {
@@ -11040,24 +11100,42 @@ export const introspectionData = [
           }
         ]
       },
+      "onSignal": {
+        "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+        "parameters": {
+          "signal": {
+            "type": "NodeJS.Signals",
+            "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+          },
+          "handler": {
+            "type": "() => void",
+            "description": "The function to call when the signal is received"
+          }
+        },
+        "required": [
+          "signal",
+          "handler"
+        ],
+        "returns": "{ off: () => void }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+          }
+        ]
+      },
       "findPidsByPort": {
-        "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+        "description": "",
         "parameters": {
           "port": {
             "type": "number",
-            "description": "The port number to search for"
+            "description": "Parameter port"
           }
         },
         "required": [
           "port"
         ],
-        "returns": "number[]",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
-          }
-        ]
+        "returns": "number[]"
       }
     },
     "getters": {},
@@ -18737,30 +18815,36 @@ export const introspectionData = [
   },
   {
     "id": "features.heartbeat",
-    "description": "Heartbeat is a scheduled play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes them on a configurable interval.",
+    "description": "Heartbeat is a single-shot play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes due tiers based on persisted state from disk.",
     "shortcut": "features.heartbeat",
     "className": "Heartbeat",
     "methods": {
+      "describe": {
+        "description": "Returns a human-readable description of the heartbeat schedule. Shows each tier, when it fires, and what plays it contains.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
       "loadPlays": {
-        "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval from frontmatter. Parses the ## Plays section for tier headings (h3) and their code blocks / prompt sub-headings (h4).",
+        "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval, startHour, endHour from frontmatter.",
         "parameters": {},
         "required": [],
         "returns": "Promise<Tier[]>"
       },
-      "start": {
-        "description": "Start the heartbeat timer. Loads plays from the document on first call.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "stop": {
-        "description": "Stop the heartbeat timer.",
+      "loadState": {
+        "description": "Load persisted state from diskCache. Hydrates this.state with saved values.",
         "parameters": {},
         "required": [],
         "returns": "Promise<void>"
       },
-      "tick": {
-        "description": "Execute a single tick. Determines which tiers should fire based on the current time and last-run state, then executes all plays for those tiers.",
+      "saveState": {
+        "description": "Save current state to diskCache for persistence across runs.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "run": {
+        "description": "Main entry point. Loads plays, hydrates state from disk, checks working hours, determines which tiers are due, executes them, and saves state.",
         "parameters": {},
         "required": [],
         "returns": "Promise<void>"
@@ -18774,19 +18858,17 @@ export const introspectionData = [
       "minuteInterval": {
         "description": "The resolved interval in minutes.",
         "returns": "number"
+      },
+      "startHour": {
+        "description": "Configured start hour for working hours.",
+        "returns": "number"
+      },
+      "endHour": {
+        "description": "Configured end hour for working hours.",
+        "returns": "number"
       }
     },
     "events": {
-      "started": {
-        "name": "started",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "stopped": {
-        "name": "stopped",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
       "tick": {
         "name": "tick",
         "description": "Event emitted by Heartbeat",
@@ -18814,7 +18896,7 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.start()\n// ... runs until stopped\nawait heartbeat.stop()"
+        "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.run() // loads, checks schedule, runs due tiers, saves state"
       }
     ]
   },

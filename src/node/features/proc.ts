@@ -1,6 +1,8 @@
 import { features, Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { execSync } from "child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "fs";
+import { dirname, resolve } from "path";
 import * as asyncProc from "child-process-promise";
 
 interface SpawnOptions {
@@ -295,6 +297,81 @@ export class ChildProcess extends Feature {
   }
 
   /**
+   * Establishes a PID-file lock to prevent duplicate process instances.
+   *
+   * Writes the current process PID to the given file path. If the file already exists
+   * and the PID inside it refers to a running process, the current process exits immediately.
+   * Stale PID files (where the process is no longer running) are automatically cleaned up.
+   *
+   * Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the
+   * PID file when the process shuts down.
+   *
+   * @param {string} pidPath - Path to the PID file, resolved relative to container.cwd
+   * @returns {{ release: () => void }} Object with a release function to manually remove the lock
+   *
+   * @example
+   * ```typescript
+   * // In a command handler — exits if already running
+   * const lock = proc.establishLock('tmp/luca-main.pid')
+   *
+   * // Later, if you need to release manually
+   * lock.release()
+   * ```
+   */
+  establishLock(pidPath: string): { release: () => void } {
+    const fullPath = resolve(this.container.cwd, pidPath)
+
+    mkdirSync(dirname(fullPath), { recursive: true })
+
+    if (existsSync(fullPath)) {
+      const existingPid = parseInt(readFileSync(fullPath, 'utf8').trim(), 10)
+
+      if (!isNaN(existingPid)) {
+        try {
+          // signal 0 doesn't kill — just checks if process exists
+          process.kill(existingPid, 0)
+          // Process is alive — bail out
+          console.error(`[lock] Process already running (PID ${existingPid}, lock: ${pidPath}). Exiting.`)
+          process.exit(1)
+        } catch {
+          // Process is gone — stale PID file, clean it up
+          unlinkSync(fullPath)
+        }
+      } else {
+        // Corrupt PID file — remove it
+        unlinkSync(fullPath)
+      }
+    }
+
+    // Write our PID
+    writeFileSync(fullPath, String(process.pid), 'utf8')
+
+    let released = false
+
+    const release = () => {
+      if (released) return
+      released = true
+      try {
+        // Only remove if it's still our PID (guard against race)
+        if (existsSync(fullPath)) {
+          const contents = readFileSync(fullPath, 'utf8').trim()
+          if (contents === String(process.pid)) {
+            unlinkSync(fullPath)
+          }
+        }
+      } catch {
+        // Best effort — process is dying anyway
+      }
+    }
+
+    process.on('SIGTERM', release)
+    process.on('SIGINT', release)
+    process.on('exit', release)
+
+    return { release }
+  }
+
+  /**
    * Kills a process by its PID.
    *
    * @param {number} pid - The process ID to kill
@@ -339,6 +416,39 @@ export class ChildProcess extends Feature {
    * }
    * ```
    */
+  /**
+   * Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1).
+   *
+   * Returns a cleanup function that removes the listener when called.
+   *
+   * @param {NodeJS.Signals} signal - The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')
+   * @param {() => void} handler - The function to call when the signal is received
+   * @returns {{ off: () => void }} Object with an off function to remove the listener
+   *
+   * @example
+   * ```typescript
+   * // Graceful shutdown
+   * proc.onSignal('SIGTERM', () => {
+   *   console.log('Shutting down gracefully...')
+   *   process.exit(0)
+   * })
+   *
+   * // Remove the listener later
+   * const { off } = proc.onSignal('SIGUSR2', () => {
+   *   console.log('Received SIGUSR2')
+   * })
+   * off()
+   * ```
+   */
+  onSignal(signal: NodeJS.Signals, handler: () => void): { off: () => void } {
+    process.on(signal, handler)
+    return {
+      off: () => {
+        process.removeListener(signal, handler)
+      }
+    }
+  }
+
   findPidsByPort(port: number): number[] {
     try {
       const output = execSync(`lsof -ti :${port}`, { stdio: ['pipe', 'pipe', 'pipe'] })
