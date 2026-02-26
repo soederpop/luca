@@ -14,6 +14,8 @@ container.feature('heartbeat', {
   dryRun,
   // Run even outside configured working hours
   overtime,
+  // Suppress console output (for TUI mode)
+  quiet,
 })
 ```
 
@@ -30,6 +32,8 @@ container.feature('heartbeat', {
 | `dryRun` | `boolean` | Log plays without executing them |
 
 | `overtime` | `boolean` | Run even outside configured working hours |
+
+| `quiet` | `boolean` | Suppress console output (for TUI mode) |
 
 ## Methods
 
@@ -89,6 +93,12 @@ Main entry point. Loads plays, hydrates state from disk, checks working hours, d
 
 ## Events
 
+### runComplete
+
+Emitted when the full run finishes
+
+
+
 ### tick
 
 Emitted on each run
@@ -100,6 +110,38 @@ Emitted on each run
 |------|------|-------------|
 
 | `arg0` | `number` | Tick count |
+
+
+
+### tierDue
+
+Emitted when a tier is due to run
+
+**Event Arguments:**
+
+| Name | Type | Description |
+
+|------|------|-------------|
+
+| `arg0` | `string` | Tier name |
+
+| `arg1` | `string` | Reason |
+
+
+
+### tierSkipped
+
+Emitted when a tier is skipped
+
+**Event Arguments:**
+
+| Name | Type | Description |
+
+|------|------|-------------|
+
+| `arg0` | `string` | Tier name |
+
+| `arg1` | `string` | Reason |
 
 
 
@@ -135,6 +177,8 @@ Emitted when a play finishes successfully
 
 | `arg2` | `any` | Result |
 
+| `arg3` | `string` | Captured output |
+
 
 
 ### playError
@@ -152,6 +196,8 @@ Emitted when a play fails
 | `arg1` | `any` | Play definition |
 
 | `arg2` | `any` | Error |
+
+| `arg3` | `string` | Captured output |
 
 
 

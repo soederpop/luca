@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-26T00:35:52.462Z
+// Generated at: 2026-02-26T07:24:46.886Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -9068,8 +9068,23 @@ setBuildTimeData('features.heartbeat', {
     }
   },
   "events": {
+    "runComplete": {
+      "name": "runComplete",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
     "tick": {
       "name": "tick",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "tierDue": {
+      "name": "tierDue",
+      "description": "Event emitted by Heartbeat",
+      "arguments": {}
+    },
+    "tierSkipped": {
+      "name": "tierSkipped",
       "description": "Event emitted by Heartbeat",
       "arguments": {}
     },
@@ -18881,8 +18896,23 @@ export const introspectionData = [
       }
     },
     "events": {
+      "runComplete": {
+        "name": "runComplete",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
       "tick": {
         "name": "tick",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "tierDue": {
+        "name": "tierDue",
+        "description": "Event emitted by Heartbeat",
+        "arguments": {}
+      },
+      "tierSkipped": {
+        "name": "tierSkipped",
         "description": "Event emitted by Heartbeat",
         "arguments": {}
       },
