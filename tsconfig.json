@@ -52,6 +52,7 @@
     "playground/**",
     "docs/**",
     "output/**",
-    "dist/**"
+    "dist/**",
+    "../contentbase/**"
   ]
 }
