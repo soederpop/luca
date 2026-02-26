@@ -416,39 +416,6 @@ export class ChildProcess extends Feature {
    * }
    * ```
    */
-  /**
-   * Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1).
-   *
-   * Returns a cleanup function that removes the listener when called.
-   *
-   * @param {NodeJS.Signals} signal - The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')
-   * @param {() => void} handler - The function to call when the signal is received
-   * @returns {{ off: () => void }} Object with an off function to remove the listener
-   *
-   * @example
-   * ```typescript
-   * // Graceful shutdown
-   * proc.onSignal('SIGTERM', () => {
-   *   console.log('Shutting down gracefully...')
-   *   process.exit(0)
-   * })
-   *
-   * // Remove the listener later
-   * const { off } = proc.onSignal('SIGUSR2', () => {
-   *   console.log('Received SIGUSR2')
-   * })
-   * off()
-   * ```
-   */
-  onSignal(signal: NodeJS.Signals, handler: () => void): { off: () => void } {
-    process.on(signal, handler)
-    return {
-      off: () => {
-        process.removeListener(signal, handler)
-      }
-    }
-  }
-
   findPidsByPort(port: number): number[] {
     try {
       const output = execSync(`lsof -ti :${port}`, { stdio: ['pipe', 'pipe', 'pipe'] })
@@ -463,6 +430,35 @@ export class ChildProcess extends Feature {
     } catch {
       return []
     }
+  }
+
+  /**
+   * Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1).
+   *
+   * Returns a cleanup function that removes the listener when called.
+   *
+   * @param {NodeJS.Signals} signal - The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')
+   * @param {() => void} handler - The function to call when the signal is received
+   * @returns {() => void} A function that removes the listener when called
+   *
+   * @example
+   * ```typescript
+   * // Graceful shutdown
+   * proc.onSignal('SIGTERM', () => {
+   *   console.log('Shutting down gracefully...')
+   *   process.exit(0)
+   * })
+   *
+   * // Remove the listener later
+   * const off = proc.onSignal('SIGUSR2', () => {
+   *   console.log('Received SIGUSR2')
+   * })
+   * off()
+   * ```
+   */
+  onSignal(signal: NodeJS.Signals, handler: () => void): () => void {
+    process.on(signal, handler)
+    return () => process.removeListener(signal, handler)
   }
 }
 

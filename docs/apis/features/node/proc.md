@@ -234,6 +234,32 @@ proc.kill(12345, 'SIGKILL')
 
 
 
+### findPidsByPort
+
+Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `port` | `number` | ✓ | The port number to search for |
+
+**Returns:** `number[]`
+
+```ts
+const pids = proc.findPidsByPort(3000)
+console.log(`Processes on port 3000: ${pids}`)
+
+// Kill everything on port 3000
+for (const pid of proc.findPidsByPort(3000)) {
+ proc.kill(pid)
+}
+```
+
+
+
 ### onSignal
 
 Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.
@@ -248,7 +274,7 @@ Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Return
 
 | `handler` | `() => void` | ✓ | The function to call when the signal is received |
 
-**Returns:** `{ off: () => void }`
+**Returns:** `() => void`
 
 ```ts
 // Graceful shutdown
@@ -258,25 +284,11 @@ proc.onSignal('SIGTERM', () => {
 })
 
 // Remove the listener later
-const { off } = proc.onSignal('SIGUSR2', () => {
+const off = proc.onSignal('SIGUSR2', () => {
  console.log('Received SIGUSR2')
 })
 off()
 ```
-
-
-
-### findPidsByPort
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-
-|------|------|----------|-------------|
-
-| `port` | `number` | ✓ | Parameter port |
-
-**Returns:** `number[]`
 
 
 
@@ -402,6 +414,20 @@ proc.kill(12345, 'SIGKILL')
 
 
 
+**findPidsByPort**
+
+```ts
+const pids = proc.findPidsByPort(3000)
+console.log(`Processes on port 3000: ${pids}`)
+
+// Kill everything on port 3000
+for (const pid of proc.findPidsByPort(3000)) {
+ proc.kill(pid)
+}
+```
+
+
+
 **onSignal**
 
 ```ts
@@ -412,7 +438,7 @@ proc.onSignal('SIGTERM', () => {
 })
 
 // Remove the listener later
-const { off } = proc.onSignal('SIGUSR2', () => {
+const off = proc.onSignal('SIGUSR2', () => {
  console.log('Received SIGUSR2')
 })
 off()

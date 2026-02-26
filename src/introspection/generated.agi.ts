@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-26T00:18:51.242Z
+// Generated at: 2026-02-26T00:21:46.316Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1246,6 +1246,25 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "findPidsByPort": {
+      "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "The port number to search for"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "returns": "number[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
+        }
+      ]
+    },
     "onSignal": {
       "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
       "parameters": {
@@ -1262,26 +1281,13 @@ setBuildTimeData('features.proc', {
         "signal",
         "handler"
       ],
-      "returns": "{ off: () => void }",
+      "returns": "() => void",
       "examples": [
         {
           "language": "ts",
-          "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+          "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst off = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
         }
       ]
-    },
-    "findPidsByPort": {
-      "description": "",
-      "parameters": {
-        "port": {
-          "type": "number",
-          "description": "Parameter port"
-        }
-      },
-      "required": [
-        "port"
-      ],
-      "returns": "number[]"
     }
   },
   "getters": {},
@@ -11100,6 +11106,25 @@ export const introspectionData = [
           }
         ]
       },
+      "findPidsByPort": {
+        "description": "Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to discover which processes have a socket bound to the specified port.",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "The port number to search for"
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "returns": "number[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const pids = proc.findPidsByPort(3000)\nconsole.log(`Processes on port 3000: ${pids}`)\n\n// Kill everything on port 3000\nfor (const pid of proc.findPidsByPort(3000)) {\n proc.kill(pid)\n}"
+          }
+        ]
+      },
       "onSignal": {
         "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
         "parameters": {
@@ -11116,26 +11141,13 @@ export const introspectionData = [
           "signal",
           "handler"
         ],
-        "returns": "{ off: () => void }",
+        "returns": "() => void",
         "examples": [
           {
             "language": "ts",
-            "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst { off } = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
+            "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst off = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
           }
         ]
-      },
-      "findPidsByPort": {
-        "description": "",
-        "parameters": {
-          "port": {
-            "type": "number",
-            "description": "Parameter port"
-          }
-        },
-        "required": [
-          "port"
-        ],
-        "returns": "number[]"
       }
     },
     "getters": {},
