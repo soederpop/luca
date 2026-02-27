@@ -43,7 +43,6 @@ import "./features/yaml";
 import "./features/docker";
 import "./features/runpod";
 import "./features/secure-shell";
-import "./features/tmux";
 import "./features/ink";
 import "./features/telegram";
 import "./features/opener";
@@ -87,7 +86,6 @@ import type { PortExposer } from "./features/port-exposer";
 import type { Docker } from './features/docker';
 import type { Runpod } from './features/runpod';
 import type { SecureShell } from './features/secure-shell';
-import type { Tmux } from './features/tmux';
 import type { Ink } from './features/ink';
 import type { Telegram } from './features/telegram';
 import type { Opener } from './features/opener';
@@ -126,7 +124,6 @@ export {
   type Docker,
   type Runpod,
   type SecureShell,
-  type Tmux,
   type Ink,
   type Telegram,
   type Opener,
@@ -190,7 +187,6 @@ export interface NodeFeatures extends AvailableFeatures {
   portExposer: typeof PortExposer;
   runpod: typeof Runpod;
   secureShell: typeof SecureShell;
-  tmux: typeof Tmux;
   ink: typeof Ink;
   telegram: typeof Telegram;
   opener: typeof Opener;
@@ -239,7 +235,6 @@ export class NodeContainer<
   vault?: Vault;
   python?: Python;
   portExposer?: PortExposer;
-  tmux?: Tmux;
   ink?: Ink;
   telegram?: Telegram;
   opener?: Opener;

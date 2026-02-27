@@ -171,7 +171,6 @@ All features follow the same pattern: extend `Feature`, declare a `static shortc
 | `scriptRunner` | ScriptRunner | Generates camelCase methods for each npm script in package.json for programmatic execution. |
 | `secureShell` | SecureShell | SSH command execution and SCP file transfer with password and key-based authentication. |
 | `telegram` | Telegram | Telegram bot integration via grammy. Polling and webhook modes for handling updates and commands. |
-| `tmux` | Tmux | Manages tmux terminal sessions and panes with creation, control, and output capture. |
 | `vault` | Vault | AES-256-GCM encryption/decryption for secure data storage with secret key management. |
 | `yamlTree` | YamlTree | Loads YAML files from a directory into a hierarchical tree (like JsonTree but for YAML). |
 | `yaml` | YAML | Parse YAML strings to objects and stringify objects to YAML via js-yaml. |
@@ -311,7 +310,6 @@ Runnable example scripts demonstrating various framework capabilities:
 | `openai-tool-calls.ts` | OpenAI function calling with tool definitions |
 | `opening-a-web-browser.ts` | Using the opener feature |
 | `telegram-bot.ts` | Building a Telegram bot |
-| `tmux-demo.ts` | Tmux session management |
 | `using-claude-code.ts` | Running Claude Code programmatically |
 | `using-contentdb.ts` | Working with ContentDb collections |
 | `using-conversations.ts` | Conversation feature usage |
