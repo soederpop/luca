@@ -97,7 +97,7 @@
     "detect-port": "^1.5.1",
     "dotenv": "^17.2.4",
     "endent": "^2.1.0",
-    "esbuild": "^0.17.18",
+    "esbuild": "0.17.18",
     "esbuild-plugin-wasm": "^1.0.0",
     "esbuild-register": "^3.4.2",
     "esbuild-wasm": "^0.17.18",
