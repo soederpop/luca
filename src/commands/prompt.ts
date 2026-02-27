@@ -14,6 +14,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	folder: z.string().default('assistants').describe('Directory containing assistant definitions'),
 	'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it'),
 	'permission-mode': z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).default('acceptEdits').describe('Permission mode for CLI agents (default: acceptEdits)'),
+	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
 	'include-output': z.boolean().default(false).describe('Include tool call outputs in the markdown (requires --out-file)'),
 	'dont-touch-file': z.boolean().default(false).describe('Do not update the prompt file frontmatter with run stats'),
@@ -53,8 +54,15 @@ function formatSessionMarkdown(events: any[], includeOutput: boolean): string {
 	return lines.join('\n')
 }
 
-async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>) {
-	const featureName = target === 'claude' ? 'claudeCode' : 'openai-codex'
+interface RunStats {
+	collectedEvents: any[]
+	durationMs: number
+	outputTokens: number
+}
+
+async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>): Promise<RunStats> {
+	const ui = container.feature('ui')
+	const featureName = target === 'claude' ? 'claudeCode' : 'openaiCodex'
 	const feature = container.feature(featureName)
 
 	const available = await feature.checkAvailability()
@@ -63,8 +71,24 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		process.exit(1)
 	}
 
-	feature.on('session:delta', ({ text }: { text: string }) => {
-		if (text) process.stdout.write(text)
+	let outputTokens = 0
+
+	// Render complete messages — text gets markdown formatting, tool_use gets a summary line
+	feature.on('session:message', ({ message }: { message: any }) => {
+		const content = message?.message?.content
+		if (!Array.isArray(content)) return
+
+		const usage = message?.message?.usage
+		if (usage?.output_tokens) outputTokens += usage.output_tokens
+
+		for (const block of content) {
+			if (block.type === 'text' && block.text) {
+				process.stdout.write(ui.markdown(block.text))
+			} else if (block.type === 'tool_use') {
+				const argsStr = JSON.stringify(block.input).slice(0, 120)
+				process.stdout.write(ui.colors.dim(`\n  ⟳ ${block.name}`) + ui.colors.dim(`(${argsStr})\n`))
+			}
+		}
 	})
 
 	// Collect structured events for --out-file
@@ -79,10 +103,15 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	const runOptions: Record<string, any> = { streaming: true }
 
+	if (options['in-folder']) {
+		runOptions.cwd = container.paths.resolve(options['in-folder'])
+	}
+
 	if (target === 'claude') {
 		runOptions.permissionMode = options['permission-mode']
 	}
 
+	const startTime = Date.now()
 	const sessionId = await feature.start(promptContent, runOptions)
 	const session = await feature.waitForSession(sessionId)
 
@@ -93,10 +122,10 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	process.stdout.write('\n')
 
-	return collectedEvents
+	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens }
 }
 
-async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any) {
+async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any): Promise<RunStats> {
 	const ui = container.feature('ui')
 	const manager = container.feature('assistantsManager', { folder: options.folder })
 	manager.discover()
@@ -150,10 +179,30 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 		process.stdout.write(ui.colors.red(`  ✗ ${toolName}: ${msg}\n`))
 	})
 
+	const startTime = Date.now()
 	await assistant.ask(promptContent)
 	process.stdout.write('\n')
 
-	return collectedEvents
+	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens: 0 }
+}
+
+function updateFrontmatter(fileContent: string, updates: Record<string, any>, container: any): string {
+	const yaml = container.feature('yaml')
+
+	if (fileContent.startsWith('---')) {
+		const endIndex = fileContent.indexOf('\n---', 3)
+		if (endIndex !== -1) {
+			const existingYaml = fileContent.slice(4, endIndex)
+			const meta = yaml.parse(existingYaml) || {}
+			Object.assign(meta, updates)
+			const newYaml = yaml.stringify(meta).trimEnd()
+			return `---\n${newYaml}\n---${fileContent.slice(endIndex + 4)}`
+		}
+	}
+
+	// No existing frontmatter — prepend one
+	const newYaml = yaml.stringify(updates).trimEnd()
+	return `---\n${newYaml}\n---\n\n${fileContent}`
 }
 
 export default async function prompt(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -184,16 +233,30 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		}
 	}
 
-	let collectedEvents: any[] = []
+	let stats: RunStats
 
 	if (CLI_TARGETS.has(target)) {
-		collectedEvents = await runClaudeOrCodex(target as 'claude' | 'codex', promptContent, container, options)
+		stats = await runClaudeOrCodex(target as 'claude' | 'codex', promptContent, container, options)
 	} else {
-		collectedEvents = await runAssistant(target, promptContent, options, container)
+		stats = await runAssistant(target, promptContent, options, container)
 	}
 
-	if (options['out-file'] && collectedEvents.length) {
-		const markdown = formatSessionMarkdown(collectedEvents, options['include-output'])
+	// Update prompt file frontmatter with run stats
+	if (!options['dont-touch-file']) {
+		const rawContent = fs.readFile(resolvedPath) as string
+		const updates: Record<string, any> = {
+			lastRanAt: Date.now(),
+			durationMs: stats.durationMs,
+		}
+		if (stats.outputTokens > 0) {
+			updates.outputTokens = stats.outputTokens
+		}
+		const updated = updateFrontmatter(rawContent, updates, container)
+		await Bun.write(resolvedPath, updated)
+	}
+
+	if (options['out-file'] && stats.collectedEvents.length) {
+		const markdown = formatSessionMarkdown(stats.collectedEvents, options['include-output'])
 		const outPath = paths.resolve(options['out-file'])
 		await Bun.write(outPath, markdown)
 		console.log(`Session saved to ${outPath}`)

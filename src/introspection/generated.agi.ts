@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-27T01:25:40.125Z
+// Generated at: 2026-02-27T04:56:10.666Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -2454,191 +2454,6 @@ setBuildTimeData('features.repl', {
     {
       "language": "ts",
       "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
-    }
-  ]
-});
-
-setBuildTimeData('features.tmux', {
-  "id": "features.tmux",
-  "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
-  "shortcut": "features.tmux",
-  "className": "Tmux",
-  "methods": {
-    "executeTmuxCommand": {
-      "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
-      "parameters": {
-        "args": {
-          "type": "string[]",
-          "description": "Parameter args"
-        }
-      },
-      "required": [
-        "args"
-      ],
-      "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
-    },
-    "checkAvailability": {
-      "description": "Check if tmux is available on this system.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<boolean>"
-    },
-    "enable": {
-      "description": "Initialize the tmux feature. Verifies tmux is available. Throws if tmux is not installed.",
-      "parameters": {
-        "options": {
-          "type": "any",
-          "description": "Parameter options"
-        }
-      },
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "ensureSession": {
-      "description": "Ensure we are running inside a tmux session. If already inside tmux, uses the current session. If not, re-execs the current script inside a new tmux session so the user actually sees panes. The current process is replaced (via execSync) — code after `ensureSession()` only runs inside tmux.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Session name. Defaults to `luca-{uuid}`."
-        }
-      },
-      "required": [],
-      "returns": "Promise<string>"
-    },
-    "killSession": {
-      "description": "Kill the current session (or a named one).",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        }
-      },
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "split": {
-      "description": "Split the current window into multiple panes.",
-      "parameters": {
-        "options": {
-          "type": "SplitOptions",
-          "description": "Split configuration",
-          "properties": {
-            "count": {
-              "type": "number",
-              "description": "Number of panes to create (splits the current pane this many times)"
-            },
-            "orientation": {
-              "type": "'horizontal' | 'vertical'",
-              "description": "Split direction: 'horizontal' splits side-by-side, 'vertical' splits top/bottom"
-            },
-            "size": {
-              "type": "number",
-              "description": "Percentage size for each new pane"
-            }
-          }
-        }
-      },
-      "required": [],
-      "returns": "Promise<TmuxLayout>"
-    },
-    "runInPane": {
-      "description": "Run a command in a specific pane. Returns a PaneProcess handle.",
-      "parameters": {
-        "paneId": {
-          "type": "string",
-          "description": "The tmux pane ID (e.g. \"%5\")"
-        },
-        "command": {
-          "type": "string",
-          "description": "The command string to execute"
-        }
-      },
-      "required": [
-        "paneId",
-        "command"
-      ],
-      "returns": "Promise<PaneProcess>"
-    },
-    "capture": {
-      "description": "Capture the current content of a pane.",
-      "parameters": {
-        "paneId": {
-          "type": "string",
-          "description": "The tmux pane ID"
-        }
-      },
-      "required": [
-        "paneId"
-      ],
-      "returns": "Promise<string>"
-    },
-    "sendKeys": {
-      "description": "Send keys to a pane. If `literal` is provided, it's sent as a tmux key name (e.g. \"C-c\", \"Enter\"). Otherwise `text` is sent followed by Enter.",
-      "parameters": {
-        "paneId": {
-          "type": "string",
-          "description": "The tmux pane ID"
-        },
-        "text": {
-          "type": "string",
-          "description": "Text to type (followed by Enter)"
-        },
-        "literal": {
-          "type": "string",
-          "description": "A literal tmux key name (sent without Enter)"
-        }
-      },
-      "required": [
-        "paneId",
-        "text"
-      ],
-      "returns": "Promise<void>"
-    },
-    "isPaneAlive": {
-      "description": "Check if a pane is still alive.",
-      "parameters": {
-        "paneId": {
-          "type": "string",
-          "description": "Parameter paneId"
-        }
-      },
-      "required": [
-        "paneId"
-      ],
-      "returns": "Promise<boolean>"
-    },
-    "collapse": {
-      "description": "Kill all managed panes except the first one, returning to a single pane view.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    }
-  },
-  "getters": {},
-  "events": {
-    "sessionCreated": {
-      "name": "sessionCreated",
-      "description": "Event emitted by Tmux",
-      "arguments": {}
-    },
-    "sessionKilled": {
-      "name": "sessionKilled",
-      "description": "Event emitted by Tmux",
-      "arguments": {}
-    },
-    "paneSplit": {
-      "name": "paneSplit",
-      "description": "Event emitted by Tmux",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const tmux = container.feature('tmux', { enable: true })\nawait tmux.ensureSession()\n\nconst layout = tmux.split({ count: 2, orientation: 'horizontal' })\n\nconst tests = await layout.panes[0].run('bun test')\nconst build = await layout.panes[1].run('bun run build')\n\ntests.events.on('output', (data) => console.log('tests:', data))\n\nawait layout.awaitAll()\nawait layout.collapse()"
     }
   ]
 });
@@ -9451,6 +9266,24 @@ setContainerBuildTimeData('Container', {
   "className": "Container",
   "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
   "methods": {
+    "subcontainer": {
+      "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
+      "parameters": {
+        "this": {
+          "type": "This",
+          "description": "Parameter this"
+        },
+        "options": {
+          "type": "ConstructorParameters<This['constructor']>[0]",
+          "description": "Options to override for the new container instance."
+        }
+      },
+      "required": [
+        "this",
+        "options"
+      ],
+      "returns": "This"
+    },
     "addContext": {
       "description": "",
       "parameters": {
@@ -12322,190 +12155,6 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
-      }
-    ]
-  },
-  {
-    "id": "features.tmux",
-    "description": "Terminal multiplexer feature that wraps tmux to provide programmatic control over terminal panes. Allows scripts to split the terminal into multiple panes, run commands in each pane with full process handles (await, cancel, observe output), and collapse everything back to a single pane when done.",
-    "shortcut": "features.tmux",
-    "className": "Tmux",
-    "methods": {
-      "executeTmuxCommand": {
-        "description": "Execute a tmux command and return the result. Follows the same pattern as Docker.executeDockerCommand.",
-        "parameters": {
-          "args": {
-            "type": "string[]",
-            "description": "Parameter args"
-          }
-        },
-        "required": [
-          "args"
-        ],
-        "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>"
-      },
-      "checkAvailability": {
-        "description": "Check if tmux is available on this system.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<boolean>"
-      },
-      "enable": {
-        "description": "Initialize the tmux feature. Verifies tmux is available. Throws if tmux is not installed.",
-        "parameters": {
-          "options": {
-            "type": "any",
-            "description": "Parameter options"
-          }
-        },
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "ensureSession": {
-        "description": "Ensure we are running inside a tmux session. If already inside tmux, uses the current session. If not, re-execs the current script inside a new tmux session so the user actually sees panes. The current process is replaced (via execSync) — code after `ensureSession()` only runs inside tmux.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Session name. Defaults to `luca-{uuid}`."
-          }
-        },
-        "required": [],
-        "returns": "Promise<string>"
-      },
-      "killSession": {
-        "description": "Kill the current session (or a named one).",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          }
-        },
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "split": {
-        "description": "Split the current window into multiple panes.",
-        "parameters": {
-          "options": {
-            "type": "SplitOptions",
-            "description": "Split configuration",
-            "properties": {
-              "count": {
-                "type": "number",
-                "description": "Number of panes to create (splits the current pane this many times)"
-              },
-              "orientation": {
-                "type": "'horizontal' | 'vertical'",
-                "description": "Split direction: 'horizontal' splits side-by-side, 'vertical' splits top/bottom"
-              },
-              "size": {
-                "type": "number",
-                "description": "Percentage size for each new pane"
-              }
-            }
-          }
-        },
-        "required": [],
-        "returns": "Promise<TmuxLayout>"
-      },
-      "runInPane": {
-        "description": "Run a command in a specific pane. Returns a PaneProcess handle.",
-        "parameters": {
-          "paneId": {
-            "type": "string",
-            "description": "The tmux pane ID (e.g. \"%5\")"
-          },
-          "command": {
-            "type": "string",
-            "description": "The command string to execute"
-          }
-        },
-        "required": [
-          "paneId",
-          "command"
-        ],
-        "returns": "Promise<PaneProcess>"
-      },
-      "capture": {
-        "description": "Capture the current content of a pane.",
-        "parameters": {
-          "paneId": {
-            "type": "string",
-            "description": "The tmux pane ID"
-          }
-        },
-        "required": [
-          "paneId"
-        ],
-        "returns": "Promise<string>"
-      },
-      "sendKeys": {
-        "description": "Send keys to a pane. If `literal` is provided, it's sent as a tmux key name (e.g. \"C-c\", \"Enter\"). Otherwise `text` is sent followed by Enter.",
-        "parameters": {
-          "paneId": {
-            "type": "string",
-            "description": "The tmux pane ID"
-          },
-          "text": {
-            "type": "string",
-            "description": "Text to type (followed by Enter)"
-          },
-          "literal": {
-            "type": "string",
-            "description": "A literal tmux key name (sent without Enter)"
-          }
-        },
-        "required": [
-          "paneId",
-          "text"
-        ],
-        "returns": "Promise<void>"
-      },
-      "isPaneAlive": {
-        "description": "Check if a pane is still alive.",
-        "parameters": {
-          "paneId": {
-            "type": "string",
-            "description": "Parameter paneId"
-          }
-        },
-        "required": [
-          "paneId"
-        ],
-        "returns": "Promise<boolean>"
-      },
-      "collapse": {
-        "description": "Kill all managed panes except the first one, returning to a single pane view.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      }
-    },
-    "getters": {},
-    "events": {
-      "sessionCreated": {
-        "name": "sessionCreated",
-        "description": "Event emitted by Tmux",
-        "arguments": {}
-      },
-      "sessionKilled": {
-        "name": "sessionKilled",
-        "description": "Event emitted by Tmux",
-        "arguments": {}
-      },
-      "paneSplit": {
-        "name": "paneSplit",
-        "description": "Event emitted by Tmux",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const tmux = container.feature('tmux', { enable: true })\nawait tmux.ensureSession()\n\nconst layout = tmux.split({ count: 2, orientation: 'horizontal' })\n\nconst tests = await layout.panes[0].run('bun test')\nconst build = await layout.panes[1].run('bun run build')\n\ntests.events.on('output', (data) => console.log('tests:', data))\n\nawait layout.awaitAll()\nawait layout.collapse()"
       }
     ]
   },
@@ -19279,6 +18928,24 @@ export const containerIntrospectionData = [
     "className": "Container",
     "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
     "methods": {
+      "subcontainer": {
+        "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
+        "parameters": {
+          "this": {
+            "type": "This",
+            "description": "Parameter this"
+          },
+          "options": {
+            "type": "ConstructorParameters<This['constructor']>[0]",
+            "description": "Options to override for the new container instance."
+          }
+        },
+        "required": [
+          "this",
+          "options"
+        ],
+        "returns": "This"
+      },
       "addContext": {
         "description": "",
         "parameters": {

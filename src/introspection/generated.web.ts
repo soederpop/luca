@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-27T01:25:40.043Z
+// Generated at: 2026-02-27T04:56:10.550Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -393,6 +393,24 @@ setContainerBuildTimeData('Container', {
   "className": "Container",
   "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
   "methods": {
+    "subcontainer": {
+      "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
+      "parameters": {
+        "this": {
+          "type": "This",
+          "description": "Parameter this"
+        },
+        "options": {
+          "type": "ConstructorParameters<This['constructor']>[0]",
+          "description": "Options to override for the new container instance."
+        }
+      },
+      "required": [
+        "this",
+        "options"
+      ],
+      "returns": "This"
+    },
     "addContext": {
       "description": "",
       "parameters": {
@@ -1150,6 +1168,24 @@ export const containerIntrospectionData = [
     "className": "Container",
     "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
     "methods": {
+      "subcontainer": {
+        "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
+        "parameters": {
+          "this": {
+            "type": "This",
+            "description": "Parameter this"
+          },
+          "options": {
+            "type": "ConstructorParameters<This['constructor']>[0]",
+            "description": "Options to override for the new container instance."
+          }
+        },
+        "required": [
+          "this",
+          "options"
+        ],
+        "returns": "This"
+      },
       "addContext": {
         "description": "",
         "parameters": {
