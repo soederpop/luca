@@ -18,6 +18,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
 	'include-output': z.boolean().default(false).describe('Include tool call outputs in the markdown (requires --out-file)'),
 	'dont-touch-file': z.boolean().default(false).describe('Do not update the prompt file frontmatter with run stats'),
+	'repeat-anyway': z.boolean().default(false).describe('Run even if repeatable is false and the prompt has already been run'),
 })
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
@@ -209,11 +210,20 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	const container = context.container as any
 	const { fs, paths } = container
 
-	const target = container.argv._[1] as string | undefined
-	const promptPath = container.argv._[2] as string | undefined
+	let target = container.argv._[1] as string | undefined
+	let promptPath = container.argv._[2] as string | undefined
+
+	// If only one arg given and it looks like a file path, default target to claude
+	if (target && !promptPath) {
+		const candidate = paths.resolve(target)
+		if (fs.exists(candidate)) {
+			promptPath = target
+			target = 'claude'
+		}
+	}
 
 	if (!target || !promptPath) {
-		console.error('Usage: luca prompt <claude|codex|assistant-name> <path/to/prompt.md>')
+		console.error('Usage: luca prompt [claude|codex|assistant-name] <path/to/prompt.md>')
 		process.exit(1)
 	}
 
@@ -225,6 +235,20 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 
 	let promptContent = fs.readFile(resolvedPath) as string
 
+	// Check repeatable gate: if frontmatter says repeatable: false and it has already run, bail out
+	if (!options['repeat-anyway'] && promptContent.startsWith('---')) {
+		const fmEnd = promptContent.indexOf('\n---', 3)
+		if (fmEnd !== -1) {
+			const yaml = container.feature('yaml')
+			const meta = yaml.parse(promptContent.slice(4, fmEnd)) || {}
+			if (meta.repeatable === false && meta.lastRanAt) {
+				console.error(`This prompt has already been run (lastRanAt: ${new Date(meta.lastRanAt).toLocaleString()}) and repeatable is false.`)
+				console.error('Use --repeat-anyway to run it again.')
+				process.exit(1)
+			}
+		}
+	}
+
 	// Strip YAML frontmatter unless --preserve-frontmatter is set
 	if (!options['preserve-frontmatter'] && promptContent.startsWith('---')) {
 		const endIndex = promptContent.indexOf('\n---', 3)
@@ -232,6 +256,9 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 			promptContent = promptContent.slice(endIndex + 4).trimStart()
 		}
 	}
+
+	const ui = container.feature('ui')
+	process.stdout.write(ui.markdown(promptContent))
 
 	let stats: RunStats
 
