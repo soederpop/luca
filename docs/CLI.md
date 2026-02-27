@@ -185,6 +185,36 @@ Discovers assistants from the configured folder (default `assistants/`). If mult
 
 ---
 
+### prompt
+
+Send a prompt file to an assistant, Claude Code, or OpenAI Codex and stream the response.
+
+```
+luca prompt <target> <path/to/prompt.md> [options]
+```
+
+The target can be:
+- `claude` — runs the prompt through the Claude Code CLI
+- `codex` — runs the prompt through the OpenAI Codex CLI
+- Any other name — looks up a local assistant via `assistantsManager`
+
+The prompt file is read as plain text and sent in full. Output streams to stdout as it arrives.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--model` | string | | Override the LLM model (assistant mode only) |
+| `--folder` | string | `assistants` | Directory containing assistant definitions |
+
+**Examples:**
+
+```
+luca prompt claude prompts/refactor.md
+luca prompt codex prompts/add-tests.md
+luca prompt my-assistant prompts/summarize.md --model gpt-4o
+```
+
+---
+
 ### mcp
 
 Start an MCP (Model Context Protocol) server.
