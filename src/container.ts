@@ -98,6 +98,28 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     })
   }
 
+  /**
+   * Creates a new subcontainer instance of the same concrete Container subclass.
+   *
+   * The new instance is constructed with the same options as this container,
+   * shallow-merged with any overrides you provide. This preserves the runtime
+   * container type (e.g. NodeContainer, BrowserContainer, etc.).
+   *
+   * @param options - Options to override for the new container instance.
+   * @returns A new container instance of the same subclass.
+   */
+  subcontainer<This extends Container<any, any>>(
+    this: This,
+    options: ConstructorParameters<This['constructor']>[0]
+  ): This {
+    const Ctor = this.constructor as new (options: ConstructorParameters<This['constructor']>[0]) => This
+    const mergedOptions = {
+      ...(this as any).options || {},
+      ...(options || {}),
+    }
+    return new Ctor(mergedOptions)
+  }
+
   z = z
 
   /** The observable state object for this container instance. */
