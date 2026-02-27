@@ -16,6 +16,8 @@ type File = {
   name: string;
   extension: string;
   size: number;
+  modifiedAt: Date;
+  createdAt: Date;
 };
 
 export const FileManagerStateSchema = FeatureStateSchema.extend({
@@ -214,9 +216,14 @@ export class FileManager<
       const { name, ext, dir } = parse(absolutePath);
 
       let size = 0
-     
+      let modifiedAt = new Date(0)
+      let createdAt = new Date(0)
+
       try {
-        size = statSync(absolutePath).size;
+        const stats = statSync(absolutePath);
+        size = stats.size;
+        modifiedAt = stats.mtime;
+        createdAt = stats.birthtime;
       } catch (error) {
       }
 
@@ -227,6 +234,8 @@ export class FileManager<
         name,
         extension: ext,
         size,
+        modifiedAt,
+        createdAt,
       });
     });
 
@@ -324,7 +333,7 @@ export class FileManager<
     // Reuse the logic from the scanFiles method to update a single file
     const absolutePath = this.container.paths.resolve(path);
     const { name, ext, dir } = parse(absolutePath);
-    const size = statSync(absolutePath).size;
+    const stats = statSync(absolutePath);
 
     this.files.set(path, {
       dirname: dir,
@@ -332,7 +341,9 @@ export class FileManager<
       relativePath: path,
       name,
       extension: ext,
-      size,
+      size: stats.size,
+      modifiedAt: stats.mtime,
+      createdAt: stats.birthtime,
     });
   }
 

@@ -5,7 +5,6 @@ import { Feature, type FeatureState, features } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { partial } from "lodash-es";
 import type { ContainerContext } from "../../container.js";
-import { mkdirSync } from "fs";
 
 export const DiskCacheOptionsSchema = FeatureOptionsSchema.extend({
   /** Whether to enable encryption for cached data */
@@ -339,7 +338,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    */
   create(path?: string) {
     path = path || this.options.path || this.container.paths.resolve('node_modules', '.cache', 'luca-disk-cache')
-    mkdirSync(path, { recursive: true })
+    this.container.fs.ensureFolder(path)
     const arg = (fn: (...args: any) => any) => partial(fn, path);
 
     const ls = arg(cacache.ls);

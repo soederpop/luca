@@ -257,6 +257,7 @@ export class VM<
       require: createRequire(filePath),
       exports: {},
       module: { exports: {} },
+      console,
       ...ctx,
     })
 

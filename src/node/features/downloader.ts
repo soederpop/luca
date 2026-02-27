@@ -1,7 +1,6 @@
 import { Feature, features } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import fetch from 'cross-fetch'
-import { writeFile } from 'fs/promises'
 
 /**
  * A feature that provides file downloading capabilities from URLs.
@@ -74,7 +73,7 @@ export class Downloader extends Feature {
    */
   async download(url: string, targetPath: string) {
     const buffer = await fetch(url).then(res => res.arrayBuffer())
-    await writeFile(
+    await this.container.fs.writeFileAsync(
       this.container.paths.resolve(targetPath),
       Buffer.from(buffer)
     )

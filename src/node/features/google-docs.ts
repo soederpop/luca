@@ -4,7 +4,6 @@ import { Feature, features } from '../feature.js'
 import { google, type docs_v1 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
 import type { GoogleDrive, DriveFile } from './google-drive.js'
-import { writeFile } from 'fs/promises'
 
 export const GoogleDocsStateSchema = FeatureStateSchema.extend({
   lastDocId: z.string().optional()
@@ -140,7 +139,7 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   async saveAsMarkdown(documentId: string, localPath: string): Promise<string> {
     const markdown = await this.getAsMarkdown(documentId)
     const outPath = this.container.paths.resolve(localPath)
-    await writeFile(outPath, markdown)
+    await this.container.fs.writeFileAsync(outPath, markdown)
     return outPath
   }
 

@@ -3,7 +3,6 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature, features } from '../feature.js'
 import { google, type drive_v3 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
-import { writeFile } from 'fs/promises'
 
 export type DriveFile = {
   id: string
@@ -267,7 +266,7 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
   async downloadTo(fileId: string, localPath: string): Promise<string> {
     const buffer = await this.download(fileId)
     const outPath = this.container.paths.resolve(localPath)
-    await writeFile(outPath, buffer)
+    await this.container.fs.writeFileAsync(outPath, buffer)
     return outPath
   }
 

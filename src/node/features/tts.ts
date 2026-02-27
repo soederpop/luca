@@ -1,9 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature, features } from '../feature.js'
-import { homedir } from 'os'
-import { join } from 'path'
-import { mkdirSync, writeFileSync } from 'fs'
 import { createHash } from 'crypto'
 
 const CHATTERBOX_ENDPOINT = 'https://api.runpod.ai/v2/chatterbox-turbo/runsync'
@@ -72,7 +69,7 @@ export class TTS extends Feature<TTSState, TTSOptions> {
 
   /** Directory where generated audio files are saved. */
   get outputDir(): string {
-    return this.options.outputDir || join(homedir(), '.luca', 'tts-cache')
+    return this.options.outputDir || this.container.paths.join(this.container.feature('os').homedir, '.luca', 'tts-cache')
   }
 
   /** The 20 preset voice names available in Chatterbox Turbo. */
@@ -163,12 +160,12 @@ export class TTS extends Feature<TTSState, TTSOptions> {
       const audioBuffer = Buffer.from(await audioResponse.arrayBuffer())
 
       // Save to output dir with hash-based name
-      mkdirSync(this.outputDir, { recursive: true })
+      this.container.fs.ensureFolder(this.outputDir)
       const hash = createHash('md5').update(text).digest('hex').slice(0, 8)
       const filename = `${hash}-${Date.now()}.${format}`
-      const filePath = join(this.outputDir, filename)
+      const filePath = this.container.paths.join(this.outputDir, filename)
 
-      writeFileSync(filePath, audioBuffer)
+      await this.container.fs.writeFileAsync(filePath, audioBuffer)
 
       const durationMs = Date.now() - startTime
 

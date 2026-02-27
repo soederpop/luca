@@ -449,8 +449,8 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       args.push(...options.extraArgs)
     }
 
-    args.push(prompt)
-
+    // Prompt is piped via stdin rather than passed as a positional arg,
+    // to avoid content like '---' being parsed as CLI flags.
     return args
   }
 
@@ -620,6 +620,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
+      stdin: Buffer.from(prompt),
       env: { ...process.env }
     })
 
@@ -750,6 +751,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
+      stdin: Buffer.from(prompt),
       env: { ...process.env }
     })
 
