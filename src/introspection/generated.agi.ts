@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-27T07:35:04.139Z
+// Generated at: 2026-02-27T08:06:04.053Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -4238,6 +4238,54 @@ setBuildTimeData('features.fs', {
         {
           "language": "ts",
           "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
+        }
+      ]
+    },
+    "appendFile": {
+      "description": "Synchronously appends content to a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path to append to"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "The content to append"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.appendFile('log.txt', 'New line\\n')"
+        }
+      ]
+    },
+    "appendFileAsync": {
+      "description": "Asynchronously appends content to a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path to append to"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "The content to append"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.appendFileAsync('log.txt', 'New line\\n')"
         }
       ]
     },
@@ -8823,109 +8871,6 @@ setBuildTimeData('features.openaiCodex', {
     {
       "language": "ts",
       "code": "const codex = container.feature('openaiCodex')\n\n// Listen for events\ncodex.on('session:message', ({ sessionId, message }) => console.log(message))\ncodex.on('session:patch', ({ sessionId, patch }) => console.log('File changed:', patch.path))\n\n// Run a prompt\nconst session = await codex.run('Fix the failing tests in src/')\nconsole.log(session.result)"
-    }
-  ]
-});
-
-setBuildTimeData('features.heartbeat', {
-  "id": "features.heartbeat",
-  "description": "Heartbeat is a single-shot play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes due tiers based on persisted state from disk.",
-  "shortcut": "features.heartbeat",
-  "className": "Heartbeat",
-  "methods": {
-    "describe": {
-      "description": "Returns a human-readable description of the heartbeat schedule. Shows each tier, when it fires, and what plays it contains.",
-      "parameters": {},
-      "required": [],
-      "returns": "string"
-    },
-    "loadPlays": {
-      "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval, startHour, endHour from frontmatter.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<Tier[]>"
-    },
-    "loadState": {
-      "description": "Load persisted state from diskCache. Hydrates this.state with saved values.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "saveState": {
-      "description": "Save current state to diskCache for persistence across runs.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "run": {
-      "description": "Main entry point. Loads plays, hydrates state from disk, checks working hours, determines which tiers are due, executes them, and saves state.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    }
-  },
-  "getters": {
-    "tiers": {
-      "description": "The parsed tiers and their plays.",
-      "returns": "Tier[]"
-    },
-    "minuteInterval": {
-      "description": "The resolved interval in minutes.",
-      "returns": "number"
-    },
-    "startHour": {
-      "description": "Configured start hour for working hours.",
-      "returns": "number"
-    },
-    "endHour": {
-      "description": "Configured end hour for working hours.",
-      "returns": "number"
-    }
-  },
-  "events": {
-    "runComplete": {
-      "name": "runComplete",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "tick": {
-      "name": "tick",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "tierDue": {
-      "name": "tierDue",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "tierSkipped": {
-      "name": "tierSkipped",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "playStarted": {
-      "name": "playStarted",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "playCompleted": {
-      "name": "playCompleted",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    },
-    "playError": {
-      "name": "playError",
-      "description": "Event emitted by Heartbeat",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.run() // loads, checks schedule, runs due tiers, saves state"
     }
   ]
 });
@@ -13929,6 +13874,54 @@ export const introspectionData = [
           }
         ]
       },
+      "appendFile": {
+        "description": "Synchronously appends content to a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path to append to"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "The content to append"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.appendFile('log.txt', 'New line\\n')"
+          }
+        ]
+      },
+      "appendFileAsync": {
+        "description": "Asynchronously appends content to a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path to append to"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "The content to append"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.appendFileAsync('log.txt', 'New line\\n')"
+          }
+        ]
+      },
       "ensureFolder": {
         "description": "Synchronously ensures a directory exists, creating parent directories as needed.",
         "parameters": {
@@ -18486,108 +18479,6 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const codex = container.feature('openaiCodex')\n\n// Listen for events\ncodex.on('session:message', ({ sessionId, message }) => console.log(message))\ncodex.on('session:patch', ({ sessionId, patch }) => console.log('File changed:', patch.path))\n\n// Run a prompt\nconst session = await codex.run('Fix the failing tests in src/')\nconsole.log(session.result)"
-      }
-    ]
-  },
-  {
-    "id": "features.heartbeat",
-    "description": "Heartbeat is a single-shot play executor that reads a HEARTBEAT.md document from the container's docs collection, parses code blocks and prompt headings into plays organized by timing tiers, and executes due tiers based on persisted state from disk.",
-    "shortcut": "features.heartbeat",
-    "className": "Heartbeat",
-    "methods": {
-      "describe": {
-        "description": "Returns a human-readable description of the heartbeat schedule. Shows each tier, when it fires, and what plays it contains.",
-        "parameters": {},
-        "required": [],
-        "returns": "string"
-      },
-      "loadPlays": {
-        "description": "Load the HEARTBEAT document from container.docs and parse all plays. Reads minuteInterval, startHour, endHour from frontmatter.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<Tier[]>"
-      },
-      "loadState": {
-        "description": "Load persisted state from diskCache. Hydrates this.state with saved values.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "saveState": {
-        "description": "Save current state to diskCache for persistence across runs.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "run": {
-        "description": "Main entry point. Loads plays, hydrates state from disk, checks working hours, determines which tiers are due, executes them, and saves state.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      }
-    },
-    "getters": {
-      "tiers": {
-        "description": "The parsed tiers and their plays.",
-        "returns": "Tier[]"
-      },
-      "minuteInterval": {
-        "description": "The resolved interval in minutes.",
-        "returns": "number"
-      },
-      "startHour": {
-        "description": "Configured start hour for working hours.",
-        "returns": "number"
-      },
-      "endHour": {
-        "description": "Configured end hour for working hours.",
-        "returns": "number"
-      }
-    },
-    "events": {
-      "runComplete": {
-        "name": "runComplete",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "tick": {
-        "name": "tick",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "tierDue": {
-        "name": "tierDue",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "tierSkipped": {
-        "name": "tierSkipped",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "playStarted": {
-        "name": "playStarted",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "playCompleted": {
-        "name": "playCompleted",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      },
-      "playError": {
-        "name": "playError",
-        "description": "Event emitted by Heartbeat",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const heartbeat = container.feature('heartbeat', { enable: true })\nawait heartbeat.run() // loads, checks schedule, runs due tiers, saves state"
       }
     ]
   },

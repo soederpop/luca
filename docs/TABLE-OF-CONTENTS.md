@@ -95,7 +95,6 @@
 - [Conversation (features.conversation)](./apis/features/agi/conversation.md)
 - [ConversationHistory (features.conversationHistory)](./apis/features/agi/conversation-history.md)
 - [DocsReader (features.docsReader)](./apis/features/agi/docs-reader.md)
-- [Heartbeat (features.heartbeat)](./apis/features/agi/heartbeat.md)
 - [OpenAICodex (features.openaiCodex)](./apis/features/agi/openai-codex.md)
 - [OpenAPI (features.openapi)](./apis/features/agi/openapi.md)
 - [SkillsLibrary (features.skillsLibrary)](./apis/features/agi/skills-library.md)

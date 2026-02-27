@@ -180,6 +180,50 @@ await fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))
 
 
 
+### appendFile
+
+Synchronously appends content to a file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `path` | `string` | ✓ | The file path to append to |
+
+| `content` | `Buffer | string` | ✓ | The content to append |
+
+**Returns:** `void`
+
+```ts
+fs.appendFile('log.txt', 'New line\n')
+```
+
+
+
+### appendFileAsync
+
+Asynchronously appends content to a file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+
+|------|------|----------|-------------|
+
+| `path` | `string` | ✓ | The file path to append to |
+
+| `content` | `Buffer | string` | ✓ | The content to append |
+
+**Returns:** `void`
+
+```ts
+await fs.appendFileAsync('log.txt', 'New line\n')
+```
+
+
+
 ### ensureFolder
 
 Synchronously ensures a directory exists, creating parent directories as needed.
@@ -496,6 +540,22 @@ await fs.ensureFileAsync('config/settings.json', '{}', true)
 ```ts
 await fs.writeFileAsync('output.txt', 'Hello World')
 await fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))
+```
+
+
+
+**appendFile**
+
+```ts
+fs.appendFile('log.txt', 'New line\n')
+```
+
+
+
+**appendFileAsync**
+
+```ts
+await fs.appendFileAsync('log.txt', 'New line\n')
 ```
 
 

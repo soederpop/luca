@@ -10,7 +10,6 @@ import { ConversationHistory } from './features/conversation-history'
 import { DocsReader } from './features/docs-reader'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
-import { Heartbeat } from './features/heartbeat'
 import { ContentDb } from '@soederpop/luca/node/features/content-db'
 
 import type { ConversationTool } from './features/conversation'
@@ -25,7 +24,6 @@ export {
 	DocsReader,
 	Assistant,
 	AssistantsManager,
-	Heartbeat,
 	ContentDb,
 	NodeContainer,
 	OpenAIClient,
@@ -105,7 +103,6 @@ const container = new AGIContainer()
 	.use(DocsReader)
 	.use(Assistant)
 	.use(AssistantsManager)
-	.use(Heartbeat)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')

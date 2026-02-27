@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-27T07:35:04.032Z
+// Generated at: 2026-02-27T08:06:03.963Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -4238,6 +4238,54 @@ setBuildTimeData('features.fs', {
         {
           "language": "ts",
           "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
+        }
+      ]
+    },
+    "appendFile": {
+      "description": "Synchronously appends content to a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path to append to"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "The content to append"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.appendFile('log.txt', 'New line\\n')"
+        }
+      ]
+    },
+    "appendFileAsync": {
+      "description": "Asynchronously appends content to a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file path to append to"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "The content to append"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.appendFileAsync('log.txt', 'New line\\n')"
         }
       ]
     },
@@ -11914,6 +11962,54 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "await fs.writeFileAsync('output.txt', 'Hello World')\nawait fs.writeFileAsync('data.bin', Buffer.from([1, 2, 3, 4]))"
+          }
+        ]
+      },
+      "appendFile": {
+        "description": "Synchronously appends content to a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path to append to"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "The content to append"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.appendFile('log.txt', 'New line\\n')"
+          }
+        ]
+      },
+      "appendFileAsync": {
+        "description": "Asynchronously appends content to a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file path to append to"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "The content to append"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.appendFileAsync('log.txt', 'New line\\n')"
           }
         ]
       },

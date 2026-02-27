@@ -3,12 +3,13 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import {
   mkdirSync,
   writeFileSync,
+  appendFileSync,
   readdirSync,
   statSync,
   readFileSync,
 } from "fs";
 import { join, resolve, dirname } from "path";
-import { readFile, stat, unlink, mkdir, writeFile, readdir } from "fs/promises";
+import { readFile, stat, unlink, mkdir, writeFile, appendFile, readdir } from "fs/promises";
 import { native as rimraf } from 'rimraf'
 
 type WalkOptions = {
@@ -235,7 +236,38 @@ export class FS extends Feature {
    * ```
    */
   async writeFileAsync(path:string, content: Buffer | string) {
-    return writeFile(this.container.paths.resolve(path), content)  
+    return writeFile(this.container.paths.resolve(path), content)
+  }
+
+  /**
+   * Synchronously appends content to a file.
+   *
+   * @param {string} path - The file path to append to
+   * @param {Buffer | string} content - The content to append
+   *
+   * @example
+   * ```typescript
+   * fs.appendFile('log.txt', 'New line\n')
+   * ```
+   */
+  appendFile(path: string, content: Buffer | string) {
+    appendFileSync(this.container.paths.resolve(path), content)
+  }
+
+  /**
+   * Asynchronously appends content to a file.
+   *
+   * @param {string} path - The file path to append to
+   * @param {Buffer | string} content - The content to append
+   * @returns {Promise<void>} A promise that resolves when the content is appended
+   *
+   * @example
+   * ```typescript
+   * await fs.appendFileAsync('log.txt', 'New line\n')
+   * ```
+   */
+  async appendFileAsync(path: string, content: Buffer | string) {
+    return appendFile(this.container.paths.resolve(path), content)
   }
 
   /**

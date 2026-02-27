@@ -19,6 +19,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'include-output': z.boolean().default(false).describe('Include tool call outputs in the markdown (requires --out-file)'),
 	'dont-touch-file': z.boolean().default(false).describe('Do not update the prompt file frontmatter with run stats'),
 	'repeat-anyway': z.boolean().default(false).describe('Run even if repeatable is false and the prompt has already been run'),
+	'append-response': z.boolean().default(false).describe('Append the final summary response to the prompt file'),
 })
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
@@ -59,6 +60,7 @@ interface RunStats {
 	collectedEvents: any[]
 	durationMs: number
 	outputTokens: number
+	lastResponse: string
 }
 
 async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>): Promise<RunStats> {
@@ -73,6 +75,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	}
 
 	let outputTokens = 0
+	let lastResponse = ''
 
 	// Render complete messages — text gets markdown formatting, tool_use gets a summary line
 	feature.on('session:message', ({ message }: { message: any }) => {
@@ -81,6 +84,9 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 		const usage = message?.message?.usage
 		if (usage?.output_tokens) outputTokens += usage.output_tokens
+
+		const textParts = content.filter((b: any) => b.type === 'text' && b.text).map((b: any) => b.text)
+		if (textParts.length) lastResponse = textParts.join('\n')
 
 		for (const block of content) {
 			if (block.type === 'text' && block.text) {
@@ -123,7 +129,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	process.stdout.write('\n')
 
-	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens }
+	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens, lastResponse }
 }
 
 async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any): Promise<RunStats> {
@@ -144,6 +150,7 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 
 	const assistant = manager.create(name, createOptions)
 	let isFirstChunk = true
+	let lastResponseChunks: string[] = []
 
 	// Collect structured events for --out-file
 	const collectedEvents: any[] = []
@@ -154,12 +161,14 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 			isFirstChunk = false
 		}
 		process.stdout.write(text)
+		lastResponseChunks.push(text)
 		if (options['out-file']) {
 			collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
 		}
 	})
 
 	assistant.on('toolCall', (toolName: string, args: any) => {
+		lastResponseChunks = []
 		const argsStr = JSON.stringify(args).slice(0, 120)
 		process.stdout.write(ui.colors.dim(`\n  ⟳ ${toolName}`) + ui.colors.dim(`(${argsStr})\n`))
 		if (options['out-file']) {
@@ -184,7 +193,7 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	await assistant.ask(promptContent)
 	process.stdout.write('\n')
 
-	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens: 0 }
+	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens: 0, lastResponse: lastResponseChunks.join('') }
 }
 
 function updateFrontmatter(fileContent: string, updates: Record<string, any>, container: any): string {
@@ -280,6 +289,10 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		}
 		const updated = updateFrontmatter(rawContent, updates, container)
 		await Bun.write(resolvedPath, updated)
+	}
+
+	if (options['append-response'] && stats.lastResponse) {
+		await fs.appendFileAsync(resolvedPath, `\n\n## Response\n\n${stats.lastResponse.trim()}\n`)
 	}
 
 	if (options['out-file'] && stats.collectedEvents.length) {
