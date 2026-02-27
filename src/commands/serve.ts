@@ -14,6 +14,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	port: z.number().default(3000).describe('Port to listen on'),
 	endpointsDir: z.string().optional().describe('Directory to load endpoints from'),
 	staticDir: z.string().optional().describe('Directory to serve static files from'),
+	setup: z.string().optional().describe('Path to a TS module whose default export receives the server instance'),
 	cors: z.boolean().default(true).describe('Enable CORS'),
 	force: z.boolean().default(false).describe('Kill any process currently using the target port'),
 	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
@@ -98,6 +99,20 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 			version: manifest.version || '0.0.0',
 			description: manifest.description || '',
 		})
+	}
+
+	if (options.setup) {
+		const setupPath = paths.resolve(options.setup)
+		if (!fs.exists(setupPath)) {
+			console.error(`Setup module not found: ${setupPath}`)
+			process.exit(1)
+		}
+		const vmFeature = container.feature('vm')
+		const mod = vmFeature.loadModule(setupPath, { server: expressServer })
+		const setupFn = mod.default || mod
+		if (typeof setupFn === 'function') {
+			await setupFn(expressServer)
+		}
 	}
 
 	await expressServer.start({ port })
