@@ -46,6 +46,50 @@ export class VM<
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
 
+  /** Map of virtual module IDs to their exports, consulted before Node's native require */
+  modules: Map<string, any> = new Map()
+
+  /**
+   * Register a virtual module that will be available to `require()` inside VM-executed code.
+   * Modules registered here take precedence over Node's native resolution.
+   *
+   * @param id - The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)
+   * @param exports - The module's exports object
+   *
+   * @example
+   * ```typescript
+   * const vm = container.feature('vm')
+   * vm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })
+   * vm.defineModule('zod', { z })
+   *
+   * // Now loadModule can resolve these in user code:
+   * // import { Container } from '@soederpop/luca'  → works
+   * ```
+   */
+  defineModule(id: string, exports: any) {
+    this.modules.set(id, exports)
+  }
+
+  /**
+   * Build a require function that resolves from the virtual modules map first,
+   * falling back to Node's native `createRequire` for everything else.
+   *
+   * @param filePath - The file path to scope native require resolution to
+   * @returns A require function with `.resolve` preserved from the native require
+   */
+  createRequireFor(filePath: string) {
+    const nodeRequire = createRequire(filePath)
+    const modules = this.modules
+
+    const customRequire = (id: string) => {
+      if (modules.has(id)) return modules.get(id)
+      return nodeRequire(id)
+    }
+
+    customRequire.resolve = nodeRequire.resolve.bind(nodeRequire)
+    return customRequire
+  }
+
   /**
    * Creates a new VM script from the provided code.
    * 
@@ -254,7 +298,7 @@ export class VM<
     const { code } = this.container.feature('esbuild').transformSync(raw, { format: 'cjs' })
 
     const { context } = this.performSync(code, {
-      require: createRequire(filePath),
+      require: this.createRequireFor(filePath),
       exports: {},
       module: { exports: {} },
       console,

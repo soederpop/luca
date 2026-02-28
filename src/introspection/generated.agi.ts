@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-27T08:06:04.053Z
+// Generated at: 2026-02-28T02:25:37.480Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1405,6 +1405,43 @@ setBuildTimeData('features.vm', {
   "shortcut": "features.vm",
   "className": "VM",
   "methods": {
+    "defineModule": {
+      "description": "Register a virtual module that will be available to `require()` inside VM-executed code. Modules registered here take precedence over Node's native resolution.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)"
+        },
+        "exports": {
+          "type": "any",
+          "description": "The module's exports object"
+        }
+      },
+      "required": [
+        "id",
+        "exports"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const vm = container.feature('vm')\nvm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from '@soederpop/luca'  → works"
+        }
+      ]
+    },
+    "createRequireFor": {
+      "description": "Build a require function that resolves from the virtual modules map first, falling back to Node's native `createRequire` for everything else.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "The file path to scope native require resolution to"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "void"
+    },
     "createScript": {
       "description": "Creates a new VM script from the provided code. This method compiles JavaScript code into a VM script that can be executed multiple times in different contexts. The script is pre-compiled for better performance when executing the same code repeatedly.",
       "parameters": {
@@ -11056,6 +11093,43 @@ export const introspectionData = [
     "shortcut": "features.vm",
     "className": "VM",
     "methods": {
+      "defineModule": {
+        "description": "Register a virtual module that will be available to `require()` inside VM-executed code. Modules registered here take precedence over Node's native resolution.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)"
+          },
+          "exports": {
+            "type": "any",
+            "description": "The module's exports object"
+          }
+        },
+        "required": [
+          "id",
+          "exports"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const vm = container.feature('vm')\nvm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from '@soederpop/luca'  → works"
+          }
+        ]
+      },
+      "createRequireFor": {
+        "description": "Build a require function that resolves from the virtual modules map first, falling back to Node's native `createRequire` for everything else.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "The file path to scope native require resolution to"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "void"
+      },
       "createScript": {
         "description": "Creates a new VM script from the provided code. This method compiles JavaScript code into a VM script that can be executed multiple times in different contexts. The script is pre-compiled for better performance when executing the same code repeatedly.",
         "parameters": {
