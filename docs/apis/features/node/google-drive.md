@@ -13,7 +13,7 @@ container.feature('googleDrive', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -174,7 +174,7 @@ List all shared drives the user has access to.
 |----------|------|-------------|
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### filesFetched
 
@@ -194,7 +194,7 @@ Event emitted by GoogleDrive
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

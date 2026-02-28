@@ -25,7 +25,7 @@ container.feature('googleAuth', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -106,7 +106,7 @@ Revoke the current credentials and clear cached tokens.
 | `redirectPort` | `number` | Resolved redirect port from options, GOOGLE_OAUTH_REDIRECT_PORT env var, or default 3000. |
 | `tokenCacheKey` | `string` | DiskCache key used for storing the refresh token. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### tokenRefreshed
 
@@ -132,7 +132,7 @@ Event emitted by GoogleAuth
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

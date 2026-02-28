@@ -15,7 +15,7 @@ container.feature('docker', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -553,7 +553,7 @@ Initialize the Docker feature by checking availability and optionally refreshing
 |----------|------|-------------|
 | `proc` | `any` | Get the proc feature for executing shell commands |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

@@ -17,7 +17,7 @@ container.feature('sqlite', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -118,7 +118,7 @@ db.close()
 |----------|------|-------------|
 | `db` | `any` | Returns the underlying Bun sqlite database instance. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### query
 

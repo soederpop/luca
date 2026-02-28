@@ -66,7 +66,7 @@ Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

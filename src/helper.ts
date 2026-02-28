@@ -354,7 +354,7 @@ function renderEventsSection(introspection: HelperIntrospection, heading: (level
   const sections: string[] = []
   if (!introspection.events || Object.keys(introspection.events).length === 0) return sections
 
-  sections.push(`${heading(2)} Events`)
+  sections.push(`${heading(2)} Events (Zod v4 schema)`)
 
   for (const [eventName, eventInfo] of Object.entries(introspection.events)) {
     sections.push(`${heading(3)} ${eventName}`)
@@ -388,7 +388,7 @@ function renderStateSection(introspection: HelperIntrospection, heading: (level:
   if (!introspection.state || Object.keys(introspection.state).length === 0) return sections
 
   const tableRows = [
-    `${heading(2)} State`,
+    `${heading(2)} State (Zod v4 schema)`,
     '',
     `| Property | Type | Description |`,
     `|----------|------|-------------|`,
@@ -407,7 +407,7 @@ function renderOptionsSection(introspection: HelperIntrospection, heading: (leve
   if (!introspection.options || Object.keys(introspection.options).length === 0) return sections
 
   const tableRows = [
-    `${heading(2)} Options`,
+    `${heading(2)} Options (Zod v4 schema)`,
     '',
     `| Property | Type | Description |`,
     `|----------|------|-------------|`,

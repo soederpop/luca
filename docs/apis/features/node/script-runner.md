@@ -14,7 +14,7 @@ container.feature('scriptRunner')
 |----------|------|-------------|
 | `scripts` | `any` | Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., "build:dev") are converted by replacing colons with underscores before camelCasing. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

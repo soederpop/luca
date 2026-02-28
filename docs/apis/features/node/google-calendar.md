@@ -13,7 +13,7 @@ container.feature('googleCalendar', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -136,7 +136,7 @@ Search events by text query across event summaries, descriptions, and locations.
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
 | `defaultCalendarId` | `string` | Default calendar ID from options or 'primary'. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### error
 
@@ -150,7 +150,7 @@ Event emitted by GoogleCalendar
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

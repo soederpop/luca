@@ -13,14 +13,14 @@ container.client('rest', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `baseURL` | `string` | Base URL for the client connection |
 | `json` | `boolean` | Whether to automatically parse responses as JSON |
 
-## Events
+## Events (Zod v4 schema)
 
 ### failure
 
@@ -34,7 +34,7 @@ Emitted when a request fails
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

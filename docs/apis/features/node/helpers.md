@@ -11,7 +11,7 @@ container.feature('helpers', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -108,7 +108,7 @@ Get the introspection description for a specific helper.
 | `manifestURL` | `string` | The URL to fetch the helpers manifest from. |
 | `available` | `Record<string, string[]>` | Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

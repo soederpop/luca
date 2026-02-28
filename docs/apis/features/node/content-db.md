@@ -11,7 +11,7 @@ container.feature('contentDb', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -82,7 +82,7 @@ console.log(contentDb.isLoaded) // true
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

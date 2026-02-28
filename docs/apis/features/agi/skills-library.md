@@ -13,7 +13,7 @@ container.feature('skillsLibrary', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -158,7 +158,7 @@ Generates a markdown block listing all available skills with names and descripti
 | `isLoaded` | `boolean` | Whether the skills library has been loaded. |
 | `skillNames` | `string[]` | Array of all skill names across both collections. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### loaded
 
@@ -184,7 +184,7 @@ Event emitted by SkillsLibrary
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

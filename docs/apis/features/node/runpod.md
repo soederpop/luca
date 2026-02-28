@@ -13,7 +13,7 @@ container.feature('runpod', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -465,7 +465,7 @@ gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 | `apiKey` | `any` | RunPod API key from options or the RUNPOD_API_KEY environment variable. |
 | `dataCenterId` | `any` | Preferred data center ID, defaults to 'US-TX-3'. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

@@ -11,7 +11,7 @@ container.feature('googleSheets', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -130,7 +130,7 @@ Download sheet data as CSV and save to a local file.
 |----------|------|-------------|
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### error
 
@@ -144,7 +144,7 @@ Event emitted by GoogleSheets
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

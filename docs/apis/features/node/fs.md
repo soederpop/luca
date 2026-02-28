@@ -397,7 +397,7 @@ const allPackageJsons = await fs.findUpAsync('package.json', { multiple: true })
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

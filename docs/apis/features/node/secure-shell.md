@@ -19,7 +19,7 @@ container.feature('secureShell', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -105,7 +105,7 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

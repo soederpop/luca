@@ -11,7 +11,7 @@ container.feature('postgres', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -109,7 +109,7 @@ await pg.close()
 |----------|------|-------------|
 | `client` | `any` | Returns the underlying Bun SQL postgres client. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### query
 
@@ -135,7 +135,7 @@ Event emitted by Postgres
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

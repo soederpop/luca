@@ -103,7 +103,7 @@ Search for Google Docs by name or content.
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
 | `drive` | `GoogleDrive` | Access the google-drive feature lazily. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### documentFetched
 
@@ -117,7 +117,7 @@ Event emitted by GoogleDocs
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

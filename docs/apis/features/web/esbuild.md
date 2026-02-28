@@ -41,7 +41,7 @@ container.feature('esbuild')
 |----------|------|-------------|
 | `assetLoader` | `any` | Returns the assetLoader feature for loading external libraries from unpkg. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

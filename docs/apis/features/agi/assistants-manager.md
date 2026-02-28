@@ -13,7 +13,7 @@ container.feature('assistantsManager', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -105,7 +105,7 @@ Generates a markdown summary of all discovered assistants, listing their names a
 |----------|------|-------------|
 | `assistantsFolder` | `string` | The absolute path to the assistants folder. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### discovered
 
@@ -126,7 +126,7 @@ Emitted when a new assistant instance is created
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

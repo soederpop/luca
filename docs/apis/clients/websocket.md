@@ -19,7 +19,7 @@ container.client('websocket', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -29,7 +29,7 @@ container.client('websocket', {
 | `reconnectInterval` | `number` | Base interval in milliseconds between reconnection attempts |
 | `maxReconnectAttempts` | `number` | Maximum number of reconnection attempts before giving up |
 
-## Events
+## Events (Zod v4 schema)
 
 ### failure
 
@@ -98,7 +98,7 @@ Emitted when attempting to reconnect
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

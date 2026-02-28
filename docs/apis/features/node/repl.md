@@ -13,7 +13,7 @@ container.feature('repl', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -58,7 +58,7 @@ await repl.start({
 | `isStarted` | `any` | Whether the REPL session is currently running. |
 | `vmContext` | `any` | The VM context object used for evaluating expressions in the REPL. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

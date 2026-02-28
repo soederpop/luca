@@ -150,7 +150,7 @@ await ipc.send({ type: 'hello', client_id: 'client_001' });
 | `isServer` | `any` | Checks if the IPC socket is operating in server mode. |
 | `connection` | `any` | Gets the current client connection socket. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### connection
 
@@ -164,7 +164,7 @@ Event emitted by IpcSocket
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

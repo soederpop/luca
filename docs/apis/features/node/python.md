@@ -17,7 +17,7 @@ container.feature('python', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -144,7 +144,7 @@ Gets information about the current Python environment.
 | `pythonPath` | `any` | Returns the path to the Python executable for this environment. |
 | `environmentType` | `any` | Returns the detected environment type: 'uv', 'conda', 'venv', or 'system'. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### ready
 
@@ -194,7 +194,7 @@ Event emitted by Python
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

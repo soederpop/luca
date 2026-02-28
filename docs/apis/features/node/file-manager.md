@@ -11,7 +11,7 @@ container.feature('fileManager', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -150,7 +150,7 @@ Watches the files in the project and updates the file manager state.
 | `isWatching` | `any` | Whether the file watcher is actively monitoring for changes. |
 | `watchedFiles` | `Record<string, string[]>` | Returns the directories and files currently being watched by chokidar. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### file:change
 
@@ -158,7 +158,7 @@ Event emitted by FileManager
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

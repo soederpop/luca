@@ -19,7 +19,7 @@ container.server('mcp', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -136,7 +136,7 @@ Stop the MCP server and close all connections.
 | `mcpServer` | `MCPProtocolServer` | The underlying MCP protocol server instance. Created during configure(). |
 | `handlerContext` | `MCPContext` | The handler context passed to all tool, resource, and prompt handlers. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### toolRegistered
 
@@ -162,7 +162,7 @@ Event emitted by MCPServer
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

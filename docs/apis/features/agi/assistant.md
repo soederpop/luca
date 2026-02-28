@@ -27,7 +27,7 @@ container.feature('assistant', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -138,7 +138,7 @@ Save the conversation to disk via conversationHistory.
 | `systemPrompt` | `string` | The current system prompt text. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### created
 
@@ -305,7 +305,7 @@ Event emitted by Assistant
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

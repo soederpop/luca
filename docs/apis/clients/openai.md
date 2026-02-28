@@ -27,7 +27,7 @@ container.client('openai', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -41,7 +41,7 @@ container.client('openai', {
 | `timeout` | `number` | Request timeout in milliseconds |
 | `maxRetries` | `number` | Maximum number of retries on failure |
 
-## Events
+## Events (Zod v4 schema)
 
 ### failure
 
@@ -55,7 +55,7 @@ Emitted when a request fails
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

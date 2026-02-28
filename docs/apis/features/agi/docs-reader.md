@@ -15,7 +15,7 @@ container.feature('docsReader', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -78,7 +78,7 @@ Ask the docs reader a question. It will read relevant documents and return an an
 | `contentDb` | `ContentDb` | The ContentDb instance this reader draws from. |
 | `isStarted` | `any` | Whether the reader has been started and is ready to answer questions. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### start
 
@@ -98,7 +98,7 @@ Event emitted by DocsReader
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

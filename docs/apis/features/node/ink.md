@@ -17,7 +17,7 @@ container.feature('ink', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -213,7 +213,7 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 | `instance` | `any` | The raw ink render instance if you need low-level access. |
 | `blocks` | `string[]` | List all registered block names. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### mounted
 
@@ -227,7 +227,7 @@ Event emitted by Ink
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

@@ -47,7 +47,7 @@ container.feature('voice')
 | `listening` | `any` | Whether the speech recognizer is currently listening for audio input. |
 | `transcript` | `any` | Returns the accumulated final transcript text from recognition results. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### start
 

@@ -15,7 +15,7 @@ container.feature('windowManager', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -260,7 +260,7 @@ Write an NDJSON message to the connected app client. Public so other features ca
 | `isListening` | `boolean` | Whether the IPC server is currently listening. |
 | `isClientConnected` | `boolean` | Whether the native app client is currently connected. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### listening
 
@@ -292,7 +292,7 @@ Event emitted by WindowManager
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

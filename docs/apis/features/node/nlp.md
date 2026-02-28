@@ -73,7 +73,7 @@ nlp.understand("draw a diagram of the auth flow")
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

@@ -29,7 +29,7 @@ container.feature('telegram', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -185,7 +185,7 @@ Print a diagnostic summary of the bot's current state.
 | `isRunning` | `boolean` | Whether the bot is currently receiving updates. |
 | `mode` | `'polling' | 'webhook' | 'idle'` | Current operation mode: 'polling', 'webhook', or 'idle'. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### stopped
 
@@ -217,7 +217,7 @@ Event emitted by Telegram
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

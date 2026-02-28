@@ -11,7 +11,7 @@ container.feature('processManager', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -146,7 +146,7 @@ Called by SpawnHandler when a process finishes. Updates feature-level state.
 
 
 
-## Events
+## Events (Zod v4 schema)
 
 ### spawned
 
@@ -178,7 +178,7 @@ Event emitted by ProcessManager
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

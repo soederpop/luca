@@ -107,7 +107,7 @@ Return a compact JSON summary of all endpoints, useful for logging or REPL inspe
 | `endpointNames` | `string[]` | All endpoint friendly names |
 | `endpointsByTag` | `Record<string, EndpointInfo[]>` | Map of endpoints grouped by tag |
 
-## Events
+## Events (Zod v4 schema)
 
 ### loaded
 

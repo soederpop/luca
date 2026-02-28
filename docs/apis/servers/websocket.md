@@ -15,7 +15,7 @@ container.server('websocket', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -69,7 +69,7 @@ container.server('websocket', {
 | `wss` | `any` |  |
 | `port` | `any` |  |
 
-## Events
+## Events (Zod v4 schema)
 
 ### connection
 
@@ -83,7 +83,7 @@ Event emitted by WebsocketServer
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

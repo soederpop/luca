@@ -17,7 +17,7 @@ container.feature('tts', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -65,7 +65,7 @@ const path = await tts.synthesize('Hello world', {
 | `outputDir` | `string` | Directory where generated audio files are saved. |
 | `voices` | `readonly string[]` | The 20 preset voice names available in Chatterbox Turbo. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### synthesized
 
@@ -79,7 +79,7 @@ Event emitted by TTS
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

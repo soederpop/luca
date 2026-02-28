@@ -35,7 +35,7 @@ container.feature('conversation', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -112,7 +112,7 @@ Persist this conversation to disk via conversationHistory. Creates a new record 
 | `openai` | `any` | Returns the OpenAI client instance from the container. |
 | `history` | `ConversationHistory` | Returns the conversationHistory feature for persistence. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### userMessage
 
@@ -198,7 +198,7 @@ Event emitted by Conversation
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

@@ -13,7 +13,7 @@ container.feature('conversationHistory', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -254,7 +254,7 @@ Update metadata on a conversation without touching messages.
 | `diskCache` | `DiskCache` |  |
 | `namespace` | `string` |  |
 
-## Events
+## Events (Zod v4 schema)
 
 ### saved
 
@@ -268,7 +268,7 @@ Event emitted by ConversationHistory
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

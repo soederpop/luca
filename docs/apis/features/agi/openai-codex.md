@@ -25,7 +25,7 @@ container.feature('openaiCodex', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -195,7 +195,7 @@ Enable the feature. Delegates to the base Feature enable() lifecycle.
 |----------|------|-------------|
 | `codexPath` | `string` |  |
 
-## Events
+## Events (Zod v4 schema)
 
 ### session:event
 
@@ -269,7 +269,7 @@ Event emitted by OpenAICodex
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

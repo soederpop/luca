@@ -89,7 +89,7 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

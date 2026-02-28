@@ -13,7 +13,7 @@ container.feature('launcherAppCommandListener', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -77,7 +77,7 @@ Write an NDJSON message to the connected app client.
 | `isListening` | `boolean` | Whether the IPC server is currently listening. |
 | `isClientConnected` | `boolean` | Whether the native app client is currently connected. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### listening
 
@@ -109,7 +109,7 @@ Event emitted by LauncherAppCommandListener
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

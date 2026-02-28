@@ -35,7 +35,7 @@ container.feature('claudeCode', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -291,7 +291,7 @@ Initialize the feature.
 |----------|------|-------------|
 | `claudePath` | `string` | Resolve the path to the claude CLI binary. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### session:log-error
 
@@ -359,7 +359,7 @@ Event emitted by ClaudeCode
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

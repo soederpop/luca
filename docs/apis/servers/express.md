@@ -23,7 +23,7 @@ container.server('express', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -111,7 +111,7 @@ container.server('express', {
 | `hooks` | `any` |  |
 | `app` | `any` |  |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|

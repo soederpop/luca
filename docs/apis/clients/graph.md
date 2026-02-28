@@ -15,7 +15,7 @@ container.client('graph', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -23,7 +23,7 @@ container.client('graph', {
 | `json` | `boolean` | Whether to automatically parse responses as JSON |
 | `endpoint` | `string` | The GraphQL endpoint path, defaults to /graphql |
 
-## Events
+## Events (Zod v4 schema)
 
 ### failure
 
@@ -49,7 +49,7 @@ Emitted when GraphQL-level errors are present in the response
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
