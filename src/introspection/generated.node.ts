@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-28T02:25:37.352Z
+// Generated at: 2026-02-28T04:18:13.325Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",

@@ -43,7 +43,8 @@
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "explain-codebase": "luca explain-codebase",
-    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs"
+    "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
+    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",

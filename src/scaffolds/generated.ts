@@ -1,0 +1,1511 @@
+// Auto-generated scaffold and MCP readme content
+// Generated at: 2026-02-28T03:57:31.915Z
+// Source: docs/scaffolds/*.md and docs/mcp/readme.md
+//
+// Do not edit manually. Run: luca build-scaffolds
+
+export interface ScaffoldSection {
+  heading: string
+  code: string
+}
+
+export interface ScaffoldData {
+  sections: ScaffoldSection[]
+  full: string
+  tutorial: string
+}
+
+export const scaffolds: Record<string, ScaffoldData> = {
+  feature: {
+    sections: [
+      { heading: "Imports", code: `import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
+import { Feature, features } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'` },
+      { heading: "Schemas", code: `export const {{PascalName}}StateSchema = FeatureStateSchema.extend({
+  // Add your state fields here. These are observable — changes emit events.
+  // Example: itemCount: z.number().default(0).describe('Number of items stored'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = FeatureOptionsSchema.extend({
+  // Add constructor options here. Validated when the feature is created.
+  // Example: directory: z.string().optional().describe('Storage directory path'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = FeatureEventsSchema.extend({
+  // Each key is an event name. Value is z.tuple() of listener arguments.
+  // Example: itemAdded: z.tuple([z.string().describe('Item key')]).describe('Emitted when an item is added'),
+})` },
+      { heading: "Class", code: `/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.feature('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'features.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super(options, context)
+    // Initialize state, set up resources
+  }
+
+  // Add your methods here. Every public method needs JSDoc.
+}` },
+      { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
+  interface AvailableFeatures {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}` },
+      { heading: "Registration", code: `export default features.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Complete Example", code: `import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableFeatures {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = FeatureStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = FeatureOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.feature('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'features.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super(options, context)
+  }
+}
+
+export default features.register('{{camelName}}', {{PascalName}})` }
+    ],
+    full: `import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableFeatures {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = FeatureStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = FeatureOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.feature('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'features.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super(options, context)
+  }
+}
+
+export default features.register('{{camelName}}', {{PascalName}})`,
+    tutorial: `# Building a Feature
+
+A feature is a container-managed capability — something your application needs that lives on the machine (file I/O, caching, encryption, etc). Features are lazy-loaded, observable, and self-documenting.
+
+When to build a feature:
+- You need a reusable local capability (not a network call — that's a client)
+- You want state management, events, and introspection for free
+- You're wrapping a library so the rest of the codebase uses a uniform interface
+
+## Imports
+
+\`\`\`ts
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
+import { Feature, features } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+\`\`\`
+
+These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
+
+## Schemas
+
+Define the shape of your feature's state, options, and events using Zod. Every field must have a \`.describe()\` — this becomes the documentation.
+
+\`\`\`ts
+export const {{PascalName}}StateSchema = FeatureStateSchema.extend({
+  // Add your state fields here. These are observable — changes emit events.
+  // Example: itemCount: z.number().default(0).describe('Number of items stored'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = FeatureOptionsSchema.extend({
+  // Add constructor options here. Validated when the feature is created.
+  // Example: directory: z.string().optional().describe('Storage directory path'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = FeatureEventsSchema.extend({
+  // Each key is an event name. Value is z.tuple() of listener arguments.
+  // Example: itemAdded: z.tuple([z.string().describe('Item key')]).describe('Emitted when an item is added'),
+})
+\`\`\`
+
+## Class
+
+The class extends \`Feature\` with your state and options types. Static properties drive registration and introspection. Every public method needs a JSDoc block with \`@param\`, \`@returns\`, and \`@example\`.
+
+\`\`\`ts
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.feature('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'features.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super(options, context)
+    // Initialize state, set up resources
+  }
+
+  // Add your methods here. Every public method needs JSDoc.
+}
+\`\`\`
+
+## Module Augmentation
+
+This is what gives \`container.feature('yourName')\` TypeScript autocomplete. Without it, the feature works but TypeScript won't know about it.
+
+\`\`\`ts
+declare module '@soederpop/luca' {
+  interface AvailableFeatures {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+\`\`\`
+
+## Registration
+
+The last line of the file registers the feature in the global registry. This must happen at module level (not inside a function).
+
+\`\`\`ts
+export default features.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Complete Example
+
+Here's a minimal but complete feature. This is what a real feature file looks like:
+
+\`\`\`ts
+import { z } from 'zod'
+import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableFeatures {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = FeatureStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = FeatureOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.feature('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'features.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super(options, context)
+  }
+}
+
+export default features.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Conventions
+
+- **Naming**: PascalCase for class, camelCase for registration ID. The file name should be kebab-case (e.g. \`disk-cache.ts\`).
+- **JSDoc**: Every public method, getter, and the class itself needs a JSDoc block. Include \`@example\` with working code.
+- **Describe everything**: Every Zod field needs \`.describe()\`. Every event tuple argument needs \`.describe()\`. This IS the documentation.
+- **No Node builtins in consumer code**: If your feature wraps \`fs\` or \`crypto\`, that's fine inside the feature. But code that USES your feature should never import those directly.
+- **State is observable**: Use \`this.state.set()\` and \`this.state.get()\`. Don't use plain instance properties for data that should be reactive.
+- **Events for lifecycle**: Emit events for significant state changes so consumers can react.
+`,
+  },
+  client: {
+    sections: [
+      { heading: "Imports", code: `import { z } from 'zod'
+import { Client, clients, RestClient } from '@soederpop/luca/client'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'` },
+      { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ClientStateSchema.extend({
+  // Add your state fields here.
+  // Example: authenticated: z.boolean().default(false).describe('Whether API auth is configured'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ClientOptionsSchema.extend({
+  // Add constructor options here.
+  // Example: apiKey: z.string().optional().describe('API key for authentication'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>` },
+      { heading: "Class", code: `/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.client('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends RestClient
+ */
+export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'clients.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    options = {
+      ...options,
+      baseURL: options.baseURL || 'https://api.example.com',
+    }
+    super(options, context)
+  }
+
+  // Add API methods here. Each wraps an endpoint.
+  // Example:
+  // async listItems(): Promise<Item[]> {
+  //   return this.get('/items')
+  // }
+}` },
+      { heading: "Module Augmentation", code: `declare module '@soederpop/luca/client' {
+  interface AvailableClients {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}` },
+      { heading: "Registration", code: `export default clients.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Complete Example", code: `import { z } from 'zod'
+import { clients, RestClient } from '@soederpop/luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca/client' {
+  interface AvailableClients {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ClientStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ClientOptionsSchema.extend({
+  baseURL: z.string().default('https://api.example.com').describe('API base URL'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.client('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends RestClient
+ */
+export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'clients.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super({ ...options, baseURL: options.baseURL }, context)
+  }
+}
+
+export default clients.register('{{camelName}}', {{PascalName}})` }
+    ],
+    full: `import { z } from 'zod'
+import { clients, RestClient } from '@soederpop/luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca/client' {
+  interface AvailableClients {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ClientStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ClientOptionsSchema.extend({
+  baseURL: z.string().default('https://api.example.com').describe('API base URL'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.client('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends RestClient
+ */
+export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'clients.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super({ ...options, baseURL: options.baseURL }, context)
+  }
+}
+
+export default clients.register('{{camelName}}', {{PascalName}})`,
+    tutorial: `# Building a Client
+
+A client is a container-managed connection to an external service. Clients handle network communication — HTTP APIs, WebSocket connections, GraphQL endpoints. They extend \`RestClient\` (for HTTP), \`WebSocketClient\` (for WS), or the base \`Client\` class.
+
+When to build a client:
+- You need to talk to an external API or service
+- You want connection management, error handling, and observability for free
+- You're wrapping an API so the rest of the codebase uses \`container.client('name')\`
+
+## Imports
+
+\`\`\`ts
+import { z } from 'zod'
+import { Client, clients, RestClient } from '@soederpop/luca/client'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+\`\`\`
+
+Use \`RestClient\` for HTTP APIs (most common). It gives you \`get\`, \`post\`, \`put\`, \`patch\`, \`delete\` methods that handle JSON, headers, and error wrapping.
+
+## Schemas
+
+\`\`\`ts
+export const {{PascalName}}StateSchema = ClientStateSchema.extend({
+  // Add your state fields here.
+  // Example: authenticated: z.boolean().default(false).describe('Whether API auth is configured'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ClientOptionsSchema.extend({
+  // Add constructor options here.
+  // Example: apiKey: z.string().optional().describe('API key for authentication'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+\`\`\`
+
+## Class
+
+\`\`\`ts
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.client('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends RestClient
+ */
+export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'clients.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    options = {
+      ...options,
+      baseURL: options.baseURL || 'https://api.example.com',
+    }
+    super(options, context)
+  }
+
+  // Add API methods here. Each wraps an endpoint.
+  // Example:
+  // async listItems(): Promise<Item[]> {
+  //   return this.get('/items')
+  // }
+}
+\`\`\`
+
+## Module Augmentation
+
+\`\`\`ts
+declare module '@soederpop/luca/client' {
+  interface AvailableClients {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+\`\`\`
+
+## Registration
+
+\`\`\`ts
+export default clients.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Complete Example
+
+\`\`\`ts
+import { z } from 'zod'
+import { clients, RestClient } from '@soederpop/luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca/client' {
+  interface AvailableClients {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ClientStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ClientOptionsSchema.extend({
+  baseURL: z.string().default('https://api.example.com').describe('API base URL'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.client('{{camelName}}')
+ * \`\`\`
+ *
+ * @extends RestClient
+ */
+export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'clients.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override description = '{{description}}'
+
+  constructor(options: {{PascalName}}Options, context: ContainerContext) {
+    super({ ...options, baseURL: options.baseURL }, context)
+  }
+}
+
+export default clients.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Conventions
+
+- **Extend RestClient for HTTP**: It gives you typed HTTP methods. Only use base \`Client\` if you need a non-HTTP protocol.
+- **Set baseURL in constructor**: Override options to hardcode or default the API base URL.
+- **Wrap endpoints as methods**: Each API endpoint gets a method. Keep them thin — just map to HTTP calls.
+- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`.
+- **Auth in options**: Pass API keys, tokens via options schema. Check them in the constructor or a setup method.
+`,
+  },
+  server: {
+    sections: [
+      { heading: "Imports", code: `import { z } from 'zod'
+import { Server, servers } from '@soederpop/luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
+import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { ServersInterface } from '@soederpop/luca'` },
+      { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ServerStateSchema.extend({
+  // Add your state fields here.
+  // Example: connectionCount: z.number().default(0).describe('Active connections'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ServerOptionsSchema.extend({
+  // Add constructor options here. port and host come from ServerOptionsSchema.
+  // Example: cors: z.boolean().default(true).describe('Enable CORS'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({
+  // Add your events here.
+  // Example: connection: z.tuple([z.string().describe('Client ID')]).describe('New client connected'),
+})` },
+      { heading: "Class", code: `/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.server('{{camelName}}', { port: 3000 })
+ * await {{camelName}}.start()
+ * \`\`\`
+ *
+ * @extends Server
+ */
+export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'servers.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  static override attach(container: NodeContainer & ServersInterface) {
+    return container
+  }
+
+  override async configure() {
+    if (this.isConfigured) return this
+    // Set up the underlying server here
+    this.state.set('configured', true)
+    return this
+  }
+
+  override async start(options?: { port?: number }) {
+    if (this.isListening) return this
+    if (!this.isConfigured) await this.configure()
+
+    const port = options?.port || this.options.port || 3000
+    // Start listening here
+    this.state.set('port', port)
+    this.state.set('listening', true)
+    return this
+  }
+
+  override async stop() {
+    if (this.isStopped) return this
+    // Clean up connections here
+    this.state.set('listening', false)
+    this.state.set('stopped', true)
+    return this
+  }
+}` },
+      { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
+  interface AvailableServers {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}` },
+      { heading: "Registration", code: `export default servers.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Complete Example", code: `import { z } from 'zod'
+import { Server, servers } from '@soederpop/luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
+import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { ServersInterface } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableServers {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ServerStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ServerOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({})
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.server('{{camelName}}', { port: 3000 })
+ * await {{camelName}}.start()
+ * \`\`\`
+ *
+ * @extends Server
+ */
+export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'servers.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  static override attach(container: NodeContainer & ServersInterface) {
+    return container
+  }
+
+  override async configure() {
+    if (this.isConfigured) return this
+    this.state.set('configured', true)
+    return this
+  }
+
+  override async start(options?: { port?: number }) {
+    if (this.isListening) return this
+    if (!this.isConfigured) await this.configure()
+    const port = options?.port || this.options.port || 3000
+    this.state.set('port', port)
+    this.state.set('listening', true)
+    return this
+  }
+
+  override async stop() {
+    if (this.isStopped) return this
+    this.state.set('listening', false)
+    this.state.set('stopped', true)
+    return this
+  }
+}
+
+export default servers.register('{{camelName}}', {{PascalName}})` }
+    ],
+    full: `import { z } from 'zod'
+import { Server, servers } from '@soederpop/luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
+import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { ServersInterface } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableServers {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ServerStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ServerOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({})
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.server('{{camelName}}', { port: 3000 })
+ * await {{camelName}}.start()
+ * \`\`\`
+ *
+ * @extends Server
+ */
+export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'servers.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  static override attach(container: NodeContainer & ServersInterface) {
+    return container
+  }
+
+  override async configure() {
+    if (this.isConfigured) return this
+    this.state.set('configured', true)
+    return this
+  }
+
+  override async start(options?: { port?: number }) {
+    if (this.isListening) return this
+    if (!this.isConfigured) await this.configure()
+    const port = options?.port || this.options.port || 3000
+    this.state.set('port', port)
+    this.state.set('listening', true)
+    return this
+  }
+
+  override async stop() {
+    if (this.isStopped) return this
+    this.state.set('listening', false)
+    this.state.set('stopped', true)
+    return this
+  }
+}
+
+export default servers.register('{{camelName}}', {{PascalName}})`,
+    tutorial: `# Building a Server
+
+A server is a container-managed listener — something that accepts connections and handles requests. Servers manage their own lifecycle (configure, start, stop) and expose observable state.
+
+When to build a server:
+- You need to accept incoming connections (HTTP, WebSocket, custom protocol)
+- You want lifecycle management, port handling, and observability for free
+- You're wrapping a server library so the codebase uses \`container.server('name')\`
+
+## Imports
+
+\`\`\`ts
+import { z } from 'zod'
+import { Server, servers } from '@soederpop/luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
+import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { ServersInterface } from '@soederpop/luca'
+\`\`\`
+
+## Schemas
+
+\`\`\`ts
+export const {{PascalName}}StateSchema = ServerStateSchema.extend({
+  // Add your state fields here.
+  // Example: connectionCount: z.number().default(0).describe('Active connections'),
+})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ServerOptionsSchema.extend({
+  // Add constructor options here. port and host come from ServerOptionsSchema.
+  // Example: cors: z.boolean().default(true).describe('Enable CORS'),
+})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({
+  // Add your events here.
+  // Example: connection: z.tuple([z.string().describe('Client ID')]).describe('New client connected'),
+})
+\`\`\`
+
+## Class
+
+\`\`\`ts
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.server('{{camelName}}', { port: 3000 })
+ * await {{camelName}}.start()
+ * \`\`\`
+ *
+ * @extends Server
+ */
+export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'servers.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  static override attach(container: NodeContainer & ServersInterface) {
+    return container
+  }
+
+  override async configure() {
+    if (this.isConfigured) return this
+    // Set up the underlying server here
+    this.state.set('configured', true)
+    return this
+  }
+
+  override async start(options?: { port?: number }) {
+    if (this.isListening) return this
+    if (!this.isConfigured) await this.configure()
+
+    const port = options?.port || this.options.port || 3000
+    // Start listening here
+    this.state.set('port', port)
+    this.state.set('listening', true)
+    return this
+  }
+
+  override async stop() {
+    if (this.isStopped) return this
+    // Clean up connections here
+    this.state.set('listening', false)
+    this.state.set('stopped', true)
+    return this
+  }
+}
+\`\`\`
+
+## Module Augmentation
+
+\`\`\`ts
+declare module '@soederpop/luca' {
+  interface AvailableServers {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+\`\`\`
+
+## Registration
+
+\`\`\`ts
+export default servers.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Complete Example
+
+\`\`\`ts
+import { z } from 'zod'
+import { Server, servers } from '@soederpop/luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
+import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { ServersInterface } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableServers {
+    {{camelName}}: typeof {{PascalName}}
+  }
+}
+
+export const {{PascalName}}StateSchema = ServerStateSchema.extend({})
+export type {{PascalName}}State = z.infer<typeof {{PascalName}}StateSchema>
+
+export const {{PascalName}}OptionsSchema = ServerOptionsSchema.extend({})
+export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
+
+export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({})
+
+/**
+ * {{description}}
+ *
+ * @example
+ * \`\`\`typescript
+ * const {{camelName}} = container.server('{{camelName}}', { port: 3000 })
+ * await {{camelName}}.start()
+ * \`\`\`
+ *
+ * @extends Server
+ */
+export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Options> {
+  static override shortcut = 'servers.{{camelName}}' as const
+  static override stateSchema = {{PascalName}}StateSchema
+  static override optionsSchema = {{PascalName}}OptionsSchema
+  static override eventsSchema = {{PascalName}}EventsSchema
+  static override description = '{{description}}'
+
+  static override attach(container: NodeContainer & ServersInterface) {
+    return container
+  }
+
+  override async configure() {
+    if (this.isConfigured) return this
+    this.state.set('configured', true)
+    return this
+  }
+
+  override async start(options?: { port?: number }) {
+    if (this.isListening) return this
+    if (!this.isConfigured) await this.configure()
+    const port = options?.port || this.options.port || 3000
+    this.state.set('port', port)
+    this.state.set('listening', true)
+    return this
+  }
+
+  override async stop() {
+    if (this.isStopped) return this
+    this.state.set('listening', false)
+    this.state.set('stopped', true)
+    return this
+  }
+}
+
+export default servers.register('{{camelName}}', {{PascalName}})
+\`\`\`
+
+## Conventions
+
+- **Lifecycle**: Implement \`configure()\`, \`start()\`, and \`stop()\`. Check guards (\`isConfigured\`, \`isListening\`, \`isStopped\`) at the top of each.
+- **State tracking**: Set \`configured\`, \`listening\`, \`stopped\`, and \`port\` on the state. This powers the introspection system.
+- **attach() is static**: It runs when the container first loads the server class. Use it for container-level setup if needed.
+- **Port from options**: Accept port via options schema and respect it in \`start()\`. Allow override via start options.
+- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`.
+`,
+  },
+  command: {
+    sections: [
+      { heading: "Imports", code: `import { z } from 'zod'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'` },
+      { heading: "Args Schema", code: `export const argsSchema = CommandOptionsSchema.extend({
+  // Add your flags here. Each becomes a --flag on the CLI.
+  // Example: verbose: z.boolean().default(false).describe('Enable verbose output'),
+  // Example: output: z.string().optional().describe('Output file path'),
+})` },
+      { heading: "Handler", code: `export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const container = context.container as any
+  const fs = container.feature('fs')
+  const args = container.argv._ as string[]
+
+  // args[0] is your command name, args[1+] are positional arguments
+  // options contains parsed --flags
+
+  // Your implementation here
+}` },
+      { heading: "Registration", code: `commands.registerHandler('{{camelName}}', {
+  description: '{{description}}',
+  argsSchema,
+  handler: {{camelName}},
+})` },
+      { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
+  interface AvailableCommands {
+    {{camelName}}: ReturnType<typeof commands.registerHandler>
+  }
+}` },
+      { heading: "Complete Example", code: `import { z } from 'zod'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableCommands {
+    {{camelName}}: ReturnType<typeof commands.registerHandler>
+  }
+}
+
+export const argsSchema = CommandOptionsSchema.extend({})
+
+export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const container = context.container as any
+  const fs = container.feature('fs')
+
+  console.log('{{camelName}} running...')
+}
+
+commands.registerHandler('{{camelName}}', {
+  description: '{{description}}',
+  argsSchema,
+  handler: {{camelName}},
+})` }
+    ],
+    full: `import { z } from 'zod'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableCommands {
+    {{camelName}}: ReturnType<typeof commands.registerHandler>
+  }
+}
+
+export const argsSchema = CommandOptionsSchema.extend({})
+
+export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const container = context.container as any
+  const fs = container.feature('fs')
+
+  console.log('{{camelName}} running...')
+}
+
+commands.registerHandler('{{camelName}}', {
+  description: '{{description}}',
+  argsSchema,
+  handler: {{camelName}},
+})`,
+    tutorial: `# Building a Command
+
+A command extends the \`luca\` CLI. Commands live in a project's \`commands/\` folder and are automatically discovered. They receive parsed options and a container context.
+
+When to build a command:
+- You need a CLI task for a project (build scripts, generators, automation)
+- You want argument parsing, help text, and container access for free
+- The task should be runnable via \`luca yourCommand\`
+
+## Imports
+
+\`\`\`ts
+import { z } from 'zod'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+\`\`\`
+
+## Args Schema
+
+Define your command's arguments and flags. Extend \`CommandOptionsSchema\` which gives you \`_\` (positional args) and \`name\` for free.
+
+\`\`\`ts
+export const argsSchema = CommandOptionsSchema.extend({
+  // Add your flags here. Each becomes a --flag on the CLI.
+  // Example: verbose: z.boolean().default(false).describe('Enable verbose output'),
+  // Example: output: z.string().optional().describe('Output file path'),
+})
+\`\`\`
+
+## Handler
+
+The handler function receives parsed options and the container context. Use the container for all I/O.
+
+\`\`\`ts
+export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const container = context.container as any
+  const fs = container.feature('fs')
+  const args = container.argv._ as string[]
+
+  // args[0] is your command name, args[1+] are positional arguments
+  // options contains parsed --flags
+
+  // Your implementation here
+}
+\`\`\`
+
+## Registration
+
+Register the command at the bottom of the file. The \`description\` shows up in \`luca --help\`.
+
+\`\`\`ts
+commands.registerHandler('{{camelName}}', {
+  description: '{{description}}',
+  argsSchema,
+  handler: {{camelName}},
+})
+\`\`\`
+
+## Module Augmentation
+
+Optional but gives TypeScript autocomplete for \`commands.lookup('yourCommand')\`.
+
+\`\`\`ts
+declare module '@soederpop/luca' {
+  interface AvailableCommands {
+    {{camelName}}: ReturnType<typeof commands.registerHandler>
+  }
+}
+\`\`\`
+
+## Complete Example
+
+\`\`\`ts
+import { z } from 'zod'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import type { ContainerContext } from '@soederpop/luca'
+
+declare module '@soederpop/luca' {
+  interface AvailableCommands {
+    {{camelName}}: ReturnType<typeof commands.registerHandler>
+  }
+}
+
+export const argsSchema = CommandOptionsSchema.extend({})
+
+export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const container = context.container as any
+  const fs = container.feature('fs')
+
+  console.log('{{camelName}} running...')
+}
+
+commands.registerHandler('{{camelName}}', {
+  description: '{{description}}',
+  argsSchema,
+  handler: {{camelName}},
+})
+\`\`\`
+
+## Conventions
+
+- **File location**: \`commands/{{camelName}}.ts\` in the project root. The \`luca\` CLI discovers these automatically.
+- **Naming**: camelCase for both file and registration ID. \`luca my-command\` maps to \`commands/my-command.ts\`.
+- **Use the container**: Never import \`fs\`, \`path\`, \`child_process\` directly. Use \`container.feature('fs')\`, \`container.paths\`, \`container.feature('proc')\`.
+- **Positional args**: Access via \`container.argv._\` — it's an array where \`_[0]\` is the command name.
+- **Exit codes**: Return nothing for success. Throw for errors — the CLI catches and reports them.
+`,
+  },
+  endpoint: {
+    sections: [
+      { heading: "Imports", code: `import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'` },
+      { heading: "Required Exports", code: `export const path = '/api/{{camelName}}'
+export const description = '{{description}}'
+export const tags = ['{{camelName}}']` },
+      { heading: "Handler Functions", code: `export async function get(params: any, ctx: EndpointContext) {
+  const fs = ctx.container.feature('fs')
+  // Your logic here
+  return { message: 'ok' }
+}
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  // Create something
+  return { created: true }
+}` },
+      { heading: "Validation Schemas", code: `export const getSchema = z.object({
+  q: z.string().optional().describe('Search query'),
+  limit: z.number().default(20).describe('Max results'),
+})
+
+export const postSchema = z.object({
+  title: z.string().min(1).describe('Item title'),
+  body: z.string().min(1).describe('Item content'),
+})` },
+      { heading: "Rate Limiting", code: `// Global rate limit for all methods
+export const rateLimit = { maxRequests: 100, windowSeconds: 60 }
+
+// Per-method rate limit
+export const postRateLimit = { maxRequests: 10, windowSeconds: 1 }` },
+      { heading: "Delete Handler", code: `const del = async (params: any, ctx: EndpointContext) => {
+  return { deleted: true }
+}
+export { del as delete }` },
+      { heading: "Complete Example", code: `import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+
+export const path = '/api/{{camelName}}'
+export const description = '{{description}}'
+export const tags = ['{{camelName}}']
+
+export const getSchema = z.object({
+  q: z.string().optional().describe('Search query'),
+})
+
+export async function get(params: z.infer<typeof getSchema>, ctx: EndpointContext) {
+  return { items: [], total: 0 }
+}
+
+export const postSchema = z.object({
+  name: z.string().min(1).describe('Item name'),
+})
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  return { item: { id: '1', ...params }, message: 'Created' }
+}` },
+      { heading: "Dynamic Route Example", code: `// endpoints/{{camelName}}/[id].ts
+import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+
+export const path = '/api/{{camelName}}/:id'
+export const description = 'Get, update, or delete a specific item'
+export const tags = ['{{camelName}}']
+
+export async function get(params: any, ctx: EndpointContext) {
+  const { id } = ctx.params
+  return { item: { id } }
+}
+
+export const putSchema = z.object({
+  name: z.string().min(1).optional().describe('Updated name'),
+})
+
+export async function put(params: z.infer<typeof putSchema>, ctx: EndpointContext) {
+  const { id } = ctx.params
+  return { item: { id, ...params }, message: 'Updated' }
+}
+
+const del = async (params: any, ctx: EndpointContext) => {
+  const { id } = ctx.params
+  return { message: \`Deleted \${id}\` }
+}
+export { del as delete }` }
+    ],
+    full: `import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+
+export const path = '/api/{{camelName}}'
+export const description = '{{description}}'
+export const tags = ['{{camelName}}']
+
+export const getSchema = z.object({
+  q: z.string().optional().describe('Search query'),
+})
+
+export async function get(params: z.infer<typeof getSchema>, ctx: EndpointContext) {
+  return { items: [], total: 0 }
+}
+
+export const postSchema = z.object({
+  name: z.string().min(1).describe('Item name'),
+})
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  return { item: { id: '1', ...params }, message: 'Created' }
+}`,
+    tutorial: `# Building an Endpoint
+
+An endpoint is a route handler that \`luca serve\` auto-discovers and mounts on an Express server. Endpoints live in \`endpoints/\` and follow a file-based routing convention — each file becomes an API route with automatic validation, OpenAPI spec generation, and rate limiting.
+
+When to build an endpoint:
+- You need a REST API route (GET, POST, PUT, PATCH, DELETE)
+- You want Zod validation, OpenAPI docs, and rate limiting for free
+- You're building an API that \`luca serve\` manages
+
+## File Location
+
+Endpoints go in \`endpoints/\` at your project root:
+- \`endpoints/health.ts\` → \`/health\`
+- \`endpoints/posts.ts\` → \`/api/posts\`
+- \`endpoints/posts/[id].ts\` → \`/api/posts/:id\` (requires \`path\` export)
+
+Run \`luca serve\` and they're automatically discovered and mounted.
+
+## Imports
+
+\`\`\`ts
+import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+\`\`\`
+
+That's it. Endpoints are lightweight — just exports and functions.
+
+## Required Exports
+
+Every endpoint MUST export a \`path\` string:
+
+\`\`\`ts
+export const path = '/api/{{camelName}}'
+export const description = '{{description}}'
+export const tags = ['{{camelName}}']
+\`\`\`
+
+## Handler Functions
+
+Export named functions for each HTTP method you support. Each receives validated parameters and an \`EndpointContext\`:
+
+\`\`\`ts
+export async function get(params: any, ctx: EndpointContext) {
+  const fs = ctx.container.feature('fs')
+  // Your logic here
+  return { message: 'ok' }
+}
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  // Create something
+  return { created: true }
+}
+\`\`\`
+
+The \`EndpointContext\` gives you:
+- \`ctx.container\` — the luca container (access any feature, client, etc.)
+- \`ctx.request\` — Express request object
+- \`ctx.response\` — Express response object
+- \`ctx.query\` — parsed query string
+- \`ctx.body\` — parsed request body
+- \`ctx.params\` — URL parameters (\`:id\`, etc.)
+
+Return any object — it's automatically JSON-serialized as the response.
+
+## Validation Schemas
+
+Export Zod schemas to validate parameters for each method. Name them \`{method}Schema\`:
+
+\`\`\`ts
+export const getSchema = z.object({
+  q: z.string().optional().describe('Search query'),
+  limit: z.number().default(20).describe('Max results'),
+})
+
+export const postSchema = z.object({
+  title: z.string().min(1).describe('Item title'),
+  body: z.string().min(1).describe('Item content'),
+})
+\`\`\`
+
+Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec.
+
+## Rate Limiting
+
+Export rate limit config to protect endpoints:
+
+\`\`\`ts
+// Global rate limit for all methods
+export const rateLimit = { maxRequests: 100, windowSeconds: 60 }
+
+// Per-method rate limit
+export const postRateLimit = { maxRequests: 10, windowSeconds: 1 }
+\`\`\`
+
+## Delete Handler
+
+\`delete\` is a reserved word in JS. Use an alias:
+
+\`\`\`ts
+const del = async (params: any, ctx: EndpointContext) => {
+  return { deleted: true }
+}
+export { del as delete }
+\`\`\`
+
+## Complete Example
+
+A CRUD endpoint for a resource:
+
+\`\`\`ts
+import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+
+export const path = '/api/{{camelName}}'
+export const description = '{{description}}'
+export const tags = ['{{camelName}}']
+
+export const getSchema = z.object({
+  q: z.string().optional().describe('Search query'),
+})
+
+export async function get(params: z.infer<typeof getSchema>, ctx: EndpointContext) {
+  return { items: [], total: 0 }
+}
+
+export const postSchema = z.object({
+  name: z.string().min(1).describe('Item name'),
+})
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  return { item: { id: '1', ...params }, message: 'Created' }
+}
+\`\`\`
+
+## Dynamic Route Example
+
+For routes with URL parameters, create a nested file:
+
+\`\`\`ts
+// endpoints/{{camelName}}/[id].ts
+import { z } from 'zod'
+import type { EndpointContext } from '@soederpop/luca'
+
+export const path = '/api/{{camelName}}/:id'
+export const description = 'Get, update, or delete a specific item'
+export const tags = ['{{camelName}}']
+
+export async function get(params: any, ctx: EndpointContext) {
+  const { id } = ctx.params
+  return { item: { id } }
+}
+
+export const putSchema = z.object({
+  name: z.string().min(1).optional().describe('Updated name'),
+})
+
+export async function put(params: z.infer<typeof putSchema>, ctx: EndpointContext) {
+  const { id } = ctx.params
+  return { item: { id, ...params }, message: 'Updated' }
+}
+
+const del = async (params: any, ctx: EndpointContext) => {
+  const { id } = ctx.params
+  return { message: \`Deleted \${id}\` }
+}
+export { del as delete }
+\`\`\`
+
+## Conventions
+
+- **File = route**: The file path maps to the URL path. \`endpoints/users.ts\` serves \`/api/users\`.
+- **Export \`path\`**: Every endpoint must export a \`path\` string. This is the mounted route.
+- **Use Zod schemas**: Name them \`getSchema\`, \`postSchema\`, etc. They validate AND document.
+- **Use the container**: Access features via \`ctx.container.feature('fs')\`, not Node.js imports.
+- **Return objects**: Handler return values are JSON-serialized. Use \`ctx.response\` only for streaming or custom status codes.
+- **OpenAPI for free**: Your \`path\`, \`description\`, \`tags\`, and schemas automatically generate an OpenAPI spec at \`/openapi.json\`.
+`,
+  }
+}
+
+export const mcpReadme = `# Luca Development Guide
+
+You are working in a **luca project**. The luca container provides all capabilities your code needs. Do not install npm packages or import Node.js builtins directly.
+
+## The Contract
+
+Every capability goes through the container. If you need something that doesn't exist, build it as a feature, client, or server. If it wraps a third-party library, the helper IS the interface — consumer code never imports the library directly.
+
+## Import Rule
+
+All consumer code imports from \`@soederpop/luca\` only:
+
+\`\`\`ts
+import { Feature, features, z, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Client, clients, RestClient, ClientStateSchema } from '@soederpop/luca/client'
+import { Server, servers, ServerStateSchema } from '@soederpop/luca'
+import { commands, CommandOptionsSchema } from '@soederpop/luca'
+\`\`\`
+
+Never import from \`fs\`, \`path\`, \`crypto\`, or other Node builtins. Never import third-party packages in consumer code. The only exception is inside helper implementations themselves — a feature that wraps a library may import it.
+
+## Dependencies
+
+If the project has \`node_modules\` and a package manager, helper implementations can import third-party libraries internally. If not (e.g. running via the \`luca\` binary's VM), all code must import only from \`@soederpop/luca\`.
+
+## Capability Map
+
+| Intent | Container API |
+|---|---|
+| File I/O | \`container.feature('fs')\` — readFile, writeFile, exists, walk, etc. |
+| Paths | \`container.paths.resolve()\`, \`container.paths.join()\` |
+| Shell commands | \`container.feature('proc')\` — exec, spawn |
+| HTTP requests | \`container.client('rest')\` — get, post, put, delete |
+| GraphQL | \`container.client('graphql')\` — query, mutate |
+| WebSockets | \`container.client('websocket')\` or \`container.server('socket')\` |
+| HTTP server | \`container.server('express')\` — routes, middleware |
+| MCP server | \`container.server('mcp')\` — tools, resources, prompts |
+| Caching | \`container.feature('diskCache')\` — file-backed key-value cache |
+| Encryption | \`container.feature('vault')\` — encrypt, decrypt |
+| Git | \`container.feature('git')\` — branch, log, status, diff |
+| YAML | \`container.feature('yaml')\` — parse, dump |
+| Grep/search | \`container.feature('grep')\` — search files by pattern |
+| OS info | \`container.feature('os')\` — platform, hostname, env |
+| Networking | \`container.feature('networking')\` — ports, interfaces |
+| Code execution | \`container.feature('vm')\` — sandboxed eval |
+| UI/terminal | \`container.feature('ui')\` — markdown, tables, prompts |
+| ESBuild | \`container.feature('esbuild')\` — bundle, transform |
+| Ink/React TUI | \`container.feature('ink')\` — React-based terminal UI |
+
+## Workflow
+
+1. **\`find_capability\`** — Search what already exists before writing anything
+2. **\`describe_helper\`** — Read the full API docs for the helper you need
+3. **\`eval\`** — Prototype and test container API calls in the sandbox
+4. **\`scaffold\`** — Generate correct boilerplate when building something new
+5. **Write the file** — Using the patterns from the scaffold
+
+## Portability
+
+Code that only imports from \`@soederpop/luca\` can be copied between any luca project. That's the goal. Features, clients, servers, and commands written this way are portable building blocks.
+`

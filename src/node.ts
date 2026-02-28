@@ -47,5 +47,8 @@ export type { HelperState, HelperOptions } from './helper'
 export type { EventMap } from './bus'
 export type { SetStateValue, StateChangeType } from './state'
 
+// Zod — so consumer code can `import { z } from '@soederpop/luca'`
+export { z } from 'zod'
+
 // Schemas
 export * from './schemas/base'
