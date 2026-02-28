@@ -330,9 +330,6 @@ export class NodeContainer<
       dirname(path: string) {
         return parse(path).dir
       },
-      parse(path: string) {
-        return parse(path);
-      },
       join(...paths: string[]) {
         return join(cwd, ...paths);
       },
@@ -342,6 +339,8 @@ export class NodeContainer<
       relative(...paths: string[]) {
         return relative(cwd, resolve(cwd, ...paths));
       },
+      basename,
+      parse
     };
   }
 }
