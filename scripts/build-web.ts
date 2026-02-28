@@ -8,6 +8,7 @@ const result = await Bun.build({
   format: "esm",
   naming: "browser.js",
   external: [
+    "react",
     "react-dom",
   ],
   define: {
