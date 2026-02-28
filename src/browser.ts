@@ -4,6 +4,10 @@ import './introspection/generated.web.js'
 
 const container = new WebContainer({})
 
+if (typeof window !== 'undefined') {
+  ;(window as any).luca = container
+}
+
 export default container
 
 /**

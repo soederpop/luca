@@ -48,10 +48,20 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return {} as T
   }
 
+  /** Alias for introspect */
+  static inspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
+    return this.introspect(section)
+  }
+
   static introspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
     const data = introspect((this as any).shortcut || '')
     if (!data || !section) return data
     return filterIntrospection(data, section)
+  }
+
+  /** Alias for introspectAsText */
+  static inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
   }
 
   static introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
@@ -76,6 +86,11 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return filterIntrospection(base, section)
   }
 
+  /** Alias for introspect */
+  inspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
+    return this.introspect()
+  } 
+
   /**
    * Returns the introspection data formatted as a markdown string.
    *
@@ -87,6 +102,11 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     const introspection = this.introspect()
     if (!introspection) return ''
     return presentIntrospectionJSONAsMarkdown(introspection, depth, section)
+  }
+
+  /** Alias for introspectAsText */
+  inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
+    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
   }
   
   constructor(options: K, context: ContainerContext) {
@@ -264,28 +284,33 @@ function renderMethodsSection(introspection: HelperIntrospection, heading: (leve
     }
 
     if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
-      sections.push(`**Parameters:**`)
-      sections.push(`| Name | Type | Required | Description |`)
-      sections.push(`|------|------|----------|-------------|`)
+      const tableRows = [
+        `**Parameters:**`,
+        '',
+        `| Name | Type | Required | Description |`,
+        `|------|------|----------|-------------|`,
+      ]
 
       for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
         const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
         const type = paramInfo.type || 'any'
         const description = paramInfo.description || ''
-        sections.push(`| \`${paramName}\` | \`${type}\` | ${isRequired} | ${description} |`)
+        tableRows.push(`| \`${paramName}\` | \`${type}\` | ${isRequired} | ${description} |`)
 
         // Render expanded type properties if available
         if (paramInfo.properties && Object.keys(paramInfo.properties).length > 0) {
-          sections.push('')
-          sections.push(`\`${type}\` properties:`)
-          sections.push(`| Property | Type | Description |`)
-          sections.push(`|----------|------|-------------|`)
+          tableRows.push('')
+          tableRows.push(`\`${type}\` properties:`)
+          tableRows.push('')
+          tableRows.push(`| Property | Type | Description |`)
+          tableRows.push(`|----------|------|-------------|`)
 
           for (const [propName, propInfo] of Object.entries(paramInfo.properties)) {
-            sections.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
+            tableRows.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
           }
         }
       }
+      sections.push(tableRows.join('\n'))
     }
 
     if (methodInfo.returns) {
@@ -308,15 +333,19 @@ function renderGettersSection(introspection: HelperIntrospection, heading: (leve
   const sections: string[] = []
   if (!introspection.getters || Object.keys(introspection.getters).length === 0) return sections
 
-  sections.push(`${heading(2)} Getters`)
-  sections.push(`| Property | Type | Description |`)
-  sections.push(`|----------|------|-------------|`)
+  const tableRows = [
+    `${heading(2)} Getters`,
+    '',
+    `| Property | Type | Description |`,
+    `|----------|------|-------------|`,
+  ]
 
   for (const [getterName, getterInfo] of Object.entries(introspection.getters)) {
     const type = getterInfo.returns || 'any'
     const description = getterInfo.description || ''
-    sections.push(`| \`${getterName}\` | \`${type}\` | ${description} |`)
+    tableRows.push(`| \`${getterName}\` | \`${type}\` | ${description} |`)
   }
+  sections.push(tableRows.join('\n'))
 
   return sections
 }
@@ -335,13 +364,17 @@ function renderEventsSection(introspection: HelperIntrospection, heading: (level
     }
 
     if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
-      sections.push(`**Event Arguments:**`)
-      sections.push(`| Name | Type | Description |`)
-      sections.push(`|------|------|-------------|`)
+      const tableRows = [
+        `**Event Arguments:**`,
+        '',
+        `| Name | Type | Description |`,
+        `|------|------|-------------|`,
+      ]
 
       for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
-        sections.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
+        tableRows.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
       }
+      sections.push(tableRows.join('\n'))
     }
 
     sections.push('')
@@ -354,13 +387,17 @@ function renderStateSection(introspection: HelperIntrospection, heading: (level:
   const sections: string[] = []
   if (!introspection.state || Object.keys(introspection.state).length === 0) return sections
 
-  sections.push(`${heading(2)} State`)
-  sections.push(`| Property | Type | Description |`)
-  sections.push(`|----------|------|-------------|`)
+  const tableRows = [
+    `${heading(2)} State`,
+    '',
+    `| Property | Type | Description |`,
+    `|----------|------|-------------|`,
+  ]
 
   for (const [stateName, stateInfo] of Object.entries(introspection.state)) {
-    sections.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
+    tableRows.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
   }
+  sections.push(tableRows.join('\n'))
 
   return sections
 }
@@ -369,13 +406,17 @@ function renderOptionsSection(introspection: HelperIntrospection, heading: (leve
   const sections: string[] = []
   if (!introspection.options || Object.keys(introspection.options).length === 0) return sections
 
-  sections.push(`${heading(2)} Options`)
-  sections.push(`| Property | Type | Description |`)
-  sections.push(`|----------|------|-------------|`)
+  const tableRows = [
+    `${heading(2)} Options`,
+    '',
+    `| Property | Type | Description |`,
+    `|----------|------|-------------|`,
+  ]
 
   for (const [optName, optInfo] of Object.entries(introspection.options)) {
-    sections.push(`| \`${optName}\` | \`${optInfo.type || 'any'}\` | ${optInfo.description || ''} |`)
+    tableRows.push(`| \`${optName}\` | \`${optInfo.type || 'any'}\` | ${optInfo.description || ''} |`)
   }
+  sections.push(tableRows.join('\n'))
 
   return sections
 }

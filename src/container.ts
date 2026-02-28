@@ -395,21 +395,21 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * Returns true if the container is running in development mode.
    */
   get isDevelopment() {
-    return process.env.NODE_ENV === 'development'
+    return typeof process !== 'undefined' && process.env.NODE_ENV === 'development'
   }
   
   /** 
    * Returns true if the container is running in production mode.
    */
   get isProduction() {
-    return process.env.NODE_ENV === 'production'
+    return typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
   }
   
   /** 
    * Returns true if the container is running in a CI environment.
    */
   get isCI() {
-    return process.env.CI !== undefined && String(process.env.CI).length > 0
+    return typeof process !== 'undefined' && process.env.CI !== undefined && String(process.env.CI).length > 0
   }
 
   /** Emit an event on the container's event bus. */
@@ -561,6 +561,17 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return presentContainerIntrospectionAsMarkdown(data, depth, section)
   }
 
+  /** Alias for inspectAsText */
+  introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
+    return this.inspectAsText(sectionOrDepth, startHeadingDepth)
+  }
+  
+  /** Alias for inspectAsJSON */
+  introspectAsJSON(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): any {
+    const data = this.inspect()
+    return presentContainerIntrospectionAsJSON(data, depth, section)
+  }
+
   /** Make a property non-enumerable, which is nice for inspecting it in the REPL */
   _hide(...propNames: string[]) {
     propNames.map((propName) => {
@@ -651,25 +662,30 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
       }
 
       if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
-        sections.push(`**Parameters:**`)
-        sections.push(`| Name | Type | Required | Description |`)
-        sections.push(`|------|------|----------|-------------|`)
+        const tableRows = [
+          `**Parameters:**`,
+          '',
+          `| Name | Type | Required | Description |`,
+          `|------|------|----------|-------------|`,
+        ]
 
         for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
           const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
-          sections.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
+          tableRows.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
 
           if (paramInfo.properties && Object.keys(paramInfo.properties).length > 0) {
-            sections.push('')
-            sections.push(`\`${paramInfo.type}\` properties:`)
-            sections.push(`| Property | Type | Description |`)
-            sections.push(`|----------|------|-------------|`)
+            tableRows.push('')
+            tableRows.push(`\`${paramInfo.type}\` properties:`)
+            tableRows.push('')
+            tableRows.push(`| Property | Type | Description |`)
+            tableRows.push(`|----------|------|-------------|`)
 
             for (const [propName, propInfo] of Object.entries(paramInfo.properties)) {
-              sections.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
+              tableRows.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
             }
           }
         }
+        sections.push(tableRows.join('\n'))
       }
 
       if (methodInfo.returns) {
@@ -682,13 +698,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
   // Getters section
   if (shouldRender('getters') && data.getters && Object.keys(data.getters).length > 0) {
-    sections.push(`${heading(2)} Getters`)
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
+    const getterTableRows = [
+      `${heading(2)} Getters`,
+      '',
+      `| Property | Type | Description |`,
+      `|----------|------|-------------|`,
+    ]
 
     for (const [getterName, getterInfo] of Object.entries(data.getters)) {
-      sections.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
+      getterTableRows.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
     }
+    sections.push(getterTableRows.join('\n'))
   }
 
   // Events section
@@ -703,13 +723,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
       }
 
       if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
-        sections.push(`**Event Arguments:**`)
-        sections.push(`| Name | Type | Description |`)
-        sections.push(`|------|------|-------------|`)
+        const tableRows = [
+          `**Event Arguments:**`,
+          '',
+          `| Name | Type | Description |`,
+          `|------|------|-------------|`,
+        ]
 
         for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
-          sections.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
+          tableRows.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
         }
+        sections.push(tableRows.join('\n'))
       }
 
       sections.push('')
@@ -718,13 +742,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
   // State section
   if (shouldRender('state') && data.state && Object.keys(data.state).length > 0) {
-    sections.push(`${heading(2)} State`)
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
+    const stateTableRows = [
+      `${heading(2)} State`,
+      '',
+      `| Property | Type | Description |`,
+      `|----------|------|-------------|`,
+    ]
 
     for (const [stateName, stateInfo] of Object.entries(data.state)) {
-      sections.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
+      stateTableRows.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
     }
+    sections.push(stateTableRows.join('\n'))
   }
 
   if (!section) {
@@ -736,12 +764,16 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
     // Environment section
     if (data.environment) {
-      sections.push(`${heading(2)} Environment`)
-      sections.push(`| Flag | Value |`)
-      sections.push(`|------|-------|`)
+      const envTableRows = [
+        `${heading(2)} Environment`,
+        '',
+        `| Flag | Value |`,
+        `|------|-------|`,
+      ]
       for (const [key, value] of Object.entries(data.environment)) {
-        sections.push(`| \`${key}\` | ${value} |`)
+        envTableRows.push(`| \`${key}\` | ${value} |`)
       }
+      sections.push(envTableRows.join('\n'))
     }
   }
 
