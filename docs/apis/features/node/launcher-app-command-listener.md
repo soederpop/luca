@@ -16,11 +16,8 @@ container.feature('launcherAppCommandListener', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `socketPath` | `string` | Path to the Unix domain socket to listen on |
-
 | `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
 
 ## Methods
@@ -30,9 +27,7 @@ container.feature('launcherAppCommandListener', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `Promise<this>`
@@ -46,9 +41,7 @@ Start listening on the Unix domain socket for the native app to connect. Fire-an
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` |  | Override the configured socket path |
 
 **Returns:** `this`
@@ -70,9 +63,7 @@ Write an NDJSON message to the connected app client.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `msg` | `Record<string, any>` | ✓ | The message object to send (will be JSON-serialized + newline) |
 
 **Returns:** `boolean`
@@ -82,11 +73,8 @@ Write an NDJSON message to the connected app client.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `isListening` | `boolean` | Whether the IPC server is currently listening. |
-
 | `isClientConnected` | `boolean` | Whether the native app client is currently connected. |
 
 ## Events
@@ -124,21 +112,13 @@ Event emitted by LauncherAppCommandListener
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `listening` | `boolean` | Whether the IPC server is listening |
-
 | `clientConnected` | `boolean` | Whether the native launcher app is connected |
-
 | `socketPath` | `string` | The socket path in use |
-
 | `commandsReceived` | `number` | Total number of commands received |
-
 | `lastCommandText` | `string` | The text of the last received command |
-
 | `lastError` | `string` | Last error message |
 
 ## Examples

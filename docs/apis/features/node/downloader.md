@@ -17,11 +17,8 @@ Downloads a file from a URL and saves it to the specified local path. This metho
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `url` | `string` | ✓ | The URL to download the file from. Must be a valid HTTP/HTTPS URL. |
-
 | `targetPath` | `string` | ✓ | The local file path where the downloaded file should be saved. |
 
 **Returns:** `void`
@@ -45,9 +42,7 @@ const docPath = await downloader.download(
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

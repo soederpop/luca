@@ -14,9 +14,7 @@ container.feature('packageFinder', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `option` | `string` | Optional configuration parameter |
 
 ## Methods
@@ -36,33 +34,20 @@ Adds a package manifest to the internal index. This method ensures uniqueness ba
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `manifest` | `PartialManifest` | ✓ | The package manifest data from package.json |
-
-
 
 `PartialManifest` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `name` | `string` | The package name (e.g., 'lodash', '@types/node') |
-
 | `version` | `string` | The package version (e.g., '1.0.0', '^2.1.3') |
-
 | `description` | `string` | Optional package description |
-
 | `dependencies` | `Record<string, Record<string,string>>` | Runtime dependencies with version constraints |
-
 | `devDependencies` | `Record<string, Record<string,string>>` | Development dependencies with version constraints |
-
 | `peerDependencies` | `Record<string, Record<string,string>>` | Peer dependencies with version constraints |
-
 | `optionalDependencies` | `Record<string, Record<string,string>>` | Optional dependencies with version constraints |
-
 | `path` | `string` | ✓ | The file system path to the package.json file |
 
 **Returns:** `void`
@@ -97,19 +82,13 @@ Performs a comprehensive scan of all node_modules directories in the workspace. 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{ exclude?: string | string[] }` |  | Scanning options (currently unused) |
-
-
 
 `{ exclude?: string | string[] }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `exclude` | `any` | Optional exclusion patterns (not implemented) |
 
 **Returns:** `void`
@@ -131,9 +110,7 @@ Finds the first package manifest matching the given name. If multiple versions o
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The exact package name to search for |
 
 **Returns:** `void`
@@ -154,9 +131,7 @@ Finds all packages that declare the specified package as a dependency. Searches 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `packageName` | `string` | ✓ | The name of the package to find dependents for |
 
 **Returns:** `void`
@@ -178,9 +153,7 @@ Finds the first package manifest matching the provided filter function.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for matching packages |
 
 **Returns:** `void`
@@ -202,9 +175,7 @@ Finds all package manifests matching the provided filter function.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for matching packages |
 
 **Returns:** `void`
@@ -229,9 +200,7 @@ Returns all packages that do NOT match the provided filter function. This is the
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for packages to exclude |
 
 **Returns:** `void`
@@ -249,29 +218,19 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `duplicates` | `any` | Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project. |
-
 | `isStarted` | `any` | Checks if the package finder has completed its initial scan. |
-
 | `packageNames` | `any` | Gets an array of all unique package names discovered in the workspace. |
-
 | `scopes` | `any` | Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel'). |
-
 | `manifests` | `any` | Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only. |
-
 | `counts` | `any` | Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist. |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `started` | `boolean` | Whether the package finder has been started and initial scan completed |
 
 ## Examples

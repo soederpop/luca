@@ -14,9 +14,7 @@ container.feature('postgres', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
 
 ## Methods
@@ -28,11 +26,8 @@ Executes a SELECT-like query and returns result rows. Use postgres placeholders 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `queryText` | `string` | ✓ | The SQL query string with optional `$N` placeholders |
-
 | `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
 
 **Returns:** `Promise<T[]>`
@@ -54,11 +49,8 @@ Executes a write/update/delete statement and returns metadata. Use postgres plac
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `queryText` | `string` | ✓ | The SQL statement string with optional `$N` placeholders |
-
 | `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
 
 **Returns:** `Promise<{ rowCount: number }>`
@@ -81,11 +73,8 @@ Safe tagged-template SQL helper. Values become bound parameters automatically, p
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `strings` | `TemplateStringsArray` | ✓ | Template literal string segments |
-
 | `values` | `SqlValue[]` | ✓ | Interpolated values that become bound `$N` parameters |
 
 **Returns:** `Promise<T[]>`
@@ -117,9 +106,7 @@ await pg.close()
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `client` | `any` | Returns the underlying Bun SQL postgres client. |
 
 ## Events
@@ -151,19 +138,12 @@ Event emitted by Postgres
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `connected` | `boolean` | Whether the postgres connection is currently open |
-
 | `url` | `string` | Connection URL used for this postgres feature instance |
-
 | `lastQuery` | `string` | Most recent SQL query string that was executed |
-
 | `lastRowCount` | `number` | Row count returned by the most recent query execution |
-
 | `lastError` | `string` | Most recent postgres error message, if any |
 
 ## Examples

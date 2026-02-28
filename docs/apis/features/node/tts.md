@@ -20,15 +20,10 @@ container.feature('tts', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
-
 | `voice` | `string` | Default preset voice name |
-
 | `outputDir` | `string` | Directory to save generated audio files |
-
 | `format` | `string` | Audio output format |
 
 ## Methods
@@ -40,11 +35,8 @@ Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to synthesize into speech |
-
 | `options` | `{
     voice?: string
     format?: 'wav' | 'flac' | 'ogg'
@@ -68,13 +60,9 @@ const path = await tts.synthesize('Hello world', {
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `apiKey` | `string` | RunPod API key from options or environment. |
-
 | `outputDir` | `string` | Directory where generated audio files are saved. |
-
 | `voices` | `readonly string[]` | The 20 preset voice names available in Chatterbox Turbo. |
 
 ## Events
@@ -94,15 +82,10 @@ Event emitted by TTS
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `lastFile` | `string` | Path to the last generated audio file |
-
 | `lastText` | `string` | Text of the last synthesis request |
-
 | `generating` | `boolean` | Whether audio is currently being generated |
 
 ## Environment Variables

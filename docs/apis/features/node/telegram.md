@@ -32,27 +32,16 @@ container.feature('telegram', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `token` | `string` | Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var) |
-
 | `mode` | `string` | Update mode: polling for long-polling, webhook for HTTP callbacks |
-
 | `webhookUrl` | `string` | Public HTTPS URL for webhook mode |
-
 | `webhookPath` | `string` | HTTP path for the webhook endpoint |
-
 | `webhookPort` | `number` | Port for webhook Express server |
-
 | `autoStart` | `boolean` | Automatically start the bot when enabled |
-
 | `dropPendingUpdates` | `boolean` | Drop pending updates on start (polling mode) |
-
 | `pollingTimeout` | `number` | Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s. |
-
 | `pollingLimit` | `number` | Max updates per polling request (1-100, default 100) |
-
 | `allowedUpdates` | `array` | Update types to receive (e.g. ["message", "callback_query"]) |
 
 ## Methods
@@ -62,9 +51,7 @@ container.feature('telegram', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `Promise<this>`
@@ -94,11 +81,8 @@ Register a command handler. Also emits 'command' on the Luca event bus.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | Parameter name |
-
 | `handler` | `(ctx: Context) => any` | ✓ | Parameter handler |
 
 **Returns:** `this`
@@ -112,11 +96,8 @@ Register a grammY update handler (filter query). Named 'handle' to avoid collisi
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `Parameters<Bot['on']>[0]` | ✓ | Parameter filter |
-
 | `handler` | `(ctx: any) => any` | ✓ | Parameter handler |
 
 **Returns:** `this`
@@ -135,9 +116,7 @@ Add grammY middleware.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `middleware` | `Middleware[]` | ✓ | Parameter middleware |
 
 **Returns:** `this`
@@ -151,9 +130,7 @@ Start long-polling mode.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `dropPendingUpdates` | `boolean` |  | Parameter dropPendingUpdates |
 
 **Returns:** `Promise<this>`
@@ -167,11 +144,8 @@ Set up webhook mode with an Express server.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `url` | `string` |  | Parameter url |
-
 | `path` | `string` |  | Parameter path |
 
 **Returns:** `Promise<this>`
@@ -205,15 +179,10 @@ Print a diagnostic summary of the bot's current state.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `token` | `string` | Bot token from options or TELEGRAM_BOT_TOKEN env var. |
-
 | `bot` | `Bot` | The grammY Bot instance. Created lazily on first access. |
-
 | `isRunning` | `boolean` | Whether the bot is currently receiving updates. |
-
 | `mode` | `'polling' | 'webhook' | 'idle'` | Current operation mode: 'polling', 'webhook', or 'idle'. |
 
 ## Events
@@ -251,21 +220,13 @@ Event emitted by Telegram
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `mode` | `string` | Current operation mode |
-
 | `isRunning` | `boolean` | Whether the bot is currently receiving updates |
-
 | `webhookUrl` | `string` | Active webhook URL if in webhook mode |
-
 | `commandsRegistered` | `array` | List of registered command names |
-
 | `lastError` | `string` | Last error message |
-
 | `botInfo` | `object` | Bot user information from Telegram API |
 
 ## Environment Variables

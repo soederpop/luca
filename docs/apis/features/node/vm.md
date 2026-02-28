@@ -14,9 +14,7 @@ container.feature('vm', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `context` | `any` | Default context object to inject into the VM execution environment |
 
 ## Methods
@@ -26,9 +24,7 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | Parameter code |
 
 **Returns:** `void`
@@ -40,9 +36,7 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `ctx` | `any` |  | Parameter ctx |
 
 **Returns:** `void`
@@ -54,13 +48,9 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | Parameter code |
-
 | `ctx` | `any` |  | Parameter ctx |
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `void`
@@ -70,9 +60,7 @@ container.feature('vm', {
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

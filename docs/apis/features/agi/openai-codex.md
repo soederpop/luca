@@ -28,23 +28,14 @@ container.feature('openaiCodex', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `codexPath` | `string` | Path to the codex CLI binary |
-
 | `model` | `string` | Default model to use for sessions |
-
 | `cwd` | `string` | Default working directory for sessions |
-
 | `sandbox` | `string` | Sandbox policy for shell commands |
-
 | `approvalMode` | `string` | Approval mode for codex operations |
-
 | `projectDoc` | `string` | Path to additional project doc to include |
-
 | `noProjectDoc` | `boolean` | Disable automatic codex.md inclusion |
-
 | `fullStdout` | `boolean` | Do not truncate stdout/stderr from command outputs |
 
 ## Methods
@@ -64,45 +55,26 @@ Run a prompt in a new Codex session. Spawns a subprocess, streams NDJSON events,
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `prompt` | `string` | ✓ | The natural language instruction for the Codex agent |
-
 | `options` | `CodexRunOptions` |  | Optional overrides for model, cwd, sandbox policy, etc. |
-
-
 
 `CodexRunOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `model` | `string` |  |
-
 | `cwd` | `string` |  |
-
 | `sandbox` | `'read-only' | 'workspace-write' | 'danger-full-access'` |  |
-
 | `approvalMode` | `'suggest' | 'auto-edit' | 'full-auto'` |  |
-
 | `projectDoc` | `string` |  |
-
 | `noProjectDoc` | `boolean` |  |
-
 | `fullStdout` | `boolean` |  |
-
 | `images` | `string[]` |  |
-
 | `fullAuto` | `boolean` |  |
-
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
-
 | `resumeLast` | `boolean` | Resume the most recent session. |
-
 | `dangerouslyAutoApproveEverything` | `boolean` | Skip all approvals and sandboxing. |
-
 | `extraArgs` | `string[]` | Additional CLI flags. |
 
 **Returns:** `Promise<CodexSession>`
@@ -127,45 +99,26 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `prompt` | `string` | ✓ | The natural language instruction for the Codex agent |
-
 | `options` | `CodexRunOptions` |  | Optional overrides for model, cwd, sandbox policy, etc. |
-
-
 
 `CodexRunOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `model` | `string` |  |
-
 | `cwd` | `string` |  |
-
 | `sandbox` | `'read-only' | 'workspace-write' | 'danger-full-access'` |  |
-
 | `approvalMode` | `'suggest' | 'auto-edit' | 'full-auto'` |  |
-
 | `projectDoc` | `string` |  |
-
 | `noProjectDoc` | `boolean` |  |
-
 | `fullStdout` | `boolean` |  |
-
 | `images` | `string[]` |  |
-
 | `fullAuto` | `boolean` |  |
-
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
-
 | `resumeLast` | `boolean` | Resume the most recent session. |
-
 | `dangerouslyAutoApproveEverything` | `boolean` | Skip all approvals and sandboxing. |
-
 | `extraArgs` | `string[]` | Additional CLI flags. |
 
 **Returns:** `string`
@@ -187,9 +140,7 @@ Kill a running session's subprocess.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The session ID to abort |
 
 **Returns:** `void`
@@ -203,9 +154,7 @@ Retrieve the current state of a session by its ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The session ID to look up |
 
 **Returns:** `CodexSession | undefined`
@@ -219,9 +168,7 @@ Wait for a running session to complete or error. Resolves immediately if the ses
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The session ID to wait for |
 
 **Returns:** `Promise<CodexSession>`
@@ -235,9 +182,7 @@ Enable the feature. Delegates to the base Feature enable() lifecycle.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Options to merge into the feature configuration |
 
 **Returns:** `Promise<this>`
@@ -247,9 +192,7 @@ Enable the feature. Delegates to the base Feature enable() lifecycle.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `codexPath` | `string` |  |
 
 ## Events
@@ -329,17 +272,11 @@ Event emitted by OpenAICodex
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `sessions` | `object` | Map of session IDs to CodexSession objects |
-
 | `activeSessions` | `array` | List of currently running session IDs |
-
 | `codexAvailable` | `boolean` | Whether the codex CLI binary is available |
-
 | `codexVersion` | `string` | Detected codex CLI version string |
 
 ## Examples

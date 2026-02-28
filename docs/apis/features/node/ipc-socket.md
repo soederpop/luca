@@ -17,11 +17,8 @@ Starts the IPC server listening on the specified socket path. This method sets u
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` | ✓ | The file system path for the Unix domain socket |
-
 | `removeLock` | `any` |  | Whether to remove existing socket file (default: false) |
 
 **Returns:** `Promise<Server>`
@@ -72,9 +69,7 @@ Broadcasts a message to all connected clients (server mode only). This method se
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `message` | `any` | ✓ | The message object to broadcast to all clients |
 
 **Returns:** `void`
@@ -101,9 +96,7 @@ Sends a message to the server (client mode only). This method sends a JSON-encod
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `message` | `any` | ✓ | The message object to send to the server |
 
 **Returns:** `void`
@@ -128,9 +121,7 @@ Connects to an IPC server at the specified socket path (client mode). This metho
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` | ✓ | The file system path to the server's Unix domain socket |
 
 **Returns:** `Promise<Socket>`
@@ -154,13 +145,9 @@ await ipc.send({ type: 'hello', client_id: 'client_001' });
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `isClient` | `any` | Checks if the IPC socket is operating in client mode. |
-
 | `isServer` | `any` | Checks if the IPC socket is operating in server mode. |
-
 | `connection` | `any` | Gets the current client connection socket. |
 
 ## Events
@@ -180,11 +167,8 @@ Event emitted by IpcSocket
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `mode` | `string` | The current mode of the IPC socket - either server or client |
 
 ## Examples

@@ -26,21 +26,13 @@ container.server('express', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `port` | `number` | Port number to listen on |
-
 | `host` | `string` | Hostname or IP address to bind to |
-
 | `cors` | `boolean` | Whether to enable CORS middleware |
-
 | `static` | `string` | Path to serve static files from |
-
 | `historyFallback` | `boolean` | Serve index.html for unmatched routes (SPA history fallback) |
-
 | `create` | `any` | (app: Express, server: Server) => Express |
-
 | `beforeStart` | `any` | (options: StartOptions, server: Server) => Promise<any> |
 
 ## Methods
@@ -50,9 +42,7 @@ container.server('express', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `StartOptions` |  | Parameter options |
 
 **Returns:** `void`
@@ -70,9 +60,7 @@ container.server('express', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `endpoint` | `Endpoint` | ✓ | Parameter endpoint |
 
 **Returns:** `this`
@@ -84,9 +72,7 @@ container.server('express', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `dir` | `string` | ✓ | Parameter dir |
 
 **Returns:** `Promise<this>`
@@ -98,9 +84,7 @@ container.server('express', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{ title?: string; version?: string; description?: string }` |  | Parameter options |
 
 **Returns:** `this`
@@ -112,9 +96,7 @@ container.server('express', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{ title?: string; version?: string; description?: string }` |  | Parameter options |
 
 **Returns:** `Record<string, any>`
@@ -124,25 +106,16 @@ container.server('express', {
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `express` | `any` |  |
-
 | `hooks` | `any` |  |
-
 | `app` | `any` |  |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `port` | `number` | The port the server is bound to |
-
 | `listening` | `boolean` | Whether the server is actively listening for connections |
-
 | `configured` | `boolean` | Whether the server has been configured |
-
 | `stopped` | `boolean` | Whether the server has been stopped |

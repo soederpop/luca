@@ -17,11 +17,8 @@ Executes a command string and captures its output asynchronously. This method ta
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `cmd` | `string` | ✓ | The complete command string to execute (e.g., "git status --porcelain") |
-
 | `options` | `any` |  | Options to pass to the underlying spawn process |
 
 **Returns:** `Promise<{
@@ -56,37 +53,22 @@ Spawns a process and captures its output with real-time monitoring capabilities.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `command` | `string` | ✓ | The command to execute (e.g., 'node', 'npm', 'git') |
-
 | `args` | `string[]` | ✓ | Array of arguments to pass to the command |
-
 | `options` | `SpawnOptions` |  | Options for process execution and monitoring |
-
-
 
 `SpawnOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `stdio` | `"ignore" | "inherit"` | Standard I/O mode for the child process |
-
 | `stdout` | `"ignore" | "inherit"` | Stdout mode for the child process |
-
 | `stderr` | `"ignore" | "inherit"` | Stderr mode for the child process |
-
 | `cwd` | `string` | Working directory for the child process |
-
 | `environment` | `Record<string, any>` | Environment variables to pass to the child process |
-
 | `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
-
 | `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
-
 | `onExit` | `(code: number) => void` | Callback invoked when the process exits |
 
 **Returns:** `Promise<{
@@ -129,25 +111,16 @@ Runs a script file with Bun, inheriting stdout for full TTY passthrough (animati
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `scriptPath` | `string` | ✓ | Absolute path to the script file |
-
 | `options` | `{ cwd?: string; maxLines?: number; env?: Record<string, string> }` |  | Options |
-
-
 
 `{ cwd?: string; maxLines?: number; env?: Record<string, string> }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `cwd` | `any` | Working directory |
-
 | `maxLines` | `any` | Max stderr lines to keep |
-
 | `env` | `any` | Extra environment variables |
 
 **Returns:** `Promise<{ exitCode: number; stderr: string[] }>`
@@ -168,11 +141,8 @@ Execute a command synchronously and return its output. Runs a shell command and 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `command` | `string` | ✓ | The command to execute |
-
 | `options` | `any` |  | Options for command execution (cwd, encoding, etc.) |
 
 **Returns:** `string`
@@ -191,9 +161,7 @@ Establishes a PID-file lock to prevent duplicate process instances. Writes the c
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `pidPath` | `string` | ✓ | Path to the PID file, resolved relative to container.cwd |
 
 **Returns:** `{ release: () => void }`
@@ -215,11 +183,8 @@ Kills a process by its PID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `pid` | `number` | ✓ | The process ID to kill |
-
 | `signal` | `NodeJS.Signals | number` |  | The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9) |
 
 **Returns:** `boolean`
@@ -241,9 +206,7 @@ Finds PIDs of processes listening on a given port. Uses `lsof` on macOS/Linux to
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `port` | `number` | ✓ | The port number to search for |
 
 **Returns:** `number[]`
@@ -267,11 +230,8 @@ Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Return
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `signal` | `NodeJS.Signals` | ✓ | The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2') |
-
 | `handler` | `() => void` | ✓ | The function to call when the signal is received |
 
 **Returns:** `() => void`
@@ -295,9 +255,7 @@ off()
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

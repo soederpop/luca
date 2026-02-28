@@ -38,33 +38,19 @@ container.feature('claudeCode', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `claudePath` | `string` | Path to the claude CLI binary |
-
 | `model` | `string` | Default model to use for sessions |
-
 | `cwd` | `string` | Default working directory for sessions |
-
 | `systemPrompt` | `string` | Default system prompt prepended to all sessions |
-
 | `appendSystemPrompt` | `string` | Default append system prompt for all sessions |
-
 | `permissionMode` | `string` | Default permission mode for Claude CLI sessions |
-
 | `allowedTools` | `array` | Default allowed tools for sessions |
-
 | `disallowedTools` | `array` | Default disallowed tools for sessions |
-
 | `streaming` | `boolean` | Whether to stream partial messages token-by-token |
-
 | `mcpConfig` | `array` | MCP config file paths to pass to sessions |
-
 | `mcpServers` | `object` | MCP server configs keyed by name, injected into sessions via temp config file |
-
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file |
-
 | `fileLogLevel` | `string` | Verbosity level for file logging. Defaults to "normal" |
 
 ## Methods
@@ -89,9 +75,7 @@ Write an MCP server config map to a temp file suitable for `--mcp-config`.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `servers` | `Record<string, McpServerConfig>` | ✓ | Server configs keyed by name |
 
 **Returns:** `Promise<string>`
@@ -112,53 +96,30 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `prompt` | `string` | ✓ | The instruction/prompt to send |
-
 | `options` | `RunOptions` |  | Session configuration overrides |
-
-
 
 `RunOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `model` | `string` | Override model for this session. |
-
 | `cwd` | `string` | Override working directory. |
-
 | `systemPrompt` | `string` | System prompt for this session. |
-
 | `appendSystemPrompt` | `string` | Append system prompt for this session. |
-
 | `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'` | Permission mode override. |
-
 | `allowedTools` | `string[]` | Allowed tools override. |
-
 | `disallowedTools` | `string[]` | Disallowed tools override. |
-
 | `streaming` | `boolean` | Whether to stream partial messages. |
-
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
-
 | `continue` | `boolean` | Continue the most recent conversation. |
-
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
-
 | `mcpConfig` | `string[]` | MCP config file paths. |
-
 | `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
-
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
-
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
-
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
-
 | `fileLogLevel` | `FileLogLevel` | Verbosity level for file logging. Overrides feature-level fileLogLevel. |
 
 **Returns:** `Promise<ClaudeSession>`
@@ -199,53 +160,30 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `prompt` | `string` | ✓ | The instruction/prompt to send |
-
 | `options` | `RunOptions` |  | Session configuration overrides |
-
-
 
 `RunOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `model` | `string` | Override model for this session. |
-
 | `cwd` | `string` | Override working directory. |
-
 | `systemPrompt` | `string` | System prompt for this session. |
-
 | `appendSystemPrompt` | `string` | Append system prompt for this session. |
-
 | `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'` | Permission mode override. |
-
 | `allowedTools` | `string[]` | Allowed tools override. |
-
 | `disallowedTools` | `string[]` | Disallowed tools override. |
-
 | `streaming` | `boolean` | Whether to stream partial messages. |
-
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
-
 | `continue` | `boolean` | Continue the most recent conversation. |
-
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
-
 | `mcpConfig` | `string[]` | MCP config file paths. |
-
 | `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
-
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
-
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
-
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
-
 | `fileLogLevel` | `FileLogLevel` | Verbosity level for file logging. Overrides feature-level fileLogLevel. |
 
 **Returns:** `Promise<string>`
@@ -271,9 +209,7 @@ Kill a running session's subprocess.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The local session ID to abort |
 
 **Returns:** `void`
@@ -293,9 +229,7 @@ Get a session by its local ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The local session ID |
 
 **Returns:** `ClaudeSession | undefined`
@@ -316,9 +250,7 @@ Wait for a running session to complete.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `sessionId` | `string` | ✓ | The local session ID |
 
 **Returns:** `Promise<ClaudeSession>`
@@ -346,9 +278,7 @@ Initialize the feature.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Enable options |
 
 **Returns:** `Promise<this>`
@@ -358,9 +288,7 @@ Initialize the feature.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `claudePath` | `string` | Resolve the path to the claude CLI binary. |
 
 ## Events
@@ -434,17 +362,11 @@ Event emitted by ClaudeCode
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `sessions` | `object` | Map of session IDs to ClaudeSession objects |
-
 | `activeSessions` | `array` | List of currently running session IDs |
-
 | `claudeAvailable` | `boolean` | Whether the Claude CLI binary is available |
-
 | `claudeVersion` | `string` | Detected Claude CLI version string |
 
 ## Environment Variables

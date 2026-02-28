@@ -17,9 +17,7 @@ Parse an utterance into structured command data using compromise. Extracts inten
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The raw utterance to parse |
 
 **Returns:** `ParsedCommand`
@@ -41,9 +39,7 @@ Analyze text with high-accuracy POS tagging and named entity recognition using w
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to analyze |
 
 **Returns:** `Analysis`
@@ -64,9 +60,7 @@ Full understanding: combines compromise parsing with wink-nlp analysis. Returns 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to understand |
 
 **Returns:** `ParsedCommand & Analysis`
@@ -82,13 +76,9 @@ nlp.understand("draw a diagram of the auth flow")
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `parseCalls` | `number` | Total parse() invocations |
-
 | `analyzeCalls` | `number` | Total analyze() invocations |
 
 ## Examples

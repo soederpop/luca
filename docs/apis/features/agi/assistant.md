@@ -30,25 +30,15 @@ container.feature('assistant', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `folder` | `string` | The folder containing the assistant definition |
-
 | `docsPath` | `string` | Path to the docs subfolder relative to the assistant folder |
-
 | `prependPrompt` | `string` | Text to prepend to the system prompt |
-
 | `appendPrompt` | `string` | Text to append to the system prompt |
-
 | `tools` | `object` | Override or extend the tools loaded from tools.ts |
-
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
-
 | `model` | `string` | OpenAI model to use |
-
 | `enableDocsTools` | `boolean` | Whether to enable docs tools |
-
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
 
 ## Methods
@@ -108,11 +98,8 @@ Ask the assistant a question. It will use its tools and docs to produce a stream
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `question` | `string | ContentPart[]` | ✓ | The question to ask |
-
 | `options` | `AskOptions` |  | Parameter options |
 
 **Returns:** `Promise<string>`
@@ -130,9 +117,7 @@ Save the conversation to disk via conversationHistory.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `opts` | `{ title?: string; tags?: string[]; thread?: string; metadata?: Record<string, any> }` |  | Optional overrides for title, tags, thread, or metadata |
 
 **Returns:** `void`
@@ -142,25 +127,15 @@ Save the conversation to disk via conversationHistory.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `resolvedFolder` | `string` | The absolute resolved path to the assistant folder. |
-
 | `docsFolder` | `string` | The path to the docs subfolder. |
-
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
-
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
-
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
-
 | `contentDb` | `ContentDb` |  |
-
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
-
 | `systemPrompt` | `string` | The current system prompt text. |
-
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
 
 ## Events
@@ -178,9 +153,7 @@ Emitted when a new completion turn begins. isFollowUp is true when resuming afte
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `object` |  |
 
 
@@ -192,9 +165,7 @@ Emitted when a completion turn ends. hasToolCalls indicates whether tool calls w
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `object` |  |
 
 
@@ -206,9 +177,7 @@ Emitted as tokens stream in
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | A chunk of streamed text |
 
 
@@ -220,9 +189,7 @@ Emitted with the full response text accumulated across all turns
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | The accumulated response so far |
 
 
@@ -234,9 +201,7 @@ Emitted when a complete response is produced (accumulated across all turns)
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | The final response text |
 
 
@@ -248,9 +213,7 @@ Emitted for each raw streaming event from the underlying conversation transport
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `any` | A raw streaming event from the active model API |
 
 
@@ -262,9 +225,7 @@ Emitted for MCP-specific streaming and output-item events when using Responses A
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `any` | A raw MCP-related streaming event |
 
 
@@ -276,11 +237,8 @@ Emitted when a tool is called
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | Tool name |
-
 | `arg1` | `any` | Tool arguments |
 
 
@@ -292,11 +250,8 @@ Emitted when a tool returns a result
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | Tool name |
-
 | `arg1` | `any` | Result value |
 
 
@@ -308,11 +263,8 @@ Emitted when a tool call fails
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | Tool name |
-
 | `arg1` | `any` | Error |
 
 
@@ -330,9 +282,7 @@ Emitted when a hook function is called
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | Hook/event name |
 
 
@@ -358,17 +308,11 @@ Event emitted by Assistant
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `started` | `boolean` | Whether the assistant has been initialized |
-
 | `conversationCount` | `number` | Number of ask() calls made |
-
 | `lastResponse` | `string` | The most recent response text |
-
 | `folder` | `string` | The resolved assistant folder path |
 
 ## Examples

@@ -18,13 +18,9 @@ container.feature('docsReader', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `contentDb` | `any` | A ContentDb instance to read documents from |
-
 | `systemPrompt` | `string` | Optional system prompt to prepend before the docs listing |
-
 | `model` | `string` | OpenAI model to use for the conversation |
 
 ## Methods
@@ -68,9 +64,7 @@ Ask the docs reader a question. It will read relevant documents and return an an
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `question` | `string` | ✓ | The question to ask |
 
 **Returns:** `void`
@@ -80,11 +74,8 @@ Ask the docs reader a question. It will read relevant documents and return an an
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `contentDb` | `ContentDb` | The ContentDb instance this reader draws from. |
-
 | `isStarted` | `any` | Whether the reader has been started and is ready to answer questions. |
 
 ## Events
@@ -110,13 +101,9 @@ Event emitted by DocsReader
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `started` | `boolean` | Whether the docs reader has been initialized |
-
 | `docsLoaded` | `boolean` | Whether the content database has been loaded |
 
 ## Examples

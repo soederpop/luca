@@ -22,17 +22,11 @@ container.feature('secureShell', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `host` | `string` | Remote host address |
-
 | `port` | `number` | SSH port number (default: 22) |
-
 | `username` | `string` | Username for SSH authentication |
-
 | `password` | `string` | Password for SSH authentication |
-
 | `key` | `string` | Path to SSH private key file |
 
 ## Methods
@@ -58,9 +52,7 @@ Executes a command on the remote host.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `command` | `string` | ✓ | The command to execute on the remote shell |
 
 **Returns:** `Promise<string>`
@@ -80,11 +72,8 @@ Downloads a file from the remote host via SCP.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source file path on the remote host |
-
 | `target` | `string` | ✓ | The target file path on the local machine |
 
 **Returns:** `Promise<string>`
@@ -103,11 +92,8 @@ Uploads a file to the remote host via SCP.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source file path on the local machine |
-
 | `target` | `string` | ✓ | The target file path on the remote host |
 
 **Returns:** `Promise<string>`
@@ -122,11 +108,8 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `connected` | `boolean` | Whether an SSH connection is currently active |
 
 ## Examples

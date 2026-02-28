@@ -16,11 +16,8 @@ container.feature('googleCalendar', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
-
 | `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |
 
 ## Methods
@@ -40,33 +37,20 @@ List events from a calendar within a time range.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `ListEventsOptions` |  | Filtering options including timeMin, timeMax, query, maxResults |
-
-
 
 `ListEventsOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `calendarId` | `string` |  |
-
 | `timeMin` | `string` |  |
-
 | `timeMax` | `string` |  |
-
 | `maxResults` | `number` |  |
-
 | `query` | `string` |  |
-
 | `orderBy` | `'startTime' | 'updated'` |  |
-
 | `pageToken` | `string` |  |
-
 | `singleEvents` | `boolean` |  |
 
 **Returns:** `Promise<CalendarEventList>`
@@ -80,9 +64,7 @@ Get today's events from a calendar.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `calendarId` | `string` |  | Calendar ID (defaults to options.defaultCalendarId or 'primary') |
 
 **Returns:** `Promise<CalendarEvent[]>`
@@ -96,11 +78,8 @@ Get upcoming events for the next N days.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `days` | `number` |  | Number of days to look ahead (default: 7) |
-
 | `calendarId` | `string` |  | Calendar ID |
 
 **Returns:** `Promise<CalendarEvent[]>`
@@ -114,11 +93,8 @@ Get a single event by ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `eventId` | `string` | ✓ | The event ID |
-
 | `calendarId` | `string` |  | Calendar ID |
 
 **Returns:** `Promise<CalendarEvent>`
@@ -132,35 +108,21 @@ Search events by text query across event summaries, descriptions, and locations.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `query` | `string` | ✓ | Freetext search term |
-
 | `options` | `ListEventsOptions` |  | Additional listing options (timeMin, timeMax, calendarId, etc.) |
-
-
 
 `ListEventsOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `calendarId` | `string` |  |
-
 | `timeMin` | `string` |  |
-
 | `timeMax` | `string` |  |
-
 | `maxResults` | `number` |  |
-
 | `query` | `string` |  |
-
 | `orderBy` | `'startTime' | 'updated'` |  |
-
 | `pageToken` | `string` |  |
-
 | `singleEvents` | `boolean` |  |
 
 **Returns:** `Promise<CalendarEvent[]>`
@@ -170,11 +132,8 @@ Search events by text query across event summaries, descriptions, and locations.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
-
 | `defaultCalendarId` | `string` | Default calendar ID from options or 'primary'. |
 
 ## Events
@@ -194,15 +153,10 @@ Event emitted by GoogleCalendar
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `lastCalendarId` | `string` | Last calendar ID queried |
-
 | `lastEventCount` | `number` | Number of events returned in last query |
-
 | `lastError` | `string` | Last Calendar API error message |
 
 ## Examples

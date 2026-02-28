@@ -20,15 +20,10 @@ container.feature('sqlite', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `path` | `string` | Path to sqlite file. Use :memory: for in-memory database |
-
 | `readonly` | `boolean` | Open sqlite database in readonly mode |
-
 | `readwrite` | `boolean` | Open sqlite database in readwrite mode (defaults to true when readonly is false) |
-
 | `create` | `boolean` | Create the sqlite database file if it does not exist |
 
 ## Methods
@@ -40,11 +35,8 @@ Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `queryText` | `string` | ✓ | The SQL query string with optional `?` placeholders |
-
 | `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
 
 **Returns:** `Promise<T[]>`
@@ -66,11 +58,8 @@ Executes a write/update/delete statement and returns metadata. Use sqlite placeh
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `queryText` | `string` | ✓ | The SQL statement string with optional `?` placeholders |
-
 | `params` | `SqlValue[]` |  | Ordered array of values to bind to the placeholders |
 
 **Returns:** `Promise<{ changes: number; lastInsertRowid: number | bigint | null }>`
@@ -93,11 +82,8 @@ Safe tagged-template SQL helper. Values become bound parameters automatically, p
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `strings` | `TemplateStringsArray` | ✓ | Template literal string segments |
-
 | `values` | `SqlValue[]` | ✓ | Interpolated values that become bound `?` parameters |
 
 **Returns:** `Promise<T[]>`
@@ -129,9 +115,7 @@ db.close()
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `db` | `any` | Returns the underlying Bun sqlite database instance. |
 
 ## Events

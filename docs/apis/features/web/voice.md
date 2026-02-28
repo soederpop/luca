@@ -43,11 +43,8 @@ container.feature('voice')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `listening` | `any` | Whether the speech recognizer is currently listening for audio input. |
-
 | `transcript` | `any` | Returns the accumulated final transcript text from recognition results. |
 
 ## Events

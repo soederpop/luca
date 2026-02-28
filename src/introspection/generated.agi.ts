@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-28T05:19:11.563Z
+// Generated at: 2026-02-28T05:58:11.003Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -9520,6 +9520,36 @@ setContainerBuildTimeData('Container', {
       },
       "required": [],
       "returns": "string"
+    },
+    "introspectAsText": {
+      "description": "Alias for inspectAsText",
+      "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "Parameter startHeadingDepth"
+        }
+      },
+      "required": [],
+      "returns": "string"
+    },
+    "introspectAsJSON": {
+      "description": "Alias for inspectAsJSON",
+      "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "Parameter startHeadingDepth"
+        }
+      },
+      "required": [],
+      "returns": "any"
     },
     "sleep": {
       "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
@@ -19165,6 +19195,36 @@ export const containerIntrospectionData = [
         },
         "required": [],
         "returns": "string"
+      },
+      "introspectAsText": {
+        "description": "Alias for inspectAsText",
+        "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "Parameter startHeadingDepth"
+          }
+        },
+        "required": [],
+        "returns": "string"
+      },
+      "introspectAsJSON": {
+        "description": "Alias for inspectAsJSON",
+        "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "Parameter startHeadingDepth"
+          }
+        },
+        "required": [],
+        "returns": "any"
       },
       "sleep": {
         "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",

@@ -17,9 +17,7 @@ Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are op
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `target` | `string` | ✓ | A URL or file path to open |
 
 **Returns:** `Promise<void>`
@@ -33,9 +31,7 @@ Opens a desktop application by name. On macOS, uses `open -a` to launch the app.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The application name (e.g. "Slack", "Finder", "Safari") |
 
 **Returns:** `Promise<void>`
@@ -49,9 +45,7 @@ Opens VS Code at the specified path. Uses the `code` CLI command. Falls back to 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `path` | `string` |  | The file or folder path to open |
 
 **Returns:** `Promise<void>`
@@ -65,9 +59,7 @@ Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `path` | `string` |  | The file or folder path to open |
 
 **Returns:** `Promise<void>`
@@ -77,9 +69,7 @@ Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

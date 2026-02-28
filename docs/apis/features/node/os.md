@@ -11,31 +11,20 @@ container.feature('os')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `arch` | `any` | Gets the operating system CPU architecture. |
-
 | `tmpdir` | `any` | Gets the operating system's default directory for temporary files. |
-
 | `homedir` | `any` | Gets the current user's home directory path. |
-
 | `cpuCount` | `any` | Gets the number of logical CPU cores available on the system. |
-
 | `hostname` | `any` | Gets the hostname of the operating system. |
-
 | `platform` | `any` | Gets the operating system platform. |
-
 | `networkInterfaces` | `any` | Gets information about the system's network interfaces. |
-
 | `macAddresses` | `string[]` | Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification. |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

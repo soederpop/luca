@@ -18,13 +18,9 @@ container.feature('docker', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `dockerPath` | `string` | Path to docker executable |
-
 | `timeout` | `number` | Command timeout in milliseconds |
-
 | `autoRefresh` | `boolean` | Auto refresh containers/images after operations |
 
 ## Methods
@@ -49,19 +45,13 @@ List all containers (running and stopped).
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{ all?: boolean }` |  | Listing options |
-
-
 
 `{ all?: boolean }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `all` | `any` | Include stopped containers (default: false) |
 
 **Returns:** `Promise<DockerContainer[]>`
@@ -93,9 +83,7 @@ Start a stopped container.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Container ID or name to start |
 
 **Returns:** `Promise<void>`
@@ -113,11 +101,8 @@ Stop a running container.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Container ID or name to stop |
-
 | `timeout` | `number` |  | Seconds to wait before killing the container |
 
 **Returns:** `Promise<void>`
@@ -136,21 +121,14 @@ Remove a container.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Container ID or name to remove |
-
 | `options` | `{ force?: boolean }` |  | Removal options |
-
-
 
 `{ force?: boolean }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `force` | `any` | Force removal of a running container |
 
 **Returns:** `Promise<void>`
@@ -169,11 +147,8 @@ Create and run a new container from the given image.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `image` | `string` | ✓ | Docker image to run (e.g. 'nginx:latest') |
-
 | `options` | `{
       /** Assign a name to the container */
       name?: string
@@ -203,8 +178,6 @@ Create and run a new container from the given image.
       restart?: string
     }` |  | Container run options |
 
-
-
 `{
       /** Assign a name to the container */
       name?: string
@@ -235,33 +208,19 @@ Create and run a new container from the given image.
     }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `name` | `any` | Assign a name to the container |
-
 | `ports` | `any` | Port mappings in 'host:container' format (e.g. ['8080:80']) |
-
 | `volumes` | `any` | Volume mounts in 'host:container' format (e.g. ['./data:/app/data']) |
-
 | `environment` | `any` | Environment variables as key-value pairs |
-
 | `detach` | `any` | Run the container in the background |
-
 | `interactive` | `any` | Keep STDIN open |
-
 | `tty` | `any` | Allocate a pseudo-TTY |
-
 | `command` | `any` | Command and arguments to run inside the container |
-
 | `workdir` | `any` | Working directory inside the container |
-
 | `user` | `any` | Username or UID to run as |
-
 | `entrypoint` | `any` | Override the default entrypoint |
-
 | `network` | `any` | Connect the container to a network |
-
 | `restart` | `any` | Restart policy (e.g. 'always', 'on-failure') |
 
 **Returns:** `Promise<string>`
@@ -284,13 +243,9 @@ Execute a command inside a running container. When volumes are specified, uses `
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Container ID or name to execute in |
-
 | `command` | `string[]` | ✓ | Command and arguments array (e.g. ['ls', '-la']) |
-
 | `options` | `{
       /** Keep STDIN open */
       interactive?: boolean
@@ -307,8 +262,6 @@ Execute a command inside a running container. When volumes are specified, uses `
       /** Volume mounts; triggers a docker run --rm fallback */
       volumes?: string[]
     }` |  | Execution options |
-
-
 
 `{
       /** Keep STDIN open */
@@ -328,21 +281,13 @@ Execute a command inside a running container. When volumes are specified, uses `
     }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `interactive` | `any` | Keep STDIN open |
-
 | `tty` | `any` | Allocate a pseudo-TTY |
-
 | `user` | `any` | Username or UID to run as |
-
 | `workdir` | `any` | Working directory inside the container |
-
 | `detach` | `any` | Run the command in the background |
-
 | `environment` | `any` | Environment variables as key-value pairs |
-
 | `volumes` | `any` | Volume mounts; triggers a docker run --rm fallback |
 
 **Returns:** `Promise<{ stdout: string; stderr: string; exitCode: number }>`
@@ -361,11 +306,8 @@ Create a shell-like wrapper for executing multiple commands against a container.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Parameter containerIdOrName |
-
 | `options` | `{
       volumes?: string[]
       workdir?: string
@@ -384,9 +326,7 @@ Pull an image from a registry.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `image` | `string` | ✓ | Full image reference (e.g. 'nginx:latest', 'ghcr.io/org/repo:tag') |
 
 **Returns:** `Promise<void>`
@@ -404,21 +344,14 @@ Remove an image from the local store.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `imageIdOrName` | `string` | ✓ | Image ID, repository, or repository:tag to remove |
-
 | `options` | `{ force?: boolean }` |  | Removal options |
-
-
 
 `{ force?: boolean }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `force` | `any` | Force removal even if the image is in use |
 
 **Returns:** `Promise<void>`
@@ -437,11 +370,8 @@ Build an image from a Dockerfile.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `contextPath` | `string` | ✓ | Path to the build context directory |
-
 | `options` | `{
       /** Tag the resulting image (e.g. 'my-app:latest') */
       tag?: string
@@ -454,8 +384,6 @@ Build an image from a Dockerfile.
       /** Do not use cache when building the image */
       nocache?: boolean
     }` |  | Build options |
-
-
 
 `{
       /** Tag the resulting image (e.g. 'my-app:latest') */
@@ -471,17 +399,11 @@ Build an image from a Dockerfile.
     }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tag` | `any` | Tag the resulting image (e.g. 'my-app:latest') |
-
 | `dockerfile` | `any` | Path to an alternate Dockerfile |
-
 | `buildArgs` | `any` | Build-time variables as key-value pairs |
-
 | `target` | `any` | Target build stage in a multi-stage Dockerfile |
-
 | `nocache` | `any` | Do not use cache when building the image |
 
 **Returns:** `Promise<void>`
@@ -502,11 +424,8 @@ Get container logs.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `containerIdOrName` | `string` | ✓ | Container ID or name to fetch logs from |
-
 | `options` | `{
       /** Follow log output (stream) */
       follow?: boolean
@@ -517,8 +436,6 @@ Get container logs.
       /** Prepend a timestamp to each log line */
       timestamps?: boolean
     }` |  | Log retrieval options |
-
-
 
 `{
       /** Follow log output (stream) */
@@ -532,15 +449,10 @@ Get container logs.
     }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `follow` | `any` | Follow log output (stream) |
-
 | `tail` | `any` | Number of lines to show from the end of the logs |
-
 | `since` | `any` | Show logs since a timestamp or relative time (e.g. '10m', '2024-01-01T00:00:00') |
-
 | `timestamps` | `any` | Prepend a timestamp to each log line |
 
 **Returns:** `Promise<string>`
@@ -572,9 +484,7 @@ Prune unused Docker resources. When no specific resource type is selected, falls
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{
     /** Prune stopped containers */
     containers?: boolean
@@ -589,8 +499,6 @@ Prune unused Docker resources. When no specific resource type is selected, falls
     /** Skip confirmation prompts for image pruning */
     force?: boolean
   }` |  | Pruning options |
-
-
 
 `{
     /** Prune stopped containers */
@@ -608,19 +516,12 @@ Prune unused Docker resources. When no specific resource type is selected, falls
   }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `containers` | `any` | Prune stopped containers |
-
 | `images` | `any` | Prune dangling images |
-
 | `volumes` | `any` | Prune unused volumes |
-
 | `networks` | `any` | Prune unused networks |
-
 | `all` | `any` | Prune all resource types (containers, images, volumes, networks) |
-
 | `force` | `any` | Skip confirmation prompts for image pruning |
 
 **Returns:** `Promise<void>`
@@ -639,9 +540,7 @@ Initialize the Docker feature by checking availability and optionally refreshing
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Enable options passed to the base Feature |
 
 **Returns:** `Promise<this>`
@@ -651,25 +550,17 @@ Initialize the Docker feature by checking availability and optionally refreshing
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `proc` | `any` | Get the proc feature for executing shell commands |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `containers` | `array` | List of known Docker containers |
-
 | `images` | `array` | List of known Docker images |
-
 | `isDockerAvailable` | `boolean` | Whether Docker CLI is available on this system |
-
 | `lastError` | `string` | Last error message from a Docker operation |
 
 ## Examples

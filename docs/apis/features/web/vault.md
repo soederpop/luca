@@ -15,9 +15,7 @@ container.feature('vault')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `{ refresh = false, set = true }` | `any` |  | Parameter { refresh = false, set = true } |
 
 **Returns:** `Promise<ArrayBuffer>`
@@ -29,9 +27,7 @@ container.feature('vault')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `payload` | `string` | ✓ | Parameter payload |
 
 **Returns:** `void`
@@ -43,9 +39,7 @@ container.feature('vault')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `payload` | `string` | ✓ | Parameter payload |
 
 **Returns:** `void`

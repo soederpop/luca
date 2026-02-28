@@ -28,23 +28,14 @@ container.feature('googleAuth', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `mode` | `string` | Authentication mode. Auto-detected if serviceAccountKeyPath is set |
-
 | `clientId` | `string` | OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var) |
-
 | `clientSecret` | `string` | OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var) |
-
 | `serviceAccountKeyPath` | `string` | Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var) |
-
 | `serviceAccountKey` | `object` | Service account key as a parsed JSON object (alternative to file path) |
-
 | `scopes` | `array` | OAuth2 scopes to request |
-
 | `redirectPort` | `number` | Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000) |
-
 | `tokenCacheKey` | `string` | DiskCache key for storing OAuth2 refresh token |
 
 ## Methods
@@ -72,9 +63,7 @@ Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback se
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `scopes` | `string[]` |  | OAuth2 scopes to request (defaults to options.scopes or defaultScopes) |
 
 **Returns:** `Promise<this>`
@@ -108,21 +97,13 @@ Revoke the current credentials and clear cached tokens.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `clientId` | `string` | OAuth2 client ID from options or GOOGLE_CLIENT_ID env var. |
-
 | `clientSecret` | `string` | OAuth2 client secret from options or GOOGLE_CLIENT_SECRET env var. |
-
 | `authMode` | `'oauth2' | 'service-account'` | Resolved authentication mode based on options. |
-
 | `isAuthenticated` | `boolean` | Whether valid credentials are currently available. |
-
 | `defaultScopes` | `string[]` | Default scopes covering Drive, Sheets, Calendar, and Docs read access. |
-
 | `redirectPort` | `number` | Resolved redirect port from options, GOOGLE_OAUTH_REDIRECT_PORT env var, or default 3000. |
-
 | `tokenCacheKey` | `string` | DiskCache key used for storing the refresh token. |
 
 ## Events
@@ -154,21 +135,13 @@ Event emitted by GoogleAuth
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `authMode` | `string` | Current authentication mode |
-
 | `isAuthenticated` | `boolean` | Whether valid credentials are currently available |
-
 | `email` | `string` | Authenticated user or service account email |
-
 | `scopes` | `array` | OAuth2 scopes that have been authorized |
-
 | `tokenExpiry` | `string` | ISO timestamp when the current access token expires |
-
 | `lastError` | `string` | Last authentication error message |
 
 ## Environment Variables

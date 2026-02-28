@@ -16,11 +16,8 @@ container.feature('runpod', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
-
 | `dataCenterId` | `string` | Preferred data center ID (default: US-TX-3) |
 
 ## Methods
@@ -32,21 +29,14 @@ List available pod templates.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `{ includePublic?: boolean, includeRunpod?: boolean }` |  | Filter options for templates |
-
-
 
 `{ includePublic?: boolean, includeRunpod?: boolean }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `includePublic` | `any` | Include public community templates (default: false) |
-
 | `includeRunpod` | `any` | Include RunPod official templates (default: true) |
 
 **Returns:** `Promise<TemplateInfo[]>`
@@ -65,9 +55,7 @@ Get details for a specific template by ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `templateId` | `string` | ✓ | The template ID to look up |
 
 **Returns:** `Promise<TemplateInfo>`
@@ -86,45 +74,26 @@ Create a new GPU pod on RunPod.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `CreatePodOptions` | ✓ | Pod configuration options |
-
-
 
 `CreatePodOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `name` | `string` | Pod display name (default: 'luca-pod') |
-
 | `imageName` | `string` | Docker image name to run |
-
 | `gpuTypeId` | `string | string[]` | GPU type ID or array of acceptable GPU types |
-
 | `gpuCount` | `number` | Number of GPUs to allocate (default: 1) |
-
 | `templateId` | `string` | Template ID to use for pod configuration |
-
 | `cloudType` | `'SECURE' | 'COMMUNITY'` | Cloud type: 'SECURE' for dedicated or 'COMMUNITY' for shared (default: 'SECURE') |
-
 | `containerDiskInGb` | `number` | Container disk size in GB (default: 50) |
-
 | `volumeInGb` | `number` | Persistent volume size in GB (default: 20) |
-
 | `volumeMountPath` | `string` | Mount path for the volume (default: '/workspace') |
-
 | `ports` | `string[]` | Port mappings like ['8888/http', '22/tcp'] |
-
 | `env` | `Record<string, string>` | Environment variables to set in the container |
-
 | `interruptible` | `boolean` | Whether the pod can be preempted for spot pricing |
-
 | `networkVolumeId` | `string` | ID of an existing network volume to attach |
-
 | `minRAMPerGPU` | `number` | Minimum RAM per GPU in GB |
 
 **Returns:** `Promise<PodInfo>`
@@ -147,9 +116,7 @@ Stop a running pod.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to stop |
 
 **Returns:** `void`
@@ -167,9 +134,7 @@ Start a stopped pod.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to start |
 
 **Returns:** `void`
@@ -187,9 +152,7 @@ Permanently delete a pod.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to remove |
 
 **Returns:** `void`
@@ -207,23 +170,15 @@ Get all pods via the REST API.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filters` | `{ name?: string; imageName?: string; desiredStatus?: string }` |  | Optional filters for name, image, or status |
-
-
 
 `{ name?: string; imageName?: string; desiredStatus?: string }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `name` | `any` | Filter by pod name |
-
 | `imageName` | `any` | Filter by Docker image name |
-
 | `desiredStatus` | `any` | Filter by status (RUNNING, EXITED, TERMINATED) |
 
 **Returns:** `Promise<RestPodInfo[]>`
@@ -242,9 +197,7 @@ Get detailed pod info via the REST API. Returns richer data than the CLI-based `
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to look up |
 
 **Returns:** `Promise<RestPodInfo>`
@@ -263,13 +216,9 @@ Poll until a pod reaches a desired status.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to monitor |
-
 | `status` | `string` |  | Target status to wait for (default: 'RUNNING') |
-
 | `{ interval = 5000, timeout = 300000 }` | `any` |  | Parameter { interval = 5000, timeout = 300000 } |
 
 **Returns:** `Promise<RestPodInfo>`
@@ -301,9 +250,7 @@ Get details for a specific network volume.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `volumeId` | `string` | ✓ | The volume ID to look up |
 
 **Returns:** `Promise<VolumeInfo>`
@@ -322,23 +269,15 @@ Create a new network storage volume.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `CreateVolumeOptions` | ✓ | Volume configuration |
-
-
 
 `CreateVolumeOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `name` | `string` | Display name for the volume |
-
 | `size` | `number` | Size in GB |
-
 | `dataCenterId` | `string` | Data center to create in (defaults to feature's dataCenterId) |
 
 **Returns:** `Promise<VolumeInfo>`
@@ -357,9 +296,7 @@ Delete a network storage volume.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `volumeId` | `string` | ✓ | The volume ID to delete |
 
 **Returns:** `void`
@@ -377,9 +314,7 @@ Create an SSH connection to a pod using the runpodctl CLI. Prefer `getShell()` w
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to connect to |
 
 **Returns:** `void`
@@ -398,9 +333,7 @@ Get an SSH connection to a pod using the REST API. Uses port mappings and public
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to connect to |
 
 **Returns:** `void`
@@ -419,22 +352,15 @@ Ensure a file exists on a pod's filesystem. If missing, kicks off a background d
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID |
-
 | `remotePath` | `string` | ✓ | Absolute path on the pod where the file should exist |
-
 | `fallbackUrl` | `string` | ✓ | URL to download from (inside the pod) if the file doesn't exist |
-
 | `options` | `{
 			pollInterval?: number
 			timeout?: number
 			onProgress?: (bytes: number) => void
 		}` |  | Parameter options |
-
-
 
 `{
 			pollInterval?: number
@@ -443,13 +369,9 @@ Ensure a file exists on a pod's filesystem. If missing, kicks off a background d
 		}` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `pollInterval` | `any` | How often to check in ms (default 5000) |
-
 | `timeout` | `any` | Max time to wait for download in ms (default 600000 / 10 min) |
-
 | `onProgress` | `any` | Called each poll with current file size in bytes |
 
 **Returns:** `Promise<{ existed: boolean; path: string }>`
@@ -472,9 +394,7 @@ Get the public HTTP proxy URLs for a pod's exposed HTTP ports.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID |
 
 **Returns:** `void`
@@ -493,9 +413,7 @@ List all pods using the runpodctl CLI. Parses the tabular output from `runpodctl
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `detailed` | `any` |  | Reserved for future use |
 
 **Returns:** `Promise<PodInfo[]>`
@@ -514,9 +432,7 @@ Get pod info using the runpodctl CLI. For richer data including port mappings an
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `podId` | `string` | ✓ | The pod ID to look up |
 
 **Returns:** `Promise<PodInfo>`
@@ -544,21 +460,15 @@ gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `proc` | `any` | The proc feature used for executing CLI commands like runpodctl. |
-
 | `apiKey` | `any` | RunPod API key from options or the RUNPOD_API_KEY environment variable. |
-
 | `dataCenterId` | `any` | Preferred data center ID, defaults to 'US-TX-3'. |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Environment Variables

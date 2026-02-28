@@ -20,15 +20,10 @@ container.feature('ink', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `maxFps` | `number` | Maximum frames per second for render updates |
-
 | `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |
-
 | `incrementalRendering` | `boolean` | Enable incremental rendering mode |
-
 | `concurrent` | `boolean` | Enable React concurrent rendering mode |
 
 ## Methods
@@ -55,11 +50,8 @@ Mount a React element to the terminal. Wraps `ink.render()` — automatically lo
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `node` | `any` | ✓ | A React element (JSX or React.createElement) |
-
 | `options` | `Record<string, any>` |  | Ink render options (stdout, stdin, debug, etc.) |
 
 **Returns:** `void`
@@ -73,9 +65,7 @@ Re-render the currently mounted app with a new root element.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `node` | `any` | ✓ | Parameter node |
 
 **Returns:** `void`
@@ -144,11 +134,8 @@ Register a named React function component as a renderable block.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | Unique block name |
-
 | `component` | `Function` | ✓ | A React function component |
 
 **Returns:** `void`
@@ -168,11 +155,8 @@ Render a registered block by name with optional props. Looks up the component, c
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The registered block name |
-
 | `data` | `Record<string, any>` |  | Props to pass to the component |
 
 **Returns:** `void`
@@ -190,13 +174,9 @@ Render a registered block that needs to stay mounted for async work. The compone
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The registered block name |
-
 | `data` | `Record<string, any>` |  | Props to pass to the component (a `done` prop is added automatically) |
-
 | `options` | `{ timeout?: number }` |  | `timeout` in ms before force-unmounting (default 30 000) |
 
 **Returns:** `void`
@@ -224,21 +204,13 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `React` | `any` | The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import. |
-
 | `components` | `any` | All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ``` |
-
 | `hooks` | `any` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` |
-
 | `measureElement` | `any` | The Ink measureElement utility. |
-
 | `isMounted` | `boolean` | Whether an ink app is currently mounted. |
-
 | `instance` | `any` | The raw ink render instance if you need low-level access. |
-
 | `blocks` | `string[]` | List all registered block names. |
 
 ## Events
@@ -258,11 +230,8 @@ Event emitted by Ink
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `mounted` | `boolean` | Whether an ink app is currently rendered / mounted |
 
 ## Examples

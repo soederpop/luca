@@ -14,9 +14,7 @@ container.feature('helpers', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `rootDir` | `string` | Root directory to scan for helper folders. Defaults to container.cwd |
 
 ## Methods
@@ -28,21 +26,14 @@ Discover and register project-level helpers of the given type. For class-based t
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `type` | `RegistryType` | ✓ | Which type of helpers to discover |
-
 | `options` | `{ directory?: string }` |  | Optional overrides |
-
-
 
 `{ directory?: string }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `directory` | `any` | Override the directory to scan |
 
 **Returns:** `Promise<string[]>`
@@ -74,11 +65,8 @@ Look up a helper class by type and name.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `type` | `RegistryType` | ✓ | The registry type (features, clients, servers, commands, endpoints) |
-
 | `name` | `string` | ✓ | The helper name within that registry |
 
 **Returns:** `any`
@@ -96,11 +84,8 @@ Get the introspection description for a specific helper.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `type` | `RegistryType` | ✓ | The registry type |
-
 | `name` | `string` | ✓ | The helper name |
 
 **Returns:** `string`
@@ -110,23 +95,16 @@ Get the introspection description for a specific helper.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `rootDir` | `string` | The root directory to scan for helper folders. |
-
 | `available` | `Record<string, string[]>` | Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry. |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `discovered` | `object` | Which registry types have been discovered |
-
 | `registered` | `array` | Names of project-level helpers that were discovered (type.name) |
 
 ## Examples

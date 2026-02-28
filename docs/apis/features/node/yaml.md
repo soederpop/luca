@@ -17,9 +17,7 @@ Converts a JavaScript object to a YAML string. This method serializes JavaScript
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `data` | `any` | ✓ | The data to convert to YAML format |
 
 **Returns:** `string`
@@ -55,9 +53,7 @@ Parses a YAML string into a JavaScript object. This method deserializes YAML con
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `yamlStr` | `string` | ✓ | The YAML string to parse |
 
 **Returns:** `T`
@@ -96,9 +92,7 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

@@ -16,11 +16,8 @@ container.feature('assistantsManager', {
 ## Options
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `folder` | `string` | Folder to scan for assistant subdirectories |
-
 | `autoDiscover` | `boolean` | Automatically discover assistants on init |
 
 ## Methods
@@ -54,9 +51,7 @@ Looks up a single assistant entry by name.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The assistant subdirectory name |
 
 **Returns:** `AssistantEntry | undefined`
@@ -70,11 +65,8 @@ Creates and returns a new Assistant feature instance for the given name. The ass
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The assistant name (must match a discovered entry) |
-
 | `options` | `Record<string, any>` |  | Additional options to pass to the Assistant constructor |
 
 **Returns:** `Assistant`
@@ -92,9 +84,7 @@ Returns a previously created assistant instance by name.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The assistant name |
 
 **Returns:** `Assistant | undefined`
@@ -112,9 +102,7 @@ Generates a markdown summary of all discovered assistants, listing their names a
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `assistantsFolder` | `string` | The absolute path to the assistants folder. |
 
 ## Events
@@ -132,11 +120,8 @@ Emitted when a new assistant instance is created
 **Event Arguments:**
 
 | Name | Type | Description |
-
 |------|------|-------------|
-
 | `arg0` | `string` | The assistant name |
-
 | `arg1` | `any` | The assistant instance |
 
 
@@ -144,15 +129,10 @@ Emitted when a new assistant instance is created
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `discovered` | `boolean` | Whether discovery has been run |
-
 | `assistantCount` | `number` | Number of discovered assistant definitions |
-
 | `activeCount` | `number` | Number of currently instantiated assistants |
 
 ## Examples

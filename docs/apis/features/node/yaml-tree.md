@@ -17,11 +17,8 @@ Loads a tree of YAML files from the specified base path and stores them in state
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `basePath` | `string` | ✓ | The root directory path to scan for YAML files |
-
 | `key` | `string` |  | The key to store the tree under in state (defaults to first segment of basePath) |
 
 **Returns:** `void`
@@ -42,17 +39,13 @@ const dbConfig = yamlTree.tree.config.database.production;
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tree` | `any` | Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded. |
 
 ## State
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples
