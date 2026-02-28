@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-28T05:58:10.918Z
+// Generated at: 2026-02-28T07:26:31.300Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -386,6 +386,115 @@ setBuildTimeData('features.speech', {
   "state": {},
   "options": {},
   "envVars": []
+});
+
+setBuildTimeData('features.helpers', {
+  "id": "features.helpers",
+  "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+  "shortcut": "features.helpers",
+  "className": "Helpers",
+  "methods": {
+    "setManifestURL": {
+      "description": "Set a new manifest URL. Invalidates any cached manifest.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "The new URL to fetch the manifest from"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "void"
+    },
+    "discover": {
+      "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "Which type of helpers to discover ('features' or 'clients')"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "returns": "Promise<string[]>"
+    },
+    "discoverAll": {
+      "description": "Discover all helper types from the manifest.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, string[]>>"
+    },
+    "discoverFeatures": {
+      "description": "Convenience method to discover only features.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "discoverClients": {
+      "description": "Convenience method to discover only clients.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "lookup": {
+      "description": "Look up a helper class by type and name.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name within that registry"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "any"
+    },
+    "describe": {
+      "description": "Get the introspection description for a specific helper.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "string"
+    }
+  },
+  "getters": {
+    "manifestURL": {
+      "description": "The URL to fetch the helpers manifest from.",
+      "returns": "string"
+    },
+    "available": {
+      "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+      "returns": "Record<string, string[]>"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+    }
+  ]
 });
 
 // Container introspection data
@@ -1190,6 +1299,114 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": []
+  },
+  {
+    "id": "features.helpers",
+    "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+    "shortcut": "features.helpers",
+    "className": "Helpers",
+    "methods": {
+      "setManifestURL": {
+        "description": "Set a new manifest URL. Invalidates any cached manifest.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "The new URL to fetch the manifest from"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "void"
+      },
+      "discover": {
+        "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "Which type of helpers to discover ('features' or 'clients')"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "returns": "Promise<string[]>"
+      },
+      "discoverAll": {
+        "description": "Discover all helper types from the manifest.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, string[]>>"
+      },
+      "discoverFeatures": {
+        "description": "Convenience method to discover only features.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "discoverClients": {
+        "description": "Convenience method to discover only clients.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "lookup": {
+        "description": "Look up a helper class by type and name.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name within that registry"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "any"
+      },
+      "describe": {
+        "description": "Get the introspection description for a specific helper.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "string"
+      }
+    },
+    "getters": {
+      "manifestURL": {
+        "description": "The URL to fetch the helpers manifest from.",
+        "returns": "string"
+      },
+      "available": {
+        "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+        "returns": "Record<string, string[]>"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+      }
+    ]
   }
 ];
 
