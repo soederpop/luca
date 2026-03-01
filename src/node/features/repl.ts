@@ -3,7 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import vm from 'vm'
 import readline from 'readline'
-import { inspect } from 'util'
+import { displayResult } from '../../commands/eval.js'
 
 export const ReplStateSchema = FeatureStateSchema.extend({
   started: z.boolean().optional().describe('Whether the REPL server has been started'),
@@ -169,11 +169,7 @@ export class Repl<
           ctx._ = lastResult
 
           if (result !== undefined) {
-            if (typeof result === 'object' && result !== null) {
-              console.log(inspect(result, { colors: true, depth: 4 }))
-            } else {
-              console.log(result)
-            }
+            displayResult(result)
           }
         } catch (err: any) {
           console.log(`\x1b[31mError: ${err.message}\x1b[0m`)

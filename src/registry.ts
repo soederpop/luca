@@ -25,7 +25,27 @@ abstract class Registry<T extends Helper> {
   }
 
   [Symbol.for('nodejs.util.inspect.custom')]() {
-    return `${this.constructor.name} [${this.scope}] { ${this.available.join(', ')} }`
+    const helpers = this.available
+    const methods: string[] = []
+    const getters: string[] = []
+
+    let proto = Object.getPrototypeOf(this)
+    while (proto && proto !== Object.prototype) {
+      for (const k of Object.getOwnPropertyNames(proto)) {
+        if (k === 'constructor' || k.startsWith('_')) continue
+        const desc = Object.getOwnPropertyDescriptor(proto, k)
+        if (!desc) continue
+        if (desc.get && !getters.includes(k)) getters.push(k)
+        else if (typeof desc.value === 'function' && !methods.includes(k)) methods.push(k)
+      }
+      proto = Object.getPrototypeOf(proto)
+    }
+
+    const parts = [`${this.constructor.name} [${this.scope}]`]
+    if (getters.length) parts.push(`  getters: ${getters.sort().join(', ')}`)
+    if (methods.length) parts.push(`  methods: ${methods.sort().map(m => m + '()').join(', ')}`)
+    parts.push(`  registered: ${helpers.join(', ')}`)
+    return parts.join('\n')
   }
 
   /**
