@@ -45,7 +45,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "explain-codebase": "luca explain-codebase",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
-    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds"
+    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds",
+    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
