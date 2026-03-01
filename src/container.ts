@@ -11,7 +11,6 @@ import { z } from 'zod'
 import { ContainerStateSchema, describeZodShape } from './schemas/base'
 import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index'
 
-
 export { z }
 
 const { v4 } = uuid
@@ -73,14 +72,14 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   constructor(options: ContainerArgv) {
     this.options = options
     this._state = new State<ContainerState>()
-
+    this.z = z
     this.state
       .set('enabledFeatures', [])
       .set('started', false)
       .set('registries', ['features'])
       .set('factories', ['feature'])
       
-    this._hide('options', '_state', '_events', 'uuid', '_plugins')
+    this._hide('options', '_state', '_events', 'uuid', '_plugins', 'z')
     
     this.on('featureEnabled', (featureId: string, feature: any) => {
       const featureKey = featureId.replace(/^features\./,'')
@@ -120,7 +119,8 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return new Ctor(mergedOptions)
   }
 
-  z = z
+  z!: typeof z
+
 
   /** The observable state object for this container instance. */
   get state() {

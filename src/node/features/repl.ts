@@ -3,6 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature, features } from "../feature.js";
 import vm from 'vm'
 import readline from 'readline'
+import { inspect } from 'util'
 
 export const ReplStateSchema = FeatureStateSchema.extend({
   started: z.boolean().optional().describe('Whether the REPL server has been started'),
@@ -112,7 +113,7 @@ export class Repl<
         try {
           const obj = new vm.Script(objPath).runInContext(ctx)
           if (obj != null && typeof obj === 'object') {
-            const own = Object.getOwnPropertyNames(obj)
+            const own = Object.keys(obj)
             const proto = Object.getOwnPropertyNames(Object.getPrototypeOf(obj) || {})
             const all = [...new Set([...own, ...proto])]
               .filter(p => p.startsWith(partial))
@@ -169,7 +170,7 @@ export class Repl<
 
           if (result !== undefined) {
             if (typeof result === 'object' && result !== null) {
-              console.log(Bun.inspect(result, { colors: true, depth: 4 }))
+              console.log(inspect(result, { colors: true, depth: 4 }))
             } else {
               console.log(result)
             }

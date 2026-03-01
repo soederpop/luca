@@ -52,25 +52,12 @@ If the project has `node_modules` and a package manager, helper implementations 
 
 ## Discovering Capabilities
 
-The container has registries for features, clients, servers, commands, and endpoints. **Do not guess** what is available — discover it dynamically:
+The container has registries for features, clients, servers, commands, and endpoints. **Do not guess** what is available — use your MCP tools to discover it:
 
-```ts
-// List all registered names in a registry
-container.features.available   // → ['fs', 'git', 'proc', 'vm', 'ui', ...]
-container.clients.available    // → ['rest', 'websocket', 'graphql', ...]
-container.servers.available    // → ['express', 'mcp', 'socket', ...]
-
-// Get name + description for everything in a registry (lightweight)
-container.features.describeAll()
-container.clients.describeAll()
-container.servers.describeAll()
-
-// Get full API docs for a specific helper (methods, options, state, events)
-container.features.describe('fs')
-container.clients.describe('rest')
-```
-
-Use `describeAll()` first to scan what's available, then `describe(name)` for anything relevant to your task.
+1. **`find_capability`** — Overview of all features, clients, and servers with descriptions. Start here.
+2. **`list_registry`** — List all names in a specific registry (features, clients, servers, commands, endpoints).
+3. **`describe_helper`** — Full API docs for a specific helper (methods, options, state, events). Call this before writing code that uses a helper.
+4. **`eval`** — Once you know what you need, prototype calls in the live sandbox before writing them into files.
 
 ## Mini Examples
 

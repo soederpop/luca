@@ -345,6 +345,9 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
   /**
    * Check if a class is a subclass of a given base class by walking the prototype chain.
+   * Uses identity comparison first, then falls back to name comparison to handle
+   * cross-module boundaries (e.g. compiled binary vs dynamically imported modules
+   * that resolve to separate module instances of the same class).
    */
   private isSubclassOf(candidate: any, base: any): boolean {
     if (!candidate || !base) return false
@@ -352,7 +355,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     let proto = Object.getPrototypeOf(candidate)
     while (proto) {
-      if (proto === base) return true
+      if (proto === base || (base.name && proto.name === base.name)) return true
       proto = Object.getPrototypeOf(proto)
     }
     return false
