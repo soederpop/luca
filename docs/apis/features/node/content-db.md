@@ -72,6 +72,21 @@ console.log(contentDb.isLoaded) // true
 
 
 
+### read
+
+Read a single document in the database, or optionally, only sections of that document
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `singleDocumentId` | `string` | ✓ | Parameter singleDocumentId |
+| `options` | `{ exclude: string[], include: string[], meta: boolean }` |  | Parameter options |
+
+**Returns:** `Promise<string>`
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -81,6 +96,7 @@ console.log(contentDb.isLoaded) // true
 | `collectionPath` | `any` | Returns the absolute resolved path to the collection root directory. |
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
+| `queries` | `any` | Returns a convenient object for querying the various models in the collection. |
 
 ## State (Zod v4 schema)
 

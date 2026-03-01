@@ -8,8 +8,8 @@ No description provided
 container.feature('assistant', {
   // The folder containing the assistant definition
   folder,
-  // Path to the docs subfolder relative to the assistant folder
-  docsPath,
+  // The folder containing the assistant documentation
+  docsFolder,
   // Text to prepend to the system prompt
   prependPrompt,
   // Text to append to the system prompt
@@ -20,8 +20,6 @@ container.feature('assistant', {
   schemas,
   // OpenAI model to use
   model,
-  // Whether to enable docs tools
-  enableDocsTools,
   // Maximum number of output tokens per completion
   maxTokens,
 })
@@ -32,22 +30,107 @@ container.feature('assistant', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `folder` | `string` | The folder containing the assistant definition |
-| `docsPath` | `string` | Path to the docs subfolder relative to the assistant folder |
+| `docsFolder` | `string` | The folder containing the assistant documentation |
 | `prependPrompt` | `string` | Text to prepend to the system prompt |
 | `appendPrompt` | `string` | Text to append to the system prompt |
 | `tools` | `object` | Override or extend the tools loaded from tools.ts |
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
 | `model` | `string` | OpenAI model to use |
-| `enableDocsTools` | `boolean` | Whether to enable docs tools |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
 
 ## Methods
 
 ### afterInitialize
 
-Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks using the VM's runSync, creates the contentDb if a docs/ folder exists, then fires the `created` hook.
+Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.
 
 **Returns:** `void`
+
+
+
+### use
+
+Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `fn` | `(assistant: this) => void` | ✓ | Setup function that receives this assistant |
+
+**Returns:** `this`
+
+```ts
+assistant
+ .use(setupLogging)
+ .use(addAnalyticsTools)
+```
+
+
+
+### addTool
+
+Add a tool to this assistant. The tool name is derived from the handler's function name.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `handler` | `(...args: any[]) => any` | ✓ | A named function that implements the tool |
+| `schema` | `z.ZodType` |  | Optional Zod schema describing the tool's parameters |
+
+**Returns:** `this`
+
+```ts
+assistant.addTool(function getWeather(args) {
+ return { temp: 72 }
+}, z.object({ city: z.string() }).describe('Get weather for a city'))
+```
+
+
+
+### removeTool
+
+Remove a tool by name or handler function reference.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `nameOrHandler` | `string | ((...args: any[]) => any)` | ✓ | The tool name string, or the handler function to match |
+
+**Returns:** `this`
+
+
+
+### simulateToolCallWithResult
+
+Simulate a tool call and its result by appending the appropriate messages to the conversation history. Useful for injecting context that looks like the assistant performed a tool call.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `toolCallName` | `string` | ✓ | The name of the tool |
+| `args` | `Record<string, any>` | ✓ | The arguments that were "passed" to the tool |
+| `result` | `any` | ✓ | The result the tool "returned" |
+
+**Returns:** `this`
+
+
+
+### simulateQuestionAndResponse
+
+Simulate a user question and assistant response by appending both messages to the conversation history.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `question` | `string` | ✓ | The user's question |
+| `response` | `string` | ✓ | The assistant's response |
+
+**Returns:** `this`
 
 
 
@@ -75,17 +158,9 @@ Load event hooks from hooks.ts. Each exported function name should match an even
 
 
 
-### initDocsReader
-
-Initialize the DocsReader for the assistant's docs/ folder, using the contentDb created during initialization. This loads documents and sets up the research tools.
-
-**Returns:** `Promise<DocsReader | undefined>`
-
-
-
 ### start
 
-Start the assistant by loading the docs reader, creating the conversation, and wiring up events. The system prompt, tools, hooks, and contentDb are already loaded synchronously during initialization.
+Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.
 
 **Returns:** `Promise<this>`
 
@@ -93,7 +168,7 @@ Start the assistant by loading the docs reader, creating the conversation, and w
 
 ### ask
 
-Ask the assistant a question. It will use its tools and docs to produce a streamed response. The assistant auto-starts if needed.
+Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.
 
 **Parameters:**
 
@@ -129,11 +204,11 @@ Save the conversation to disk via conversationHistory.
 | Property | Type | Description |
 |----------|------|-------------|
 | `resolvedFolder` | `string` | The absolute resolved path to the assistant folder. |
-| `docsFolder` | `string` | The path to the docs subfolder. |
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
-| `contentDb` | `ContentDb` |  |
+| `resolvedDocsFolder` | `any` |  |
+| `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
 | `systemPrompt` | `string` | The current system prompt text. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
@@ -142,7 +217,19 @@ Save the conversation to disk via conversationHistory.
 
 ### created
 
-Emitted immediately after the assistant loads its prompt, tools, and hooks. Use this to register models on the contentDb before start() loads documents.
+Emitted immediately after the assistant loads its prompt, tools, and hooks.
+
+
+
+### hookFired
+
+Emitted when a hook function is called
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Hook/event name |
 
 
 
@@ -275,30 +362,6 @@ Emitted when the assistant has been initialized
 
 
 
-### hookFired
-
-Emitted when a hook function is called
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Hook/event name |
-
-
-
-### hookError
-
-Event emitted by Assistant
-
-
-
-### hookCompleted
-
-Event emitted by Assistant
-
-
-
 ### answered
 
 Event emitted by Assistant
@@ -324,6 +387,26 @@ const assistant = container.feature('assistant', {
  folder: 'assistants/my-helper'
 })
 const answer = await assistant.ask('What capabilities do you have?')
+```
+
+
+
+**use**
+
+```ts
+assistant
+ .use(setupLogging)
+ .use(addAnalyticsTools)
+```
+
+
+
+**addTool**
+
+```ts
+assistant.addTool(function getWeather(args) {
+ return { temp: 72 }
+}, z.object({ city: z.string() }).describe('Get weather for a city'))
 ```
 
 

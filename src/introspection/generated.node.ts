@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-01T18:40:52.771Z
+// Generated at: 2026-03-01T23:26:37.875Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7019,6 +7019,23 @@ setBuildTimeData('features.contentDb', {
           "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
         }
       ]
+    },
+    "read": {
+      "description": "Read a single document in the database, or optionally, only sections of that document",
+      "parameters": {
+        "singleDocumentId": {
+          "type": "string",
+          "description": "Parameter singleDocumentId"
+        },
+        "options": {
+          "type": "{ exclude: string[], include: string[], meta: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "singleDocumentId"
+      ],
+      "returns": "Promise<string>"
     }
   },
   "getters": {
@@ -7041,6 +7058,10 @@ setBuildTimeData('features.contentDb', {
     "modelNames": {
       "description": "Returns an array of all registered model names from the collection.",
       "returns": "string[]"
+    },
+    "queries": {
+      "description": "Returns a convenient object for querying the various models in the collection.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -14796,6 +14817,23 @@ export const introspectionData = [
             "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
           }
         ]
+      },
+      "read": {
+        "description": "Read a single document in the database, or optionally, only sections of that document",
+        "parameters": {
+          "singleDocumentId": {
+            "type": "string",
+            "description": "Parameter singleDocumentId"
+          },
+          "options": {
+            "type": "{ exclude: string[], include: string[], meta: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "singleDocumentId"
+        ],
+        "returns": "Promise<string>"
       }
     },
     "getters": {
@@ -14818,6 +14856,10 @@ export const introspectionData = [
       "modelNames": {
         "description": "Returns an array of all registered model names from the collection.",
         "returns": "string[]"
+      },
+      "queries": {
+        "description": "Returns a convenient object for querying the various models in the collection.",
+        "returns": "any"
       }
     },
     "events": {},

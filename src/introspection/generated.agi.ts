@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-01T18:40:52.876Z
+// Generated at: 2026-03-01T23:26:38.002Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7019,6 +7019,23 @@ setBuildTimeData('features.contentDb', {
           "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
         }
       ]
+    },
+    "read": {
+      "description": "Read a single document in the database, or optionally, only sections of that document",
+      "parameters": {
+        "singleDocumentId": {
+          "type": "string",
+          "description": "Parameter singleDocumentId"
+        },
+        "options": {
+          "type": "{ exclude: string[], include: string[], meta: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "singleDocumentId"
+      ],
+      "returns": "Promise<string>"
     }
   },
   "getters": {
@@ -7041,6 +7058,10 @@ setBuildTimeData('features.contentDb', {
     "modelNames": {
       "description": "Returns an array of all registered model names from the collection.",
       "returns": "string[]"
+    },
+    "queries": {
+      "description": "Returns a convenient object for querying the various models in the collection.",
+      "returns": "any"
     }
   },
   "events": {},
@@ -7503,6 +7524,29 @@ setBuildTimeData('features.conversation', {
   "shortcut": "features.conversation",
   "className": "Conversation",
   "methods": {
+    "estimateTokens": {
+      "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
+      "parameters": {},
+      "required": [],
+      "returns": "number"
+    },
+    "summarize": {
+      "description": "Generate a summary of the conversation so far using the LLM. Read-only — does not modify messages.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "compact": {
+      "description": "Compact the conversation by summarizing old messages and replacing them with a summary message. Keeps the system message (if any) and the most recent N messages.",
+      "parameters": {
+        "options": {
+          "type": "{ keepRecent?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<{ summary: string; removedCount: number; estimatedTokens: number }>"
+    },
     "ask": {
       "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
       "parameters": {
@@ -7542,6 +7586,19 @@ setBuildTimeData('features.conversation', {
       },
       "required": [],
       "returns": "void"
+    },
+    "pushMessage": {
+      "description": "Append a message to the conversation state.",
+      "parameters": {
+        "message": {
+          "type": "Message",
+          "description": "The message to append"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "returns": "void"
     }
   },
   "getters": {
@@ -7569,6 +7626,14 @@ setBuildTimeData('features.conversation', {
       "description": "Whether a streaming response is currently in progress.",
       "returns": "boolean"
     },
+    "contextWindow": {
+      "description": "The context window size for the current model (from options override or auto-detected).",
+      "returns": "number"
+    },
+    "isNearContextLimit": {
+      "description": "Whether the conversation is approaching the context limit.",
+      "returns": "boolean"
+    },
     "openai": {
       "description": "Returns the OpenAI client instance from the container.",
       "returns": "any"
@@ -7579,6 +7644,31 @@ setBuildTimeData('features.conversation', {
     }
   },
   "events": {
+    "summarizeStart": {
+      "name": "summarizeStart",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "summarizeEnd": {
+      "name": "summarizeEnd",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "compactStart": {
+      "name": "compactStart",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "compactEnd": {
+      "name": "compactEnd",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "autoCompactTriggered": {
+      "name": "autoCompactTriggered",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
     "userMessage": {
       "name": "userMessage",
       "description": "Event emitted by Conversation",
@@ -7785,88 +7875,6 @@ setBuildTimeData('features.openapi', {
   ]
 });
 
-setBuildTimeData('features.docsReader', {
-  "id": "features.docsReader",
-  "description": "A docs reader that wraps a ContentDb and provides a Conversation with tools to list, outline, and read documents. Ask it a question and it will find and read the relevant docs to answer it.",
-  "shortcut": "features.docsReader",
-  "className": "DocsReader",
-  "methods": {
-    "buildTools": {
-      "description": "Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs) that the conversation model uses to query the content database.",
-      "parameters": {},
-      "required": [],
-      "returns": "Record<string, ConversationTool>"
-    },
-    "buildSystemPrompt": {
-      "description": "Build the system prompt by combining the optional prefix with a table of contents generated from the content database.",
-      "parameters": {},
-      "required": [],
-      "returns": "string"
-    },
-    "createConversation": {
-      "description": "Create and return a new Conversation feature configured with the docs reader's system prompt and tools.",
-      "parameters": {},
-      "required": [],
-      "returns": "Conversation"
-    },
-    "start": {
-      "description": "Initialize the docs reader by loading the content database, creating the conversation, and emitting the start event.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "ask": {
-      "description": "Ask the docs reader a question. It will read relevant documents and return an answer based on their content.",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "The question to ask"
-        }
-      },
-      "required": [
-        "question"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "contentDb": {
-      "description": "The ContentDb instance this reader draws from.",
-      "returns": "ContentDb"
-    },
-    "isStarted": {
-      "description": "Whether the reader has been started and is ready to answer questions.",
-      "returns": "any"
-    }
-  },
-  "events": {
-    "start": {
-      "name": "start",
-      "description": "Event emitted by DocsReader",
-      "arguments": {}
-    },
-    "preview": {
-      "name": "preview",
-      "description": "Event emitted by DocsReader",
-      "arguments": {}
-    },
-    "answered": {
-      "name": "answered",
-      "description": "Event emitted by DocsReader",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const reader = container.feature('docsReader', {\n contentDb: myContentDb,\n model: 'gpt-4.1'\n})\nawait reader.start()\nconst answer = await reader.ask('How does authentication work?')"
-    }
-  ]
-});
-
 setBuildTimeData('features.skillsLibrary', {
   "id": "features.skillsLibrary",
   "description": "Manages two contentbase collections of skills following the Claude Code SKILL.md format. Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/. Skills can be discovered, searched, created, updated, and removed at runtime.",
@@ -8038,15 +8046,111 @@ setBuildTimeData('features.skillsLibrary', {
 
 setBuildTimeData('features.assistant', {
   "id": "features.assistant",
-  "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
+  "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).",
   "shortcut": "features.assistant",
   "className": "Assistant",
   "methods": {
     "afterInitialize": {
-      "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks using the VM's runSync, creates the contentDb if a docs/ folder exists, then fires the `created` hook.",
+      "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.",
       "parameters": {},
       "required": [],
       "returns": "void"
+    },
+    "use": {
+      "description": "Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.",
+      "parameters": {
+        "fn": {
+          "type": "(assistant: this) => void",
+          "description": "Setup function that receives this assistant"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant\n .use(setupLogging)\n .use(addAnalyticsTools)"
+        }
+      ]
+    },
+    "addTool": {
+      "description": "Add a tool to this assistant. The tool name is derived from the handler's function name.",
+      "parameters": {
+        "handler": {
+          "type": "(...args: any[]) => any",
+          "description": "A named function that implements the tool"
+        },
+        "schema": {
+          "type": "z.ZodType",
+          "description": "Optional Zod schema describing the tool's parameters"
+        }
+      },
+      "required": [
+        "handler"
+      ],
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "assistant.addTool(function getWeather(args) {\n return { temp: 72 }\n}, z.object({ city: z.string() }).describe('Get weather for a city'))"
+        }
+      ]
+    },
+    "removeTool": {
+      "description": "Remove a tool by name or handler function reference.",
+      "parameters": {
+        "nameOrHandler": {
+          "type": "string | ((...args: any[]) => any)",
+          "description": "The tool name string, or the handler function to match"
+        }
+      },
+      "required": [
+        "nameOrHandler"
+      ],
+      "returns": "this"
+    },
+    "simulateToolCallWithResult": {
+      "description": "Simulate a tool call and its result by appending the appropriate messages to the conversation history. Useful for injecting context that looks like the assistant performed a tool call.",
+      "parameters": {
+        "toolCallName": {
+          "type": "string",
+          "description": "The name of the tool"
+        },
+        "args": {
+          "type": "Record<string, any>",
+          "description": "The arguments that were \"passed\" to the tool"
+        },
+        "result": {
+          "type": "any",
+          "description": "The result the tool \"returned\""
+        }
+      },
+      "required": [
+        "toolCallName",
+        "args",
+        "result"
+      ],
+      "returns": "this"
+    },
+    "simulateQuestionAndResponse": {
+      "description": "Simulate a user question and assistant response by appending both messages to the conversation history.",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "The user's question"
+        },
+        "response": {
+          "type": "string",
+          "description": "The assistant's response"
+        }
+      },
+      "required": [
+        "question",
+        "response"
+      ],
+      "returns": "this"
     },
     "loadSystemPrompt": {
       "description": "Load the system prompt from CORE.md, applying any prepend/append options.",
@@ -8066,20 +8170,14 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "Record<string, (...args: any[]) => any>"
     },
-    "initDocsReader": {
-      "description": "Initialize the DocsReader for the assistant's docs/ folder, using the contentDb created during initialization. This loads documents and sets up the research tools.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<DocsReader | undefined>"
-    },
     "start": {
-      "description": "Start the assistant by loading the docs reader, creating the conversation, and wiring up events. The system prompt, tools, hooks, and contentDb are already loaded synchronously during initialization.",
+      "description": "Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.",
       "parameters": {},
       "required": [],
       "returns": "Promise<this>"
     },
     "ask": {
-      "description": "Ask the assistant a question. It will use its tools and docs to produce a streamed response. The assistant auto-starts if needed.",
+      "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
       "parameters": {
         "question": {
           "type": "string | ContentPart[]",
@@ -8118,10 +8216,6 @@ setBuildTimeData('features.assistant', {
       "description": "The absolute resolved path to the assistant folder.",
       "returns": "string"
     },
-    "docsFolder": {
-      "description": "The path to the docs subfolder.",
-      "returns": "string"
-    },
     "corePromptPath": {
       "description": "The path to CORE.md which provides the system prompt.",
       "returns": "string"
@@ -8134,8 +8228,12 @@ setBuildTimeData('features.assistant', {
       "description": "The path to hooks.ts which provides event handler functions.",
       "returns": "string"
     },
-    "contentDb": {
+    "resolvedDocsFolder": {
       "description": "",
+      "returns": "any"
+    },
+    "contentDb": {
+      "description": "Returns an instance of a ContentDb feature for the resolved docs folder",
       "returns": "ContentDb"
     },
     "isStarted": {
@@ -8154,6 +8252,11 @@ setBuildTimeData('features.assistant', {
   "events": {
     "created": {
       "name": "created",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
+    "hookFired": {
+      "name": "hookFired",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -8209,21 +8312,6 @@ setBuildTimeData('features.assistant', {
     },
     "started": {
       "name": "started",
-      "description": "Event emitted by Assistant",
-      "arguments": {}
-    },
-    "hookFired": {
-      "name": "hookFired",
-      "description": "Event emitted by Assistant",
-      "arguments": {}
-    },
-    "hookError": {
-      "name": "hookError",
-      "description": "Event emitted by Assistant",
-      "arguments": {}
-    },
-    "hookCompleted": {
-      "name": "hookCompleted",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -16836,6 +16924,23 @@ export const introspectionData = [
             "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconsole.log(contentDb.isLoaded) // true"
           }
         ]
+      },
+      "read": {
+        "description": "Read a single document in the database, or optionally, only sections of that document",
+        "parameters": {
+          "singleDocumentId": {
+            "type": "string",
+            "description": "Parameter singleDocumentId"
+          },
+          "options": {
+            "type": "{ exclude: string[], include: string[], meta: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "singleDocumentId"
+        ],
+        "returns": "Promise<string>"
       }
     },
     "getters": {
@@ -16858,6 +16963,10 @@ export const introspectionData = [
       "modelNames": {
         "description": "Returns an array of all registered model names from the collection.",
         "returns": "string[]"
+      },
+      "queries": {
+        "description": "Returns a convenient object for querying the various models in the collection.",
+        "returns": "any"
       }
     },
     "events": {},
@@ -17315,6 +17424,29 @@ export const introspectionData = [
     "shortcut": "features.conversation",
     "className": "Conversation",
     "methods": {
+      "estimateTokens": {
+        "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
+        "parameters": {},
+        "required": [],
+        "returns": "number"
+      },
+      "summarize": {
+        "description": "Generate a summary of the conversation so far using the LLM. Read-only — does not modify messages.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "compact": {
+        "description": "Compact the conversation by summarizing old messages and replacing them with a summary message. Keeps the system message (if any) and the most recent N messages.",
+        "parameters": {
+          "options": {
+            "type": "{ keepRecent?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<{ summary: string; removedCount: number; estimatedTokens: number }>"
+      },
       "ask": {
         "description": "Send a message and get a streamed response. Automatically handles tool calls by invoking the registered handlers and feeding results back to the model until a final text response is produced.",
         "parameters": {
@@ -17354,6 +17486,19 @@ export const introspectionData = [
         },
         "required": [],
         "returns": "void"
+      },
+      "pushMessage": {
+        "description": "Append a message to the conversation state.",
+        "parameters": {
+          "message": {
+            "type": "Message",
+            "description": "The message to append"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "returns": "void"
       }
     },
     "getters": {
@@ -17381,6 +17526,14 @@ export const introspectionData = [
         "description": "Whether a streaming response is currently in progress.",
         "returns": "boolean"
       },
+      "contextWindow": {
+        "description": "The context window size for the current model (from options override or auto-detected).",
+        "returns": "number"
+      },
+      "isNearContextLimit": {
+        "description": "Whether the conversation is approaching the context limit.",
+        "returns": "boolean"
+      },
       "openai": {
         "description": "Returns the OpenAI client instance from the container.",
         "returns": "any"
@@ -17391,6 +17544,31 @@ export const introspectionData = [
       }
     },
     "events": {
+      "summarizeStart": {
+        "name": "summarizeStart",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "summarizeEnd": {
+        "name": "summarizeEnd",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "compactStart": {
+        "name": "compactStart",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "compactEnd": {
+        "name": "compactEnd",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "autoCompactTriggered": {
+        "name": "autoCompactTriggered",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
       "userMessage": {
         "name": "userMessage",
         "description": "Event emitted by Conversation",
@@ -17596,87 +17774,6 @@ export const introspectionData = [
     ]
   },
   {
-    "id": "features.docsReader",
-    "description": "A docs reader that wraps a ContentDb and provides a Conversation with tools to list, outline, and read documents. Ask it a question and it will find and read the relevant docs to answer it.",
-    "shortcut": "features.docsReader",
-    "className": "DocsReader",
-    "methods": {
-      "buildTools": {
-        "description": "Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs) that the conversation model uses to query the content database.",
-        "parameters": {},
-        "required": [],
-        "returns": "Record<string, ConversationTool>"
-      },
-      "buildSystemPrompt": {
-        "description": "Build the system prompt by combining the optional prefix with a table of contents generated from the content database.",
-        "parameters": {},
-        "required": [],
-        "returns": "string"
-      },
-      "createConversation": {
-        "description": "Create and return a new Conversation feature configured with the docs reader's system prompt and tools.",
-        "parameters": {},
-        "required": [],
-        "returns": "Conversation"
-      },
-      "start": {
-        "description": "Initialize the docs reader by loading the content database, creating the conversation, and emitting the start event.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "ask": {
-        "description": "Ask the docs reader a question. It will read relevant documents and return an answer based on their content.",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "The question to ask"
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "contentDb": {
-        "description": "The ContentDb instance this reader draws from.",
-        "returns": "ContentDb"
-      },
-      "isStarted": {
-        "description": "Whether the reader has been started and is ready to answer questions.",
-        "returns": "any"
-      }
-    },
-    "events": {
-      "start": {
-        "name": "start",
-        "description": "Event emitted by DocsReader",
-        "arguments": {}
-      },
-      "preview": {
-        "name": "preview",
-        "description": "Event emitted by DocsReader",
-        "arguments": {}
-      },
-      "answered": {
-        "name": "answered",
-        "description": "Event emitted by DocsReader",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const reader = container.feature('docsReader', {\n contentDb: myContentDb,\n model: 'gpt-4.1'\n})\nawait reader.start()\nconst answer = await reader.ask('How does authentication work?')"
-      }
-    ]
-  },
-  {
     "id": "features.skillsLibrary",
     "description": "Manages two contentbase collections of skills following the Claude Code SKILL.md format. Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/. Skills can be discovered, searched, created, updated, and removed at runtime.",
     "shortcut": "features.skillsLibrary",
@@ -17846,15 +17943,111 @@ export const introspectionData = [
   },
   {
     "id": "features.assistant",
-    "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers), and a docs/ subfolder of structured markdown the assistant can research. Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader that can query the assistant's docs/ folder.",
+    "description": "An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).",
     "shortcut": "features.assistant",
     "className": "Assistant",
     "methods": {
       "afterInitialize": {
-        "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks using the VM's runSync, creates the contentDb if a docs/ folder exists, then fires the `created` hook.",
+        "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.",
         "parameters": {},
         "required": [],
         "returns": "void"
+      },
+      "use": {
+        "description": "Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.",
+        "parameters": {
+          "fn": {
+            "type": "(assistant: this) => void",
+            "description": "Setup function that receives this assistant"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant\n .use(setupLogging)\n .use(addAnalyticsTools)"
+          }
+        ]
+      },
+      "addTool": {
+        "description": "Add a tool to this assistant. The tool name is derived from the handler's function name.",
+        "parameters": {
+          "handler": {
+            "type": "(...args: any[]) => any",
+            "description": "A named function that implements the tool"
+          },
+          "schema": {
+            "type": "z.ZodType",
+            "description": "Optional Zod schema describing the tool's parameters"
+          }
+        },
+        "required": [
+          "handler"
+        ],
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "assistant.addTool(function getWeather(args) {\n return { temp: 72 }\n}, z.object({ city: z.string() }).describe('Get weather for a city'))"
+          }
+        ]
+      },
+      "removeTool": {
+        "description": "Remove a tool by name or handler function reference.",
+        "parameters": {
+          "nameOrHandler": {
+            "type": "string | ((...args: any[]) => any)",
+            "description": "The tool name string, or the handler function to match"
+          }
+        },
+        "required": [
+          "nameOrHandler"
+        ],
+        "returns": "this"
+      },
+      "simulateToolCallWithResult": {
+        "description": "Simulate a tool call and its result by appending the appropriate messages to the conversation history. Useful for injecting context that looks like the assistant performed a tool call.",
+        "parameters": {
+          "toolCallName": {
+            "type": "string",
+            "description": "The name of the tool"
+          },
+          "args": {
+            "type": "Record<string, any>",
+            "description": "The arguments that were \"passed\" to the tool"
+          },
+          "result": {
+            "type": "any",
+            "description": "The result the tool \"returned\""
+          }
+        },
+        "required": [
+          "toolCallName",
+          "args",
+          "result"
+        ],
+        "returns": "this"
+      },
+      "simulateQuestionAndResponse": {
+        "description": "Simulate a user question and assistant response by appending both messages to the conversation history.",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "The user's question"
+          },
+          "response": {
+            "type": "string",
+            "description": "The assistant's response"
+          }
+        },
+        "required": [
+          "question",
+          "response"
+        ],
+        "returns": "this"
       },
       "loadSystemPrompt": {
         "description": "Load the system prompt from CORE.md, applying any prepend/append options.",
@@ -17874,20 +18067,14 @@ export const introspectionData = [
         "required": [],
         "returns": "Record<string, (...args: any[]) => any>"
       },
-      "initDocsReader": {
-        "description": "Initialize the DocsReader for the assistant's docs/ folder, using the contentDb created during initialization. This loads documents and sets up the research tools.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<DocsReader | undefined>"
-      },
       "start": {
-        "description": "Start the assistant by loading the docs reader, creating the conversation, and wiring up events. The system prompt, tools, hooks, and contentDb are already loaded synchronously during initialization.",
+        "description": "Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.",
         "parameters": {},
         "required": [],
         "returns": "Promise<this>"
       },
       "ask": {
-        "description": "Ask the assistant a question. It will use its tools and docs to produce a streamed response. The assistant auto-starts if needed.",
+        "description": "Ask the assistant a question. It will use its tools to produce a streamed response. The assistant auto-starts if needed.",
         "parameters": {
           "question": {
             "type": "string | ContentPart[]",
@@ -17926,10 +18113,6 @@ export const introspectionData = [
         "description": "The absolute resolved path to the assistant folder.",
         "returns": "string"
       },
-      "docsFolder": {
-        "description": "The path to the docs subfolder.",
-        "returns": "string"
-      },
       "corePromptPath": {
         "description": "The path to CORE.md which provides the system prompt.",
         "returns": "string"
@@ -17942,8 +18125,12 @@ export const introspectionData = [
         "description": "The path to hooks.ts which provides event handler functions.",
         "returns": "string"
       },
-      "contentDb": {
+      "resolvedDocsFolder": {
         "description": "",
+        "returns": "any"
+      },
+      "contentDb": {
+        "description": "Returns an instance of a ContentDb feature for the resolved docs folder",
         "returns": "ContentDb"
       },
       "isStarted": {
@@ -17962,6 +18149,11 @@ export const introspectionData = [
     "events": {
       "created": {
         "name": "created",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
+      "hookFired": {
+        "name": "hookFired",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },
@@ -18017,21 +18209,6 @@ export const introspectionData = [
       },
       "started": {
         "name": "started",
-        "description": "Event emitted by Assistant",
-        "arguments": {}
-      },
-      "hookFired": {
-        "name": "hookFired",
-        "description": "Event emitted by Assistant",
-        "arguments": {}
-      },
-      "hookError": {
-        "name": "hookError",
-        "description": "Event emitted by Assistant",
-        "arguments": {}
-      },
-      "hookCompleted": {
-        "name": "hookCompleted",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },

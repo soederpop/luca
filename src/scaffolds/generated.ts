@@ -1,5 +1,5 @@
 // Auto-generated scaffold and MCP readme content
-// Generated at: 2026-03-01T18:40:55.235Z
+// Generated at: 2026-03-01T23:26:41.330Z
 // Source: docs/scaffolds/*.md and docs/mcp/readme.md
 //
 // Do not edit manually. Run: luca build-scaffolds

@@ -32,6 +32,14 @@ container.feature('conversation', {
   local,
   // Maximum number of output tokens per completion
   maxTokens,
+  // Enable automatic compaction when input tokens approach the context limit
+  autoCompact,
+  // Fraction of context window at which auto-compact triggers (default 0.8)
+  compactThreshold,
+  // Override the inferred context window size for this model
+  contextWindow,
+  // Number of recent messages to preserve after compaction (default 4)
+  compactKeepRecent,
 })
 ```
 
@@ -52,8 +60,42 @@ container.feature('conversation', {
 | `clientOptions` | `object` | Options for the OpenAI client |
 | `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `autoCompact` | `boolean` | Enable automatic compaction when input tokens approach the context limit |
+| `compactThreshold` | `number` | Fraction of context window at which auto-compact triggers (default 0.8) |
+| `contextWindow` | `number` | Override the inferred context window size for this model |
+| `compactKeepRecent` | `number` | Number of recent messages to preserve after compaction (default 4) |
 
 ## Methods
+
+### estimateTokens
+
+Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.
+
+**Returns:** `number`
+
+
+
+### summarize
+
+Generate a summary of the conversation so far using the LLM. Read-only — does not modify messages.
+
+**Returns:** `Promise<string>`
+
+
+
+### compact
+
+Compact the conversation by summarizing old messages and replacing them with a summary message. Keeps the system message (if any) and the most recent N messages.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ keepRecent?: number }` |  | Parameter options |
+
+**Returns:** `Promise<{ summary: string; removedCount: number; estimatedTokens: number }>`
+
+
 
 ### ask
 
@@ -99,6 +141,20 @@ Persist this conversation to disk via conversationHistory. Creates a new record 
 
 
 
+### pushMessage
+
+Append a message to the conversation state.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `message` | `Message` | ✓ | The message to append |
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -109,10 +165,42 @@ Persist this conversation to disk via conversationHistory. Creates a new record 
 | `model` | `string` | Returns the OpenAI model name being used for completions. |
 | `apiMode` | `'responses' | 'chat'` | Returns the active completion API mode after resolving auto/local behavior. |
 | `isStreaming` | `boolean` | Whether a streaming response is currently in progress. |
+| `contextWindow` | `number` | The context window size for the current model (from options override or auto-detected). |
+| `isNearContextLimit` | `boolean` | Whether the conversation is approaching the context limit. |
 | `openai` | `any` | Returns the OpenAI client instance from the container. |
 | `history` | `ConversationHistory` | Returns the conversationHistory feature for persistence. |
 
 ## Events (Zod v4 schema)
+
+### summarizeStart
+
+Event emitted by Conversation
+
+
+
+### summarizeEnd
+
+Event emitted by Conversation
+
+
+
+### compactStart
+
+Event emitted by Conversation
+
+
+
+### compactEnd
+
+Event emitted by Conversation
+
+
+
+### autoCompactTriggered
+
+Event emitted by Conversation
+
+
 
 ### userMessage
 
@@ -213,6 +301,9 @@ Event emitted by Conversation
 | `api` | `string` | Which completion API is active for this conversation |
 | `lastResponseId` | `any` | Most recent OpenAI Responses API response ID for continuing conversation state |
 | `tokenUsage` | `object` | Cumulative token usage statistics |
+| `estimatedInputTokens` | `number` | Estimated input token count for the current messages array |
+| `compactionCount` | `number` | Number of times compact() has been called |
+| `contextWindow` | `number` | The context window size for the current model |
 
 ## Examples
 

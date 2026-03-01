@@ -3,10 +3,9 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { features, Feature } from '@soederpop/luca/feature'
-import type { Conversation, ConversationTool, ContentPart, AskOptions } from './conversation'
-import type { DocsReader } from './docs-reader'
+import type { Conversation, ConversationTool, ContentPart, AskOptions, Message } from './conversation'
 import type { AGIContainer } from '../container.server.js'
-import type { ContentDb } from '@soederpop/luca/node/features/content-db.js'
+import type { ContentDb } from '@soederpop/luca/node'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -15,7 +14,7 @@ declare module '@soederpop/luca/feature' {
 }
 
 export const AssistantEventsSchema = FeatureEventsSchema.extend({
-	created: z.tuple([]).describe('Emitted immediately after the assistant loads its prompt, tools, and hooks. Use this to register models on the contentDb before start() loads documents.'),
+	created: z.tuple([]).describe('Emitted immediately after the assistant loads its prompt, tools, and hooks.'),
 	started: z.tuple([]).describe('Emitted when the assistant has been initialized'),
 	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Emitted when a new completion turn begins. isFollowUp is true when resuming after tool calls'),
 	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Emitted when a completion turn ends. hasToolCalls indicates whether tool calls will follow'),
@@ -38,23 +37,28 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
-	/** The folder containing the assistant definition (CORE.md, tools.ts, hooks.ts, docs/) */
+	/** The folder containing the assistant definition (CORE.md, tools.ts, hooks.ts) */
 	folder: z.string().describe('The folder containing the assistant definition'),
-	/** Path to the docs subfolder, relative to the assistant folder */
-	docsPath: z.string().optional().describe('Path to the docs subfolder relative to the assistant folder'),
+
+	/** If the docs folder is different from folder/docs */
+	docsFolder: z.string().optional().describe('The folder containing the assistant documentation'),
+
 	/** Text to prepend to the system prompt from CORE.md */
 	prependPrompt: z.string().optional().describe('Text to prepend to the system prompt'),
+
 	/** Text to append to the system prompt from CORE.md */
 	appendPrompt: z.string().optional().describe('Text to append to the system prompt'),
 	/** Override or extend the tools loaded from tools.ts */
+
 	tools: z.record(z.string(), z.any()).optional().describe('Override or extend the tools loaded from tools.ts'),
 	/** Override or extend the schemas loaded from tools.ts */
+
 	schemas: z.record(z.string(), z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
 	/** OpenAI model to use for the conversation */
+
 	model: z.string().optional().describe('OpenAI model to use'),
-	/** Whether to enable docs tools */
-	enableDocsTools: z.boolean().default(true).describe('Whether to enable docs tools'),
 	/** Maximum number of output tokens per completion */
+
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
 })
 
@@ -64,11 +68,7 @@ export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
 /**
  * An Assistant is a combination of a system prompt and tool calls that has a
  * conversation with an LLM. You define an assistant by creating a folder with
- * CORE.md (system prompt), tools.ts (tool implementations), hooks.ts (event handlers),
- * and a docs/ subfolder of structured markdown the assistant can research.
- *
- * Every assistant automatically gets a researchInternalDocs tool backed by a DocsReader
- * that can query the assistant's docs/ folder.
+ * CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).
  *
  * @extends Feature
  *
@@ -111,11 +111,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.container.paths.resolve(this.options.folder)
 	}
 
-	/** The path to the docs subfolder. */
-	get docsFolder(): string {
-		return this.container.paths.resolve(this.resolvedFolder, this.options.docsPath || 'docs')
-	}
-
 	/** The path to CORE.md which provides the system prompt. */
 	get corePromptPath(): string {
 		return this.container.paths.resolve(this.resolvedFolder, 'CORE.md')
@@ -131,8 +126,33 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.container.paths.resolve(this.resolvedFolder, 'hooks.ts')
 	}
 
+	get resolvedDocsFolder() {
+		const { docsFolder = this.options.docsFolder || 'docs' } = this.state.current
+
+		if (this.container.fs.exists(docsFolder)) {
+			return this.container.paths.resolve(docsFolder)
+		}
+
+		const findUp = this.container.paths.findUp('docs', {
+			cwd: this.resolvedFolder
+		})
+
+		if (this.container.fs.exists(findUp)) {
+			this.state.set('docsFolder', findUp)
+			return this.container.paths.resolve(findUp)
+		}
+
+		return findUp
+	}
+
+	/**
+	 * Returns an instance of a ContentDb feature for the resolved docs folder
+	 */
+	get contentDb() : ContentDb {
+		return this.container.feature('contentDb', { rootPath: this.resolvedDocsFolder })
+	}
+
 	conversation?: Conversation
-	docsReader?: DocsReader
 
 	// Using `declare` to prevent class field initializers from overwriting
 	// values set during afterInitialize() (called from the base constructor).
@@ -140,16 +160,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	declare private _hooks: Record<string, (...args: any[]) => any>
 	declare private _systemPrompt: string
 
-	get contentDb(): ContentDb {
-		return this.container.feature('contentDb', {
-			rootPath: this.docsFolder,
-		}) as ContentDb
-	}
-	
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
-	 * the system prompt, tools, and hooks using the VM's runSync, creates the
-	 * contentDb if a docs/ folder exists, then fires the `created` hook.
+	 * the system prompt, tools, and hooks, then binds hooks as event listeners
+	 * so every emitted event automatically invokes its corresponding hook.
 	 */
 	override afterInitialize() {
 		// Load system prompt synchronously
@@ -159,9 +173,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this._tools = this.loadTools()
 		this._hooks = this.loadHooks()
 
-		// Fire created hook — consumers can register models on contentDb here
+		// Bind hooks to events BEFORE emitting created so the created hook fires
+		this.bindHooksToEvents()
+
 		this.emit('created')
-		this.fireHook('created')
 	}
 
 	/** Whether the assistant has been started and is ready to receive questions. */
@@ -177,6 +192,145 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/** The tools registered with this assistant. */
 	get tools(): Record<string, ConversationTool> {
 		return this._tools
+	}
+
+	/**
+	 * Apply a setup function to this assistant. The function receives the
+	 * assistant instance and can configure tools, hooks, event listeners, etc.
+	 *
+	 * @param fn - Setup function that receives this assistant
+	 * @returns this, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * assistant
+	 *   .use(setupLogging)
+	 *   .use(addAnalyticsTools)
+	 * ```
+	 */
+	use(fn: (assistant: this) => void): this {
+		fn(this)
+		return this
+	}
+
+	/**
+	 * Add a tool to this assistant. The tool name is derived from the
+	 * handler's function name.
+	 *
+	 * @param handler - A named function that implements the tool
+	 * @param schema - Optional Zod schema describing the tool's parameters
+	 * @returns this, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * assistant.addTool(function getWeather(args) {
+	 *   return { temp: 72 }
+	 * }, z.object({ city: z.string() }).describe('Get weather for a city'))
+	 * ```
+	 */
+	addTool(handler: (...args: any[]) => any, schema?: z.ZodType): this {
+		const name = handler.name
+		if (!name) throw new Error('addTool handler must be a named function')
+
+		if (schema) {
+			const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
+			this._tools[name] = {
+				handler: handler as ConversationTool['handler'],
+				description: jsonSchema.description || name,
+				parameters: {
+					type: jsonSchema.type || 'object',
+					properties: jsonSchema.properties || {},
+					...(jsonSchema.required ? { required: jsonSchema.required } : {}),
+				},
+			}
+		} else {
+			this._tools[name] = {
+				handler: handler as ConversationTool['handler'],
+				description: name,
+				parameters: { type: 'object', properties: {} },
+			}
+		}
+
+		return this
+	}
+
+	/**
+	 * Remove a tool by name or handler function reference.
+	 *
+	 * @param nameOrHandler - The tool name string, or the handler function to match
+	 * @returns this, for chaining
+	 */
+	removeTool(nameOrHandler: string | ((...args: any[]) => any)): this {
+		if (typeof nameOrHandler === 'string') {
+			delete this._tools[nameOrHandler]
+		} else {
+			for (const [name, tool] of Object.entries(this._tools)) {
+				if (tool.handler === nameOrHandler) {
+					delete this._tools[name]
+					break
+				}
+			}
+		}
+
+		return this
+	}
+
+	/**
+	 * Simulate a tool call and its result by appending the appropriate
+	 * messages to the conversation history. Useful for injecting context
+	 * that looks like the assistant performed a tool call.
+	 *
+	 * @param toolCallName - The name of the tool
+	 * @param args - The arguments that were "passed" to the tool
+	 * @param result - The result the tool "returned"
+	 * @returns this, for chaining
+	 */
+	simulateToolCallWithResult(toolCallName: string, args: Record<string, any>, result: any): this {
+		if (!this.conversation) {
+			throw new Error('Cannot simulate: assistant has no active conversation. Call start() first.')
+		}
+
+		const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+		this.conversation.pushMessage({
+			role: 'assistant',
+			content: null,
+			tool_calls: [{
+				id: callId,
+				type: 'function',
+				function: {
+					name: toolCallName,
+					arguments: JSON.stringify(args),
+				},
+			}],
+		} as Message)
+
+		this.conversation.pushMessage({
+			role: 'tool',
+			tool_call_id: callId,
+			content: typeof result === 'string' ? result : JSON.stringify(result),
+		} as Message)
+
+		return this
+	}
+
+	/**
+	 * Simulate a user question and assistant response by appending both
+	 * messages to the conversation history.
+	 *
+	 * @param question - The user's question
+	 * @param response - The assistant's response
+	 * @returns this, for chaining
+	 */
+	simulateQuestionAndResponse(question: string, response: string): this {
+		if (!this.conversation) {
+			throw new Error('Cannot simulate: assistant has no active conversation. Call start() first.')
+		}
+
+		this.conversation.pushMessage({ role: 'user', content: question })
+		this.conversation.pushMessage({ role: 'assistant', content: response })
+
+		return this
 	}
 
 	/**
@@ -310,173 +464,33 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
-	 * Initialize the DocsReader for the assistant's docs/ folder,
-	 * using the contentDb created during initialization. This loads
-	 * documents and sets up the research tools.
-	 *
-	 * @returns {Promise<DocsReader | undefined>} The docs reader, or undefined if no contentDb exists
+	 * Bind all loaded hook functions as event listeners. Each hook whose
+	 * name matches an event gets wired up so it fires automatically when
+	 * that event is emitted. Must be called before any events are emitted.
 	 */
-	async initDocsReader(): Promise<DocsReader | undefined> {
-		if (!this.contentDb) return undefined
-
-		const docsReader = this.container.feature('docsReader', {
-			contentDb: this.contentDb,
-			model: this.options.model || "gpt-5",
-		})
-
-		await docsReader.start()
-		return docsReader
-	}
-
-	/**
-	 * Build the researchInternalDocs tool that delegates to the DocsReader.
-	 *
-	 * @returns {ConversationTool} The tool definition
-	 */
-	private buildDocsResearchTool(): ConversationTool {
-		const reader = this.docsReader!
-
-		return {
-			handler: async ({ question }: { question: string }) => {
-				return reader.ask(question)
-			},
-			description: 'Research the assistant\'s internal documentation to answer a question. Use this to look up information in the docs/ folder.',
-			parameters: {
-				type: 'object',
-				properties: {
-					question: {
-						type: 'string',
-						description: 'The question to research in the internal docs',
-					},
-				},
-				required: ['question'],
-			},
+	private bindHooksToEvents() {
+		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
+			this.on(eventName as any, (...args: any[]) => {
+				this.emit('hookFired', eventName)
+				try {
+					Promise.resolve(hookFn(...args)).catch((err) => {
+						console.error('Assistant hook error', eventName, err)
+					})
+				} catch (err) {
+					// Hook errors are non-fatal
+				}
+			})
 		}
 	}
 
 	/**
-	 * Build the listDocs tool that lists all available documents directly
-	 * from the content database without going through the DocsReader AI.
-	 *
-	 * @returns {ConversationTool} The tool definition
-	 */
-	private buildListDocsTool(): ConversationTool {
-		const db = this.docsReader!.contentDb
-
-		return {
-			handler: async () => {
-				return db.collection.available.map((id: string) => {
-					try {
-						const doc = db.collection.document(id)
-						return { id, title: doc.title, outline: doc.toOutline() }
-					} catch {
-						return { id }
-					}
-				})
-			},
-			description: 'List all available documents in the assistant\'s docs/ folder with their titles and heading outlines.',
-			parameters: {
-				type: 'object',
-				properties: {},
-			},
-		}
-	}
-
-	/**
-	 * Build the readDocOutlines tool that returns heading outlines for
-	 * one or more documents, useful for scanning structure before reading.
-	 *
-	 * @returns {ConversationTool} The tool definition
-	 */
-	private buildReadDocOutlinesTool(): ConversationTool {
-		const db = this.docsReader!.contentDb
-
-		return {
-			handler: async ({ docs }: { docs: string[] }) => {
-				return docs.map((id: string) => {
-					try {
-						const doc = db.collection.document(id)
-						return { id, title: doc.title, outline: doc.toOutline() }
-					} catch (err: any) {
-						return { id, error: err.message }
-					}
-				})
-			},
-			description: 'Get the heading outline of one or more documents. Useful for understanding document structure before reading the full content.',
-			parameters: {
-				type: 'object',
-				properties: {
-					docs: {
-						type: 'array',
-						items: { type: 'string' },
-						description: 'The document IDs to get outlines for',
-					},
-				},
-				required: ['docs'],
-			},
-		}
-	}
-
-	/**
-	 * Build the readDocs tool that reads one or more documents directly
-	 * from the content database without going through the DocsReader AI.
-	 *
-	 * @returns {ConversationTool} The tool definition
-	 */
-	private buildReadDocsTool(): ConversationTool {
-		const db = this.docsReader!.contentDb
-
-		return {
-			handler: async ({ docs }: { docs: string[] }) => {
-				return docs.map((id: string) => {
-					try {
-						const doc = db.collection.document(id)
-						return { id, title: doc.title, meta: doc.meta, content: doc.content }
-					} catch (err: any) {
-						return { id, error: err.message }
-					}
-				})
-			},
-			description: 'Read the full content of one or more documents by their IDs. Use listDocs first to see what\'s available.',
-			parameters: {
-				type: 'object',
-				properties: {
-					docs: {
-						type: 'array',
-						items: { type: 'string' },
-						description: 'The document IDs to read',
-					},
-				},
-				required: ['docs'],
-			},
-		}
-	}
-
-	/**
-	 * Start the assistant by loading the docs reader, creating the conversation,
-	 * and wiring up events. The system prompt, tools, hooks, and contentDb are
-	 * already loaded synchronously during initialization.
+	 * Start the assistant by creating the conversation and wiring up events.
+	 * The system prompt, tools, and hooks are already loaded synchronously
+	 * during initialization.
 	 *
 	 * @returns {Promise<this>} The initialized assistant
 	 */
 	async start(): Promise<this> {
-		// Initialize the docs reader using the eagerly-created contentDb
-		this.docsReader = await this.initDocsReader()
-
-		// Add docs tools and table of contents if docs are available
-		if (this.docsReader && this.options.enableDocsTools) {
-			this._tools.researchInternalDocs = this.buildDocsResearchTool()
-			this._tools.listDocs = this.buildListDocsTool()
-			this._tools.readDocOutlines = this.buildReadDocOutlinesTool()
-			this._tools.readDocs = this.buildReadDocsTool()
-
-			// Append a runtime table of contents so the assistant knows what docs exist
-			const toc = this.docsReader.contentDb.collection.tableOfContents({ title: 'Available Documentation' })
-			if (toc) {
-				this._systemPrompt += '\n\n---\n\n' + toc
-			}
-		}
-
 		// Create the conversation
 		this.conversation = this.container.feature('conversation', {
 			model: this.options.model || 'gpt-4.1',
@@ -487,106 +501,31 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			],
 		})
 
-		// Wire up event forwarding from conversation to assistant
-		this.conversation.on('turnStart', (info: any) => {
-			this.emit('turnStart', info)
-			this.fireHook('turnStart', info)
-		})
-		this.conversation.on('turnEnd', (info: any) => {
-			this.emit('turnEnd', info)
-			this.fireHook('turnEnd', info)
-		})
-		this.conversation.on('chunk', (chunk: string) => {
-			this.emit('chunk', chunk)
-			this.fireHook('chunk', chunk)
-		})
-		this.conversation.on('preview', (text: string) => {
-			this.emit('preview', text)
-			this.fireHook('preview', text)
-		})
+		// Wire up event forwarding from conversation to assistant.
+		// Hooks fire automatically because they're bound as event listeners.
+		this.conversation.on('turnStart', (info: any) => this.emit('turnStart', info))
+		this.conversation.on('turnEnd', (info: any) => this.emit('turnEnd', info))
+		this.conversation.on('chunk', (chunk: string) => this.emit('chunk', chunk))
+		this.conversation.on('preview', (text: string) => this.emit('preview', text))
 		this.conversation.on('response', (text: string) => {
 			this.emit('response', text)
 			this.state.set('lastResponse', text)
-			this.fireHook('response', text)
 		})
-		this.conversation.on('rawEvent', (event: any) => {
-			this.emit('rawEvent', event)
-			this.fireHook('rawEvent', event)
-		})
-		this.conversation.on('mcpEvent', (event: any) => {
-			this.emit('mcpEvent', event)
-			this.fireHook('mcpEvent', event)
-		})
-		this.conversation.on('toolCall', (name: string, args: any) => {
-			this.emit('toolCall', name, args)
-			this.fireHook('toolCall', name, args)
-		})
-		this.conversation.on('toolResult', (name: string, result: any) => {
-			this.emit('toolResult', name, result)
-			this.fireHook('toolResult', name, result)
-		})
-		this.conversation.on('toolError', (name: string, error: any) => {
-			this.emit('toolError', name, error)
-			this.fireHook('toolError', name, error)
-		})
-
-		// Register all hooks as event listeners
-		this.bindHooks()
+		this.conversation.on('rawEvent', (event: any) => this.emit('rawEvent', event))
+		this.conversation.on('mcpEvent', (event: any) => this.emit('mcpEvent', event))
+		this.conversation.on('toolCall', (name: string, args: any) => this.emit('toolCall', name, args))
+		this.conversation.on('toolResult', (name: string, result: any) => this.emit('toolResult', name, result))
+		this.conversation.on('toolError', (name: string, error: any) => this.emit('toolError', name, error))
 
 		this.state.set('started', true)
 		this.emit('started')
-		this.fireHook('started')
 
 		return this
 	}
 
 	/**
-	 * Bind loaded hook functions as event listeners on this assistant.
-	 * Hook function names that match event names are automatically wired up.
-	 */
-	private bindHooks() {
-		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
-			// Only bind hooks that aren't already forwarded from conversation events
-			const forwardedEvents = ['created', 'chunk', 'preview', 'response', 'rawEvent', 'mcpEvent', 'toolCall', 'toolResult', 'toolError', 'started']
-			if (!forwardedEvents.includes(eventName)) {
-				this.on(eventName as any, (...args: any[]) => {
-					this.emit('hookFired', eventName)
-					hookFn(...args)
-				})
-			}
-		}
-	}
-
-	/**
-	 * Fire a hook function by event name if one exists.
-	 *
-	 * @param {string} eventName - The event/hook name
-	 * @param {...any} args - Arguments to pass to the hook
-	 */
-	private fireHook(eventName: string, ...args: any[]) {
-		const hook = this._hooks[eventName]
-
-		if (hook) {
-			this.emit('hookFired', eventName)
-			try {
-				Promise.resolve(hook(...args))
-					.catch((err) => {
-						this.emit('hookError', eventName, err)
-						this.fireHook('hookError', eventName, err)
-						console.error('Assistant hook error', eventName, err)
-					})
-					.then(() => {
-						this.emit('hookCompleted', eventName)
-					})
-			} catch (err) {
-				// Hook errors are non-fatal
-			}
-		}
-	}
-
-	/**
-	 * Ask the assistant a question. It will use its tools and docs to
-	 * produce a streamed response. The assistant auto-starts if needed.
+	 * Ask the assistant a question. It will use its tools to produce
+	 * a streamed response. The assistant auto-starts if needed.
 	 *
 	 * @param {string | ContentPart[]} question - The question to ask
 	 * @returns {Promise<string>} The assistant's response
@@ -611,7 +550,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const result = await this.conversation.ask(question, options)
 
 		this.emit('answered', result)
-		this.fireHook('answered', result)
 
 		return result
 	}
