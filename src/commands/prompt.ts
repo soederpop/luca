@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { Document } from 'contentbase'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
@@ -20,6 +21,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'dont-touch-file': z.boolean().default(false).describe('Do not update the prompt file frontmatter with run stats'),
 	'repeat-anyway': z.boolean().default(false).describe('Run even if repeatable is false and the prompt has already been run'),
 	'parallel': z.boolean().default(false).describe('Run multiple prompt files in parallel with side-by-side terminal UI'),
+	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 })
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
@@ -578,11 +580,11 @@ function updateFrontmatter(fileContent: string, updates: Record<string, any>, co
 	return `---\n${newYaml}\n---\n\n${fileContent}`
 }
 
-function preparePrompt(
+async function preparePrompt(
 	filePath: string,
 	options: z.infer<typeof argsSchema>,
 	container: any,
-): PreparedPrompt | null {
+): Promise<PreparedPrompt | null> {
 	const { fs, paths } = container
 
 	const resolvedPath = paths.resolve(filePath)
@@ -613,6 +615,22 @@ function preparePrompt(
 		if (endIndex !== -1) {
 			promptContent = promptContent.slice(endIndex + 4).trimStart()
 		}
+	}
+
+	// Exclude sections by heading name
+	if (options['exclude-sections']) {
+		const headings = options['exclude-sections'].split(',').map((s) => s.trim()).filter(Boolean)
+		let doc = new Document({ id: filePath, content: promptContent, collection: null as any })
+
+		for (const heading of headings) {
+			try {
+				doc = doc.removeSection(heading)
+			} catch {
+				// Section not found — skip silently
+			}
+		}
+
+		promptContent = doc.content
 	}
 
 	return {
@@ -652,7 +670,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 
 		const prepared: PreparedPrompt[] = []
 		for (const pp of allPaths) {
-			const p = preparePrompt(pp, options, container)
+			const p = await preparePrompt(pp, options, container)
 			if (p) prepared.push(p)
 		}
 
@@ -670,7 +688,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 
 	// --- Single prompt mode ---
 	const promptPath = allPaths[0]
-	const p = preparePrompt(promptPath, options, container)
+	const p = await preparePrompt(promptPath, options, container)
 
 	if (!p) {
 		process.exit(1)

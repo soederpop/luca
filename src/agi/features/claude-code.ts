@@ -149,7 +149,7 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   /** Default append system prompt for all sessions. */
   appendSystemPrompt: z.string().optional().describe('Default append system prompt for all sessions'),
   /** Default permission mode. */
-  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional().describe('Default permission mode for Claude CLI sessions'),
+  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk']).optional().describe('Default permission mode for Claude CLI sessions'),
   /** Default allowed tools. */
   allowedTools: z.array(z.string()).optional().describe('Default allowed tools for sessions'),
   /** Default disallowed tools. */
@@ -164,6 +164,22 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   fileLogPath: z.string().optional().describe('Path to write a parseable NDJSON session log file'),
   /** Verbosity level for file logging. Defaults to "normal". */
   fileLogLevel: FileLogLevelSchema.optional().describe('Verbosity level for file logging. Defaults to "normal"'),
+  /** Default effort level for Claude reasoning. */
+  effort: z.enum(['low', 'medium', 'high']).optional().describe('Default effort level for Claude reasoning'),
+  /** Maximum cost budget in USD per session. */
+  maxBudgetUsd: z.number().optional().describe('Maximum cost budget in USD per session'),
+  /** Fallback model when the primary model is unavailable. */
+  fallbackModel: z.string().optional().describe('Fallback model when the primary model is unavailable'),
+  /** Default agent to use. */
+  agent: z.string().optional().describe('Default agent to use'),
+  /** Disable session persistence across runs. */
+  noSessionPersistence: z.boolean().optional().describe('Disable session persistence across runs'),
+  /** Default tools to make available. */
+  tools: z.array(z.string()).optional().describe('Default tools to make available'),
+  /** Require strict MCP config validation. */
+  strictMcpConfig: z.boolean().optional().describe('Require strict MCP config validation'),
+  /** Path to a custom settings file. */
+  settingsFile: z.string().optional().describe('Path to a custom settings file'),
 })
 
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
@@ -179,7 +195,7 @@ export interface RunOptions {
   /** Append system prompt for this session. */
   appendSystemPrompt?: string
   /** Permission mode override. */
-  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'
   /** Allowed tools override. */
   allowedTools?: string[]
   /** Disallowed tools override. */
@@ -204,6 +220,32 @@ export interface RunOptions {
   fileLogPath?: string
   /** Verbosity level for file logging. Overrides feature-level fileLogLevel. */
   fileLogLevel?: FileLogLevel
+  /** Effort level for Claude reasoning. */
+  effort?: 'low' | 'medium' | 'high'
+  /** Maximum cost budget in USD. */
+  maxBudgetUsd?: number
+  /** Fallback model when the primary is unavailable. */
+  fallbackModel?: string
+  /** JSON schema for structured output validation. */
+  jsonSchema?: string | object
+  /** Agent to use for this session. */
+  agent?: string
+  /** Resume or fork a specific Claude session by ID. */
+  sessionId?: string
+  /** Disable session persistence for this run. */
+  noSessionPersistence?: boolean
+  /** Fork from an existing session instead of resuming. */
+  forkSession?: boolean
+  /** Tools to make available. */
+  tools?: string[]
+  /** Require strict MCP config validation. */
+  strictMcpConfig?: boolean
+  /** Enable debug output. Pass a string for specific debug channels, or true for all. */
+  debug?: string | boolean
+  /** Path to write debug output to a file. */
+  debugFile?: string
+  /** Path to a custom settings file. */
+  settingsFile?: string
 }
 
 /**
@@ -260,6 +302,34 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }
 
   /**
+   * Parsed semver components from the detected CLI version, or undefined if not yet checked.
+   *
+   * @returns {{ major: number; minor: number; patch: number } | undefined} Parsed version
+   */
+  get parsedVersion(): { major: number; minor: number; patch: number } | undefined {
+    const ver = this.state.current.claudeVersion
+    if (!ver) return undefined
+    const match = ver.match(/^(\d+)\.(\d+)\.(\d+)/)
+    if (!match) return undefined
+    return { major: parseInt(match[1], 10), minor: parseInt(match[2], 10), patch: parseInt(match[3], 10) }
+  }
+
+  /**
+   * Assert that the detected CLI version meets a minimum major.minor requirement.
+   * Throws if the CLI version is below the specified minimum.
+   *
+   * @param {number} major - Minimum major version
+   * @param {number} minor - Minimum minor version
+   */
+  assertMinVersion(major: number, minor: number): void {
+    const v = this.parsedVersion
+    if (!v) throw new Error('Claude CLI version not detected. Call checkAvailability() first.')
+    if (v.major < major || (v.major === major && v.minor < minor)) {
+      throw new Error(`Claude CLI ${this.state.current.claudeVersion} is below minimum ${major}.${minor}`)
+    }
+  }
+
+  /**
    * Check if the Claude CLI is available and capture its version.
    *
    * @returns {Promise<boolean>} Whether the CLI is available
@@ -282,6 +352,14 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       if (exitCode === 0) {
         const version = stdout.trim()
         this.setState({ claudeAvailable: true, claudeVersion: version })
+
+        const v = this.parsedVersion
+        if (v && (v.major < 2 || (v.major === 2 && v.minor < 1))) {
+          this.emit('session:warning', {
+            message: `Claude CLI ${version} is below minimum 2.1. Some features may not work.`
+          })
+        }
+
         return true
       }
 
@@ -444,6 +522,50 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (options.addDirs?.length) {
       args.push('--add-dir', ...options.addDirs)
     }
+
+    // --- New v2.1 flags ---
+    const effort = options.effort ?? this.options.effort
+    if (effort) args.push('--effort', effort)
+
+    const maxBudgetUsd = options.maxBudgetUsd ?? this.options.maxBudgetUsd
+    if (maxBudgetUsd != null) args.push('--max-budget-usd', String(maxBudgetUsd))
+
+    const fallbackModel = options.fallbackModel ?? this.options.fallbackModel
+    if (fallbackModel) args.push('--fallback-model', fallbackModel)
+
+    const agent = options.agent ?? this.options.agent
+    if (agent) args.push('--agent', agent)
+
+    const noSessionPersistence = options.noSessionPersistence ?? this.options.noSessionPersistence
+    if (noSessionPersistence) args.push('--no-session-persistence')
+
+    const tools = options.tools ?? this.options.tools
+    if (tools?.length) args.push('--tools', ...tools)
+
+    const strictMcpConfig = options.strictMcpConfig ?? this.options.strictMcpConfig
+    if (strictMcpConfig) args.push('--strict-mcp-config')
+
+    const settingsFile = options.settingsFile ?? this.options.settingsFile
+    if (settingsFile) args.push('--settings', settingsFile)
+
+    // Per-session only flags
+    if (options.jsonSchema) {
+      const schemaStr = typeof options.jsonSchema === 'string' ? options.jsonSchema : JSON.stringify(options.jsonSchema)
+      args.push('--json-schema', schemaStr)
+    }
+
+    if (options.sessionId) args.push('--session-id', options.sessionId)
+    if (options.forkSession) args.push('--fork-session')
+
+    if (options.debug != null) {
+      if (typeof options.debug === 'string') {
+        args.push('--debug', options.debug)
+      } else if (options.debug) {
+        args.push('--debug')
+      }
+    }
+
+    if (options.debugFile) args.push('--debug-file', options.debugFile)
 
     if (options.extraArgs?.length) {
       args.push(...options.extraArgs)

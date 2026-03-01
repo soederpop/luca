@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-01T05:24:22.586Z
+// Generated at: 2026-03-01T07:32:53.109Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -8250,6 +8250,24 @@ setBuildTimeData('features.claudeCode', {
   "shortcut": "features.claudeCode",
   "className": "ClaudeCode",
   "methods": {
+    "assertMinVersion": {
+      "description": "Assert that the detected CLI version meets a minimum major.minor requirement. Throws if the CLI version is below the specified minimum.",
+      "parameters": {
+        "major": {
+          "type": "number",
+          "description": "Minimum major version"
+        },
+        "minor": {
+          "type": "number",
+          "description": "Minimum minor version"
+        }
+      },
+      "required": [
+        "major",
+        "minor"
+      ],
+      "returns": "void"
+    },
     "checkAvailability": {
       "description": "Check if the Claude CLI is available and capture its version.",
       "parameters": {},
@@ -8309,7 +8327,7 @@ setBuildTimeData('features.claudeCode', {
               "description": "Append system prompt for this session."
             },
             "permissionMode": {
-              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
               "description": "Permission mode override."
             },
             "allowedTools": {
@@ -8359,6 +8377,58 @@ setBuildTimeData('features.claudeCode', {
             "fileLogLevel": {
               "type": "FileLogLevel",
               "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+            },
+            "effort": {
+              "type": "'low' | 'medium' | 'high'",
+              "description": "Effort level for Claude reasoning."
+            },
+            "maxBudgetUsd": {
+              "type": "number",
+              "description": "Maximum cost budget in USD."
+            },
+            "fallbackModel": {
+              "type": "string",
+              "description": "Fallback model when the primary is unavailable."
+            },
+            "jsonSchema": {
+              "type": "string | object",
+              "description": "JSON schema for structured output validation."
+            },
+            "agent": {
+              "type": "string",
+              "description": "Agent to use for this session."
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "Resume or fork a specific Claude session by ID."
+            },
+            "noSessionPersistence": {
+              "type": "boolean",
+              "description": "Disable session persistence for this run."
+            },
+            "forkSession": {
+              "type": "boolean",
+              "description": "Fork from an existing session instead of resuming."
+            },
+            "tools": {
+              "type": "string[]",
+              "description": "Tools to make available."
+            },
+            "strictMcpConfig": {
+              "type": "boolean",
+              "description": "Require strict MCP config validation."
+            },
+            "debug": {
+              "type": "string | boolean",
+              "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+            },
+            "debugFile": {
+              "type": "string",
+              "description": "Path to write debug output to a file."
+            },
+            "settingsFile": {
+              "type": "string",
+              "description": "Path to a custom settings file."
             }
           }
         }
@@ -8402,7 +8472,7 @@ setBuildTimeData('features.claudeCode', {
               "description": "Append system prompt for this session."
             },
             "permissionMode": {
-              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+              "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
               "description": "Permission mode override."
             },
             "allowedTools": {
@@ -8452,6 +8522,58 @@ setBuildTimeData('features.claudeCode', {
             "fileLogLevel": {
               "type": "FileLogLevel",
               "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+            },
+            "effort": {
+              "type": "'low' | 'medium' | 'high'",
+              "description": "Effort level for Claude reasoning."
+            },
+            "maxBudgetUsd": {
+              "type": "number",
+              "description": "Maximum cost budget in USD."
+            },
+            "fallbackModel": {
+              "type": "string",
+              "description": "Fallback model when the primary is unavailable."
+            },
+            "jsonSchema": {
+              "type": "string | object",
+              "description": "JSON schema for structured output validation."
+            },
+            "agent": {
+              "type": "string",
+              "description": "Agent to use for this session."
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "Resume or fork a specific Claude session by ID."
+            },
+            "noSessionPersistence": {
+              "type": "boolean",
+              "description": "Disable session persistence for this run."
+            },
+            "forkSession": {
+              "type": "boolean",
+              "description": "Fork from an existing session instead of resuming."
+            },
+            "tools": {
+              "type": "string[]",
+              "description": "Tools to make available."
+            },
+            "strictMcpConfig": {
+              "type": "boolean",
+              "description": "Require strict MCP config validation."
+            },
+            "debug": {
+              "type": "string | boolean",
+              "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+            },
+            "debugFile": {
+              "type": "string",
+              "description": "Path to write debug output to a file."
+            },
+            "settingsFile": {
+              "type": "string",
+              "description": "Path to a custom settings file."
             }
           }
         }
@@ -8546,9 +8668,18 @@ setBuildTimeData('features.claudeCode', {
     "claudePath": {
       "description": "Resolve the path to the claude CLI binary.",
       "returns": "string"
+    },
+    "parsedVersion": {
+      "description": "Parsed semver components from the detected CLI version, or undefined if not yet checked.",
+      "returns": "{ major: number; minor: number; patch: number } | undefined"
     }
   },
   "events": {
+    "session:warning": {
+      "name": "session:warning",
+      "description": "Event emitted by ClaudeCode",
+      "arguments": {}
+    },
     "session:log-error": {
       "name": "session:log-error",
       "description": "Event emitted by ClaudeCode",
@@ -17926,6 +18057,24 @@ export const introspectionData = [
     "shortcut": "features.claudeCode",
     "className": "ClaudeCode",
     "methods": {
+      "assertMinVersion": {
+        "description": "Assert that the detected CLI version meets a minimum major.minor requirement. Throws if the CLI version is below the specified minimum.",
+        "parameters": {
+          "major": {
+            "type": "number",
+            "description": "Minimum major version"
+          },
+          "minor": {
+            "type": "number",
+            "description": "Minimum minor version"
+          }
+        },
+        "required": [
+          "major",
+          "minor"
+        ],
+        "returns": "void"
+      },
       "checkAvailability": {
         "description": "Check if the Claude CLI is available and capture its version.",
         "parameters": {},
@@ -17985,7 +18134,7 @@ export const introspectionData = [
                 "description": "Append system prompt for this session."
               },
               "permissionMode": {
-                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
                 "description": "Permission mode override."
               },
               "allowedTools": {
@@ -18035,6 +18184,58 @@ export const introspectionData = [
               "fileLogLevel": {
                 "type": "FileLogLevel",
                 "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+              },
+              "effort": {
+                "type": "'low' | 'medium' | 'high'",
+                "description": "Effort level for Claude reasoning."
+              },
+              "maxBudgetUsd": {
+                "type": "number",
+                "description": "Maximum cost budget in USD."
+              },
+              "fallbackModel": {
+                "type": "string",
+                "description": "Fallback model when the primary is unavailable."
+              },
+              "jsonSchema": {
+                "type": "string | object",
+                "description": "JSON schema for structured output validation."
+              },
+              "agent": {
+                "type": "string",
+                "description": "Agent to use for this session."
+              },
+              "sessionId": {
+                "type": "string",
+                "description": "Resume or fork a specific Claude session by ID."
+              },
+              "noSessionPersistence": {
+                "type": "boolean",
+                "description": "Disable session persistence for this run."
+              },
+              "forkSession": {
+                "type": "boolean",
+                "description": "Fork from an existing session instead of resuming."
+              },
+              "tools": {
+                "type": "string[]",
+                "description": "Tools to make available."
+              },
+              "strictMcpConfig": {
+                "type": "boolean",
+                "description": "Require strict MCP config validation."
+              },
+              "debug": {
+                "type": "string | boolean",
+                "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+              },
+              "debugFile": {
+                "type": "string",
+                "description": "Path to write debug output to a file."
+              },
+              "settingsFile": {
+                "type": "string",
+                "description": "Path to a custom settings file."
               }
             }
           }
@@ -18078,7 +18279,7 @@ export const introspectionData = [
                 "description": "Append system prompt for this session."
               },
               "permissionMode": {
-                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'",
+                "type": "'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'",
                 "description": "Permission mode override."
               },
               "allowedTools": {
@@ -18128,6 +18329,58 @@ export const introspectionData = [
               "fileLogLevel": {
                 "type": "FileLogLevel",
                 "description": "Verbosity level for file logging. Overrides feature-level fileLogLevel."
+              },
+              "effort": {
+                "type": "'low' | 'medium' | 'high'",
+                "description": "Effort level for Claude reasoning."
+              },
+              "maxBudgetUsd": {
+                "type": "number",
+                "description": "Maximum cost budget in USD."
+              },
+              "fallbackModel": {
+                "type": "string",
+                "description": "Fallback model when the primary is unavailable."
+              },
+              "jsonSchema": {
+                "type": "string | object",
+                "description": "JSON schema for structured output validation."
+              },
+              "agent": {
+                "type": "string",
+                "description": "Agent to use for this session."
+              },
+              "sessionId": {
+                "type": "string",
+                "description": "Resume or fork a specific Claude session by ID."
+              },
+              "noSessionPersistence": {
+                "type": "boolean",
+                "description": "Disable session persistence for this run."
+              },
+              "forkSession": {
+                "type": "boolean",
+                "description": "Fork from an existing session instead of resuming."
+              },
+              "tools": {
+                "type": "string[]",
+                "description": "Tools to make available."
+              },
+              "strictMcpConfig": {
+                "type": "boolean",
+                "description": "Require strict MCP config validation."
+              },
+              "debug": {
+                "type": "string | boolean",
+                "description": "Enable debug output. Pass a string for specific debug channels, or true for all."
+              },
+              "debugFile": {
+                "type": "string",
+                "description": "Path to write debug output to a file."
+              },
+              "settingsFile": {
+                "type": "string",
+                "description": "Path to a custom settings file."
               }
             }
           }
@@ -18222,9 +18475,18 @@ export const introspectionData = [
       "claudePath": {
         "description": "Resolve the path to the claude CLI binary.",
         "returns": "string"
+      },
+      "parsedVersion": {
+        "description": "Parsed semver components from the detected CLI version, or undefined if not yet checked.",
+        "returns": "{ major: number; minor: number; patch: number } | undefined"
       }
     },
     "events": {
+      "session:warning": {
+        "name": "session:warning",
+        "description": "Event emitted by ClaudeCode",
+        "arguments": {}
+      },
       "session:log-error": {
         "name": "session:log-error",
         "description": "Event emitted by ClaudeCode",

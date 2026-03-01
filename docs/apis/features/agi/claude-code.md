@@ -32,6 +32,22 @@ container.feature('claudeCode', {
   fileLogPath,
   // Verbosity level for file logging. Defaults to "normal"
   fileLogLevel,
+  // Default effort level for Claude reasoning
+  effort,
+  // Maximum cost budget in USD per session
+  maxBudgetUsd,
+  // Fallback model when the primary model is unavailable
+  fallbackModel,
+  // Default agent to use
+  agent,
+  // Disable session persistence across runs
+  noSessionPersistence,
+  // Default tools to make available
+  tools,
+  // Require strict MCP config validation
+  strictMcpConfig,
+  // Path to a custom settings file
+  settingsFile,
 })
 ```
 
@@ -52,8 +68,31 @@ container.feature('claudeCode', {
 | `mcpServers` | `object` | MCP server configs keyed by name, injected into sessions via temp config file |
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file |
 | `fileLogLevel` | `string` | Verbosity level for file logging. Defaults to "normal" |
+| `effort` | `string` | Default effort level for Claude reasoning |
+| `maxBudgetUsd` | `number` | Maximum cost budget in USD per session |
+| `fallbackModel` | `string` | Fallback model when the primary model is unavailable |
+| `agent` | `string` | Default agent to use |
+| `noSessionPersistence` | `boolean` | Disable session persistence across runs |
+| `tools` | `array` | Default tools to make available |
+| `strictMcpConfig` | `boolean` | Require strict MCP config validation |
+| `settingsFile` | `string` | Path to a custom settings file |
 
 ## Methods
+
+### assertMinVersion
+
+Assert that the detected CLI version meets a minimum major.minor requirement. Throws if the CLI version is below the specified minimum.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `major` | `number` | ✓ | Minimum major version |
+| `minor` | `number` | ✓ | Minimum minor version |
+
+**Returns:** `void`
+
+
 
 ### checkAvailability
 
@@ -108,7 +147,7 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `cwd` | `string` | Override working directory. |
 | `systemPrompt` | `string` | System prompt for this session. |
 | `appendSystemPrompt` | `string` | Append system prompt for this session. |
-| `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'` | Permission mode override. |
+| `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'` | Permission mode override. |
 | `allowedTools` | `string[]` | Allowed tools override. |
 | `disallowedTools` | `string[]` | Disallowed tools override. |
 | `streaming` | `boolean` | Whether to stream partial messages. |
@@ -121,6 +160,19 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
 | `fileLogLevel` | `FileLogLevel` | Verbosity level for file logging. Overrides feature-level fileLogLevel. |
+| `effort` | `'low' | 'medium' | 'high'` | Effort level for Claude reasoning. |
+| `maxBudgetUsd` | `number` | Maximum cost budget in USD. |
+| `fallbackModel` | `string` | Fallback model when the primary is unavailable. |
+| `jsonSchema` | `string | object` | JSON schema for structured output validation. |
+| `agent` | `string` | Agent to use for this session. |
+| `sessionId` | `string` | Resume or fork a specific Claude session by ID. |
+| `noSessionPersistence` | `boolean` | Disable session persistence for this run. |
+| `forkSession` | `boolean` | Fork from an existing session instead of resuming. |
+| `tools` | `string[]` | Tools to make available. |
+| `strictMcpConfig` | `boolean` | Require strict MCP config validation. |
+| `debug` | `string | boolean` | Enable debug output. Pass a string for specific debug channels, or true for all. |
+| `debugFile` | `string` | Path to write debug output to a file. |
+| `settingsFile` | `string` | Path to a custom settings file. |
 
 **Returns:** `Promise<ClaudeSession>`
 
@@ -172,7 +224,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `cwd` | `string` | Override working directory. |
 | `systemPrompt` | `string` | System prompt for this session. |
 | `appendSystemPrompt` | `string` | Append system prompt for this session. |
-| `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'` | Permission mode override. |
+| `permissionMode` | `'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'` | Permission mode override. |
 | `allowedTools` | `string[]` | Allowed tools override. |
 | `disallowedTools` | `string[]` | Disallowed tools override. |
 | `streaming` | `boolean` | Whether to stream partial messages. |
@@ -185,6 +237,19 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
 | `fileLogLevel` | `FileLogLevel` | Verbosity level for file logging. Overrides feature-level fileLogLevel. |
+| `effort` | `'low' | 'medium' | 'high'` | Effort level for Claude reasoning. |
+| `maxBudgetUsd` | `number` | Maximum cost budget in USD. |
+| `fallbackModel` | `string` | Fallback model when the primary is unavailable. |
+| `jsonSchema` | `string | object` | JSON schema for structured output validation. |
+| `agent` | `string` | Agent to use for this session. |
+| `sessionId` | `string` | Resume or fork a specific Claude session by ID. |
+| `noSessionPersistence` | `boolean` | Disable session persistence for this run. |
+| `forkSession` | `boolean` | Fork from an existing session instead of resuming. |
+| `tools` | `string[]` | Tools to make available. |
+| `strictMcpConfig` | `boolean` | Require strict MCP config validation. |
+| `debug` | `string | boolean` | Enable debug output. Pass a string for specific debug channels, or true for all. |
+| `debugFile` | `string` | Path to write debug output to a file. |
+| `settingsFile` | `string` | Path to a custom settings file. |
 
 **Returns:** `Promise<string>`
 
@@ -290,8 +355,15 @@ Initialize the feature.
 | Property | Type | Description |
 |----------|------|-------------|
 | `claudePath` | `string` | Resolve the path to the claude CLI binary. |
+| `parsedVersion` | `{ major: number; minor: number; patch: number } | undefined` | Parsed semver components from the detected CLI version, or undefined if not yet checked. |
 
 ## Events (Zod v4 schema)
+
+### session:warning
+
+Event emitted by ClaudeCode
+
+
 
 ### session:log-error
 

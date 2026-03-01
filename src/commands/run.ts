@@ -119,7 +119,10 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		if (node.type === 'code') {
 			const { value, lang, meta } = node
 
-			if (lang !== 'ts' && lang !== 'js' && lang !== 'tsx' && lang !== 'jsx') continue
+			if (lang !== 'ts' && lang !== 'js' && lang !== 'tsx' && lang !== 'jsx') {
+				console.log(container.ui.markdown(['```' + (lang || ''), value, '```'].join('\n')))
+				continue
+			}
 
 			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
 
