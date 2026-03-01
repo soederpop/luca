@@ -12,6 +12,7 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	safe: z.boolean().default(false).describe('Require approval before each code block (markdown mode)'),
 	console: z.boolean().default(false).describe('Start an interactive REPL after executing a markdown file, with all accumulated context'),
+	onlySections: z.string().optional().describe('Comma-separated list of section headings to run (case-insensitive, markdown only)'),
 })
 
 function resolveScript(ref: string, context: ContainerContext): string | null {
@@ -110,10 +111,29 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		}
 	}
 
+	// ─── Build section filter from --only-sections ───────────────────
+	let allowedIndices: Set<number> | null = null
+	if (options.onlySections) {
+		const requestedSections = options.onlySections.split(',').map(s => s.trim())
+		allowedIndices = new Set<number>()
+		for (const sectionName of requestedSections) {
+			try {
+				const sectionNodes = doc.extractSection(sectionName)
+				for (const node of sectionNodes) {
+					const idx = doc.ast.children.indexOf(node as any)
+					if (idx !== -1) allowedIndices.add(idx)
+				}
+			} catch {
+				// Section not found — skip silently
+			}
+		}
+	}
+
 	// ─── Execute document ──────────────────────────────────────────────
 	const children = doc.ast.children
 	for (let i = 0; i < children.length; i++) {
 		if (skipIndices.has(i)) continue
+		if (allowedIndices && !allowedIndices.has(i)) continue
 
 		const node = children[i]
 		if (node.type === 'code') {
