@@ -1,4 +1,4 @@
-# features.ui
+# UI (features.ui)
 
 UI Feature - Interactive Terminal User Interface Builder This feature provides comprehensive tools for creating beautiful, interactive terminal experiences. It combines several popular libraries (chalk, figlet, inquirer) into a unified interface for building professional CLI applications with colors, ASCII art, and interactive prompts. **Core Capabilities:** - Rich color management using chalk library - ASCII art generation with multiple fonts - Interactive prompts and wizards - Automatic color assignment for consistent theming - Text padding and formatting utilities - Gradient text effects (horizontal and vertical) - Banner creation with styled ASCII art **Color System:** - Full chalk API access for complex styling - Automatic color assignment with palette cycling - Consistent color mapping for named entities - Support for hex colors and gradients **ASCII Art Features:** - Multiple font options via figlet - Automatic font discovery and caching - Banner creation with color gradients - Text styling and effects **Interactive Elements:** - Wizard creation with inquirer integration - External editor integration - User input validation and processing **Usage Examples:** **Basic Colors:** ```typescript const ui = container.feature('ui'); // Direct color usage ui.print.red('Error message'); ui.print.green('Success!'); // Complex styling console.log(ui.colors.blue.bold.underline('Important text')); ``` **ASCII Art Banners:** ```typescript const banner = ui.banner('MyApp', { font: 'Big', colors: ['red', 'white', 'blue'] }); console.log(banner); ``` **Interactive Wizards:** ```typescript const answers = await ui.wizard([ { type: 'input', name: 'name', message: 'Your name?' }, { type: 'confirm', name: 'continue', message: 'Continue?' } ]); ``` **Automatic Color Assignment:** ```typescript const userColor = ui.assignColor('john'); const adminColor = ui.assignColor('admin'); console.log(userColor('John\'s message')); console.log(adminColor('Admin notice')); ```
 
@@ -17,9 +17,7 @@ Parse markdown text and render it for terminal display using marked-terminal.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The markdown string to parse and render |
 
 **Returns:** `void`
@@ -33,9 +31,7 @@ Assigns a consistent color to a named entity. This method provides automatic col
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The unique identifier to assign a color to |
 
 **Returns:** `(str: string) => string`
@@ -64,11 +60,8 @@ Creates an interactive wizard using inquirer prompts. This method provides a con
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `questions` | `any[]` | ✓ | Array of inquirer question objects |
-
 | `initialAnswers` | `any` |  | Pre-populated answers to skip questions or provide defaults |
 
 **Returns:** `void`
@@ -113,9 +106,7 @@ Prompt the user with a single text input question.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `question` | `string` | ✓ | The question message to display |
 
 **Returns:** `void`
@@ -129,11 +120,8 @@ Opens text in the user's external editor for editing. This method integrates wit
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The initial text content to edit |
-
 | `extension` | `any` |  | File extension for syntax highlighting (default: ".ts") |
 
 **Returns:** `void`
@@ -161,11 +149,8 @@ Generates ASCII art from text using the specified font. This method converts reg
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to convert to ASCII art |
-
 | `font` | `Fonts` | ✓ | The figlet font to use (see fonts property for available options) |
 
 **Returns:** `void`
@@ -195,23 +180,15 @@ Creates a styled banner with ASCII art and color gradients. This method combines
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to convert to a styled banner |
-
 | `options` | `{ font: Fonts; colors: Color[] }` |  | Banner styling options |
-
-
 
 `{ font: Fonts; colors: Color[] }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `font` | `any` | The figlet font to use for ASCII art generation |
-
 | `colors` | `any` | Array of colors for the gradient effect |
 
 **Returns:** `void`
@@ -249,9 +226,7 @@ Dedent and format a tagged template literal using endent. Strips leading indenta
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `args` | `any[]` | ✓ | Tagged template literal arguments |
 
 **Returns:** `void`
@@ -265,13 +240,9 @@ Applies color gradients to text with configurable direction. This method creates
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text content to apply gradients to |
-
 | `lineColors` | `Color[]` |  | Array of colors to cycle through in the gradient |
-
 | `direction` | `"horizontal" | "vertical"` |  | Gradient direction: 'horizontal' or 'vertical' |
 
 **Returns:** `void`
@@ -306,11 +277,8 @@ Applies horizontal color gradients character by character. This method creates c
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to apply horizontal gradients to |
-
 | `lineColors` | `Color[]` |  | Array of colors to cycle through |
 
 **Returns:** `void`
@@ -338,11 +306,8 @@ Applies vertical color gradients line by line. This method creates color transit
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to apply vertical gradients to (supports newlines) |
-
 | `lineColors` | `Color[]` |  | Array of colors to cycle through for each line |
 
 **Returns:** `void`
@@ -372,13 +337,9 @@ Pads text on the left to reach the specified length. This utility method adds pa
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `str` | `string` | ✓ | The string to pad |
-
 | `length` | `number` | ✓ | The desired total length after padding |
-
 | `padChar` | `any` |  | The character to use for padding (default: " ") |
 
 **Returns:** `void`
@@ -409,13 +370,9 @@ Pads text on the right to reach the specified length. This utility method adds p
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `str` | `string` | ✓ | The string to pad |
-
 | `length` | `number` | ✓ | The desired total length after padding |
-
 | `padChar` | `any` |  | The character to use for padding (default: " ") |
 
 **Returns:** `void`
@@ -449,27 +406,18 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `colors` | `typeof colors` | Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. |
-
 | `colorPalette` | `string[]` | Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application. |
-
 | `randomColor` | `any` | Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing. |
-
 | `fonts` | `string[]` | Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `fonts` | `array` | Array of available fonts for ASCII art generation |
-
 | `colorPalette` | `array` | Color palette of hex colors for automatic color assignment |
 
 ## Examples

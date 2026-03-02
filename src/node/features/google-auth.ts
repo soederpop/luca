@@ -3,7 +3,6 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature, features } from '../feature.js'
 import { google } from 'googleapis'
 import type { OAuth2Client } from 'google-auth-library'
-import { readFileSync } from 'fs'
 
 export const GoogleAuthStateSchema = FeatureStateSchema.extend({
   authMode: z.enum(['oauth2', 'service-account', 'none']).default('none')
@@ -490,8 +489,7 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     }
 
     const resolved = this.container.paths.resolve(keyPath)
-    const content = readFileSync(resolved, 'utf-8')
-    return JSON.parse(content)
+    return this.container.fs.readJson(resolved)
   }
 }
 

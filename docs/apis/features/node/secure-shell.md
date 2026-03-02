@@ -1,4 +1,4 @@
-# features.secureShell
+# SecureShell (features.secureShell)
 
 SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.
 
@@ -19,20 +19,14 @@ container.feature('secureShell', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `host` | `string` | Remote host address |
-
 | `port` | `number` | SSH port number (default: 22) |
-
 | `username` | `string` | Username for SSH authentication |
-
 | `password` | `string` | Password for SSH authentication |
-
 | `key` | `string` | Path to SSH private key file |
 
 ## Methods
@@ -58,9 +52,7 @@ Executes a command on the remote host.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `command` | `string` | ✓ | The command to execute on the remote shell |
 
 **Returns:** `Promise<string>`
@@ -80,11 +72,8 @@ Downloads a file from the remote host via SCP.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source file path on the remote host |
-
 | `target` | `string` | ✓ | The target file path on the local machine |
 
 **Returns:** `Promise<string>`
@@ -103,11 +92,8 @@ Uploads a file to the remote host via SCP.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source file path on the local machine |
-
 | `target` | `string` | ✓ | The target file path on the remote host |
 
 **Returns:** `Promise<string>`
@@ -119,14 +105,11 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `connected` | `boolean` | Whether an SSH connection is currently active |
 
 ## Examples

@@ -1,4 +1,4 @@
-# features.git
+# Git (features.git)
 
 The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.
 
@@ -17,35 +17,21 @@ Lists files in the Git repository using git ls-files command. This method provid
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `LsFilesOptions` |  | Options to control which files are listed |
-
-
 
 `LsFilesOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `cached` | `boolean` | Show cached/staged files |
-
 | `deleted` | `boolean` | Show deleted files |
-
 | `modified` | `boolean` | Show modified files |
-
 | `others` | `boolean` | Show untracked files |
-
 | `ignored` | `boolean` | Show ignored files |
-
 | `status` | `boolean` | Show file status information |
-
 | `includeIgnored` | `boolean` | Include ignored files when showing others |
-
 | `exclude` | `string | string[]` | Patterns to exclude from results |
-
 | `baseDir` | `string` | Base directory to list files from |
 
 **Returns:** `void`
@@ -73,9 +59,7 @@ Gets the latest commits from the repository. Returns an array of commit objects 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `numberOfChanges` | `number` |  | The number of recent commits to return |
 
 **Returns:** `void`
@@ -96,9 +80,7 @@ Gets a lightweight commit log for one or more files. Returns the SHA and message
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `files` | `string[]` | ✓ | File paths (absolute or relative to container.cwd) |
 
 **Returns:** `void`
@@ -120,13 +102,9 @@ Gets the diff for a file between two refs. By default compares from the current 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `file` | `string` | ✓ | File path (absolute or relative to container.cwd) |
-
 | `compareTo` | `string` | ✓ | The target ref (commit SHA, branch, tag) to compare to |
-
 | `compareFrom` | `string` |  | The base ref to compare from (defaults to current HEAD) |
 
 **Returns:** `void`
@@ -148,13 +126,9 @@ Pretty prints a unified diff string to the terminal using colors. Parses the dif
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `diffOrFile` | `string` | ✓ | A raw diff string, or a file path to pass to {@link diff} |
-
 | `compareTo` | `string` |  | When diffOrFile is a file path, the target ref to compare to |
-
 | `compareFrom` | `string` |  | When diffOrFile is a file path, the base ref to compare from |
 
 **Returns:** `string`
@@ -177,9 +151,7 @@ Gets the commit history for a set of files or glob patterns. Accepts absolute pa
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `paths` | `string[]` | ✓ | File paths or glob patterns to get history for |
 
 **Returns:** `void`
@@ -194,27 +166,18 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `branch` | `any` | Gets the current Git branch name. |
-
 | `sha` | `any` | Gets the current Git commit SHA hash. |
-
 | `isRepo` | `any` | Checks if the current directory is within a Git repository. |
-
 | `isRepoRoot` | `any` | Checks if the current working directory is the root of the Git repository. |
-
 | `repoRoot` | `any` | Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `repoRoot` | `string` | Absolute path to the Git repository root directory |
 
 ## Examples

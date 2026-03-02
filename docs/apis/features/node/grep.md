@@ -1,4 +1,4 @@
-# features.grep
+# Grep (features.grep)
 
 The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. Returns structured results as arrays of `{ file, line, column, content }` objects with paths relative to the container cwd. Also provides convenience methods for common search patterns.
 
@@ -17,47 +17,27 @@ Search for a pattern in files and return structured results.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `GrepOptions` | ✓ | Search options |
-
-
 
 `GrepOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `pattern` | `string` | Pattern to search for (string or regex) |
-
 | `path` | `string` | Directory or file to search in (defaults to container cwd) |
-
 | `include` | `string | string[]` | Glob patterns to include (e.g. '*.ts') |
-
 | `exclude` | `string | string[]` | Glob patterns to exclude (e.g. 'node_modules') |
-
 | `ignoreCase` | `boolean` | Case insensitive search |
-
 | `fixedStrings` | `boolean` | Treat pattern as a fixed string, not regex |
-
 | `recursive` | `boolean` | Search recursively (default: true) |
-
 | `hidden` | `boolean` | Include hidden files |
-
 | `maxResults` | `number` | Max number of results to return |
-
 | `before` | `number` | Number of context lines before match |
-
 | `after` | `number` | Number of context lines after match |
-
 | `filesOnly` | `boolean` | Only return filenames, not match details |
-
 | `invert` | `boolean` | Invert match (return lines that don't match) |
-
 | `wordMatch` | `boolean` | Match whole words only |
-
 | `rawFlags` | `string[]` | Additional raw flags to pass to grep/ripgrep |
 
 **Returns:** `Promise<GrepMatch[]>`
@@ -88,11 +68,8 @@ Find files containing a pattern. Returns just the relative file paths.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `pattern` | `string` | ✓ | The pattern to search for |
-
 | `options` | `Omit<GrepOptions, 'pattern' | 'filesOnly'>` |  | Additional search options |
 
 **Returns:** `Promise<string[]>`
@@ -111,11 +88,8 @@ Find import/require statements for a module or path.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `moduleOrPath` | `string` | ✓ | The module name or path to search for in imports |
-
 | `options` | `Omit<GrepOptions, 'pattern'>` |  | Additional search options |
 
 **Returns:** `Promise<GrepMatch[]>`
@@ -134,11 +108,8 @@ Find function, class, type, or variable definitions matching a name.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The identifier name to search for definitions of |
-
 | `options` | `Omit<GrepOptions, 'pattern'>` |  | Additional search options |
 
 **Returns:** `Promise<GrepMatch[]>`
@@ -157,9 +128,7 @@ Find TODO, FIXME, HACK, and XXX comments.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `Omit<GrepOptions, 'pattern'>` |  | Additional search options |
 
 **Returns:** `Promise<GrepMatch[]>`
@@ -178,11 +147,8 @@ Count the number of matches for a pattern.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `pattern` | `string` | ✓ | The pattern to count |
-
 | `options` | `Omit<GrepOptions, 'pattern'>` |  | Additional search options |
 
 **Returns:** `Promise<number>`
@@ -201,11 +167,8 @@ Search and replace across files. Returns the list of files that would be affecte
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `pattern` | `string` | ✓ | The pattern to search for |
-
 | `options` | `Omit<GrepOptions, 'pattern'>` |  | Additional search options |
 
 **Returns:** `Promise<{ file: string, matches: GrepMatch[] }[]>`
@@ -220,17 +183,13 @@ const affected = await grep.findForReplace('oldFunctionName')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `hasRipgrep` | `boolean` | Whether ripgrep (rg) is available on this system |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

@@ -1,4 +1,4 @@
-# features.vm
+# VM (features.vm)
 
 The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.
 
@@ -11,12 +11,10 @@ container.feature('vm', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `context` | `any` | Default context object to inject into the VM execution environment |
 
 ## Methods
@@ -26,9 +24,7 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | Parameter code |
 
 **Returns:** `void`
@@ -40,9 +36,7 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `ctx` | `any` |  | Parameter ctx |
 
 **Returns:** `void`
@@ -54,25 +48,19 @@ container.feature('vm', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | Parameter code |
-
 | `ctx` | `any` |  | Parameter ctx |
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `void`
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

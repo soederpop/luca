@@ -1,4 +1,4 @@
-# features.scriptRunner
+# ScriptRunner (features.scriptRunner)
 
 The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.
 
@@ -11,17 +11,13 @@ container.feature('scriptRunner')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `scripts` | `any` | Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., "build:dev") are converted by replacing colons with underscores before camelCasing. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

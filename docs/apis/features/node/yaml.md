@@ -1,4 +1,4 @@
-# features.yaml
+# YAML (features.yaml)
 
 The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.
 
@@ -17,9 +17,7 @@ Converts a JavaScript object to a YAML string. This method serializes JavaScript
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `data` | `any` | ✓ | The data to convert to YAML format |
 
 **Returns:** `string`
@@ -55,9 +53,7 @@ Parses a YAML string into a JavaScript object. This method deserializes YAML con
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `yamlStr` | `string` | ✓ | The YAML string to parse |
 
 **Returns:** `T`
@@ -93,12 +89,10 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

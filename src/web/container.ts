@@ -12,6 +12,7 @@ import type { Network } from './features/network.js'
 import type { WebVault } from './features/vault.js'
 import type { VM } from './features/vm.js'
 import type { Esbuild } from './features/esbuild.js'
+import type { Helpers } from './features/helpers.js'
 
 import * as WebContainerExtensions from './extension.js'
 
@@ -24,6 +25,7 @@ export interface WebFeatures extends AvailableFeatures {
   vault: typeof WebVault
   vm: typeof VM;
   esbuild: typeof Esbuild
+  helpers: typeof Helpers
 }
 
 export interface WebContainer extends ClientsInterface {
@@ -32,6 +34,7 @@ export interface WebContainer extends ClientsInterface {
   speech?: Speech
   network?: Network
   vault?: WebVault
+  helpers?: Helpers
 }
 
 export interface WebContainerState extends ContainerState { }
@@ -61,6 +64,7 @@ export class WebContainer<Features extends WebFeatures = WebFeatures, K extends 
   constructor(options: any = {}) {
     super(options)
     this.use(WebContainerExtensions as any)
+    this.feature("helpers" as any, { enable: true })
   }
 }
 

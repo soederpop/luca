@@ -1,4 +1,4 @@
-# features.conversationHistory
+# ConversationHistory (features.conversationHistory)
 
 No description provided
 
@@ -13,14 +13,11 @@ container.feature('conversationHistory', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `cachePath` | `string` | Custom cache directory for conversation storage |
-
 | `namespace` | `string` | Namespace prefix for cache keys to isolate datasets |
 
 ## Methods
@@ -32,37 +29,22 @@ Save a conversation. Creates or overwrites by ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `record` | `ConversationRecord` | ✓ | The full conversation record to persist |
-
-
 
 `ConversationRecord` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `id` | `string` |  |
-
 | `title` | `string` |  |
-
 | `model` | `string` |  |
-
 | `messages` | `Message[]` |  |
-
 | `tags` | `string[]` |  |
-
 | `thread` | `string` |  |
-
 | `createdAt` | `string` |  |
-
 | `updatedAt` | `string` |  |
-
 | `messageCount` | `number` |  |
-
 | `metadata` | `Record<string, any>` |  |
 
 **Returns:** `Promise<void>`
@@ -76,9 +58,7 @@ Create a new conversation from messages, returning the saved record.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `opts` | `{
 		id?: string
 		title?: string
@@ -100,9 +80,7 @@ Load a full conversation by ID, including all messages.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID |
 
 **Returns:** `Promise<ConversationRecord | null>`
@@ -116,9 +94,7 @@ Load just the metadata for a conversation (no messages).
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID |
 
 **Returns:** `Promise<ConversationMeta | null>`
@@ -132,11 +108,8 @@ Append messages to an existing conversation.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID to append to |
-
 | `messages` | `Message[]` | ✓ | The messages to append |
 
 **Returns:** `Promise<ConversationRecord | null>`
@@ -150,9 +123,7 @@ Delete a conversation by ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID to delete |
 
 **Returns:** `Promise<boolean>`
@@ -166,35 +137,21 @@ List all conversation metadata, with optional search/filter. Loads only the ligh
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `SearchOptions` |  | Optional filters for tag, thread, model, date range, and text query |
-
-
 
 `SearchOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tag` | `string` |  |
-
 | `tags` | `string[]` |  |
-
 | `thread` | `string` |  |
-
 | `model` | `string` |  |
-
 | `before` | `string | Date` |  |
-
 | `after` | `string | Date` |  |
-
 | `query` | `string` |  |
-
 | `limit` | `number` |  |
-
 | `offset` | `number` |  |
 
 **Returns:** `Promise<ConversationMeta[]>`
@@ -208,35 +165,21 @@ Search conversations by text query across titles, tags, and metadata. Also suppo
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `SearchOptions` | ✓ | Search and filter criteria |
-
-
 
 `SearchOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tag` | `string` |  |
-
 | `tags` | `string[]` |  |
-
 | `thread` | `string` |  |
-
 | `model` | `string` |  |
-
 | `before` | `string | Date` |  |
-
 | `after` | `string | Date` |  |
-
 | `query` | `string` |  |
-
 | `limit` | `number` |  |
-
 | `offset` | `number` |  |
 
 **Returns:** `Promise<ConversationMeta[]>`
@@ -266,11 +209,8 @@ Tag a conversation. Adds tags without duplicates.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID |
-
 | `tags` | `string[]` | ✓ | One or more tags to add |
 
 **Returns:** `Promise<boolean>`
@@ -284,11 +224,8 @@ Remove tags from a conversation.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID |
-
 | `tags` | `string[]` | ✓ | One or more tags to remove |
 
 **Returns:** `Promise<boolean>`
@@ -302,11 +239,8 @@ Update metadata on a conversation without touching messages.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The conversation ID |
-
 | `updates` | `Partial<Pick<ConversationRecord, 'title' | 'tags' | 'thread' | 'metadata'>>` | ✓ | Partial updates for title, tags, thread, and/or metadata |
 
 **Returns:** `Promise<boolean>`
@@ -316,14 +250,11 @@ Update metadata on a conversation without touching messages.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `diskCache` | `DiskCache` |  |
-
 | `namespace` | `string` |  |
 
-## Events
+## Events (Zod v4 schema)
 
 ### saved
 
@@ -337,36 +268,12 @@ Event emitted by ConversationHistory
 
 
 
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
-
-
-
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `conversationCount` | `number` | Total number of stored conversations |
-
 | `lastSaved` | `string` | ISO timestamp of the last save operation |
 
 ## Examples

@@ -7,7 +7,6 @@ import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
 import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
-import { DocsReader } from './features/docs-reader'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
 import { ContentDb } from '@soederpop/luca/node/features/content-db'
@@ -21,7 +20,6 @@ export {
 	Conversation,
 	SkillsLibrary,
 	ConversationHistory,
-	DocsReader,
 	Assistant,
 	AssistantsManager,
 	ContentDb,
@@ -100,7 +98,6 @@ const container = new AGIContainer()
 	.use(Conversation)
 	.use(SkillsLibrary)
 	.use(ConversationHistory)
-	.use(DocsReader)
 	.use(Assistant)
 	.use(AssistantsManager)
 

@@ -1,4 +1,4 @@
-# features.assetLoader
+# AssetLoader (features.assetLoader)
 
 The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com
 
@@ -15,9 +15,7 @@ container.feature('assetLoader')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `href` | `string` | ✓ | Parameter href |
 
 **Returns:** `void`
@@ -29,9 +27,7 @@ container.feature('assetLoader')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `url` | `string` | ✓ | Parameter url |
 
 **Returns:** `Promise<void>`
@@ -43,11 +39,8 @@ container.feature('assetLoader')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `packageName` | `string` | ✓ | Parameter packageName |
-
 | `globalName` | `string` | ✓ | Parameter globalName |
 
 **Returns:** `Promise<any>`

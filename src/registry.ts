@@ -1,6 +1,7 @@
 import type { Helper } from './helper.js';
 import type { ContainerContext } from './container.js';
 import { Bus } from './bus.js';
+import { inspect } from 'util';
 
 import { introspect, interceptRegistration } from './introspection/index.js';
 import type { HelperIntrospection } from './introspection/index.js';
@@ -9,20 +10,49 @@ export type { HelperIntrospection }
 
 abstract class Registry<T extends Helper> {
   scope: string = "unspecified"
- 
+
   baseClass?: new (options: any, context: ContainerContext) => T
 
-  private members = new Map<string, new (options: any, context: ContainerContext) => T>();
+  private readonly members! : Map<string, new (options: any, context: ContainerContext) => T>
 
-  private readonly _events = new Bus();
+  private readonly _events! : Bus
 
-  constructor() {}
+  constructor() {
+    Object.defineProperty(this, 'members', { enumerable: false, value: new Map<string, new (options: any, context: ContainerContext) => T>() })
+    Object.defineProperty(this, '_events', { enumerable: false, value: new Bus() })
+    Object.defineProperty(this, 'scope', { enumerable: false })
+    Object.defineProperty(this, 'baseClass', { enumerable: false })
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')]() {
+    const helpers = this.available
+    const methods: string[] = []
+    const getters: string[] = []
+
+    let proto = Object.getPrototypeOf(this)
+    while (proto && proto !== Object.prototype) {
+      for (const k of Object.getOwnPropertyNames(proto)) {
+        if (k === 'constructor' || k.startsWith('_')) continue
+        const desc = Object.getOwnPropertyDescriptor(proto, k)
+        if (!desc) continue
+        if (desc.get && !getters.includes(k)) getters.push(k)
+        else if (typeof desc.value === 'function' && !methods.includes(k)) methods.push(k)
+      }
+      proto = Object.getPrototypeOf(proto)
+    }
+
+    const parts = [`${this.constructor.name} [${this.scope}]`]
+    if (getters.length) parts.push(`  getters: ${getters.sort().join(', ')}`)
+    if (methods.length) parts.push(`  methods: ${methods.sort().map(m => m + '()').join(', ')}`)
+    parts.push(`  registered: ${helpers.join(', ')}`)
+    return parts.join('\n')
+  }
 
   /**
    * Lists the keys of all available helpers in this registry.
   */
   get available() : string[] {
-    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, ''))
+    return Array.from(this.members.keys()).map(r => r.replace(`${this.scope}.`, '')).sort()
   }
 
   /** 
@@ -35,6 +65,7 @@ abstract class Registry<T extends Helper> {
   register(id: string, constructor: new (options: any, context: ContainerContext) => T) {
     this.members.set(id.replace(`${this.scope}.`, ''), constructor);
     interceptRegistration(this, constructor)
+    this.emit('helperRegistered', id, constructor)
     return constructor
   }
 

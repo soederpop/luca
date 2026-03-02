@@ -170,17 +170,6 @@ const results = await grep.search({ pattern: 'TODO', include: '*.ts' })
 // Returns array of { file, line, column, match } objects
 ```
 
-### tmux -- Terminal Multiplexer
-
-```typescript
-const tmux = container.feature('tmux')
-await tmux.ensureSession('my-session')
-const layout = await tmux.split({ count: 2, orientation: 'horizontal' })
-const [left, right] = layout.panes
-await left!.run('bun run dev')
-await right!.run('bun test --watch')
-```
-
 ### docker -- Docker Operations
 
 ```typescript

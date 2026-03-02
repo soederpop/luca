@@ -1,4 +1,4 @@
-# features.skillsLibrary
+# SkillsLibrary (features.skillsLibrary)
 
 No description provided
 
@@ -13,14 +13,11 @@ container.feature('skillsLibrary', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `projectSkillsPath` | `string` | Path to project-level skills directory |
-
 | `userSkillsPath` | `string` | Path to user-level global skills directory |
 
 ## Methods
@@ -48,9 +45,7 @@ Finds a skill by name. Project skills take precedence over user skills.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The skill name to find (case-insensitive) |
 
 **Returns:** `SkillEntry | undefined`
@@ -64,9 +59,7 @@ Searches skills by substring match against name and description.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `query` | `string` | ✓ | The search query |
 
 **Returns:** `SkillEntry[]`
@@ -80,9 +73,7 @@ Gets a skill by name. Alias for find().
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The skill name |
 
 **Returns:** `SkillEntry | undefined`
@@ -96,16 +87,13 @@ Creates a new SKILL.md file in the specified collection. Maintains the directory
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `skill` | `{
 			name: string
 			description: string
 			body: string
 			meta?: Record<string, unknown>
 		}` | ✓ | The skill to create |
-
 | `target` | `'project' | 'user'` |  | Which collection to write to (default: 'project') |
 
 **Returns:** `Promise<SkillEntry>`
@@ -119,11 +107,8 @@ Updates an existing skill's content or metadata.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The skill name to update |
-
 | `updates` | `{
 			description?: string
 			body?: string
@@ -141,9 +126,7 @@ Removes a skill by name, deleting its SKILL.md and cleaning up the directory.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The skill name to remove |
 
 **Returns:** `Promise<boolean>`
@@ -169,18 +152,13 @@ Generates a markdown block listing all available skills with names and descripti
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `projectCollection` | `Collection` | Returns the project-level contentbase Collection, lazily initialized. |
-
 | `userCollection` | `Collection` | Returns the user-level contentbase Collection, lazily initialized. |
-
 | `isLoaded` | `boolean` | Whether the skills library has been loaded. |
-
 | `skillNames` | `string[]` | Array of all skill names across both collections. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### loaded
 
@@ -206,40 +184,14 @@ Event emitted by SkillsLibrary
 
 
 
-### stateChange
-
-Event: stateChange
-
-**Event Arguments:**
-
-| Name | Type | Description |
-
-|------|------|-------------|
-
-| `arg0` | `any` | The current state object |
-
-
-
-### enabled
-
-Emitted when the feature is enabled
-
-
-
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `loaded` | `boolean` | Whether both collections have been loaded |
-
 | `projectSkillCount` | `number` | Number of skills in the project collection |
-
 | `userSkillCount` | `number` | Number of skills in the user-level collection |
-
 | `totalSkillCount` | `number` | Total number of skills across both collections |
 
 ## Examples

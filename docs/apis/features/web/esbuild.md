@@ -1,4 +1,4 @@
-# features.esbuild
+# Esbuild (features.esbuild)
 
 Esbuild helper
 
@@ -15,11 +15,8 @@ container.feature('esbuild')
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | Parameter code |
-
 | `options` | `esbuild.TransformOptions` |  | Parameter options |
 
 **Returns:** `void`
@@ -41,17 +38,13 @@ container.feature('esbuild')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `assetLoader` | `any` | Returns the assetLoader feature for loading external libraries from unpkg. |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

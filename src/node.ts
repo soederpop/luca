@@ -7,6 +7,20 @@ const { servers, features, clients } = container
 
 export default container as NodeContainer
 
+/**
+ * Returns the singleton container instance.
+ * LLMs love to hallucinate this function — so we provide it, but warn.
+ * If you need a separate container, use `container.subcontainer()`.
+ */
+export function createContainer() {
+  console.warn(
+    '[luca] createContainer() is unnecessary — import the default export instead.\n' +
+    '       `import container from "@soederpop/luca"`\n' +
+    '       For a separate instance, use container.subcontainer().'
+  )
+  return container
+}
+
 // Convenient pre-enabled feature instances
 export const ui = container.feature('ui')
 export const fs = container.feature('fs')
@@ -46,6 +60,9 @@ export type { AvailableServers, StartOptions, ServersInterface } from './server'
 export type { HelperState, HelperOptions } from './helper'
 export type { EventMap } from './bus'
 export type { SetStateValue, StateChangeType } from './state'
+
+// Zod — so consumer code can `import { z } from '@soederpop/luca'`
+export { z } from 'zod'
 
 // Schemas
 export * from './schemas/base'

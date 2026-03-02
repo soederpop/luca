@@ -1,6 +1,5 @@
 import { features, Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { relative } from 'path'
 
 /** Shell-escape a string using single quotes (safe for all characters) */
 function shellQuote(s: string): string {
@@ -399,7 +398,7 @@ export class Grep extends Feature {
     private relativize(filePath: string, cwd: string): string {
         // If already relative (starts with ./), just clean it
         if (filePath.startsWith('./')) return filePath.slice(2)
-        if (filePath.startsWith('/')) return relative(cwd, filePath)
+        if (filePath.startsWith('/')) return this.container.paths.relative(cwd, filePath)
         return filePath
     }
 }

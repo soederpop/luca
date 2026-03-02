@@ -3,7 +3,6 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature, features } from '../feature.js'
 import { google, type sheets_v4 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
-import { writeFile } from 'fs/promises'
 
 export type SpreadsheetMeta = {
   spreadsheetId: string
@@ -251,7 +250,7 @@ export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions
   async saveAsJson(localPath: string, sheetName?: string, spreadsheetId?: string): Promise<string> {
     const data = await this.getAsJson(sheetName, spreadsheetId)
     const outPath = this.container.paths.resolve(localPath)
-    await writeFile(outPath, JSON.stringify(data, null, 2))
+    await this.container.fs.writeFileAsync(outPath, JSON.stringify(data, null, 2))
     return outPath
   }
 
@@ -266,7 +265,7 @@ export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions
   async saveAsCsv(localPath: string, sheetName?: string, spreadsheetId?: string): Promise<string> {
     const csv = await this.getAsCsv(sheetName, spreadsheetId)
     const outPath = this.container.paths.resolve(localPath)
-    await writeFile(outPath, csv)
+    await this.container.fs.writeFileAsync(outPath, csv)
     return outPath
   }
 }

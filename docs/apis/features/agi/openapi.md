@@ -1,4 +1,4 @@
-# features.openapi
+# OpenAPI (features.openapi)
 
 The OpenAPI feature loads an OpenAPI/Swagger spec from a URL and provides inspection and conversion utilities. Works in both browser and node environments since it uses fetch.
 
@@ -25,9 +25,7 @@ Get a single endpoint by its friendly name or operationId.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The friendly name or operationId to look up |
 
 **Returns:** `EndpointInfo | undefined`
@@ -41,9 +39,7 @@ Convert all endpoints into OpenAI-compatible tool definitions.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `(ep: EndpointInfo) => boolean` |  | Optional predicate to select which endpoints to include |
 
 **Returns:** `OpenAIToolDef[]`
@@ -57,9 +53,7 @@ Convert a single endpoint (by name) to an OpenAI-compatible tool definition.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The endpoint friendly name or operationId |
 
 **Returns:** `OpenAIToolDef | undefined`
@@ -73,9 +67,7 @@ Convert all endpoints into OpenAI-compatible function definitions.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filter` | `(ep: EndpointInfo) => boolean` |  | Optional predicate to select which endpoints to include |
 
 **Returns:** `OpenAIFunctionDef[]`
@@ -89,9 +81,7 @@ Convert a single endpoint (by name) to an OpenAI function definition.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `name` | `string` | ✓ | The endpoint friendly name or operationId |
 
 **Returns:** `OpenAIFunctionDef | undefined`
@@ -109,22 +99,15 @@ Return a compact JSON summary of all endpoints, useful for logging or REPL inspe
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `serverUrl` | `string` | The base server URL derived from options, normalizing the openapi.json suffix |
-
 | `specUrl` | `string` | The URL that will be fetched for the spec document |
-
 | `spec` | `any` | The raw spec object. Null before load() is called. |
-
 | `endpoints` | `EndpointInfo[]` | All parsed endpoints as an array |
-
 | `endpointNames` | `string[]` | All endpoint friendly names |
-
 | `endpointsByTag` | `Record<string, EndpointInfo[]>` | Map of endpoints grouped by tag |
 
-## Events
+## Events (Zod v4 schema)
 
 ### loaded
 

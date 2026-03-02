@@ -1,4 +1,4 @@
-# servers.websocket
+# WebsocketServer (servers.websocket)
 
 WebsocketServer helper
 
@@ -15,16 +15,12 @@ container.server('websocket', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `port` | `number` | Port number to listen on |
-
 | `host` | `string` | Hostname or IP address to bind to |
-
 | `json` | `boolean` | Whether to automatically JSON parse/stringify messages |
 
 ## Methods
@@ -34,9 +30,7 @@ container.server('websocket', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `message` | `any` | ✓ | Parameter message |
 
 **Returns:** `void`
@@ -48,11 +42,8 @@ container.server('websocket', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `ws` | `any` | ✓ | Parameter ws |
-
 | `message` | `any` | ✓ | Parameter message |
 
 **Returns:** `void`
@@ -64,9 +55,7 @@ container.server('websocket', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `StartOptions` |  | Parameter options |
 
 **Returns:** `void`
@@ -76,14 +65,11 @@ container.server('websocket', {
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `wss` | `any` |  |
-
 | `port` | `any` |  |
 
-## Events
+## Events (Zod v4 schema)
 
 ### connection
 
@@ -97,16 +83,11 @@ Event emitted by WebsocketServer
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `port` | `number` | The port the server is bound to |
-
 | `listening` | `boolean` | Whether the server is actively listening for connections |
-
 | `configured` | `boolean` | Whether the server has been configured |
-
 | `stopped` | `boolean` | Whether the server has been stopped |

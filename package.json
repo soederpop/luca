@@ -28,7 +28,9 @@
     "./schemas/*": "./src/schemas/*",
     "./container": "./src/container.ts",
     "./client": "./src/client.ts",
-    "./feature": "./src/feature.ts"
+    "./clients/*": "./src/clients/*",
+    "./feature": "./src/feature.ts",
+    "./react": "./src/react/index.ts"
   },
   "bin": {
     "luca": "./src/cli/cli.ts"
@@ -42,7 +44,9 @@
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "explain-codebase": "luca explain-codebase",
-    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs"
+    "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
+    "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds",
+    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts && bun compile"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
@@ -93,10 +97,11 @@
     "compromise": "^14.14.5",
     "contentbase": "file:../contentbase",
     "cors": "^2.8.5",
+    "cross-fetch": "^4.1.0",
     "detect-port": "^1.5.1",
     "dotenv": "^17.2.4",
     "endent": "^2.1.0",
-    "esbuild": "^0.17.18",
+    "esbuild": "0.17.18",
     "esbuild-plugin-wasm": "^1.0.0",
     "esbuild-register": "^3.4.2",
     "esbuild-wasm": "^0.17.18",
@@ -111,6 +116,7 @@
     "inquirer": "^9.1.5",
     "isomorphic-vm": "^0.0.1",
     "isomorphic-ws": "^5.0.0",
+    "js-tiktoken": "^1.0.21",
     "js-yaml": "^4.1.0",
     "lodash-es": "^4.17.21",
     "marked": "^15.0.12",
@@ -125,6 +131,7 @@
     "opener": "^1.5.2",
     "react": "^19.2.4",
     "react-devtools-core": "^7.0.1",
+    "react-dom": "^19.2.4",
     "react-reconciler": "^0.33.0",
     "remark-gfm": "^3.0.1",
     "rimraf": "^5.0.0",

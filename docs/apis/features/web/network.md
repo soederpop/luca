@@ -1,4 +1,4 @@
-# features.network
+# Network (features.network)
 
 Network helper
 
@@ -25,9 +25,6 @@ container.feature('network')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `isOffline` | `any` | Whether the browser is currently offline. |
-
 | `isOnline` | `any` | Whether the browser is currently online. |

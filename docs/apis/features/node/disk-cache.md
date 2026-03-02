@@ -1,4 +1,4 @@
-# features.diskCache
+# DiskCache (features.diskCache)
 
 File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.
 
@@ -17,13 +17,9 @@ Retrieve a file from the disk cache and save it to the local disk
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to retrieve |
-
 | `outputPath` | `string` | ✓ | The local path where the file should be saved |
-
 | `isBase64` | `any` |  | Whether the cached content is base64 encoded |
 
 **Returns:** `void`
@@ -42,11 +38,8 @@ Ensure a key exists in the cache, setting it with the provided content if it doe
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to check/set |
-
 | `content` | `string` | ✓ | The content to set if the key doesn't exist |
 
 **Returns:** `void`
@@ -64,13 +57,9 @@ Copy a cached item from one key to another
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source cache key |
-
 | `destination` | `string` | ✓ | The destination cache key |
-
 | `overwrite` | `boolean` |  | Whether to overwrite if destination exists (default: false) |
 
 **Returns:** `void`
@@ -89,13 +78,9 @@ Move a cached item from one key to another (copy then delete source)
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `source` | `string` | ✓ | The source cache key |
-
 | `destination` | `string` | ✓ | The destination cache key |
-
 | `overwrite` | `boolean` |  | Whether to overwrite if destination exists (default: false) |
 
 **Returns:** `void`
@@ -114,9 +99,7 @@ Check if a key exists in the cache
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to check |
 
 **Returns:** `void`
@@ -136,11 +119,8 @@ Retrieve a value from the cache
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to retrieve |
-
 | `json` | `any` |  | Whether to parse the value as JSON (default: false) |
 
 **Returns:** `void`
@@ -159,13 +139,9 @@ Store a value in the cache
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to store under |
-
 | `value` | `any` | ✓ | The value to store (string, object, or any serializable data) |
-
 | `meta` | `any` |  | Optional metadata to associate with the cached item |
 
 **Returns:** `void`
@@ -185,9 +161,7 @@ Remove a cached item
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `key` | `string` | ✓ | The cache key to remove |
 
 **Returns:** `void`
@@ -205,9 +179,7 @@ Clear all cached items
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `confirm` | `any` |  | Must be set to true to confirm the operation |
 
 **Returns:** `void`
@@ -250,9 +222,7 @@ Create a cacache instance with the specified path
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `path` | `string` |  | Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache) |
 
 **Returns:** `void`
@@ -266,19 +236,14 @@ const customCache = diskCache.create('/custom/cache/path')
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `cache` | `any` | Returns the underlying cacache instance configured with the cache directory path. |
-
 | `securely` | `any` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

@@ -3,6 +3,8 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import type { MCPServer } from '../servers/mcp.js'
+import { scaffolds, mcpReadme } from '../scaffolds/generated.js'
+import { generateScaffold } from '../scaffolds/template.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -49,10 +51,73 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		} catch {}
 	}
 
+	// --- Tool: read_me ---
+	mcpServer.tool('read_me', {
+		description: [
+			'Returns the Luca framework development guide. Call this BEFORE writing any code in a luca project.',
+			'Contains the import conventions, capability map, and workflow for discovering and using container features.',
+			'You should call this tool at the start of every session.',
+		].join('\n'),
+		schema: z.object({}),
+		handler: () => mcpReadme,
+	})
+
+	// --- Tool: find_capability ---
+	mcpServer.tool('find_capability', {
+		description: [
+			'Search for container capabilities by intent. Returns the full catalog of available features, clients,',
+			'and servers with their descriptions so you can find what you need before writing code.',
+			'Call this when you need to do something and aren\'t sure which helper provides it.',
+			'Prefer this over installing npm packages — the container likely already has what you need.',
+		].join('\n'),
+		schema: z.object({}),
+		handler: () => {
+			const sections: string[] = []
+
+			try {
+				sections.push(container.features.describeAll())
+			} catch {}
+
+			try {
+				sections.push(container.clients.describeAll())
+			} catch {}
+
+			try {
+				sections.push(container.servers.describeAll())
+			} catch {}
+
+			return sections.join('\n\n---\n\n')
+		},
+	})
+
+	// --- Tool: scaffold ---
+	mcpServer.tool('scaffold', {
+		description: [
+			'Generate correct boilerplate for a new luca helper (feature, client, server, command, or endpoint).',
+			'Returns the complete file content with your name and description filled in.',
+			'Write this to a file, then fill in your implementation.',
+			'The scaffold follows all luca conventions including schemas, jsdoc, module augmentation, and registration.',
+		].join('\n'),
+		schema: z.object({
+			type: z.enum(['feature', 'client', 'server', 'command', 'endpoint'])
+				.describe('What kind of helper to scaffold'),
+			name: z.string()
+				.describe('Name for the helper (e.g. "diskCache", "myApi", "healthCheck")'),
+			description: z.string().optional()
+				.describe('Brief description of what this helper does'),
+		}),
+		handler: (args) => {
+			const result = generateScaffold(args.type, args.name, args.description)
+			return result || `No scaffold template available for type: ${args.type}`
+		},
+	})
+
 	// --- Tool: eval ---
 	mcpServer.tool('eval', {
 		description: [
 			'Evaluate JavaScript/TypeScript code in a Luca container sandbox.',
+			'Use this to prototype and test container API calls before writing them into files.',
+			'The sandbox has all features available as top-level variables.',
 			'',
 			'The sandbox has a live `container` object and all enabled features as top-level variables',
 			'(e.g. `fs`, `git`, `ui`, `vm`, `proc`, `networking`, etc).',
@@ -72,9 +137,6 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'  fs.readFile(path)               — read a file',
 			'  fs.readdir(dir)                 — list directory contents',
 			'  proc.exec(cmd)                  — run a shell command',
-			'',
-			'Tip: Use the inspect_container, list_registry, describe_helper, and',
-			'inspect_helper_instance tools for structured introspection without writing code.',
 		].join('\n'),
 		schema: z.object({
 			code: z.string().describe('JavaScript code to evaluate in the Luca container sandbox'),
@@ -176,9 +238,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	mcpServer.tool('describe_helper', {
 		description: [
 			'Get full documentation for a specific helper (feature, client, server, command, endpoint).',
+			'This is the API documentation for any luca helper. There is no other documentation available —',
+			'call this before writing code that uses a feature, client, or server.',
 			'',
 			'Returns markdown with options, state schema, methods, getters, events, env vars, and descriptions.',
-			'Use list_registry first to see what is available.',
+			'Use list_registry or find_capability first to see what is available.',
 		].join('\n'),
 		schema: z.object({
 			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
@@ -206,6 +270,8 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	mcpServer.tool('inspect_helper_instance', {
 		description: [
 			'Inspect a live helper instance (enabled feature, active client/server).',
+			'Use this to inspect a live, running instance — see its current state,',
+			'check method signatures, and understand runtime behavior.',
 			'',
 			'Creates or retrieves the helper and returns introspectAsText() — the same',
 			'rich markdown documentation available on any Helper instance at runtime.',
@@ -346,7 +412,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		console.log(`\nLuca Sandbox MCP listening on http://localhost:${options.port}/mcp`)
 	} else {
 		console.error(`Luca Sandbox MCP started (stdio transport)`)
-		console.error(`Tools: eval, inspect_container, list_registry, describe_helper, inspect_helper_instance`)
+		console.error(`Tools: read_me, find_capability, scaffold, eval, inspect_container, list_registry, describe_helper, inspect_helper_instance`)
 		console.error(`Prompts: discover, introspect | Resources: luca://container/info, luca://features`)
 	}
 }

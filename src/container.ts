@@ -11,7 +11,6 @@ import { z } from 'zod'
 import { ContainerStateSchema, describeZodShape } from './schemas/base'
 import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index'
 
-
 export { z }
 
 const { v4 } = uuid
@@ -73,14 +72,14 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   constructor(options: ContainerArgv) {
     this.options = options
     this._state = new State<ContainerState>()
-
+    this.z = z
     this.state
       .set('enabledFeatures', [])
       .set('started', false)
       .set('registries', ['features'])
       .set('factories', ['feature'])
       
-    this._hide('options', '_state', '_events', 'uuid', '_plugins')
+    this._hide('options', '_state', '_events', 'uuid', '_plugins', 'z')
     
     this.on('featureEnabled', (featureId: string, feature: any) => {
       const featureKey = featureId.replace(/^features\./,'')
@@ -98,7 +97,30 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     })
   }
 
-  z = z
+  /**
+   * Creates a new subcontainer instance of the same concrete Container subclass.
+   *
+   * The new instance is constructed with the same options as this container,
+   * shallow-merged with any overrides you provide. This preserves the runtime
+   * container type (e.g. NodeContainer, BrowserContainer, etc.).
+   *
+   * @param options - Options to override for the new container instance.
+   * @returns A new container instance of the same subclass.
+   */
+  subcontainer<This extends Container<any, any>>(
+    this: This,
+    options: ConstructorParameters<This['constructor']>[0]
+  ): This {
+    const Ctor = this.constructor as new (options: ConstructorParameters<This['constructor']>[0]) => This
+    const mergedOptions = {
+      ...(this as any).options || {},
+      ...(options || {}),
+    }
+    return new Ctor(mergedOptions)
+  }
+
+  z!: typeof z
+
 
   /** The observable state object for this container instance. */
   get state() {
@@ -128,13 +150,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   /**
    * Add a value to the container's shared context, which is passed to all helper instances.
+   * Accepts either a key and value, or an object of key-value pairs to add.
    *
-   * @param {K} key - The context key
-   * @param {ContainerContext[K]} value - The context value
+   * @param {K} key - The context key (or object of key-value pairs)
+   * @param {ContainerContext[K]} value - The context value (omit when passing an object)
    */
-  addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]) {
+  addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]): this
+  addContext(context: Partial<ContainerContext>): this
+  addContext(keyOrContext: keyof ContainerContext | Partial<ContainerContext>, value?: ContainerContext[keyof ContainerContext]): this {
+    if (arguments.length === 1 && typeof keyOrContext === 'object' && keyOrContext !== null) {
+      for (const [k, v] of Object.entries(keyOrContext)) {
+        if (v !== undefined) {
+          this.addContext(k as keyof ContainerContext, v as ContainerContext[keyof ContainerContext])
+        }
+      }
+      return this
+    }
     const contexts = contextMap.get(this) || new Map()
-    contexts.set(key, value)
+    contexts.set(keyOrContext as keyof ContainerContext, value)
     contextMap.set(this, contexts)
     return this
   }
@@ -362,21 +395,21 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * Returns true if the container is running in development mode.
    */
   get isDevelopment() {
-    return process.env.NODE_ENV === 'development'
+    return typeof process !== 'undefined' && process.env.NODE_ENV === 'development'
   }
   
   /** 
    * Returns true if the container is running in production mode.
    */
   get isProduction() {
-    return process.env.NODE_ENV === 'production'
+    return typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
   }
   
   /** 
    * Returns true if the container is running in a CI environment.
    */
   get isCI() {
-    return process.env.CI !== undefined && String(process.env.CI).length > 0
+    return typeof process !== 'undefined' && process.env.CI !== undefined && String(process.env.CI).length > 0
   }
 
   /** Emit an event on the container's event bus. */
@@ -528,6 +561,17 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return presentContainerIntrospectionAsMarkdown(data, depth, section)
   }
 
+  /** Alias for inspectAsText */
+  introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
+    return this.inspectAsText(sectionOrDepth, startHeadingDepth)
+  }
+  
+  /** Alias for inspectAsJSON */
+  introspectAsJSON(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): any {
+    const data = this.inspect()
+    return presentContainerIntrospectionAsJSON(data, depth, section)
+  }
+
   /** Make a property non-enumerable, which is nice for inspecting it in the REPL */
   _hide(...propNames: string[]) {
     propNames.map((propName) => {
@@ -618,25 +662,30 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
       }
 
       if (methodInfo.parameters && Object.keys(methodInfo.parameters).length > 0) {
-        sections.push(`**Parameters:**`)
-        sections.push(`| Name | Type | Required | Description |`)
-        sections.push(`|------|------|----------|-------------|`)
+        const tableRows = [
+          `**Parameters:**`,
+          '',
+          `| Name | Type | Required | Description |`,
+          `|------|------|----------|-------------|`,
+        ]
 
         for (const [paramName, paramInfo] of Object.entries(methodInfo.parameters)) {
           const isRequired = methodInfo.required?.includes(paramName) ? '✓' : ''
-          sections.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
+          tableRows.push(`| \`${paramName}\` | \`${paramInfo.type || 'any'}\` | ${isRequired} | ${paramInfo.description || ''} |`)
 
           if (paramInfo.properties && Object.keys(paramInfo.properties).length > 0) {
-            sections.push('')
-            sections.push(`\`${paramInfo.type}\` properties:`)
-            sections.push(`| Property | Type | Description |`)
-            sections.push(`|----------|------|-------------|`)
+            tableRows.push('')
+            tableRows.push(`\`${paramInfo.type}\` properties:`)
+            tableRows.push('')
+            tableRows.push(`| Property | Type | Description |`)
+            tableRows.push(`|----------|------|-------------|`)
 
             for (const [propName, propInfo] of Object.entries(paramInfo.properties)) {
-              sections.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
+              tableRows.push(`| \`${propName}\` | \`${propInfo.type || 'any'}\` | ${propInfo.description || ''} |`)
             }
           }
         }
+        sections.push(tableRows.join('\n'))
       }
 
       if (methodInfo.returns) {
@@ -649,13 +698,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
   // Getters section
   if (shouldRender('getters') && data.getters && Object.keys(data.getters).length > 0) {
-    sections.push(`${heading(2)} Getters`)
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
+    const getterTableRows = [
+      `${heading(2)} Getters`,
+      '',
+      `| Property | Type | Description |`,
+      `|----------|------|-------------|`,
+    ]
 
     for (const [getterName, getterInfo] of Object.entries(data.getters)) {
-      sections.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
+      getterTableRows.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
     }
+    sections.push(getterTableRows.join('\n'))
   }
 
   // Events section
@@ -670,13 +723,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
       }
 
       if (eventInfo.arguments && Object.keys(eventInfo.arguments).length > 0) {
-        sections.push(`**Event Arguments:**`)
-        sections.push(`| Name | Type | Description |`)
-        sections.push(`|------|------|-------------|`)
+        const tableRows = [
+          `**Event Arguments:**`,
+          '',
+          `| Name | Type | Description |`,
+          `|------|------|-------------|`,
+        ]
 
         for (const [argName, argInfo] of Object.entries(eventInfo.arguments)) {
-          sections.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
+          tableRows.push(`| \`${argName}\` | \`${argInfo.type || 'any'}\` | ${argInfo.description || ''} |`)
         }
+        sections.push(tableRows.join('\n'))
       }
 
       sections.push('')
@@ -685,13 +742,17 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
   // State section
   if (shouldRender('state') && data.state && Object.keys(data.state).length > 0) {
-    sections.push(`${heading(2)} State`)
-    sections.push(`| Property | Type | Description |`)
-    sections.push(`|----------|------|-------------|`)
+    const stateTableRows = [
+      `${heading(2)} State`,
+      '',
+      `| Property | Type | Description |`,
+      `|----------|------|-------------|`,
+    ]
 
     for (const [stateName, stateInfo] of Object.entries(data.state)) {
-      sections.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
+      stateTableRows.push(`| \`${stateName}\` | \`${stateInfo.type || 'any'}\` | ${stateInfo.description || ''} |`)
     }
+    sections.push(stateTableRows.join('\n'))
   }
 
   if (!section) {
@@ -703,12 +764,16 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
 
     // Environment section
     if (data.environment) {
-      sections.push(`${heading(2)} Environment`)
-      sections.push(`| Flag | Value |`)
-      sections.push(`|------|-------|`)
+      const envTableRows = [
+        `${heading(2)} Environment`,
+        '',
+        `| Flag | Value |`,
+        `|------|-------|`,
+      ]
       for (const [key, value] of Object.entries(data.environment)) {
-        sections.push(`| \`${key}\` | ${value} |`)
+        envTableRows.push(`| \`${key}\` | ${value} |`)
       }
+      sections.push(envTableRows.join('\n'))
     }
   }
 

@@ -1,4 +1,4 @@
-# features.networking
+# Networking (features.networking)
 
 The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.
 
@@ -17,9 +17,7 @@ Finds the next available port starting from the specified port number. This meth
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `startAt` | `any` |  | The port number to start searching from (0 means system will choose) |
 
 **Returns:** `void`
@@ -42,9 +40,7 @@ Checks if a specific port is available for use. This method attempts to detect i
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `checkPort` | `any` |  | The port number to check for availability |
 
 **Returns:** `void`
@@ -61,12 +57,10 @@ if (isAvailable) {
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

@@ -1,4 +1,4 @@
-# features.ipcSocket
+# IpcSocket (features.ipcSocket)
 
 IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```
 
@@ -17,11 +17,8 @@ Starts the IPC server listening on the specified socket path. This method sets u
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` | ✓ | The file system path for the Unix domain socket |
-
 | `removeLock` | `any` |  | Whether to remove existing socket file (default: false) |
 
 **Returns:** `Promise<Server>`
@@ -72,9 +69,7 @@ Broadcasts a message to all connected clients (server mode only). This method se
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `message` | `any` | ✓ | The message object to broadcast to all clients |
 
 **Returns:** `void`
@@ -101,9 +96,7 @@ Sends a message to the server (client mode only). This method sends a JSON-encod
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `message` | `any` | ✓ | The message object to send to the server |
 
 **Returns:** `void`
@@ -128,9 +121,7 @@ Connects to an IPC server at the specified socket path (client mode). This metho
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` | ✓ | The file system path to the server's Unix domain socket |
 
 **Returns:** `Promise<Socket>`
@@ -154,16 +145,12 @@ await ipc.send({ type: 'hello', client_id: 'client_001' });
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `isClient` | `any` | Checks if the IPC socket is operating in client mode. |
-
 | `isServer` | `any` | Checks if the IPC socket is operating in server mode. |
-
 | `connection` | `any` | Gets the current client connection socket. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### connection
 
@@ -177,14 +164,11 @@ Event emitted by IpcSocket
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `mode` | `string` | The current mode of the IPC socket - either server or client |
 
 ## Examples

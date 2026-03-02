@@ -1,4 +1,4 @@
-# features.googleDocs
+# GoogleDocs (features.googleDocs)
 
 Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.
 
@@ -17,9 +17,7 @@ Get the raw document structure from the Docs API.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `documentId` | `string` | ✓ | The Google Docs document ID |
 
 **Returns:** `Promise<docs_v1.Schema$Document>`
@@ -33,9 +31,7 @@ Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/stri
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `documentId` | `string` | ✓ | The Google Docs document ID |
 
 **Returns:** `Promise<string>`
@@ -49,9 +45,7 @@ Read a Google Doc as plain text (strips all formatting).
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `documentId` | `string` | ✓ | The Google Docs document ID |
 
 **Returns:** `Promise<string>`
@@ -65,11 +59,8 @@ Download a Google Doc as Markdown and save to a local file.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `documentId` | `string` | ✓ | The Google Docs document ID |
-
 | `localPath` | `string` | ✓ | Local file path (resolved relative to container cwd) |
 
 **Returns:** `Promise<string>`
@@ -83,11 +74,8 @@ List Google Docs in Drive (filters by Docs MIME type).
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `query` | `string` |  | Optional additional Drive search query |
-
 | `options` | `{ pageSize?: number; pageToken?: string }` |  | Pagination options |
 
 **Returns:** `Promise<DriveFile[]>`
@@ -101,9 +89,7 @@ Search for Google Docs by name or content.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `term` | `string` | ✓ | Search term |
 
 **Returns:** `Promise<DriveFile[]>`
@@ -113,14 +99,11 @@ Search for Google Docs by name or content.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `auth` | `GoogleAuth` | Access the google-auth feature lazily. |
-
 | `drive` | `GoogleDrive` | Access the google-drive feature lazily. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### documentFetched
 
@@ -134,18 +117,13 @@ Event emitted by GoogleDocs
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `lastDocId` | `string` | Last document ID accessed |
-
 | `lastDocTitle` | `string` | Title of the last document accessed |
-
 | `lastError` | `string` | Last Docs API error message |
 
 ## Examples

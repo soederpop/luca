@@ -26,8 +26,6 @@ export interface AssistantEntry {
 	hasTools: boolean
 	/** Whether a hooks.ts file exists. */
 	hasHooks: boolean
-	/** Whether a docs/ subfolder exists. */
-	hasDocs: boolean
 }
 
 export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
@@ -145,7 +143,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 				hasCorePrompt: fs.exists(paths.resolve(dir, 'CORE.md')),
 				hasTools: fs.exists(paths.resolve(dir, 'tools.ts')),
 				hasHooks: fs.exists(paths.resolve(dir, 'hooks.ts')),
-				hasDocs: fs.exists(paths.resolve(dir, 'docs')),
 			}
 
 			this._entries.set(name, entry)
@@ -244,7 +241,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 				e.hasCorePrompt && 'CORE.md',
 				e.hasTools && 'tools.ts',
 				e.hasHooks && 'hooks.ts',
-				e.hasDocs && 'docs/',
 			].filter(Boolean)
 
 			return `- **${e.name}** — ${files.join(', ')}`

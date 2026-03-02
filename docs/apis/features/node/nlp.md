@@ -1,4 +1,4 @@
-# features.nlp
+# NLP (features.nlp)
 
 The NLP feature provides natural language processing utilities for parsing utterances into structured data. Combines two complementary libraries: - **compromise**: Verb normalization (toInfinitive), POS pattern matching - **wink-nlp**: High-accuracy POS tagging (~95%), named entity recognition Three methods at increasing levels of detail: - `parse()` — compromise-powered quick structure + verb normalization - `analyze()` — wink-powered high-accuracy POS + entity extraction - `understand()` — combined parse + analyze merged
 
@@ -17,9 +17,7 @@ Parse an utterance into structured command data using compromise. Extracts inten
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The raw utterance to parse |
 
 **Returns:** `ParsedCommand`
@@ -41,9 +39,7 @@ Analyze text with high-accuracy POS tagging and named entity recognition using w
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to analyze |
 
 **Returns:** `Analysis`
@@ -64,9 +60,7 @@ Full understanding: combines compromise parsing with wink-nlp analysis. Returns 
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `text` | `string` | ✓ | The text to understand |
 
 **Returns:** `ParsedCommand & Analysis`
@@ -79,16 +73,12 @@ nlp.understand("draw a diagram of the auth flow")
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `parseCalls` | `number` | Total parse() invocations |
-
 | `analyzeCalls` | `number` | Total analyze() invocations |
 
 ## Examples

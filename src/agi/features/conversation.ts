@@ -6,6 +6,7 @@ import { features, Feature } from '@soederpop/luca/feature'
 import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
+import { countMessageTokens, getContextWindow } from '../lib/token-counter.js';
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -62,6 +63,18 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client'), // the type of options for OpenAI client
 
 	local: z.boolean().optional().describe('Whether to use the local ollama models instead of the remote OpenAI models'),
+
+	/** Maximum number of output tokens per completion */
+	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+
+	/** Enable automatic compaction when estimated input tokens approach the context limit */
+	autoCompact: z.boolean().optional().describe('Enable automatic compaction when input tokens approach the context limit'),
+	/** Fraction of contextWindow at which auto-compact triggers (0.0–1.0, default 0.8) */
+	compactThreshold: z.number().min(0).max(1).optional().describe('Fraction of context window at which auto-compact triggers (default 0.8)'),
+	/** Override the inferred context window size for this model */
+	contextWindow: z.number().optional().describe('Override the inferred context window size for this model'),
+	/** Number of recent messages to preserve after compaction (default 4) */
+	compactKeepRecent: z.number().optional().describe('Number of recent messages to preserve after compaction (default 4)'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -79,10 +92,17 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 		completion: z.number().describe('Total completion tokens consumed'),
 		total: z.number().describe('Total tokens consumed'),
 	}).describe('Cumulative token usage statistics'),
+	estimatedInputTokens: z.number().describe('Estimated input token count for the current messages array'),
+	compactionCount: z.number().describe('Number of times compact() has been called'),
+	contextWindow: z.number().describe('The context window size for the current model'),
 })
 
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
 export type ConversationState = z.infer<typeof ConversationStateSchema>
+
+export type AskOptions = {
+	maxTokens?: number
+}
 
 /**
  * A self-contained conversation with OpenAI that supports streaming,
@@ -104,6 +124,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	static override stateSchema = ConversationStateSchema
 	static override optionsSchema = ConversationOptionsSchema
 	static override shortcut = 'features.conversation' as const
+
+	private _callMaxTokens: number | undefined = undefined
+
+	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
+	private get maxTokens(): number | undefined {
+		return this._callMaxTokens ?? this.options.maxTokens ?? undefined
+	}
 
 	private get _tools(): Record<string, ConversationTool> {
 		return this.options.tools || {}
@@ -127,7 +154,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			toolCalls: 0,
 			api: this.apiMode,
 			lastResponseId: null,
-			tokenUsage: { prompt: 0, completion: 0, total: 0 }
+			tokenUsage: { prompt: 0, completion: 0, total: 0 },
+			estimatedInputTokens: 0,
+			compactionCount: 0,
+			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5'),
 		}
 	}
 
@@ -161,6 +191,112 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Whether a streaming response is currently in progress. */
 	get isStreaming(): boolean {
 		return !!this.state.get('streaming')
+	}
+
+	/** The context window size for the current model (from options override or auto-detected). */
+	get contextWindow(): number {
+		return this.options.contextWindow || getContextWindow(this.model)
+	}
+
+	/** Whether the conversation is approaching the context limit. */
+	get isNearContextLimit(): boolean {
+		const threshold = this.options.compactThreshold ?? 0.8
+		return this.estimateTokens() >= this.contextWindow * threshold
+	}
+
+	/**
+	 * Estimate the input token count for the current messages array
+	 * using the js-tiktoken tokenizer. Updates state.
+	 */
+	estimateTokens(): number {
+		const count = countMessageTokens(this.messages, this.model)
+		this.state.set('estimatedInputTokens', count)
+		return count
+	}
+
+	/**
+	 * Generate a summary of the conversation so far using the LLM.
+	 * Read-only — does not modify messages.
+	 */
+	async summarize(): Promise<string> {
+		this.emit('summarizeStart')
+
+		const transcript = this.messages
+			.map(m => {
+				const role = m.role
+				const content = typeof m.content === 'string'
+					? m.content
+					: Array.isArray(m.content)
+						? (m.content as any[]).filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n')
+						: (m.content != null ? JSON.stringify(m.content) : '(no content)')
+				return `[${role}]: ${content || '(no text content)'}`
+			})
+			.join('\n\n')
+
+		const response = await this.openai.raw.chat.completions.create({
+			model: this.model,
+			messages: [
+				{
+					role: 'system',
+					content: 'You are a conversation summarizer. Produce a concise but comprehensive summary of the following conversation. Preserve all key facts, decisions, context, user preferences, and any important details needed to continue the conversation. Output only the summary.',
+				},
+				{ role: 'user', content: transcript },
+			],
+			stream: false,
+		})
+
+		const summary = (response as any).choices?.[0]?.message?.content || ''
+		this.emit('summarizeEnd', summary)
+		return summary
+	}
+
+	/**
+	 * Compact the conversation by summarizing old messages and replacing them
+	 * with a summary message. Keeps the system message (if any) and the most
+	 * recent N messages.
+	 */
+	async compact(options?: { keepRecent?: number }): Promise<{ summary: string; removedCount: number; estimatedTokens: number }> {
+		const keepRecent = options?.keepRecent ?? this.options.compactKeepRecent ?? 4
+		const messages = this.messages
+
+		if (messages.length <= keepRecent + 1) {
+			return { summary: '', removedCount: 0, estimatedTokens: this.estimateTokens() }
+		}
+
+		this.emit('compactStart', { messageCount: messages.length, keepRecent })
+
+		const summary = await this.summarize()
+
+		const systemMessage = (messages[0]?.role === 'system' || messages[0]?.role === 'developer')
+			? messages[0]
+			: null
+
+		const recentMessages = messages.slice(-keepRecent)
+
+		const newMessages: Message[] = []
+		if (systemMessage) newMessages.push(systemMessage)
+
+		newMessages.push({
+			role: 'developer',
+			content: `[Conversation Summary — the following is a summary of the earlier conversation that has been compacted to save context space]\n\n${summary}`,
+		} as Message)
+
+		newMessages.push(...recentMessages)
+
+		const removedCount = messages.length - newMessages.length
+		this.state.set('messages', newMessages)
+		this.state.set('compactionCount', (this.state.get('compactionCount') || 0) + 1)
+
+		// Responses API: clear continuation chain since message history changed
+		if (this.apiMode === 'responses') {
+			this.state.set('lastResponseId', null)
+		}
+
+		const estimatedTokens = this.estimateTokens()
+
+		this.emit('compactEnd', { summary, removedCount, estimatedTokens, compactionCount: this.state.get('compactionCount') })
+
+		return { summary, removedCount, estimatedTokens }
 	}
 
 	/**
@@ -232,21 +368,38 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 *   { type: 'image_url', image_url: { url: 'data:image/png;base64,...' } }
 	 * ])
 	 */
-	async ask(content: string | ContentPart[]): Promise<string> {
+	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
+		this._callMaxTokens = options?.maxTokens
+
+		// Auto-compact before adding the new message
+		if (this.options.autoCompact) {
+			const threshold = this.options.compactThreshold ?? 0.8
+			const estimated = this.estimateTokens()
+			const limit = this.contextWindow * threshold
+			if (estimated >= limit) {
+				this.emit('autoCompactTriggered', { estimated, limit, contextWindow: this.contextWindow })
+				await this.compact()
+			}
+		}
+
 		const userMessage: Message = { role: 'user', content: content as any }
 		this.pushMessage(userMessage)
 		this.emit('userMessage', content)
 
-		if (this.apiMode === 'responses') {
-			return this.runResponsesLoop({
-				turn: 1,
-				accumulated: '',
-				input: [this.toResponsesUserMessage(content)],
-				previousResponseId: this.state.get('lastResponseId') || undefined,
-			})
-		}
+		try {
+			if (this.apiMode === 'responses') {
+				return await this.runResponsesLoop({
+					turn: 1,
+					accumulated: '',
+					input: [this.toResponsesUserMessage(content)],
+					previousResponseId: this.state.get('lastResponseId') || undefined,
+				})
+			}
 
-		return this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+			return await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+		} finally {
+			this._callMaxTokens = undefined
+		}
 	}
 
 	/** Convert user content into a Responses API input message item. */
@@ -367,6 +520,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				previous_response_id: context.previousResponseId,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
 				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
+				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
 			})
 
 			for await (const event of stream) {
@@ -522,7 +676,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				model: this.model,
 				messages: this.messages,
 				stream: true,
-				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {})
+				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
+				...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
 			})
 
 			for await (const chunk of stream) {
@@ -636,7 +791,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 *
 	 * @param {Message} message - The message to append
 	 */
-	private pushMessage(message: Message) {
+	pushMessage(message: Message) {
 		this.state.set('messages', [...this.messages, message])
 	}
 }

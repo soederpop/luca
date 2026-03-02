@@ -101,7 +101,11 @@
       "Bash(do head -6 \"$f\")",
       "Bash(echo \"MISSING title: $f\")",
       "Bash(done)",
-      "mcp__plugin_claude-mem_mcp-search__search"
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "mcp__contentbase__inspect",
+      "mcp__contentbase__list_documents",
+      "Bash(ln:*)",
+      "Bash(luca eval:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

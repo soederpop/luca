@@ -39,6 +39,8 @@ const SECTION_FLAGS: Record<string, IntrospectionSection | 'description'> = {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	json: z.boolean().default(false).describe('Output introspection data as JSON instead of markdown'),
+	pretty: z.boolean().default(false).describe('Render markdown with terminal styling via ui.markdown'),
+	title: z.boolean().default(true).describe('Include the title header in the output (use --no-title to omit)'),
 	// Clean section flags (can be combined: --description --usage)
 	description: z.boolean().default(false).describe('Show the description section'),
 	usage: z.boolean().default(false).describe('Show the usage section'),
@@ -104,8 +106,8 @@ function fuzzyFind(registry: any, input: string): string | undefined {
 function resolveTarget(target: string, container: any): ResolvedTarget {
 	const lower = target.toLowerCase()
 
-	// "container"
-	if (lower === 'container') {
+	// "container" or "self"
+	if (lower === 'container' || lower === 'self') {
 		return { kind: 'container' }
 	}
 
@@ -181,36 +183,76 @@ function getSections(options: z.infer<typeof argsSchema>): (IntrospectionSection
 }
 
 /**
+ * Build the title header for a helper. Includes className when available.
+ * headingDepth controls the markdown heading level (1 = #, 2 = ##, etc.)
+ */
+function renderTitle(Ctor: any, headingDepth = 1): string {
+	const data = Ctor.introspect?.()
+	const id = data?.id || Ctor.shortcut || Ctor.name
+	const className = data?.className || Ctor.name
+	const h = '#'.repeat(headingDepth)
+	return className ? `${h} ${className} (${id})` : `${h} ${id}`
+}
+
+/**
  * Render text output for a helper given requested sections.
  * When sections is empty, renders everything. When sections are specified,
  * renders only those sections (calling introspectAsText per section and concatenating).
- * 'description' is handled specially as the header line.
+ * 'description' is handled specially as the description paragraph (title is always included).
+ * Pass noTitle to suppress the title header.
+ * headingDepth controls the starting heading level (1 = #, 2 = ##, etc.)
  */
-function renderHelperText(Ctor: any, sections: (IntrospectionSection | 'description')[]): string {
+function renderHelperText(Ctor: any, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): string {
 	if (sections.length === 0) {
-		return Ctor.introspectAsText?.() ?? `# ${Ctor.shortcut || Ctor.name}\n\nNo introspection data available.`
+		if (noTitle) {
+			// Render everything except the title
+			const data = Ctor.introspect?.()
+			if (!data) return 'No introspection data available.'
+			const parts: string[] = [data.description]
+			const text = Ctor.introspectAsText?.(headingDepth)
+			if (text) {
+				// Strip the first heading + description block that introspectAsText renders
+				const lines = text.split('\n')
+				const headingPrefix = '#'.repeat(headingDepth + 1) + ' '
+				let startIdx = 0
+				for (let i = 0; i < lines.length; i++) {
+					if (i > 0 && lines[i]!.startsWith(headingPrefix)) {
+						startIdx = i
+						break
+					}
+				}
+				if (startIdx > 0) {
+					parts.length = 0
+					parts.push(data.description)
+					parts.push(lines.slice(startIdx).join('\n'))
+				}
+			}
+			return parts.join('\n\n')
+		}
+		return Ctor.introspectAsText?.(headingDepth) ?? `${renderTitle(Ctor, headingDepth)}\n\nNo introspection data available.`
 	}
 
 	const introspectionSections = sections.filter((s): s is IntrospectionSection => s !== 'description')
-	const includeDescription = sections.includes('description')
 	const parts: string[] = []
 
-	if (includeDescription) {
+	// Always include the title and description unless noTitle
+	if (!noTitle) {
 		const data = Ctor.introspect?.()
-		if (data) {
-			parts.push(`# ${data.id}\n\n${data.description}`)
+		parts.push(renderTitle(Ctor, headingDepth))
+		if (data?.description) {
+			parts.push(data.description)
 		}
 	}
 
 	for (const section of introspectionSections) {
-		const text = Ctor.introspectAsText?.(section)
+		const text = Ctor.introspectAsText?.(section, headingDepth)
 		if (text) parts.push(text)
 	}
 
-	return parts.join('\n\n') || `# ${Ctor.shortcut || Ctor.name}\n\nNo introspection data available.`
+	return parts.join('\n\n') || `${noTitle ? '' : renderTitle(Ctor, headingDepth) + '\n\n'}No introspection data available.`
 }
 
-function renderHelperJson(Ctor: any, sections: (IntrospectionSection | 'description')[]): any {
+function renderHelperJson(Ctor: any, sections: (IntrospectionSection | 'description')[], noTitle = false): any {
 	if (sections.length === 0) {
 		return Ctor.introspect?.() ?? {}
 	}
@@ -218,9 +260,16 @@ function renderHelperJson(Ctor: any, sections: (IntrospectionSection | 'descript
 	const data = Ctor.introspect?.() ?? {}
 	const result: Record<string, any> = {}
 
+	// Always include id and className in JSON unless noTitle
+	if (!noTitle) {
+		result.id = data.id
+		if (data.className) result.className = data.className
+	}
+
 	for (const section of sections) {
 		if (section === 'description') {
 			result.id = data.id
+			if (data.className) result.className = data.className
 			result.description = data.description
 		} else if (section === 'usage') {
 			// Usage is a derived section — include shortcut and options as its JSON form
@@ -236,25 +285,31 @@ function renderHelperJson(Ctor: any, sections: (IntrospectionSection | 'descript
 	return result
 }
 
-function getContainerData(container: any, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
+function getContainerData(container: any, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	if (sections.length === 0) {
 		const data = container.inspect()
-		return { json: data, text: container.inspectAsText() }
+		return { json: data, text: container.inspectAsText(undefined, headingDepth) }
 	}
 
 	const data = container.inspect()
 	const introspectionSections = sections.filter((s): s is IntrospectionSection => s !== 'description')
-	const includeDescription = sections.includes('description')
 	const textParts: string[] = []
 	const jsonResult: Record<string, any> = {}
+	const h = '#'.repeat(headingDepth)
 
-	if (includeDescription) {
-		textParts.push(`# Container\n\n${data.description || ''}`)
-		jsonResult.description = data.description
+	// Always include container title and description unless noTitle
+	if (!noTitle) {
+		const className = data.className || 'Container'
+		textParts.push(`${h} ${className} (Container)`)
+		jsonResult.className = className
+		if (data.description) {
+			textParts.push(data.description)
+			jsonResult.description = data.description
+		}
 	}
 
 	for (const section of introspectionSections) {
-		textParts.push(container.inspectAsText(section))
+		textParts.push(container.inspectAsText(section, headingDepth))
 		jsonResult[section] = data[section]
 	}
 
@@ -264,7 +319,7 @@ function getContainerData(container: any, sections: (IntrospectionSection | 'des
 	}
 }
 
-function getRegistryData(container: any, registryName: RegistryName, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
+function getRegistryData(container: any, registryName: RegistryName, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const available: string[] = registry.available
 
@@ -276,20 +331,20 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 	const textParts: string[] = []
 	for (const id of available) {
 		const Ctor = registry.lookup(id)
-		jsonResult[id] = renderHelperJson(Ctor, sections)
-		textParts.push(renderHelperText(Ctor, sections))
+		jsonResult[id] = renderHelperJson(Ctor, sections, noTitle)
+		textParts.push(renderHelperText(Ctor, sections, noTitle, headingDepth))
 	}
 
 	return { json: jsonResult, text: textParts.join('\n\n---\n\n') }
 }
 
-function getHelperData(container: any, registryName: RegistryName, id: string, sections: (IntrospectionSection | 'description')[]): { json: any; text: string } {
+function getHelperData(container: any, registryName: RegistryName, id: string, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const Ctor = registry.lookup(id)
 
 	return {
-		json: renderHelperJson(Ctor, sections),
-		text: renderHelperText(Ctor, sections),
+		json: renderHelperJson(Ctor, sections, noTitle),
+		text: renderHelperText(Ctor, sections, noTitle, headingDepth),
 	}
 }
 
@@ -302,12 +357,25 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	// args[0] is "describe", the rest are targets
 	const targets = args.slice(1)
 	const json = options.json
+	const pretty = options.pretty
+	const noTitle = !options.title
 	const sections = getSections(options)
 
-	// Default: describe the container
+	function output(text: string) {
+		if (pretty) {
+			const ui = container.feature('ui')
+			console.log(ui.markdown(text))
+		} else {
+			console.log(text)
+		}
+	}
+
+	// No targets: show help screen
 	if (targets.length === 0) {
-		const data = getContainerData(container, sections)
-		console.log(json ? JSON.stringify(data.json, null, 2) : data.text)
+		const { formatCommandHelp } = await import('./help.js')
+		const ui = container.feature('ui') as any
+		const Cmd = container.commands.lookup('describe')
+		console.log(formatCommandHelp('describe', Cmd, ui.colors))
 		return
 	}
 
@@ -325,14 +393,18 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 		}
 	}
 
+	// Multiple docs when there are multiple targets or any target is a registry
+	const isMulti = resolved.length > 1 || resolved.some((r) => r.kind === 'registry')
+	const headingDepth = isMulti ? 2 : 1
+
 	function getData(item: ResolvedTarget) {
 		switch (item.kind) {
 			case 'container':
-				return getContainerData(container, sections)
+				return getContainerData(container, sections, noTitle, headingDepth)
 			case 'registry':
-				return getRegistryData(container, item.name, sections)
+				return getRegistryData(container, item.name, sections, noTitle, headingDepth)
 			case 'helper':
-				return getHelperData(container, item.registry, item.id, sections)
+				return getHelperData(container, item.registry, item.id, sections, noTitle, headingDepth)
 		}
 	}
 
@@ -345,7 +417,12 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 		}
 	} else {
 		const parts = resolved.map((item) => getData(item).text)
-		console.log(parts.join('\n\n---\n\n'))
+		const body = parts.join('\n\n---\n\n')
+		if (isMulti) {
+			output(`# Luca Helper Descriptions\n\nBelow you'll find documentation.\n\n${body}`)
+		} else {
+			output(body)
+		}
 	}
 }
 

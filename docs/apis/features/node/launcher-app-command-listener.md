@@ -1,4 +1,4 @@
-# features.launcherAppCommandListener
+# LauncherAppCommandListener (features.launcherAppCommandListener)
 
 LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLauncher app Listens on a Unix domain socket for the native macOS launcher app to connect. When a command event arrives (voice, hotkey, text input), it wraps it in a `CommandHandle` and emits a `command` event. The consumer is responsible for acknowledging, processing, and finishing the command via the handle. Uses NDJSON (newline-delimited JSON) over the socket per the CLIENT_SPEC protocol.
 
@@ -13,14 +13,11 @@ container.feature('launcherAppCommandListener', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `socketPath` | `string` | Path to the Unix domain socket to listen on |
-
 | `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
 
 ## Methods
@@ -30,9 +27,7 @@ container.feature('launcherAppCommandListener', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `Promise<this>`
@@ -46,9 +41,7 @@ Start listening on the Unix domain socket for the native app to connect. Fire-an
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `socketPath` | `string` |  | Override the configured socket path |
 
 **Returns:** `this`
@@ -70,9 +63,7 @@ Write an NDJSON message to the connected app client.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `msg` | `Record<string, any>` | ✓ | The message object to send (will be JSON-serialized + newline) |
 
 **Returns:** `boolean`
@@ -82,14 +73,11 @@ Write an NDJSON message to the connected app client.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `isListening` | `boolean` | Whether the IPC server is currently listening. |
-
 | `isClientConnected` | `boolean` | Whether the native app client is currently connected. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### listening
 
@@ -121,24 +109,16 @@ Event emitted by LauncherAppCommandListener
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `listening` | `boolean` | Whether the IPC server is listening |
-
 | `clientConnected` | `boolean` | Whether the native launcher app is connected |
-
 | `socketPath` | `string` | The socket path in use |
-
 | `commandsReceived` | `number` | Total number of commands received |
-
 | `lastCommandText` | `string` | The text of the last received command |
-
 | `lastError` | `string` | Last error message |
 
 ## Examples

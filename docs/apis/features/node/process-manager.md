@@ -1,4 +1,4 @@
-# features.processManager
+# ProcessManager (features.processManager)
 
 Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.
 
@@ -11,12 +11,10 @@ container.feature('processManager', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
 
 ## Methods
@@ -28,33 +26,20 @@ Spawn a long-running process and return a handle immediately. The returned Spawn
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `command` | `string` | ✓ | The command to execute (e.g. 'node', 'bun', 'python') |
-
 | `args` | `string[]` |  | Arguments to pass to the command |
-
 | `options` | `SpawnOptions` |  | Spawn configuration |
-
-
 
 `SpawnOptions` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tag` | `string` | User-defined tag for later lookups via getByTag() |
-
 | `cwd` | `string` | Working directory for the spawned process (defaults to container cwd) |
-
 | `env` | `Record<string, string>` | Additional environment variables merged with process.env |
-
 | `stdin` | `'pipe' | 'inherit' | 'ignore' | null` | stdin mode: 'pipe' to write to the process, 'inherit', or 'ignore' (default: 'ignore') |
-
 | `stdout` | `'pipe' | 'inherit' | 'ignore' | null` | stdout mode: 'pipe' to capture output, 'inherit', or 'ignore' (default: 'pipe') |
-
 | `stderr` | `'pipe' | 'inherit' | 'ignore' | null` | stderr mode: 'pipe' to capture errors, 'inherit', or 'ignore' (default: 'pipe') |
 
 **Returns:** `SpawnHandler`
@@ -68,9 +53,7 @@ Get a SpawnHandler by its unique ID.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The process ID returned by spawn |
 
 **Returns:** `SpawnHandler | undefined`
@@ -84,9 +67,7 @@ Find a SpawnHandler by its user-defined tag.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `tag` | `string` | ✓ | The tag passed to spawn() |
 
 **Returns:** `SpawnHandler | undefined`
@@ -108,9 +89,7 @@ Kill all running processes.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `signal` | `NodeJS.Signals | number` |  | Signal to send (default: SIGTERM) |
 
 **Returns:** `void`
@@ -132,9 +111,7 @@ Remove a finished handler from tracking.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `id` | `string` | ✓ | The process ID to remove |
 
 **Returns:** `boolean`
@@ -146,9 +123,7 @@ Remove a finished handler from tracking.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `Promise<this>`
@@ -162,20 +137,16 @@ Called by SpawnHandler when a process finishes. Updates feature-level state.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `handler` | `SpawnHandler` | ✓ | Parameter handler |
-
 | `status` | `'exited' | 'crashed' | 'killed'` | ✓ | Parameter status |
-
 | `exitCode` | `number` |  | Parameter exitCode |
 
 **Returns:** `void`
 
 
 
-## Events
+## Events (Zod v4 schema)
 
 ### spawned
 
@@ -207,16 +178,12 @@ Event emitted by ProcessManager
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `processes` | `object` | Map of process ID to metadata |
-
 | `totalSpawned` | `number` | Total number of processes spawned since feature creation |
 
 ## Examples

@@ -1,12 +1,13 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-02-23T18:46:50.148Z
+// Generated at: 2026-03-02T01:59:08.446Z
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
   "description": "Esbuild helper",
   "shortcut": "features.esbuild",
+  "className": "Esbuild",
   "methods": {
     "compile": {
       "description": "",
@@ -54,6 +55,7 @@ setBuildTimeData('features.voice', {
   "id": "features.voice",
   "description": "VoiceRecognition helper",
   "shortcut": "features.voice",
+  "className": "VoiceRecognition",
   "methods": {
     "whenFinished": {
       "description": "",
@@ -122,6 +124,7 @@ setBuildTimeData('features.vm', {
   "id": "features.vm",
   "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
   "shortcut": "features.vm",
+  "className": "VM",
   "methods": {
     "createScript": {
       "description": "",
@@ -180,6 +183,7 @@ setBuildTimeData('features.assetLoader', {
   "id": "features.assetLoader",
   "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
   "shortcut": "features.assetLoader",
+  "className": "AssetLoader",
   "methods": {
     "removeStylesheet": {
       "description": "",
@@ -237,6 +241,7 @@ setBuildTimeData('features.vault', {
   "id": "features.vault",
   "description": "WebVault helper",
   "shortcut": "features.vault",
+  "className": "WebVault",
   "methods": {
     "secret": {
       "description": "",
@@ -287,6 +292,7 @@ setBuildTimeData('features.network', {
   "id": "features.network",
   "description": "Network helper",
   "shortcut": "features.network",
+  "className": "Network",
   "methods": {
     "start": {
       "description": "",
@@ -321,6 +327,7 @@ setBuildTimeData('features.speech', {
   "id": "features.speech",
   "description": "Speech helper",
   "shortcut": "features.speech",
+  "className": "Speech",
   "methods": {
     "loadVoices": {
       "description": "",
@@ -381,28 +388,154 @@ setBuildTimeData('features.speech', {
   "envVars": []
 });
 
+setBuildTimeData('features.helpers', {
+  "id": "features.helpers",
+  "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+  "shortcut": "features.helpers",
+  "className": "Helpers",
+  "methods": {
+    "setManifestURL": {
+      "description": "Set a new manifest URL. Invalidates any cached manifest.",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "The new URL to fetch the manifest from"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "void"
+    },
+    "discover": {
+      "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "Which type of helpers to discover ('features' or 'clients')"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "returns": "Promise<string[]>"
+    },
+    "discoverAll": {
+      "description": "Discover all helper types from the manifest.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, string[]>>"
+    },
+    "discoverFeatures": {
+      "description": "Convenience method to discover only features.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "discoverClients": {
+      "description": "Convenience method to discover only clients.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "lookup": {
+      "description": "Look up a helper class by type and name.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name within that registry"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "any"
+    },
+    "describe": {
+      "description": "Get the introspection description for a specific helper.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "string"
+    }
+  },
+  "getters": {
+    "manifestURL": {
+      "description": "The URL to fetch the helpers manifest from.",
+      "returns": "string"
+    },
+    "available": {
+      "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+      "returns": "Record<string, string[]>"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+    }
+  ]
+});
+
 // Container introspection data
 setContainerBuildTimeData('Container', {
   "className": "Container",
   "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
   "methods": {
-    "addContext": {
-      "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+    "subcontainer": {
+      "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
       "parameters": {
-        "key": {
-          "type": "K",
-          "description": "The context key"
+        "this": {
+          "type": "This",
+          "description": "Parameter this"
         },
-        "value": {
-          "type": "ContainerContext[K]",
-          "description": "The context value"
+        "options": {
+          "type": "ConstructorParameters<This['constructor']>[0]",
+          "description": "Options to override for the new container instance."
         }
       },
       "required": [
-        "key",
-        "value"
+        "this",
+        "options"
       ],
-      "returns": "void"
+      "returns": "This"
+    },
+    "addContext": {
+      "description": "",
+      "parameters": {
+        "keyOrContext": {
+          "type": "keyof ContainerContext | Partial<ContainerContext>",
+          "description": "Parameter keyOrContext"
+        },
+        "value": {
+          "type": "ContainerContext[keyof ContainerContext]",
+          "description": "Parameter value"
+        }
+      },
+      "required": [
+        "keyOrContext"
+      ],
+      "returns": "this"
     },
     "setState": {
       "description": "Sets the state of the container.",
@@ -642,6 +775,36 @@ setContainerBuildTimeData('Container', {
       "required": [],
       "returns": "string"
     },
+    "introspectAsText": {
+      "description": "Alias for inspectAsText",
+      "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "Parameter startHeadingDepth"
+        }
+      },
+      "required": [],
+      "returns": "string"
+    },
+    "introspectAsJSON": {
+      "description": "Alias for inspectAsJSON",
+      "parameters": {
+        "sectionOrDepth": {
+          "type": "IntrospectionSection | number",
+          "description": "Parameter sectionOrDepth"
+        },
+        "startHeadingDepth": {
+          "type": "number",
+          "description": "Parameter startHeadingDepth"
+        }
+      },
+      "required": [],
+      "returns": "any"
+    },
     "sleep": {
       "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
       "parameters": {
@@ -763,6 +926,7 @@ export const introspectionData = [
     "id": "features.esbuild",
     "description": "Esbuild helper",
     "shortcut": "features.esbuild",
+    "className": "Esbuild",
     "methods": {
       "compile": {
         "description": "",
@@ -809,6 +973,7 @@ export const introspectionData = [
     "id": "features.voice",
     "description": "VoiceRecognition helper",
     "shortcut": "features.voice",
+    "className": "VoiceRecognition",
     "methods": {
       "whenFinished": {
         "description": "",
@@ -876,6 +1041,7 @@ export const introspectionData = [
     "id": "features.vm",
     "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
     "shortcut": "features.vm",
+    "className": "VM",
     "methods": {
       "createScript": {
         "description": "",
@@ -933,6 +1099,7 @@ export const introspectionData = [
     "id": "features.assetLoader",
     "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
     "shortcut": "features.assetLoader",
+    "className": "AssetLoader",
     "methods": {
       "removeStylesheet": {
         "description": "",
@@ -989,6 +1156,7 @@ export const introspectionData = [
     "id": "features.vault",
     "description": "WebVault helper",
     "shortcut": "features.vault",
+    "className": "WebVault",
     "methods": {
       "secret": {
         "description": "",
@@ -1038,6 +1206,7 @@ export const introspectionData = [
     "id": "features.network",
     "description": "Network helper",
     "shortcut": "features.network",
+    "className": "Network",
     "methods": {
       "start": {
         "description": "",
@@ -1071,6 +1240,7 @@ export const introspectionData = [
     "id": "features.speech",
     "description": "Speech helper",
     "shortcut": "features.speech",
+    "className": "Speech",
     "methods": {
       "loadVoices": {
         "description": "",
@@ -1129,6 +1299,114 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": []
+  },
+  {
+    "id": "features.helpers",
+    "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+    "shortcut": "features.helpers",
+    "className": "Helpers",
+    "methods": {
+      "setManifestURL": {
+        "description": "Set a new manifest URL. Invalidates any cached manifest.",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "The new URL to fetch the manifest from"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "void"
+      },
+      "discover": {
+        "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "Which type of helpers to discover ('features' or 'clients')"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "returns": "Promise<string[]>"
+      },
+      "discoverAll": {
+        "description": "Discover all helper types from the manifest.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, string[]>>"
+      },
+      "discoverFeatures": {
+        "description": "Convenience method to discover only features.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "discoverClients": {
+        "description": "Convenience method to discover only clients.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "lookup": {
+        "description": "Look up a helper class by type and name.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name within that registry"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "any"
+      },
+      "describe": {
+        "description": "Get the introspection description for a specific helper.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "string"
+      }
+    },
+    "getters": {
+      "manifestURL": {
+        "description": "The URL to fetch the helpers manifest from.",
+        "returns": "string"
+      },
+      "available": {
+        "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+        "returns": "Record<string, string[]>"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+      }
+    ]
   }
 ];
 
@@ -1137,23 +1415,40 @@ export const containerIntrospectionData = [
     "className": "Container",
     "description": "Containers are single objects that contain state, an event bus, and registries of helpers such as: - features - clients - servers A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something. A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events. You can design your own containers and load them up with the helpers you want for that environment.",
     "methods": {
-      "addContext": {
-        "description": "Add a value to the container's shared context, which is passed to all helper instances.",
+      "subcontainer": {
+        "description": "Creates a new subcontainer instance of the same concrete Container subclass. The new instance is constructed with the same options as this container, shallow-merged with any overrides you provide. This preserves the runtime container type (e.g. NodeContainer, BrowserContainer, etc.).",
         "parameters": {
-          "key": {
-            "type": "K",
-            "description": "The context key"
+          "this": {
+            "type": "This",
+            "description": "Parameter this"
           },
-          "value": {
-            "type": "ContainerContext[K]",
-            "description": "The context value"
+          "options": {
+            "type": "ConstructorParameters<This['constructor']>[0]",
+            "description": "Options to override for the new container instance."
           }
         },
         "required": [
-          "key",
-          "value"
+          "this",
+          "options"
         ],
-        "returns": "void"
+        "returns": "This"
+      },
+      "addContext": {
+        "description": "",
+        "parameters": {
+          "keyOrContext": {
+            "type": "keyof ContainerContext | Partial<ContainerContext>",
+            "description": "Parameter keyOrContext"
+          },
+          "value": {
+            "type": "ContainerContext[keyof ContainerContext]",
+            "description": "Parameter value"
+          }
+        },
+        "required": [
+          "keyOrContext"
+        ],
+        "returns": "this"
       },
       "setState": {
         "description": "Sets the state of the container.",
@@ -1392,6 +1687,36 @@ export const containerIntrospectionData = [
         },
         "required": [],
         "returns": "string"
+      },
+      "introspectAsText": {
+        "description": "Alias for inspectAsText",
+        "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "Parameter startHeadingDepth"
+          }
+        },
+        "required": [],
+        "returns": "string"
+      },
+      "introspectAsJSON": {
+        "description": "Alias for inspectAsJSON",
+        "parameters": {
+          "sectionOrDepth": {
+            "type": "IntrospectionSection | number",
+            "description": "Parameter sectionOrDepth"
+          },
+          "startHeadingDepth": {
+            "type": "number",
+            "description": "Parameter startHeadingDepth"
+          }
+        },
+        "required": [],
+        "returns": "any"
       },
       "sleep": {
         "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",

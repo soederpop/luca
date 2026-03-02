@@ -1,4 +1,4 @@
-# features.jsonTree
+# JsonTree (features.jsonTree)
 
 JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```
 
@@ -17,11 +17,8 @@ Loads a tree of JSON files from the specified base path and stores them in state
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `basePath` | `string` | ✓ | The root directory path to scan for JSON files |
-
 | `key` | `string` |  | The key to store the tree under in state (defaults to first segment of basePath) |
 
 **Returns:** `void`
@@ -43,17 +40,13 @@ const apiEndpoints = jsonTree.tree.data.api.endpoints;
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `tree` | `any` | Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree(). |
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples

@@ -1,4 +1,4 @@
-# features.ink
+# Ink (features.ink)
 
 Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection="column"> <Text color="green">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```
 
@@ -17,18 +17,13 @@ container.feature('ink', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `maxFps` | `number` | Maximum frames per second for render updates |
-
 | `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |
-
 | `incrementalRendering` | `boolean` | Enable incremental rendering mode |
-
 | `concurrent` | `boolean` | Enable React concurrent rendering mode |
 
 ## Methods
@@ -55,11 +50,8 @@ Mount a React element to the terminal. Wraps `ink.render()` — automatically lo
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `node` | `any` | ✓ | A React element (JSX or React.createElement) |
-
 | `options` | `Record<string, any>` |  | Ink render options (stdout, stdin, debug, etc.) |
 
 **Returns:** `void`
@@ -73,9 +65,7 @@ Re-render the currently mounted app with a new root element.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `node` | `any` | ✓ | Parameter node |
 
 **Returns:** `void`
@@ -137,25 +127,93 @@ ink.clear()
 
 
 
+### registerBlock
+
+Register a named React function component as a renderable block.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | Unique block name |
+| `component` | `Function` | ✓ | A React function component |
+
+**Returns:** `void`
+
+```ts
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
+```
+
+
+
+### renderBlock
+
+Render a registered block by name with optional props. Looks up the component, creates a React element, renders it via ink, then immediately unmounts so the static output stays on screen while freeing the React tree.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | The registered block name |
+| `data` | `Record<string, any>` |  | Props to pass to the component |
+
+**Returns:** `void`
+
+```ts
+await ink.renderBlock('Greeting', { name: 'Jon' })
+```
+
+
+
+### renderBlockAsync
+
+Render a registered block that needs to stay mounted for async work. The component receives a `done` prop — a callback it must invoke when it has finished rendering its final output. The React tree stays alive until `done()` is called or the timeout expires.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | The registered block name |
+| `data` | `Record<string, any>` |  | Props to pass to the component (a `done` prop is added automatically) |
+| `options` | `{ timeout?: number }` |  | `timeout` in ms before force-unmounting (default 30 000) |
+
+**Returns:** `void`
+
+```tsx
+// In a ## Blocks section:
+function AsyncChart({ url, done }) {
+ const [rows, setRows] = React.useState(null)
+ React.useEffect(() => {
+   fetch(url).then(r => r.json()).then(data => {
+     setRows(data)
+     done()
+   })
+ }, [])
+ if (!rows) return <Text dimColor>Loading...</Text>
+ return <Box><Text>{JSON.stringify(rows)}</Text></Box>
+}
+
+// In a code block:
+await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `React` | `any` | The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import. |
-
 | `components` | `any` | All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ``` |
-
 | `hooks` | `any` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` |
-
 | `measureElement` | `any` | The Ink measureElement utility. |
-
 | `isMounted` | `boolean` | Whether an ink app is currently mounted. |
-
 | `instance` | `any` | The raw ink render instance if you need low-level access. |
+| `blocks` | `string[]` | List all registered block names. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### mounted
 
@@ -169,14 +227,11 @@ Event emitted by Ink
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `mounted` | `boolean` | Whether an ink app is currently rendered / mounted |
 
 ## Examples
@@ -235,5 +290,45 @@ const ink = container.feature('ink', { enable: true })
 await ink.render(myElement)
 // ... later, wipe the screen
 ink.clear()
+```
+
+
+
+**registerBlock**
+
+```ts
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
+```
+
+
+
+**renderBlock**
+
+```ts
+await ink.renderBlock('Greeting', { name: 'Jon' })
+```
+
+
+
+**renderBlockAsync**
+
+```tsx
+// In a ## Blocks section:
+function AsyncChart({ url, done }) {
+ const [rows, setRows] = React.useState(null)
+ React.useEffect(() => {
+   fetch(url).then(r => r.json()).then(data => {
+     setRows(data)
+     done()
+   })
+ }, [])
+ if (!rows) return <Text dimColor>Loading...</Text>
+ return <Box><Text>{JSON.stringify(rows)}</Text></Box>
+}
+
+// In a code block:
+await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 ```
 

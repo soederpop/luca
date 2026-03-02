@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "luca-sandbox": {
+    "contentbase": {
       "command": "bun",
-      "args": ["run", "src/cli/cli.ts", "sandbox-mcp"],
-      "cwd": "/Users/jon/@luca"
+      "args": ["run", "/Users/jon/@soederpop/contentbase/src/cli/index.ts", "mcp"],
+      "cwd": "/Users/jon/@soederpop/luca"
     }
   }
 }

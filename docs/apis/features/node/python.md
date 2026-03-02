@@ -1,4 +1,4 @@
-# features.python
+# Python (features.python)
 
 The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.
 
@@ -17,18 +17,13 @@ container.feature('python', {
 })
 ```
 
-## Options
+## Options (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `dir` | `string` | Directory containing the Python project |
-
 | `installCommand` | `string` | Custom install command to override auto-detection |
-
 | `contextScript` | `string` | Path to Python script that will populate locals/context |
-
 | `pythonPath` | `string` | Specific Python executable path to use |
 
 ## Methods
@@ -38,9 +33,7 @@ container.feature('python', {
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `options` | `any` |  | Parameter options |
 
 **Returns:** `Promise<this>`
@@ -87,23 +80,15 @@ Executes Python code and returns the result. This method creates a temporary Pyt
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `code` | `string` | ✓ | The Python code to execute |
-
 | `variables` | `Record<string, any>` |  | Variables to make available to the Python code |
-
 | `options` | `{ captureLocals?: boolean }` |  | Execution options |
-
-
 
 `{ captureLocals?: boolean }` properties:
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `captureLocals` | `any` | Whether to capture and return local variables after execution |
 
 **Returns:** `Promise<{ stdout: string; stderr: string; exitCode: number; locals?: any }>`
@@ -130,11 +115,8 @@ Executes a Python file and returns the result.
 **Parameters:**
 
 | Name | Type | Required | Description |
-
 |------|------|----------|-------------|
-
 | `filePath` | `string` | ✓ | Path to the Python file to execute |
-
 | `variables` | `Record<string, any>` |  | Variables to make available via command line arguments |
 
 **Returns:** `Promise<{ stdout: string; stderr: string; exitCode: number }>`
@@ -157,16 +139,12 @@ Gets information about the current Python environment.
 ## Getters
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `projectDir` | `any` | Returns the root directory of the Python project. |
-
 | `pythonPath` | `any` | Returns the path to the Python executable for this environment. |
-
 | `environmentType` | `any` | Returns the detected environment type: 'uv', 'conda', 'venv', or 'system'. |
 
-## Events
+## Events (Zod v4 schema)
 
 ### ready
 
@@ -216,22 +194,15 @@ Event emitted by Python
 
 
 
-## State
+## State (Zod v4 schema)
 
 | Property | Type | Description |
-
 |----------|------|-------------|
-
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-
 | `pythonPath` | `any` | Path to the detected Python executable |
-
 | `projectDir` | `any` | Root directory of the Python project |
-
 | `environmentType` | `any` | Detected Python environment type (uv, conda, venv, or system) |
-
 | `isReady` | `boolean` | Whether the Python environment is ready for execution |
-
 | `lastExecutedScript` | `any` | Path to the last executed Python script |
 
 ## Examples
