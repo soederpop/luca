@@ -209,9 +209,12 @@ Save the conversation to disk via conversationHistory.
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
+| `conversation` | `Conversation` |  |
+| `messages` | `any` |  |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
 | `systemPrompt` | `string` | The current system prompt text. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
+| `paths` | `any` | Provides a helper for creating paths off of the assistant's base folder |
 
 ## Events (Zod v4 schema)
 
@@ -377,6 +380,7 @@ Event emitted by Assistant
 | `conversationCount` | `number` | Number of ask() calls made |
 | `lastResponse` | `string` | The most recent response text |
 | `folder` | `string` | The resolved assistant folder path |
+| `docsFolder` | `string` | The resolved docs folder |
 
 ## Examples
 

@@ -1,6 +1,8 @@
 import { NodeContainer, Feature } from './node/container'
 import './introspection/generated.node'
 
+export * from './node/container'
+
 const container = new NodeContainer()
 
 const { servers, features, clients } = container

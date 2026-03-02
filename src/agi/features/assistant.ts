@@ -34,6 +34,7 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 	conversationCount: z.number().describe('Number of ask() calls made'),
 	lastResponse: z.string().describe('The most recent response text'),
 	folder: z.string().describe('The resolved assistant folder path'),
+	docsFolder: z.string().describe('The resolved docs folder')
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
@@ -113,17 +114,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The path to CORE.md which provides the system prompt. */
 	get corePromptPath(): string {
-		return this.container.paths.resolve(this.resolvedFolder, 'CORE.md')
+		return this.paths.resolve('CORE.md')
 	}
 
 	/** The path to tools.ts which provides tool implementations and schemas. */
 	get toolsModulePath(): string {
-		return this.container.paths.resolve(this.resolvedFolder, 'tools.ts')
+		return this.paths.resolve('tools.ts')
 	}
 
 	/** The path to hooks.ts which provides event handler functions. */
 	get hooksModulePath(): string {
-		return this.container.paths.resolve(this.resolvedFolder, 'hooks.ts')
+		return this.paths.resolve('hooks.ts')
 	}
 
 	get resolvedDocsFolder() {
@@ -133,16 +134,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			return this.container.paths.resolve(docsFolder)
 		}
 
-		const findUp = this.container.paths.findUp('docs', {
+		const findUp = this.container.fs.findUp('docs', {
 			cwd: this.resolvedFolder
 		})
 
-		if (this.container.fs.exists(findUp)) {
-			this.state.set('docsFolder', findUp)
-			return this.container.paths.resolve(findUp)
+		if (typeof findUp === 'string' && this.container.fs.exists(findUp!)) {
+			this.state.set('docsFolder', findUp!)
+			return this.container.paths.resolve(findUp!)
 		}
 
-		return findUp
+		return this.paths.resolve('docs')
 	}
 
 	/**
@@ -152,14 +153,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.container.feature('contentDb', { rootPath: this.resolvedDocsFolder })
 	}
 
-	conversation?: Conversation
+	private _conversation?: Conversation
 
 	// Using `declare` to prevent class field initializers from overwriting
 	// values set during afterInitialize() (called from the base constructor).
 	declare private _tools: Record<string, ConversationTool>
 	declare private _hooks: Record<string, (...args: any[]) => any>
 	declare private _systemPrompt: string
-	private _pendingPlugins: Promise<void>[] = []
+	declare private _pendingPlugins: Promise<void>[]
 
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
@@ -167,6 +168,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * so every emitted event automatically invokes its corresponding hook.
 	 */
 	override afterInitialize() {
+		this._pendingPlugins = []
+
 		// Load system prompt synchronously
 		this._systemPrompt = this.loadSystemPrompt()
 
@@ -178,6 +181,24 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.bindHooksToEvents()
 
 		this.emit('created')
+	}
+
+	get conversation(): Conversation {
+		if (!this._conversation) {
+			this._conversation = this.container.feature('conversation', {
+				model: this.options.model || 'gpt-5.2',
+				tools: this._tools || this.loadTools(),
+				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
+				history: [
+					{ role: 'system', content: this._systemPrompt || this.loadSystemPrompt() },
+				],
+			})
+		}
+		return this._conversation
+	}
+
+	get messages() {
+		return this.conversation.messages
 	}
 
 	/** Whether the assistant has been started and is ready to receive questions. */
@@ -484,21 +505,33 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Provides a helper for creating paths off of the assistant's base folder
+	 */
+	get paths() {
+		const { container } = this
+		const base = this.resolvedFolder
+
+		return {
+			resolve(...args: any[]) {
+				return container.paths.resolve(base, ...args)		
+			},
+			join(...args: any[]) {
+				return container.paths.join(base, ...args)
+			}
+		}
+	}
+
+	/**
 	 * Bind all loaded hook functions as event listeners. Each hook whose
 	 * name matches an event gets wired up so it fires automatically when
 	 * that event is emitted. Must be called before any events are emitted.
 	 */
 	private bindHooksToEvents() {
+		const assistant = this
 		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
 			this.on(eventName as any, (...args: any[]) => {
 				this.emit('hookFired', eventName)
-				try {
-					Promise.resolve(hookFn(...args)).catch((err) => {
-						console.error('Assistant hook error', eventName, err)
-					})
-				} catch (err) {
-					// Hook errors are non-fatal
-				}
+				hookFn(assistant, ...args)
 			})
 		}
 	}
@@ -516,16 +549,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await Promise.all(this._pendingPlugins)
 			this._pendingPlugins = []
 		}
-
-		// Create the conversation
-		this.conversation = this.container.feature('conversation', {
-			model: this.options.model || 'gpt-4.1',
-			tools: this._tools,
-			...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
-			history: [
-				{ role: 'system', content: this._systemPrompt },
-			],
-		})
 
 		// Wire up event forwarding from conversation to assistant.
 		// Hooks fire automatically because they're bound as event listeners.

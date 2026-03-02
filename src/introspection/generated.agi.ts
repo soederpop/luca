@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-02T01:59:08.567Z
+// Generated at: 2026-03-02T19:46:56.698Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -8314,6 +8314,14 @@ setBuildTimeData('features.assistant', {
       "description": "Returns an instance of a ContentDb feature for the resolved docs folder",
       "returns": "ContentDb"
     },
+    "conversation": {
+      "description": "",
+      "returns": "Conversation"
+    },
+    "messages": {
+      "description": "",
+      "returns": "any"
+    },
     "isStarted": {
       "description": "Whether the assistant has been started and is ready to receive questions.",
       "returns": "boolean"
@@ -8325,6 +8333,10 @@ setBuildTimeData('features.assistant', {
     "tools": {
       "description": "The tools registered with this assistant.",
       "returns": "Record<string, ConversationTool>"
+    },
+    "paths": {
+      "description": "Provides a helper for creating paths off of the assistant's base folder",
+      "returns": "any"
     }
   },
   "events": {
@@ -18289,6 +18301,14 @@ export const introspectionData = [
         "description": "Returns an instance of a ContentDb feature for the resolved docs folder",
         "returns": "ContentDb"
       },
+      "conversation": {
+        "description": "",
+        "returns": "Conversation"
+      },
+      "messages": {
+        "description": "",
+        "returns": "any"
+      },
       "isStarted": {
         "description": "Whether the assistant has been started and is ready to receive questions.",
         "returns": "boolean"
@@ -18300,6 +18320,10 @@ export const introspectionData = [
       "tools": {
         "description": "The tools registered with this assistant.",
         "returns": "Record<string, ConversationTool>"
+      },
+      "paths": {
+        "description": "Provides a helper for creating paths off of the assistant's base folder",
+        "returns": "any"
       }
     },
     "events": {
