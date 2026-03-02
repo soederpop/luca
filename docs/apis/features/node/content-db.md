@@ -74,16 +74,76 @@ console.log(contentDb.isLoaded) // true
 
 ### read
 
-Read a single document in the database, or optionally, only sections of that document
+Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `singleDocumentId` | `string` | ✓ | Parameter singleDocumentId |
-| `options` | `{ exclude: string[], include: string[], meta: boolean }` |  | Parameter options |
+| `idStringOrObject` | `string | { id: string }` | ✓ | Document path ID string, or an object with an `id` property |
+| `options` | `{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean }` |  | Optional filtering and formatting options |
+
+`{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `include` | `any` | Only return sections matching these heading names |
+| `exclude` | `any` | Remove sections matching these heading names |
+| `meta` | `any` | Whether to include YAML frontmatter in the output (default: false) |
+| `leadingContent` | `any` | Include content between the H1 and first H2 when using include filter (default: true) |
 
 **Returns:** `Promise<string>`
+
+```ts
+await contentDb.read('guides/intro')
+await contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })
+await contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })
+await contentDb.read('guides/intro', { include: ['API'], leadingContent: false })
+```
+
+
+
+### readMultiple
+
+Read multiple documents by their path IDs, concatenated into a single string. By default each document is wrapped in `<!-- BEGIN: id -->` / `<!-- END: id -->` dividers for easy identification. Supports the same filtering options as {@link read}.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ids` | `string[] | { id: string }[]` | ✓ | Array of document path ID strings or objects with `id` properties |
+| `options` | `{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean, dividers?: boolean }` |  | Optional filtering and formatting options (applied to each document) |
+
+`{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean, dividers?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `dividers` | `any` | Wrap each document in BEGIN/END comment dividers showing the ID (default: true) |
+
+**Returns:** `Promise<string>`
+
+```ts
+await contentDb.readMultiple(['guides/intro', 'guides/setup'])
+await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
+```
+
+
+
+### generateTableOfContents
+
+**Returns:** `void`
+
+
+
+### generateModelSummary
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `any` | ✓ | Parameter options |
+
+**Returns:** `void`
 
 
 
@@ -96,7 +156,7 @@ Read a single document in the database, or optionally, only sections of that doc
 | `collectionPath` | `any` | Returns the absolute resolved path to the collection root directory. |
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
-| `queries` | `any` | Returns a convenient object for querying the various models in the collection. |
+| `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. |
 
 ## State (Zod v4 schema)
 
@@ -144,5 +204,36 @@ console.log(doc.frontmatter, doc.content)
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
 console.log(contentDb.isLoaded) // true
+```
+
+
+
+**read**
+
+```ts
+await contentDb.read('guides/intro')
+await contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })
+await contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })
+await contentDb.read('guides/intro', { include: ['API'], leadingContent: false })
+```
+
+
+
+**readMultiple**
+
+```ts
+await contentDb.readMultiple(['guides/intro', 'guides/setup'])
+await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
+```
+
+
+
+**queries**
+
+```ts
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+await contentDb.load()
+const allArticles = await contentDb.queries.articles.fetchAll()
+const firstTask = await contentDb.queries.task.first()
 ```
 

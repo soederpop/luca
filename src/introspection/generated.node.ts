@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-01T23:26:37.875Z
+// Generated at: 2026-03-02T00:03:11.604Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7021,21 +7021,93 @@ setBuildTimeData('features.contentDb', {
       ]
     },
     "read": {
-      "description": "Read a single document in the database, or optionally, only sections of that document",
+      "description": "Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.",
       "parameters": {
-        "singleDocumentId": {
-          "type": "string",
-          "description": "Parameter singleDocumentId"
+        "idStringOrObject": {
+          "type": "string | { id: string }",
+          "description": "Document path ID string, or an object with an `id` property"
         },
         "options": {
-          "type": "{ exclude: string[], include: string[], meta: boolean }",
+          "type": "{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean }",
+          "description": "Optional filtering and formatting options",
+          "properties": {
+            "include": {
+              "type": "any",
+              "description": "Only return sections matching these heading names"
+            },
+            "exclude": {
+              "type": "any",
+              "description": "Remove sections matching these heading names"
+            },
+            "meta": {
+              "type": "any",
+              "description": "Whether to include YAML frontmatter in the output (default: false)"
+            },
+            "leadingContent": {
+              "type": "any",
+              "description": "Include content between the H1 and first H2 when using include filter (default: true)"
+            }
+          }
+        }
+      },
+      "required": [
+        "idStringOrObject"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
+        }
+      ]
+    },
+    "readMultiple": {
+      "description": "Read multiple documents by their path IDs, concatenated into a single string. By default each document is wrapped in `<!-- BEGIN: id -->` / `<!-- END: id -->` dividers for easy identification. Supports the same filtering options as {@link read}.",
+      "parameters": {
+        "ids": {
+          "type": "string[] | { id: string }[]",
+          "description": "Array of document path ID strings or objects with `id` properties"
+        },
+        "options": {
+          "type": "{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean, dividers?: boolean }",
+          "description": "Optional filtering and formatting options (applied to each document)",
+          "properties": {
+            "dividers": {
+              "type": "any",
+              "description": "Wrap each document in BEGIN/END comment dividers showing the ID (default: true)"
+            }
+          }
+        }
+      },
+      "required": [
+        "ids"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
+        }
+      ]
+    },
+    "generateTableOfContents": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "generateModelSummary": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "any",
           "description": "Parameter options"
         }
       },
       "required": [
-        "singleDocumentId"
+        "options"
       ],
-      "returns": "Promise<string>"
+      "returns": "void"
     }
   },
   "getters": {
@@ -7060,8 +7132,14 @@ setBuildTimeData('features.contentDb', {
       "returns": "string[]"
     },
     "queries": {
-      "description": "Returns a convenient object for querying the various models in the collection.",
-      "returns": "any"
+      "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
+      "returns": "Record<string, ReturnType<typeof this.query>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstTask = await contentDb.queries.task.first()"
+        }
+      ]
     }
   },
   "events": {},
@@ -14819,21 +14897,93 @@ export const introspectionData = [
         ]
       },
       "read": {
-        "description": "Read a single document in the database, or optionally, only sections of that document",
+        "description": "Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.",
         "parameters": {
-          "singleDocumentId": {
-            "type": "string",
-            "description": "Parameter singleDocumentId"
+          "idStringOrObject": {
+            "type": "string | { id: string }",
+            "description": "Document path ID string, or an object with an `id` property"
           },
           "options": {
-            "type": "{ exclude: string[], include: string[], meta: boolean }",
+            "type": "{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean }",
+            "description": "Optional filtering and formatting options",
+            "properties": {
+              "include": {
+                "type": "any",
+                "description": "Only return sections matching these heading names"
+              },
+              "exclude": {
+                "type": "any",
+                "description": "Remove sections matching these heading names"
+              },
+              "meta": {
+                "type": "any",
+                "description": "Whether to include YAML frontmatter in the output (default: false)"
+              },
+              "leadingContent": {
+                "type": "any",
+                "description": "Include content between the H1 and first H2 when using include filter (default: true)"
+              }
+            }
+          }
+        },
+        "required": [
+          "idStringOrObject"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
+          }
+        ]
+      },
+      "readMultiple": {
+        "description": "Read multiple documents by their path IDs, concatenated into a single string. By default each document is wrapped in `<!-- BEGIN: id -->` / `<!-- END: id -->` dividers for easy identification. Supports the same filtering options as {@link read}.",
+        "parameters": {
+          "ids": {
+            "type": "string[] | { id: string }[]",
+            "description": "Array of document path ID strings or objects with `id` properties"
+          },
+          "options": {
+            "type": "{ exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean, dividers?: boolean }",
+            "description": "Optional filtering and formatting options (applied to each document)",
+            "properties": {
+              "dividers": {
+                "type": "any",
+                "description": "Wrap each document in BEGIN/END comment dividers showing the ID (default: true)"
+              }
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
+          }
+        ]
+      },
+      "generateTableOfContents": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "generateModelSummary": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "any",
             "description": "Parameter options"
           }
         },
         "required": [
-          "singleDocumentId"
+          "options"
         ],
-        "returns": "Promise<string>"
+        "returns": "void"
       }
     },
     "getters": {
@@ -14858,8 +15008,14 @@ export const introspectionData = [
         "returns": "string[]"
       },
       "queries": {
-        "description": "Returns a convenient object for querying the various models in the collection.",
-        "returns": "any"
+        "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
+        "returns": "Record<string, ReturnType<typeof this.query>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstTask = await contentDb.queries.task.first()"
+          }
+        ]
       }
     },
     "events": {},

@@ -1,5 +1,5 @@
 import { Feature, features } from '../feature.js'
-import { parse, Collection, type ModelDefinition } from 'contentbase'
+import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
@@ -123,6 +123,157 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     this.state.set('loaded', true)
 
     return this
+  }
+
+  /**
+   * Read a single document by its path ID, optionally filtering to specific sections.
+   *
+   * The document title (H1) is always included in the output. When using `include`,
+   * the leading content (paragraphs between the H1 and first H2) is also included
+   * by default, controlled by the `leadingContent` option.
+   *
+   * When `include` is provided, only those sections are returned (via extractSections in flat mode).
+   * When `exclude` is provided, those sections are removed from the full document.
+   * If both are set, `include` takes precedence.
+   *
+   * @param idStringOrObject - Document path ID string, or an object with an `id` property
+   * @param options - Optional filtering and formatting options
+   * @param options.include - Only return sections matching these heading names
+   * @param options.exclude - Remove sections matching these heading names
+   * @param options.meta - Whether to include YAML frontmatter in the output (default: false)
+   * @param options.leadingContent - Include content between the H1 and first H2 when using include filter (default: true)
+   * @returns The document content as a markdown string
+   * @example
+   * ```typescript
+   * await contentDb.read('guides/intro')
+   * await contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })
+   * await contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })
+   * await contentDb.read('guides/intro', { include: ['API'], leadingContent: false })
+   * ```
+   */
+  async read(idStringOrObject: string | { id: string }, options?: { exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean }): Promise<string> {
+    const id = typeof idStringOrObject === 'string' ? idStringOrObject : idStringOrObject.id
+
+    if (!id) {
+      throw new Error('Must supply a document id to read')
+    }
+
+    if (!this.isLoaded) await this.load()
+
+    const doc = this.collection.document(id)
+    const { include, exclude, meta, leadingContent = true } = options ?? {}
+    const hasFilters = (include?.length ?? 0) > 0 || (exclude?.length ?? 0) > 0
+
+    if (!hasFilters) {
+      return meta ? doc.rawContent : doc.content
+    }
+
+    let content: string
+
+    if (include?.length) {
+      const extracted = extractSections([{ source: doc, sections: include }], { mode: 'flat' })
+      let prefix = `# ${doc.title}\n\n`
+      if (leadingContent) {
+        const leading = this._getLeadingContent(doc)
+        if (leading) prefix += leading + '\n\n'
+      }
+      content = prefix + extracted.content
+    } else {
+      let modified = doc
+      for (const heading of exclude!) {
+        modified = modified.removeSection(heading)
+      }
+      content = modified.content
+    }
+
+    if (meta) {
+      const raw = doc.rawContent
+      const secondDashIndex = raw.indexOf('---', 3)
+      if (secondDashIndex !== -1) {
+        return raw.slice(0, secondDashIndex + 3) + '\n\n' + content
+      }
+    }
+
+    return content
+  }
+
+  /**
+   * Read multiple documents by their path IDs, concatenated into a single string.
+   *
+   * By default each document is wrapped in `<!-- BEGIN: id -->` / `<!-- END: id -->`
+   * dividers for easy identification. Supports the same filtering options as {@link read}.
+   *
+   * @param ids - Array of document path ID strings or objects with `id` properties
+   * @param options - Optional filtering and formatting options (applied to each document)
+   * @param options.dividers - Wrap each document in BEGIN/END comment dividers showing the ID (default: true)
+   * @returns The concatenated document contents as a single markdown string
+   * @example
+   * ```typescript
+   * await contentDb.readMultiple(['guides/intro', 'guides/setup'])
+   * await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
+   * ```
+   */
+  async readMultiple(ids: string[] | { id: string }[], options?: { exclude?: string[], include?: string[], meta?: boolean, leadingContent?: boolean, dividers?: boolean }): Promise<string> {
+    const { dividers = true, ...readOptions } = options ?? {}
+    const results = await Promise.all(
+      ids.map(async (idOrObj) => {
+        const docId = typeof idOrObj === 'string' ? idOrObj : idOrObj.id
+        const content = await this.read(idOrObj, readOptions)
+        if (dividers) {
+          return `<!-- BEGIN: ${docId} -->\n${content}\n<!-- END: ${docId} -->`
+        }
+        return content
+      })
+    )
+    return results.join('\n\n')
+  }
+
+  /**
+   * Extracts the content between the H1 heading and the first H2 heading.
+   * Returns an empty string if there's no leading content or no H2 sections.
+   */
+  private _getLeadingContent(doc: ReturnType<Collection['document']>): string {
+    const h1 = doc.astQuery.headingsAtDepth(1)[0]
+    const firstH2 = doc.astQuery.headingsAtDepth(2)[0]
+
+    if (!h1 || !firstH2) return ''
+
+    const betweenNodes = doc.astQuery.findBetween(h1, firstH2)
+    if (!betweenNodes.length) return ''
+
+    return doc.stringify({ type: 'root', children: betweenNodes } as any).trim()
+  }
+
+  async generateTableOfContents() {
+	  return this.collection.tableOfContents()
+  }
+
+  async generateModelSummary(options: any) {
+	  return this.collection.generateModelSummary(options)
+  }
+
+  /**
+   * Returns an object with query builders keyed by model name (singular and plural, lowercased).
+   *
+   * Provides a convenient shorthand for querying without looking up model definitions manually.
+   *
+   * @example
+   * ```typescript
+   * const contentDb = container.feature('contentDb', { rootPath: './docs' })
+   * await contentDb.load()
+   * const allArticles = await contentDb.queries.articles.fetchAll()
+   * const firstTask = await contentDb.queries.task.first()
+   * ```
+   */
+  get queries(): Record<string, ReturnType<typeof this.query>> {
+    const queryChains: [string, ReturnType<typeof this.query>][] = []
+    for (const modelName of this.modelNames) {
+      const queryChain = this.query(this.models[modelName])
+      const pluralized = this.container.utils.stringUtils.pluralize(modelName).toLowerCase()
+      queryChains.push([modelName.toLowerCase(), queryChain])
+      queryChains.push([pluralized, queryChain])
+    }
+    return Object.fromEntries(queryChains)
   }
 }
 

@@ -46,7 +46,7 @@
     "explain-codebase": "luca explain-codebase",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
     "update-all-docs": "bun test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds",
-    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts"
+    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts && bun compile"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",
@@ -116,6 +116,7 @@
     "inquirer": "^9.1.5",
     "isomorphic-vm": "^0.0.1",
     "isomorphic-ws": "^5.0.0",
+    "js-tiktoken": "^1.0.21",
     "js-yaml": "^4.1.0",
     "lodash-es": "^4.17.21",
     "marked": "^15.0.12",

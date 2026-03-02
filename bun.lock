@@ -40,6 +40,7 @@
         "inquirer": "^9.1.5",
         "isomorphic-vm": "^0.0.1",
         "isomorphic-ws": "^5.0.0",
+        "js-tiktoken": "^1.0.21",
         "js-yaml": "^4.1.0",
         "lodash-es": "^4.17.21",
         "marked": "^15.0.12",
@@ -1099,6 +1100,8 @@
     "jest-matcher-utils": ["jest-matcher-utils@27.5.1", "", { "dependencies": { "chalk": "^4.0.0", "jest-diff": "^27.5.1", "jest-get-type": "^27.5.1", "pretty-format": "^27.5.1" } }, "sha512-z2uTx/T6LBaCoNWNFWwChLBKYxTMcGBRjAt+2SbP929/Fflb9aa5LGma654Rz8z9HLxsrUaYzxE9T/EFIL/PAw=="],
 
     "jiti": ["jiti@1.21.7", "", { "bin": { "jiti": "bin/jiti.js" } }, "sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A=="],
+
+    "js-tiktoken": ["js-tiktoken@1.0.21", "", { "dependencies": { "base64-js": "^1.5.1" } }, "sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g=="],
 
     "js-tokens": ["js-tokens@9.0.1", "", {}, "sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ=="],
 
