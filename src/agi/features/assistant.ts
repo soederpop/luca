@@ -159,6 +159,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	declare private _tools: Record<string, ConversationTool>
 	declare private _hooks: Record<string, (...args: any[]) => any>
 	declare private _systemPrompt: string
+	private _pendingPlugins: Promise<void>[] = []
 
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
@@ -208,8 +209,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 *   .use(addAnalyticsTools)
 	 * ```
 	 */
-	use(fn: (assistant: this) => void): this {
-		fn(this)
+	use(fn: (assistant: this) => void | Promise<void>): this {
+		const result = fn(this)
+		if (result && typeof (result as any).then === 'function') {
+			this._pendingPlugins.push(result as Promise<void>)
+		}
 		return this
 	}
 
@@ -368,13 +372,21 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const tools: Record<string, ConversationTool> = {}
 		const vm = this.container.feature('vm')
 
-		const moduleExports = vm.loadModule(this.toolsModulePath, {
-			container: this.container,
-			me: this,
-			my: this,
-			assistant: this,
-			console: console,
-		})
+		let moduleExports: Record<string, any>
+		try {
+			moduleExports = vm.loadModule(this.toolsModulePath, {
+				container: this.container,
+				me: this,
+				my: this,
+				assistant: this,
+				console: console,
+			})
+		} catch (err: any) {
+			console.error(`Failed to load tools from ${this.toolsModulePath}`)
+			console.error(`There may be a syntax error in this file. Please check it.`)
+			console.error(err.message || err)
+			return tools
+		}
 
 		if (Object.keys(moduleExports).length) {
 			const schemas: Record<string, z.ZodType> = moduleExports.schemas || {}
@@ -447,13 +459,21 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const hooks: Record<string, (...args: any[]) => any> = {}
 		const vm = this.container.feature('vm')
 
-		const moduleExports = vm.loadModule(this.hooksModulePath, {
-			container: this.container,
-			me: this,
-			my: this,
-			assistant: this,
-			console: console,
-		})
+		let moduleExports: Record<string, any>
+		try {
+			moduleExports = vm.loadModule(this.hooksModulePath, {
+				container: this.container,
+				me: this,
+				my: this,
+				assistant: this,
+				console: console,
+			})
+		} catch (err: any) {
+			console.error(`Failed to load hooks from ${this.hooksModulePath}`)
+			console.error(`There may be a syntax error in this file. Please check it.`)
+			console.error(err.message || err)
+			return hooks
+		}
 
 		for (const [name, fn] of Object.entries(moduleExports)) {
 			if (name === 'default' || typeof fn !== 'function') continue
@@ -491,6 +511,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns {Promise<this>} The initialized assistant
 	 */
 	async start(): Promise<this> {
+		// Wait for any async .use() plugins to finish before starting
+		if (this._pendingPlugins.length) {
+			await Promise.all(this._pendingPlugins)
+			this._pendingPlugins = []
+		}
+
 		// Create the conversation
 		this.conversation = this.container.feature('conversation', {
 			model: this.options.model || 'gpt-4.1',

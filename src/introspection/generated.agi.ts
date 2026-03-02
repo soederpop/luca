@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-02T00:03:11.736Z
+// Generated at: 2026-03-02T01:49:14.900Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -8138,7 +8138,7 @@ setBuildTimeData('features.assistant', {
       "description": "Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.",
       "parameters": {
         "fn": {
-          "type": "(assistant: this) => void",
+          "type": "(assistant: this) => void | Promise<void>",
           "description": "Setup function that receives this assistant"
         }
       },
@@ -18113,7 +18113,7 @@ export const introspectionData = [
         "description": "Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.",
         "parameters": {
           "fn": {
-            "type": "(assistant: this) => void",
+            "type": "(assistant: this) => void | Promise<void>",
             "description": "Setup function that receives this assistant"
           }
         },

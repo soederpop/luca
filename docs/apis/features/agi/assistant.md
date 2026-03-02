@@ -56,7 +56,7 @@ Apply a setup function to this assistant. The function receives the assistant in
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `fn` | `(assistant: this) => void` | ✓ | Setup function that receives this assistant |
+| `fn` | `(assistant: this) => void | Promise<void>` | ✓ | Setup function that receives this assistant |
 
 **Returns:** `this`
 
