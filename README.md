@@ -52,13 +52,19 @@ const tutorials = await container.docs.query(Tutorial).fetchAll()
 
 ## A Perfect Companion for AI Coding Assistants and Students alike
 
-The `luca` CLI [Full Docs Here](./CLI.md) has a few interesting commands.
+The `luca` CLI [Full Docs Here](./docs/CLI.md) has a few interesting commands.
 
 - The `luca eval` command lets you run snippets of code to see what they produce.  The `container` is already defined for you
 - The `luca describe` command lets you view docs, or just parts of docs, of any group of features, clients, etc, as a single markdown doc
 - The `luca console` command will bring you into a full blown REPL
 - The `luca chat` command will put you in touch with a tutor
 - The `luca sandbox-mcp` provides a REPL for your coding assistant and a documentation browser
+
+### Codex MCP note
+
+If OpenAI Codex CLI reports `MCP client ... timed out after 10 seconds` for Luca or Contentbase stdio servers, use a Node stdio bridge to launch Bun. This avoids an intermittent Codex<->Bun stdio startup issue where the server appears to start but handshake still times out.
+
+See [`docs/CLI.md`](./docs/CLI.md) for the exact bridge script and `~/.codex/config.toml` examples.
 
 ## Installation
 
@@ -67,8 +73,6 @@ To install the CLI
 ```sh
 echo 'i will eventually have a url to download the CLI and stuff'
 ```
-
-
 
 
 

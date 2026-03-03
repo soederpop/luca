@@ -277,6 +277,57 @@ Provides tools (`eval`, `inspect_container`, `list_registry`, `describe_helper`,
 | `--transport` | `stdio` \| `http` | `stdio` | Transport type |
 | `--port` | number | `3002` | Port for HTTP transport |
 
+#### Codex CLI stdio timeout workaround
+
+If OpenAI Codex CLI reports `MCP client ... timed out after 10 seconds` for `luca_sandbox` or `contentbase`, and the same command starts fine manually, use a Node stdio bridge to launch Bun.
+
+Create a small bridge script:
+
+```sh
+mkdir -p ~/.codex/bin
+cat > ~/.codex/bin/mcp-stdio-bridge.js <<'EOF'
+#!/usr/bin/env node
+const { spawn } = require('node:child_process')
+
+const [cmd, ...args] = process.argv.slice(2)
+if (!cmd) process.exit(2)
+
+const child = spawn(cmd, args, { stdio: ['pipe', 'pipe', 'pipe'] })
+process.stdin.on('data', (chunk) => child.stdin.write(chunk))
+process.stdin.on('end', () => child.stdin.end())
+process.stdin.on('error', () => child.stdin.end())
+child.stdout.on('data', (chunk) => process.stdout.write(chunk))
+child.stderr.on('data', (chunk) => process.stderr.write(chunk))
+child.on('exit', (code, signal) => {
+  if (signal) process.kill(process.pid, signal)
+  process.exit(code ?? 0)
+})
+EOF
+chmod +x ~/.codex/bin/mcp-stdio-bridge.js
+```
+
+Then wire Codex MCP servers through the bridge:
+
+```toml
+[mcp_servers.luca_sandbox]
+command = "node"
+args = ["/Users/<you>/.codex/bin/mcp-stdio-bridge.js", "/Users/<you>/.bun/bin/bun", "/absolute/path/to/luca/src/cli/cli.ts", "sandbox-mcp", "--transport", "stdio"]
+cwd = "/absolute/path/to/project"
+enabled = true
+startup_timeout_sec = 30
+
+[mcp_servers.contentbase]
+command = "node"
+args = ["/Users/<you>/.codex/bin/mcp-stdio-bridge.js", "/Users/<you>/.bun/bin/bun", "/absolute/path/to/contentbase/src/cli/index.ts", "mcp", "--transport", "stdio"]
+cwd = "/absolute/path/to/project"
+enabled = true
+startup_timeout_sec = 30
+```
+
+Notes:
+- Prefer absolute paths in `args`.
+- Avoid `bun run ...` here; pass the script path directly to Bun.
+
 ---
 
 ## Project Commands
