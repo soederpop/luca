@@ -178,10 +178,38 @@ luca chat [name] [options]
 
 Discovers assistants from the configured folder (default `assistants/`). If multiple assistants are found and no name is given, prompts for selection.
 
+Conversations are persisted by default using `daily` mode — the same conversation is automatically resumed throughout the day. On exit, a resume instruction is printed so you can return to any session later.
+
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--model` | string | | Override the LLM model for the assistant |
 | `--folder` | string | `assistants` | Directory containing assistant definitions |
+| `--history-mode` | `lifecycle` \| `daily` \| `persistent` \| `session` | `daily` | Conversation persistence mode |
+| `--resume` | string | | Thread ID to resume a specific conversation |
+| `--list` | boolean | `false` | List recent conversations and exit |
+| `--off-record` | boolean | `false` | Alias for `--history-mode lifecycle` (ephemeral, no persistence) |
+
+#### History modes
+
+- **lifecycle** — Ephemeral. No persistence, fresh conversation every time (the pre-existing behavior).
+- **daily** — Auto-resumes today's conversation. New conversation each day. Auto-compacts when nearing context limits. This is the default for `luca chat`.
+- **persistent** — Single long-running thread per assistant+project. Auto-compacts.
+- **session** — Unique thread per invocation, but resumable via `--resume`.
+
+#### Resuming conversations
+
+On exit, non-ephemeral sessions print a resume command:
+
+```
+Session saved. To resume this conversation:
+  luca chat my-assistant --resume my-assistant:a1b2c3d4:2026-03-02
+```
+
+Use `--list` to browse recent conversations:
+
+```
+luca chat my-assistant --list
+```
 
 ---
 

@@ -13,6 +13,10 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model for the assistant'),
 	folder: z.string().default('assistants').describe('Directory containing assistant definitions'),
+	resume: z.string().optional().describe('Thread ID or conversation ID to resume'),
+	list: z.boolean().optional().describe('List recent conversations and exit'),
+	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
+	offRecord: z.boolean().optional().describe('Alias for --history-mode lifecycle (ephemeral, no persistence)'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -56,10 +60,42 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		name = answers.assistant
 	}
 
-	const createOptions: Record<string, any> = {}
+	// Resolve history mode: --off-record overrides everything to lifecycle
+	// CLI defaults to 'daily' for interactive persistence
+	const historyMode = options.offRecord
+		? 'lifecycle'
+		: (options.historyMode || 'daily')
+
+	const createOptions: Record<string, any> = { historyMode }
 	if (options.model) createOptions.model = options.model
 
 	const assistant = manager.create(name, createOptions)
+
+	// --list: show recent conversations and exit
+	if (options.list) {
+		const history = await assistant.listHistory({ limit: 20 })
+		if (history.length === 0) {
+			console.log(ui.colors.dim('  No saved conversations.'))
+		} else {
+			console.log()
+			console.log(ui.colors.dim('  Recent conversations:'))
+			console.log()
+			for (const meta of history) {
+				const date = new Date(meta.updatedAt).toLocaleString()
+				const msgs = ui.colors.dim(`(${meta.messageCount} messages)`)
+				console.log(`  ${ui.colors.cyan(meta.thread)} ${msgs}`)
+				console.log(`    ${ui.colors.dim(date)} - ${meta.title}`)
+			}
+			console.log()
+			console.log(ui.colors.dim(`  Resume with: luca chat ${name} --resume <thread-id>`))
+		}
+		return
+	}
+
+	// --resume: set thread override before start
+	if (options.resume) {
+		assistant.resumeThread(options.resume)
+	}
 
 	let isFirstChunk = true
 
@@ -91,6 +127,12 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		isFirstChunk = true
 	})
 
+	// Start the assistant (loads history if applicable)
+	await assistant.start()
+
+	const messageCount = assistant.messages?.length || 0
+	const isResuming = historyMode !== 'lifecycle' && messageCount > 1
+
 	const rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout,
@@ -103,7 +145,14 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	}
 
 	console.log()
-	console.log(ui.colors.dim(`  Chatting with ${ui.colors.cyan(name)}. Type .exit to quit.`))
+	if (isResuming) {
+		console.log(ui.colors.dim(`  Resuming conversation with ${ui.colors.cyan(name)} (${messageCount} messages). Type .exit to quit.`))
+	} else {
+		console.log(ui.colors.dim(`  Chatting with ${ui.colors.cyan(name)}. Type .exit to quit.`))
+	}
+	if (historyMode !== 'lifecycle') {
+		console.log(ui.colors.dim(`  Mode: ${historyMode}`))
+	}
 	console.log()
 
 	while (true) {
@@ -116,6 +165,14 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	}
 
 	rl.close()
+
+	// Show resume instruction for non-lifecycle modes
+	if (historyMode !== 'lifecycle' && assistant.currentThreadId) {
+		console.log()
+		console.log(ui.colors.dim(`  Session saved. To resume this conversation:`))
+		console.log(ui.colors.dim(`    luca chat ${name} --resume ${assistant.currentThreadId}`))
+		console.log()
+	}
 }
 
 commands.registerHandler('chat', {

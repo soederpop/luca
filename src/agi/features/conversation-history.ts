@@ -357,6 +357,59 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		return true
 	}
 
+	/**
+	 * Find the most recent conversation for an exact thread ID.
+	 *
+	 * @param {string} thread - The exact thread ID to match
+	 * @returns {Promise<ConversationRecord | null>} The full record with messages, or null if none found
+	 */
+	async findByThread(thread: string): Promise<ConversationRecord | null> {
+		const metas = await this.list({ thread })
+		if (!metas.length) return null
+		return this.load(metas[0]!.id)
+	}
+
+	/**
+	 * Find all conversations whose thread starts with a prefix.
+	 *
+	 * @param {string} prefix - The thread prefix to match
+	 * @returns {Promise<ConversationMeta[]>} Matching metadata records (newest first)
+	 */
+	async findByThreadPrefix(prefix: string): Promise<ConversationMeta[]> {
+		const all = await this.list()
+		return all.filter(m => m.thread.startsWith(prefix))
+	}
+
+	/**
+	 * Delete all conversations for an exact thread.
+	 *
+	 * @param {string} thread - The exact thread ID
+	 * @returns {Promise<number>} Number of conversations deleted
+	 */
+	async deleteThread(thread: string): Promise<number> {
+		const metas = await this.list({ thread })
+		let count = 0
+		for (const meta of metas) {
+			if (await this.delete(meta.id)) count++
+		}
+		return count
+	}
+
+	/**
+	 * Delete all conversations matching a thread prefix.
+	 *
+	 * @param {string} prefix - The thread prefix to match
+	 * @returns {Promise<number>} Number of conversations deleted
+	 */
+	async deleteByThreadPrefix(prefix: string): Promise<number> {
+		const metas = await this.findByThreadPrefix(prefix)
+		let count = 0
+		for (const meta of metas) {
+			if (await this.delete(meta.id)) count++
+		}
+		return count
+	}
+
 	// -- index management --
 
 	private async getIndex(): Promise<string[]> {

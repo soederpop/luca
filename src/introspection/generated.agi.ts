@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-03T05:32:52.950Z
+// Generated at: 2026-03-03T05:39:37.082Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -8260,6 +8260,36 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "Record<string, (...args: any[]) => any>"
     },
+    "resumeThread": {
+      "description": "Override thread for resume. Call before start().",
+      "parameters": {
+        "threadId": {
+          "type": "string",
+          "description": "The thread ID to resume"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "returns": "this"
+    },
+    "listHistory": {
+      "description": "List saved conversations for this assistant+project.",
+      "parameters": {
+        "opts": {
+          "type": "{ limit?: number }",
+          "description": "Optional limit"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ConversationMeta[]>"
+    },
+    "clearHistory": {
+      "description": "Delete all history for this assistant+project.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<number>"
+    },
     "start": {
       "description": "Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.",
       "parameters": {},
@@ -8349,6 +8379,26 @@ setBuildTimeData('features.assistant', {
     "paths": {
       "description": "Provides a helper for creating paths off of the assistant's base folder",
       "returns": "any"
+    },
+    "assistantName": {
+      "description": "The assistant name derived from the folder basename.",
+      "returns": "string"
+    },
+    "cwdHash": {
+      "description": "An 8-char hash of the container cwd for per-project thread isolation.",
+      "returns": "string"
+    },
+    "threadPrefix": {
+      "description": "The thread prefix for this assistant+project combination.",
+      "returns": "string"
+    },
+    "conversationHistory": {
+      "description": "The conversationHistory feature instance.",
+      "returns": "ConversationHistory"
+    },
+    "currentThreadId": {
+      "description": "The active thread ID (undefined in lifecycle mode).",
+      "returns": "string | undefined"
     }
   },
   "events": {
@@ -18319,6 +18369,36 @@ export const introspectionData = [
         "required": [],
         "returns": "Record<string, (...args: any[]) => any>"
       },
+      "resumeThread": {
+        "description": "Override thread for resume. Call before start().",
+        "parameters": {
+          "threadId": {
+            "type": "string",
+            "description": "The thread ID to resume"
+          }
+        },
+        "required": [
+          "threadId"
+        ],
+        "returns": "this"
+      },
+      "listHistory": {
+        "description": "List saved conversations for this assistant+project.",
+        "parameters": {
+          "opts": {
+            "type": "{ limit?: number }",
+            "description": "Optional limit"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ConversationMeta[]>"
+      },
+      "clearHistory": {
+        "description": "Delete all history for this assistant+project.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<number>"
+      },
       "start": {
         "description": "Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.",
         "parameters": {},
@@ -18408,6 +18488,26 @@ export const introspectionData = [
       "paths": {
         "description": "Provides a helper for creating paths off of the assistant's base folder",
         "returns": "any"
+      },
+      "assistantName": {
+        "description": "The assistant name derived from the folder basename.",
+        "returns": "string"
+      },
+      "cwdHash": {
+        "description": "An 8-char hash of the container cwd for per-project thread isolation.",
+        "returns": "string"
+      },
+      "threadPrefix": {
+        "description": "The thread prefix for this assistant+project combination.",
+        "returns": "string"
+      },
+      "conversationHistory": {
+        "description": "The conversationHistory feature instance.",
+        "returns": "ConversationHistory"
+      },
+      "currentThreadId": {
+        "description": "The active thread ID (undefined in lifecycle mode).",
+        "returns": "string | undefined"
       }
     },
     "events": {

@@ -6,6 +6,8 @@ import { features, Feature } from '@soederpop/luca/feature'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, Message } from './conversation'
 import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@soederpop/luca/node'
+import type { ConversationHistory, ConversationMeta } from './conversation-history'
+import hashObject from '../../hash-object.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -34,7 +36,9 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 	conversationCount: z.number().describe('Number of ask() calls made'),
 	lastResponse: z.string().describe('The most recent response text'),
 	folder: z.string().describe('The resolved assistant folder path'),
-	docsFolder: z.string().describe('The resolved docs folder')
+	docsFolder: z.string().describe('The resolved docs folder'),
+	conversationId: z.string().optional().describe('The active conversation persistence ID'),
+	threadId: z.string().optional().describe('The active thread ID'),
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
@@ -61,6 +65,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+
+	/** History persistence mode: lifecycle (ephemeral), daily (auto-resume per day), persistent (single long-running thread), session (unique per run, resumable) */
+	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -154,6 +161,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	private _conversation?: Conversation
+	private _resumeThreadId?: string
 
 	// Using `declare` to prevent class field initializers from overwriting
 	// values set during afterInitialize() (called from the base constructor).
@@ -521,6 +529,115 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 	}
 
+	// -- History mode helpers --
+
+	/** The assistant name derived from the folder basename. */
+	get assistantName(): string {
+		return this.resolvedFolder.split('/').pop() || 'assistant'
+	}
+
+	/** An 8-char hash of the container cwd for per-project thread isolation. */
+	get cwdHash(): string {
+		return hashObject(this.container.cwd).slice(0, 8)
+	}
+
+	/** The thread prefix for this assistant+project combination. */
+	get threadPrefix(): string {
+		return `${this.assistantName}:${this.cwdHash}:`
+	}
+
+	/** Build a thread ID based on the history mode. */
+	private buildThreadId(mode: string): string {
+		const prefix = this.threadPrefix
+		switch (mode) {
+			case 'daily': {
+				const today = new Date().toISOString().slice(0, 10)
+				return `${prefix}${today}`
+			}
+			case 'persistent':
+				return `${prefix}persistent`
+			case 'session':
+				return `${prefix}${this.uuid}`
+			default:
+				return `${prefix}${this.uuid}`
+		}
+	}
+
+	/** The conversationHistory feature instance. */
+	get conversationHistory(): ConversationHistory {
+		return this.container.feature('conversationHistory') as ConversationHistory
+	}
+
+	/** The active thread ID (undefined in lifecycle mode). */
+	get currentThreadId(): string | undefined {
+		return this.state.get('threadId')
+	}
+
+	/**
+	 * Override thread for resume. Call before start().
+	 *
+	 * @param threadId - The thread ID to resume
+	 * @returns this, for chaining
+	 */
+	resumeThread(threadId: string): this {
+		this._resumeThreadId = threadId
+		return this
+	}
+
+	/**
+	 * List saved conversations for this assistant+project.
+	 *
+	 * @param opts - Optional limit
+	 * @returns Conversation metadata records
+	 */
+	async listHistory(opts?: { limit?: number }): Promise<ConversationMeta[]> {
+		const metas = await this.conversationHistory.findByThreadPrefix(this.threadPrefix)
+		if (opts?.limit) return metas.slice(0, opts.limit)
+		return metas
+	}
+
+	/**
+	 * Delete all history for this assistant+project.
+	 *
+	 * @returns Number of conversations deleted
+	 */
+	async clearHistory(): Promise<number> {
+		return this.conversationHistory.deleteByThreadPrefix(this.threadPrefix)
+	}
+
+	/**
+	 * Load history into the conversation after it's been created.
+	 * Called from start() for non-lifecycle modes.
+	 */
+	private async loadConversationHistory(): Promise<void> {
+		const mode = this.options.historyMode || 'lifecycle'
+		if (mode === 'lifecycle') return
+
+		const threadId = this._resumeThreadId || this.buildThreadId(mode)
+		this.state.set('threadId', threadId)
+
+		const existing = await this.conversationHistory.findByThread(threadId)
+
+		if (existing) {
+			// Replace conversation messages with loaded history
+			const messages = [...existing.messages]
+
+			// Swap in fresh system prompt if it changed
+			if (messages.length > 0 && (messages[0]!.role === 'system' || messages[0]!.role === 'developer')) {
+				messages[0] = { role: messages[0]!.role, content: this._systemPrompt }
+			}
+
+			this.conversation.state.set('id', existing.id)
+			this.conversation.state.set('thread', threadId)
+			this.conversation.state.set('messages', messages)
+			this.state.set('conversationId', existing.id)
+		} else {
+			// Fresh conversation — just set thread
+			this.conversation.state.set('thread', threadId)
+			this.state.set('conversationId', this.conversation.state.get('id'))
+		}
+	}
+
 	/**
 	 * Bind all loaded hook functions as event listeners. Each hook whose
 	 * name matches an event gets wired up so it fires automatically when
@@ -566,6 +683,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.conversation.on('toolResult', (name: string, result: any) => this.emit('toolResult', name, result))
 		this.conversation.on('toolError', (name: string, error: any) => this.emit('toolError', name, error))
 
+		// Load conversation history for non-lifecycle modes
+		await this.loadConversationHistory()
+
+		// Enable autoCompact for modes that accumulate history
+		const mode = this.options.historyMode || 'lifecycle'
+		if (mode === 'daily' || mode === 'persistent') {
+			(this.conversation.options as any).autoCompact = true
+		}
+
 		this.state.set('started', true)
 		this.emit('started')
 
@@ -597,6 +723,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.state.set('conversationCount', count)
 
 		const result = await this.conversation.ask(question, options)
+
+		// Auto-save for non-lifecycle modes
+		if (this.options.historyMode !== 'lifecycle' && this.state.get('threadId')) {
+			await this.conversation.save({ thread: this.state.get('threadId') })
+		}
 
 		this.emit('answered', result)
 

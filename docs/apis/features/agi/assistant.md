@@ -22,6 +22,8 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
+  // Conversation history persistence mode
+  historyMode,
 })
 ```
 
@@ -37,6 +39,7 @@ container.feature('assistant', {
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `historyMode` | `string` | Conversation history persistence mode |
 
 ## Methods
 
@@ -158,6 +161,42 @@ Load event hooks from hooks.ts. Each exported function name should match an even
 
 
 
+### resumeThread
+
+Override thread for resume. Call before start().
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `threadId` | `string` | ✓ | The thread ID to resume |
+
+**Returns:** `this`
+
+
+
+### listHistory
+
+List saved conversations for this assistant+project.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `opts` | `{ limit?: number }` |  | Optional limit |
+
+**Returns:** `Promise<ConversationMeta[]>`
+
+
+
+### clearHistory
+
+Delete all history for this assistant+project.
+
+**Returns:** `Promise<number>`
+
+
+
 ### start
 
 Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.
@@ -215,6 +254,11 @@ Save the conversation to disk via conversationHistory.
 | `systemPrompt` | `string` | The current system prompt text. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
 | `paths` | `any` | Provides a helper for creating paths off of the assistant's base folder |
+| `assistantName` | `string` | The assistant name derived from the folder basename. |
+| `cwdHash` | `string` | An 8-char hash of the container cwd for per-project thread isolation. |
+| `threadPrefix` | `string` | The thread prefix for this assistant+project combination. |
+| `conversationHistory` | `ConversationHistory` | The conversationHistory feature instance. |
+| `currentThreadId` | `string | undefined` | The active thread ID (undefined in lifecycle mode). |
 
 ## Events (Zod v4 schema)
 
@@ -381,6 +425,8 @@ Event emitted by Assistant
 | `lastResponse` | `string` | The most recent response text |
 | `folder` | `string` | The resolved assistant folder path |
 | `docsFolder` | `string` | The resolved docs folder |
+| `conversationId` | `string` | The active conversation persistence ID |
+| `threadId` | `string` | The active thread ID |
 
 ## Examples
 
