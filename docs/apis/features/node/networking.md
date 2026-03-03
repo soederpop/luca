@@ -5,8 +5,20 @@ The Networking feature provides utilities for network-related operations. This f
 ## Usage
 
 ```ts
-container.feature('networking')
+container.feature('networking', {
+  // Default timeout in milliseconds for probing
+  timeout,
+  // Default concurrency for scanning operations
+  concurrency,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `timeout` | `number` | Default timeout in milliseconds for probing |
+| `concurrency` | `number` | Default concurrency for scanning operations |
 
 ## Methods
 
@@ -57,11 +69,170 @@ if (isAvailable) {
 
 
 
+### getLocalNetworks
+
+Returns local external IPv4 interfaces and their CIDR ranges.
+
+**Returns:** `LocalNetwork[]`
+
+
+
+### expandCidr
+
+Expands a CIDR block to host IP addresses. For /31 and /32, all addresses are returned. For all others, network/broadcast are excluded.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cidr` | `string` | ✓ | Parameter cidr |
+
+**Returns:** `string[]`
+
+
+
+### getArpTable
+
+Reads and parses the system ARP cache.
+
+**Returns:** `Promise<ArpEntry[]>`
+
+
+
+### isHostReachable
+
+Performs a lightweight TCP reachability probe.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `host` | `string` | ✓ | Parameter host |
+| `options` | `ReachableHostOptions` |  | Parameter options |
+
+`ReachableHostOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `timeout` | `number` |  |
+| `ports` | `number[]` |  |
+
+**Returns:** `Promise<boolean>`
+
+
+
+### discoverHosts
+
+Discovers hosts in a CIDR range by combining ARP cache and TCP probes.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cidr` | `string` | ✓ | Parameter cidr |
+| `options` | `DiscoverHostsOptions` |  | Parameter options |
+
+`DiscoverHostsOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `timeout` | `number` |  |
+| `concurrency` | `number` |  |
+| `ports` | `number[]` |  |
+
+**Returns:** `Promise<DiscoverHost[]>`
+
+
+
+### scanPorts
+
+TCP connect scan for a host. By default only returns open ports.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `host` | `string` | ✓ | Parameter host |
+| `options` | `ScanPortsOptions` |  | Parameter options |
+
+`ScanPortsOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ports` | `string | number[]` |  |
+| `timeout` | `number` |  |
+| `concurrency` | `number` |  |
+| `banner` | `boolean` |  |
+| `includeClosed` | `boolean` |  |
+
+**Returns:** `Promise<PortScanResult[]>`
+
+
+
+### scanLocalNetworks
+
+Convenience method: discover and port-scan hosts across all local networks.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `ScanLocalNetworksOptions` |  | Parameter options |
+
+`ScanLocalNetworksOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ports` | `string | number[]` |  |
+| `timeout` | `number` |  |
+| `concurrency` | `number` |  |
+| `hostConcurrency` | `number` |  |
+| `banner` | `boolean` |  |
+
+**Returns:** `Promise<LocalNetworkScanHost[]>`
+
+
+
+## Getters
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `proc` | `any` |  |
+| `os` | `any` |  |
+| `nmap` | `any` | Optional nmap wrapper for users that already have nmap installed. |
+
+## Events (Zod v4 schema)
+
+### scan:start
+
+Event emitted by Networking
+
+
+
+### host:discovered
+
+Event emitted by Networking
+
+
+
+### scan:complete
+
+Event emitted by Networking
+
+
+
+### port:open
+
+Event emitted by Networking
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
+| `lastScan` | `object` | The most recent network scan result |
 
 ## Examples
 

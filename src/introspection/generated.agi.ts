@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-03T21:18:05.803Z
+// Generated at: 2026-03-03T22:30:16.391Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -3838,10 +3838,199 @@ setBuildTimeData('features.networking', {
           "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
         }
       ]
+    },
+    "getLocalNetworks": {
+      "description": "Returns local external IPv4 interfaces and their CIDR ranges.",
+      "parameters": {},
+      "required": [],
+      "returns": "LocalNetwork[]"
+    },
+    "expandCidr": {
+      "description": "Expands a CIDR block to host IP addresses. For /31 and /32, all addresses are returned. For all others, network/broadcast are excluded.",
+      "parameters": {
+        "cidr": {
+          "type": "string",
+          "description": "Parameter cidr"
+        }
+      },
+      "required": [
+        "cidr"
+      ],
+      "returns": "string[]"
+    },
+    "getArpTable": {
+      "description": "Reads and parses the system ARP cache.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<ArpEntry[]>"
+    },
+    "isHostReachable": {
+      "description": "Performs a lightweight TCP reachability probe.",
+      "parameters": {
+        "host": {
+          "type": "string",
+          "description": "Parameter host"
+        },
+        "options": {
+          "type": "ReachableHostOptions",
+          "description": "Parameter options",
+          "properties": {
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "ports": {
+              "type": "number[]",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "discoverHosts": {
+      "description": "Discovers hosts in a CIDR range by combining ARP cache and TCP probes.",
+      "parameters": {
+        "cidr": {
+          "type": "string",
+          "description": "Parameter cidr"
+        },
+        "options": {
+          "type": "DiscoverHostsOptions",
+          "description": "Parameter options",
+          "properties": {
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "concurrency": {
+              "type": "number",
+              "description": ""
+            },
+            "ports": {
+              "type": "number[]",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "cidr"
+      ],
+      "returns": "Promise<DiscoverHost[]>"
+    },
+    "scanPorts": {
+      "description": "TCP connect scan for a host. By default only returns open ports.",
+      "parameters": {
+        "host": {
+          "type": "string",
+          "description": "Parameter host"
+        },
+        "options": {
+          "type": "ScanPortsOptions",
+          "description": "Parameter options",
+          "properties": {
+            "ports": {
+              "type": "string | number[]",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "concurrency": {
+              "type": "number",
+              "description": ""
+            },
+            "banner": {
+              "type": "boolean",
+              "description": ""
+            },
+            "includeClosed": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "host"
+      ],
+      "returns": "Promise<PortScanResult[]>"
+    },
+    "scanLocalNetworks": {
+      "description": "Convenience method: discover and port-scan hosts across all local networks.",
+      "parameters": {
+        "options": {
+          "type": "ScanLocalNetworksOptions",
+          "description": "Parameter options",
+          "properties": {
+            "ports": {
+              "type": "string | number[]",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "concurrency": {
+              "type": "number",
+              "description": ""
+            },
+            "hostConcurrency": {
+              "type": "number",
+              "description": ""
+            },
+            "banner": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<LocalNetworkScanHost[]>"
     }
   },
-  "getters": {},
-  "events": {},
+  "getters": {
+    "proc": {
+      "description": "",
+      "returns": "any"
+    },
+    "os": {
+      "description": "",
+      "returns": "any"
+    },
+    "nmap": {
+      "description": "Optional nmap wrapper for users that already have nmap installed.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "scan:start": {
+      "name": "scan:start",
+      "description": "Event emitted by Networking",
+      "arguments": {}
+    },
+    "host:discovered": {
+      "name": "host:discovered",
+      "description": "Event emitted by Networking",
+      "arguments": {}
+    },
+    "scan:complete": {
+      "name": "scan:complete",
+      "description": "Event emitted by Networking",
+      "arguments": {}
+    },
+    "port:open": {
+      "name": "port:open",
+      "description": "Event emitted by Networking",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {},
   "envVars": [],
@@ -7252,7 +7441,7 @@ setBuildTimeData('servers.mcp', {
       "description": "Start the MCP server with the specified transport.",
       "parameters": {
         "options": {
-          "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n  }",
+          "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n    stdioCompat?: StdioCompatMode\n  }",
           "description": "Transport configuration. Defaults to stdio.",
           "properties": {
             "transport": {
@@ -13972,10 +14161,199 @@ export const introspectionData = [
             "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
           }
         ]
+      },
+      "getLocalNetworks": {
+        "description": "Returns local external IPv4 interfaces and their CIDR ranges.",
+        "parameters": {},
+        "required": [],
+        "returns": "LocalNetwork[]"
+      },
+      "expandCidr": {
+        "description": "Expands a CIDR block to host IP addresses. For /31 and /32, all addresses are returned. For all others, network/broadcast are excluded.",
+        "parameters": {
+          "cidr": {
+            "type": "string",
+            "description": "Parameter cidr"
+          }
+        },
+        "required": [
+          "cidr"
+        ],
+        "returns": "string[]"
+      },
+      "getArpTable": {
+        "description": "Reads and parses the system ARP cache.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<ArpEntry[]>"
+      },
+      "isHostReachable": {
+        "description": "Performs a lightweight TCP reachability probe.",
+        "parameters": {
+          "host": {
+            "type": "string",
+            "description": "Parameter host"
+          },
+          "options": {
+            "type": "ReachableHostOptions",
+            "description": "Parameter options",
+            "properties": {
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "ports": {
+                "type": "number[]",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "host"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "discoverHosts": {
+        "description": "Discovers hosts in a CIDR range by combining ARP cache and TCP probes.",
+        "parameters": {
+          "cidr": {
+            "type": "string",
+            "description": "Parameter cidr"
+          },
+          "options": {
+            "type": "DiscoverHostsOptions",
+            "description": "Parameter options",
+            "properties": {
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "concurrency": {
+                "type": "number",
+                "description": ""
+              },
+              "ports": {
+                "type": "number[]",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "cidr"
+        ],
+        "returns": "Promise<DiscoverHost[]>"
+      },
+      "scanPorts": {
+        "description": "TCP connect scan for a host. By default only returns open ports.",
+        "parameters": {
+          "host": {
+            "type": "string",
+            "description": "Parameter host"
+          },
+          "options": {
+            "type": "ScanPortsOptions",
+            "description": "Parameter options",
+            "properties": {
+              "ports": {
+                "type": "string | number[]",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "concurrency": {
+                "type": "number",
+                "description": ""
+              },
+              "banner": {
+                "type": "boolean",
+                "description": ""
+              },
+              "includeClosed": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "host"
+        ],
+        "returns": "Promise<PortScanResult[]>"
+      },
+      "scanLocalNetworks": {
+        "description": "Convenience method: discover and port-scan hosts across all local networks.",
+        "parameters": {
+          "options": {
+            "type": "ScanLocalNetworksOptions",
+            "description": "Parameter options",
+            "properties": {
+              "ports": {
+                "type": "string | number[]",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "concurrency": {
+                "type": "number",
+                "description": ""
+              },
+              "hostConcurrency": {
+                "type": "number",
+                "description": ""
+              },
+              "banner": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<LocalNetworkScanHost[]>"
       }
     },
-    "getters": {},
-    "events": {},
+    "getters": {
+      "proc": {
+        "description": "",
+        "returns": "any"
+      },
+      "os": {
+        "description": "",
+        "returns": "any"
+      },
+      "nmap": {
+        "description": "Optional nmap wrapper for users that already have nmap installed.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "scan:start": {
+        "name": "scan:start",
+        "description": "Event emitted by Networking",
+        "arguments": {}
+      },
+      "host:discovered": {
+        "name": "host:discovered",
+        "description": "Event emitted by Networking",
+        "arguments": {}
+      },
+      "scan:complete": {
+        "name": "scan:complete",
+        "description": "Event emitted by Networking",
+        "arguments": {}
+      },
+      "port:open": {
+        "name": "port:open",
+        "description": "Event emitted by Networking",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {},
     "envVars": [],
@@ -17368,7 +17746,7 @@ export const introspectionData = [
         "description": "Start the MCP server with the specified transport.",
         "parameters": {
           "options": {
-            "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n  }",
+            "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n    stdioCompat?: StdioCompatMode\n  }",
             "description": "Transport configuration. Defaults to stdio.",
             "properties": {
               "transport": {
