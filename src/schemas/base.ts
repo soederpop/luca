@@ -128,6 +128,8 @@ export const MCPServerOptionsSchema = ServerOptionsSchema.extend({
   transport: z.enum(['stdio', 'http']).optional().describe('Transport type for MCP communication'),
   serverName: z.string().optional().describe('Server name reported to MCP clients'),
   serverVersion: z.string().optional().describe('Server version reported to MCP clients'),
+  mcpCompat: z.enum(['standard', 'codex']).optional().describe('HTTP compatibility profile for MCP clients'),
+  stdioCompat: z.enum(['standard', 'codex', 'auto']).optional().describe('Stdio framing compatibility profile for MCP clients'),
 }).describe('MCP server options')
 
 export const MCPServerStateSchema = ServerStateSchema.extend({

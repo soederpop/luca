@@ -245,13 +245,13 @@ Event emitted by OpenAICodex
 
 
 
-### session:parse-error
+### session:error
 
 Event emitted by OpenAICodex
 
 
 
-### session:error
+### session:parse-error
 
 Event emitted by OpenAICodex
 

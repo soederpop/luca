@@ -1,6 +1,6 @@
 import { features, Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { execSync } from "child_process";
+import { execSync, spawn as nodeSpawn } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { dirname, resolve } from "path";
 import * as asyncProc from "child-process-promise";
@@ -22,6 +22,19 @@ interface SpawnOptions {
   onOutput?: (data: string) => void;
   /** Callback invoked when the process exits */
   onExit?: (code: number) => void;
+}
+
+interface RawSpawnOptions {
+  /** Working directory for the child process */
+  cwd?: string;
+  /** Environment variables to pass to the child process */
+  environment?: Record<string, any>;
+  /** Optional stdin payload written immediately after spawn */
+  stdin?: string | Buffer;
+  /** Stdout mode for the child process */
+  stdout?: "pipe" | "inherit" | "ignore";
+  /** Stderr mode for the child process */
+  stderr?: "pipe" | "inherit" | "ignore";
 }
 
 /**
@@ -204,6 +217,30 @@ export class ChildProcess extends Feature {
       pid,
       error,
     };
+  }
+
+  /**
+   * Spawn a raw child process and return the handle immediately.
+   *
+   * Useful when callers need streaming access to stdout/stderr and
+   * direct lifecycle control (for example, cancellation via kill()).
+   */
+  spawn(command: string, args: string[] = [], options: RawSpawnOptions = {}) {
+    const cwd = options.cwd ?? this.container.cwd
+    const stdout = options.stdout ?? 'pipe'
+    const stderr = options.stderr ?? 'pipe'
+    const child = nodeSpawn(command, args, {
+      cwd,
+      env: { ...process.env, ...(options.environment ?? {}) },
+      stdio: ['pipe', stdout, stderr],
+    })
+
+    if (options.stdin != null && child.stdin) {
+      child.stdin.write(options.stdin)
+      child.stdin.end()
+    }
+
+    return child
   }
 
   /**

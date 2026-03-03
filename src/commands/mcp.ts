@@ -15,30 +15,45 @@ export const argsSchema = CommandOptionsSchema.extend({
 	port: z.number().default(3001).describe('Port for HTTP transport'),
 	name: z.string().optional().describe('Server name reported to MCP clients'),
 	version: z.string().optional().describe('Server version reported to MCP clients'),
+	mcpCompat: z.enum(['standard', 'codex']).optional()
+		.describe('HTTP compatibility profile. Defaults to standard. Can also be set via MCP_HTTP_COMPAT.'),
+	stdioCompat: z.enum(['standard', 'codex', 'auto']).optional()
+		.describe('Stdio framing compatibility profile. Defaults to standard. Can also be set via MCP_STDIO_COMPAT.'),
 })
 
 export default async function mcp(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+	const envCompat = process.env.MCP_HTTP_COMPAT?.toLowerCase()
+	const resolvedCompat = options.mcpCompat || (envCompat === 'codex' ? 'codex' : 'standard')
+	const envStdioCompat = process.env.MCP_STDIO_COMPAT?.toLowerCase()
+	const resolvedStdioCompat = options.stdioCompat
+		|| (envStdioCompat === 'codex' || envStdioCompat === 'auto' ? envStdioCompat : 'standard')
 
 	const mcpServer = container.server('mcp', {
 		transport: options.transport,
 		port: options.port,
 		serverName: options.name || container.manifest?.name || 'luca-mcp',
 		serverVersion: options.version || container.manifest?.version || '1.0.0',
+		mcpCompat: options.mcpCompat,
+		stdioCompat: options.stdioCompat,
 	}) as MCPServer
 
 	await mcpServer.start({
 		transport: options.transport,
 		port: options.port,
+		mcpCompat: options.mcpCompat,
+		stdioCompat: options.stdioCompat,
 	})
 
 	if (options.transport === 'http') {
 		const name = options.name || container.manifest?.name || 'MCP Server'
 		console.log(`\n${name} listening on http://localhost:${options.port}/mcp`)
 		console.log(`Transport: HTTP (Streamable)`)
+		console.log(`Compatibility: ${resolvedCompat}`)
 	} else {
 		// stdio mode — don't print to stdout as it's used for the protocol
 		console.error(`MCP server started (stdio transport)`)
+		console.error(`Stdio Compatibility: ${resolvedStdioCompat}`)
 	}
 }
 

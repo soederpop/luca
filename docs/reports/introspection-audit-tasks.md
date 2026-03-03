@@ -161,15 +161,6 @@ REPL feature — provides an interactive read-eval-print loop with tab completio
 - Persist command history across sessions for rapid prototyping
 - Inject custom variables into the REPL context for debugging
 
-### [scriptRunner](src/node/features/script-runner.ts)
-
-Runs TypeScript/JavaScript script files in the container's VM context, providing them with access to the container and all enabled features.
-
-- Execute standalone TypeScript scripts with full container access
-- Run automation scripts that use multiple container features together
-- Load and execute user-provided scripts in a sandboxed environment
-- Build plugin/extension systems where scripts are loaded at runtime
-
 ### [ui](src/node/features/ui.ts)
 
 Terminal UI toolkit featuring ASCII art banners, color gradients, interactive wizards (prompts), and text formatting utilities. Powered by chalk, figlet, and inquirer.

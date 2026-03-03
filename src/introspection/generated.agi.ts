@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-03T22:30:16.391Z
+// Generated at: 2026-03-03T23:20:16.032Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1143,6 +1143,49 @@ setBuildTimeData('features.proc', {
           "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
         }
       ]
+    },
+    "spawn": {
+      "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "Parameter command"
+        },
+        "args": {
+          "type": "string[]",
+          "description": "Parameter args"
+        },
+        "options": {
+          "type": "RawSpawnOptions",
+          "description": "Parameter options",
+          "properties": {
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the child process"
+            },
+            "environment": {
+              "type": "Record<string, any>",
+              "description": "Environment variables to pass to the child process"
+            },
+            "stdin": {
+              "type": "string | Buffer",
+              "description": "Optional stdin payload written immediately after spawn"
+            },
+            "stdout": {
+              "type": "\"pipe\" | \"inherit\" | \"ignore\"",
+              "description": "Stdout mode for the child process"
+            },
+            "stderr": {
+              "type": "\"pipe\" | \"inherit\" | \"ignore\"",
+              "description": "Stderr mode for the child process"
+            }
+          }
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "returns": "void"
     },
     "runScript": {
       "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
@@ -2491,36 +2534,6 @@ setBuildTimeData('features.repl', {
     {
       "language": "ts",
       "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
-    }
-  ]
-});
-
-setBuildTimeData('features.scriptRunner', {
-  "id": "features.scriptRunner",
-  "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
-  "shortcut": "features.scriptRunner",
-  "className": "ScriptRunner",
-  "methods": {},
-  "getters": {
-    "scripts": {
-      "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
-      "returns": "any",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
-        }
-      ]
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
     }
   ]
 });
@@ -9157,13 +9170,13 @@ setBuildTimeData('features.claudeCode', {
       "description": "Event emitted by ClaudeCode",
       "arguments": {}
     },
-    "session:parse-error": {
-      "name": "session:parse-error",
+    "session:error": {
+      "name": "session:error",
       "description": "Event emitted by ClaudeCode",
       "arguments": {}
     },
-    "session:error": {
-      "name": "session:error",
+    "session:parse-error": {
+      "name": "session:parse-error",
       "description": "Event emitted by ClaudeCode",
       "arguments": {}
     },
@@ -9448,13 +9461,13 @@ setBuildTimeData('features.openaiCodex', {
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
-    "session:parse-error": {
-      "name": "session:parse-error",
+    "session:error": {
+      "name": "session:error",
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
-    "session:error": {
-      "name": "session:error",
+    "session:parse-error": {
+      "name": "session:parse-error",
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
@@ -11484,6 +11497,49 @@ export const introspectionData = [
           }
         ]
       },
+      "spawn": {
+        "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).",
+        "parameters": {
+          "command": {
+            "type": "string",
+            "description": "Parameter command"
+          },
+          "args": {
+            "type": "string[]",
+            "description": "Parameter args"
+          },
+          "options": {
+            "type": "RawSpawnOptions",
+            "description": "Parameter options",
+            "properties": {
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the child process"
+              },
+              "environment": {
+                "type": "Record<string, any>",
+                "description": "Environment variables to pass to the child process"
+              },
+              "stdin": {
+                "type": "string | Buffer",
+                "description": "Optional stdin payload written immediately after spawn"
+              },
+              "stdout": {
+                "type": "\"pipe\" | \"inherit\" | \"ignore\"",
+                "description": "Stdout mode for the child process"
+              },
+              "stderr": {
+                "type": "\"pipe\" | \"inherit\" | \"ignore\"",
+                "description": "Stderr mode for the child process"
+              }
+            }
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "returns": "void"
+      },
       "runScript": {
         "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
         "parameters": {
@@ -12824,35 +12880,6 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
-      }
-    ]
-  },
-  {
-    "id": "features.scriptRunner",
-    "description": "The ScriptRunner feature provides convenient access to npm scripts defined in package.json. This feature automatically generates camelCase methods for each script in the package.json file, allowing you to execute them programmatically with additional arguments and options.",
-    "shortcut": "features.scriptRunner",
-    "className": "ScriptRunner",
-    "methods": {},
-    "getters": {
-      "scripts": {
-        "description": "Gets an object containing executable functions for each npm script. Each script name from package.json is converted to camelCase and becomes a method that can be called with additional arguments and spawn options. Script names with colons (e.g., \"build:dev\") are converted by replacing colons with underscores before camelCasing.",
-        "returns": "any",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const runner = scriptRunner.scripts\n\n// For a script named \"build:dev\" in package.json:\nawait runner.buildDev(['--watch'], { stdio: 'inherit' })\n\n// For a script named \"test\":\nconst result = await runner.test(['--coverage'])\nconsole.log(result.stdout)"
-          }
-        ]
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const scriptRunner = container.feature('scriptRunner')\n\n// If package.json has \"build:dev\" script, you can call:\nawait scriptRunner.scripts.buildDev(['--watch'], { cwd: '/custom/path' })\n\n// If package.json has \"test\" script:\nawait scriptRunner.scripts.test(['--verbose'])"
       }
     ]
   },
@@ -19454,13 +19481,13 @@ export const introspectionData = [
         "description": "Event emitted by ClaudeCode",
         "arguments": {}
       },
-      "session:parse-error": {
-        "name": "session:parse-error",
+      "session:error": {
+        "name": "session:error",
         "description": "Event emitted by ClaudeCode",
         "arguments": {}
       },
-      "session:error": {
-        "name": "session:error",
+      "session:parse-error": {
+        "name": "session:parse-error",
         "description": "Event emitted by ClaudeCode",
         "arguments": {}
       },
@@ -19744,13 +19771,13 @@ export const introspectionData = [
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },
-      "session:parse-error": {
-        "name": "session:parse-error",
+      "session:error": {
+        "name": "session:error",
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },
-      "session:error": {
-        "name": "session:error",
+      "session:parse-error": {
+        "name": "session:parse-error",
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },

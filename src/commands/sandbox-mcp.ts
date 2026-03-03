@@ -15,16 +15,27 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	transport: z.enum(['stdio', 'http']).default('stdio').describe('Transport type (stdio or http)'),
 	port: z.number().default(3002).describe('Port for HTTP transport'),
+	mcpCompat: z.enum(['standard', 'codex']).optional()
+		.describe('HTTP compatibility profile. Defaults to standard. Can also be set via MCP_HTTP_COMPAT.'),
+	stdioCompat: z.enum(['standard', 'codex', 'auto']).optional()
+		.describe('Stdio framing compatibility profile. Defaults to standard. Can also be set via MCP_STDIO_COMPAT.'),
 })
 
 export default async function mcpSandbox(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+	const envCompat = process.env.MCP_HTTP_COMPAT?.toLowerCase()
+	const resolvedCompat = options.mcpCompat || (envCompat === 'codex' ? 'codex' : 'standard')
+	const envStdioCompat = process.env.MCP_STDIO_COMPAT?.toLowerCase()
+	const resolvedStdioCompat = options.stdioCompat
+		|| (envStdioCompat === 'codex' || envStdioCompat === 'auto' ? envStdioCompat : 'standard')
 
 	const mcpServer = container.server('mcp', {
 		transport: options.transport,
 		port: options.port,
 		serverName: 'luca-sandbox',
 		serverVersion: container.manifest?.version || '1.0.0',
+		mcpCompat: options.mcpCompat,
+		stdioCompat: options.stdioCompat,
 	}) as MCPServer
 
 	// Persistent VM context shared across eval calls so variables survive between invocations
@@ -406,12 +417,16 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	await mcpServer.start({
 		transport: options.transport,
 		port: options.port,
+		mcpCompat: options.mcpCompat,
+		stdioCompat: options.stdioCompat,
 	})
 
 	if (options.transport === 'http') {
 		console.log(`\nLuca Sandbox MCP listening on http://localhost:${options.port}/mcp`)
+		console.log(`Compatibility: ${resolvedCompat}`)
 	} else {
 		console.error(`Luca Sandbox MCP started (stdio transport)`)
+		console.error(`Stdio Compatibility: ${resolvedStdioCompat}`)
 		console.error(`Tools: read_me, find_capability, scaffold, eval, inspect_container, list_registry, describe_helper, inspect_helper_instance`)
 		console.error(`Prompts: discover, introspect | Resources: luca://container/info, luca://features`)
 	}

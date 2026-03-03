@@ -418,13 +418,13 @@ Event emitted by ClaudeCode
 
 
 
-### session:parse-error
+### session:error
 
 Event emitted by ClaudeCode
 
 
 
-### session:error
+### session:parse-error
 
 Event emitted by ClaudeCode
 

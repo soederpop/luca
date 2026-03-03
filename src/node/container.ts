@@ -34,7 +34,6 @@ import "./features/port-exposer";
 import "./features/python";
 import "./features/proc";
 import "./features/repl";
-import "./features/script-runner";
 import "./features/ui";
 import "./features/vault";
 import "./features/vm";
@@ -76,7 +75,6 @@ import type { OS } from "./features/os";
 import type { PackageFinder } from "./features/package-finder";
 import type { Python } from "./features/python";
 import type { Repl } from "./features/repl";
-import type { ScriptRunner } from "./features/script-runner";
 import type { UI } from "./features/ui";
 import type { Vault } from "./features/vault";
 import type { VM } from "./features/vm";
@@ -118,7 +116,6 @@ export {
   type FileManager,
   type DiskCache,
   type Vault,
-  type ScriptRunner,
   type Downloader,
   type PortExposer,
   type Docker,
@@ -163,7 +160,6 @@ declare module "../container" {
 
 export interface NodeFeatures extends AvailableFeatures {
   fs: typeof FS;
-  scriptRunner: typeof ScriptRunner;
   proc: typeof ChildProcess;
   git: typeof Git;
   grep: typeof Grep;
@@ -225,7 +221,6 @@ export class NodeContainer<
   vm!: VM;
 
   fileManager?: FileManager;
-  scriptRunner?: ScriptRunner;
   ipcSocket?: IpcSocket;
   yamlTree?: YamlTree;
   packageFinder?: PackageFinder;

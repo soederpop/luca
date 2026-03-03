@@ -4,7 +4,6 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { features, Feature } from '@soederpop/luca/feature'
-import type { Subprocess } from 'bun'
 
 declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
@@ -70,7 +69,7 @@ export interface CodexSession {
   messages: CodexMessageEvent[]
   patches: CodexPatchEvent[]
   executions: CodexExecEvent[]
-  process?: Subprocess
+  process?: any
 }
 
 // --- Feature state and options ---
@@ -171,12 +170,10 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    */
   async checkAvailability(): Promise<boolean> {
     try {
-      const proc = Bun.spawn([this.codexPath, '--version'], {
-        stdout: 'pipe',
-        stderr: 'pipe'
-      })
-      const stdout = await new Response(proc.stdout).text()
-      const exitCode = await proc.exited
+      const proc = this.container.feature('proc')
+      const result = await proc.spawnAndCapture(this.codexPath, ['--version'])
+      const stdout = result.stdout
+      const exitCode = result.exitCode
 
       if (exitCode === 0) {
         const version = stdout.trim()
@@ -195,7 +192,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   /**
    * Build the argument array for a codex CLI invocation.
    */
-  private buildArgs(prompt: string, options: CodexRunOptions = {}): string[] {
+  private buildArgs(options: CodexRunOptions = {}): string[] {
     const args: string[] = ['exec', '--json']
 
     const model = options.model ?? this.options.model
@@ -241,7 +238,8 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
       args.push(...options.extraArgs)
     }
 
-    args.push(prompt)
+    // Read the prompt from stdin to avoid prompt content being parsed as flags.
+    args.push('-')
 
     return args
   }
@@ -353,7 +351,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    */
   async run(prompt: string, options: CodexRunOptions = {}): Promise<CodexSession> {
     const id = this.createSessionId()
-    const args = this.buildArgs(prompt, options)
+    const args = this.buildArgs(options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
 
     const session: CodexSession = {
@@ -372,91 +370,16 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
 
     this.emit('session:start', { sessionId: id, prompt })
 
-    const proc = Bun.spawn([this.codexPath, ...args], {
+    const proc = this.container.feature('proc').spawn(this.codexPath, args, {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env }
+      stdin: Buffer.from(prompt),
+      environment: { ...process.env },
     })
 
     this.updateSession(id, { process: proc })
-
-    const reader = proc.stdout.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let lastText = ''
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-
-          try {
-            const event = JSON.parse(trimmed) as CodexEvent
-            this.handleEvent(id, event)
-
-            // Track the last text content for the result
-            if (event.type === 'message' && (event as CodexMessageEvent).role === 'assistant') {
-              const texts = (event as CodexMessageEvent).content
-                ?.filter((c: any) => c.type === 'text')
-                .map((c: any) => c.text)
-                .join('')
-              if (texts) lastText = texts
-            }
-          } catch {
-            this.emit('session:parse-error', { sessionId: id, line: trimmed })
-          }
-        }
-      }
-
-      // Process remaining buffer
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim()) as CodexEvent
-          this.handleEvent(id, event)
-        } catch {
-          // ignore trailing partial data
-        }
-      }
-    } catch (err) {
-      this.updateSession(id, {
-        status: 'error',
-        error: err instanceof Error ? err.message : String(err)
-      })
-      this.emit('session:error', { sessionId: id, error: err })
-    }
-
-    const stderr = await new Response(proc.stderr).text()
-    const exitCode = await proc.exited
-
-    if (exitCode !== 0 && this.state.current.sessions[id]?.status !== 'completed') {
-      this.updateSession(id, {
-        status: 'error',
-        error: stderr || `Process exited with code ${exitCode}`
-      })
-      this.emit('session:error', { sessionId: id, error: stderr, exitCode })
-    } else if (this.state.current.sessions[id]?.status === 'running') {
-      this.updateSession(id, {
-        status: 'completed',
-        result: lastText || undefined
-      })
-
-      const activeSessions = this.state.current.activeSessions.filter(s => s !== id)
-      this.setState({ activeSessions })
-
-      this.emit('session:result', {
-        sessionId: id,
-        result: lastText,
-      })
-    }
+    await this.consumeStream(id, proc)
 
     return this.state.current.sessions[id]!
   }
@@ -480,7 +403,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
    */
   start(prompt: string, options: CodexRunOptions = {}): string {
     const id = this.createSessionId()
-    const args = this.buildArgs(prompt, options)
+    const args = this.buildArgs(options)
     const cwd = options.cwd ?? this.options.cwd ?? (this.container as any).cwd
 
     const session: CodexSession = {
@@ -499,11 +422,12 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
 
     this.emit('session:start', { sessionId: id, prompt })
 
-    const proc = Bun.spawn([this.codexPath, ...args], {
+    const proc = this.container.feature('proc').spawn(this.codexPath, args, {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env }
+      stdin: Buffer.from(prompt),
+      environment: { ...process.env },
     })
 
     this.updateSession(id, { process: proc })
@@ -512,18 +436,25 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     return id
   }
 
-  private async consumeStream(sessionId: string, proc: Subprocess): Promise<void> {
-    const reader = proc.stdout.getReader()
-    const decoder = new TextDecoder()
+  private async consumeStream(sessionId: string, proc: any): Promise<void> {
+    if (!proc?.stdout || !proc?.stderr) {
+      const error = 'Process streams are not available'
+      this.updateSession(sessionId, { status: 'error', error })
+      this.emit('session:error', { sessionId, error })
+      return
+    }
+
     let buffer = ''
     let lastText = ''
+    let stderr = ''
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+    proc.stderr.on('data', (chunk: Buffer | string) => {
+      stderr += Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk)
+    })
 
-        buffer += decoder.decode(value, { stream: true })
+    const stdoutDone = new Promise<void>((resolve, reject) => {
+      proc.stdout.on('data', (chunk: Buffer | string) => {
+        buffer += Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk)
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
@@ -546,14 +477,30 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
             this.emit('session:parse-error', { sessionId, line: trimmed })
           }
         }
-      }
+      })
 
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim()) as CodexEvent
-          this.handleEvent(sessionId, event)
-        } catch { /* ignore */ }
-      }
+      proc.stdout.on('end', () => {
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer.trim()) as CodexEvent
+            this.handleEvent(sessionId, event)
+          } catch {
+            // ignore trailing partial data
+          }
+        }
+        resolve()
+      })
+
+      proc.stdout.on('error', reject)
+    })
+
+    const exitCodePromise = new Promise<number>((resolve, reject) => {
+      proc.once('error', reject)
+      proc.once('close', (code: number | null) => resolve(code ?? 0))
+    })
+
+    try {
+      await stdoutDone
     } catch (err) {
       this.updateSession(sessionId, {
         status: 'error',
@@ -562,8 +509,16 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
       this.emit('session:error', { sessionId, error: err })
     }
 
-    const stderr = await new Response(proc.stderr).text()
-    const exitCode = await proc.exited
+    let exitCode = 1
+    try {
+      exitCode = await exitCodePromise
+    } catch (err) {
+      this.updateSession(sessionId, {
+        status: 'error',
+        error: err instanceof Error ? err.message : String(err),
+      })
+      this.emit('session:error', { sessionId, error: err })
+    }
 
     if (exitCode !== 0 && this.state.current.sessions[sessionId]?.status !== 'completed') {
       this.updateSession(sessionId, {

@@ -104,6 +104,32 @@ const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
 
 
 
+### spawn
+
+Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `command` | `string` | ✓ | Parameter command |
+| `args` | `string[]` |  | Parameter args |
+| `options` | `RawSpawnOptions` |  | Parameter options |
+
+`RawSpawnOptions` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `cwd` | `string` | Working directory for the child process |
+| `environment` | `Record<string, any>` | Environment variables to pass to the child process |
+| `stdin` | `string | Buffer` | Optional stdin payload written immediately after spawn |
+| `stdout` | `"pipe" | "inherit" | "ignore"` | Stdout mode for the child process |
+| `stderr` | `"pipe" | "inherit" | "ignore"` | Stderr mode for the child process |
+
+**Returns:** `void`
+
+
+
 ### runScript
 
 Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.

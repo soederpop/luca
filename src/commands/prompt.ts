@@ -30,8 +30,11 @@ function formatSessionMarkdown(events: any[], includeOutput: boolean): string {
 	const lines: string[] = []
 
 	for (const event of events) {
-		if (event.type === 'assistant') {
-			const content = event.message?.content
+		if (event.type === 'assistant' || event.type === 'message') {
+			const role = event.message?.role ?? event.role
+			if (role && role !== 'assistant') continue
+
+			const content = event.message?.content ?? event.content
 			if (!Array.isArray(content)) continue
 
 			for (const block of content) {
@@ -46,8 +49,9 @@ function formatSessionMarkdown(events: any[], includeOutput: boolean): string {
 					lines.push('')
 				}
 			}
-		} else if (event.type === 'tool_result' && includeOutput) {
-			const content = typeof event.content === 'string' ? event.content : JSON.stringify(event.content, null, 2)
+		} else if ((event.type === 'tool_result' || event.type === 'function_call_output') && includeOutput) {
+			const rawContent = event.type === 'function_call_output' ? event.output : event.content
+			const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent, null, 2)
 			lines.push('```')
 			lines.push(content)
 			lines.push('```')
@@ -85,10 +89,13 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	// Render complete messages — text gets markdown formatting, tool_use gets a summary line
 	feature.on('session:message', ({ message }: { message: any }) => {
-		const content = message?.message?.content
+		const role = message?.message?.role ?? message?.role
+		if (role && role !== 'assistant') return
+
+		const content = message?.message?.content ?? message?.content
 		if (!Array.isArray(content)) return
 
-		const usage = message?.message?.usage
+		const usage = message?.message?.usage ?? message?.usage
 		if (usage?.output_tokens) outputTokens += usage.output_tokens
 
 		for (const block of content) {
@@ -105,7 +112,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	const collectedEvents: any[] = []
 	if (options['out-file']) {
 		feature.on('session:event', ({ event }: { event: any }) => {
-			if (event.type === 'assistant' || event.type === 'tool_result') {
+			if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
 				collectedEvents.push(event)
 			}
 		})
@@ -273,10 +280,13 @@ async function runParallel(
 			const idx = sessionMap.get(sessionId)
 			if (idx === undefined) return
 
-			const content = message?.message?.content
+			const role = message?.message?.role ?? message?.role
+			if (role && role !== 'assistant') return
+
+			const content = message?.message?.content ?? message?.content
 			if (!Array.isArray(content)) return
 
-			const usage = message?.message?.usage
+			const usage = message?.message?.usage ?? message?.usage
 			if (usage?.output_tokens) promptStates[idx].outputTokens += usage.output_tokens
 
 			for (const block of content) {
@@ -293,7 +303,7 @@ async function runParallel(
 			feature.on('session:event', ({ sessionId, event }: { sessionId: string; event: any }) => {
 				const idx = sessionMap.get(sessionId)
 				if (idx === undefined) return
-				if (event.type === 'assistant' || event.type === 'tool_result') {
+				if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
 					promptStates[idx].collectedEvents.push(event)
 				}
 			})

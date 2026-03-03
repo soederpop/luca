@@ -11,6 +11,7 @@ import {
   ReadResourceRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  JSONRPCMessageSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
@@ -76,6 +77,195 @@ type PromptRegistrationOptions = {
   description?: string
   args?: Record<string, z.ZodType>
   handler: (args: Record<string, string | undefined>, ctx: MCPContext) => Promise<PromptMessage[]> | PromptMessage[]
+}
+
+type MCPCompatMode = 'standard' | 'codex'
+type StdioCompatMode = 'standard' | 'codex' | 'auto'
+
+const SKIP_MESSAGE = Symbol('skip-message')
+
+class CompatStdioServerTransport {
+  private _readBuffer: Buffer | undefined
+  private _started = false
+  private _inputFormat: 'framed' | 'line' | undefined
+
+  onmessage?: (message: any) => void
+  onerror?: (error: Error) => void
+  onclose?: () => void
+
+  constructor(
+    private readonly mode: Exclude<StdioCompatMode, 'standard'>,
+    private readonly _stdin = process.stdin,
+    private readonly _stdout = process.stdout,
+  ) {}
+
+  private _ondata = (chunk: Buffer) => {
+    this._readBuffer = this._readBuffer ? Buffer.concat([this._readBuffer, chunk]) : chunk
+    this.processReadBuffer()
+  }
+
+  private _onerror = (error: Error) => {
+    this.onerror?.(error)
+  }
+
+  async start() {
+    if (this._started) {
+      throw new Error('CompatStdioServerTransport already started')
+    }
+
+    this._started = true
+    this._stdin.on('data', this._ondata)
+    this._stdin.on('error', this._onerror)
+  }
+
+  private processReadBuffer() {
+    while (true) {
+      try {
+        const message = this._tryReadMessage()
+        if (message === null) break
+        if (message === SKIP_MESSAGE) continue
+        this.onmessage?.(message)
+      } catch (error) {
+        this.onerror?.(error as Error)
+      }
+    }
+  }
+
+  private _tryReadMessage(): any | typeof SKIP_MESSAGE | null {
+    if (!this._readBuffer || this._readBuffer.length === 0) {
+      return null
+    }
+
+    const format = this._resolveInputFormat()
+    if (!format) return null
+
+    if (format === 'framed') {
+      return this._readFramedMessage()
+    }
+
+    return this._readLineMessage()
+  }
+
+  private _resolveInputFormat(): 'framed' | 'line' | undefined {
+    if (this._inputFormat) {
+      return this._inputFormat
+    }
+
+    if (!this._readBuffer || this._readBuffer.length === 0) {
+      return undefined
+    }
+
+    const prefix = this._readBuffer.toString('utf8', 0, Math.min(this._readBuffer.length, 128))
+    if (/^\s*Content-Length\s*:/i.test(prefix)) {
+      this._inputFormat = 'framed'
+      return this._inputFormat
+    }
+
+    const firstByte = this._readBuffer.find((b) => ![0x20, 0x09, 0x0d, 0x0a].includes(b))
+    if (firstByte === undefined) return undefined
+
+    if (firstByte === 0x7b || firstByte === 0x5b) {
+      this._inputFormat = 'line'
+      return this._inputFormat
+    }
+
+    if (this._readBuffer.indexOf('\n') !== -1) {
+      this._inputFormat = 'line'
+      return this._inputFormat
+    }
+
+    return undefined
+  }
+
+  private _readFramedMessage(): any | null {
+    if (!this._readBuffer) return null
+
+    const crlfHeaderEnd = this._readBuffer.indexOf('\r\n\r\n')
+    const lfHeaderEnd = this._readBuffer.indexOf('\n\n')
+
+    if (crlfHeaderEnd === -1 && lfHeaderEnd === -1) {
+      return null
+    }
+
+    let headerEnd = crlfHeaderEnd
+    let headerSeparatorLength = 4
+
+    if (headerEnd === -1 || (lfHeaderEnd !== -1 && lfHeaderEnd < headerEnd)) {
+      headerEnd = lfHeaderEnd
+      headerSeparatorLength = 2
+    }
+
+    const headerText = this._readBuffer.toString('utf8', 0, headerEnd)
+    const headers = headerText.split(/\r?\n/)
+    const lengthHeader = headers.find((line) => /^content-length\s*:/i.test(line))
+    if (!lengthHeader) {
+      throw new Error('Missing Content-Length header in framed stdio message')
+    }
+
+    const length = Number(lengthHeader.split(':')[1]?.trim())
+    if (!Number.isFinite(length) || length < 0) {
+      throw new Error(`Invalid Content-Length value: ${lengthHeader}`)
+    }
+
+    const bodyStart = headerEnd + headerSeparatorLength
+    const bodyEnd = bodyStart + length
+    if (this._readBuffer.length < bodyEnd) {
+      return null
+    }
+
+    const body = this._readBuffer.toString('utf8', bodyStart, bodyEnd)
+    this._readBuffer = this._readBuffer.subarray(bodyEnd)
+
+    return JSONRPCMessageSchema.parse(JSON.parse(body))
+  }
+
+  private _readLineMessage(): any | typeof SKIP_MESSAGE | null {
+    if (!this._readBuffer) return null
+
+    const newlineIndex = this._readBuffer.indexOf('\n')
+    if (newlineIndex === -1) {
+      return null
+    }
+
+    const line = this._readBuffer.toString('utf8', 0, newlineIndex).replace(/\r$/, '')
+    this._readBuffer = this._readBuffer.subarray(newlineIndex + 1)
+
+    if (line.trim() === '') {
+      return SKIP_MESSAGE
+    }
+
+    return JSONRPCMessageSchema.parse(JSON.parse(line))
+  }
+
+  async close() {
+    this._stdin.off('data', this._ondata)
+    this._stdin.off('error', this._onerror)
+
+    if (this._stdin.listenerCount('data') === 0) {
+      this._stdin.pause()
+    }
+
+    this._readBuffer = undefined
+    this.onclose?.()
+  }
+
+  send(message: any) {
+    return new Promise<void>((resolve) => {
+      const json = JSON.stringify(message)
+      const useFramed = this._inputFormat === 'line'
+        ? false
+        : (this.mode === 'codex' || this._inputFormat === 'framed')
+      const payload = useFramed
+        ? `Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`
+        : `${json}\n`
+
+      if (this._stdout.write(payload)) {
+        resolve()
+      } else {
+        this._stdout.once('drain', resolve)
+      }
+    })
+  }
 }
 
 /**
@@ -276,19 +466,29 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
    * @param options.transport - 'stdio' for CLI integration, 'http' for remote access
    * @param options.port - Port for HTTP transport (default 3001)
    */
-  override async start(options?: { transport?: 'stdio' | 'http', port?: number, host?: string }) {
+  override async start(options?: {
+    transport?: 'stdio' | 'http'
+    port?: number
+    host?: string
+    mcpCompat?: MCPCompatMode
+    stdioCompat?: StdioCompatMode
+  }) {
     if (this.isListening) return this
     if (!this.isConfigured) await this.configure()
 
     const transport = options?.transport || this.options.transport || 'stdio'
 
     if (transport === 'stdio') {
-      const stdioTransport = new StdioServerTransport()
+      const stdioCompat = this._resolveStdioCompat(options?.stdioCompat)
+      const stdioTransport = stdioCompat === 'standard'
+        ? new StdioServerTransport()
+        : new CompatStdioServerTransport(stdioCompat)
       await this.mcpServer.connect(stdioTransport)
       this.state.set('transport', 'stdio')
     } else if (transport === 'http') {
       const port = options?.port || this.options.port || 3001
-      await this._startHTTPTransport(port)
+      const compat = this._resolveMCPCompat(options?.mcpCompat)
+      await this._startHTTPTransport(port, compat)
       this.state.set('transport', 'http')
       this.state.set('port', port)
     }
@@ -432,7 +632,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
   }
 
   /** Start an HTTP transport using StreamableHTTPServerTransport. */
-  private async _startHTTPTransport(port: number) {
+  private async _startHTTPTransport(port: number, compat: MCPCompatMode) {
     const { createServer } = await import('node:http')
     const { StreamableHTTPServerTransport } = await import(
       '@modelcontextprotocol/sdk/server/streamableHttp.js'
@@ -440,10 +640,16 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     const { randomUUID } = await import('node:crypto')
 
     const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
+      sessionIdGenerator: compat === 'codex' ? undefined : () => randomUUID(),
+      enableJsonResponse: compat === 'codex',
     })
 
     const httpServer = createServer(async (req, res) => {
+      if (compat === 'codex') {
+        this._normalizeCodexRequest(req)
+        this._ensureJSONContentType(res)
+      }
+
       // Only handle the /mcp path
       const url = new URL(req.url || '/', `http://localhost:${port}`)
 
@@ -460,8 +666,12 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
           await transport.handleRequest(req, res)
         }
       } else {
-        res.writeHead(404)
-        res.end('Not found')
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32004, message: 'Not found' },
+          id: null,
+        }))
       }
     })
 
@@ -470,6 +680,123 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     await new Promise<void>((resolve) => {
       httpServer.listen(port, () => resolve())
     })
+  }
+
+  private _resolveMCPCompat(explicit?: MCPCompatMode): MCPCompatMode {
+    if (explicit === 'codex' || explicit === 'standard') {
+      return explicit
+    }
+
+    if (this.options.mcpCompat === 'codex' || this.options.mcpCompat === 'standard') {
+      return this.options.mcpCompat
+    }
+
+    const envValue = process.env.MCP_HTTP_COMPAT?.toLowerCase()
+    if (envValue === 'codex') {
+      return 'codex'
+    }
+
+    return 'standard'
+  }
+
+  private _resolveStdioCompat(explicit?: StdioCompatMode): StdioCompatMode {
+    if (explicit === 'codex' || explicit === 'auto' || explicit === 'standard') {
+      return explicit
+    }
+
+    if (
+      this.options.stdioCompat === 'codex'
+      || this.options.stdioCompat === 'auto'
+      || this.options.stdioCompat === 'standard'
+    ) {
+      return this.options.stdioCompat
+    }
+
+    const envValue = process.env.MCP_STDIO_COMPAT?.toLowerCase()
+    if (envValue === 'codex' || envValue === 'auto') {
+      return envValue
+    }
+
+    return 'standard'
+  }
+
+  private _normalizeCodexRequest(req: any) {
+    if (req.method !== 'POST') return
+
+    const accept = req.headers.accept
+
+    if (typeof accept === 'string') {
+      if (!accept.includes('application/json')) {
+        req.headers.accept = `application/json, ${accept}`
+      }
+      if (!req.headers.accept.includes('text/event-stream')) {
+        req.headers.accept = `${req.headers.accept}, text/event-stream`
+      }
+      return
+    }
+
+    if (Array.isArray(accept)) {
+      const joined = accept.join(', ')
+      req.headers.accept = `${joined}, text/event-stream`
+      if (!req.headers.accept.includes('application/json')) {
+        req.headers.accept = `application/json, ${req.headers.accept}`
+      }
+      return
+    }
+
+    req.headers.accept = 'application/json, text/event-stream'
+  }
+
+  private _ensureJSONContentType(res: any) {
+    const originalWriteHead = res.writeHead.bind(res)
+
+    res.writeHead = ((statusCode: number, ...args: any[]) => {
+      let statusMessage: string | undefined
+      let headers: any
+
+      if (typeof args[0] === 'string') {
+        statusMessage = args[0]
+        headers = args[1]
+      } else {
+        headers = args[0]
+      }
+
+      const hasContentType = (input: any): boolean => {
+        if (!input) return false
+
+        if (Array.isArray(input)) {
+          for (let i = 0; i < input.length; i += 2) {
+            const key = String(input[i] || '').toLowerCase()
+            if (key === 'content-type') return true
+          }
+          return false
+        }
+
+        return Object.keys(input).some((k) => k.toLowerCase() === 'content-type')
+      }
+
+      if (headers && !hasContentType(headers)) {
+        if (Array.isArray(headers)) {
+          headers = [...headers, 'Content-Type', 'application/json; charset=utf-8']
+        } else {
+          headers = { ...headers, 'Content-Type': 'application/json; charset=utf-8' }
+        }
+      } else if (!headers && !res.hasHeader('content-type')) {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      }
+
+      if (statusMessage !== undefined && headers !== undefined) {
+        return originalWriteHead(statusCode, statusMessage, headers)
+      }
+      if (statusMessage !== undefined) {
+        return originalWriteHead(statusCode, statusMessage)
+      }
+      if (headers !== undefined) {
+        return originalWriteHead(statusCode, headers)
+      }
+
+      return originalWriteHead(statusCode)
+    }) as typeof res.writeHead
   }
 }
 

@@ -168,7 +168,6 @@ All features follow the same pattern: extend `Feature`, declare a `static shortc
 | `python` | Python | Manages Python environments (uv, conda, venv, system). Detects environment, installs deps, executes scripts. |
 | `repl` | Repl | Interactive REPL with readline, command history persistence, and tab autocomplete. |
 | `runpod` | Runpod | Manages RunPod GPU cloud pods: list templates, available GPUs, create/manage compute instances. |
-| `scriptRunner` | ScriptRunner | Generates camelCase methods for each npm script in package.json for programmatic execution. |
 | `secureShell` | SecureShell | SSH command execution and SCP file transfer with password and key-based authentication. |
 | `telegram` | Telegram | Telegram bot integration via grammy. Polling and webhook modes for handling updates and commands. |
 | `vault` | Vault | AES-256-GCM encryption/decryption for secure data storage with secret key management. |

@@ -4,7 +4,6 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { features, Feature } from '@soederpop/luca/feature'
-import type { Subprocess } from 'bun'
 
 declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
@@ -92,7 +91,7 @@ export interface ClaudeSession {
   costUsd: number
   turns: number
   messages: ClaudeAssistantMessage[]
-  process?: Subprocess
+  process?: any
 }
 
 // --- MCP server config types ---
@@ -346,12 +345,10 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    */
   async checkAvailability(): Promise<boolean> {
     try {
-      const proc = Bun.spawn([this.claudePath, '--version'], {
-        stdout: 'pipe',
-        stderr: 'pipe'
-      })
-      const stdout = await new Response(proc.stdout).text()
-      const exitCode = await proc.exited
+      const proc = this.container.feature('proc')
+      const result = await proc.spawnAndCapture(this.claudePath, ['--version'])
+      const stdout = result.stdout
+      const exitCode = result.exitCode
 
       if (exitCode === 0) {
         const version = stdout.trim()
@@ -413,9 +410,8 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       data
     }) + '\n'
 
-    const { appendFile } = await import('node:fs/promises')
     try {
-      await appendFile(logConfig.path, entry, 'utf-8')
+      await this.container.feature('fs').appendFileAsync(logConfig.path, entry)
     } catch (err) {
       this.emit('session:log-error', { sessionId, error: err })
     }
@@ -463,7 +459,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     const config = { mcpServers: servers }
     const tmpDir = process.env.TMPDIR || '/tmp'
     const tmpPath = `${tmpDir}/luca-mcp-${crypto.randomUUID()}.json`
-    await Bun.write(tmpPath, JSON.stringify(config, null, 2))
+    await this.container.feature('fs').writeFileAsync(tmpPath, JSON.stringify(config, null, 2))
     this.mcpTempFiles.push(tmpPath)
     return tmpPath
   }
@@ -748,85 +744,16 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
     this.emit('session:start', { sessionId: id, prompt })
 
-    const proc = Bun.spawn([this.claudePath, ...args], {
+    const proc = this.container.feature('proc').spawn(this.claudePath, args, {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
       stdin: Buffer.from(prompt),
-      env: { ...process.env }
+      environment: { ...process.env },
     })
 
     this.updateSession(id, { process: proc })
-
-    // Read stdout line-by-line as NDJSON
-    const reader = proc.stdout.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed) continue
-
-          try {
-            const event = JSON.parse(trimmed) as ClaudeEvent
-            this.handleEvent(id, event)
-          } catch {
-            this.emit('session:parse-error', { sessionId: id, line: trimmed })
-          }
-        }
-      }
-
-      // Process remaining buffer
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim()) as ClaudeEvent
-          this.handleEvent(id, event)
-        } catch {
-          // ignore trailing partial data
-        }
-      }
-    } catch (err) {
-      this.updateSession(id, {
-        status: 'error',
-        error: err instanceof Error ? err.message : String(err)
-      })
-      this.emit('session:error', { sessionId: id, error: err })
-    }
-
-    // Collect stderr
-    const stderr = await new Response(proc.stderr).text()
-    const exitCode = await proc.exited
-
-    if (exitCode !== 0 && this.state.current.sessions[id]?.status !== 'completed') {
-      this.updateSession(id, {
-        status: 'error',
-        error: stderr || `Process exited with code ${exitCode}`
-      })
-      this.emit('session:error', { sessionId: id, error: stderr, exitCode })
-    }
-
-    // Finalize file log
-    if (this.sessionLogPaths.has(id)) {
-      const finalSession = this.state.current.sessions[id]!
-      await this.writeLogEntry(id, 'session:end', {
-        status: finalSession.status,
-        result: finalSession.result,
-        error: finalSession.error,
-        costUsd: finalSession.costUsd,
-        turns: finalSession.turns,
-        messageCount: finalSession.messages.length
-      })
-      this.sessionLogPaths.delete(id)
-    }
+    await this.consumeStream(id, proc)
 
     return this.state.current.sessions[id]!
   }
@@ -879,12 +806,12 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
     this.emit('session:start', { sessionId: id, prompt })
 
-    const proc = Bun.spawn([this.claudePath, ...args], {
+    const proc = this.container.feature('proc').spawn(this.claudePath, args, {
       cwd,
       stdout: 'pipe',
       stderr: 'pipe',
       stdin: Buffer.from(prompt),
-      env: { ...process.env }
+      environment: { ...process.env },
     })
 
     this.updateSession(id, { process: proc })
@@ -899,19 +826,26 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    * Consume the stdout stream of a running process in the background.
    *
    * @param {string} sessionId - The local session ID
-   * @param {Subprocess} proc - The Bun subprocess
+   * @param {any} proc - The process handle returned by features.proc.spawn()
    */
-  private async consumeStream(sessionId: string, proc: Subprocess): Promise<void> {
-    const reader = proc.stdout.getReader()
-    const decoder = new TextDecoder()
+  private async consumeStream(sessionId: string, proc: any): Promise<void> {
+    if (!proc?.stdout || !proc?.stderr) {
+      const error = 'Process streams are not available'
+      this.updateSession(sessionId, { status: 'error', error })
+      this.emit('session:error', { sessionId, error })
+      return
+    }
+
     let buffer = ''
+    let stderr = ''
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+    proc.stderr.on('data', (chunk: Buffer | string) => {
+      stderr += Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk)
+    })
 
-        buffer += decoder.decode(value, { stream: true })
+    const stdoutDone = new Promise<void>((resolve, reject) => {
+      proc.stdout.on('data', (chunk: Buffer | string) => {
+        buffer += Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk)
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
@@ -926,14 +860,30 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
             this.emit('session:parse-error', { sessionId, line: trimmed })
           }
         }
-      }
+      })
 
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim()) as ClaudeEvent
-          this.handleEvent(sessionId, event)
-        } catch { /* ignore */ }
-      }
+      proc.stdout.on('end', () => {
+        if (buffer.trim()) {
+          try {
+            const event = JSON.parse(buffer.trim()) as ClaudeEvent
+            this.handleEvent(sessionId, event)
+          } catch {
+            // ignore trailing partial data
+          }
+        }
+        resolve()
+      })
+
+      proc.stdout.on('error', reject)
+    })
+
+    const exitCodePromise = new Promise<number>((resolve, reject) => {
+      proc.once('error', reject)
+      proc.once('close', (code: number | null) => resolve(code ?? 0))
+    })
+
+    try {
+      await stdoutDone
     } catch (err) {
       this.updateSession(sessionId, {
         status: 'error',
@@ -942,8 +892,16 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       this.emit('session:error', { sessionId, error: err })
     }
 
-    const stderr = await new Response(proc.stderr).text()
-    const exitCode = await proc.exited
+    let exitCode = 1
+    try {
+      exitCode = await exitCodePromise
+    } catch (err) {
+      this.updateSession(sessionId, {
+        status: 'error',
+        error: err instanceof Error ? err.message : String(err),
+      })
+      this.emit('session:error', { sessionId, error: err })
+    }
 
     if (exitCode !== 0 && this.state.current.sessions[sessionId]?.status !== 'completed') {
       this.updateSession(sessionId, {
@@ -1049,9 +1007,8 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    * Clean up any temp MCP config files created during sessions.
    */
   async cleanupMcpTempFiles(): Promise<void> {
-    const { unlink } = await import('node:fs/promises')
     for (const path of this.mcpTempFiles) {
-      try { await unlink(path) } catch { /* already gone */ }
+      try { await this.container.feature('fs').rm(path) } catch { /* already gone */ }
     }
     this.mcpTempFiles = []
   }
