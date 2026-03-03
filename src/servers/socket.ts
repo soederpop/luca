@@ -71,6 +71,44 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
 
       return this
     }
+
+    override async stop() {
+      if (this.isStopped) {
+        return this
+      }
+
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          if (!this._wss) {
+            resolve()
+            return
+          }
+
+          for (const ws of this.connections) {
+            try {
+              ws.terminate?.()
+              ws.close?.()
+            } catch {}
+          }
+          this.connections.clear()
+
+          try {
+            this._wss.close(() => {
+              this._wss = undefined
+              resolve()
+            })
+          } catch {
+            this._wss = undefined
+            resolve()
+          }
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 500)),
+      ])
+
+      this.state.set('listening', false)
+      this.state.set('stopped', true)
+      return this
+    }
     
     override get port() {
       return this.state.get('port') || this.options.port || 8081 

@@ -34,6 +34,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     }
   
     _app?: Express
+    _listener?: any
     _mountedEndpoints: Endpoint[] = []
 
     get express() {
@@ -99,12 +100,42 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       }
 
       await new Promise((res) => {
-        this.app.listen(options?.port!, options?.host!, () => {
+        this._listener = this.app.listen(options?.port!, options?.host!, () => {
           this.state.set('listening', true)
           res(null)
         })
       })
       
+      return this
+    }
+
+    override async stop() {
+      if (this.isStopped) {
+        return this
+      }
+
+      await Promise.race([
+        new Promise<void>((resolve) => {
+          if (!this._listener) {
+            resolve()
+            return
+          }
+
+          try {
+            this._listener.close(() => {
+              this._listener = undefined
+              resolve()
+            })
+          } catch {
+            this._listener = undefined
+            resolve()
+          }
+        }),
+        new Promise<void>((resolve) => setTimeout(resolve, 500)),
+      ])
+
+      this.state.set('listening', false)
+      this.state.set('stopped', true)
       return this
     }
     
