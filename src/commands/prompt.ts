@@ -587,10 +587,20 @@ async function preparePrompt(
 ): Promise<PreparedPrompt | null> {
 	const { fs, paths } = container
 
-	const resolvedPath = paths.resolve(filePath)
+	let resolvedPath = paths.resolve(filePath)
 	if (!fs.exists(resolvedPath)) {
-		console.error(`Prompt file not found: ${resolvedPath}`)
-		return null
+		// Try common fallbacks: add .md extension, docs/ prefix, or both
+		const candidates = [
+			`${resolvedPath}.md`,
+			paths.resolve('docs', filePath),
+			paths.resolve('docs', `${filePath}.md`),
+		]
+		const found = candidates.find((c) => fs.exists(c))
+		if (!found) {
+			console.error(`Prompt file not found: ${resolvedPath}`)
+			return null
+		}
+		resolvedPath = found
 	}
 
 	let content = fs.readFile(resolvedPath) as string

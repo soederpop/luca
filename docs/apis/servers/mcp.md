@@ -16,6 +16,8 @@ container.server('mcp', {
   serverName,
   // Server version reported to MCP clients
   serverVersion,
+  // HTTP compatibility profile for MCP clients
+  mcpCompat,
 })
 ```
 
@@ -28,6 +30,7 @@ container.server('mcp', {
 | `transport` | `string` | Transport type for MCP communication |
 | `serverName` | `string` | Server name reported to MCP clients |
 | `serverVersion` | `string` | Server version reported to MCP clients |
+| `mcpCompat` | `string` | HTTP compatibility profile for MCP clients |
 
 ## Methods
 
@@ -108,9 +111,19 @@ Start the MCP server with the specified transport.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `{ transport?: 'stdio' | 'http', port?: number, host?: string }` |  | Transport configuration. Defaults to stdio. |
+| `options` | `{
+    transport?: 'stdio' | 'http'
+    port?: number
+    host?: string
+    mcpCompat?: MCPCompatMode
+  }` |  | Transport configuration. Defaults to stdio. |
 
-`{ transport?: 'stdio' | 'http', port?: number, host?: string }` properties:
+`{
+    transport?: 'stdio' | 'http'
+    port?: number
+    host?: string
+    mcpCompat?: MCPCompatMode
+  }` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|

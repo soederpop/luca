@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-03T05:43:34.731Z
+// Generated at: 2026-03-03T21:18:05.803Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7252,7 +7252,7 @@ setBuildTimeData('servers.mcp', {
       "description": "Start the MCP server with the specified transport.",
       "parameters": {
         "options": {
-          "type": "{ transport?: 'stdio' | 'http', port?: number, host?: string }",
+          "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n  }",
           "description": "Transport configuration. Defaults to stdio.",
           "properties": {
             "transport": {
@@ -17368,7 +17368,7 @@ export const introspectionData = [
         "description": "Start the MCP server with the specified transport.",
         "parameters": {
           "options": {
-            "type": "{ transport?: 'stdio' | 'http', port?: number, host?: string }",
+            "type": "{\n    transport?: 'stdio' | 'http'\n    port?: number\n    host?: string\n    mcpCompat?: MCPCompatMode\n  }",
             "description": "Transport configuration. Defaults to stdio.",
             "properties": {
               "transport": {
