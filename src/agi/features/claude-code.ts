@@ -180,6 +180,8 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   strictMcpConfig: z.boolean().optional().describe('Require strict MCP config validation'),
   /** Path to a custom settings file. */
   settingsFile: z.string().optional().describe('Path to a custom settings file'),
+  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Passed as --add-dir. */
+  skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to load into sessions'),
 })
 
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
@@ -208,6 +210,8 @@ export interface RunOptions {
   continue?: boolean
   /** Additional directories to allow tool access to. */
   addDirs?: string[]
+  /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. */
+  skillsFolders?: string[]
   /** MCP config file paths. */
   mcpConfig?: string[]
   /** MCP servers to inject, keyed by server name. */
@@ -519,8 +523,14 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (options.continue) args.push('--continue')
     if (options.dangerouslySkipPermissions) args.push('--dangerously-skip-permissions')
 
-    if (options.addDirs?.length) {
-      args.push('--add-dir', ...options.addDirs)
+    // Merge addDirs and skillsFolders (both feature-level and per-session) into --add-dir
+    const addDirs: string[] = [
+      ...(options.addDirs ?? []),
+      ...(options.skillsFolders ?? []),
+      ...(this.options.skillsFolders ?? []),
+    ]
+    if (addDirs.length) {
+      args.push('--add-dir', ...addDirs)
     }
 
     // --- New v2.1 flags ---

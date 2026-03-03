@@ -62,6 +62,12 @@ container.server('websocket', {
 
 
 
+### stop
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |

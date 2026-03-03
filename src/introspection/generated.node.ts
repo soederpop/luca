@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-02T19:46:56.604Z
+// Generated at: 2026-03-03T05:32:52.805Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7336,6 +7336,12 @@ setBuildTimeData('servers.express', {
       "required": [],
       "returns": "void"
     },
+    "stop": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
     "configure": {
       "description": "",
       "parameters": {},
@@ -7456,6 +7462,12 @@ setBuildTimeData('servers.websocket', {
           "description": "Parameter options"
         }
       },
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "",
+      "parameters": {},
       "required": [],
       "returns": "void"
     }
@@ -15210,6 +15222,12 @@ export const introspectionData = [
         "required": [],
         "returns": "void"
       },
+      "stop": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
       "configure": {
         "description": "",
         "parameters": {},
@@ -15329,6 +15347,12 @@ export const introspectionData = [
             "description": "Parameter options"
           }
         },
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "",
+        "parameters": {},
         "required": [],
         "returns": "void"
       }

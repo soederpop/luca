@@ -247,6 +247,62 @@ Update metadata on a conversation without touching messages.
 
 
 
+### findByThread
+
+Find the most recent conversation for an exact thread ID.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `thread` | `string` | ✓ | The exact thread ID to match |
+
+**Returns:** `Promise<ConversationRecord | null>`
+
+
+
+### findByThreadPrefix
+
+Find all conversations whose thread starts with a prefix.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `prefix` | `string` | ✓ | The thread prefix to match |
+
+**Returns:** `Promise<ConversationMeta[]>`
+
+
+
+### deleteThread
+
+Delete all conversations for an exact thread.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `thread` | `string` | ✓ | The exact thread ID |
+
+**Returns:** `Promise<number>`
+
+
+
+### deleteByThreadPrefix
+
+Delete all conversations matching a thread prefix.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `prefix` | `string` | ✓ | The thread prefix to match |
+
+**Returns:** `Promise<number>`
+
+
+
 ## Getters
 
 | Property | Type | Description |

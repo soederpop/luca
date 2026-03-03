@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-02T19:46:56.698Z
+// Generated at: 2026-03-03T05:32:52.950Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7336,6 +7336,12 @@ setBuildTimeData('servers.express', {
       "required": [],
       "returns": "void"
     },
+    "stop": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
     "configure": {
       "description": "",
       "parameters": {},
@@ -7456,6 +7462,12 @@ setBuildTimeData('servers.websocket', {
           "description": "Parameter options"
         }
       },
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "",
+      "parameters": {},
       "required": [],
       "returns": "void"
     }
@@ -8532,6 +8544,10 @@ setBuildTimeData('features.claudeCode', {
               "type": "string[]",
               "description": "Additional directories to allow tool access to."
             },
+            "skillsFolders": {
+              "type": "string[]",
+              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+            },
             "mcpConfig": {
               "type": "string[]",
               "description": "MCP config file paths."
@@ -8676,6 +8692,10 @@ setBuildTimeData('features.claudeCode', {
             "addDirs": {
               "type": "string[]",
               "description": "Additional directories to allow tool access to."
+            },
+            "skillsFolders": {
+              "type": "string[]",
+              "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
             },
             "mcpConfig": {
               "type": "string[]",
@@ -9517,6 +9537,58 @@ setBuildTimeData('features.conversationHistory', {
         "updates"
       ],
       "returns": "Promise<boolean>"
+    },
+    "findByThread": {
+      "description": "Find the most recent conversation for an exact thread ID.",
+      "parameters": {
+        "thread": {
+          "type": "string",
+          "description": "The exact thread ID to match"
+        }
+      },
+      "required": [
+        "thread"
+      ],
+      "returns": "Promise<ConversationRecord | null>"
+    },
+    "findByThreadPrefix": {
+      "description": "Find all conversations whose thread starts with a prefix.",
+      "parameters": {
+        "prefix": {
+          "type": "string",
+          "description": "The thread prefix to match"
+        }
+      },
+      "required": [
+        "prefix"
+      ],
+      "returns": "Promise<ConversationMeta[]>"
+    },
+    "deleteThread": {
+      "description": "Delete all conversations for an exact thread.",
+      "parameters": {
+        "thread": {
+          "type": "string",
+          "description": "The exact thread ID"
+        }
+      },
+      "required": [
+        "thread"
+      ],
+      "returns": "Promise<number>"
+    },
+    "deleteByThreadPrefix": {
+      "description": "Delete all conversations matching a thread prefix.",
+      "parameters": {
+        "prefix": {
+          "type": "string",
+          "description": "The thread prefix to match"
+        }
+      },
+      "required": [
+        "prefix"
+      ],
+      "returns": "Promise<number>"
     }
   },
   "getters": {
@@ -17329,6 +17401,12 @@ export const introspectionData = [
         "required": [],
         "returns": "void"
       },
+      "stop": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
       "configure": {
         "description": "",
         "parameters": {},
@@ -17448,6 +17526,12 @@ export const introspectionData = [
             "description": "Parameter options"
           }
         },
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "",
+        "parameters": {},
         "required": [],
         "returns": "void"
       }
@@ -18518,6 +18602,10 @@ export const introspectionData = [
                 "type": "string[]",
                 "description": "Additional directories to allow tool access to."
               },
+              "skillsFolders": {
+                "type": "string[]",
+                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
+              },
               "mcpConfig": {
                 "type": "string[]",
                 "description": "MCP config file paths."
@@ -18662,6 +18750,10 @@ export const introspectionData = [
               "addDirs": {
                 "type": "string[]",
                 "description": "Additional directories to allow tool access to."
+              },
+              "skillsFolders": {
+                "type": "string[]",
+                "description": "Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir."
               },
               "mcpConfig": {
                 "type": "string[]",
@@ -19501,6 +19593,58 @@ export const introspectionData = [
           "updates"
         ],
         "returns": "Promise<boolean>"
+      },
+      "findByThread": {
+        "description": "Find the most recent conversation for an exact thread ID.",
+        "parameters": {
+          "thread": {
+            "type": "string",
+            "description": "The exact thread ID to match"
+          }
+        },
+        "required": [
+          "thread"
+        ],
+        "returns": "Promise<ConversationRecord | null>"
+      },
+      "findByThreadPrefix": {
+        "description": "Find all conversations whose thread starts with a prefix.",
+        "parameters": {
+          "prefix": {
+            "type": "string",
+            "description": "The thread prefix to match"
+          }
+        },
+        "required": [
+          "prefix"
+        ],
+        "returns": "Promise<ConversationMeta[]>"
+      },
+      "deleteThread": {
+        "description": "Delete all conversations for an exact thread.",
+        "parameters": {
+          "thread": {
+            "type": "string",
+            "description": "The exact thread ID"
+          }
+        },
+        "required": [
+          "thread"
+        ],
+        "returns": "Promise<number>"
+      },
+      "deleteByThreadPrefix": {
+        "description": "Delete all conversations matching a thread prefix.",
+        "parameters": {
+          "prefix": {
+            "type": "string",
+            "description": "The thread prefix to match"
+          }
+        },
+        "required": [
+          "prefix"
+        ],
+        "returns": "Promise<number>"
       }
     },
     "getters": {

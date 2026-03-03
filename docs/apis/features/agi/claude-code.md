@@ -48,6 +48,8 @@ container.feature('claudeCode', {
   strictMcpConfig,
   // Path to a custom settings file
   settingsFile,
+  // Directories containing Claude Code skills to load into sessions
+  skillsFolders,
 })
 ```
 
@@ -76,6 +78,7 @@ container.feature('claudeCode', {
 | `tools` | `array` | Default tools to make available |
 | `strictMcpConfig` | `boolean` | Require strict MCP config validation |
 | `settingsFile` | `string` | Path to a custom settings file |
+| `skillsFolders` | `array` | Directories containing Claude Code skills to load into sessions |
 
 ## Methods
 
@@ -154,6 +157,7 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `continue` | `boolean` | Continue the most recent conversation. |
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
+| `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
 | `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
@@ -231,6 +235,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `continue` | `boolean` | Continue the most recent conversation. |
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
+| `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
 | `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |

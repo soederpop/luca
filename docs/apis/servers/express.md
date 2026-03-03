@@ -49,6 +49,12 @@ container.server('express', {
 
 
 
+### stop
+
+**Returns:** `void`
+
+
+
 ### configure
 
 **Returns:** `void`
