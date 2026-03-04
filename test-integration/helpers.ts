@@ -1,5 +1,5 @@
-import { AGIContainer } from '../../src/agi/container.server'
-import { NodeContainer } from '../../src/node/container'
+import { AGIContainer } from '../src/agi/container.server'
+import { NodeContainer } from '../src/node/container'
 import { mkdtempSync, rmSync, realpathSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'

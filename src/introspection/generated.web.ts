@@ -1,7 +1,100 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T04:01:27.657Z
+// Generated at: 2026-03-04T05:29:28.212Z
+
+setBuildTimeData('features.containerLink', {
+  "id": "features.containerLink",
+  "description": "ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.",
+  "shortcut": "features.containerLink",
+  "className": "ContainerLink",
+  "methods": {
+    "connect": {
+      "description": "Connect to the host WebSocket server and perform registration.",
+      "parameters": {
+        "hostUrl": {
+          "type": "string",
+          "description": "Override the configured host URL"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "disconnect": {
+      "description": "Disconnect from the host.",
+      "parameters": {
+        "reason": {
+          "type": "string",
+          "description": "Optional reason string"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "emitToHost": {
+      "description": "Send a structured event to the host container.",
+      "parameters": {
+        "eventName": {
+          "type": "string",
+          "description": "Name of the event"
+        },
+        "data": {
+          "type": "any",
+          "description": "Optional event data"
+        }
+      },
+      "required": [
+        "eventName"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "isConnected": {
+      "description": "Whether currently connected to the host.",
+      "returns": "boolean"
+    },
+    "token": {
+      "description": "The auth token received from the host.",
+      "returns": "string | undefined"
+    },
+    "hostId": {
+      "description": "The host container's UUID.",
+      "returns": "string | undefined"
+    }
+  },
+  "events": {
+    "connected": {
+      "name": "connected",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "disconnected": {
+      "name": "disconnected",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "evalRequest": {
+      "name": "evalRequest",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "reconnecting": {
+      "name": "reconnecting",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const link = container.feature('containerLink', {\n enable: true,\n hostUrl: 'ws://localhost:8089',\n})\nawait link.connect()\n\n// Send events to the host\nlink.emitToHost('click', { x: 100, y: 200 })\n\n// Listen for eval requests before they execute\nlink.on('evalRequest', (code, requestId) => {\n console.log('Host is evaluating:', code)\n})"
+    }
+  ]
+});
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
@@ -922,6 +1015,98 @@ setContainerBuildTimeData('WebContainer', {
   "events": {}
 });
 export const introspectionData = [
+  {
+    "id": "features.containerLink",
+    "description": "ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.",
+    "shortcut": "features.containerLink",
+    "className": "ContainerLink",
+    "methods": {
+      "connect": {
+        "description": "Connect to the host WebSocket server and perform registration.",
+        "parameters": {
+          "hostUrl": {
+            "type": "string",
+            "description": "Override the configured host URL"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "disconnect": {
+        "description": "Disconnect from the host.",
+        "parameters": {
+          "reason": {
+            "type": "string",
+            "description": "Optional reason string"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "emitToHost": {
+        "description": "Send a structured event to the host container.",
+        "parameters": {
+          "eventName": {
+            "type": "string",
+            "description": "Name of the event"
+          },
+          "data": {
+            "type": "any",
+            "description": "Optional event data"
+          }
+        },
+        "required": [
+          "eventName"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "isConnected": {
+        "description": "Whether currently connected to the host.",
+        "returns": "boolean"
+      },
+      "token": {
+        "description": "The auth token received from the host.",
+        "returns": "string | undefined"
+      },
+      "hostId": {
+        "description": "The host container's UUID.",
+        "returns": "string | undefined"
+      }
+    },
+    "events": {
+      "connected": {
+        "name": "connected",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "disconnected": {
+        "name": "disconnected",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "evalRequest": {
+        "name": "evalRequest",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "reconnecting": {
+        "name": "reconnecting",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const link = container.feature('containerLink', {\n enable: true,\n hostUrl: 'ws://localhost:8089',\n})\nawait link.connect()\n\n// Send events to the host\nlink.emitToHost('click', { x: 100, y: 200 })\n\n// Listen for eval requests before they execute\nlink.on('evalRequest', (code, requestId) => {\n console.log('Host is evaluating:', code)\n})"
+      }
+    ]
+  },
   {
     "id": "features.esbuild",
     "description": "Esbuild helper",

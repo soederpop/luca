@@ -5,7 +5,7 @@ import {
   createAGIContainer,
   CLI_TIMEOUT,
 } from './helpers'
-import type { AGIContainer } from '../../src/agi/container.server'
+import type { AGIContainer } from '../src/agi/container.server'
 
 const anthropicKey = requireEnv('ANTHROPIC_API_KEY')
 const claudeBin = requireBinary('claude')

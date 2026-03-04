@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T04:01:27.640Z
+// Generated at: 2026-03-04T05:29:28.197Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -392,6 +392,189 @@ setBuildTimeData('features.ink', {
   "state": {},
   "options": {},
   "envVars": []
+});
+
+setBuildTimeData('features.containerLink', {
+  "id": "features.containerLink",
+  "description": "ContainerLink (Node-side) — WebSocket host for remote web containers. Creates a WebSocket server that web containers connect to. The host can evaluate code in connected web containers and receive structured events back. Trust is strictly one-way: the node side can eval in web containers, but web containers can NEVER eval in the node container.",
+  "shortcut": "features.containerLink",
+  "className": "ContainerLink",
+  "methods": {
+    "start": {
+      "description": "Start the WebSocket server and begin accepting connections.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Stop the WebSocket server and disconnect all clients.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "eval": {
+      "description": "Evaluate code in a specific connected web container.",
+      "parameters": {
+        "containerId": {
+          "type": "string",
+          "description": "UUID of the target web container"
+        },
+        "code": {
+          "type": "string",
+          "description": "JavaScript code to evaluate"
+        },
+        "context": {
+          "type": "Record<string, any>",
+          "description": "Optional context variables to inject"
+        },
+        "timeout": {
+          "type": "any",
+          "description": "Timeout in ms (default 10000)"
+        }
+      },
+      "required": [
+        "containerId",
+        "code"
+      ],
+      "returns": "Promise<T>"
+    },
+    "broadcast": {
+      "description": "Evaluate code in all connected web containers.",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "JavaScript code to evaluate"
+        },
+        "context": {
+          "type": "Record<string, any>",
+          "description": "Optional context variables to inject"
+        },
+        "timeout": {
+          "type": "any",
+          "description": "Timeout in ms (default 10000)"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<Map<string, T | Error>>"
+    },
+    "getConnections": {
+      "description": "Get metadata of all connected containers.",
+      "parameters": {},
+      "required": [],
+      "returns": "Array<Omit<ConnectedContainer, 'ws' | 'token'>>"
+    },
+    "disconnect": {
+      "description": "Disconnect a specific web container.",
+      "parameters": {
+        "containerId": {
+          "type": "string",
+          "description": "UUID of the container to disconnect"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Optional reason string"
+        }
+      },
+      "required": [
+        "containerId"
+      ],
+      "returns": "void"
+    },
+    "generateToken": {
+      "description": "Generate a cryptographically random token for connection auth.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
+    "sendTo": {
+      "description": "Send a message to a specific connected container by UUID.",
+      "parameters": {
+        "containerId": {
+          "type": "string",
+          "description": "UUID of the target container"
+        },
+        "msg": {
+          "type": "LinkMessage",
+          "description": "The message to send",
+          "properties": {
+            "type": {
+              "type": "MessageType",
+              "description": ""
+            },
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "timestamp": {
+              "type": "number",
+              "description": ""
+            },
+            "token": {
+              "type": "string",
+              "description": ""
+            },
+            "data": {
+              "type": "T",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "containerId",
+        "msg"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "isListening": {
+      "description": "Whether the WebSocket server is currently listening.",
+      "returns": "boolean"
+    },
+    "connectionCount": {
+      "description": "Number of currently connected web containers.",
+      "returns": "number"
+    }
+  },
+  "events": {
+    "disconnection": {
+      "name": "disconnection",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "connection": {
+      "name": "connection",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "evalResult": {
+      "name": "evalResult",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    },
+    "event": {
+      "name": "event",
+      "description": "Event emitted by ContainerLink",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.git', {
@@ -8521,6 +8704,188 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": []
+  },
+  {
+    "id": "features.containerLink",
+    "description": "ContainerLink (Node-side) — WebSocket host for remote web containers. Creates a WebSocket server that web containers connect to. The host can evaluate code in connected web containers and receive structured events back. Trust is strictly one-way: the node side can eval in web containers, but web containers can NEVER eval in the node container.",
+    "shortcut": "features.containerLink",
+    "className": "ContainerLink",
+    "methods": {
+      "start": {
+        "description": "Start the WebSocket server and begin accepting connections.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Stop the WebSocket server and disconnect all clients.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "eval": {
+        "description": "Evaluate code in a specific connected web container.",
+        "parameters": {
+          "containerId": {
+            "type": "string",
+            "description": "UUID of the target web container"
+          },
+          "code": {
+            "type": "string",
+            "description": "JavaScript code to evaluate"
+          },
+          "context": {
+            "type": "Record<string, any>",
+            "description": "Optional context variables to inject"
+          },
+          "timeout": {
+            "type": "any",
+            "description": "Timeout in ms (default 10000)"
+          }
+        },
+        "required": [
+          "containerId",
+          "code"
+        ],
+        "returns": "Promise<T>"
+      },
+      "broadcast": {
+        "description": "Evaluate code in all connected web containers.",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "JavaScript code to evaluate"
+          },
+          "context": {
+            "type": "Record<string, any>",
+            "description": "Optional context variables to inject"
+          },
+          "timeout": {
+            "type": "any",
+            "description": "Timeout in ms (default 10000)"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<Map<string, T | Error>>"
+      },
+      "getConnections": {
+        "description": "Get metadata of all connected containers.",
+        "parameters": {},
+        "required": [],
+        "returns": "Array<Omit<ConnectedContainer, 'ws' | 'token'>>"
+      },
+      "disconnect": {
+        "description": "Disconnect a specific web container.",
+        "parameters": {
+          "containerId": {
+            "type": "string",
+            "description": "UUID of the container to disconnect"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional reason string"
+          }
+        },
+        "required": [
+          "containerId"
+        ],
+        "returns": "void"
+      },
+      "generateToken": {
+        "description": "Generate a cryptographically random token for connection auth.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
+      "sendTo": {
+        "description": "Send a message to a specific connected container by UUID.",
+        "parameters": {
+          "containerId": {
+            "type": "string",
+            "description": "UUID of the target container"
+          },
+          "msg": {
+            "type": "LinkMessage",
+            "description": "The message to send",
+            "properties": {
+              "type": {
+                "type": "MessageType",
+                "description": ""
+              },
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "timestamp": {
+                "type": "number",
+                "description": ""
+              },
+              "token": {
+                "type": "string",
+                "description": ""
+              },
+              "data": {
+                "type": "T",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "containerId",
+          "msg"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "isListening": {
+        "description": "Whether the WebSocket server is currently listening.",
+        "returns": "boolean"
+      },
+      "connectionCount": {
+        "description": "Number of currently connected web containers.",
+        "returns": "number"
+      }
+    },
+    "events": {
+      "disconnection": {
+        "name": "disconnection",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "connection": {
+        "name": "connection",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "evalResult": {
+        "name": "evalResult",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      },
+      "event": {
+        "name": "event",
+        "description": "Event emitted by ContainerLink",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const link = container.feature('containerLink', { enable: true, port: 8089 })\nawait link.start()\n\n// When a web container connects:\nlink.on('connection', (uuid, meta) => {\n console.log('Connected:', uuid)\n})\n\n// Eval code in a specific web container\nconst result = await link.eval(uuid, 'document.title')\n\n// Broadcast eval to all connected containers\nconst results = await link.broadcast('navigator.userAgent')\n\n// Listen for events from web containers\nlink.on('event', (uuid, eventName, data) => {\n console.log(`Event from ${uuid}: ${eventName}`, data)\n})"
+      }
+    ]
   },
   {
     "id": "features.git",

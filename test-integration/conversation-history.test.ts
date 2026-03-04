@@ -1,5 +1,5 @@
 import { createAGIContainer } from './helpers'
-import type { AGIContainer } from '../../src/agi/container.server'
+import type { AGIContainer } from '../src/agi/container.server'
 import { mkdtempSync, rmSync, realpathSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'

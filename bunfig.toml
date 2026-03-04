@@ -1,2 +1,3 @@
 [test]
 preload = [""]
+root = "test/"

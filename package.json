@@ -43,12 +43,11 @@
     "build:introspection": "bun run src/cli/cli.ts update-introspection",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "explain-codebase": "luca explain-codebase",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
     "test": "bun test test/*.test.ts",
     "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds",
     "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts && bun compile",
-    "test:integration": "bun test test/integration/"
+    "test:integration": "bun test ./test-integration/"
   },
   "devDependencies": {
     "@types/cacache": "^15.0.1",

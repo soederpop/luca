@@ -58,6 +58,7 @@ import "./features/nlp";
 import "./features/process-manager"
 import "./features/tts";
 import "./features/helpers";
+import "./features/container-link";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -100,6 +101,7 @@ import type { NLP } from './features/nlp';
 import type { ProcessManager } from './features/process-manager'
 import type { TTS } from './features/tts';
 import type { Helpers } from './features/helpers';
+import type { ContainerLink } from './features/container-link';
 export { State };
 
 export {
@@ -137,6 +139,7 @@ export {
   type ProcessManager,
   type TTS,
   type Helpers,
+  type ContainerLink,
 };
 
 export type { FeatureOptions };
@@ -200,6 +203,7 @@ export interface NodeFeatures extends AvailableFeatures {
   processManager: typeof ProcessManager;
   tts: typeof TTS;
   helpers: typeof Helpers;
+  containerLink: typeof ContainerLink;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
@@ -246,6 +250,7 @@ export class NodeContainer<
   processManager?: ProcessManager;
   tts?: TTS;
   helpers!: Helpers;
+  containerLink?: ContainerLink;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });

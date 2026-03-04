@@ -4,7 +4,7 @@ import {
   createAGIContainer,
   API_TIMEOUT,
 } from './helpers'
-import type { AGIContainer } from '../../src/agi/container.server'
+import type { AGIContainer } from '../src/agi/container.server'
 
 const openaiKey = requireEnv('OPENAI_API_KEY')
 

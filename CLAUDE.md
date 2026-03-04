@@ -35,6 +35,19 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 - When trying to find paths in the project, use `container.paths.resolve()` or `container.paths.join()` instead of `import { resolve } from 'path'`
 - **NEVER import from `fs`, `path`, or other Node builtins when the container provides equivalents.** Use `container.feature('fs')` for file operations, `container.paths` for path operations. This applies to command handlers, scripts, and any code that has access to a container. The only exception is inside feature implementations themselves (e.g. `proc.ts`, `fs.ts`) where you ARE building the container primitive — those may use Node builtins directly since they can't depend on themselves.
 
+## Container Utilities
+
+The container provides `container.utils` with common utilities. **Use these instead of importing packages directly** — they work in both node and web environments.
+
+- `container.utils.uuid()` — generates a v4 UUID (use instead of importing `node-uuid` or `crypto`)
+- `container.utils.hashObject(obj)` — deterministic hash of any object
+- `container.utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }`
+- `container.utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`
+
+Also available on every container:
+- `container.uuid` — the container's own unique ID
+- `container.paths.resolve()` / `container.paths.join()` — path operations
+
 ## Type Safety and Introspection
 
 - Zod does a lot of the heavy lifting for us with its type inference
@@ -44,8 +57,8 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 ## Testing
 
 - Test runner is **bun** (not vitest). Do not import from or add vitest.
-- `bun run test` — runs unit tests only (`test/*.test.ts`), excludes `test/integration/`
-- `bun run test:integration` — runs integration tests that hit real APIs/CLIs (gated by env vars)
+- `bun test` or `bun run test` — runs unit tests only (`test/*.test.ts`)
+- `bun run test:integration` — runs integration tests in `test-integration/` that hit real APIs/CLIs (gated by env vars)
 - Import `mock`, `spyOn` from `bun:test` when needed. If you import anything from `bun:test`, you must also import `describe`, `it`, `expect`, etc. from there (importing disables auto-globals).
 - **ALL tests must pass. Zero tolerance for test failures.** The ESBuild feature's "service is no longer running" error is a known critical bug — if you encounter it, fix it. Do not ignore it, do not skip it, do not leave it broken. This applies to every test: if a test fails, that is a blocker. Fix the root cause.
 
