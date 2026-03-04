@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T05:30:09.590Z
+// Generated at: 2026-03-04T08:17:16.688Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1216,6 +1216,16 @@ setBuildTimeData('features.windowManager', {
     },
     "windowAck": {
       "name": "windowAck",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "windowClosed": {
+      "name": "windowClosed",
+      "description": "Event emitted by WindowManager",
+      "arguments": {}
+    },
+    "terminalExited": {
+      "name": "terminalExited",
       "description": "Event emitted by WindowManager",
       "arguments": {}
     },
@@ -9523,6 +9533,16 @@ export const introspectionData = [
       },
       "windowAck": {
         "name": "windowAck",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "windowClosed": {
+        "name": "windowClosed",
+        "description": "Event emitted by WindowManager",
+        "arguments": {}
+      },
+      "terminalExited": {
+        "name": "terminalExited",
         "description": "Event emitted by WindowManager",
         "arguments": {}
       },

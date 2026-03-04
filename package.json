@@ -36,6 +36,7 @@
     "luca": "./src/cli/cli.ts"
   },
   "scripts": {
+    "serve": "bun build:web && luca serve --any-port",
     "console": "ts-node --esm scripts/console.ts",
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",

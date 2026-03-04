@@ -64,6 +64,8 @@ export const WindowManagerEventsSchema = FeatureEventsSchema.extend({
   clientDisconnected: z.tuple([]).describe('Emitted when the native app disconnects'),
   message: z.tuple([z.any().describe('The parsed message object')]).describe('Emitted for any incoming message that is not a windowAck'),
   windowAck: z.tuple([z.any().describe('The window ack payload')]).describe('Emitted when a window ack is received from the app'),
+  windowClosed: z.tuple([z.any().describe('Window lifecycle payload emitted when a window closes')]).describe('Emitted when the native app reports a window closed event'),
+  terminalExited: z.tuple([z.any().describe('Terminal lifecycle payload emitted when a terminal process exits')]).describe('Emitted when the native app reports a terminal process exit event'),
   error: z.tuple([z.any().describe('The error')]).describe('Emitted on error'),
 })
 
@@ -254,6 +256,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private _server?: NetServer
   private _client?: ClientConnection
   private _pending = new Map<string, PendingRequest>()
+  private _trackedWindows = new Set<string>()
 
   private normalizeRequestId(value: unknown): string | undefined {
     if (typeof value !== 'string') return undefined
@@ -401,6 +404,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       pending.resolve({ ok: false, error: 'Server stopping' })
     }
     this._pending.clear()
+    this._trackedWindows.clear()
 
     if (this._client) {
       this._client.socket.destroy()
@@ -421,7 +425,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       try { unlinkSync(socketPath) } catch { /* ignore */ }
     }
 
-    this.setState({ listening: false, clientConnected: false, socketPath: undefined })
+    this.setState({ listening: false, clientConnected: false, socketPath: undefined, windowCount: 0 })
     return this
   }
 
@@ -607,7 +611,8 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     socket.on('close', () => {
       if (this._client === client) {
         this._client = undefined
-        this.setState({ clientConnected: false })
+        this._trackedWindows.clear()
+        this.setState({ clientConnected: false, windowCount: 0 })
 
         // Resolve all pending requests — the app is gone, no acks coming
         for (const [id, pending] of this._pending) {
@@ -640,6 +645,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     // WindowAck from app (response to a window dispatch)
     if (msg.type === 'windowAck') {
       this.emit('windowAck', msg)
+      this.updateTrackedWindowsFromAck(msg)
 
       const ackId = this.normalizeRequestId(msg.id)
       if (ackId && this._pending.has(ackId)) {
@@ -656,8 +662,48 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       return
     }
 
+    if (msg.type === 'windowClosed') {
+      this.trackWindowClosed(msg.windowId)
+      this.emit('windowClosed', msg)
+    }
+
+    if (msg.type === 'terminalExited') {
+      this.emit('terminalExited', msg)
+    }
+
     // Everything else is forwarded as a generic message
     this.emit('message', msg)
+  }
+
+  private updateTrackedWindowsFromAck(msg: any): void {
+    if (!msg?.success) return
+    if (typeof msg?.action !== 'string') return
+
+    const action = msg.action.toLowerCase()
+    const resultWindowId = msg?.result?.windowId
+
+    if (action === 'open' || action === 'spawn' || action === 'terminal') {
+      this.trackWindowOpened(resultWindowId)
+      return
+    }
+
+    if (action === 'close') {
+      this.trackWindowClosed(resultWindowId)
+    }
+  }
+
+  private trackWindowOpened(windowId: unknown): void {
+    const normalized = this.normalizeRequestId(windowId)
+    if (!normalized) return
+    this._trackedWindows.add(normalized)
+    this.setState({ windowCount: this._trackedWindows.size })
+  }
+
+  private trackWindowClosed(windowId: unknown): void {
+    const normalized = this.normalizeRequestId(windowId)
+    if (!normalized) return
+    this._trackedWindows.delete(normalized)
+    this.setState({ windowCount: this._trackedWindows.size })
   }
 
   /**

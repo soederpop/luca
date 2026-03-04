@@ -286,6 +286,18 @@ Event emitted by WindowManager
 
 
 
+### windowClosed
+
+Event emitted by WindowManager
+
+
+
+### terminalExited
+
+Event emitted by WindowManager
+
+
+
 ### message
 
 Event emitted by WindowManager
