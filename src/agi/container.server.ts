@@ -2,6 +2,7 @@ import type { ContainerState } from '@soederpop/luca/container'
 import { type NodeFeatures, NodeContainer } from '@soederpop/luca/node/container'
 import '@/introspection/generated.agi.js'
 import { OpenAIClient } from '../clients/openai'
+import { ElevenLabsClient } from '../clients/elevenlabs'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
@@ -25,6 +26,7 @@ export {
 	ContentDb,
 	NodeContainer,
 	OpenAIClient,
+	ElevenLabsClient,
 }
 
 export type {
@@ -93,6 +95,7 @@ export class AGIContainer extends NodeContainer {
 
 const container = new AGIContainer()
 	.use(OpenAIClient)
+	.use(ElevenLabsClient)
 	.use(ClaudeCode)
 	.use(OpenAICodex)
 	.use(Conversation)

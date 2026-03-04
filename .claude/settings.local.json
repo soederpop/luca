@@ -106,7 +106,9 @@
       "mcp__contentbase__list_documents",
       "Bash(ln:*)",
       "Bash(luca eval:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "mcp__luca-sandbox__read_me",
+      "mcp__luca-sandbox__find_capability"
     ]
   },
   "enableAllProjectMcpServers": true,
