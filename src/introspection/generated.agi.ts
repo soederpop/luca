@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-03T23:20:54.748Z
+// Generated at: 2026-03-04T00:04:52.284Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -9436,23 +9436,18 @@ setBuildTimeData('features.openaiCodex', {
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
-    "session:tool-call": {
-      "name": "session:tool-call",
-      "description": "Event emitted by OpenAICodex",
-      "arguments": {}
-    },
-    "session:tool-result": {
-      "name": "session:tool-result",
-      "description": "Event emitted by OpenAICodex",
-      "arguments": {}
-    },
     "session:exec": {
       "name": "session:exec",
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
-    "session:patch": {
-      "name": "session:patch",
+    "session:reasoning": {
+      "name": "session:reasoning",
+      "description": "Event emitted by OpenAICodex",
+      "arguments": {}
+    },
+    "session:exec-start": {
+      "name": "session:exec-start",
       "description": "Event emitted by OpenAICodex",
       "arguments": {}
     },
@@ -19746,23 +19741,18 @@ export const introspectionData = [
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },
-      "session:tool-call": {
-        "name": "session:tool-call",
-        "description": "Event emitted by OpenAICodex",
-        "arguments": {}
-      },
-      "session:tool-result": {
-        "name": "session:tool-result",
-        "description": "Event emitted by OpenAICodex",
-        "arguments": {}
-      },
       "session:exec": {
         "name": "session:exec",
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },
-      "session:patch": {
-        "name": "session:patch",
+      "session:reasoning": {
+        "name": "session:reasoning",
+        "description": "Event emitted by OpenAICodex",
+        "arguments": {}
+      },
+      "session:exec-start": {
+        "name": "session:exec-start",
         "description": "Event emitted by OpenAICodex",
         "arguments": {}
       },

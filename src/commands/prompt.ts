@@ -112,7 +112,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	const collectedEvents: any[] = []
 	if (options['out-file']) {
 		feature.on('session:event', ({ event }: { event: any }) => {
-			if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
+			if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output' || event.type === 'item.completed' || event.type === 'turn.completed') {
 				collectedEvents.push(event)
 			}
 		})

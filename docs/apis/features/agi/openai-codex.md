@@ -215,25 +215,19 @@ Event emitted by OpenAICodex
 
 
 
-### session:tool-call
-
-Event emitted by OpenAICodex
-
-
-
-### session:tool-result
-
-Event emitted by OpenAICodex
-
-
-
 ### session:exec
 
 Event emitted by OpenAICodex
 
 
 
-### session:patch
+### session:reasoning
+
+Event emitted by OpenAICodex
+
+
+
+### session:exec-start
 
 Event emitted by OpenAICodex
 

@@ -11,50 +11,53 @@ declare module '@soederpop/luca/feature' {
   }
 }
 
-// --- Stream JSON types from the Codex CLI ---
+// --- Stream JSON types from the Codex CLI (codex exec --json) ---
 
+export interface CodexItem {
+  id: string
+  type: 'agent_message' | 'reasoning' | 'command_execution' | string
+  text?: string
+  command?: string
+  aggregated_output?: string
+  exit_code?: number | null
+  status?: 'in_progress' | 'completed' | string
+}
+
+export interface CodexItemEvent {
+  type: 'item.completed' | 'item.started'
+  item: CodexItem
+}
+
+export interface CodexTurnEvent {
+  type: 'turn.completed' | 'turn.started'
+  usage?: { input_tokens?: number; cached_input_tokens?: number; output_tokens?: number }
+}
+
+export interface CodexThreadEvent {
+  type: 'thread.started'
+  thread_id: string
+}
+
+/** Normalized message emitted via session:message for downstream consumers. */
 export interface CodexMessageEvent {
   type: 'message'
   role: 'assistant' | 'system'
-  content: Array<{ type: 'text'; text: string } | { type: 'tool_use'; id: string; name: string; input: any } | { type: string; [key: string]: any }>
-}
-
-export interface CodexToolCallEvent {
-  type: 'function_call'
-  id: string
-  name: string
-  arguments: string
-  call_id?: string
-}
-
-export interface CodexToolResultEvent {
-  type: 'function_call_output'
-  call_id: string
-  output: string
+  content: Array<{ type: 'text'; text: string } | { type: string; [key: string]: any }>
 }
 
 export interface CodexExecEvent {
   type: 'exec'
-  command: string[]
+  command: string
   cwd?: string
-  exit_code?: number
+  exit_code?: number | null
   stdout?: string
   stderr?: string
 }
 
-export interface CodexPatchEvent {
-  type: 'patch'
-  path: string
-  content?: string
-  diff?: string
-}
-
 export type CodexEvent =
-  | CodexMessageEvent
-  | CodexToolCallEvent
-  | CodexToolResultEvent
-  | CodexExecEvent
-  | CodexPatchEvent
+  | CodexItemEvent
+  | CodexTurnEvent
+  | CodexThreadEvent
   | { type: string; [key: string]: any }
 
 // --- Session types ---
@@ -67,9 +70,11 @@ export interface CodexSession {
   error?: string
   turns: number
   messages: CodexMessageEvent[]
-  patches: CodexPatchEvent[]
   executions: CodexExecEvent[]
+  items: CodexItem[]
   process?: any
+  threadId?: string
+  usage?: { input_tokens?: number; output_tokens?: number }
 }
 
 // --- Feature state and options ---
@@ -259,65 +264,82 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
 
   /**
    * Process a parsed JSON event from the Codex CLI stream.
+   *
+   * The codex CLI (codex exec --json) emits NDJSON with these event types:
+   *   thread.started   — { thread_id }
+   *   turn.started     — (no payload)
+   *   item.started     — { item: { id, type, ... } }
+   *   item.completed   — { item: { id, type, text?, command?, exit_code?, ... } }
+   *   turn.completed   — { usage: { input_tokens, output_tokens } }
+   *
+   * Item types within item.completed:
+   *   agent_message      — assistant text response
+   *   reasoning          — model thinking/reasoning
+   *   command_execution  — shell command with output
    */
   private handleEvent(sessionId: string, event: CodexEvent): void {
     this.emit('session:event', { sessionId, event })
 
     switch (event.type) {
-      case 'message': {
-        const msg = event as CodexMessageEvent
+      case 'thread.started': {
+        const threadEvent = event as CodexThreadEvent
+        this.updateSession(sessionId, { threadId: threadEvent.thread_id })
+        break
+      }
+
+      case 'turn.started': {
         const session = this.state.current.sessions[sessionId]
         if (session) {
-          this.updateSession(sessionId, {
-            messages: [...session.messages, msg]
-          })
+          this.updateSession(sessionId, { turns: session.turns + 1 })
+        }
+        break
+      }
 
-          // Extract text content for convenience
-          const textParts = msg.content
-            ?.filter((c: any) => c.type === 'text')
-            .map((c: any) => c.text)
-            .join('')
+      case 'item.completed': {
+        const { item } = event as CodexItemEvent
+        const session = this.state.current.sessions[sessionId]
+        if (!session) break
 
-          if (textParts) {
-            this.emit('session:delta', { sessionId, text: textParts, role: msg.role })
+        this.updateSession(sessionId, { items: [...session.items, item] })
+
+        if (item.type === 'agent_message' && item.text) {
+          // Normalize to a CodexMessageEvent for downstream consumers
+          const msg: CodexMessageEvent = {
+            type: 'message',
+            role: 'assistant',
+            content: [{ type: 'text', text: item.text }]
           }
+          this.updateSession(sessionId, { messages: [...session.messages, msg] })
+          this.emit('session:delta', { sessionId, text: item.text, role: 'assistant' })
+          this.emit('session:message', { sessionId, message: msg })
+        } else if (item.type === 'command_execution') {
+          const exec: CodexExecEvent = {
+            type: 'exec',
+            command: item.command || '',
+            exit_code: item.exit_code,
+            stdout: item.aggregated_output,
+          }
+          this.updateSession(sessionId, { executions: [...session.executions, exec] })
+          this.emit('session:exec', { sessionId, exec })
+        } else if (item.type === 'reasoning' && item.text) {
+          this.emit('session:reasoning', { sessionId, text: item.text })
         }
-        this.emit('session:message', { sessionId, message: msg })
         break
       }
 
-      case 'function_call': {
-        this.emit('session:tool-call', { sessionId, toolCall: event })
-        break
-      }
-
-      case 'function_call_output': {
-        this.emit('session:tool-result', { sessionId, toolResult: event })
-        break
-      }
-
-      case 'exec': {
-        const exec = event as CodexExecEvent
-        const session = this.state.current.sessions[sessionId]
-        if (session) {
-          this.updateSession(sessionId, {
-            executions: [...session.executions, exec],
-            turns: session.turns + 1
-          })
+      case 'item.started': {
+        const { item } = event as CodexItemEvent
+        if (item.type === 'command_execution' && item.command) {
+          this.emit('session:exec-start', { sessionId, command: item.command })
         }
-        this.emit('session:exec', { sessionId, exec })
         break
       }
 
-      case 'patch': {
-        const patch = event as CodexPatchEvent
-        const session = this.state.current.sessions[sessionId]
-        if (session) {
-          this.updateSession(sessionId, {
-            patches: [...session.patches, patch]
-          })
+      case 'turn.completed': {
+        const turnEvent = event as CodexTurnEvent
+        if (turnEvent.usage) {
+          this.updateSession(sessionId, { usage: turnEvent.usage })
         }
-        this.emit('session:patch', { sessionId, patch })
         break
       }
 
@@ -360,8 +382,8 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
       prompt,
       turns: 0,
       messages: [],
-      patches: [],
-      executions: []
+      executions: [],
+      items: []
     }
 
     const sessions = { ...this.state.current.sessions, [id]: session }
@@ -412,8 +434,8 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
       prompt,
       turns: 0,
       messages: [],
-      patches: [],
-      executions: []
+      executions: [],
+      items: []
     }
 
     const sessions = { ...this.state.current.sessions, [id]: session }
@@ -466,12 +488,11 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
             const event = JSON.parse(trimmed) as CodexEvent
             this.handleEvent(sessionId, event)
 
-            if (event.type === 'message' && (event as CodexMessageEvent).role === 'assistant') {
-              const texts = (event as CodexMessageEvent).content
-                ?.filter((c: any) => c.type === 'text')
-                .map((c: any) => c.text)
-                .join('')
-              if (texts) lastText = texts
+            if (event.type === 'item.completed') {
+              const { item } = event as CodexItemEvent
+              if (item.type === 'agent_message' && item.text) {
+                lastText = item.text
+              }
             }
           } catch {
             this.emit('session:parse-error', { sessionId, line: trimmed })
