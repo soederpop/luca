@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, mock } from 'bun:test'
 import { NodeContainer } from '../src/node/container'
 
 describe('NodeContainer', () => {
@@ -32,7 +32,7 @@ describe('NodeContainer', () => {
 
   it('start() sets started state and emits event', async () => {
     const c = new NodeContainer()
-    const listener = vi.fn()
+    const listener = mock()
     c.on('started', listener)
     await c.start()
     expect(c.currentState.started).toBe(true)
@@ -83,7 +83,7 @@ describe('NodeContainer', () => {
 
   it('event system works (on, emit, off)', () => {
     const c = new NodeContainer()
-    const listener = vi.fn()
+    const listener = mock()
     c.on('custom', listener)
     c.emit('custom', 'hello')
     expect(listener).toHaveBeenCalledWith('hello')
@@ -108,7 +108,7 @@ describe('NodeContainer', () => {
   describe('plugin system', () => {
     it('use() with a plugin object calls attach', () => {
       const c = new NodeContainer()
-      const plugin = { attach: vi.fn() }
+      const plugin = { attach: mock() }
       c.use(plugin)
       expect(plugin.attach).toHaveBeenCalledWith(c, {})
     })

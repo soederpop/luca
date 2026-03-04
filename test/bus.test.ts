@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, mock, beforeEach, afterEach } from 'bun:test'
 import { Bus } from '../src/bus'
 
 describe('Bus', () => {
   it('emits events to listeners', () => {
     const bus = new Bus()
-    const listener = vi.fn()
+    const listener = mock()
     bus.on('test', listener)
     bus.emit('test', 'arg1', 'arg2')
     expect(listener).toHaveBeenCalledWith('arg1', 'arg2')
@@ -12,8 +12,8 @@ describe('Bus', () => {
 
   it('supports multiple listeners', () => {
     const bus = new Bus()
-    const a = vi.fn()
-    const b = vi.fn()
+    const a = mock()
+    const b = mock()
     bus.on('event', a)
     bus.on('event', b)
     bus.emit('event', 42)
@@ -23,7 +23,7 @@ describe('Bus', () => {
 
   it('off removes a specific listener', () => {
     const bus = new Bus()
-    const listener = vi.fn()
+    const listener = mock()
     bus.on('test', listener)
     bus.off('test', listener)
     bus.emit('test')
@@ -32,8 +32,8 @@ describe('Bus', () => {
 
   it('off without listener removes all listeners for event', () => {
     const bus = new Bus()
-    const a = vi.fn()
-    const b = vi.fn()
+    const a = mock()
+    const b = mock()
     bus.on('test', a)
     bus.on('test', b)
     bus.off('test')
@@ -44,7 +44,7 @@ describe('Bus', () => {
 
   it('once fires only once', () => {
     const bus = new Bus()
-    const listener = vi.fn()
+    const listener = mock()
     bus.once('test', listener)
     bus.emit('test', 'first')
     bus.emit('test', 'second')

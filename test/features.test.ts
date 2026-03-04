@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest'
 import { NodeContainer } from '../src/node/container'
 
 describe('Features', () => {

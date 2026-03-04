@@ -41,6 +41,14 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 - For more descriptive things like class descriptions, method descriptions, we rely on jsdoc blocks.  These are parsed and used to generate modules we commit to source.  We shouldn't let these drift, so for this reason we have a pre-commit hook which ensures they're up to date
 - We rely on module augmentation a lot to make sure `container.feature()` can provide type signatures for everything that gets added to it by extension modules down the road.  ( kind of like we did with AGIContainer extending NodeContainer )
 
+## Testing
+
+- Test runner is **bun** (not vitest). Do not import from or add vitest.
+- `bun run test` — runs unit tests only (`test/*.test.ts`), excludes `test/integration/`
+- `bun run test:integration` — runs integration tests that hit real APIs/CLIs (gated by env vars)
+- Import `mock`, `spyOn` from `bun:test` when needed. If you import anything from `bun:test`, you must also import `describe`, `it`, `expect`, etc. from there (importing disables auto-globals).
+- **ALL tests must pass. Zero tolerance for test failures.** The ESBuild feature's "service is no longer running" error is a known critical bug — if you encounter it, fix it. Do not ignore it, do not skip it, do not leave it broken. This applies to every test: if a test fails, that is a blocker. Fix the root cause.
+
 ## API Docs
 
 - See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers

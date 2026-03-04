@@ -1004,6 +1004,89 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }
 
   /**
+   * Get aggregated usage statistics across all sessions, or for a specific session.
+   *
+   * @param {string} [sessionId] - Optional session ID to get usage for a single session
+   * @returns {{ totalCostUsd: number; totalInputTokens: number; totalOutputTokens: number; totalCacheReadTokens: number; totalCacheCreationTokens: number; totalTurns: number; sessionCount: number; sessions: Array<{ id: string; costUsd: number; turns: number; inputTokens: number; outputTokens: number; status: string }> }} Usage statistics
+   *
+   * @example
+   * ```typescript
+   * const stats = cc.usage()
+   * console.log(`Total cost: $${stats.totalCostUsd.toFixed(4)}`)
+   * console.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)
+   *
+   * // Single session
+   * const sessionStats = cc.usage(sessionId)
+   * ```
+   */
+  usage(sessionId?: string) {
+    const allSessions = this.state.current.sessions
+    const entries = sessionId
+      ? (allSessions[sessionId] ? [allSessions[sessionId]] : [])
+      : Object.values(allSessions)
+
+    let totalCostUsd = 0
+    let totalInputTokens = 0
+    let totalOutputTokens = 0
+    let totalCacheReadTokens = 0
+    let totalCacheCreationTokens = 0
+    let totalTurns = 0
+    const sessions: Array<{ id: string; costUsd: number; turns: number; inputTokens: number; outputTokens: number; status: string }> = []
+
+    for (const session of entries as ClaudeSession[]) {
+      let inputTokens = 0
+      let outputTokens = 0
+      let cacheRead = 0
+      let cacheCreation = 0
+
+      for (const msg of session.messages || []) {
+        const u = msg.message?.usage
+        if (u) {
+          inputTokens += u.input_tokens || 0
+          outputTokens += u.output_tokens || 0
+          cacheRead += u.cache_read_input_tokens || 0
+          cacheCreation += u.cache_creation_input_tokens || 0
+        }
+      }
+
+      totalCostUsd += session.costUsd || 0
+      totalInputTokens += inputTokens
+      totalOutputTokens += outputTokens
+      totalCacheReadTokens += cacheRead
+      totalCacheCreationTokens += cacheCreation
+      totalTurns += session.turns || 0
+
+      sessions.push({
+        id: session.id,
+        costUsd: session.costUsd || 0,
+        turns: session.turns || 0,
+        inputTokens,
+        outputTokens,
+        status: session.status,
+      })
+    }
+
+    // Budget remaining: if maxBudgetUsd is configured, compute what's left
+    const maxBudgetUsd = this.options.maxBudgetUsd
+    const budgetRemainingUsd = maxBudgetUsd != null ? Math.max(0, maxBudgetUsd - totalCostUsd) : undefined
+    const budgetUsedPercent = maxBudgetUsd != null && maxBudgetUsd > 0 ? Math.min(100, (totalCostUsd / maxBudgetUsd) * 100) : undefined
+
+    return {
+      totalCostUsd,
+      totalInputTokens,
+      totalOutputTokens,
+      totalCacheReadTokens,
+      totalCacheCreationTokens,
+      totalTurns,
+      sessionCount: sessions.length,
+      maxBudgetUsd: maxBudgetUsd ?? null,
+      budgetRemainingUsd: budgetRemainingUsd ?? null,
+      budgetUsedPercent: budgetUsedPercent ?? null,
+      sessions,
+    }
+  }
+
+  /**
    * Clean up any temp MCP config files created during sessions.
    */
   async cleanupMcpTempFiles(): Promise<void> {

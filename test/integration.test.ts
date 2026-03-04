@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test'
 import { NodeContainer } from '../src/node/container'
 import { mkdirSync, writeFileSync, rmSync, mkdtempSync, realpathSync } from 'fs'
 import { join } from 'path'
@@ -463,8 +463,8 @@ describe('Integration: State + Bus + Events across features', () => {
     const c = new NodeContainer({ cwd: testDir })
     const bus1 = c.bus()
     const bus2 = c.bus()
-    const fn1 = vi.fn()
-    const fn2 = vi.fn()
+    const fn1 = mock()
+    const fn2 = mock()
 
     bus1.on('test', fn1)
     bus2.on('test', fn2)
@@ -746,8 +746,8 @@ describe('Integration: Multiple containers are fully isolated', () => {
   it('events in one container do not leak to another', () => {
     const c1 = new NodeContainer({ cwd: testDir })
     const c2 = new NodeContainer({ cwd: testDir })
-    const fn1 = vi.fn()
-    const fn2 = vi.fn()
+    const fn1 = mock()
+    const fn2 = mock()
 
     c1.on('isolated', fn1)
     c2.on('isolated', fn2)

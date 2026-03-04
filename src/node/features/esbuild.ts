@@ -1,4 +1,4 @@
-import * as esbuild from 'esbuild'
+import * as esbuild from 'esbuild-wasm'
 import { Feature, features } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { NodeContainer } from '../container.js'

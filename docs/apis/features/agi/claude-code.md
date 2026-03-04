@@ -333,6 +333,29 @@ console.log(session.result)
 
 
 
+### usage
+
+Get aggregated usage statistics across all sessions, or for a specific session.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `sessionId` | `string` |  | Optional session ID to get usage for a single session |
+
+**Returns:** `void`
+
+```ts
+const stats = cc.usage()
+console.log(`Total cost: $${stats.totalCostUsd.toFixed(4)}`)
+console.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)
+
+// Single session
+const sessionStats = cc.usage(sessionId)
+```
+
+
+
 ### cleanupMcpTempFiles
 
 Clean up any temp MCP config files created during sessions.
@@ -562,5 +585,18 @@ if (session?.status === 'completed') {
 const id = cc.start('Build something cool')
 const session = await cc.waitForSession(id)
 console.log(session.result)
+```
+
+
+
+**usage**
+
+```ts
+const stats = cc.usage()
+console.log(`Total cost: $${stats.totalCostUsd.toFixed(4)}`)
+console.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)
+
+// Single session
+const sessionStats = cc.usage(sessionId)
 ```
 

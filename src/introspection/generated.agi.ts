@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T03:11:37.946Z
+// Generated at: 2026-03-04T04:01:27.783Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -9093,6 +9093,23 @@ setBuildTimeData('features.claudeCode', {
         {
           "language": "ts",
           "code": "const id = cc.start('Build something cool')\nconst session = await cc.waitForSession(id)\nconsole.log(session.result)"
+        }
+      ]
+    },
+    "usage": {
+      "description": "Get aggregated usage statistics across all sessions, or for a specific session.",
+      "parameters": {
+        "sessionId": {
+          "type": "string",
+          "description": "Optional session ID to get usage for a single session"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stats = cc.usage()\nconsole.log(`Total cost: $${stats.totalCostUsd.toFixed(4)}`)\nconsole.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)\n\n// Single session\nconst sessionStats = cc.usage(sessionId)"
         }
       ]
     },
@@ -19399,6 +19416,23 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "const id = cc.start('Build something cool')\nconst session = await cc.waitForSession(id)\nconsole.log(session.result)"
+          }
+        ]
+      },
+      "usage": {
+        "description": "Get aggregated usage statistics across all sessions, or for a specific session.",
+        "parameters": {
+          "sessionId": {
+            "type": "string",
+            "description": "Optional session ID to get usage for a single session"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stats = cc.usage()\nconsole.log(`Total cost: $${stats.totalCostUsd.toFixed(4)}`)\nconsole.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} out`)\n\n// Single session\nconst sessionStats = cc.usage(sessionId)"
           }
         ]
       },

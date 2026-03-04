@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, spyOn } from 'bun:test'
 import { NodeContainer } from '../src/node/container'
 import { WebSocketClient, GraphClient } from '../src/client'
 
@@ -140,7 +140,7 @@ describe('GraphClient', () => {
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
     // Mock the post method to simulate a GraphQL response
-    vi.spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'post').mockResolvedValue({
       data: { user: { name: 'Jon' } },
     })
 
@@ -153,7 +153,7 @@ describe('GraphClient', () => {
     const c = new NodeContainer()
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
-    vi.spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'post').mockResolvedValue({
       data: { user: { name: 'Jon' } },
     })
 
@@ -169,7 +169,7 @@ describe('GraphClient', () => {
     const c = new NodeContainer()
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
 
-    vi.spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'post').mockResolvedValue({
       data: { createUser: { id: '1' } },
     })
 
@@ -182,7 +182,7 @@ describe('GraphClient', () => {
     const gql = c.client('graph', { baseURL: 'https://api.example.com' })
     const errors = [{ message: 'Not found' }]
 
-    vi.spyOn(gql, 'post').mockResolvedValue({
+    spyOn(gql, 'post').mockResolvedValue({
       data: null,
       errors,
     })

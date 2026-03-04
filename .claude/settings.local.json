@@ -105,7 +105,8 @@
       "mcp__contentbase__inspect",
       "mcp__contentbase__list_documents",
       "Bash(ln:*)",
-      "Bash(luca eval:*)"
+      "Bash(luca eval:*)",
+      "Bash(node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

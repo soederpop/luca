@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, mock } from 'bun:test'
 import { State } from '../src/state'
 
 describe('State', () => {
@@ -86,7 +86,7 @@ describe('State', () => {
 
   it('observers are notified on add', () => {
     const state = new State<{ a: number }>()
-    const observer = vi.fn()
+    const observer = mock()
     state.observe(observer)
     state.set('a', 1)
     expect(observer).toHaveBeenCalledWith('add', 'a', 1)
@@ -94,7 +94,7 @@ describe('State', () => {
 
   it('observers are notified on update', () => {
     const state = new State<{ a: number }>({ initialState: { a: 0 } })
-    const observer = vi.fn()
+    const observer = mock()
     state.observe(observer)
     state.set('a', 5)
     expect(observer).toHaveBeenCalledWith('update', 'a', 5)
@@ -102,7 +102,7 @@ describe('State', () => {
 
   it('observers are notified on delete', () => {
     const state = new State<{ a: number }>({ initialState: { a: 1 } })
-    const observer = vi.fn()
+    const observer = mock()
     state.observe(observer)
     state.delete('a')
     expect(observer).toHaveBeenCalledWith('delete', 'a', 1)
@@ -110,7 +110,7 @@ describe('State', () => {
 
   it('unsubscribe stops notifications', () => {
     const state = new State<{ a: number }>()
-    const observer = vi.fn()
+    const observer = mock()
     const unsubscribe = state.observe(observer)
     state.set('a', 1)
     expect(observer).toHaveBeenCalledTimes(1)
