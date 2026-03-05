@@ -12,10 +12,13 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	json: z.boolean().default(false).describe('Serialize output as JSON'),
+	enable: z.string().optional().describe('Enable a feature before evaluating (e.g. --enable diskCache)'),
 })
 
 export default async function evalCommand(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+
+	container.addContext('feature', (...args: any) => container.feature(...args))
 
 	await container.helpers.discoverAll()
 	
@@ -29,6 +32,11 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 	}
 
 	const vm = container.feature('vm')
+
+	// HACK
+	Array(container.argv.enable).map((id) => {
+		container.feature(id, { ...container.argv, enable: true }).enable()
+	})
 
 	// Build context with container and all enabled feature instances
 	const ctx: Record<string, any> = { container }

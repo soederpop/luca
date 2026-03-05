@@ -246,6 +246,8 @@ Save the conversation to disk via conversationHistory.
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
+| `hasVoice` | `boolean` | Whether this assistant has a voice.yaml configuration file. |
+| `voiceConfig` | `Record<string, any> | undefined` | Parsed voice configuration from voice.yaml, or undefined if not present. |
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
 | `conversation` | `Conversation` |  |

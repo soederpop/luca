@@ -6,8 +6,6 @@ No description provided
 
 ```ts
 container.feature('assistantsManager', {
-  // Folder to scan for assistant subdirectories
-  folder,
   // Automatically discover assistants on init
   autoDiscover,
 })
@@ -17,7 +15,6 @@ container.feature('assistantsManager', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `folder` | `string` | Folder to scan for assistant subdirectories |
 | `autoDiscover` | `boolean` | Automatically discover assistants on init |
 
 ## Methods
@@ -30,7 +27,7 @@ container.feature('assistantsManager', {
 
 ### discover
 
-Scans the assistants folder for subdirectories and probes each for CORE.md, tools.ts, hooks.ts, and docs/. Populates the internal entries map.
+Discovers assistants by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition.
 
 **Returns:** `this`
 
@@ -52,7 +49,7 @@ Looks up a single assistant entry by name.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `name` | `string` | ✓ | The assistant subdirectory name |
+| `name` | `string` | ✓ | The assistant name (e.g. 'assistants/chief-of-staff') |
 
 **Returns:** `AssistantEntry | undefined`
 
@@ -72,7 +69,7 @@ Creates and returns a new Assistant feature instance for the given name. The ass
 **Returns:** `Assistant`
 
 ```ts
-const assistant = manager.create('my-helper', { model: 'gpt-4.1' })
+const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
 ```
 
 
@@ -103,7 +100,7 @@ Generates a markdown summary of all discovered assistants, listing their names a
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `assistantsFolder` | `string` | The absolute path to the assistants folder. |
+| `available` | `any` |  |
 
 ## Events (Zod v4 schema)
 
@@ -140,10 +137,10 @@ Emitted when a new assistant instance is created
 **features.assistantsManager**
 
 ```ts
-const manager = container.feature('assistantsManager', { folder: 'assistants' })
-await manager.discover()
-console.log(manager.list()) // [{ name: 'my-helper', folder: '...', ... }]
-const assistant = manager.create('my-helper')
+const manager = container.feature('assistantsManager')
+manager.discover()
+console.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]
+const assistant = manager.create('assistants/chief-of-staff')
 const answer = await assistant.ask('Hello!')
 ```
 
@@ -152,6 +149,6 @@ const answer = await assistant.ask('Hello!')
 **create**
 
 ```ts
-const assistant = manager.create('my-helper', { model: 'gpt-4.1' })
+const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
 ```
 

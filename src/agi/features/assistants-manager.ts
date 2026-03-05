@@ -26,6 +26,8 @@ export interface AssistantEntry {
 	hasTools: boolean
 	/** Whether a hooks.ts file exists. */
 	hasHooks: boolean
+	/** Whether a voice.yaml configuration file exists. */
+	hasVoice: boolean
 }
 
 export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
@@ -43,8 +45,6 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({
-	/** The folder to scan for assistant subdirectories, relative to cwd. */
-	folder: z.string().default('assistants').describe('Folder to scan for assistant subdirectories'),
 	/** Whether to automatically run discovery after initialization. */
 	autoDiscover: z.boolean().default(false).describe('Automatically discover assistants on init'),
 })
@@ -53,9 +53,10 @@ export type AssistantsManagerState = z.infer<typeof AssistantsManagerStateSchema
 export type AssistantsManagerOptions = z.infer<typeof AssistantsManagerOptionsSchema>
 
 /**
- * Discovers and manages assistant definitions from a local directory.
- * Each subdirectory in the configured folder is treated as an assistant
- * definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder.
+ * Discovers and manages assistant definitions by finding all CORE.md files
+ * in the project using the fileManager. Each directory containing a CORE.md
+ * is treated as an assistant definition that can also contain tools.ts,
+ * hooks.ts, voice.yaml, and a docs/ folder.
  *
  * Use `discover()` to scan for available assistants, `list()` to enumerate them,
  * and `create(name)` to instantiate one as a running Assistant feature.
@@ -64,10 +65,10 @@ export type AssistantsManagerOptions = z.infer<typeof AssistantsManagerOptionsSc
  *
  * @example
  * ```typescript
- * const manager = container.feature('assistantsManager', { folder: 'assistants' })
- * await manager.discover()
- * console.log(manager.list()) // [{ name: 'my-helper', folder: '...', ... }]
- * const assistant = manager.create('my-helper')
+ * const manager = container.feature('assistantsManager')
+ * manager.discover()
+ * console.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]
+ * const assistant = manager.create('assistants/chief-of-staff')
  * const answer = await assistant.ask('Hello!')
  * ```
  */
@@ -99,11 +100,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	private _entries: Map<string, AssistantEntry> = new Map()
 	private _instances: Map<string, Assistant> = new Map()
 
-	/** The absolute path to the assistants folder. */
-	get assistantsFolder(): string {
-		return this.container.paths.resolve(this.options.folder || 'assistants')
-	}
-
 	override afterInitialize() {
 		if (this.options.autoDiscover) {
 			this.discover()
@@ -111,41 +107,34 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * Scans the assistants folder for subdirectories and probes each
-	 * for CORE.md, tools.ts, hooks.ts, and docs/. Populates the
-	 * internal entries map.
+	 * Discovers assistants by finding all CORE.md files in the project
+	 * using the fileManager. Each directory containing a CORE.md is
+	 * treated as an assistant definition.
 	 *
 	 * @returns {this} This instance, for chaining
 	 */
 	discover(): this {
 		const { fs, paths } = this.container
-		const folder = this.assistantsFolder
+		const fileManager = this.container.feature('fileManager') as any
+
+		fileManager.start()
 
 		this._entries.clear()
 
-		if (!fs.exists(folder)) {
-			this.state.setState({ discovered: true, assistantCount: 0 })
-			this.emit('discovered')
-			return this
-		}
+		const coreFiles = fileManager.matchFiles('**/CORE.md')
 
-		const result = fs.walk(folder, { directories: true, files: false })
+		for (const file of coreFiles) {
+			const dir = file.dirname
+			const name = file.relativeDirname
 
-		for (const dir of result.directories) {
-			// Only include top-level children of the assistants folder
-			if (paths.dirname(dir) !== folder) continue
-
-			const name = dir.split('/').pop()!
-
-			const entry: AssistantEntry = {
+			this._entries.set(name, {
 				name,
 				folder: dir,
-				hasCorePrompt: fs.exists(paths.resolve(dir, 'CORE.md')),
+				hasCorePrompt: true,
 				hasTools: fs.exists(paths.resolve(dir, 'tools.ts')),
 				hasHooks: fs.exists(paths.resolve(dir, 'hooks.ts')),
-			}
-
-			this._entries.set(name, entry)
+				hasVoice: fs.exists(paths.resolve(dir, 'voice.yaml')),
+			})
 		}
 
 		this.state.setState({
@@ -155,6 +144,10 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 		this.emit('discovered')
 		return this
+	}
+
+	get available() {
+		return Array.from(this._entries.keys()) 
 	}
 
 	/**
@@ -169,11 +162,21 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	/**
 	 * Looks up a single assistant entry by name.
 	 *
-	 * @param {string} name - The assistant subdirectory name
+	 * @param {string} name - The assistant name (e.g. 'assistants/chief-of-staff')
 	 * @returns {AssistantEntry | undefined} The entry, or undefined if not found
 	 */
 	get(name: string): AssistantEntry | undefined {
-		return this._entries.get(name)
+		const found = this._entries.get(name)
+
+		if (!found) {
+			const aliases = this.available.filter(key => key.endsWith(name))
+
+			if(aliases.length === 1) {
+				return this._entries.get(aliases[0]!)
+			} else if (aliases.length > 2) {
+				throw new Error(`Could not tell which assistant you mean, multiple match that name`)
+			}
+		}
 	}
 
 	/**
@@ -188,7 +191,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 *
 	 * @example
 	 * ```typescript
-	 * const assistant = manager.create('my-helper', { model: 'gpt-4.1' })
+	 * const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
 	 * ```
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {

@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T08:17:16.826Z
+// Generated at: 2026-03-05T04:58:29.076Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -5920,6 +5920,12 @@ setBuildTimeData('features.packageFinder', {
           "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
         }
       ]
+    },
+    "findLocalPackageFolders": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
     }
   },
   "getters": {
@@ -7896,7 +7902,7 @@ setBuildTimeData('servers.websocket', {
 
 setBuildTimeData('features.assistantsManager', {
   "id": "features.assistantsManager",
-  "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
+  "description": "Discovers and manages assistant definitions by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition that can also contain tools.ts, hooks.ts, voice.yaml, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
   "shortcut": "features.assistantsManager",
   "className": "AssistantsManager",
   "methods": {
@@ -7907,7 +7913,7 @@ setBuildTimeData('features.assistantsManager', {
       "returns": "void"
     },
     "discover": {
-      "description": "Scans the assistants folder for subdirectories and probes each for CORE.md, tools.ts, hooks.ts, and docs/. Populates the internal entries map.",
+      "description": "Discovers assistants by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition.",
       "parameters": {},
       "required": [],
       "returns": "this"
@@ -7923,7 +7929,7 @@ setBuildTimeData('features.assistantsManager', {
       "parameters": {
         "name": {
           "type": "string",
-          "description": "The assistant subdirectory name"
+          "description": "The assistant name (e.g. 'assistants/chief-of-staff')"
         }
       },
       "required": [
@@ -7950,7 +7956,7 @@ setBuildTimeData('features.assistantsManager', {
       "examples": [
         {
           "language": "ts",
-          "code": "const assistant = manager.create('my-helper', { model: 'gpt-4.1' })"
+          "code": "const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })"
         }
       ]
     },
@@ -7975,9 +7981,9 @@ setBuildTimeData('features.assistantsManager', {
     }
   },
   "getters": {
-    "assistantsFolder": {
-      "description": "The absolute path to the assistants folder.",
-      "returns": "string"
+    "available": {
+      "description": "",
+      "returns": "any"
     }
   },
   "events": {
@@ -7998,7 +8004,7 @@ setBuildTimeData('features.assistantsManager', {
   "examples": [
     {
       "language": "ts",
-      "code": "const manager = container.feature('assistantsManager', { folder: 'assistants' })\nawait manager.discover()\nconsole.log(manager.list()) // [{ name: 'my-helper', folder: '...', ... }]\nconst assistant = manager.create('my-helper')\nconst answer = await assistant.ask('Hello!')"
+      "code": "const manager = container.feature('assistantsManager')\nmanager.discover()\nconsole.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]\nconst assistant = manager.create('assistants/chief-of-staff')\nconst answer = await assistant.ask('Hello!')"
     }
   ]
 });
@@ -8742,6 +8748,14 @@ setBuildTimeData('features.assistant', {
     "hooksModulePath": {
       "description": "The path to hooks.ts which provides event handler functions.",
       "returns": "string"
+    },
+    "hasVoice": {
+      "description": "Whether this assistant has a voice.yaml configuration file.",
+      "returns": "boolean"
+    },
+    "voiceConfig": {
+      "description": "Parsed voice configuration from voice.yaml, or undefined if not present.",
+      "returns": "Record<string, any> | undefined"
     },
     "resolvedDocsFolder": {
       "description": "",
@@ -16452,6 +16466,12 @@ export const introspectionData = [
             "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
           }
         ]
+      },
+      "findLocalPackageFolders": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       }
     },
     "getters": {
@@ -18416,7 +18436,7 @@ export const introspectionData = [
   },
   {
     "id": "features.assistantsManager",
-    "description": "Discovers and manages assistant definitions from a local directory. Each subdirectory in the configured folder is treated as an assistant definition that can contain CORE.md, tools.ts, hooks.ts, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
+    "description": "Discovers and manages assistant definitions by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition that can also contain tools.ts, hooks.ts, voice.yaml, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.",
     "shortcut": "features.assistantsManager",
     "className": "AssistantsManager",
     "methods": {
@@ -18427,7 +18447,7 @@ export const introspectionData = [
         "returns": "void"
       },
       "discover": {
-        "description": "Scans the assistants folder for subdirectories and probes each for CORE.md, tools.ts, hooks.ts, and docs/. Populates the internal entries map.",
+        "description": "Discovers assistants by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition.",
         "parameters": {},
         "required": [],
         "returns": "this"
@@ -18443,7 +18463,7 @@ export const introspectionData = [
         "parameters": {
           "name": {
             "type": "string",
-            "description": "The assistant subdirectory name"
+            "description": "The assistant name (e.g. 'assistants/chief-of-staff')"
           }
         },
         "required": [
@@ -18470,7 +18490,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const assistant = manager.create('my-helper', { model: 'gpt-4.1' })"
+            "code": "const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })"
           }
         ]
       },
@@ -18495,9 +18515,9 @@ export const introspectionData = [
       }
     },
     "getters": {
-      "assistantsFolder": {
-        "description": "The absolute path to the assistants folder.",
-        "returns": "string"
+      "available": {
+        "description": "",
+        "returns": "any"
       }
     },
     "events": {
@@ -18518,7 +18538,7 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const manager = container.feature('assistantsManager', { folder: 'assistants' })\nawait manager.discover()\nconsole.log(manager.list()) // [{ name: 'my-helper', folder: '...', ... }]\nconst assistant = manager.create('my-helper')\nconst answer = await assistant.ask('Hello!')"
+        "code": "const manager = container.feature('assistantsManager')\nmanager.discover()\nconsole.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]\nconst assistant = manager.create('assistants/chief-of-staff')\nconst answer = await assistant.ask('Hello!')"
       }
     ]
   },
@@ -19258,6 +19278,14 @@ export const introspectionData = [
       "hooksModulePath": {
         "description": "The path to hooks.ts which provides event handler functions.",
         "returns": "string"
+      },
+      "hasVoice": {
+        "description": "Whether this assistant has a voice.yaml configuration file.",
+        "returns": "boolean"
+      },
+      "voiceConfig": {
+        "description": "Parsed voice configuration from voice.yaml, or undefined if not present.",
+        "returns": "Record<string, any> | undefined"
       },
       "resolvedDocsFolder": {
         "description": "",

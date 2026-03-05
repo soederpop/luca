@@ -134,6 +134,18 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.paths.resolve('hooks.ts')
 	}
 
+	/** Whether this assistant has a voice.yaml configuration file. */
+	get hasVoice(): boolean {
+		return this.container.fs.exists(this.paths.resolve('voice.yaml'))
+	}
+
+	/** Parsed voice configuration from voice.yaml, or undefined if not present. */
+	get voiceConfig(): Record<string, any> | undefined {
+		if (!this.hasVoice) return undefined
+		const yaml = this.container.feature('yaml')
+		return yaml.parse(this.container.fs.readFile(this.paths.resolve('voice.yaml')))
+	}
+
 	get resolvedDocsFolder() {
 		const { docsFolder = this.options.docsFolder || 'docs' } = this.state.current
 

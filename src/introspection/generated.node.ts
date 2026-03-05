@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-04T08:17:16.688Z
+// Generated at: 2026-03-05T04:58:28.929Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -5920,6 +5920,12 @@ setBuildTimeData('features.packageFinder', {
           "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
         }
       ]
+    },
+    "findLocalPackageFolders": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
     }
   },
   "getters": {
@@ -14211,6 +14217,12 @@ export const introspectionData = [
             "code": "// Get all non-development packages (those not in devDependencies)\nconst prodPackages = finder.exclude(pkg => isDevDependency(pkg.name));\n\n// Get all non-scoped packages\nconst unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));"
           }
         ]
+      },
+      "findLocalPackageFolders": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       }
     },
     "getters": {

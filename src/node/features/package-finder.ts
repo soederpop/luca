@@ -487,6 +487,13 @@ export class PackageFinder<
   
     return results;
   }
+
+  async findLocalPackageFolders() {
+	  const cmd = "find . -name package.json"
+	  const result = this.container.proc.exec(cmd)
+	  const all = result.split("\n").filter(Boolean).map((path: string) => this.container.paths.dirname(path))
+	  return all.filter((i: string) => !i.match(/node_modules/))
+  }
    
   /**
    * Discovers all package directories across all node_modules in the workspace.

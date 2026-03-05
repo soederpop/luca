@@ -215,6 +215,12 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 
 
 
+### findLocalPackageFolders
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |

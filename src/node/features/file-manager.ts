@@ -12,6 +12,7 @@ import type { FSWatcher } from "chokidar";
 type File = {
   absolutePath: string;
   relativePath: string;
+  relativeDirname: string;
   dirname: string;
   name: string;
   extension: string;
@@ -231,6 +232,7 @@ export class FileManager<
         dirname: dir,
         absolutePath,
         relativePath,
+	relativeDirname: this.container.paths.relative(dir),
         name,
         extension: ext,
         size,
