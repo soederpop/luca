@@ -536,7 +536,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				return container.paths.resolve(base, ...args)		
 			},
 			join(...args: any[]) {
-				return container.paths.join(base, ...args)
+				return container.paths.resolve(base, ...args)
 			}
 		}
 	}
@@ -673,6 +673,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns {Promise<this>} The initialized assistant
 	 */
 	async start(): Promise<this> {
+		// Prevent duplicate listener registration if already started
+		if (this.isStarted) return this
+
 		// Wait for any async .use() plugins to finish before starting
 		if (this._pendingPlugins.length) {
 			await Promise.all(this._pendingPlugins)

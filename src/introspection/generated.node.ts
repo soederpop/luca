@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-05T04:58:28.929Z
+// Generated at: 2026-03-06T05:47:33.738Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7509,6 +7509,79 @@ setBuildTimeData('features.contentDb', {
         "options"
       ],
       "returns": "void"
+    },
+    "search": {
+      "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "vectorSearch": {
+      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "hybridSearch": {
+      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "buildSearchIndex": {
+      "description": "Build the search index from all documents in the collection. Chunks documents and generates embeddings.",
+      "parameters": {
+        "options": {
+          "type": "{ force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "rebuildSearchIndex": {
+      "description": "Rebuild the entire search index from scratch.",
+      "parameters": {
+        "options": {
+          "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
     }
   },
   "getters": {
@@ -7531,6 +7604,10 @@ setBuildTimeData('features.contentDb', {
     "modelNames": {
       "description": "Returns an array of all registered model names from the collection.",
       "returns": "string[]"
+    },
+    "searchIndexStatus": {
+      "description": "Get the current search index status.",
+      "returns": "any"
     },
     "queries": {
       "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
@@ -15798,6 +15875,79 @@ export const introspectionData = [
           "options"
         ],
         "returns": "void"
+      },
+      "search": {
+        "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "vectorSearch": {
+        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "hybridSearch": {
+        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "buildSearchIndex": {
+        "description": "Build the search index from all documents in the collection. Chunks documents and generates embeddings.",
+        "parameters": {
+          "options": {
+            "type": "{ force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "rebuildSearchIndex": {
+        "description": "Rebuild the entire search index from scratch.",
+        "parameters": {
+          "options": {
+            "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
       }
     },
     "getters": {
@@ -15820,6 +15970,10 @@ export const introspectionData = [
       "modelNames": {
         "description": "Returns an array of all registered model names from the collection.",
         "returns": "string[]"
+      },
+      "searchIndexStatus": {
+        "description": "Get the current search index status.",
+        "returns": "any"
       },
       "queries": {
         "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",

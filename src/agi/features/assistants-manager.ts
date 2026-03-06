@@ -168,15 +168,19 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	get(name: string): AssistantEntry | undefined {
 		const found = this._entries.get(name)
 
-		if (!found) {
-			const aliases = this.available.filter(key => key.endsWith(name))
-
-			if(aliases.length === 1) {
-				return this._entries.get(aliases[0]!)
-			} else if (aliases.length > 2) {
-				throw new Error(`Could not tell which assistant you mean, multiple match that name`)
-			}
+		if (found) {
+			return found
 		}
+
+		const aliases = this.available.filter(key => key === name || key.endsWith(`/${name}`))
+
+		if (aliases.length === 1) {
+			return this._entries.get(aliases[0]!)
+		} else if (aliases.length > 1) {
+			throw new Error(`Ambiguous assistant name "${name}", matches: ${aliases.join(', ')}`)
+		}
+
+		return undefined
 	}
 
 	/**
@@ -195,7 +199,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * ```
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {
-		const entry = this._entries.get(name)
+		const entry = this.get(name)
 
 		if (!entry) {
 			const available = Array.from(this._entries.keys())

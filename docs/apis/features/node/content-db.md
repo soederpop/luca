@@ -147,6 +147,79 @@ await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], 
 
 
 
+### search
+
+BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | ✓ | Parameter query |
+| `options` | `{ limit?: number; model?: string; where?: Record<string, any> }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### vectorSearch
+
+Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | ✓ | Parameter query |
+| `options` | `{ limit?: number; model?: string; where?: Record<string, any> }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### hybridSearch
+
+Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | ✓ | Parameter query |
+| `options` | `{ limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### buildSearchIndex
+
+Build the search index from all documents in the collection. Chunks documents and generates embeddings.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### rebuildSearchIndex
+
+Rebuild the entire search index from scratch.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -156,6 +229,7 @@ await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], 
 | `collectionPath` | `any` | Returns the absolute resolved path to the collection root directory. |
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
+| `searchIndexStatus` | `any` | Get the current search index status. |
 | `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. |
 
 ## State (Zod v4 schema)

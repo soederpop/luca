@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-05T04:58:29.076Z
+// Generated at: 2026-03-06T05:47:33.850Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7509,6 +7509,79 @@ setBuildTimeData('features.contentDb', {
         "options"
       ],
       "returns": "void"
+    },
+    "search": {
+      "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "vectorSearch": {
+      "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "hybridSearch": {
+      "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "{ limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "void"
+    },
+    "buildSearchIndex": {
+      "description": "Build the search index from all documents in the collection. Chunks documents and generates embeddings.",
+      "parameters": {
+        "options": {
+          "type": "{ force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "rebuildSearchIndex": {
+      "description": "Rebuild the entire search index from scratch.",
+      "parameters": {
+        "options": {
+          "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "void"
     }
   },
   "getters": {
@@ -7531,6 +7604,10 @@ setBuildTimeData('features.contentDb', {
     "modelNames": {
       "description": "Returns an array of all registered model names from the collection.",
       "returns": "string[]"
+    },
+    "searchIndexStatus": {
+      "description": "Get the current search index status.",
+      "returns": "any"
     },
     "queries": {
       "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
@@ -10091,6 +10168,488 @@ setBuildTimeData('features.conversationHistory', {
     {
       "language": "ts",
       "code": "const history = container.feature('conversationHistory', {\n namespace: 'my-app',\n cachePath: '/tmp/conversations'\n})\n\n// Create and retrieve conversations\nconst record = await history.create({ messages, title: 'My Chat' })\nconst loaded = await history.load(record.id)\n\n// Search and filter\nconst results = await history.search({ tag: 'important', limit: 10 })"
+    }
+  ]
+});
+
+setBuildTimeData('features.semanticSearch', {
+  "id": "features.semanticSearch",
+  "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.",
+  "shortcut": "features.semanticSearch",
+  "className": "SemanticSearch",
+  "methods": {
+    "initDb": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "insertDocument": {
+      "description": "",
+      "parameters": {
+        "doc": {
+          "type": "DocumentInput",
+          "description": "Parameter doc",
+          "properties": {
+            "pathId": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "slug": {
+              "type": "string",
+              "description": ""
+            },
+            "meta": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            },
+            "sections": {
+              "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "doc"
+      ],
+      "returns": "void"
+    },
+    "insertChunk": {
+      "description": "",
+      "parameters": {
+        "chunk": {
+          "type": "Chunk",
+          "description": "Parameter chunk",
+          "properties": {
+            "pathId": {
+              "type": "string",
+              "description": ""
+            },
+            "section": {
+              "type": "string",
+              "description": ""
+            },
+            "headingPath": {
+              "type": "string",
+              "description": ""
+            },
+            "seq": {
+              "type": "number",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            },
+            "contentHash": {
+              "type": "string",
+              "description": ""
+            }
+          }
+        },
+        "embedding": {
+          "type": "Float32Array",
+          "description": "Parameter embedding"
+        }
+      },
+      "required": [
+        "chunk",
+        "embedding"
+      ],
+      "returns": "void"
+    },
+    "removeDocument": {
+      "description": "",
+      "parameters": {
+        "pathId": {
+          "type": "string",
+          "description": "Parameter pathId"
+        }
+      },
+      "required": [
+        "pathId"
+      ],
+      "returns": "void"
+    },
+    "getStats": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "IndexStatus"
+    },
+    "embed": {
+      "description": "",
+      "parameters": {
+        "texts": {
+          "type": "string[]",
+          "description": "Parameter texts"
+        }
+      },
+      "required": [
+        "texts"
+      ],
+      "returns": "Promise<number[][]>"
+    },
+    "ensureModel": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disposeModel": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "getDimensions": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "number"
+    },
+    "chunkDocument": {
+      "description": "",
+      "parameters": {
+        "doc": {
+          "type": "DocumentInput",
+          "description": "Parameter doc",
+          "properties": {
+            "pathId": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "slug": {
+              "type": "string",
+              "description": ""
+            },
+            "meta": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            },
+            "sections": {
+              "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+              "description": ""
+            }
+          }
+        },
+        "strategy": {
+          "type": "'section' | 'fixed' | 'document'",
+          "description": "Parameter strategy"
+        }
+      },
+      "required": [
+        "doc"
+      ],
+      "returns": "Chunk[]"
+    },
+    "search": {
+      "description": "",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "SearchOptions",
+          "description": "Parameter options",
+          "properties": {
+            "limit": {
+              "type": "number",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "where": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<SearchResult[]>"
+    },
+    "vectorSearch": {
+      "description": "",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "SearchOptions",
+          "description": "Parameter options",
+          "properties": {
+            "limit": {
+              "type": "number",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "where": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<SearchResult[]>"
+    },
+    "hybridSearch": {
+      "description": "",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "Parameter query"
+        },
+        "options": {
+          "type": "HybridSearchOptions",
+          "description": "Parameter options",
+          "properties": {
+            "ftsWeight": {
+              "type": "number",
+              "description": ""
+            },
+            "vecWeight": {
+              "type": "number",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "returns": "Promise<SearchResult[]>"
+    },
+    "deepSearch": {
+      "description": "",
+      "parameters": {
+        "_query": {
+          "type": "string",
+          "description": "Parameter _query"
+        },
+        "_options": {
+          "type": "SearchOptions",
+          "description": "Parameter _options",
+          "properties": {
+            "limit": {
+              "type": "number",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "where": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "_query"
+      ],
+      "returns": "Promise<SearchResult[]>"
+    },
+    "indexDocuments": {
+      "description": "",
+      "parameters": {
+        "docs": {
+          "type": "DocumentInput[]",
+          "description": "Parameter docs",
+          "properties": {
+            "pathId": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "slug": {
+              "type": "string",
+              "description": ""
+            },
+            "meta": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            },
+            "sections": {
+              "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "docs"
+      ],
+      "returns": "Promise<void>"
+    },
+    "reindex": {
+      "description": "",
+      "parameters": {
+        "pathIds": {
+          "type": "string[]",
+          "description": "Parameter pathIds"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "removeStale": {
+      "description": "",
+      "parameters": {
+        "currentPathIds": {
+          "type": "string[]",
+          "description": "Parameter currentPathIds"
+        }
+      },
+      "required": [
+        "currentPathIds"
+      ],
+      "returns": "void"
+    },
+    "needsReindex": {
+      "description": "",
+      "parameters": {
+        "doc": {
+          "type": "DocumentInput",
+          "description": "Parameter doc",
+          "properties": {
+            "pathId": {
+              "type": "string",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "title": {
+              "type": "string",
+              "description": ""
+            },
+            "slug": {
+              "type": "string",
+              "description": ""
+            },
+            "meta": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "content": {
+              "type": "string",
+              "description": ""
+            },
+            "sections": {
+              "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "doc"
+      ],
+      "returns": "boolean"
+    },
+    "status": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "IndexStatus"
+    },
+    "close": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "db": {
+      "description": "",
+      "returns": "Database"
+    },
+    "dimensions": {
+      "description": "",
+      "returns": "number"
+    }
+  },
+  "events": {
+    "dbReady": {
+      "name": "dbReady",
+      "description": "Event emitted by SemanticSearch",
+      "arguments": {}
+    },
+    "modelLoaded": {
+      "name": "modelLoaded",
+      "description": "Event emitted by SemanticSearch",
+      "arguments": {}
+    },
+    "modelDisposed": {
+      "name": "modelDisposed",
+      "description": "Event emitted by SemanticSearch",
+      "arguments": {}
+    },
+    "indexed": {
+      "name": "indexed",
+      "description": "Event emitted by SemanticSearch",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
     }
   ]
 });
@@ -18047,6 +18606,79 @@ export const introspectionData = [
           "options"
         ],
         "returns": "void"
+      },
+      "search": {
+        "description": "BM25 keyword search across indexed documents. If no search index exists, throws with an actionable message.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "vectorSearch": {
+        "description": "Vector similarity search using embeddings. Finds conceptually related documents even without keyword matches.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any> }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "hybridSearch": {
+        "description": "Combined keyword + semantic search with Reciprocal Rank Fusion. Best for general questions about the collection.",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "{ limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "void"
+      },
+      "buildSearchIndex": {
+        "description": "Build the search index from all documents in the collection. Chunks documents and generates embeddings.",
+        "parameters": {
+          "options": {
+            "type": "{ force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "rebuildSearchIndex": {
+        "description": "Rebuild the entire search index from scratch.",
+        "parameters": {
+          "options": {
+            "type": "{ embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "void"
       }
     },
     "getters": {
@@ -18069,6 +18701,10 @@ export const introspectionData = [
       "modelNames": {
         "description": "Returns an array of all registered model names from the collection.",
         "returns": "string[]"
+      },
+      "searchIndexStatus": {
+        "description": "Get the current search index status.",
+        "returns": "any"
       },
       "queries": {
         "description": "Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually.",
@@ -20618,6 +21254,487 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const history = container.feature('conversationHistory', {\n namespace: 'my-app',\n cachePath: '/tmp/conversations'\n})\n\n// Create and retrieve conversations\nconst record = await history.create({ messages, title: 'My Chat' })\nconst loaded = await history.load(record.id)\n\n// Search and filter\nconst results = await history.search({ tag: 'important', limit: 10 })"
+      }
+    ]
+  },
+  {
+    "id": "features.semanticSearch",
+    "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.",
+    "shortcut": "features.semanticSearch",
+    "className": "SemanticSearch",
+    "methods": {
+      "initDb": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "insertDocument": {
+        "description": "",
+        "parameters": {
+          "doc": {
+            "type": "DocumentInput",
+            "description": "Parameter doc",
+            "properties": {
+              "pathId": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "slug": {
+                "type": "string",
+                "description": ""
+              },
+              "meta": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              },
+              "sections": {
+                "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "doc"
+        ],
+        "returns": "void"
+      },
+      "insertChunk": {
+        "description": "",
+        "parameters": {
+          "chunk": {
+            "type": "Chunk",
+            "description": "Parameter chunk",
+            "properties": {
+              "pathId": {
+                "type": "string",
+                "description": ""
+              },
+              "section": {
+                "type": "string",
+                "description": ""
+              },
+              "headingPath": {
+                "type": "string",
+                "description": ""
+              },
+              "seq": {
+                "type": "number",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              },
+              "contentHash": {
+                "type": "string",
+                "description": ""
+              }
+            }
+          },
+          "embedding": {
+            "type": "Float32Array",
+            "description": "Parameter embedding"
+          }
+        },
+        "required": [
+          "chunk",
+          "embedding"
+        ],
+        "returns": "void"
+      },
+      "removeDocument": {
+        "description": "",
+        "parameters": {
+          "pathId": {
+            "type": "string",
+            "description": "Parameter pathId"
+          }
+        },
+        "required": [
+          "pathId"
+        ],
+        "returns": "void"
+      },
+      "getStats": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "IndexStatus"
+      },
+      "embed": {
+        "description": "",
+        "parameters": {
+          "texts": {
+            "type": "string[]",
+            "description": "Parameter texts"
+          }
+        },
+        "required": [
+          "texts"
+        ],
+        "returns": "Promise<number[][]>"
+      },
+      "ensureModel": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disposeModel": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "getDimensions": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "number"
+      },
+      "chunkDocument": {
+        "description": "",
+        "parameters": {
+          "doc": {
+            "type": "DocumentInput",
+            "description": "Parameter doc",
+            "properties": {
+              "pathId": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "slug": {
+                "type": "string",
+                "description": ""
+              },
+              "meta": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              },
+              "sections": {
+                "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+                "description": ""
+              }
+            }
+          },
+          "strategy": {
+            "type": "'section' | 'fixed' | 'document'",
+            "description": "Parameter strategy"
+          }
+        },
+        "required": [
+          "doc"
+        ],
+        "returns": "Chunk[]"
+      },
+      "search": {
+        "description": "",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "SearchOptions",
+            "description": "Parameter options",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "where": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<SearchResult[]>"
+      },
+      "vectorSearch": {
+        "description": "",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "SearchOptions",
+            "description": "Parameter options",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "where": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<SearchResult[]>"
+      },
+      "hybridSearch": {
+        "description": "",
+        "parameters": {
+          "query": {
+            "type": "string",
+            "description": "Parameter query"
+          },
+          "options": {
+            "type": "HybridSearchOptions",
+            "description": "Parameter options",
+            "properties": {
+              "ftsWeight": {
+                "type": "number",
+                "description": ""
+              },
+              "vecWeight": {
+                "type": "number",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "returns": "Promise<SearchResult[]>"
+      },
+      "deepSearch": {
+        "description": "",
+        "parameters": {
+          "_query": {
+            "type": "string",
+            "description": "Parameter _query"
+          },
+          "_options": {
+            "type": "SearchOptions",
+            "description": "Parameter _options",
+            "properties": {
+              "limit": {
+                "type": "number",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "where": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "_query"
+        ],
+        "returns": "Promise<SearchResult[]>"
+      },
+      "indexDocuments": {
+        "description": "",
+        "parameters": {
+          "docs": {
+            "type": "DocumentInput[]",
+            "description": "Parameter docs",
+            "properties": {
+              "pathId": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "slug": {
+                "type": "string",
+                "description": ""
+              },
+              "meta": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              },
+              "sections": {
+                "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "docs"
+        ],
+        "returns": "Promise<void>"
+      },
+      "reindex": {
+        "description": "",
+        "parameters": {
+          "pathIds": {
+            "type": "string[]",
+            "description": "Parameter pathIds"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "removeStale": {
+        "description": "",
+        "parameters": {
+          "currentPathIds": {
+            "type": "string[]",
+            "description": "Parameter currentPathIds"
+          }
+        },
+        "required": [
+          "currentPathIds"
+        ],
+        "returns": "void"
+      },
+      "needsReindex": {
+        "description": "",
+        "parameters": {
+          "doc": {
+            "type": "DocumentInput",
+            "description": "Parameter doc",
+            "properties": {
+              "pathId": {
+                "type": "string",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "title": {
+                "type": "string",
+                "description": ""
+              },
+              "slug": {
+                "type": "string",
+                "description": ""
+              },
+              "meta": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "content": {
+                "type": "string",
+                "description": ""
+              },
+              "sections": {
+                "type": "Array<{ heading: string; headingPath: string; content: string; level: number }>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "doc"
+        ],
+        "returns": "boolean"
+      },
+      "status": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "IndexStatus"
+      },
+      "close": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "db": {
+        "description": "",
+        "returns": "Database"
+      },
+      "dimensions": {
+        "description": "",
+        "returns": "number"
+      }
+    },
+    "events": {
+      "dbReady": {
+        "name": "dbReady",
+        "description": "Event emitted by SemanticSearch",
+        "arguments": {}
+      },
+      "modelLoaded": {
+        "name": "modelLoaded",
+        "description": "Event emitted by SemanticSearch",
+        "arguments": {}
+      },
+      "modelDisposed": {
+        "name": "modelDisposed",
+        "description": "Event emitted by SemanticSearch",
+        "arguments": {}
+      },
+      "indexed": {
+        "name": "indexed",
+        "description": "Event emitted by SemanticSearch",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
       }
     ]
   }
