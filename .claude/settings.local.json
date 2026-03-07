@@ -108,7 +108,8 @@
       "Bash(luca eval:*)",
       "Bash(node:*)",
       "mcp__luca-sandbox__read_me",
-      "mcp__luca-sandbox__find_capability"
+      "mcp__luca-sandbox__find_capability",
+      "Bash(dig:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -60,6 +60,7 @@ import "./features/tts";
 import "./features/helpers";
 import "./features/container-link";
 import "./features/semantic-search";
+import "./features/dns";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -104,6 +105,7 @@ import type { TTS } from './features/tts';
 import type { Helpers } from './features/helpers';
 import type { ContainerLink } from './features/container-link';
 import type { SemanticSearch } from './features/semantic-search';
+import type { Dns } from './features/dns';
 export { State };
 
 export {
@@ -143,6 +145,7 @@ export {
   type Helpers,
   type ContainerLink,
   type SemanticSearch,
+  type Dns,
 };
 
 export type { FeatureOptions };
@@ -208,6 +211,7 @@ export interface NodeFeatures extends AvailableFeatures {
   helpers: typeof Helpers;
   containerLink: typeof ContainerLink;
   semanticSearch: typeof SemanticSearch;
+  dns: typeof Dns;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;

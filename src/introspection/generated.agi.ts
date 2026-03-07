@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-07T04:26:34.707Z
+// Generated at: 2026-03-07T08:09:46.204Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -863,6 +863,574 @@ setBuildTimeData('features.esbuild', {
     {
       "language": "ts",
       "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
+    }
+  ]
+});
+
+setBuildTimeData('features.dns', {
+  "id": "features.dns",
+  "description": "The Dns feature provides structured DNS lookups by wrapping the `dig` CLI. All query methods parse dig output into typed JSON objects, making it easy to explore and audit a domain's DNS configuration programmatically.",
+  "shortcut": "features.dns",
+  "className": "Dns",
+  "methods": {
+    "isAvailable": {
+      "description": "Checks whether the `dig` binary is available on the system.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "if (await dns.isAvailable()) {\n const records = await dns.a('example.com')\n}"
+        }
+      ]
+    },
+    "resolve": {
+      "description": "Resolves DNS records of a given type for a domain. This is the core query method. All convenience methods (a, aaaa, mx, etc.) delegate to this method.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "type": {
+          "type": "DnsRecordType",
+          "description": "The DNS record type to look up"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": "DNS server to use (e.g. '8.8.8.8')"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Query timeout in seconds"
+            },
+            "short": {
+              "type": "boolean",
+              "description": "If true, returns only values (no TTL, class, etc.)"
+            }
+          }
+        }
+      },
+      "required": [
+        "domain",
+        "type"
+      ],
+      "returns": "Promise<DnsQueryResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const result = await dns.resolve('example.com', 'A')\nfor (const record of result.records) {\n console.log(`${record.name} -> ${record.value} (TTL: ${record.ttl}s)`)\n}\n\n// Query a specific DNS server\nconst result = await dns.resolve('example.com', 'A', { server: '1.1.1.1' })"
+        }
+      ]
+    },
+    "a": {
+      "description": "Looks up A (IPv4 address) records for a domain.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.a('google.com')\n// [{ name: 'google.com.', ttl: 300, class: 'IN', type: 'A', value: '142.250.x.x' }]"
+        }
+      ]
+    },
+    "aaaa": {
+      "description": "Looks up AAAA (IPv6 address) records for a domain.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.aaaa('google.com')\n// [{ name: 'google.com.', ttl: 300, class: 'IN', type: 'AAAA', value: '2607:f8b0:...' }]"
+        }
+      ]
+    },
+    "cname": {
+      "description": "Looks up CNAME (canonical name) records for a domain.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.cname('www.github.com')\n// [{ name: 'www.github.com.', ttl: 3600, class: 'IN', type: 'CNAME', value: 'github.com.' }]"
+        }
+      ]
+    },
+    "mx": {
+      "description": "Looks up MX (mail exchange) records for a domain. Returns enriched records with parsed priority and exchange fields.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<MxRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.mx('google.com')\n// [{ name: 'google.com.', ttl: 300, type: 'MX', priority: 10, exchange: 'smtp.google.com.' }]"
+        }
+      ]
+    },
+    "ns": {
+      "description": "Looks up NS (nameserver) records for a domain.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.ns('google.com')\n// [{ name: 'google.com.', ttl: 86400, type: 'NS', value: 'ns1.google.com.' }, ...]"
+        }
+      ]
+    },
+    "txt": {
+      "description": "Looks up TXT records for a domain. TXT records often contain SPF policies, DKIM keys, domain verification tokens, and other metadata.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.txt('google.com')\nconst spf = records.find(r => r.value.includes('v=spf1'))\nconsole.log(spf?.value) // 'v=spf1 include:_spf.google.com ~all'"
+        }
+      ]
+    },
+    "soa": {
+      "description": "Looks up the SOA (Start of Authority) record for a domain. Returns enriched records with parsed SOA fields including primary nameserver, responsible party, serial number, and timing parameters.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<SoaRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.soa('google.com')\nconsole.log(records[0].mname)  // 'ns1.google.com.'\nconsole.log(records[0].serial) // 879543655"
+        }
+      ]
+    },
+    "srv": {
+      "description": "Looks up SRV (service) records for a domain. SRV records specify the location of services. The domain should include the service and protocol prefix (e.g. `_sip._tcp.example.com`).",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The full SRV domain (e.g. `_sip._tcp.example.com`)"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<SrvRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.srv('_sip._tcp.example.com')\n// [{ priority: 10, weight: 60, port: 5060, target: 'sip.example.com.' }]"
+        }
+      ]
+    },
+    "caa": {
+      "description": "Looks up CAA (Certificate Authority Authorization) records for a domain. CAA records specify which certificate authorities are allowed to issue certificates for a domain.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<CaaRecord[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const records = await dns.caa('google.com')\n// [{ flags: 0, tag: 'issue', issuer: 'pki.goog' }]"
+        }
+      ]
+    },
+    "reverse": {
+      "description": "Performs a reverse DNS lookup for an IP address. Converts the IP to its in-addr.arpa form and queries for PTR records.",
+      "parameters": {
+        "ip": {
+          "type": "string",
+          "description": "The IPv4 address to look up"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "ip"
+      ],
+      "returns": "Promise<string[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const hostnames = await dns.reverse('8.8.8.8')\n// ['dns.google.']"
+        }
+      ]
+    },
+    "overview": {
+      "description": "Retrieves a comprehensive DNS overview for a domain. Queries all common record types (A, AAAA, CNAME, MX, NS, TXT, SOA, CAA) in parallel and returns a consolidated view. This is the go-to method for exploring a domain's full DNS configuration.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "options": {
+          "type": "QueryOptions",
+          "description": "Optional query parameters applied to all queries",
+          "properties": {
+            "server": {
+              "type": "string",
+              "description": ""
+            },
+            "timeout": {
+              "type": "number",
+              "description": ""
+            },
+            "short": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "domain"
+      ],
+      "returns": "Promise<DnsOverview>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const overview = await dns.overview('example.com')\nconsole.log('IPs:', overview.a.map(r => r.value))\nconsole.log('Mail:', overview.mx.map(r => r.exchange))\nconsole.log('Nameservers:', overview.ns.map(r => r.value))\nconsole.log('TXT:', overview.txt.map(r => r.value))"
+        }
+      ]
+    },
+    "compare": {
+      "description": "Compares DNS resolution between two nameservers for a given record type. Useful for verifying DNS propagation or checking for inconsistencies between authoritative and recursive resolvers.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "type": {
+          "type": "DnsRecordType",
+          "description": "The DNS record type to compare"
+        },
+        "serverA": {
+          "type": "string",
+          "description": "First DNS server (e.g. '8.8.8.8')"
+        },
+        "serverB": {
+          "type": "string",
+          "description": "Second DNS server (e.g. '1.1.1.1')"
+        }
+      },
+      "required": [
+        "domain",
+        "type",
+        "serverA",
+        "serverB"
+      ],
+      "returns": "Promise<{ serverA: DnsQueryResult; serverB: DnsQueryResult; match: boolean }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const diff = await dns.compare('example.com', 'A', '8.8.8.8', '1.1.1.1')\nconsole.log(diff.match)   // true if both return the same values\nconsole.log(diff.serverA) // records from 8.8.8.8\nconsole.log(diff.serverB) // records from 1.1.1.1"
+        }
+      ]
+    },
+    "queryAuthoritative": {
+      "description": "Queries a domain's authoritative nameservers directly. First resolves the NS records, then queries each nameserver for the specified record type. Useful for bypassing caches and checking what the authoritative servers actually report.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "type": {
+          "type": "DnsRecordType",
+          "description": "The DNS record type to look up"
+        }
+      },
+      "required": [
+        "domain",
+        "type"
+      ],
+      "returns": "Promise<DnsQueryResult[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const results = await dns.queryAuthoritative('example.com', 'A')\nfor (const r of results) {\n console.log(`${r.server}: ${r.records.map(rec => rec.value).join(', ')}`)\n}"
+        }
+      ]
+    },
+    "hasTxtRecord": {
+      "description": "Checks whether a domain has a specific TXT record containing the given text. Useful for verifying domain ownership tokens, SPF records, DKIM entries, etc.",
+      "parameters": {
+        "domain": {
+          "type": "string",
+          "description": "The domain name to query"
+        },
+        "search": {
+          "type": "string",
+          "description": "The text to search for in TXT record values"
+        }
+      },
+      "required": [
+        "domain",
+        "search"
+      ],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Check for SPF record\nconst hasSPF = await dns.hasTxtRecord('google.com', 'v=spf1')\n\n// Check for domain verification\nconst verified = await dns.hasTxtRecord('example.com', 'google-site-verification=')"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "proc": {
+      "description": "",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const dns = container.feature('dns')\n\n// Look up A records\nconst result = await dns.resolve('example.com', 'A')\nconsole.log(result.records)\n\n// Get a full overview of all record types\nconst overview = await dns.overview('example.com')\nconsole.log(overview.mx)  // mail servers\nconsole.log(overview.ns)  // nameservers\nconsole.log(overview.txt) // TXT records (SPF, DKIM, etc.)\n\n// Reverse lookup\nconst ptr = await dns.reverse('8.8.8.8')\nconsole.log(ptr) // ['dns.google.']"
     }
   ]
 });
@@ -12009,6 +12577,573 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const esbuild = container.feature('esbuild')\nconst result = esbuild.transformSync('const x: number = 1')\nconsole.log(result.code) // 'const x = 1;\\n'"
+      }
+    ]
+  },
+  {
+    "id": "features.dns",
+    "description": "The Dns feature provides structured DNS lookups by wrapping the `dig` CLI. All query methods parse dig output into typed JSON objects, making it easy to explore and audit a domain's DNS configuration programmatically.",
+    "shortcut": "features.dns",
+    "className": "Dns",
+    "methods": {
+      "isAvailable": {
+        "description": "Checks whether the `dig` binary is available on the system.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "if (await dns.isAvailable()) {\n const records = await dns.a('example.com')\n}"
+          }
+        ]
+      },
+      "resolve": {
+        "description": "Resolves DNS records of a given type for a domain. This is the core query method. All convenience methods (a, aaaa, mx, etc.) delegate to this method.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "type": {
+            "type": "DnsRecordType",
+            "description": "The DNS record type to look up"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": "DNS server to use (e.g. '8.8.8.8')"
+              },
+              "timeout": {
+                "type": "number",
+                "description": "Query timeout in seconds"
+              },
+              "short": {
+                "type": "boolean",
+                "description": "If true, returns only values (no TTL, class, etc.)"
+              }
+            }
+          }
+        },
+        "required": [
+          "domain",
+          "type"
+        ],
+        "returns": "Promise<DnsQueryResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const result = await dns.resolve('example.com', 'A')\nfor (const record of result.records) {\n console.log(`${record.name} -> ${record.value} (TTL: ${record.ttl}s)`)\n}\n\n// Query a specific DNS server\nconst result = await dns.resolve('example.com', 'A', { server: '1.1.1.1' })"
+          }
+        ]
+      },
+      "a": {
+        "description": "Looks up A (IPv4 address) records for a domain.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.a('google.com')\n// [{ name: 'google.com.', ttl: 300, class: 'IN', type: 'A', value: '142.250.x.x' }]"
+          }
+        ]
+      },
+      "aaaa": {
+        "description": "Looks up AAAA (IPv6 address) records for a domain.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.aaaa('google.com')\n// [{ name: 'google.com.', ttl: 300, class: 'IN', type: 'AAAA', value: '2607:f8b0:...' }]"
+          }
+        ]
+      },
+      "cname": {
+        "description": "Looks up CNAME (canonical name) records for a domain.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.cname('www.github.com')\n// [{ name: 'www.github.com.', ttl: 3600, class: 'IN', type: 'CNAME', value: 'github.com.' }]"
+          }
+        ]
+      },
+      "mx": {
+        "description": "Looks up MX (mail exchange) records for a domain. Returns enriched records with parsed priority and exchange fields.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<MxRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.mx('google.com')\n// [{ name: 'google.com.', ttl: 300, type: 'MX', priority: 10, exchange: 'smtp.google.com.' }]"
+          }
+        ]
+      },
+      "ns": {
+        "description": "Looks up NS (nameserver) records for a domain.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.ns('google.com')\n// [{ name: 'google.com.', ttl: 86400, type: 'NS', value: 'ns1.google.com.' }, ...]"
+          }
+        ]
+      },
+      "txt": {
+        "description": "Looks up TXT records for a domain. TXT records often contain SPF policies, DKIM keys, domain verification tokens, and other metadata.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.txt('google.com')\nconst spf = records.find(r => r.value.includes('v=spf1'))\nconsole.log(spf?.value) // 'v=spf1 include:_spf.google.com ~all'"
+          }
+        ]
+      },
+      "soa": {
+        "description": "Looks up the SOA (Start of Authority) record for a domain. Returns enriched records with parsed SOA fields including primary nameserver, responsible party, serial number, and timing parameters.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<SoaRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.soa('google.com')\nconsole.log(records[0].mname)  // 'ns1.google.com.'\nconsole.log(records[0].serial) // 879543655"
+          }
+        ]
+      },
+      "srv": {
+        "description": "Looks up SRV (service) records for a domain. SRV records specify the location of services. The domain should include the service and protocol prefix (e.g. `_sip._tcp.example.com`).",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The full SRV domain (e.g. `_sip._tcp.example.com`)"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<SrvRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.srv('_sip._tcp.example.com')\n// [{ priority: 10, weight: 60, port: 5060, target: 'sip.example.com.' }]"
+          }
+        ]
+      },
+      "caa": {
+        "description": "Looks up CAA (Certificate Authority Authorization) records for a domain. CAA records specify which certificate authorities are allowed to issue certificates for a domain.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<CaaRecord[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const records = await dns.caa('google.com')\n// [{ flags: 0, tag: 'issue', issuer: 'pki.goog' }]"
+          }
+        ]
+      },
+      "reverse": {
+        "description": "Performs a reverse DNS lookup for an IP address. Converts the IP to its in-addr.arpa form and queries for PTR records.",
+        "parameters": {
+          "ip": {
+            "type": "string",
+            "description": "The IPv4 address to look up"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "ip"
+        ],
+        "returns": "Promise<string[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const hostnames = await dns.reverse('8.8.8.8')\n// ['dns.google.']"
+          }
+        ]
+      },
+      "overview": {
+        "description": "Retrieves a comprehensive DNS overview for a domain. Queries all common record types (A, AAAA, CNAME, MX, NS, TXT, SOA, CAA) in parallel and returns a consolidated view. This is the go-to method for exploring a domain's full DNS configuration.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "options": {
+            "type": "QueryOptions",
+            "description": "Optional query parameters applied to all queries",
+            "properties": {
+              "server": {
+                "type": "string",
+                "description": ""
+              },
+              "timeout": {
+                "type": "number",
+                "description": ""
+              },
+              "short": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "returns": "Promise<DnsOverview>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const overview = await dns.overview('example.com')\nconsole.log('IPs:', overview.a.map(r => r.value))\nconsole.log('Mail:', overview.mx.map(r => r.exchange))\nconsole.log('Nameservers:', overview.ns.map(r => r.value))\nconsole.log('TXT:', overview.txt.map(r => r.value))"
+          }
+        ]
+      },
+      "compare": {
+        "description": "Compares DNS resolution between two nameservers for a given record type. Useful for verifying DNS propagation or checking for inconsistencies between authoritative and recursive resolvers.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "type": {
+            "type": "DnsRecordType",
+            "description": "The DNS record type to compare"
+          },
+          "serverA": {
+            "type": "string",
+            "description": "First DNS server (e.g. '8.8.8.8')"
+          },
+          "serverB": {
+            "type": "string",
+            "description": "Second DNS server (e.g. '1.1.1.1')"
+          }
+        },
+        "required": [
+          "domain",
+          "type",
+          "serverA",
+          "serverB"
+        ],
+        "returns": "Promise<{ serverA: DnsQueryResult; serverB: DnsQueryResult; match: boolean }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const diff = await dns.compare('example.com', 'A', '8.8.8.8', '1.1.1.1')\nconsole.log(diff.match)   // true if both return the same values\nconsole.log(diff.serverA) // records from 8.8.8.8\nconsole.log(diff.serverB) // records from 1.1.1.1"
+          }
+        ]
+      },
+      "queryAuthoritative": {
+        "description": "Queries a domain's authoritative nameservers directly. First resolves the NS records, then queries each nameserver for the specified record type. Useful for bypassing caches and checking what the authoritative servers actually report.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "type": {
+            "type": "DnsRecordType",
+            "description": "The DNS record type to look up"
+          }
+        },
+        "required": [
+          "domain",
+          "type"
+        ],
+        "returns": "Promise<DnsQueryResult[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const results = await dns.queryAuthoritative('example.com', 'A')\nfor (const r of results) {\n console.log(`${r.server}: ${r.records.map(rec => rec.value).join(', ')}`)\n}"
+          }
+        ]
+      },
+      "hasTxtRecord": {
+        "description": "Checks whether a domain has a specific TXT record containing the given text. Useful for verifying domain ownership tokens, SPF records, DKIM entries, etc.",
+        "parameters": {
+          "domain": {
+            "type": "string",
+            "description": "The domain name to query"
+          },
+          "search": {
+            "type": "string",
+            "description": "The text to search for in TXT record values"
+          }
+        },
+        "required": [
+          "domain",
+          "search"
+        ],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Check for SPF record\nconst hasSPF = await dns.hasTxtRecord('google.com', 'v=spf1')\n\n// Check for domain verification\nconst verified = await dns.hasTxtRecord('example.com', 'google-site-verification=')"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "proc": {
+        "description": "",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const dns = container.feature('dns')\n\n// Look up A records\nconst result = await dns.resolve('example.com', 'A')\nconsole.log(result.records)\n\n// Get a full overview of all record types\nconst overview = await dns.overview('example.com')\nconsole.log(overview.mx)  // mail servers\nconsole.log(overview.ns)  // nameservers\nconsole.log(overview.txt) // TXT records (SPF, DKIM, etc.)\n\n// Reverse lookup\nconst ptr = await dns.reverse('8.8.8.8')\nconsole.log(ptr) // ['dns.google.']"
       }
     ]
   },
