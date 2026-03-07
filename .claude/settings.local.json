@@ -45,7 +45,7 @@
       "Bash(runpodctl exec:*)",
       "Bash(runpodctl config:*)",
       "Bash(ssh:*)",
-      "Bash(RUNPOD_API_KEY=\"rpa_7SQP8U26QKZ0GMJLKH8OZKBUN8S1800RJMJH3XQ0ojtaye\" bun run:*)",
+      "Bash(RUNPOD_API_KEY=\"$RUNPOD_API_KEY\" bun run:*)",
       "WebFetch(domain:docs.excalidraw.com)",
       "WebFetch(domain:www.npmjs.com)",
       "WebFetch(domain:deepwiki.com)",

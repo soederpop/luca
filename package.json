@@ -1,11 +1,15 @@
 {
   "name": "@soederpop/luca",
   "version": "0.0.2",
+  "private": false,
   "description": "lightweight universal conversational architecture",
   "author": "jon soeder <jon@soederpop.com>",
   "type": "module",
   "repository": "https://github.com/soederpop/luca",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "conversational",
     "architecture"

@@ -47,3 +47,6 @@ playground/
 
 # semantic-search embeddings
 .contentbase
+
+# claude
+.claude/settings.local.json
