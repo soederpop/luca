@@ -59,6 +59,7 @@ import "./features/process-manager"
 import "./features/tts";
 import "./features/helpers";
 import "./features/container-link";
+import "./features/semantic-search";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -102,6 +103,7 @@ import type { ProcessManager } from './features/process-manager'
 import type { TTS } from './features/tts';
 import type { Helpers } from './features/helpers';
 import type { ContainerLink } from './features/container-link';
+import type { SemanticSearch } from './features/semantic-search';
 export { State };
 
 export {
@@ -140,6 +142,7 @@ export {
   type TTS,
   type Helpers,
   type ContainerLink,
+  type SemanticSearch,
 };
 
 export type { FeatureOptions };
@@ -204,6 +207,7 @@ export interface NodeFeatures extends AvailableFeatures {
   tts: typeof TTS;
   helpers: typeof Helpers;
   containerLink: typeof ContainerLink;
+  semanticSearch: typeof SemanticSearch;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;

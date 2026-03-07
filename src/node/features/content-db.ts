@@ -2,6 +2,8 @@ import { Feature, features } from '../feature.js'
 import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { join, dirname } from 'node:path'
+import { existsSync, readdirSync } from 'node:fs'
 
 export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
@@ -250,6 +252,199 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   async generateModelSummary(options: any) {
 	  return this.collection.generateModelSummary(options)
+  }
+
+  // ── Search Integration ─────────────────────────────────────────────
+
+  private _semanticSearch: any = null
+
+  /**
+   * Lazily initialize the semanticSearch feature, attaching it to the container if needed.
+   * The dbPath defaults to `.contentbase/search.sqlite` relative to the collection root.
+   */
+  private async _getSemanticSearch(options?: { dbPath?: string; embeddingProvider?: string; embeddingModel?: string }) {
+    if (this._semanticSearch?.state?.get('dbReady')) return this._semanticSearch
+
+    // Dynamically import and attach SemanticSearch if not already registered
+    const { SemanticSearch } = await import('./semantic-search.js')
+    if (!this.container.features.available.includes('semanticSearch')) {
+      SemanticSearch.attach(this.container as any)
+    }
+
+    // Put .contentbase at project root (dirname of docs/), not inside the docs folder
+    const projectRoot = dirname(this.collectionPath)
+    const dbPath = options?.dbPath ?? join(projectRoot, '.contentbase/search.sqlite')
+    this._semanticSearch = (this.container as any).feature('semanticSearch', {
+      dbPath,
+      ...(options?.embeddingProvider ? { embeddingProvider: options.embeddingProvider } : {}),
+      ...(options?.embeddingModel ? { embeddingModel: options.embeddingModel } : {}),
+    })
+
+    await this._semanticSearch.initDb()
+    return this._semanticSearch
+  }
+
+  /**
+   * Check if a search index exists for this collection.
+   */
+  private _hasSearchIndex(): boolean {
+    const dbDir = join(dirname(this.collectionPath), '.contentbase')
+    if (!existsSync(dbDir)) return false
+    try {
+      const files = readdirSync(dbDir) as string[]
+      return files.some((f: string) => f.startsWith('search.') && f.endsWith('.sqlite'))
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * BM25 keyword search across indexed documents.
+   * If no search index exists, throws with an actionable message.
+   */
+  async search(query: string, options?: { limit?: number; model?: string; where?: Record<string, any> }) {
+    if (!this._hasSearchIndex() && !this._semanticSearch) {
+      throw new Error('No search index found. Run: cbase embed')
+    }
+    const ss = await this._getSemanticSearch()
+    return ss.search(query, options)
+  }
+
+  /**
+   * Vector similarity search using embeddings.
+   * Finds conceptually related documents even without keyword matches.
+   */
+  async vectorSearch(query: string, options?: { limit?: number; model?: string; where?: Record<string, any> }) {
+    if (!this._hasSearchIndex() && !this._semanticSearch) {
+      throw new Error('No search index found. Run: cbase embed')
+    }
+    const ss = await this._getSemanticSearch()
+    return ss.vectorSearch(query, options)
+  }
+
+  /**
+   * Combined keyword + semantic search with Reciprocal Rank Fusion.
+   * Best for general questions about the collection.
+   */
+  async hybridSearch(query: string, options?: { limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }) {
+    if (!this._hasSearchIndex() && !this._semanticSearch) {
+      throw new Error('No search index found. Run: cbase embed')
+    }
+    const ss = await this._getSemanticSearch()
+    return ss.hybridSearch(query, options)
+  }
+
+  /**
+   * Build the search index from all documents in the collection.
+   * Chunks documents and generates embeddings.
+   */
+  async buildSearchIndex(options?: { force?: boolean; embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }) {
+    if (!this.isLoaded) await this.load()
+
+    const ss = await this._getSemanticSearch({
+      embeddingProvider: options?.embeddingProvider,
+      embeddingModel: options?.embeddingModel,
+    })
+
+    const docs = this._collectDocumentInputs()
+    const toIndex = options?.force ? docs : docs.filter((doc: any) => ss.needsReindex(doc))
+
+    if (toIndex.length === 0) return { indexed: 0, total: docs.length }
+
+    // Remove stale documents
+    ss.removeStale(docs.map((d: any) => d.pathId))
+
+    // Index in batches for progress reporting
+    const batchSize = 5
+    let indexed = 0
+    for (let i = 0; i < toIndex.length; i += batchSize) {
+      const batch = toIndex.slice(i, i + batchSize)
+      await ss.indexDocuments(batch)
+      indexed += batch.length
+      options?.onProgress?.(indexed, toIndex.length)
+    }
+
+    return { indexed, total: docs.length }
+  }
+
+  /**
+   * Rebuild the entire search index from scratch.
+   */
+  async rebuildSearchIndex(options?: { embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }) {
+    const ss = await this._getSemanticSearch({
+      embeddingProvider: options?.embeddingProvider,
+      embeddingModel: options?.embeddingModel,
+    })
+    await ss.reindex()
+    return this.buildSearchIndex({ force: true, ...options })
+  }
+
+  /**
+   * Get the current search index status.
+   */
+  get searchIndexStatus() {
+    if (!this._semanticSearch?.state?.get('dbReady')) {
+      if (!this._hasSearchIndex()) {
+        return { exists: false, documentCount: 0, chunkCount: 0, embeddingCount: 0, lastIndexedAt: null, provider: null, model: null, dimensions: 0, dbSizeBytes: 0 }
+      }
+      return { exists: true, documentCount: -1, chunkCount: -1, embeddingCount: -1, lastIndexedAt: null, provider: null, model: null, dimensions: 0, dbSizeBytes: 0 }
+    }
+    const stats = this._semanticSearch.getStats()
+    return { exists: true, ...stats }
+  }
+
+  /**
+   * Convert collection documents to DocumentInput format for the semantic search feature.
+   */
+  private _collectDocumentInputs() {
+    const inputs: any[] = []
+    for (const pathId of this.collection.available) {
+      const doc = this.collection.document(pathId) as any
+      const modelDef = (this.collection as any).findModelDefinition?.(pathId)
+
+      // Extract sections from the document content using heading markers
+      const sections: any[] = []
+      const lines = doc.content.split('\n')
+      let currentHeading: string | null = null
+      let currentContent: string[] = []
+
+      for (const line of lines) {
+        const h2Match = line.match(/^## (.+)/)
+        if (h2Match) {
+          if (currentHeading) {
+            sections.push({
+              heading: currentHeading,
+              headingPath: currentHeading,
+              content: currentContent.join('\n').trim(),
+              level: 2,
+            })
+          }
+          currentHeading = h2Match[1].trim()
+          currentContent = []
+        } else if (currentHeading) {
+          currentContent.push(line)
+        }
+      }
+      if (currentHeading) {
+        sections.push({
+          heading: currentHeading,
+          headingPath: currentHeading,
+          content: currentContent.join('\n').trim(),
+          level: 2,
+        })
+      }
+
+      inputs.push({
+        pathId,
+        model: modelDef?.name ?? undefined,
+        title: doc.title,
+        slug: doc.slug,
+        meta: doc.meta,
+        content: doc.content,
+        sections: sections.length > 0 ? sections : undefined,
+      })
+    }
+    return inputs
   }
 
   /**

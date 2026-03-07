@@ -590,6 +590,61 @@ function updateFrontmatter(fileContent: string, updates: Record<string, any>, co
 	return `---\n${newYaml}\n---\n\n${fileContent}`
 }
 
+async function executePromptFile(resolvedPath: string, container: any): Promise<string> {
+	if (!container.docs.isLoaded) await container.docs.load()
+	const doc = await container.docs.parseMarkdownAtPath(resolvedPath)
+	const vm = container.feature('vm')
+	const parts: string[] = []
+
+	const capturedLines: string[] = []
+	const captureConsole = {
+		log: (...args: any[]) => capturedLines.push(args.map(String).join(' ')),
+		error: (...args: any[]) => capturedLines.push(args.map(String).join(' ')),
+		warn: (...args: any[]) => capturedLines.push(args.map(String).join(' ')),
+		info: (...args: any[]) => capturedLines.push(args.map(String).join(' ')),
+	}
+
+	const shared = vm.createContext({
+		...container.context,
+		console: captureConsole,
+		setTimeout, clearTimeout, setInterval, clearInterval,
+		fetch, URL, URLSearchParams,
+	})
+
+	for (const node of doc.ast.children) {
+		if (node.type === 'code') {
+			const { value, lang, meta } = node
+			if (!lang || !['ts', 'js', 'tsx', 'jsx'].includes(lang)) {
+				parts.push(doc.stringify({ type: 'root', children: [node] }))
+				continue
+			}
+			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
+
+			capturedLines.length = 0
+			let code = value
+			if (lang === 'tsx' || lang === 'jsx') {
+				const esbuild = container.feature('esbuild')
+				const { code: transformed } = esbuild.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
+				code = transformed
+			}
+
+			const hasTopLevelAwait = /\bawait\b/.test(code)
+			if (hasTopLevelAwait) code = `(async function() { ${code} })()`
+
+			await vm.run(code, shared)
+			Object.assign(shared, container.context)
+
+			if (capturedLines.length) {
+				parts.push(capturedLines.join('\n'))
+			}
+		} else {
+			parts.push(doc.stringify({ type: 'root', children: [node] }))
+		}
+	}
+
+	return parts.join('\n\n')
+}
+
 async function preparePrompt(
 	filePath: string,
 	options: z.infer<typeof argsSchema>,
@@ -628,13 +683,11 @@ async function preparePrompt(
 		}
 	}
 
-	// Strip YAML frontmatter unless --preserve-frontmatter is set
-	let promptContent = content
-	if (!options['preserve-frontmatter'] && promptContent.startsWith('---')) {
-		const endIndex = promptContent.indexOf('\n---', 3)
-		if (endIndex !== -1) {
-			promptContent = promptContent.slice(endIndex + 4).trimStart()
-		}
+	let promptContent: string
+	if (options['preserve-frontmatter']) {
+		promptContent = content
+	} else {
+		promptContent = await executePromptFile(resolvedPath, container)
 	}
 
 	// Exclude sections by heading name

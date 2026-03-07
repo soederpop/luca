@@ -2,6 +2,8 @@
 
 Lightweight Universal Conversational Architecture. Runtime is bun.
 
+The runtime is bun, that means no vitest.
+
 Luca provides a system for building runtime `container` objects which provide server and browser applications with all of the dependencies they need to build complete applications.  A `container` is a per process global singleton, event bus, state machine, and dependency injector.  A `container` is either based on a node or browser runtime, and comes with features optimized for that environment.  You can build your own container on top of it, with your own features, clients, servers.  It is very much inspired by docker layer caching.
 
 A `container` could be used for all "business logic" and state, and be a headless provider for an entire application.  The UI, Scripting output, input, etc, are all just functional interfaces and event bindings to the core container and all of its helpers, and their state.

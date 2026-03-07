@@ -10,6 +10,7 @@ import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
+import { SemanticSearch } from '@soederpop/luca/node/features/semantic-search'
 import { ContentDb } from '@soederpop/luca/node/features/content-db'
 
 import type { ConversationTool } from './features/conversation'
@@ -23,6 +24,7 @@ export {
 	ConversationHistory,
 	Assistant,
 	AssistantsManager,
+	SemanticSearch,
 	ContentDb,
 	NodeContainer,
 	OpenAIClient,
@@ -103,6 +105,7 @@ const container = new AGIContainer()
 	.use(ConversationHistory)
 	.use(Assistant)
 	.use(AssistantsManager)
+	.use(SemanticSearch)
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
