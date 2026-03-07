@@ -1,0 +1,7 @@
+.claude
+.cursor
+.mcp.json
+.env
+secrets/
+*.log
+.python-version

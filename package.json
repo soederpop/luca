@@ -1,11 +1,8 @@
 {
   "name": "@soederpop/luca",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "lightweight universal conversational architecture",
-  "publishConfig": {
-    "registry": "http://localhost:4873"
-  },
-  "author": "jon soeder <jon@chicago.com>",
+  "author": "jon soeder <jon@soederpop.com>",
   "type": "module",
   "repository": "https://github.com/soederpop/luca",
   "license": "MIT",
@@ -95,7 +92,7 @@
     "chokidar": "^3.5.3",
     "cli-markdown": "^3.5.0",
     "compromise": "^14.14.5",
-    "contentbase": "file:../contentbase",
+    "contentbase": "",
     "cors": "^2.8.5",
     "cross-fetch": "^4.1.0",
     "detect-port": "^1.5.1",
