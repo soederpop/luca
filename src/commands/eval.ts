@@ -34,7 +34,7 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 	const vm = container.feature('vm')
 
 	// HACK
-	Array(container.argv.enable).map((id) => {
+	Array(container.argv.enable).filter(Boolean).map((id) => {
 		container.feature(id, { ...container.argv, enable: true }).enable()
 	})
 

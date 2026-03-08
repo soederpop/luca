@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-08T04:28:50.449Z
+// Generated at: 2026-03-08T19:38:53.173Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -8510,6 +8510,12 @@ setBuildTimeData('features.contentDb', {
         }
       ]
     },
+    "reload": {
+      "description": "Force-reload the collection from disk, picking up new/changed/deleted documents.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<ContentDb>"
+    },
     "read": {
       "description": "Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.",
       "parameters": {
@@ -8709,7 +8715,13 @@ setBuildTimeData('features.contentDb', {
       ]
     }
   },
-  "events": {},
+  "events": {
+    "reloaded": {
+      "name": "reloaded",
+      "description": "Event emitted by ContentDb",
+      "arguments": {}
+    }
+  },
   "state": {},
   "options": {},
   "envVars": [],
@@ -17963,6 +17975,12 @@ export const introspectionData = [
           }
         ]
       },
+      "reload": {
+        "description": "Force-reload the collection from disk, picking up new/changed/deleted documents.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<ContentDb>"
+      },
       "read": {
         "description": "Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.",
         "parameters": {
@@ -18162,7 +18180,13 @@ export const introspectionData = [
         ]
       }
     },
-    "events": {},
+    "events": {
+      "reloaded": {
+        "name": "reloaded",
+        "description": "Event emitted by ContentDb",
+        "arguments": {}
+      }
+    },
     "state": {},
     "options": {},
     "envVars": [],

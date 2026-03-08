@@ -101,7 +101,7 @@ abstract class Registry<T extends Helper> {
       throw new Error(
         `${this.scope} "${id}" is not registered.${suggestion}\n\n` +
         `To fix this, ensure the module that defines "${id}" is imported (e.g. import './${this.scope}/${id}') ` +
-        `or registered on the container (e.g. container.use(${id[0]!.toUpperCase() + id.slice(1)})).`
+        `or registered on the container (e.g. container.use(${id ? id[0]!.toUpperCase() + id.slice(1) : 'MyHelper'})).`
       )
     }
 

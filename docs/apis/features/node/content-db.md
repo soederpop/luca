@@ -72,6 +72,14 @@ console.log(contentDb.isLoaded) // true
 
 
 
+### reload
+
+Force-reload the collection from disk, picking up new/changed/deleted documents.
+
+**Returns:** `Promise<ContentDb>`
+
+
+
 ### read
 
 Read a single document by its path ID, optionally filtering to specific sections. The document title (H1) is always included in the output. When using `include`, the leading content (paragraphs between the H1 and first H2) is also included by default, controlled by the `leadingContent` option. When `include` is provided, only those sections are returned (via extractSections in flat mode). When `exclude` is provided, those sections are removed from the full document. If both are set, `include` takes precedence.
@@ -231,6 +239,14 @@ Rebuild the entire search index from scratch.
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
 | `searchIndexStatus` | `any` | Get the current search index status. |
 | `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. |
+
+## Events (Zod v4 schema)
+
+### reloaded
+
+Event emitted by ContentDb
+
+
 
 ## State (Zod v4 schema)
 

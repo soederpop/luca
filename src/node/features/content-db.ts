@@ -127,6 +127,13 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     return this
   }
 
+  /** Force-reload the collection from disk, picking up new/changed/deleted documents. */
+  async reload(): Promise<ContentDb> {
+    await this.collection.load({ refresh: true })
+    this.emit('reloaded')
+    return this
+  }
+
   /**
    * Read a single document by its path ID, optionally filtering to specific sections.
    *

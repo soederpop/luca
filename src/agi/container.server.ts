@@ -1,5 +1,5 @@
-import type { ContainerState } from '@soederpop/luca/container'
-import { type NodeFeatures, NodeContainer } from '@soederpop/luca/node/container'
+import type { ContainerState } from '../container'
+import { type NodeFeatures, NodeContainer } from '../node/container'
 import '@/introspection/generated.agi.js'
 import { OpenAIClient } from '../clients/openai'
 import { ElevenLabsClient } from '../clients/elevenlabs'
@@ -38,6 +38,16 @@ export type {
 	NodeFeatures,
 }
 
+export interface AGIFeatures extends NodeFeatures {
+	conversation: typeof Conversation
+	claudeCode: typeof ClaudeCode
+	openaiCodex: typeof OpenAICodex
+	skillsLibrary: typeof SkillsLibrary
+	conversationHistory: typeof ConversationHistory
+	assistant: typeof Assistant
+	assistantsManager: typeof AssistantsManager
+}
+
 export interface ConversationFactoryOptions {
 	tools?: {
 		handlers: Record<string, ConversationTool['handler']>
@@ -56,7 +66,10 @@ export interface ConversationFactoryOptions {
  * AGI-specific container that extends NodeContainer with AI capabilities including
  * OpenAI conversations, code generation, and self-modifying agent features.
  */
-export class AGIContainer extends NodeContainer {
+export class AGIContainer<
+	Features extends AGIFeatures = AGIFeatures,
+	K extends ContainerState = ContainerState
+> extends NodeContainer<Features, K> {
 	openai!: OpenAIClient
 	claudeCode?: ClaudeCode
 	openaiCodex?: OpenAICodex
