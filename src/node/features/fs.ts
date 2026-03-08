@@ -285,7 +285,11 @@ export class FS extends Feature {
    */
   ensureFolder(path: string) {
     mkdirSync(this.container.paths.resolve(path), { recursive: true });
-    return path;
+    return this.container.paths.resolve(path);
+  }
+
+  mkdirp(folder: string) {
+	  return this.ensureFolder(folder)
   }
 
   /**
@@ -398,6 +402,10 @@ export class FS extends Feature {
     } catch (error) {
       return false;
     }
+  }
+
+  existsSync(path: string): boolean {
+	  return this.exists(path)
   }
 
   /**

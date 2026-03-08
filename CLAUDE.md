@@ -50,6 +50,29 @@ Also available on every container:
 - `container.uuid` — the container's own unique ID
 - `container.paths.resolve()` / `container.paths.join()` — path operations
 
+## Adding a New Feature — Checklist
+
+When creating a new feature (e.g. `gws`), all four of these steps must be completed or `container.feature('gws')` will fail silently or lack type safety:
+
+1. **Feature file** — `src/node/features/gws.ts`
+   - Export the class: `export class Gws extends Feature { ... }`
+   - Register at bottom: `export default features.register('gws', Gws)`
+
+2. **Side-effect import** — `src/node/container.ts` (import block ~line 20-63)
+   - Add `import "./features/gws";` (this triggers registration)
+
+3. **Type import + re-export** — `src/node/container.ts` (type imports ~line 65-148)
+   - Add `import type { Gws } from './features/gws';`
+   - Add `type Gws,` to the `export { ... }` block
+
+4. **Feature type mapping** — `src/node/container.ts` (`NodeFeatures` interface ~line 170-215)
+   - Add `gws: typeof Gws;` to the `NodeFeatures` interface
+
+Missing step 2 = feature never registers (invisible).
+Missing steps 3-4 = no autocomplete, `container.feature('gws')` returns `Feature` not `Gws`.
+
+If the feature has a test, it goes in `test/gws.test.ts`.
+
 ## Type Safety and Introspection
 
 - Zod does a lot of the heavy lifting for us with its type inference

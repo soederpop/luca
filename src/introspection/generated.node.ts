@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-07T16:53:43.375Z
+// Generated at: 2026-03-08T04:28:50.449Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -5308,6 +5308,19 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "mkdirp": {
+      "description": "",
+      "parameters": {
+        "folder": {
+          "type": "string",
+          "description": "Parameter folder"
+        }
+      },
+      "required": [
+        "folder"
+      ],
+      "returns": "void"
+    },
     "ensureFile": {
       "description": "Synchronously ensures a file exists with the specified content, creating directories as needed.",
       "parameters": {
@@ -5402,6 +5415,19 @@ setBuildTimeData('features.fs', {
           "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
         }
       ]
+    },
+    "existsSync": {
+      "description": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "boolean"
     },
     "rm": {
       "description": "Asynchronously removes a file.",
@@ -14750,6 +14776,19 @@ export const introspectionData = [
           }
         ]
       },
+      "mkdirp": {
+        "description": "",
+        "parameters": {
+          "folder": {
+            "type": "string",
+            "description": "Parameter folder"
+          }
+        },
+        "required": [
+          "folder"
+        ],
+        "returns": "void"
+      },
       "ensureFile": {
         "description": "Synchronously ensures a file exists with the specified content, creating directories as needed.",
         "parameters": {
@@ -14844,6 +14883,19 @@ export const introspectionData = [
             "code": "if (fs.exists('config.json')) {\n console.log('Config file exists!')\n}"
           }
         ]
+      },
+      "existsSync": {
+        "description": "",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "boolean"
       },
       "rm": {
         "description": "Asynchronously removes a file.",

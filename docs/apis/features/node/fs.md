@@ -206,6 +206,18 @@ fs.ensureFolder('logs/debug')
 
 
 
+### mkdirp
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `folder` | `string` | ✓ | Parameter folder |
+
+**Returns:** `void`
+
+
+
 ### ensureFile
 
 Synchronously ensures a file exists with the specified content, creating directories as needed.
@@ -292,6 +304,18 @@ if (fs.exists('config.json')) {
  console.log('Config file exists!')
 }
 ```
+
+
+
+### existsSync
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `boolean`
 
 
 
