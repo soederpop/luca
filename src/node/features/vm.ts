@@ -193,8 +193,45 @@ export class VM<
    * }
    * ```
    */
+  /**
+   * Wrap code containing top-level `await` in an async IIFE, injecting
+   * `return` before the last expression so the value is not lost.
+   *
+   * If the code does not contain `await`, or is already wrapped in an
+   * async function/arrow, it is returned unchanged.
+   */
+  wrapTopLevelAwait(code: string): string {
+    if (!/\bawait\b/.test(code) || /^\s*\(?\s*async\b/.test(code)) {
+      return code
+    }
+
+    const lines = code.split('\n')
+
+    // Find the last non-empty line
+    let lastIdx = lines.length - 1
+    while (lastIdx > 0 && !lines[lastIdx].trim()) lastIdx--
+
+    let lastLine = lines[lastIdx]!
+
+    // For single-line code with semicolons (e.g. CLI eval), split the last line
+    // into statements and only try to return the final statement.
+    const stmts = lastLine.split(';').map(s => s.trim()).filter(Boolean)
+    if (stmts.length > 1) {
+      const finalStmt = stmts[stmts.length - 1]!
+      if (!/^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(finalStmt)) {
+        stmts[stmts.length - 1] = `return ${finalStmt}`
+      }
+      lines[lastIdx] = stmts.join('; ')
+    } else if (!/^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(lastLine)) {
+      lines[lastIdx] = `return ${lastLine}`
+    }
+
+    return `(async () => {\n${lines.join('\n')}\n})()`
+  }
+
   async run<T extends any>(code: string, ctx: any = {}): Promise<T> {
-    const script = this.createScript(code)
+    const wrapped = this.wrapTopLevelAwait(code)
+    const script = this.createScript(wrapped)
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return (await script.runInContext(context)) as T

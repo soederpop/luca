@@ -96,12 +96,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		const keysBefore = new Set(Object.keys(shared))
 		const { code: transformed } = esbuild.transformSync(source, { loader: 'tsx', format: 'cjs' })
 
-		const hasTopLevelAwait = /\bawait\b/.test(transformed)
-		const wrapped = hasTopLevelAwait
-			? `(async function() { ${transformed} })()`
-			: transformed
-
-		await vm.run(wrapped, shared)
+		await vm.run(transformed, shared)
 
 		// auto-register any new functions as blocks
 		for (const key of Object.keys(shared)) {
@@ -164,11 +159,6 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				})
 				code = transformed
 			}
-
-			const hasTopLevelAwait = /\bawait\b/.test(code)
-			code = hasTopLevelAwait
-				? `(async function() { ${code} })()`
-				: code
 
 			await vm.run(code, shared)
 

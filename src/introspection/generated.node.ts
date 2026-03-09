@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-08T19:38:53.173Z
+// Generated at: 2026-03-09T05:28:16.148Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -2305,28 +2305,35 @@ setBuildTimeData('features.vm', {
         }
       ]
     },
-    "run": {
-      "description": "Executes JavaScript code in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code safely. It handles errors gracefully and returns either the result or the error object.",
+    "wrapTopLevelAwait": {
+      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the last expression so the value is not lost. If the code does not contain `await`, or is already wrapped in an async function/arrow, it is returned unchanged.",
       "parameters": {
         "code": {
           "type": "string",
-          "description": "The JavaScript code to execute"
-        },
-        "ctx": {
-          "type": "any",
-          "description": "Context variables to make available to the executing code"
+          "description": "Parameter code"
         }
       },
       "required": [
         "code"
       ],
-      "returns": "Promise<T>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
+      "returns": "string"
+    },
+    "run": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
         }
-      ]
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<T>"
     },
     "runSync": {
       "description": "Execute JavaScript code synchronously in a controlled environment.",
@@ -11802,28 +11809,35 @@ export const introspectionData = [
           }
         ]
       },
-      "run": {
-        "description": "Executes JavaScript code in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code safely. It handles errors gracefully and returns either the result or the error object.",
+      "wrapTopLevelAwait": {
+        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the last expression so the value is not lost. If the code does not contain `await`, or is already wrapped in an async function/arrow, it is returned unchanged.",
         "parameters": {
           "code": {
             "type": "string",
-            "description": "The JavaScript code to execute"
-          },
-          "ctx": {
-            "type": "any",
-            "description": "Context variables to make available to the executing code"
+            "description": "Parameter code"
           }
         },
         "required": [
           "code"
         ],
-        "returns": "Promise<T>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "// Simple calculation\nconst result = vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations\nconst sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { \n numbers: [1, 2, 3, 4, 5] \n})\nconsole.log(sum) // 15\n\n// Error handling\nconst error = vm.run('invalidFunction()')\nif (error instanceof Error) {\n console.log('Execution failed:', error.message)\n}"
+        "returns": "string"
+      },
+      "run": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
           }
-        ]
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<T>"
       },
       "runSync": {
         "description": "Execute JavaScript code synchronously in a controlled environment.",

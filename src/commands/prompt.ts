@@ -628,10 +628,7 @@ async function executePromptFile(resolvedPath: string, container: any): Promise<
 				code = transformed
 			}
 
-			const hasTopLevelAwait = /\bawait\b/.test(code)
-			if (hasTopLevelAwait) code = `(async function() { ${code} })()`
-
-			await vm.run(code, shared)
+				await vm.run(code, shared)
 			Object.assign(shared, container.context)
 
 			if (capturedLines.length) {

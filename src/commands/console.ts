@@ -63,9 +63,6 @@ async function evalBeforeRepl(evalArg: string, container: any, featureContext: R
 					code = transformed
 				}
 
-				const hasTopLevelAwait = /\bawait\b/.test(code)
-				code = hasTopLevelAwait ? `(async function() { ${code} })()` : code
-
 				await vm.run(code, shared)
 				Object.assign(shared, container.context)
 			} else {

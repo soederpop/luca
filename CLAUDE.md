@@ -92,3 +92,7 @@ If the feature has a test, it goes in `test/gws.test.ts`.
 - See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers
 - See [docs/examples](./docs/examples/) for examples of using each feature.  NOTE: These docs are runnable so you can see the output of the code blocks.  `luca run docs/examples/grep` for example
 - See [docs/tutorials](./docs/tutorials/) for longer form tutorials on various subjects and best practices
+
+## Git Strategy
+
+- We generally roll all on main.  Commit your changes after you're done, only your changes.  Leave a good message, tell me why don't just tell me what.  Don't gimme that coauthored by whoever bullshit.  The streets know we're one.

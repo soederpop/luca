@@ -154,19 +154,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		}),
 		handler: async (args) => {
 			try {
-				// Wrap code containing top-level await in an async IIFE so the VM can handle it.
-				// Try to return the last expression's value by prepending `return` to the last statement.
-				let code = args.code
-				if (/\bawait\b/.test(code) && !/^\s*\(?\s*async\b/.test(code)) {
-					const lines = code.split('\n')
-					const lastLine = lines[lines.length - 1]
-					// If the last line doesn't start with a keyword that can't be returned, add return
-					if (!/^\s*(var|let|const|if|for|while|switch|try|throw|class|function)\b/.test(lastLine)) {
-						lines[lines.length - 1] = `return ${lastLine}`
-					}
-					code = `(async () => { ${lines.join('\n')} })()`
-				}
-				const result = await vmFeature.run(code, sandboxContext)
+				const result = await vmFeature.run(args.code, sandboxContext)
 
 				let text: string
 				if (result === undefined) {
