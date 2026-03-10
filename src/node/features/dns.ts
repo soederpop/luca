@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 /** Supported DNS record types. */
@@ -117,6 +117,7 @@ type QueryOptions = {
  * @extends Feature
  */
 export class Dns extends Feature<DnsState, DnsOptions> {
+  static { Feature.register(this, 'dns') }
   static override shortcut = 'features.dns' as const
   static override description = 'DNS lookup utilities wrapping the dig CLI'
   static override stateSchema = DnsStateSchema
@@ -652,4 +653,4 @@ export class Dns extends Feature<DnsState, DnsOptions> {
   }
 }
 
-export default features.register('dns', Dns)
+export default Dns

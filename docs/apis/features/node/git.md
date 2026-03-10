@@ -173,13 +173,6 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 | `isRepoRoot` | `any` | Checks if the current working directory is the root of the Git repository. |
 | `repoRoot` | `any` | Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory. |
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `repoRoot` | `string` | Absolute path to the Git repository root directory |
-
 ## Examples
 
 **features.git**

@@ -102,7 +102,6 @@
     "compromise": "^14.14.5",
     "contentbase": "",
     "cors": "^2.8.5",
-    "cross-fetch": "^4.1.0",
     "detect-port": "^1.5.1",
     "dotenv": "^17.2.4",
     "endent": "^2.1.0",

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { google, type docs_v1 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
 import type { GoogleDrive, DriveFile } from './google-drive.js'
@@ -51,6 +51,7 @@ export const GoogleDocsEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
+  static { Feature.register(this, 'googleDocs') }
   static override shortcut = 'features.googleDocs' as const
   static override stateSchema = GoogleDocsStateSchema
   static override optionsSchema = GoogleDocsOptionsSchema
@@ -401,4 +402,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register('googleDocs', GoogleDocs)
+export default GoogleDocs

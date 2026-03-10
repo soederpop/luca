@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { Database } from 'bun:sqlite'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
 
@@ -65,6 +65,7 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class Sqlite extends Feature<SqliteState, SqliteOptions> {
+  static { Feature.register(this, 'sqlite') }
   static override shortcut = 'features.sqlite' as const
   static override stateSchema = SqliteStateSchema
   static override optionsSchema = SqliteOptionsSchema
@@ -247,8 +248,7 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   }
 }
 
-export default features.register('sqlite', Sqlite)
-
+export default Sqlite
 declare module '../../feature.js' {
   interface AvailableFeatures {
     sqlite: typeof Sqlite

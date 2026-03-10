@@ -5,20 +5,8 @@ RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connection
 ## Usage
 
 ```ts
-container.feature('runpod', {
-  // RunPod API key (falls back to RUNPOD_API_KEY env var)
-  apiKey,
-  // Preferred data center ID (default: US-TX-3)
-  dataCenterId,
-})
+container.feature('runpod')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
-| `dataCenterId` | `string` | Preferred data center ID (default: US-TX-3) |
 
 ## Methods
 
@@ -464,16 +452,6 @@ gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 | `proc` | `any` | The proc feature used for executing CLI commands like runpodctl. |
 | `apiKey` | `any` | RunPod API key from options or the RUNPOD_API_KEY environment variable. |
 | `dataCenterId` | `any` | Preferred data center ID, defaults to 'US-TX-3'. |
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-
-## Environment Variables
-
-- `RUNPOD_API_KEY`
 
 ## Examples
 

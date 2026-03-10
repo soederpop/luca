@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { NodeContainer } from '../container.js'
 
@@ -30,6 +30,7 @@ import { NodeContainer } from '../container.js'
  * @extends Feature
  */
 export class YAML extends Feature {
+  static { Feature.register(this, 'yaml') }
   static override shortcut = 'features.yaml' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
@@ -129,4 +130,4 @@ export class YAML extends Feature {
   }
 }
 
-export default features.register('yaml', YAML)
+export default YAML

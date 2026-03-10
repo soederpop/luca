@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { dirname, resolve, isAbsolute } from 'path';
 import { State } from '../../state.js';
-import { features, Feature } from '../feature.js'
+import { Feature } from '../feature.js'
 
 type LsFilesOptions = {
     cached?: boolean;
@@ -45,6 +45,7 @@ type GitState = z.infer<typeof GitStateSchema>
  * @extends Feature
  */
 export class Git extends Feature {
+    static { Feature.register(this, 'git') }
     static override shortcut = 'features.git' as const
     static override stateSchema = GitStateSchema
     static override optionsSchema = FeatureOptionsSchema
@@ -489,4 +490,4 @@ export class Git extends Feature {
     }
 }
 
-export default features.register('git', Git)
+export default Git

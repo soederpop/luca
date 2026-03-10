@@ -1,4 +1,4 @@
-import { features, Feature } from "../feature.js";
+import { Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 /**
@@ -31,6 +31,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  * @extends Feature
  */
 export class Opener extends Feature {
+  static { Feature.register(this, 'opener') }
   static override shortcut = "features.opener" as const
   static override description = "Opens files, URLs, desktop apps, and code editors"
   static override stateSchema = FeatureStateSchema
@@ -163,4 +164,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register("opener", Opener)
+export default Opener

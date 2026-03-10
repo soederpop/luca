@@ -5,17 +5,8 @@ Provides access to a Contentbase Collection for a folder of structured markdown 
 ## Usage
 
 ```ts
-container.feature('contentDb', {
-  // Root directory path containing the structured markdown collection
-  rootPath,
-})
+container.feature('contentDb')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `rootPath` | `string` | Root directory path containing the structured markdown collection |
 
 ## Methods
 
@@ -247,15 +238,6 @@ Rebuild the entire search index from scratch.
 Event emitted by ContentDb
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `loaded` | `boolean` | Whether the content collection has been loaded and parsed |
-| `tableOfContents` | `string` | Generated table of contents string for the collection |
-| `modelSummary` | `string` | Summary of all discovered content models and their document counts |
 
 ## Examples
 

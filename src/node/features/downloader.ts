@@ -1,6 +1,5 @@
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import fetch from 'cross-fetch'
 
 /**
  * A feature that provides file downloading capabilities from URLs.
@@ -25,13 +24,7 @@ import fetch from 'cross-fetch'
  * @extends Feature
  */
 export class Downloader extends Feature {
-  /**
-   * The shortcut path for accessing this feature through the container.
-   *
-   * @static
-   * @readonly
-   * @type {string}
-   */
+  static { Feature.register(this, 'downloader') }
   static override shortcut = 'features.downloader' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
@@ -83,10 +76,4 @@ export class Downloader extends Feature {
   
 }
 
-/**
- * Registers the Downloader feature with the features registry.
- * This makes the feature available for use in containers via `container.use('downloader')`.
- * 
- * @type {typeof Downloader}
- */
-export default features.register('downloader', Downloader)
+export default Downloader

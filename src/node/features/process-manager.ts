@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { State } from '../../state.js'
 import { Bus, type EventMap } from '../../bus.js'
 
@@ -331,6 +331,7 @@ export class SpawnHandler {
  * @extends Feature
  */
 export class ProcessManager extends Feature {
+  static { Feature.register(this, 'processManager') }
   static override shortcut = 'features.processManager' as const
   static override stateSchema = ProcessManagerStateSchema
   static override optionsSchema = ProcessManagerOptionsSchema
@@ -539,4 +540,4 @@ export class ProcessManager extends Feature {
   }
 }
 
-export default features.register('processManager', ProcessManager)
+export default ProcessManager

@@ -1,4 +1,4 @@
-import { features, Feature } from "../feature.js";
+import { Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import {
   mkdirSync,
@@ -34,6 +34,7 @@ type WalkOptions = {
  * ```
  */
 export class FS extends Feature {
+  static { Feature.register(this, 'fs') }
   static override shortcut = "features.fs" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
@@ -539,4 +540,4 @@ export class FS extends Feature {
   }
 }
 
-export default features.register("fs", FS);
+export default FS

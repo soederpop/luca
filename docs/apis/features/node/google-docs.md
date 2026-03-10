@@ -117,15 +117,6 @@ Event emitted by GoogleDocs
 
 
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `lastDocId` | `string` | Last document ID accessed |
-| `lastDocTitle` | `string` | Title of the last document accessed |
-| `lastError` | `string` | Last Docs API error message |
-
 ## Examples
 
 **features.googleDocs**

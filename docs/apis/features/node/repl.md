@@ -5,20 +5,8 @@ REPL feature — provides an interactive read-eval-print loop with tab completio
 ## Usage
 
 ```ts
-container.feature('repl', {
-  // The prompt string to display in the REPL (default: "> ")
-  prompt,
-  // Path to the REPL history file for command persistence
-  historyPath,
-})
+container.feature('repl')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `prompt` | `string` | The prompt string to display in the REPL (default: "> ") |
-| `historyPath` | `string` | Path to the REPL history file for command persistence |
 
 ## Methods
 
@@ -57,13 +45,6 @@ await repl.start({
 |----------|------|-------------|
 | `isStarted` | `any` | Whether the REPL session is currently running. |
 | `vmContext` | `any` | The VM context object used for evaluating expressions in the REPL. |
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `started` | `boolean` | Whether the REPL server has been started |
 
 ## Examples
 

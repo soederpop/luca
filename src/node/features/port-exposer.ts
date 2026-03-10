@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import * as ngrok from '@ngrok/ngrok'
-import { Feature, features } from '../../feature.js'
+import { Feature } from '../../feature.js'
 
 /**
  * Zod schema for the Port Exposer feature state
@@ -78,6 +78,7 @@ export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
  * ```
  */
 export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
+	static { Feature.register(this, 'portExposer') }
 	static override shortcut = 'portExposer' as const
 	static override stateSchema = PortExposerStateSchema
 	static override optionsSchema = PortExposerOptionsSchema
@@ -330,9 +331,7 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	}
 }
 
-// Register the feature with the features registry
-export default features.register('portExposer', PortExposer)
-
+export default PortExposer
 // Module augmentation for type safety
 declare module '../../feature.js' {
 	interface AvailableFeatures {

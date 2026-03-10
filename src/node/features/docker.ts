@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 
 export const DockerContainerSchema = z.object({
   /** Container ID */
@@ -84,6 +84,7 @@ export interface DockerShell {
  * ```
  */
 export class Docker extends Feature<DockerState, DockerOptions> {
+  static { Feature.register(this, 'docker') }
   static override shortcut = 'features.docker' as const
   static override stateSchema = DockerStateSchema
   static override optionsSchema = DockerOptionsSchema
@@ -909,4 +910,4 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   }
 }
 
-export default features.register('docker', Docker)
+export default Docker

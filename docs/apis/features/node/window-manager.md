@@ -5,23 +5,8 @@ WindowManager Feature — Native window control via LucaVoiceLauncher Acts as an
 ## Usage
 
 ```ts
-container.feature('windowManager', {
-  // Path to the Unix domain socket the server listens on
-  socketPath,
-  // Automatically start listening when the feature is enabled
-  autoListen,
-  // Per-request timeout in milliseconds for window operations
-  requestTimeoutMs,
-})
+container.feature('windowManager')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `socketPath` | `string` | Path to the Unix domain socket the server listens on |
-| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
-| `requestTimeoutMs` | `number` | Per-request timeout in milliseconds for window operations |
 
 ## Methods
 
@@ -303,17 +288,6 @@ Event emitted by WindowManager
 Event emitted by WindowManager
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `listening` | `boolean` | Whether the IPC server is listening |
-| `clientConnected` | `boolean` | Whether the native launcher app is connected |
-| `socketPath` | `string` | The socket path in use |
-| `windowCount` | `number` | Number of tracked windows |
-| `lastError` | `string` | Last error message |
 
 ## Examples
 

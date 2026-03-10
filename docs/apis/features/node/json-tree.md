@@ -43,12 +43,6 @@ const apiEndpoints = jsonTree.tree.data.api.endpoints;
 |----------|------|-------------|
 | `tree` | `any` | Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the JSON tree data that has been loaded through loadTree(). |
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-
 ## Examples
 
 **loadTree**

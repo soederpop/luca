@@ -22,6 +22,9 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
     static override optionsSchema = FeatureOptionsSchema
     static override eventsSchema = FeatureEventsSchema
 
+    /** Self-register a Feature subclass from a static initialization block. */
+    static register: (SubClass: typeof Feature, id?: string) => typeof Feature
+
     get shortcut() {
         return (this.constructor as any).shortcut as string
     }
@@ -67,9 +70,45 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
     }
 }
 
-export class FeaturesRegistry extends Registry<Feature<any, any>> { 
+export class FeaturesRegistry extends Registry<Feature<any, any>> {
     override scope = "features"
     override baseClass = Feature as any
 }
 
 export const features = new FeaturesRegistry()
+
+/**
+ * Static registration method for Feature subclasses.
+ * Call from a static initialization block to self-register at class definition time.
+ *
+ * @example
+ * ```typescript
+ * export default class DNS extends Feature {
+ *   static { Feature.register(this, 'dns') }
+ * }
+ * ```
+ */
+Feature.register = function registerFeature(
+  SubClass: typeof Feature,
+  id?: string,
+) {
+  const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)
+
+  // Register in the features registry
+  features.register(registryId, SubClass as any)
+
+  // Auto-set shortcut if not explicitly overridden on this class
+  if (!Object.getOwnPropertyDescriptor(SubClass, 'shortcut')?.value) {
+    ;(SubClass as any).shortcut = `features.${registryId}` as const
+  }
+
+  // Generate default attach() if not explicitly overridden on this class
+  if (!Object.getOwnPropertyDescriptor(SubClass, 'attach')) {
+    ;(SubClass as any).attach = (container: any) => {
+      features.register(registryId, SubClass as any)
+      return container
+    }
+  }
+
+  return SubClass
+}

@@ -1,4 +1,4 @@
-import { features, Feature } from "../feature.js";
+import { Feature } from "../feature.js";
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { execSync, spawn as nodeSpawn } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "fs";
@@ -66,6 +66,7 @@ interface RawSpawnOptions {
  * @extends Feature
  */
 export class ChildProcess extends Feature {
+  static { Feature.register(this, 'proc') }
   static override shortcut = "features.proc" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
@@ -437,4 +438,4 @@ export class ChildProcess extends Feature {
   }
 }
 
-export default features.register("proc", ChildProcess);
+export default ChildProcess

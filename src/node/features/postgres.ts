@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { SQL } from 'bun'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
 
@@ -43,6 +43,7 @@ export type PostgresOptions = z.infer<typeof PostgresOptionsSchema>
  * ```
  */
 export class Postgres extends Feature<PostgresState, PostgresOptions> {
+  static { Feature.register(this, 'postgres') }
   static override shortcut = 'features.postgres' as const
   static override stateSchema = PostgresStateSchema
   static override optionsSchema = PostgresOptionsSchema
@@ -224,8 +225,7 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
   }
 }
 
-export default features.register('postgres', Postgres)
-
+export default Postgres
 declare module '../../feature.js' {
   interface AvailableFeatures {
     postgres: typeof Postgres

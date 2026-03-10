@@ -5,23 +5,8 @@ Docker CLI interface feature for managing containers, images, and executing Dock
 ## Usage
 
 ```ts
-container.feature('docker', {
-  // Path to docker executable
-  dockerPath,
-  // Command timeout in milliseconds
-  timeout,
-  // Auto refresh containers/images after operations
-  autoRefresh,
-})
+container.feature('docker')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `dockerPath` | `string` | Path to docker executable |
-| `timeout` | `number` | Command timeout in milliseconds |
-| `autoRefresh` | `boolean` | Auto refresh containers/images after operations |
 
 ## Methods
 
@@ -552,16 +537,6 @@ Initialize the Docker feature by checking availability and optionally refreshing
 | Property | Type | Description |
 |----------|------|-------------|
 | `proc` | `any` | Get the proc feature for executing shell commands |
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `containers` | `array` | List of known Docker containers |
-| `images` | `array` | List of known Docker images |
-| `isDockerAvailable` | `boolean` | Whether Docker CLI is available on this system |
-| `lastError` | `string` | Last error message from a Docker operation |
 
 ## Examples
 

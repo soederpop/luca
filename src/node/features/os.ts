@@ -1,4 +1,4 @@
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import os from 'os'
 
@@ -22,6 +22,7 @@ import os from 'os'
  * @extends Feature
  */
 export class OS extends Feature {
+  static { Feature.register(this, 'os') }
   static override shortcut = 'features.os' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
@@ -154,4 +155,4 @@ export class OS extends Feature {
   }
 }
 
-export default features.register('os', OS)
+export default OS

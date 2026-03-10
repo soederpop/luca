@@ -240,12 +240,6 @@ const customCache = diskCache.create('/custom/cache/path')
 | `cache` | `any` | Returns the underlying cacache instance configured with the cache directory path. |
 | `securely` | `any` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-
 ## Examples
 
 **features.diskCache**

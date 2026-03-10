@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import cacache from "cacache";
-import { Feature, type FeatureState, features } from "../feature.js";
+import { Feature, type FeatureState } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { partial } from "lodash-es";
 import type { ContainerContext } from "../../container.js";
@@ -31,11 +31,10 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
  * ```
  */
 export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
+  static { Feature.register(this, 'diskCache') }
   static override shortcut = "features.diskCache" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = DiskCacheOptionsSchema
-
-  static attach(c: NodeContainer) {}
 
   constructor(options: DiskCacheOptions, context: ContainerContext) {
     super(options, context)
@@ -379,4 +378,4 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   }
 }
 
-export default features.register("diskCache", DiskCache);
+export default DiskCache;

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { camelCase, omit, set } from 'lodash-es'
 
@@ -36,6 +36,7 @@ export type YamlTreeState = z.infer<typeof YamlTreeStateSchema>
  * @extends {Feature<T>}
  */
 export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T> {
+  static { Feature.register(this, 'yamlTree') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.yamlTree" as const
   static override stateSchema = YamlTreeStateSchema
@@ -49,7 +50,6 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
    * @returns The container for method chaining
    */
   static attach(container: NodeContainer & { yamlTree?: YamlTree }) {
-    container.features.register("yamlTree", YamlTree);
     container.yamlTree = container.feature("yamlTree", { enable: true });
   }
 
@@ -145,5 +145,4 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
   }
 }
 
-export default features.register("yamlTree", YamlTree);
-
+export default YamlTree

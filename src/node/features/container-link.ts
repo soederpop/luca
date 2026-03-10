@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { randomBytes } from 'crypto'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { WebSocketServer } from 'ws'
 
 // --- Message Types ---
@@ -142,6 +142,7 @@ type PendingEval = {
  * ```
  */
 export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOptions> {
+  static { Feature.register(this, 'containerLink') }
   static override shortcut = 'features.containerLink' as const
   static override stateSchema = ContainerLinkStateSchema
   static override optionsSchema = ContainerLinkOptionsSchema
@@ -555,4 +556,4 @@ export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOpti
   }
 }
 
-export default features.register('containerLink', ContainerLink)
+export default ContainerLink

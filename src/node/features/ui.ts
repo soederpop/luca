@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema } from '../../schemas/base.js'
-import { features, Feature } from "../feature.js";
+import { Feature } from "../feature.js";
 import colors from "chalk";
 import type { Fonts } from "figlet";
 
@@ -119,6 +119,7 @@ type ColoredPrintFunction = PrintFunction & {
  * ```
  */
 export class UI<T extends UIState = UIState> extends Feature<T> {
+  static { Feature.register(this, 'ui') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ui" as const
   static override stateSchema = UIStateSchema
@@ -819,8 +820,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   }
 }
 
-export default features.register("ui", UI);
-
+export default UI
 /**
  * Predefined color palette for automatic color assignment.
  * 

@@ -1,4 +1,4 @@
-import { features, Feature } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 /** Shell-escape a string using single quotes (safe for all characters) */
@@ -74,6 +74,7 @@ type GrepOptions = {
  * @extends Feature
  */
 export class Grep extends Feature {
+    static { Feature.register(this, 'grep') }
     static override shortcut = 'features.grep' as const
     static override stateSchema = FeatureStateSchema
     static override optionsSchema = FeatureOptionsSchema
@@ -403,4 +404,4 @@ export class Grep extends Feature {
     }
 }
 
-export default features.register('grep', Grep)
+export default Grep

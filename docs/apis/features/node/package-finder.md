@@ -5,17 +5,8 @@ PackageFinder Feature - Comprehensive package discovery and analysis tool This f
 ## Usage
 
 ```ts
-container.feature('packageFinder', {
-  // Optional configuration parameter
-  option,
-})
+container.feature('packageFinder')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `option` | `string` | Optional configuration parameter |
 
 ## Methods
 
@@ -231,13 +222,6 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 | `scopes` | `any` | Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel'). |
 | `manifests` | `any` | Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only. |
 | `counts` | `any` | Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist. |
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `started` | `boolean` | Whether the package finder has been started and initial scan completed |
 
 ## Examples
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { google } from 'googleapis'
 import type { OAuth2Client } from 'google-auth-library'
 
@@ -80,6 +80,7 @@ export const GoogleAuthEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
+  static { Feature.register(this, 'googleAuth') }
   static override shortcut = 'features.googleAuth' as const
   static override envVars = [
     'GOOGLE_CLIENT_ID',
@@ -499,4 +500,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register('googleAuth', GoogleAuth)
+export default GoogleAuth

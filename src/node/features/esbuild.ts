@@ -1,7 +1,6 @@
 import * as esbuild from 'esbuild-wasm'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { NodeContainer } from '../container.js'
 
 /**
  * A Feature for compiling typescript / esm modules, etc to JavaScript
@@ -16,20 +15,12 @@ import { NodeContainer } from '../container.js'
  * ```
 */
 export class ESBuild extends Feature {
+  static { Feature.register(this, 'esbuild') }
   static override shortcut = 'features.esbuild' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
 
   /**
-   * Attaches the ESBuild feature to a NodeContainer instance.
-   *
-   * @param c - The NodeContainer to attach to
-   * @returns The container for method chaining
-   */
-  static attach(c: NodeContainer) {
-    return c
-  }
-
   /**
    * Transform code synchronously
    * @param code - The code to transform
@@ -65,4 +56,4 @@ export class ESBuild extends Feature {
   }
 }
 
-export default features.register('esbuild', ESBuild)
+export default ESBuild

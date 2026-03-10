@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Database } from 'bun:sqlite'
 import { createHash } from 'node:crypto'
 import { mkdirSync, existsSync, statSync } from 'node:fs'
@@ -272,6 +271,7 @@ function chunkByDocument(doc: DocumentInput): Chunk[] {
  * ```
  */
 export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchOptions> {
+	static { Feature.register(this, 'semanticSearch') }
 	static override stateSchema = SemanticSearchStateSchema
 	static override optionsSchema = SemanticSearchOptionsSchema
 	static override shortcut = 'features.semanticSearch' as const
@@ -283,10 +283,6 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	private _idleTimer: ReturnType<typeof setTimeout> | null = null
 	private _dimensions: number
 
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('semanticSearch', SemanticSearch)
-		return container
-	}
 
 	override get initialState(): SemanticSearchState {
 		return {
@@ -922,3 +918,5 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		this.state.set('dbReady', false)
 	}
 }
+
+export default SemanticSearch

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 
 export const SecureShellStateSchema = FeatureStateSchema.extend({
 	/** Whether an SSH connection is currently active */
@@ -46,6 +46,7 @@ export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
  * @extends Feature
  */
 export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
+  static { Feature.register(this, 'secureShell') }
   static override shortcut = 'features.secureShell' as const
   static override stateSchema = SecureShellStateSchema
   static override optionsSchema = SecureShellOptionsSchema
@@ -245,4 +246,4 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	}
 }
 
-export default features.register('secureShell', SecureShell)
+export default SecureShell

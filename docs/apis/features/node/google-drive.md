@@ -5,20 +5,8 @@ Google Drive feature for listing, searching, browsing, and downloading files. De
 ## Usage
 
 ```ts
-container.feature('googleDrive', {
-  // Default corpus for file queries (default: user)
-  defaultCorpora,
-  // Default number of results per page (default: 100)
-  pageSize,
-})
+container.feature('googleDrive')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `defaultCorpora` | `string` | Default corpus for file queries (default: user) |
-| `pageSize` | `number` | Default number of results per page (default: 100) |
 
 ## Methods
 
@@ -193,15 +181,6 @@ Event emitted by GoogleDrive
 Event emitted by GoogleDrive
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `lastQuery` | `string` | Last search query or folder ID browsed |
-| `lastResultCount` | `number` | Number of results from last list/search operation |
-| `lastError` | `string` | Last Drive API error message |
 
 ## Examples
 

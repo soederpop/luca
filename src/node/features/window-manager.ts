@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Server as NetServer, Socket } from 'net'
 import { homedir } from 'os'
 import { join, dirname } from 'path'
@@ -248,6 +248,7 @@ interface ClientConnection {
  * ```
  */
 export class WindowManager extends Feature<WindowManagerState, WindowManagerOptions> {
+  static { Feature.register(this, 'windowManager') }
   static override shortcut = 'features.windowManager' as const
   static override stateSchema = WindowManagerStateSchema
   static override optionsSchema = WindowManagerOptionsSchema
@@ -801,4 +802,4 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   }
 }
 
-export default features.register('windowManager', WindowManager)
+export default WindowManager

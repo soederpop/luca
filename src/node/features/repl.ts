@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 import vm from 'vm'
 import readline from 'readline'
 import { displayResult } from '../../commands/eval.js'
@@ -33,6 +33,7 @@ export class Repl<
   T extends ReplState = ReplState,
   K extends ReplOptions = ReplOptions
 > extends Feature<T, K> {
+  static { Feature.register(this, 'repl') }
   static override shortcut = "features.repl" as const
   static override stateSchema = ReplStateSchema
   static override optionsSchema = ReplOptionsSchema
@@ -191,4 +192,4 @@ export class Repl<
   }
 }
 
-export default features.register("repl", Repl);
+export default Repl

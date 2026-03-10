@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { createRequire } from 'module'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 
 export const VMStateSchema = FeatureStateSchema.extend({})
 export type VMState = z.infer<typeof VMStateSchema>
@@ -42,6 +42,7 @@ export class VM<
   T extends VMState = VMState,
   K extends VMOptions = VMOptions
 > extends Feature<T, K> {
+  static { Feature.register(this, 'vm') }
   static override shortcut = "features.vm" as const
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
@@ -346,4 +347,4 @@ export class VM<
   }
 }
 
-export default features.register("vm", VM);
+export default VM

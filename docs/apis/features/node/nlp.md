@@ -73,14 +73,6 @@ nlp.understand("draw a diagram of the auth flow")
 
 
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `parseCalls` | `number` | Total parse() invocations |
-| `analyzeCalls` | `number` | Total analyze() invocations |
-
 ## Examples
 
 **features.nlp**

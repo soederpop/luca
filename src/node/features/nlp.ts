@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import compromise from 'compromise'
 import winkNLP from 'wink-nlp'
@@ -62,6 +62,7 @@ export type Analysis = z.infer<typeof AnalysisSchema>
  * ```
  */
 export class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof NLPOptionsSchema>> {
+  static { Feature.register(this, 'nlp') }
   static override shortcut = 'features.nlp' as const
   static override stateSchema = NLPStateSchema
   static override optionsSchema = NLPOptionsSchema
@@ -208,4 +209,4 @@ export class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof 
   }
 }
 
-export default features.register('nlp', NLP)
+export default NLP

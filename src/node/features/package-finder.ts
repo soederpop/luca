@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 import { readdir, readFile } from 'fs/promises'
 import { resolve, join, basename } from 'path'
 import { mapValues, pickBy, uniqBy } from 'lodash-es'
@@ -111,6 +111,7 @@ export class PackageFinder<
   T extends PackageFinderState = PackageFinderState,
   K extends PackageFinderOptions = PackageFinderOptions
 > extends Feature<T, K> {
+  static { Feature.register(this, 'packageFinder') }
 
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.packageFinder" as const
@@ -536,4 +537,4 @@ export class PackageFinder<
 
 }
 
-export default features.register("packageFinder", PackageFinder);
+export default PackageFinder

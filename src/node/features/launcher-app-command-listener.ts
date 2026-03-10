@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Server as NetServer, Socket } from 'net'
 import { homedir } from 'os'
 import { join, dirname } from 'path'
@@ -197,6 +197,7 @@ interface ClientConnection {
  * ```
  */
 export class LauncherAppCommandListener extends Feature<LauncherAppCommandListenerState, LauncherAppCommandListenerOptions> {
+  static { Feature.register(this, 'launcherAppCommandListener') }
   static override shortcut = 'features.launcherAppCommandListener' as const
   static override stateSchema = LauncherAppCommandListenerStateSchema
   static override optionsSchema = LauncherAppCommandListenerOptionsSchema
@@ -385,4 +386,4 @@ export class LauncherAppCommandListener extends Feature<LauncherAppCommandListen
   }
 }
 
-export default features.register('launcherAppCommandListener', LauncherAppCommandListener)
+export default LauncherAppCommandListener

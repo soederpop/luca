@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import net from 'net'
 import detectPort from 'detect-port'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 
 const MAX_CIDR_HOSTS = 65536
@@ -201,6 +201,7 @@ type NmapHost = {
  * @extends Feature
  */
 export class Networking extends Feature<NetworkingState, NetworkingOptions> {
+  static { Feature.register(this, 'networking') }
   static override shortcut = 'features.networking' as const
   static override stateSchema = NetworkingStateSchema
   static override optionsSchema = NetworkingOptionsSchema
@@ -922,4 +923,4 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   }
 }
 
-export default features.register('networking', Networking)
+export default Networking

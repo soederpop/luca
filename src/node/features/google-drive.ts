@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { google, type drive_v3 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
 
@@ -100,6 +100,7 @@ const DEFAULT_FIELDS = 'files(id,name,mimeType,size,createdTime,modifiedTime,par
  * ```
  */
 export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
+  static { Feature.register(this, 'googleDrive') }
   static override shortcut = 'features.googleDrive' as const
   static override stateSchema = GoogleDriveStateSchema
   static override optionsSchema = GoogleDriveOptionsSchema
@@ -336,4 +337,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register('googleDrive', GoogleDrive)
+export default GoogleDrive

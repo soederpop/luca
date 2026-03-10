@@ -1,4 +1,4 @@
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
@@ -34,6 +34,7 @@ export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>
  * ```
  */
 export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
+  static { Feature.register(this, 'contentDb') }
   static override shortcut = 'features.contentDb' as const
   static override stateSchema = ContentDbStateSchema
   static override optionsSchema = ContentDbOptionsSchema
@@ -479,4 +480,4 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 }
 
-export default features.register('contentDb', ContentDb)
+export default ContentDb

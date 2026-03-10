@@ -5,23 +5,8 @@ ContainerLink (Web-side) — WebSocket client that connects to a node host. Conn
 ## Usage
 
 ```ts
-container.feature('containerLink', {
-  // Port for the WebSocket server
-  port,
-  // Interval in ms between heartbeat pings
-  heartbeatInterval,
-  // Max missed pongs before disconnecting a client
-  maxMissedHeartbeats,
-})
+container.feature('containerLink')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `port` | `number` | Port for the WebSocket server |
-| `heartbeatInterval` | `number` | Interval in ms between heartbeat pings |
-| `maxMissedHeartbeats` | `number` | Max missed pongs before disconnecting a client |
 
 ## Methods
 
@@ -101,15 +86,6 @@ Event emitted by ContainerLink
 Event emitted by ContainerLink
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `connectionCount` | `number` | Number of currently connected web containers |
-| `port` | `number` | Port the WebSocket server is listening on |
-| `listening` | `boolean` | Whether the WebSocket server is listening |
 
 ## Examples
 

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Bot, webhookCallback, type Context, type Middleware } from 'grammy'
 
 type UserFromGetMe = Awaited<ReturnType<Bot['api']['getMe']>>
@@ -75,6 +75,7 @@ export const TelegramEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class Telegram extends Feature<TelegramState, TelegramOptions> {
+  static { Feature.register(this, 'telegram') }
   static override shortcut = 'features.telegram' as const
   static override envVars = ['TELEGRAM_BOT_TOKEN']
   static override stateSchema = TelegramStateSchema
@@ -339,4 +340,4 @@ export class Telegram extends Feature<TelegramState, TelegramOptions> {
 
 }
 
-export default features.register('telegram', Telegram)
+export default Telegram

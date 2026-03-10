@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { google, type sheets_v4 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
 
@@ -70,6 +70,7 @@ export const GoogleSheetsEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions> {
+  static { Feature.register(this, 'googleSheets') }
   static override shortcut = 'features.googleSheets' as const
   static override stateSchema = GoogleSheetsStateSchema
   static override optionsSchema = GoogleSheetsOptionsSchema
@@ -276,4 +277,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register('googleSheets', GoogleSheets)
+export default GoogleSheets

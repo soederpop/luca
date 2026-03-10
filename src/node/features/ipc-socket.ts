@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 import { NodeContainer } from "../container.js";
 import { Server, Socket } from "net";
 
@@ -84,6 +84,7 @@ export const IpcEventsSchema = FeatureEventsSchema.extend({
  * @extends {Feature<T>}
  */
 export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
+  static { Feature.register(this, 'ipcSocket') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
   static override stateSchema = IpcStateSchema
@@ -106,7 +107,6 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * @returns The container for method chaining
    */
   static attach(container: NodeContainer & { ipcSocket?: IpcSocket }) {
-    container.features.register("ipcSocket", IpcSocket);
     container.ipcSocket = container.feature("ipcSocket", { enable: true });
   }
   
@@ -456,4 +456,4 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   }
 }
 
-export default features.register("ipcSocket", IpcSocket);
+export default IpcSocket

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Feature as UniversalFeature } from '../../feature.js'
 import { Client, clients } from '../../client.js'
 import { Server, servers } from '../../server.js'
@@ -64,6 +64,7 @@ const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
  * ```
  */
 export class Helpers extends Feature<HelpersState, HelpersOptions> {
+  static { Feature.register(this, 'helpers') }
   static override shortcut = 'features.helpers' as const
   static override description = 'Unified gateway for discovering and registering project-level helpers'
   static override stateSchema = HelpersStateSchema
@@ -371,4 +372,4 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   }
 }
 
-export default features.register('helpers', Helpers)
+export default Helpers

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature'
+import { Feature } from '../feature'
 import axios from 'axios'
 
 export const RunpodStateSchema = FeatureStateSchema.extend({})
@@ -31,6 +31,7 @@ export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>
  * ```
  */
 export class Runpod extends Feature<RunpodState, RunpodOptions> {
+  static { Feature.register(this, 'runpod') }
   static override shortcut = 'features.runpod' as const
   static override envVars = ['RUNPOD_API_KEY']
   static override stateSchema = RunpodStateSchema
@@ -607,8 +608,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 
 }
 
-export default features.register('runpod', Runpod)
-
+export default Runpod
 /** Shell-escape a string for safe use in SSH commands */
 function esc(s: string): string {
 	return `'${s.replace(/'/g, "'\\''")}'`

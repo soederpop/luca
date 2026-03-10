@@ -5,26 +5,8 @@ TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo en
 ## Usage
 
 ```ts
-container.feature('tts', {
-  // RunPod API key (falls back to RUNPOD_API_KEY env var)
-  apiKey,
-  // Default preset voice name
-  voice,
-  // Directory to save generated audio files
-  outputDir,
-  // Audio output format
-  format,
-})
+container.feature('tts')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `apiKey` | `string` | RunPod API key (falls back to RUNPOD_API_KEY env var) |
-| `voice` | `string` | Default preset voice name |
-| `outputDir` | `string` | Directory to save generated audio files |
-| `format` | `string` | Audio output format |
 
 ## Methods
 
@@ -78,19 +60,6 @@ Event emitted by TTS
 Event emitted by TTS
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `lastFile` | `string` | Path to the last generated audio file |
-| `lastText` | `string` | Text of the last synthesis request |
-| `generating` | `boolean` | Whether audio is currently being generated |
-
-## Environment Variables
-
-- `RUNPOD_API_KEY`
 
 ## Examples
 

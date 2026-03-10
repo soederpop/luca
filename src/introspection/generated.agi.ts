@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-10T04:39:13.585Z
+// Generated at: 2026-03-10T07:35:24.932Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -820,7 +820,7 @@ setBuildTimeData('features.esbuild', {
   "className": "ESBuild",
   "methods": {
     "transformSync": {
-      "description": "Transform code synchronously",
+      "description": "/** Transform code synchronously",
       "parameters": {
         "code": {
           "type": "string",
@@ -12542,7 +12542,7 @@ export const introspectionData = [
     "className": "ESBuild",
     "methods": {
       "transformSync": {
-        "description": "Transform code synchronously",
+        "description": "/** Transform code synchronously",
         "parameters": {
           "code": {
             "type": "string",

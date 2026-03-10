@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { features, Feature } from "../feature.js";
+import { Feature } from "../feature.js";
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 
@@ -61,6 +61,7 @@ export class Python<
   T extends PythonState = PythonState,
   K extends PythonOptions = PythonOptions
 > extends Feature<T, K> {
+  static { Feature.register(this, 'python') }
   static override shortcut = "features.python" as const
   static override stateSchema = PythonStateSchema
   static override optionsSchema = PythonOptionsSchema
@@ -434,8 +435,7 @@ export class Python<
   }
 }
 
-export default features.register("python", Python);
-
+export default Python
 // Module augmentation for type safety
 declare module '../feature.js' {
   interface AvailableFeatures {

@@ -412,14 +412,6 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 | `randomColor` | `any` | Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing. |
 | `fonts` | `string[]` | Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names |
 
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `fonts` | `array` | Array of available fonts for ASCII art generation |
-| `colorPalette` | `array` | Color palette of hex colors for automatic color assignment |
-
 ## Examples
 
 **assignColor**

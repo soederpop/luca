@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { createHash } from 'crypto'
 
 const CHATTERBOX_ENDPOINT = 'https://api.runpod.ai/v2/chatterbox-turbo/runsync'
@@ -56,6 +56,7 @@ export const TTSEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class TTS extends Feature<TTSState, TTSOptions> {
+  static { Feature.register(this, 'tts') }
   static override shortcut = 'features.tts' as const
   static override envVars = ['RUNPOD_API_KEY']
   static override stateSchema = TTSStateSchema
@@ -181,4 +182,4 @@ export class TTS extends Feature<TTSState, TTSOptions> {
   }
 }
 
-export default features.register('tts', TTS)
+export default TTS

@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import crypto from 'node:crypto'
-import { Feature, features } from '../feature.js'
-import { type NodeContainer } from '../container.js'
+import { Feature } from '../feature.js'
 import { type ContainerContext } from '../../container.js'
 
 export const VaultStateSchema = FeatureStateSchema.extend({
@@ -40,20 +39,11 @@ export type VaultOptions = z.infer<typeof VaultOptionsSchema>
  * @extends Feature
  */
 export class Vault extends Feature<VaultState, VaultOptions> {
+  static { Feature.register(this, 'vault') }
   static override shortcut = 'features.vault' as const
   static override stateSchema = VaultStateSchema
   static override optionsSchema = VaultOptionsSchema
 
-  /**
-   * Attach hook for the Vault feature. Currently a no-op placeholder
-   * for future container-level initialization logic.
-   *
-   * @param c - The node container instance
-   */
-  static attach(c: NodeContainer) {
-
-  }
-  
   constructor(options: VaultOptions, context: ContainerContext) {
     let secret = options.secret
     
@@ -136,8 +126,7 @@ export class Vault extends Feature<VaultState, VaultOptions> {
   }
 }
 
-export default features.register('vault', Vault)
-
+export default Vault
 function generateSecretKey(): Buffer {
   return crypto.randomBytes(32);
 }

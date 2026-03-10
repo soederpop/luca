@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { State } from "../../state.js";
-import { Feature, features } from "../feature.js";
+import { Feature } from "../feature.js";
 import { parse, relative } from "path";
 import { statSync } from "fs";
 import micromatch from "micromatch";
@@ -57,6 +57,7 @@ export class FileManager<
   T extends FileManagerState = FileManagerState,
   K extends FileManagerOptions = FileManagerOptions
 > extends Feature<T, K> {
+  static { Feature.register(this, 'fileManager') }
 
   static override shortcut = 'features.fileManager' as const
   static override stateSchema = FileManagerStateSchema
@@ -354,4 +355,4 @@ export class FileManager<
   }
 }
 
-export default features.register("fileManager", FileManager);
+export default FileManager

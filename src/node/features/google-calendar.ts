@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { google, type calendar_v3 } from 'googleapis'
 import type { GoogleAuth } from './google-auth.js'
 
@@ -100,6 +100,7 @@ export const GoogleCalendarEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarOptions> {
+  static { Feature.register(this, 'googleCalendar') }
   static override shortcut = 'features.googleCalendar' as const
   static override stateSchema = GoogleCalendarStateSchema
   static override optionsSchema = GoogleCalendarOptionsSchema
@@ -297,4 +298,4 @@ declare module '../../feature' {
   }
 }
 
-export default features.register('googleCalendar', GoogleCalendar)
+export default GoogleCalendar

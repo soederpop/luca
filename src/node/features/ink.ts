@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { features, Feature } from '../feature.js'
+import { Feature } from '../feature.js'
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -80,6 +80,7 @@ export const InkEventsSchema = FeatureEventsSchema.extend({
  * @extends Feature
  */
 export class Ink extends Feature<InkState, InkOptions> {
+  static { Feature.register(this, 'ink') }
   static override shortcut = 'features.ink' as const
   static override stateSchema = InkStateSchema
   static override optionsSchema = InkOptionsSchema
@@ -481,8 +482,7 @@ export class Ink extends Feature<InkState, InkOptions> {
   }
 }
 
-export default features.register('ink', Ink)
-
+export default Ink
 declare module '../../feature' {
   interface AvailableFeatures {
     ink: typeof Ink

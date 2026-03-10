@@ -5,20 +5,8 @@ The Networking feature provides utilities for network-related operations. This f
 ## Usage
 
 ```ts
-container.feature('networking', {
-  // Default timeout in milliseconds for probing
-  timeout,
-  // Default concurrency for scanning operations
-  concurrency,
-})
+container.feature('networking')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `timeout` | `number` | Default timeout in milliseconds for probing |
-| `concurrency` | `number` | Default concurrency for scanning operations |
 
 ## Methods
 
@@ -226,13 +214,6 @@ Event emitted by Networking
 Event emitted by Networking
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `lastScan` | `object` | The most recent network scan result |
 
 ## Examples
 
