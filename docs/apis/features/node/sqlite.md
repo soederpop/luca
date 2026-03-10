@@ -5,8 +5,26 @@ SQLite feature for safe SQL execution through Bun's native sqlite binding. Suppo
 ## Usage
 
 ```ts
-container.feature('sqlite')
+container.feature('sqlite', {
+  // Path to sqlite file. Use :memory: for in-memory database
+  path,
+  // Open sqlite database in readonly mode
+  readonly,
+  // Open sqlite database in readwrite mode (defaults to true when readonly is false)
+  readwrite,
+  // Create the sqlite database file if it does not exist
+  create,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `path` | `string` | Path to sqlite file. Use :memory: for in-memory database |
+| `readonly` | `boolean` | Open sqlite database in readonly mode |
+| `readwrite` | `boolean` | Open sqlite database in readwrite mode (defaults to true when readonly is false) |
+| `create` | `boolean` | Create the sqlite database file if it does not exist |
 
 ## Methods
 

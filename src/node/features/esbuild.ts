@@ -15,10 +15,10 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  * ```
 */
 export class ESBuild extends Feature {
-  static { Feature.register(this, 'esbuild') }
   static override shortcut = 'features.esbuild' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'esbuild') }
 
   /**
   /**

@@ -78,10 +78,10 @@ export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
  * ```
  */
 export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
-	static { Feature.register(this, 'portExposer') }
 	static override shortcut = 'portExposer' as const
 	static override stateSchema = PortExposerStateSchema
 	static override optionsSchema = PortExposerOptionsSchema
+	static { Feature.register(this, 'portExposer') }
 
 	private ngrokListener?: ngrok.Listener
 

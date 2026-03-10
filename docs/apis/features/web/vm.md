@@ -5,8 +5,17 @@ The VM features providers a virtual machine for executing JavaScript code in a s
 ## Usage
 
 ```ts
-container.feature('vm')
+container.feature('vm', {
+  // Default context object to inject into the VM execution environment
+  context,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `context` | `any` | Default context object to inject into the VM execution environment |
 
 ## Methods
 
@@ -47,6 +56,12 @@ container.feature('vm')
 **Returns:** `void`
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples
 

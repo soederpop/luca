@@ -5,8 +5,26 @@ The Python VM feature provides Python virtual machine capabilities for executing
 ## Usage
 
 ```ts
-container.feature('python')
+container.feature('python', {
+  // Directory containing the Python project
+  dir,
+  // Custom install command to override auto-detection
+  installCommand,
+  // Path to Python script that will populate locals/context
+  contextScript,
+  // Specific Python executable path to use
+  pythonPath,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `dir` | `string` | Directory containing the Python project |
+| `installCommand` | `string` | Custom install command to override auto-detection |
+| `contextScript` | `string` | Path to Python script that will populate locals/context |
+| `pythonPath` | `string` | Specific Python executable path to use |
 
 ## Methods
 
@@ -175,6 +193,17 @@ Event emitted by Python
 Event emitted by Python
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `pythonPath` | `any` | Path to the detected Python executable |
+| `projectDir` | `any` | Root directory of the Python project |
+| `environmentType` | `any` | Detected Python environment type (uv, conda, venv, or system) |
+| `isReady` | `boolean` | Whether the Python environment is ready for execution |
+| `lastExecutedScript` | `any` | Path to the last executed Python script |
 
 ## Examples
 

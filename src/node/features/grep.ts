@@ -74,10 +74,10 @@ type GrepOptions = {
  * @extends Feature
  */
 export class Grep extends Feature {
-    static { Feature.register(this, 'grep') }
     static override shortcut = 'features.grep' as const
     static override stateSchema = FeatureStateSchema
     static override optionsSchema = FeatureOptionsSchema
+    static { Feature.register(this, 'grep') }
 
     private _hasRipgrep: boolean | null = null
 

@@ -45,10 +45,10 @@ type GitState = z.infer<typeof GitStateSchema>
  * @extends Feature
  */
 export class Git extends Feature {
-    static { Feature.register(this, 'git') }
     static override shortcut = 'features.git' as const
     static override stateSchema = GitStateSchema
     static override optionsSchema = FeatureOptionsSchema
+    static { Feature.register(this, 'git') }
     override state: State<GitState> = new State()
 
     /**

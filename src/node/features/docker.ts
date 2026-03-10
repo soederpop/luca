@@ -84,10 +84,10 @@ export interface DockerShell {
  * ```
  */
 export class Docker extends Feature<DockerState, DockerOptions> {
-  static { Feature.register(this, 'docker') }
   static override shortcut = 'features.docker' as const
   static override stateSchema = DockerStateSchema
   static override optionsSchema = DockerOptionsSchema
+  static { Feature.register(this, 'docker') }
 
   override get initialState(): DockerState {
     return {

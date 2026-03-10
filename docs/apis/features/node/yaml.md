@@ -89,6 +89,12 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 
 
 
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
 ## Examples
 
 **features.yaml**

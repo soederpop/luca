@@ -57,11 +57,11 @@ export class FileManager<
   T extends FileManagerState = FileManagerState,
   K extends FileManagerOptions = FileManagerOptions
 > extends Feature<T, K> {
-  static { Feature.register(this, 'fileManager') }
 
   static override shortcut = 'features.fileManager' as const
   static override stateSchema = FileManagerStateSchema
   static override optionsSchema = FileManagerOptionsSchema
+  static { Feature.register(this, 'fileManager') }
   
   files: State<Record<string, File>> = new State<Record<string, File>>({
     initialState: {},

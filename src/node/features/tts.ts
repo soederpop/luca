@@ -56,12 +56,12 @@ export const TTSEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class TTS extends Feature<TTSState, TTSOptions> {
-  static { Feature.register(this, 'tts') }
   static override shortcut = 'features.tts' as const
   static override envVars = ['RUNPOD_API_KEY']
   static override stateSchema = TTSStateSchema
   static override optionsSchema = TTSOptionsSchema
   static override eventsSchema = TTSEventsSchema
+  static { Feature.register(this, 'tts') }
 
   /** RunPod API key from options or environment. */
   get apiKey(): string {

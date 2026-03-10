@@ -30,10 +30,10 @@ import { NodeContainer } from '../container.js'
  * @extends Feature
  */
 export class YAML extends Feature {
-  static { Feature.register(this, 'yaml') }
   static override shortcut = 'features.yaml' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'yaml') }
 
   /**
    * Automatically attaches the YAML feature to Node containers.

@@ -66,6 +66,12 @@ Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to
 
 
 
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
 ## Examples
 
 **features.opener**

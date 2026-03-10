@@ -5,8 +5,17 @@ Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. 
 ## Usage
 
 ```ts
-container.feature('googleSheets')
+container.feature('googleSheets', {
+  // Default spreadsheet ID for operations
+  defaultSpreadsheetId,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `defaultSpreadsheetId` | `string` | Default spreadsheet ID for operations |
 
 ## Methods
 
@@ -134,6 +143,16 @@ Event emitted by GoogleSheets
 Event emitted by GoogleSheets
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `lastSpreadsheetId` | `string` | Last spreadsheet ID accessed |
+| `lastSheetName` | `string` | Last sheet/tab name accessed |
+| `lastRowCount` | `number` | Number of rows returned in last read |
+| `lastError` | `string` | Last Sheets API error message |
 
 ## Examples
 

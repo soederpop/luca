@@ -5,8 +5,38 @@ Google authentication feature supporting OAuth2 browser flow and service account
 ## Usage
 
 ```ts
-container.feature('googleAuth')
+container.feature('googleAuth', {
+  // Authentication mode. Auto-detected if serviceAccountKeyPath is set
+  mode,
+  // OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var)
+  clientId,
+  // OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var)
+  clientSecret,
+  // Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var)
+  serviceAccountKeyPath,
+  // Service account key as a parsed JSON object (alternative to file path)
+  serviceAccountKey,
+  // OAuth2 scopes to request
+  scopes,
+  // Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000)
+  redirectPort,
+  // DiskCache key for storing OAuth2 refresh token
+  tokenCacheKey,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `mode` | `string` | Authentication mode. Auto-detected if serviceAccountKeyPath is set |
+| `clientId` | `string` | OAuth2 client ID (falls back to GOOGLE_CLIENT_ID env var) |
+| `clientSecret` | `string` | OAuth2 client secret (falls back to GOOGLE_CLIENT_SECRET env var) |
+| `serviceAccountKeyPath` | `string` | Path to service account JSON key file (falls back to GOOGLE_SERVICE_ACCOUNT_KEY env var) |
+| `serviceAccountKey` | `object` | Service account key as a parsed JSON object (alternative to file path) |
+| `scopes` | `array` | OAuth2 scopes to request |
+| `redirectPort` | `number` | Port for OAuth2 callback server (falls back to GOOGLE_OAUTH_REDIRECT_PORT env var, then 3000) |
+| `tokenCacheKey` | `string` | DiskCache key for storing OAuth2 refresh token |
 
 ## Methods
 
@@ -101,6 +131,25 @@ Event emitted by GoogleAuth
 Event emitted by GoogleAuth
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `authMode` | `string` | Current authentication mode |
+| `isAuthenticated` | `boolean` | Whether valid credentials are currently available |
+| `email` | `string` | Authenticated user or service account email |
+| `scopes` | `array` | OAuth2 scopes that have been authorized |
+| `tokenExpiry` | `string` | ISO timestamp when the current access token expires |
+| `lastError` | `string` | Last authentication error message |
+
+## Environment Variables
+
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_SERVICE_ACCOUNT_KEY`
+- `GOOGLE_OAUTH_REDIRECT_PORT`
 
 ## Examples
 

@@ -5,8 +5,17 @@ Manages long-running child processes with tracking, events, and automatic cleanu
 ## Usage
 
 ```ts
-container.feature('processManager')
+container.feature('processManager', {
+  // Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes
+  autoCleanup,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
 
 ## Methods
 
@@ -168,6 +177,14 @@ Event emitted by ProcessManager
 Event emitted by ProcessManager
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `processes` | `object` | Map of process ID to metadata |
+| `totalSpawned` | `number` | Total number of processes spawned since feature creation |
 
 ## Examples
 

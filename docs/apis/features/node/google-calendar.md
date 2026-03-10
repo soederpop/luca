@@ -5,8 +5,20 @@ Google Calendar feature for listing calendars and reading events. Depends on the
 ## Usage
 
 ```ts
-container.feature('googleCalendar')
+container.feature('googleCalendar', {
+  // Default calendar ID (default: "primary")
+  defaultCalendarId,
+  // Default timezone for event queries (e.g. "America/Chicago")
+  timeZone,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
+| `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |
 
 ## Methods
 
@@ -137,6 +149,15 @@ Event emitted by GoogleCalendar
 Event emitted by GoogleCalendar
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `lastCalendarId` | `string` | Last calendar ID queried |
+| `lastEventCount` | `number` | Number of events returned in last query |
+| `lastError` | `string` | Last Calendar API error message |
 
 ## Examples
 

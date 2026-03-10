@@ -5,8 +5,44 @@ Telegram bot feature powered by grammY. Supports both long-polling and webhook m
 ## Usage
 
 ```ts
-container.feature('telegram')
+container.feature('telegram', {
+  // Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var)
+  token,
+  // Update mode: polling for long-polling, webhook for HTTP callbacks
+  mode,
+  // Public HTTPS URL for webhook mode
+  webhookUrl,
+  // HTTP path for the webhook endpoint
+  webhookPath,
+  // Port for webhook Express server
+  webhookPort,
+  // Automatically start the bot when enabled
+  autoStart,
+  // Drop pending updates on start (polling mode)
+  dropPendingUpdates,
+  // Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s.
+  pollingTimeout,
+  // Max updates per polling request (1-100, default 100)
+  pollingLimit,
+  // Update types to receive (e.g. ["message", "callback_query"])
+  allowedUpdates,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `token` | `string` | Bot token from @BotFather (falls back to TELEGRAM_BOT_TOKEN env var) |
+| `mode` | `string` | Update mode: polling for long-polling, webhook for HTTP callbacks |
+| `webhookUrl` | `string` | Public HTTPS URL for webhook mode |
+| `webhookPath` | `string` | HTTP path for the webhook endpoint |
+| `webhookPort` | `number` | Port for webhook Express server |
+| `autoStart` | `boolean` | Automatically start the bot when enabled |
+| `dropPendingUpdates` | `boolean` | Drop pending updates on start (polling mode) |
+| `pollingTimeout` | `number` | Long-polling timeout in seconds. Lower = faster response. 0 = short polling (fastest, testing only). Default 1s. |
+| `pollingLimit` | `number` | Max updates per polling request (1-100, default 100) |
+| `allowedUpdates` | `array` | Update types to receive (e.g. ["message", "callback_query"]) |
 
 ## Methods
 
@@ -180,6 +216,22 @@ Event emitted by Telegram
 Event emitted by Telegram
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `mode` | `string` | Current operation mode |
+| `isRunning` | `boolean` | Whether the bot is currently receiving updates |
+| `webhookUrl` | `string` | Active webhook URL if in webhook mode |
+| `commandsRegistered` | `array` | List of registered command names |
+| `lastError` | `string` | Last error message |
+| `botInfo` | `object` | Bot user information from Telegram API |
+
+## Environment Variables
+
+- `TELEGRAM_BOT_TOKEN`
 
 ## Examples
 

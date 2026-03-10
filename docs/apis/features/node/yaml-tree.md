@@ -42,6 +42,12 @@ const dbConfig = yamlTree.tree.config.database.production;
 |----------|------|-------------|
 | `tree` | `any` | Gets the current tree data, excluding the 'enabled' state property. Returns a clean copy of the tree data without internal state management properties. This provides access to only the YAML tree data that has been loaded. |
 
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
 ## Examples
 
 **features.yamlTree**

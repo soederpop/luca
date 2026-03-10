@@ -100,11 +100,11 @@ export const GoogleCalendarEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarOptions> {
-  static { Feature.register(this, 'googleCalendar') }
   static override shortcut = 'features.googleCalendar' as const
   static override stateSchema = GoogleCalendarStateSchema
   static override optionsSchema = GoogleCalendarOptionsSchema
   static override eventsSchema = GoogleCalendarEventsSchema
+  static { Feature.register(this, 'googleCalendar') }
 
   private _calendar?: calendar_v3.Calendar
 

@@ -5,8 +5,20 @@ LauncherAppCommandListener — IPC transport for commands from the LucaVoiceLaun
 ## Usage
 
 ```ts
-container.feature('launcherAppCommandListener')
+container.feature('launcherAppCommandListener', {
+  // Path to the Unix domain socket to listen on
+  socketPath,
+  // Automatically start listening when the feature is enabled
+  autoListen,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `socketPath` | `string` | Path to the Unix domain socket to listen on |
+| `autoListen` | `boolean` | Automatically start listening when the feature is enabled |
 
 ## Methods
 
@@ -96,6 +108,18 @@ Event emitted by LauncherAppCommandListener
 Event emitted by LauncherAppCommandListener
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `listening` | `boolean` | Whether the IPC server is listening |
+| `clientConnected` | `boolean` | Whether the native launcher app is connected |
+| `socketPath` | `string` | The socket path in use |
+| `commandsReceived` | `number` | Total number of commands received |
+| `lastCommandText` | `string` | The text of the last received command |
+| `lastError` | `string` | Last error message |
 
 ## Examples
 

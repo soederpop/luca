@@ -5,8 +5,20 @@ The Dns feature provides structured DNS lookups by wrapping the `dig` CLI. All q
 ## Usage
 
 ```ts
-container.feature('dns')
+container.feature('dns', {
+  // Default DNS server to use for queries
+  server,
+  // Default timeout in seconds for dig queries
+  timeout,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `server` | `string` | Default DNS server to use for queries |
+| `timeout` | `number` | Default timeout in seconds for dig queries |
 
 ## Methods
 
@@ -445,6 +457,13 @@ const verified = await dns.hasTxtRecord('example.com', 'google-site-verification
 | Property | Type | Description |
 |----------|------|-------------|
 | `proc` | `any` |  |
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `lastQuery` | `object` | The most recent DNS query |
 
 ## Examples
 

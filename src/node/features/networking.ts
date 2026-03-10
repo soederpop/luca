@@ -201,10 +201,10 @@ type NmapHost = {
  * @extends Feature
  */
 export class Networking extends Feature<NetworkingState, NetworkingOptions> {
-  static { Feature.register(this, 'networking') }
   static override shortcut = 'features.networking' as const
   static override stateSchema = NetworkingStateSchema
   static override optionsSchema = NetworkingOptionsSchema
+  static { Feature.register(this, 'networking') }
 
   override get initialState(): NetworkingState {
     return {

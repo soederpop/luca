@@ -5,8 +5,26 @@ Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React
 ## Usage
 
 ```ts
-container.feature('ink')
+container.feature('ink', {
+  // Maximum frames per second for render updates
+  maxFps,
+  // Patch console methods to avoid mixing with Ink output
+  patchConsole,
+  // Enable incremental rendering mode
+  incrementalRendering,
+  // Enable React concurrent rendering mode
+  concurrent,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `maxFps` | `number` | Maximum frames per second for render updates |
+| `patchConsole` | `boolean` | Patch console methods to avoid mixing with Ink output |
+| `incrementalRendering` | `boolean` | Enable incremental rendering mode |
+| `concurrent` | `boolean` | Enable React concurrent rendering mode |
 
 ## Methods
 
@@ -208,6 +226,13 @@ Event emitted by Ink
 Event emitted by Ink
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `mounted` | `boolean` | Whether an ink app is currently rendered / mounted |
 
 ## Examples
 

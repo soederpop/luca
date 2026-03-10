@@ -31,10 +31,10 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
  * ```
  */
 export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
-  static { Feature.register(this, 'diskCache') }
   static override shortcut = "features.diskCache" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = DiskCacheOptionsSchema
+  static { Feature.register(this, 'diskCache') }
 
   constructor(options: DiskCacheOptions, context: ContainerContext) {
     super(options, context)

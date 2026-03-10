@@ -39,10 +39,10 @@ export type VaultOptions = z.infer<typeof VaultOptionsSchema>
  * @extends Feature
  */
 export class Vault extends Feature<VaultState, VaultOptions> {
-  static { Feature.register(this, 'vault') }
   static override shortcut = 'features.vault' as const
   static override stateSchema = VaultStateSchema
   static override optionsSchema = VaultOptionsSchema
+  static { Feature.register(this, 'vault') }
 
   constructor(options: VaultOptions, context: ContainerContext) {
     let secret = options.secret

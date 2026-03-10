@@ -42,10 +42,10 @@ export class VM<
   T extends VMState = VMState,
   K extends VMOptions = VMOptions
 > extends Feature<T, K> {
-  static { Feature.register(this, 'vm') }
   static override shortcut = "features.vm" as const
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
+  static { Feature.register(this, 'vm') }
 
   /** Map of virtual module IDs to their exports, consulted before Node's native require */
   modules: Map<string, any> = new Map()

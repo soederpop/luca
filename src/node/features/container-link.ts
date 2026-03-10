@@ -142,11 +142,11 @@ type PendingEval = {
  * ```
  */
 export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOptions> {
-  static { Feature.register(this, 'containerLink') }
   static override shortcut = 'features.containerLink' as const
   static override stateSchema = ContainerLinkStateSchema
   static override optionsSchema = ContainerLinkOptionsSchema
   static override eventsSchema = ContainerLinkEventsSchema
+  static { Feature.register(this, 'containerLink') }
 
   private _wss?: WebSocketServer
   private _connections = new Map<string, ConnectedContainer>()

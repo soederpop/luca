@@ -61,10 +61,10 @@ export class Python<
   T extends PythonState = PythonState,
   K extends PythonOptions = PythonOptions
 > extends Feature<T, K> {
-  static { Feature.register(this, 'python') }
   static override shortcut = "features.python" as const
   static override stateSchema = PythonStateSchema
   static override optionsSchema = PythonOptionsSchema
+  static { Feature.register(this, 'python') }
 
   override get initialState(): T {
     return {

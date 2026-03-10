@@ -248,11 +248,11 @@ interface ClientConnection {
  * ```
  */
 export class WindowManager extends Feature<WindowManagerState, WindowManagerOptions> {
-  static { Feature.register(this, 'windowManager') }
   static override shortcut = 'features.windowManager' as const
   static override stateSchema = WindowManagerStateSchema
   static override optionsSchema = WindowManagerOptionsSchema
   static override eventsSchema = WindowManagerEventsSchema
+  static { Feature.register(this, 'windowManager') }
 
   private _server?: NetServer
   private _client?: ClientConnection

@@ -64,12 +64,12 @@ const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
  * ```
  */
 export class Helpers extends Feature<HelpersState, HelpersOptions> {
-  static { Feature.register(this, 'helpers') }
   static override shortcut = 'features.helpers' as const
   static override description = 'Unified gateway for discovering and registering project-level helpers'
   static override stateSchema = HelpersStateSchema
   static override optionsSchema = HelpersOptionsSchema
   static override eventsSchema = HelpersEventsSchema
+  static { Feature.register(this, 'helpers') }
 
   /**
    * Returns a mapping from registry type name to its registry singleton, base class, and conventional folder candidates.

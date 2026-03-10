@@ -65,11 +65,11 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class Sqlite extends Feature<SqliteState, SqliteOptions> {
-  static { Feature.register(this, 'sqlite') }
   static override shortcut = 'features.sqlite' as const
   static override stateSchema = SqliteStateSchema
   static override optionsSchema = SqliteOptionsSchema
   static override eventsSchema = SqliteEventsSchema
+  static { Feature.register(this, 'sqlite') }
 
   private _db: Database
 

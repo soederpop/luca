@@ -5,8 +5,17 @@ Postgres feature for safe SQL execution through Bun's native SQL client. Support
 ## Usage
 
 ```ts
-container.feature('postgres')
+container.feature('postgres', {
+  // Postgres connection URL, e.g. postgres://user:pass@host:5432/db
+  url,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `url` | `string` | Postgres connection URL, e.g. postgres://user:pass@host:5432/db |
 
 ## Methods
 
@@ -125,6 +134,17 @@ Event emitted by Postgres
 Event emitted by Postgres
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `connected` | `boolean` | Whether the postgres connection is currently open |
+| `url` | `string` | Connection URL used for this postgres feature instance |
+| `lastQuery` | `string` | Most recent SQL query string that was executed |
+| `lastRowCount` | `number` | Row count returned by the most recent query execution |
+| `lastError` | `string` | Most recent postgres error message, if any |
 
 ## Examples
 

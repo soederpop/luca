@@ -271,10 +271,10 @@ function chunkByDocument(doc: DocumentInput): Chunk[] {
  * ```
  */
 export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchOptions> {
-	static { Feature.register(this, 'semanticSearch') }
 	static override stateSchema = SemanticSearchStateSchema
 	static override optionsSchema = SemanticSearchOptionsSchema
 	static override shortcut = 'features.semanticSearch' as const
+	static { Feature.register(this, 'semanticSearch') }
 
 	private _db: Database | null = null
 	private _llamaContext: any = null

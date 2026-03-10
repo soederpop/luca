@@ -31,11 +31,11 @@ export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>
  * ```
  */
 export class Runpod extends Feature<RunpodState, RunpodOptions> {
-  static { Feature.register(this, 'runpod') }
   static override shortcut = 'features.runpod' as const
   static override envVars = ['RUNPOD_API_KEY']
   static override stateSchema = RunpodStateSchema
   static override optionsSchema = RunpodOptionsSchema
+  static { Feature.register(this, 'runpod') }
 
 	/** The proc feature used for executing CLI commands like runpodctl. */
 	get proc() {

@@ -62,10 +62,10 @@ export type Analysis = z.infer<typeof AnalysisSchema>
  * ```
  */
 export class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof NLPOptionsSchema>> {
-  static { Feature.register(this, 'nlp') }
   static override shortcut = 'features.nlp' as const
   static override stateSchema = NLPStateSchema
   static override optionsSchema = NLPOptionsSchema
+  static { Feature.register(this, 'nlp') }
 
   private _wink?: ReturnType<typeof winkNLP>
 

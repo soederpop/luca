@@ -21,6 +21,12 @@ container.feature('os')
 | `networkInterfaces` | `any` | Gets information about the system's network interfaces. |
 | `macAddresses` | `string[]` | Gets an array of MAC addresses for non-internal IPv4 network interfaces. This filters the network interfaces to only include external IPv4 interfaces and returns their MAC addresses, which can be useful for system identification. |
 
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
 ## Examples
 
 **features.os**

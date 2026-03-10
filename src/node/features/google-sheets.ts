@@ -70,11 +70,11 @@ export const GoogleSheetsEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions> {
-  static { Feature.register(this, 'googleSheets') }
   static override shortcut = 'features.googleSheets' as const
   static override stateSchema = GoogleSheetsStateSchema
   static override optionsSchema = GoogleSheetsOptionsSchema
   static override eventsSchema = GoogleSheetsEventsSchema
+  static { Feature.register(this, 'googleSheets') }
 
   private _sheets?: sheets_v4.Sheets
 

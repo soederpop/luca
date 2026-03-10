@@ -5,8 +5,17 @@ The FileManager feature creates a database like index of all of the files in the
 ## Usage
 
 ```ts
-container.feature('fileManager')
+container.feature('fileManager', {
+  // Glob patterns to exclude from file scanning
+  exclude,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `exclude` | `any` | Glob patterns to exclude from file scanning |
 
 ## Methods
 
@@ -148,6 +157,16 @@ Watches the files in the project and updates the file manager state.
 Event emitted by FileManager
 
 
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `started` | `boolean` | Whether the file manager has completed its initial scan |
+| `starting` | `boolean` | Whether the file manager is currently scanning files |
+| `watching` | `boolean` | Whether the file watcher is actively monitoring for changes |
+| `failed` | `boolean` | Whether the initial file scan failed |
 
 ## Examples
 

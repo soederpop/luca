@@ -34,10 +34,10 @@ type WalkOptions = {
  * ```
  */
 export class FS extends Feature {
-  static { Feature.register(this, 'fs') }
   static override shortcut = "features.fs" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'fs') }
 
   /**
    * Asynchronously reads a file and returns its contents as a Buffer.

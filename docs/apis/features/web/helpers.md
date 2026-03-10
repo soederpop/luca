@@ -5,8 +5,17 @@ The Helpers feature discovers and loads project-level helpers from a JSON manife
 ## Usage
 
 ```ts
-container.feature('helpers')
+container.feature('helpers', {
+  // Root directory to scan for helper folders. Defaults to container.cwd
+  rootDir,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `rootDir` | `string` | Root directory to scan for helper folders. Defaults to container.cwd |
 
 ## Methods
 
@@ -98,6 +107,14 @@ Get the introspection description for a specific helper.
 |----------|------|-------------|
 | `manifestURL` | `string` | The URL to fetch the helpers manifest from. |
 | `available` | `Record<string, string[]>` | Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry. |
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `discovered` | `object` | Which registry types have been discovered |
+| `registered` | `array` | Names of project-level helpers that were discovered (type.name) |
 
 ## Examples
 

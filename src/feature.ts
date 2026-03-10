@@ -78,13 +78,16 @@ export class FeaturesRegistry extends Registry<Feature<any, any>> {
 export const features = new FeaturesRegistry()
 
 /**
- * Static registration method for Feature subclasses.
- * Call from a static initialization block to self-register at class definition time.
+ * Self-register a Feature subclass from a static initialization block.
+ * IMPORTANT: Place the static block AFTER all static override declarations
+ * so schemas, envVars, and other metadata are set before interceptRegistration fires.
  *
  * @example
  * ```typescript
- * export default class DNS extends Feature {
- *   static { Feature.register(this, 'dns') }
+ * export default class DNS extends Feature<DnsState, DnsOptions> {
+ *   static override stateSchema = DnsStateSchema
+ *   static override optionsSchema = DnsOptionsSchema
+ *   static { Feature.register(this, 'dns') }  // must come last
  * }
  * ```
  */
@@ -94,13 +97,14 @@ Feature.register = function registerFeature(
 ) {
   const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)
 
-  // Register in the features registry
-  features.register(registryId, SubClass as any)
-
   // Auto-set shortcut if not explicitly overridden on this class
-  if (!Object.getOwnPropertyDescriptor(SubClass, 'shortcut')?.value) {
+  if (!Object.getOwnPropertyDescriptor(SubClass, 'shortcut')?.value ||
+      (SubClass as any).shortcut === 'unspecified') {
     ;(SubClass as any).shortcut = `features.${registryId}` as const
   }
+
+  // Register in the features registry (interceptRegistration sees all statics above)
+  features.register(registryId, SubClass as any)
 
   // Generate default attach() if not explicitly overridden on this class
   if (!Object.getOwnPropertyDescriptor(SubClass, 'attach')) {

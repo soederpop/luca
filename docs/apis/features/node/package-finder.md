@@ -223,6 +223,12 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 | `manifests` | `any` | Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only. |
 | `counts` | `any` | Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist. |
 
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+
 ## Examples
 
 **addPackage**

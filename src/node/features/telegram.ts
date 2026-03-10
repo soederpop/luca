@@ -75,12 +75,12 @@ export const TelegramEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class Telegram extends Feature<TelegramState, TelegramOptions> {
-  static { Feature.register(this, 'telegram') }
   static override shortcut = 'features.telegram' as const
   static override envVars = ['TELEGRAM_BOT_TOKEN']
   static override stateSchema = TelegramStateSchema
   static override optionsSchema = TelegramOptionsSchema
   static override eventsSchema = TelegramEventsSchema
+  static { Feature.register(this, 'telegram') }
 
   private _bot?: Bot
 

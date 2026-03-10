@@ -80,11 +80,11 @@ export const InkEventsSchema = FeatureEventsSchema.extend({
  * @extends Feature
  */
 export class Ink extends Feature<InkState, InkOptions> {
-  static { Feature.register(this, 'ink') }
   static override shortcut = 'features.ink' as const
   static override stateSchema = InkStateSchema
   static override optionsSchema = InkOptionsSchema
   static override eventsSchema = InkEventsSchema
+  static { Feature.register(this, 'ink') }
 
   private _instance: any | null = null
   private _inkModule: typeof import('ink') | null = null

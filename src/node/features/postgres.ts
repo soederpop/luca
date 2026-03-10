@@ -43,10 +43,10 @@ export type PostgresOptions = z.infer<typeof PostgresOptionsSchema>
  * ```
  */
 export class Postgres extends Feature<PostgresState, PostgresOptions> {
-  static { Feature.register(this, 'postgres') }
   static override shortcut = 'features.postgres' as const
   static override stateSchema = PostgresStateSchema
   static override optionsSchema = PostgresOptionsSchema
+  static { Feature.register(this, 'postgres') }
 
   private _client: SQL
 

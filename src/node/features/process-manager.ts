@@ -331,11 +331,11 @@ export class SpawnHandler {
  * @extends Feature
  */
 export class ProcessManager extends Feature {
-  static { Feature.register(this, 'processManager') }
   static override shortcut = 'features.processManager' as const
   static override stateSchema = ProcessManagerStateSchema
   static override optionsSchema = ProcessManagerOptionsSchema
   static override eventsSchema = ProcessManagerEventsSchema
+  static { Feature.register(this, 'processManager') }
 
   private _handlers = new Map<string, SpawnHandler>()
   private _cleanupRegistered = false

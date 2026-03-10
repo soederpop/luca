@@ -24,10 +24,10 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  * @extends Feature
  */
 export class Downloader extends Feature {
-  static { Feature.register(this, 'downloader') }
   static override shortcut = 'features.downloader' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'downloader') }
   
   /**
    * Downloads a file from a URL and saves it to the specified local path.

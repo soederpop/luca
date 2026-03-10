@@ -51,11 +51,11 @@ export const GoogleDocsEventsSchema = FeatureEventsSchema.extend({
  * ```
  */
 export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
-  static { Feature.register(this, 'googleDocs') }
   static override shortcut = 'features.googleDocs' as const
   static override stateSchema = GoogleDocsStateSchema
   static override optionsSchema = GoogleDocsOptionsSchema
   static override eventsSchema = GoogleDocsEventsSchema
+  static { Feature.register(this, 'googleDocs') }
 
   private _docs?: docs_v1.Docs
 

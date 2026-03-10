@@ -100,11 +100,11 @@ const DEFAULT_FIELDS = 'files(id,name,mimeType,size,createdTime,modifiedTime,par
  * ```
  */
 export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
-  static { Feature.register(this, 'googleDrive') }
   static override shortcut = 'features.googleDrive' as const
   static override stateSchema = GoogleDriveStateSchema
   static override optionsSchema = GoogleDriveOptionsSchema
   static override eventsSchema = GoogleDriveEventsSchema
+  static { Feature.register(this, 'googleDrive') }
 
   private _drive?: drive_v3.Drive
 

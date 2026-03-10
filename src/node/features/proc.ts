@@ -66,10 +66,10 @@ interface RawSpawnOptions {
  * @extends Feature
  */
 export class ChildProcess extends Feature {
-  static { Feature.register(this, 'proc') }
   static override shortcut = "features.proc" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'proc') }
 
   /**
    * Executes a command string and captures its output asynchronously.

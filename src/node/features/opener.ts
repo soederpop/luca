@@ -31,11 +31,11 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  * @extends Feature
  */
 export class Opener extends Feature {
-  static { Feature.register(this, 'opener') }
   static override shortcut = "features.opener" as const
   static override description = "Opens files, URLs, desktop apps, and code editors"
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  static { Feature.register(this, 'opener') }
 
   /**
    * Opens a path or URL with the appropriate application.
