@@ -176,13 +176,16 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 async function runScript(scriptPath: string, context: ContainerContext) {
 	const container = context.container as any
 
-	const { exitCode, stderr } = await container.proc.runScript(scriptPath)
+	const { exitCode, stderr } = await container.proc.execAndCapture(`bun run ${scriptPath}`, {
+		onOutput: (data: string) => process.stdout.write(data),
+		onError: (data: string) => process.stderr.write(data),
+	})
 
 	if (exitCode === 0) return
 
 	console.error(`\nScript failed with exit code ${exitCode}.\n`)
 	if (stderr.length) {
-		console.error(stderr.join('\n'))
+		console.error(stderr)
 	}
 }
 

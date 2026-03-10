@@ -34,7 +34,7 @@ Run a script or markdown file (.ts, .js, .md).
 luca run <file> [options]
 ```
 
-Resolves the file by trying the path as-is, then appending `.ts`, `.js`, `.md` in order. Markdown files are executed block-by-block with the container in scope. TypeScript and JavaScript files are run as standalone scripts via `proc.runScript`.
+Resolves the file by trying the path as-is, then appending `.ts`, `.js`, `.md` in order. Markdown files are executed block-by-block with the container in scope. TypeScript and JavaScript files are run as standalone scripts via `proc.execAndCapture`.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|

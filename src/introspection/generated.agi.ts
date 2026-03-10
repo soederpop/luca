@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-10T01:58:36.605Z
+// Generated at: 2026-03-10T04:38:17.717Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1947,43 +1947,6 @@ setBuildTimeData('features.proc', {
         "command"
       ],
       "returns": "void"
-    },
-    "runScript": {
-      "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
-      "parameters": {
-        "scriptPath": {
-          "type": "string",
-          "description": "Absolute path to the script file"
-        },
-        "options": {
-          "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
-          "description": "Options",
-          "properties": {
-            "cwd": {
-              "type": "any",
-              "description": "Working directory"
-            },
-            "maxLines": {
-              "type": "any",
-              "description": "Max stderr lines to keep"
-            },
-            "env": {
-              "type": "any",
-              "description": "Extra environment variables"
-            }
-          }
-        }
-      },
-      "required": [
-        "scriptPath"
-      ],
-      "returns": "Promise<{ exitCode: number; stderr: string[] }>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
-        }
-      ]
     },
     "exec": {
       "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
@@ -13702,43 +13665,6 @@ export const introspectionData = [
           "command"
         ],
         "returns": "void"
-      },
-      "runScript": {
-        "description": "Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.",
-        "parameters": {
-          "scriptPath": {
-            "type": "string",
-            "description": "Absolute path to the script file"
-          },
-          "options": {
-            "type": "{ cwd?: string; maxLines?: number; env?: Record<string, string> }",
-            "description": "Options",
-            "properties": {
-              "cwd": {
-                "type": "any",
-                "description": "Working directory"
-              },
-              "maxLines": {
-                "type": "any",
-                "description": "Max stderr lines to keep"
-              },
-              "env": {
-                "type": "any",
-                "description": "Extra environment variables"
-              }
-            }
-          }
-        },
-        "required": [
-          "scriptPath"
-        ],
-        "returns": "Promise<{ exitCode: number; stderr: string[] }>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')\nif (exitCode !== 0) {\n console.log('Error:', stderr.join('\\n'))\n}"
-          }
-        ]
       },
       "exec": {
         "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",

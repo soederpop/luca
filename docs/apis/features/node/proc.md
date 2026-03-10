@@ -130,36 +130,6 @@ Spawn a raw child process and return the handle immediately. Useful when callers
 
 
 
-### runScript
-
-Runs a script file with Bun, inheriting stdout for full TTY passthrough (animations, colors, cursor movement) while capturing stderr in a rolling buffer.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `scriptPath` | `string` | ✓ | Absolute path to the script file |
-| `options` | `{ cwd?: string; maxLines?: number; env?: Record<string, string> }` |  | Options |
-
-`{ cwd?: string; maxLines?: number; env?: Record<string, string> }` properties:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `cwd` | `any` | Working directory |
-| `maxLines` | `any` | Max stderr lines to keep |
-| `env` | `any` | Extra environment variables |
-
-**Returns:** `Promise<{ exitCode: number; stderr: string[] }>`
-
-```ts
-const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')
-if (exitCode !== 0) {
- console.log('Error:', stderr.join('\n'))
-}
-```
-
-
-
 ### exec
 
 Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.
@@ -350,17 +320,6 @@ const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
    }
  }
 })
-```
-
-
-
-**runScript**
-
-```ts
-const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')
-if (exitCode !== 0) {
- console.log('Error:', stderr.join('\n'))
-}
 ```
 
 

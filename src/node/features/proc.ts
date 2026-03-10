@@ -243,69 +243,7 @@ export class ChildProcess extends Feature {
     return child
   }
 
-  /**
-   * Runs a script file with Bun, inheriting stdout for full TTY passthrough
-   * (animations, colors, cursor movement) while capturing stderr in a rolling buffer.
-   *
-   * @param {string} scriptPath - Absolute path to the script file
-   * @param {object} [options] - Options
-   * @param {string} [options.cwd] - Working directory
-   * @param {number} [options.maxLines=100] - Max stderr lines to keep
-   * @param {Record<string, string>} [options.env] - Extra environment variables
-   * @returns {Promise<{ exitCode: number, stderr: string[] }>}
-   *
-   * @example
-   * ```typescript
-   * const { exitCode, stderr } = await proc.runScript('/path/to/script.ts')
-   * if (exitCode !== 0) {
-   *   console.log('Error:', stderr.join('\n'))
-   * }
-   * ```
-   */
-  async runScript(
-    scriptPath: string,
-    options?: { cwd?: string; maxLines?: number; env?: Record<string, string> }
-  ): Promise<{ exitCode: number; stderr: string[] }> {
-    const cwd = options?.cwd ?? this.container.cwd
-    const maxLines = options?.maxLines ?? 100
 
-    const proc = Bun.spawn(['bun', 'run', scriptPath], {
-      cwd,
-      stdout: 'inherit',
-      stderr: 'pipe',
-      env: { ...process.env, ...options?.env },
-    })
-
-    const stderrLines: string[] = []
-
-    const reader = proc.stderr.getReader()
-    const decoder = new TextDecoder()
-    let partial = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const text = partial + decoder.decode(value, { stream: true })
-      const lines = text.split('\n')
-      partial = lines.pop() || ''
-
-      for (const line of lines) {
-        process.stderr.write(line + '\n')
-        stderrLines.push(line)
-        if (stderrLines.length > maxLines) stderrLines.shift()
-      }
-    }
-
-    if (partial) {
-      process.stderr.write(partial + '\n')
-      stderrLines.push(partial)
-      if (stderrLines.length > maxLines) stderrLines.shift()
-    }
-
-    const exitCode = await proc.exited
-
-    return { exitCode, stderr: stderrLines }
-  }
 
   /**
    * Execute a command synchronously and return its output.
