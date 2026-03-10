@@ -1,9 +1,8 @@
 // @ts-nocheck
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 
 declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
@@ -281,10 +280,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   static override shortcut = 'features.claudeCode' as const
   static override envVars = ['TMPDIR']
 
-  static attach(container: Container<AvailableFeatures, any>) {
-    container.features.register('claudeCode', ClaudeCode)
-    return container
-  }
+  static { Feature.register(this, 'claudeCode') }
 
   override get initialState(): ClaudeCodeState {
     return {
@@ -1108,4 +1104,4 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }
 }
 
-export default features.register('claudeCode', ClaudeCode)
+export default ClaudeCode

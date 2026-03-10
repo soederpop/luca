@@ -38,6 +38,9 @@ export class Client<
   static override optionsSchema = ClientOptionsSchema
   static override eventsSchema = ClientEventsSchema
 
+  /** Self-register a Client subclass from a static initialization block. */
+  static register: (SubClass: typeof Client, id?: string) => typeof Client
+
   static attach(container: Container & ClientsInterface): any {
     Object.assign(container, {
       get clients() {
@@ -100,6 +103,61 @@ export class Client<
   }
 }
 
+// --- Registry and Client.register must be defined BEFORE subclasses ---
+// because static blocks in RestClient/GraphClient/WebSocketClient run at class declaration time.
+
+export class ClientsRegistry extends Registry<Client<any>> {
+  override scope = "clients"
+  override baseClass = Client
+}
+
+export const clients = new ClientsRegistry();
+
+export const helperCache = new Map();
+
+/**
+ * Self-register a Client subclass from a static initialization block.
+ * IMPORTANT: Place the static block AFTER all static override declarations
+ * so schemas, envVars, and other metadata are set before interceptRegistration fires.
+ *
+ * @example
+ * ```typescript
+ * export class OpenAIClient extends Client {
+ *   static override stateSchema = OpenAIClientStateSchema
+ *   static override optionsSchema = OpenAIClientOptionsSchema
+ *   static { Client.register(this, 'openai') }  // must come last
+ * }
+ * ```
+ */
+Client.register = function registerClient(
+  SubClass: typeof Client,
+  id?: string,
+) {
+  const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)
+
+  // Auto-set shortcut if not explicitly overridden on this class
+  if (!Object.getOwnPropertyDescriptor(SubClass, 'shortcut')?.value ||
+      (SubClass as any).shortcut === 'unspecified' ||
+      (SubClass as any).shortcut === 'clients.base') {
+    ;(SubClass as any).shortcut = `clients.${registryId}` as const
+  }
+
+  // Register in the clients registry (interceptRegistration sees all statics above)
+  clients.register(registryId, SubClass as any)
+
+  // Generate default attach() if not explicitly overridden on this class
+  if (!Object.getOwnPropertyDescriptor(SubClass, 'attach')) {
+    ;(SubClass as any).attach = (container: any) => {
+      clients.register(registryId, SubClass as any)
+      return container
+    }
+  }
+
+  return SubClass
+}
+
+// --- Built-in client subclasses ---
+
 export class RestClient<
   T extends ClientState = ClientState,
   K extends ClientOptions = ClientOptions
@@ -107,18 +165,15 @@ export class RestClient<
   axios!: AxiosInstance;
 
   static override shortcut: string = "clients.rest"
-
-  static override attach(container: Container & ClientsInterface): any {
-    return container
-  }
+  static { Client.register(this, 'rest') }
 
   constructor(options: K, context: ContainerContext) {
     super(options, context);
 
     this.axios = axios.create({
-      baseURL: this.baseURL, 
+      baseURL: this.baseURL,
     });
-    
+
     if (this.useJSON) {
       this.axios.defaults.headers.common = {
         ...this.axios.defaults.headers.common,
@@ -127,16 +182,16 @@ export class RestClient<
       }
     }
   }
-  
+
   async beforeRequest() {
   }
- 
+
   get useJSON() {
     return !!this.options.json
   }
-  
+
   override get baseURL() {
-    return this.options.baseURL || '/'  
+    return this.options.baseURL || '/'
   }
 
   async patch(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
@@ -156,7 +211,7 @@ export class RestClient<
         }
       });
   }
- 
+
   async put(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
     return this.axios({
@@ -174,7 +229,7 @@ export class RestClient<
         }
       });
   }
- 
+
   async post(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
     return this.axios({
@@ -249,6 +304,7 @@ export class GraphClient<
   static override shortcut = "clients.graph" as const
   static override optionsSchema = GraphClientOptionsSchema
   static override eventsSchema = GraphClientEventsSchema
+  static { Client.register(this, 'graph') }
 
   /** The GraphQL endpoint path. Defaults to '/graphql'. */
   get endpoint() {
@@ -321,6 +377,7 @@ export class WebSocketClient<
   static override stateSchema = WebSocketClientStateSchema
   static override optionsSchema = WebSocketClientOptionsSchema
   static override eventsSchema = WebSocketClientEventsSchema
+  static { Client.register(this, 'websocket') }
 
   constructor(options?: K, context?: ContainerContext) {
     super(options, context)
@@ -443,19 +500,5 @@ export class WebSocketClient<
     }, delay)
   }
 }
-
-
-export class ClientsRegistry extends Registry<Client<any>> {
-  override scope = "clients"
-  override baseClass = Client
-}
-
-export const clients = new ClientsRegistry();
-
-clients.register("rest", RestClient);
-clients.register("graph", GraphClient);
-clients.register("websocket", WebSocketClient);
-
-export const helperCache = new Map();
 
 export default Client;

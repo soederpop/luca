@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../../feature.js";
-import { type WebFeatures, type Container, type ContainerContext } from '../container.js'
+import { Feature } from "../../feature.js";
+import { type ContainerContext } from '../container.js'
 
 export const VoiceRecognitionOptionsSchema = FeatureOptionsSchema.extend({
   language: z.string().optional().describe('BCP 47 language code for recognition (e.g. en-US)'),
@@ -21,15 +21,11 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   // @ts-ignore-next-line
   private recognition: SpeechRecognition | null = null;
 
-  static attach(container: Container<WebFeatures> & { voice?: VoiceRecognition }, options?: VoiceRecognitionOptions) {
-    container.features.register('voice', VoiceRecognition)
-    container.feature('voice', { enable: true })
-    return container
-  }
-
   static override stateSchema = VoiceRecognitionStateSchema
   static override optionsSchema = VoiceRecognitionOptionsSchema
   static override shortcut = "features.voice" as const
+
+  static { Feature.register(this as any, 'voice') }
 
   constructor(options: K, context: ContainerContext) {
     super(options, context);
@@ -126,4 +122,4 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   }
 }
 
-export default features.register("voice", VoiceRecognition);
+export default VoiceRecognition;

@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { features, Feature } from '../feature.js'
-import type { Container } from '../../container.js'
+import { Feature } from '../feature.js'
 
 // --- Message Types ---
 
@@ -124,9 +123,7 @@ export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOpti
   static override optionsSchema = ContainerLinkOptionsSchema
   static override eventsSchema = ContainerLinkEventsSchema
 
-  static attach(container: Container & { containerLink?: ContainerLink }) {
-    container.features.register('containerLink', ContainerLink)
-  }
+  static { Feature.register(this as any, 'containerLink') }
 
   private _ws?: WebSocket
   private _reconnectTimer?: ReturnType<typeof setTimeout>
@@ -382,4 +379,4 @@ export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOpti
   }
 }
 
-export default features.register('containerLink', ContainerLink)
+export default ContainerLink

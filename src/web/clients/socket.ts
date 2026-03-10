@@ -1,5 +1,5 @@
 import Websocket from 'isomorphic-ws'
-import { WebSocketClient, clients, type WebSocketClientState, type WebSocketClientOptions } from '../../client'
+import { Client, WebSocketClient, type WebSocketClientState, type WebSocketClientOptions } from '../../client'
 
 /**
  * Web-specific WebSocket client implementation using isomorphic-ws.
@@ -12,9 +12,7 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
 
   static override shortcut = 'clients.websocket' as const
 
-  static override attach(...args: any[]) {
-    clients.register('websocket', SocketClient)
-  }
+  static { Client.register(this, 'websocket') }
 
   /**
    * Send data over the WebSocket with an ID envelope.
@@ -79,4 +77,4 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
   }
 }
 
-export default clients.register('websocket', SocketClient)
+export default SocketClient

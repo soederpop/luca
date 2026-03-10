@@ -1,10 +1,9 @@
 import {
   Client,
   type ClientOptions,
-  type ClientsInterface,
   RestClient,
 } from "@soederpop/luca/client";
-import { Container, type ContainerContext } from "@soederpop/luca/container";
+import { type ContainerContext } from "@soederpop/luca/container";
 import { isEmpty, maxBy, omitBy } from "lodash-es";
 import { NodeContainer } from "@soederpop/luca/node/container";
 import { z } from 'zod'
@@ -38,11 +37,8 @@ export type CivitaiClientState = z.infer<typeof CivitaiClientStateSchema>
  */
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   static override stateSchema = CivitaiClientStateSchema;
-  // @ts-ignore
-  static attach(container: Container & ClientsInterface, options?: any) {
-    container.clients.register("civitai", CivitaiClient);
-    return container
-  }
+
+  static { Client.register(this, 'civitai') }
 
   constructor(options: ClientOptions, context: ContainerContext) {
     options = {

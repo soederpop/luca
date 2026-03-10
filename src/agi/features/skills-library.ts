@@ -5,8 +5,7 @@ import fs from 'fs/promises'
 import yaml from 'js-yaml'
 import { kebabCase } from 'lodash-es'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
-import { type AvailableFeatures, features, Feature } from '@soederpop/luca/feature'
+import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
 import { Collection, defineModel } from 'contentbase'
 import type { ConversationTool } from './conversation'
 
@@ -94,13 +93,10 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	static override optionsSchema = SkillsLibraryOptionsSchema
 	static override shortcut = 'features.skillsLibrary' as const
 
+	static { Feature.register(this, 'skillsLibrary') }
+
 	private _projectCollection?: Collection
 	private _userCollection?: Collection
-
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('skillsLibrary', SkillsLibrary)
-		return container
-	}
 
 	/** @returns Default state with loaded=false and zero skill counts across both collections. */
 	override get initialState(): SkillsLibraryState {
@@ -422,4 +418,4 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	}
 }
 
-export default features.register('skillsLibrary', SkillsLibrary)
+export default SkillsLibrary

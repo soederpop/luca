@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container';
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
@@ -125,6 +124,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	static override optionsSchema = ConversationOptionsSchema
 	static override shortcut = 'features.conversation' as const
 
+	static { Feature.register(this, 'conversation') }
+
 	private _callMaxTokens: number | undefined = undefined
 
 	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
@@ -134,11 +135,6 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	private get _tools(): Record<string, ConversationTool> {
 		return this.options.tools || {}
-	}
-
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('conversation', Conversation)
-		return container
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -796,4 +792,4 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 }
 
-export default features.register('conversation', Conversation)
+export default Conversation

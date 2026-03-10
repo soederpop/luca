@@ -1,8 +1,7 @@
 // @ts-nocheck
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
-import { WebContainer} from '../container.js'
+import { Feature } from '../feature.js'
 
 export const WebVaultStateSchema = FeatureStateSchema.extend({
   secret: z.string().optional().describe('Base64-encoded AES-GCM encryption secret key'),
@@ -19,6 +18,8 @@ export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
   static override stateSchema = WebVaultStateSchema
   static override optionsSchema = WebVaultOptionsSchema
   static override shortcut = "features.vault" as const
+
+  static { Feature.register(this, 'vault') }
   
   async secret({ refresh = false, set = true } = {}) : Promise<ArrayBuffer> {
     if (!this.state.get('secret') && this.options.secret) {
@@ -67,7 +68,7 @@ export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
   }
 }
 
-export default features.register('vault', WebVault)
+export default WebVault
 
 async function generateSecretKey(): Promise<ArrayBuffer> {
   const key = await crypto.subtle.generateKey(

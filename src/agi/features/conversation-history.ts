@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 import { NodeContainer, type DiskCache, type NodeFeatures } from '@soederpop/luca/node/container'
 import type { Message } from './conversation'
 
@@ -79,10 +78,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	static override optionsSchema = ConversationHistoryOptionsSchema
 	static override shortcut = 'features.conversationHistory' as const
 
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('conversationHistory', ConversationHistory)
-		return container
-	}
+	static { Feature.register(this, 'conversationHistory') }
 
 	/** @returns Default state with zero conversations and no last-saved timestamp. */
 	override get initialState(): ConversationHistoryState {
@@ -494,4 +490,4 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	}
 }
 
-export default features.register('conversationHistory', ConversationHistory)
+export default ConversationHistory

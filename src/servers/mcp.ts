@@ -1,7 +1,7 @@
 import type { NodeContainer } from '../node/container.js'
 import { z } from 'zod'
 import { MCPServerStateSchema, MCPServerOptionsSchema, MCPServerEventsSchema } from '../schemas/base.js'
-import { servers, Server, type ServersInterface, type ServerState } from '../server.js'
+import { Server } from '../server.js'
 import { Server as MCPProtocolServer } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -297,9 +297,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
   static override optionsSchema = MCPServerOptionsSchema
   static override eventsSchema = MCPServerEventsSchema
 
-  static override attach(container: NodeContainer & ServersInterface) {
-    return container
-  }
+  static { Server.register(this, 'mcp') }
 
   _mcpServer?: MCPProtocolServer
   _tools: Map<string, RegisteredTool> = new Map()
@@ -799,7 +797,5 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     }) as typeof res.writeHead
   }
 }
-
-servers.register('mcp', MCPServer)
 
 export default MCPServer

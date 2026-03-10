@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
-import { clients, Client } from "@soederpop/luca/client";
+import { Client } from "@soederpop/luca/client";
 import type { Container, ContainerContext } from "@soederpop/luca/container";
-import type { ClientsInterface } from "@soederpop/luca/client";
+
 import OpenAI from "openai";
 
 export const OpenAIClientStateSchema = ClientStateSchema.extend({
@@ -48,9 +48,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   static override stateSchema = OpenAIClientStateSchema
   static override optionsSchema = OpenAIClientOptionsSchema
 
-  static override attach(container: Container & ClientsInterface): any {
-    return container;
-  }
+  static { Client.register(this, 'openai') }
 
   /** Initial state with zeroed token usage counters. */
   override get initialState(): OpenAIClientState {
@@ -445,7 +443,5 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
     return this.openai;
   }
 }
-
-clients.register("openai", OpenAIClient)
 
 export default OpenAIClient;

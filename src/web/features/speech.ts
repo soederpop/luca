@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
-import { Container, type ContainerContext } from "../container.js";
+import { Feature } from "../feature.js";
+import { type ContainerContext } from "../container.js";
 
 export const SpeechOptionsSchema = FeatureOptionsSchema.extend({
   voice: z.string().optional().describe('The voice to use for the speech'),
@@ -28,13 +28,11 @@ export class Speech<
   K extends SpeechOptions = SpeechOptions
 > extends Feature<T, K> {
 
-  static attach(container: Container & { speech?: Speech }) {
-    container.features.register("speech", Speech);
-  }
-
   static override stateSchema = SpeechStateSchema
   static override optionsSchema = SpeechOptionsSchema
   static override shortcut = "features.speech" as const
+
+  static { Feature.register(this as any, 'speech') }
   
   constructor(options: K, context: ContainerContext) {
     super(options,context)  
@@ -84,4 +82,4 @@ export class Speech<
   }
 }
 
-export default features.register("speech", Speech);
+export default Speech;

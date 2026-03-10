@@ -1,10 +1,9 @@
-import type { NodeContainer } from '../node/container.js'
 import express from 'express'
 import type { Express } from 'express'
 import cors from 'cors'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
-import { servers, type StartOptions, Server, type ServersInterface, type ServerState } from '../server.js'
+import { type StartOptions, Server, type ServerState } from '../server.js'
 import { Endpoint, type EndpointModule } from '../endpoint.js'
 
 declare module '../server' {
@@ -28,10 +27,8 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     static override shortcut = 'servers.express' as const
     static override stateSchema = ServerStateSchema
     static override optionsSchema = ExpressServerOptionsSchema
-    
-    static override attach(container: NodeContainer & ServersInterface) {
-      return container
-    }
+
+    static { Server.register(this, 'express') }
   
     _app?: Express
     _listener?: any
@@ -203,7 +200,5 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       }
     }
 }
-
-servers.register('express', ExpressServer)
 
 export default ExpressServer

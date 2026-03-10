@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature, features } from '../feature.js'
+import { Feature } from '../feature.js'
 import { Client } from '../../client.js'
 import type { Registry } from '../../registry.js'
 import type { AssetLoader } from './asset-loader.js'
@@ -78,6 +78,8 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   static override stateSchema = HelpersStateSchema
   static override optionsSchema = HelpersOptionsSchema
   static override eventsSchema = HelpersEventsSchema
+
+  static { Feature.register(this as any, 'helpers') }
 
   private _manifest: Manifest | null = null
 
@@ -264,4 +266,4 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   }
 }
 
-export default features.register('helpers', Helpers)
+export default Helpers

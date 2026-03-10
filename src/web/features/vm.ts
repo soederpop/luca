@@ -3,8 +3,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from '../shims/isomorphic-vm'
-import { Feature, features } from "../feature.js";
-import { Container } from '../../container.js';
+import { Feature } from "../feature.js";
 
 export const VMStateSchema = FeatureStateSchema.extend({})
 
@@ -26,13 +25,11 @@ export class VM<
   K extends VMOptions = VMOptions
 > extends Feature<T, K> {
 
-  static attach(container: Container) {
-    container.features.register('vm', VM)    
-  }
-
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
   static override shortcut = "features.vm" as const
+
+  static { Feature.register(this, 'vm') }
 
   createScript(code: string) {
     return new vm.Script(code)
@@ -75,4 +72,4 @@ export class VM<
   }
 }
 
-export default features.register("vm", VM);
+export default VM;

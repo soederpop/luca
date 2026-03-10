@@ -1,4 +1,4 @@
-import { Feature, features } from '../../feature.js'
+import { Feature } from '../../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'
@@ -102,6 +102,8 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   static override description = 'Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions'
   static override stateSchema = OpenAPIStateSchema
   static override optionsSchema = OpenAPIOptionsSchema
+
+  static { Feature.register(this, 'openapi') }
 
   /** Raw parsed spec document */
   private _spec: any = null
@@ -435,4 +437,4 @@ function schemaToJsonSchema(schema: any): any {
   return result
 }
 
-export default features.register('openapi', OpenAPI)
+export default OpenAPI

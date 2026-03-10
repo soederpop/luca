@@ -1,9 +1,8 @@
 import {
-  type ClientsInterface,
-  clients,
+  Client,
   RestClient,
 } from "@soederpop/luca/client";
-import type { Container, ContainerContext } from "@soederpop/luca/container";
+import type { ContainerContext } from "@soederpop/luca/container";
 import { z } from 'zod'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
 
@@ -68,12 +67,9 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   static override stateSchema = ComfyUIClientStateSchema;
   static override optionsSchema = ComfyUIClientOptionsSchema;
 
-  private ws: WebSocket | null = null;
+  static { Client.register(this, 'comfyui') }
 
-  static override attach(container: Container & ClientsInterface, options?: any) {
-    container.clients.register("comfyui", ComfyUIClient);
-    return container;
-  }
+  private ws: WebSocket | null = null;
 
   constructor(options: ComfyUIClientOptions, context: ContainerContext) {
     super(
@@ -594,4 +590,4 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   }
 }
 
-export default clients.register("comfyui", ComfyUIClient);
+export default ComfyUIClient;

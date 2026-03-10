@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, type FeatureState, features } from "../feature.js";
-import { Container } from "../container.js";
+import { Feature, type FeatureState } from "../feature.js";
 import type * as esbuild from 'esbuild-wasm';
 
 export const EsbuildWebOptionsSchema = FeatureOptionsSchema.extend({
@@ -12,13 +11,11 @@ export const EsbuildWebOptionsSchema = FeatureOptionsSchema.extend({
 export type EsbuildWebOptions = z.infer<typeof EsbuildWebOptionsSchema>
 
 export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
-  static attach(container: Container & { assetLoader?: Esbuild}) {
-    container.features.register("esbuild", Esbuild);
-  }
-
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = EsbuildWebOptionsSchema
   static override shortcut = "features.esbuild" as const
+
+  static { Feature.register(this as any, 'esbuild') }
   
   /** Returns the assetLoader feature for loading external libraries from unpkg. */
   get assetLoader() {
@@ -74,6 +71,6 @@ export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
 
 }
 
-export default features.register("esbuild", Esbuild);
+export default Esbuild;
 
 const compileCache = new Map()

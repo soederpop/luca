@@ -1,6 +1,5 @@
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { Feature, features } from "../feature.js";
-import { Container } from "../container.js";
+import { Feature } from "../feature.js";
 
 /** 
  * The AssetLoader provides an API for injecting scripts and stylesheets into the page.
@@ -8,13 +7,11 @@ import { Container } from "../container.js";
  * It also provides a convenient way of loading any library from unpkg.com
 */
 export class AssetLoader extends Feature {
-  static attach(container: Container & { assetLoader?: AssetLoader }) {
-    container.features.register("assetLoader", AssetLoader);
-  }
-
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static override shortcut = "features.assetLoader" as const
+
+  static { Feature.register(this, 'assetLoader') }
 
   static loadStylesheet(href: string) {
     return new Promise((resolve, reject) => {
@@ -61,4 +58,4 @@ export class AssetLoader extends Feature {
   }
 }
 
-export default features.register("assetLoader", AssetLoader);
+export default AssetLoader;

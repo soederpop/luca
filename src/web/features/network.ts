@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import { features, Feature } from "../feature.js";
-import type { Container, ContainerContext } from "../container.js";
+import { Feature } from "../feature.js";
+import type { ContainerContext } from "../container.js";
 
 export const NetworkStateSchema = FeatureStateSchema.extend({
   offline: z.boolean().describe('Whether the browser is currently offline'),
@@ -19,10 +19,8 @@ export class Network<
   static override stateSchema = NetworkStateSchema
   static override optionsSchema = NetworkOptionsSchema
   static override shortcut = "features.network" as const
-  
-  static attach(container: Container & { network?: Network }) {
-    container.features.register("network", Network);
-  }
+
+  static { Feature.register(this as any, 'network') }
   
   constructor(options: K, context: ContainerContext) {
     super(options, context);
@@ -58,4 +56,4 @@ export class Network<
   }
 }
 
-export default features.register('network', Network)
+export default Network

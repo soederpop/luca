@@ -1,7 +1,6 @@
-import type { NodeContainer } from '../node/container.js'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
-import { type StartOptions, servers, Server, type ServersInterface, type ServerState } from '../server.js';
+import { type StartOptions, Server, type ServerState } from '../server.js';
 import { WebSocketServer as BaseServer } from 'ws'
 
 declare module '../server' {
@@ -20,9 +19,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     static override stateSchema = ServerStateSchema
     static override optionsSchema = SocketServerOptionsSchema
 
-    static override attach(container: NodeContainer & ServersInterface) {
-      return container
-    }
+    static { Server.register(this, 'websocket') }
     
     _wss?: BaseServer 
 
@@ -114,7 +111,5 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return this.state.get('port') || this.options.port || 8081 
     }
 }
-
-servers.register('websocket', WebsocketServer)
 
 export default WebsocketServer

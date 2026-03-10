@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, Message } from './conversation'
 import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@soederpop/luca/node'
@@ -94,10 +93,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	static override eventsSchema = AssistantEventsSchema
 	static override shortcut = 'features.assistant' as const
 
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('assistant', Assistant)
-		return container
-	}
+	static { Feature.register(this, 'assistant') }
 
 	/** @returns Default state with the assistant not started, zero conversations, and the resolved folder path. */
 	override get initialState(): AssistantState {
@@ -764,4 +760,4 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 }
 
-export default features.register('assistant', Assistant)
+export default Assistant

@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 import type { AGIContainer } from '../container.server.js'
 import type { Assistant } from './assistant.js'
 
@@ -78,10 +77,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	static override eventsSchema = AssistantsManagerEventsSchema
 	static override shortcut = 'features.assistantsManager' as const
 
-	static attach(container: Container<AvailableFeatures, any>) {
-		features.register('assistantsManager', AssistantsManager)
-		return container
-	}
+	static { Feature.register(this, 'assistantsManager') }
 
 	/** @returns Default state with discovery not yet run and zero counts. */
 	override get initialState(): AssistantsManagerState {
@@ -257,4 +253,4 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 }
 
-export default features.register('assistantsManager', AssistantsManager)
+export default AssistantsManager

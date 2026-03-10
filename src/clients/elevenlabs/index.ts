@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
-import { clients, RestClient } from "@soederpop/luca/client";
-import type { Container, ContainerContext } from "@soederpop/luca/container";
-import type { ClientsInterface, ClientOptions } from "@soederpop/luca/client";
+import { Client, RestClient } from "@soederpop/luca/client";
+import type { ContainerContext } from "@soederpop/luca/container";
 import type { AxiosRequestConfig } from 'axios'
 
 declare module "@soederpop/luca/client" {
@@ -72,11 +71,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
   static override optionsSchema = ElevenLabsClientOptionsSchema
   static override eventsSchema = ElevenLabsClientEventsSchema
 
-  // @ts-ignore
-  static override attach(container: Container & ClientsInterface, options?: any) {
-    container.clients.register("elevenlabs", ElevenLabsClient);
-    return container
-  }
+  static { Client.register(this, 'elevenlabs') }
 
   override get initialState(): ElevenLabsClientState {
     return {
@@ -287,5 +282,5 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
   }
 }
 
-export default clients.register("elevenlabs", ElevenLabsClient)
+export default ElevenLabsClient
 

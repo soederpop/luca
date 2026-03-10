@@ -1,10 +1,7 @@
 import {
   Client,
-  type ClientOptions,
-  type ClientsInterface,
-  clients,
 } from "@soederpop/luca/client";
-import type { Container, ContainerContext } from "@soederpop/luca/container";
+import type { ContainerContext } from "@soederpop/luca/container";
 import { z } from "zod";
 import {
   ClientStateSchema,
@@ -141,15 +138,10 @@ export class SupabaseClient extends Client<
   static override optionsSchema = SupabaseClientOptionsSchema;
   static override eventsSchema = SupabaseClientEventsSchema;
 
+  static { Client.register(this, 'supabase') }
+
   private _sdk!: SupabaseSDKClient<any, any>;
   private _channels = new Map<string, RealtimeChannel>();
-
-  // @ts-ignore - required options (supabaseUrl, supabaseKey) widen beyond base ClientOptions
-  static attach(container: Container & ClientsInterface, options?: any) {
-    // @ts-ignore
-    container.clients.register("supabase", SupabaseClient);
-    return container;
-  }
 
   constructor(options: SupabaseClientOptions, context: ContainerContext) {
     super(options, context);
@@ -362,5 +354,4 @@ export class SupabaseClient extends Client<
   }
 }
 
-// @ts-ignore
-clients.register("supabase", SupabaseClient);
+export default SupabaseClient;

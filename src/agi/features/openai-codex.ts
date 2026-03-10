@@ -1,9 +1,8 @@
 // @ts-nocheck
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
-import type { Container } from '@soederpop/luca/container'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { features, Feature } from '@soederpop/luca/feature'
+import { Feature } from '@soederpop/luca/feature'
 
 declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
@@ -149,10 +148,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   static override optionsSchema = OpenAICodexOptionsSchema
   static override shortcut = 'features.openaiCodex' as const
 
-  static attach(container: Container<AvailableFeatures, any>) {
-    container.features.register('openaiCodex', OpenAICodex)
-    return container
-  }
+  static { Feature.register(this, 'openaiCodex') }
 
   override get initialState(): OpenAICodexState {
     return {
@@ -628,4 +624,4 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   }
 }
 
-export default features.register('openaiCodex', OpenAICodex)
+export default OpenAICodex
