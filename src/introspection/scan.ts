@@ -18,6 +18,7 @@ export const IntrospectionScannerOptionsSchema = FeatureOptionsSchema.extend({
   src: z.array(z.string()).optional(),
   outputPath: z.string().optional(),
   includePrivate: z.boolean().optional(),
+  importSource: z.string().optional(),
 })
 
 export type IntrospectionScannerState = z.infer<typeof IntrospectionScannerStateSchema>
@@ -874,11 +875,12 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
   private createRegistryScript(results: HelperIntrospection[], containerResults: Partial<ContainerIntrospection>[] = []): string {
     const hasContainers = containerResults.length > 0;
 
+    const importSource = this.options.importSource || './index.js';
     let imports = `import { setBuildTimeData`;
     if (hasContainers) {
       imports += `, setContainerBuildTimeData`;
     }
-    imports += ` } from './index.js';\n\n`;
+    imports += ` } from '${importSource}';\n\n`;
 
     const registrations = results.map(result => {
       const data = JSON.stringify(result, null, 2);

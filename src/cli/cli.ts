@@ -11,6 +11,8 @@ async function main() {
 	await discoverProjectCommands()
 	// Discover user-level commands (~/.luca/commands/)
 	await discoverUserCommands()
+	// Load generated introspection data if present
+	await loadProjectIntrospection()
 
 	const commandName = container.argv._[0] as string
 
@@ -53,6 +55,26 @@ async function discoverProjectCommands() {
 		const dir = paths.resolve(candidate)
 		if (fs.exists(dir)) {
 			await container.commands.discover({ directory: dir })
+			return
+		}
+	}
+}
+
+async function loadProjectIntrospection() {
+	const candidates = [
+		'features/introspection.generated.ts',
+		'src/introspection.generated.ts',
+		'introspection.generated.ts',
+	]
+
+	for (const candidate of candidates) {
+		const filePath = container.paths.resolve(candidate)
+		if (container.fs.exists(filePath)) {
+			try {
+				await import(filePath)
+			} catch {
+				// Generated file may be stale or malformed — skip silently
+			}
 			return
 		}
 	}

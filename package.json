@@ -35,7 +35,8 @@
     "./client": "./src/client.ts",
     "./clients/*": "./src/clients/*",
     "./feature": "./src/feature.ts",
-    "./react": "./src/react/index.ts"
+    "./react": "./src/react/index.ts",
+    "./introspection": "./src/introspection/index.ts"
   },
   "bin": {
     "luca": "./src/cli/cli.ts"
@@ -46,7 +47,7 @@
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",
     "build:web": "bun run scripts/build-web.ts",
-    "build:introspection": "bun run src/cli/cli.ts update-introspection",
+    "build:introspection": "bun run src/cli/cli.ts introspect",
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca --external node-llama-cpp",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
