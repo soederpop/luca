@@ -1,9 +1,9 @@
 {
   "name": "@soederpop/luca",
   "version": "0.0.3",
-  "private": false,
-  "description": "lightweight universal conversational architecture",
-  "author": "jon soeder <jon@soederpop.com>",
+  "website": "https://luca.soederpop.com",
+  "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
+  "author": "jon soeder aka the people's champ <jon@soederpop.com>",
   "type": "module",
   "repository": "https://github.com/soederpop/luca",
   "license": "MIT",
@@ -12,7 +12,11 @@
   },
   "keywords": [
     "conversational",
-    "architecture"
+    "architecture",
+    "universal",
+    "ai",
+    "agentic",
+    "coding assistant"
   ],
   "main": "./src/node.ts",
   "types": "./src/node.ts",
