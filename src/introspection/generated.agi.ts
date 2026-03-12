@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-10T18:58:20.724Z
+// Generated at: 2026-03-12T02:48:58.321Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1970,6 +1970,23 @@ setBuildTimeData('features.proc', {
           "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
         }
       ]
+    },
+    "execSync": {
+      "description": "",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "Parameter command"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "returns": "string"
     },
     "establishLock": {
       "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
@@ -8870,7 +8887,7 @@ setBuildTimeData('servers.mcp', {
 
 setBuildTimeData('servers.express', {
   "id": "servers.express",
-  "description": "ExpressServer helper",
+  "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.",
   "shortcut": "servers.express",
   "className": "ExpressServer",
   "methods": {
@@ -8963,12 +8980,18 @@ setBuildTimeData('servers.express', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const server = container.server('express', { cors: true, static: './public' })\nawait server.start({ port: 3000 })\n\n// Mount endpoints programmatically\nserver.mount(myEndpoint)\n\n// Access the underlying Express app\nserver.app.get('/health', (req, res) => res.json({ ok: true }))"
+    }
+  ]
 });
 
 setBuildTimeData('servers.websocket', {
   "id": "servers.websocket",
-  "description": "WebsocketServer helper",
+  "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, messages are automatically parsed and stringified.",
   "shortcut": "servers.websocket",
   "className": "WebsocketServer",
   "methods": {
@@ -9045,7 +9068,13 @@ setBuildTimeData('servers.websocket', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const ws = container.server('websocket', { json: true })\nawait ws.start({ port: 8080 })\n\nws.on('message', (client, data) => {\n console.log('Received:', data)\n ws.broadcast({ echo: data })\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.assistantsManager', {
@@ -13688,6 +13717,23 @@ export const introspectionData = [
             "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
           }
         ]
+      },
+      "execSync": {
+        "description": "",
+        "parameters": {
+          "command": {
+            "type": "string",
+            "description": "Parameter command"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "returns": "string"
       },
       "establishLock": {
         "description": "Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.",
@@ -20552,7 +20598,7 @@ export const introspectionData = [
   },
   {
     "id": "servers.express",
-    "description": "ExpressServer helper",
+    "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.",
     "shortcut": "servers.express",
     "className": "ExpressServer",
     "methods": {
@@ -20645,11 +20691,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const server = container.server('express', { cors: true, static: './public' })\nawait server.start({ port: 3000 })\n\n// Mount endpoints programmatically\nserver.mount(myEndpoint)\n\n// Access the underlying Express app\nserver.app.get('/health', (req, res) => res.json({ ok: true }))"
+      }
+    ]
   },
   {
     "id": "servers.websocket",
-    "description": "WebsocketServer helper",
+    "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, messages are automatically parsed and stringified.",
     "shortcut": "servers.websocket",
     "className": "WebsocketServer",
     "methods": {
@@ -20726,7 +20778,13 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const ws = container.server('websocket', { json: true })\nawait ws.start({ port: 8080 })\n\nws.on('message', (client, data) => {\n console.log('Received:', data)\n ws.broadcast({ echo: data })\n})"
+      }
+    ]
   },
   {
     "id": "features.assistantsManager",

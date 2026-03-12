@@ -10,6 +10,23 @@ export const EsbuildWebOptionsSchema = FeatureOptionsSchema.extend({
 
 export type EsbuildWebOptions = z.infer<typeof EsbuildWebOptionsSchema>
 
+/**
+ * Browser-side TypeScript/ESM compilation feature using esbuild-wasm.
+ *
+ * Loads esbuild's WebAssembly build via the AssetLoader, then provides
+ * `compile()` and `transform()` methods that work entirely in the browser.
+ * Useful for live playgrounds, in-browser REPLs, and client-side bundling.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const esbuild = container.feature('esbuild')
+ * await esbuild.start()
+ * const result = await esbuild.compile('const x: number = 1')
+ * console.log(result.code)
+ * ```
+ */
 export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = EsbuildWebOptionsSchema

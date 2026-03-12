@@ -252,6 +252,16 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const fm = await this.ensureFileManager()
     const discovered: string[] = []
 
+    // Load build-time introspection data before importing helpers so that
+    // interceptRegistration() can merge JSDoc descriptions from the generated file.
+    const introspectionFile = resolve(dir, 'introspection.generated.ts')
+    try {
+      const { existsSync } = await import('fs')
+      if (existsSync(introspectionFile)) {
+        await import(introspectionFile)
+      }
+    } catch {}
+
     const tests = [`${type}/*/*.ts`, `${type}/*.ts`]
     const files = fm.match(tests)
 

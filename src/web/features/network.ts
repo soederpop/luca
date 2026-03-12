@@ -12,6 +12,25 @@ export const NetworkOptionsSchema = FeatureOptionsSchema.extend({})
 export type NetworkState = z.infer<typeof NetworkStateSchema>
 export type NetworkOptions = z.infer<typeof NetworkOptionsSchema>
 
+/**
+ * Tracks browser online/offline connectivity state.
+ *
+ * Listens for the browser's `online` and `offline` events and keeps the
+ * feature state in sync. Other features can observe the `offline` state
+ * value or listen for change events to react to connectivity changes.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const network = container.feature('network')
+ * console.log(network.state.get('offline')) // false when online
+ *
+ * network.on('stateChanged', ({ offline }) => {
+ *   console.log(offline ? 'Went offline' : 'Back online')
+ * })
+ * ```
+ */
 export class Network<
   T extends NetworkState = NetworkState,
   K extends NetworkOptions = NetworkOptions

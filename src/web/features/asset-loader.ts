@@ -1,11 +1,22 @@
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 
-/** 
- * The AssetLoader provides an API for injecting scripts and stylesheets into the page.
- * 
- * It also provides a convenient way of loading any library from unpkg.com
-*/
+/**
+ * Injects scripts and stylesheets into the page at runtime.
+ *
+ * Provides helpers for loading external libraries from unpkg.com,
+ * injecting arbitrary script/link tags, and managing load state.
+ * Used by other web features (e.g. Esbuild) to pull in dependencies on demand.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const loader = container.feature('assetLoader')
+ * await loader.loadScript('https://unpkg.com/lodash')
+ * await AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')
+ * ```
+ */
 export class AssetLoader extends Feature {
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema

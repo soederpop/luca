@@ -14,6 +14,26 @@ export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
 })
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
 
+/**
+ * WebSocket server built on the `ws` library with optional JSON message framing.
+ *
+ * Manages WebSocket connections, tracks connected clients, and bridges
+ * messages to Luca's event bus. When `json` mode is enabled, messages
+ * are automatically parsed and stringified.
+ *
+ * @extends Server
+ *
+ * @example
+ * ```typescript
+ * const ws = container.server('websocket', { json: true })
+ * await ws.start({ port: 8080 })
+ *
+ * ws.on('message', (client, data) => {
+ *   console.log('Received:', data)
+ *   ws.broadcast({ echo: data })
+ * })
+ * ```
+ */
 export class WebsocketServer<T extends ServerState = ServerState, K extends SocketServerOptions = SocketServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.websocket' as const
     static override stateSchema = ServerStateSchema

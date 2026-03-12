@@ -17,6 +17,27 @@ export const VoiceRecognitionStateSchema = FeatureStateSchema.extend({
 export type VoiceRecognitionOptions = z.infer<typeof VoiceRecognitionOptionsSchema>
 export type VoiceRecognitionState = z.infer<typeof VoiceRecognitionStateSchema>
 
+/**
+ * Speech-to-text recognition using the Web Speech API (SpeechRecognition).
+ *
+ * Wraps the browser's built-in speech recognition, supporting continuous
+ * listening, interim results, and language selection. Recognized text is
+ * accumulated in state and emitted as events for real-time transcription UIs.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const voice = container.feature('voice', { continuous: true, autoListen: true })
+ *
+ * voice.on('transcript', ({ text }) => {
+ *   console.log('Heard:', text)
+ * })
+ *
+ * // Or start manually
+ * voice.start()
+ * ```
+ */
 export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognitionState, K extends VoiceRecognitionOptions = VoiceRecognitionOptions> extends Feature<T, K> {
   // @ts-ignore-next-line
   private recognition: SpeechRecognition | null = null;

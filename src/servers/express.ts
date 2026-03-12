@@ -23,6 +23,27 @@ export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>
 
 const defaultCreate = (app: Express, server: Server) => app
 
+/**
+ * Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback.
+ *
+ * Wraps an Express application with convention-based endpoint discovery. Endpoints
+ * defined as modules are automatically mounted as routes. Supports static file serving,
+ * CORS configuration, and single-page app history fallback out of the box.
+ *
+ * @extends Server
+ *
+ * @example
+ * ```typescript
+ * const server = container.server('express', { cors: true, static: './public' })
+ * await server.start({ port: 3000 })
+ *
+ * // Mount endpoints programmatically
+ * server.mount(myEndpoint)
+ *
+ * // Access the underlying Express app
+ * server.app.get('/health', (req, res) => res.json({ ok: true }))
+ * ```
+ */
 export class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.express' as const
     static override stateSchema = ServerStateSchema

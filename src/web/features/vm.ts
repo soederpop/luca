@@ -14,12 +14,22 @@ export const VMOptionsSchema = FeatureOptionsSchema.extend({
 export type VMState = z.infer<typeof VMStateSchema>
 export type VMOptions = z.infer<typeof VMOptionsSchema>
 
-/** 
- * The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment.
- * 
- * The Vm feature automatically injects the container.context object into the global scope, so these things
- * can be referenced in the code and the code can use anything provided by the container. 
-*/
+/**
+ * Sandboxed JavaScript execution environment for the browser.
+ *
+ * Automatically injects the container's context object into the global scope,
+ * so evaluated code can use anything provided by the container. Useful for
+ * live code playgrounds, plugin systems, and dynamic script evaluation.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const vm = container.feature('vm')
+ * const result = vm.run('1 + 2 + 3') // 6
+ * const greeting = vm.run('container.uuid') // accesses container globals
+ * ```
+ */
 export class VM<
   T extends VMState = VMState,
   K extends VMOptions = VMOptions

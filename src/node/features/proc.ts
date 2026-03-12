@@ -183,6 +183,10 @@ export class ChildProcess extends Feature {
 
     const childProcess = proc.childProcess!;
 
+    if (typeof options?.onStart === 'function') {
+	    options.onStart(childProcess)
+    }
+
     if (childProcess.stdout && childProcess.stderr) {
       childProcess.stdout.on("data", (buf: Buffer) => {
         stdout = stdout + buf.toString();
@@ -270,6 +274,10 @@ export class ChildProcess extends Feature {
     })
       .toString()
       .trim();
+  }
+
+  execSync(command: string, options?: any): string {
+	  return this.exec(command,options)
   }
 
   /**
@@ -432,6 +440,32 @@ export class ChildProcess extends Feature {
    * off()
    * ```
    */
+  /**
+   * Checks whether any process matching a given name is currently running.
+   *
+   * Uses `pgrep -x` for an exact match against process names.
+   *
+   * @param {string} name - The process name to look for (e.g. 'afplay', 'node', 'nginx')
+   * @returns {boolean} True if at least one matching process is running
+   *
+   * @example
+   * ```typescript
+   * if (proc.isProcessRunning('afplay')) {
+   *   console.log('Audio is currently playing')
+   * }
+   * ```
+   */
+  isProcessRunning(name: string): boolean {
+    try {
+      const output = execSync(`pgrep -x ${name}`, { stdio: ['pipe', 'pipe', 'pipe'] })
+        .toString()
+        .trim()
+      return output.length > 0
+    } catch {
+      return false
+    }
+  }
+
   onSignal(signal: NodeJS.Signals, handler: () => void): () => void {
     process.on(signal, handler)
     return () => process.removeListener(signal, handler)

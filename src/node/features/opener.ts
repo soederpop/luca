@@ -48,7 +48,7 @@ export class Opener extends Feature {
    */
   async open(target: string): Promise<void> {
     const isUrl = /^https?:\/\//i.test(target)
-    const platform = process.platform
+    const platform = this.container.os.platform 
 
     if (isUrl) {
       console.log(`Opening ${target} in Chrome`)
@@ -58,7 +58,7 @@ export class Opener extends Feature {
     }
   }
 
-  private async openInChrome(url: string, platform: string): Promise<void> {
+  private async openInChrome(url: string, platform: string = this.container.os.platform): Promise<void> {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
@@ -89,7 +89,7 @@ export class Opener extends Feature {
    * @returns {Promise<void>}
    */
   async app(name: string): Promise<void> {
-    const platform = process.platform
+    const platform = this.container.os.platform
     const proc = this.container.proc
 
     if (platform === 'darwin') {
@@ -115,7 +115,7 @@ export class Opener extends Feature {
     try {
       await proc.spawnAndCapture('code', [path])
     } catch {
-      if (process.platform === 'darwin') {
+      if (this.container.os.platform === 'darwin') {
         await proc.spawnAndCapture('open', ['-a', 'Visual Studio Code', path])
       } else {
         throw new Error('VS Code CLI (code) not found. Install it from VS Code: Command Palette > "Shell Command: Install code command in PATH"')
@@ -137,7 +137,7 @@ export class Opener extends Feature {
     try {
       await proc.spawnAndCapture('cursor', [path])
     } catch {
-      if (process.platform === 'darwin') {
+      if (this.container.os.platform === 'darwin') {
         await proc.spawnAndCapture('open', ['-a', 'Cursor', path])
       } else {
         throw new Error('Cursor CLI (cursor) not found. Install it from Cursor: Command Palette > "Shell Command: Install cursor command in PATH"')

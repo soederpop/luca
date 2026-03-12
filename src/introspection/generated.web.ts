@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-10T18:58:20.622Z
+// Generated at: 2026-03-12T02:48:58.250Z
 
 setBuildTimeData('features.containerLink', {
   "id": "features.containerLink",
@@ -98,7 +98,7 @@ setBuildTimeData('features.containerLink', {
 
 setBuildTimeData('features.esbuild', {
   "id": "features.esbuild",
-  "description": "Esbuild helper",
+  "description": "Browser-side TypeScript/ESM compilation feature using esbuild-wasm. Loads esbuild's WebAssembly build via the AssetLoader, then provides `compile()` and `transform()` methods that work entirely in the browser. Useful for live playgrounds, in-browser REPLs, and client-side bundling.",
   "shortcut": "features.esbuild",
   "className": "Esbuild",
   "methods": {
@@ -141,12 +141,18 @@ setBuildTimeData('features.esbuild', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const esbuild = container.feature('esbuild')\nawait esbuild.start()\nconst result = await esbuild.compile('const x: number = 1')\nconsole.log(result.code)"
+    }
+  ]
 });
 
 setBuildTimeData('features.voice', {
   "id": "features.voice",
-  "description": "VoiceRecognition helper",
+  "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
   "shortcut": "features.voice",
   "className": "VoiceRecognition",
   "methods": {
@@ -210,12 +216,18 @@ setBuildTimeData('features.voice', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
+    }
+  ]
 });
 
 setBuildTimeData('features.vm', {
   "id": "features.vm",
-  "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
+  "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
   "shortcut": "features.vm",
   "className": "VM",
   "methods": {
@@ -269,12 +281,18 @@ setBuildTimeData('features.vm', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
+    }
+  ]
 });
 
 setBuildTimeData('features.assetLoader', {
   "id": "features.assetLoader",
-  "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
+  "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
   "shortcut": "features.assetLoader",
   "className": "AssetLoader",
   "methods": {
@@ -327,12 +345,18 @@ setBuildTimeData('features.assetLoader', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
+    }
+  ]
 });
 
 setBuildTimeData('features.vault', {
   "id": "features.vault",
-  "description": "WebVault helper",
+  "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
   "shortcut": "features.vault",
   "className": "WebVault",
   "methods": {
@@ -378,12 +402,18 @@ setBuildTimeData('features.vault', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+    }
+  ]
 });
 
 setBuildTimeData('features.network', {
   "id": "features.network",
-  "description": "Network helper",
+  "description": "Tracks browser online/offline connectivity state. Listens for the browser's `online` and `offline` events and keeps the feature state in sync. Other features can observe the `offline` state value or listen for change events to react to connectivity changes.",
   "shortcut": "features.network",
   "className": "Network",
   "methods": {
@@ -413,12 +443,18 @@ setBuildTimeData('features.network', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const network = container.feature('network')\nconsole.log(network.state.get('offline')) // false when online\n\nnetwork.on('stateChanged', ({ offline }) => {\n console.log(offline ? 'Went offline' : 'Back online')\n})"
+    }
+  ]
 });
 
 setBuildTimeData('features.speech', {
   "id": "features.speech",
-  "description": "Speech helper",
+  "description": "Text-to-speech synthesis using the Web Speech API (SpeechSynthesis). Wraps the browser's built-in speech synthesis, providing voice selection, queue management, and state tracking. Voices are discovered on init and exposed via state for UI binding.",
   "shortcut": "features.speech",
   "className": "Speech",
   "methods": {
@@ -478,7 +514,13 @@ setBuildTimeData('features.speech', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const speech = container.feature('speech')\nspeech.say('Hello from the browser!')\n\n// Choose a specific voice\nconst speech = container.feature('speech', { voice: 'Google UK English Female' })\nspeech.say('Cheerio!')"
+    }
+  ]
 });
 
 setBuildTimeData('features.helpers', {
@@ -1109,7 +1151,7 @@ export const introspectionData = [
   },
   {
     "id": "features.esbuild",
-    "description": "Esbuild helper",
+    "description": "Browser-side TypeScript/ESM compilation feature using esbuild-wasm. Loads esbuild's WebAssembly build via the AssetLoader, then provides `compile()` and `transform()` methods that work entirely in the browser. Useful for live playgrounds, in-browser REPLs, and client-side bundling.",
     "shortcut": "features.esbuild",
     "className": "Esbuild",
     "methods": {
@@ -1152,11 +1194,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const esbuild = container.feature('esbuild')\nawait esbuild.start()\nconst result = await esbuild.compile('const x: number = 1')\nconsole.log(result.code)"
+      }
+    ]
   },
   {
     "id": "features.voice",
-    "description": "VoiceRecognition helper",
+    "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
     "shortcut": "features.voice",
     "className": "VoiceRecognition",
     "methods": {
@@ -1220,11 +1268,17 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
+      }
+    ]
   },
   {
     "id": "features.vm",
-    "description": "The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.",
+    "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
     "shortcut": "features.vm",
     "className": "VM",
     "methods": {
@@ -1278,11 +1332,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
+      }
+    ]
   },
   {
     "id": "features.assetLoader",
-    "description": "The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com",
+    "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
     "shortcut": "features.assetLoader",
     "className": "AssetLoader",
     "methods": {
@@ -1335,11 +1395,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
+      }
+    ]
   },
   {
     "id": "features.vault",
-    "description": "WebVault helper",
+    "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
     "shortcut": "features.vault",
     "className": "WebVault",
     "methods": {
@@ -1385,11 +1451,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+      }
+    ]
   },
   {
     "id": "features.network",
-    "description": "Network helper",
+    "description": "Tracks browser online/offline connectivity state. Listens for the browser's `online` and `offline` events and keeps the feature state in sync. Other features can observe the `offline` state value or listen for change events to react to connectivity changes.",
     "shortcut": "features.network",
     "className": "Network",
     "methods": {
@@ -1419,11 +1491,17 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const network = container.feature('network')\nconsole.log(network.state.get('offline')) // false when online\n\nnetwork.on('stateChanged', ({ offline }) => {\n console.log(offline ? 'Went offline' : 'Back online')\n})"
+      }
+    ]
   },
   {
     "id": "features.speech",
-    "description": "Speech helper",
+    "description": "Text-to-speech synthesis using the Web Speech API (SpeechSynthesis). Wraps the browser's built-in speech synthesis, providing voice selection, queue management, and state tracking. Voices are discovered on init and exposed via state for UI binding.",
     "shortcut": "features.speech",
     "className": "Speech",
     "methods": {
@@ -1483,7 +1561,13 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const speech = container.feature('speech')\nspeech.say('Hello from the browser!')\n\n// Choose a specific voice\nconst speech = container.feature('speech', { voice: 'Google UK English Female' })\nspeech.say('Cheerio!')"
+      }
+    ]
   },
   {
     "id": "features.helpers",

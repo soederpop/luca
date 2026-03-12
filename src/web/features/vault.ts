@@ -14,6 +14,23 @@ export const WebVaultOptionsSchema = FeatureOptionsSchema.extend({
 export type WebVaultState = z.infer<typeof WebVaultStateSchema>
 export type WebVaultOptions = z.infer<typeof WebVaultOptionsSchema>
 
+/**
+ * AES-256-GCM encryption and decryption for the browser using the Web Crypto API.
+ *
+ * Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods
+ * that work entirely client-side. Keys are stored as base64-encoded state so they
+ * can persist across sessions when needed.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const vault = container.feature('vault')
+ * const encrypted = await vault.encrypt('secret data')
+ * const decrypted = await vault.decrypt(encrypted)
+ * console.log(decrypted) // 'secret data'
+ * ```
+ */
 export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
   static override stateSchema = WebVaultStateSchema
   static override optionsSchema = WebVaultOptionsSchema

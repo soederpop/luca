@@ -213,7 +213,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 
 	const introspection: HelperIntrospection = {
 		id: key,
-		description: helperConstructor.description || existing?.description || '',
+		description: (helperConstructor.hasOwnProperty('description') ? helperConstructor.description : null) || existing?.description || helperConstructor.description || '',
 		shortcut: helperConstructor.shortcut,
 		className: helperConstructor.name || existing?.className,
 		// preserve build-time AST data if generated file already loaded

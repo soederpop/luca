@@ -23,6 +23,25 @@ type Voice = {
   default: boolean;
 };  
 
+/**
+ * Text-to-speech synthesis using the Web Speech API (SpeechSynthesis).
+ *
+ * Wraps the browser's built-in speech synthesis, providing voice selection,
+ * queue management, and state tracking. Voices are discovered on init and
+ * exposed via state for UI binding.
+ *
+ * @extends Feature
+ *
+ * @example
+ * ```typescript
+ * const speech = container.feature('speech')
+ * speech.say('Hello from the browser!')
+ *
+ * // Choose a specific voice
+ * const speech = container.feature('speech', { voice: 'Google UK English Female' })
+ * speech.say('Cheerio!')
+ * ```
+ */
 export class Speech<
   T extends SpeechState = SpeechState,
   K extends SpeechOptions = SpeechOptions
