@@ -47,6 +47,7 @@ export type SynthesizeOptions = {
   modelId?: string
   outputFormat?: string
   voiceSettings?: ElevenLabsVoiceSettings
+  disableCache?: boolean
 }
 
 /**
@@ -233,8 +234,40 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
       }
     }
 
-    this.trackRequest(text.length)
+    // Check disk cache for previously synthesized audio
+    if (!options.disableCache) {
+      const { hashObject } = this.container.utils
+      const cacheKey = `elevenlabs:${hashObject({ text, voiceId, modelId, outputFormat, voiceSettings: options.voiceSettings })}`
+      const diskCache = this.container.feature('diskCache')
 
+      if (await diskCache.has(cacheKey)) {
+	console.log(`Cache Hit: ${cacheKey}`)
+        const cached = await diskCache.get(cacheKey)
+        const audioBuffer = Buffer.from(cached, 'base64')
+
+        this.emit('speech', {
+          voiceId,
+          text,
+          audioSize: audioBuffer.length,
+        })
+
+        return audioBuffer
+      }
+
+      const audioBuffer = await this.fetchSpeech(voiceId, outputFormat, body, text.length)
+      await diskCache.set(cacheKey, audioBuffer.toString('base64'))
+
+      this.emit('speech', { voiceId, text, audioSize: audioBuffer.length })
+      return audioBuffer
+    }
+
+    const audioBuffer = await this.fetchSpeech(voiceId, outputFormat, body, text.length)
+    this.emit('speech', { voiceId, text, audioSize: audioBuffer.length })
+    return audioBuffer
+  }
+
+  private async fetchSpeech(voiceId: string, outputFormat: string, body: Record<string, any>, charCount: number): Promise<Buffer> {
+    this.trackRequest(charCount)
     await this.beforeRequest()
 
     const response = await this.axios({
@@ -249,15 +282,7 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
       },
     })
 
-    const audioBuffer = Buffer.from(response.data)
-
-    this.emit('speech', {
-      voiceId,
-      text,
-      audioSize: audioBuffer.length,
-    })
-
-    return audioBuffer
+    return Buffer.from(response.data)
   }
 
   /**
