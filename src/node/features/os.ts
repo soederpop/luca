@@ -2,6 +2,16 @@ import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import os from 'os'
 
+/** Information about a connected display. */
+export interface DisplayInfo {
+  name: string
+  resolution: { width: number; height: number }
+  retina: boolean
+  main: boolean
+  refreshRate?: number
+  connectionType?: string
+}
+
 /**
  * The OS feature provides access to operating system utilities and information.
  * 
@@ -152,6 +162,72 @@ export class OS extends Feature {
    */
   get macAddresses() : string[] {
     return Object.values(this.networkInterfaces).flat().filter(v => typeof v !== 'undefined' && v.internal === false && v.family === 'IPv4').map(v => v?.mac!).filter(Boolean)
+  }
+
+  /**
+   * Gets information about all connected displays.
+   *
+   * Platform-specific: currently implemented for macOS (darwin).
+   * Linux and Windows will throw with a clear "not yet implemented" message.
+   *
+   * @returns {DisplayInfo[]} Array of display information objects
+   *
+   * @example
+   * ```typescript
+   * const displays = os.getDisplayInfo()
+   * displays.forEach(d => {
+   *   console.log(`${d.name}: ${d.resolution.width}x${d.resolution.height}${d.retina ? ' (Retina)' : ''}`)
+   * })
+   * ```
+   */
+  getDisplayInfo(): DisplayInfo[] {
+    const platform = this.platform as NodeJS.Platform
+    const handler = this._displayHandlers[platform]
+
+    if (!handler) {
+      throw new Error(`getDisplayInfo() is not yet implemented for platform: ${platform}`)
+    }
+
+    return handler()
+  }
+
+  private _displayHandlers: Partial<Record<NodeJS.Platform, () => DisplayInfo[]>> = {
+    darwin: (): DisplayInfo[] => {
+      const proc = this.container.feature('proc')
+      const raw = proc.exec('system_profiler SPDisplaysDataType -json')
+      const data = JSON.parse(raw)
+      const displays: DisplayInfo[] = []
+
+      for (const gpu of data.SPDisplaysDataType ?? []) {
+        for (const d of gpu.spdisplays_ndrvs ?? []) {
+          const resStr: string = d._spdisplays_resolution ?? ''
+          const resMatch = resStr.match(/(\d+)\s*x\s*(\d+)/)
+          const hzMatch = resStr.match(/@\s*([\d.]+)\s*Hz/i)
+
+          displays.push({
+            name: d._name ?? 'Unknown',
+            resolution: {
+              width: resMatch ? parseInt(resMatch[1], 10) : 0,
+              height: resMatch ? parseInt(resMatch[2], 10) : 0,
+            },
+            retina: /retina/i.test(d._spdisplays_resolution ?? '') || /retina/i.test(d.spdisplays_display_type ?? ''),
+            main: d.spdisplays_main === 'spdisplays_yes' || /yes/i.test(d.spdisplays_main ?? ''),
+            refreshRate: hzMatch ? parseFloat(hzMatch[1]) : undefined,
+            connectionType: d.spdisplays_connection_type ?? undefined,
+          })
+        }
+      }
+
+      return displays
+    },
+
+    linux: (): DisplayInfo[] => {
+      throw new Error('getDisplayInfo() is not yet implemented for Linux')
+    },
+
+    win32: (): DisplayInfo[] => {
+      throw new Error('getDisplayInfo() is not yet implemented for Windows')
+    },
   }
 }
 

@@ -72,15 +72,20 @@ export const WindowManagerEventsSchema = FeatureEventsSchema.extend({
 
 // --- Types ---
 
+/** A dimension value — either absolute points or a percentage string like `"50%"`. */
+export type DimensionValue = number | `${number}%`
+
 /**
  * Options for spawning a new native browser window.
+ * Dimensions and positions accept absolute points or percentage strings (e.g. `"50%"`)
+ * resolved against the primary display.
  */
 export interface SpawnOptions {
   url?: string
-  width?: number
-  height?: number
-  x?: number
-  y?: number
+  width?: DimensionValue
+  height?: DimensionValue
+  x?: DimensionValue
+  y?: DimensionValue
   alwaysOnTop?: boolean
   window?: {
     decorations?: 'normal' | 'hiddenTitleBar' | 'none'
@@ -94,6 +99,8 @@ export interface SpawnOptions {
 
 /**
  * Options for spawning a native terminal window.
+ * Dimensions and positions accept absolute points or percentage strings (e.g. `"50%"`)
+ * resolved against the primary display.
  */
 export interface SpawnTTYOptions {
   /** Executable name or path (required). */
@@ -111,13 +118,13 @@ export interface SpawnTTYOptions {
   /** Window title. */
   title?: string
   /** Window width in points. */
-  width?: number
+  width?: DimensionValue
   /** Window height in points. */
-  height?: number
+  height?: DimensionValue
   /** Window x position. */
-  x?: number
+  x?: DimensionValue
   /** Window y position. */
-  y?: number
+  y?: DimensionValue
   /** Chrome options (decorations, alwaysOnTop, etc.) */
   window?: SpawnOptions['window']
 }
@@ -502,7 +509,8 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * @returns A WindowHandle for the spawned window (with `.result` containing the ack data)
    */
   async spawn(opts: SpawnOptions = {}): Promise<WindowHandle> {
-    const { window: windowChrome, ...flat } = opts
+    const resolved = this.resolveDimensions(opts)
+    const { window: windowChrome, ...flat } = resolved
 
     let ackResult: WindowAckResult
     if (windowChrome) {
@@ -533,7 +541,8 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * @returns A WindowHandle for the spawned terminal (with `.result` containing the ack data)
    */
   async spawnTTY(opts: SpawnTTYOptions): Promise<WindowHandle> {
-    const { window: windowChrome, ...flat } = opts
+    const resolved = this.resolveDimensions(opts)
+    const { window: windowChrome, ...flat } = resolved
 
     let ackResult: WindowAckResult
     if (windowChrome) {
@@ -717,6 +726,45 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   }
 
   // --- Private internals ---
+
+  private _displayCache: { width: number; height: number } | null = null
+
+  /**
+   * Get the primary display resolution, cached for the lifetime of the feature.
+   */
+  private getPrimaryDisplay(): { width: number; height: number } {
+    if (this._displayCache) return this._displayCache
+    const osFeature = this.container.feature('os')
+    const displays = osFeature.getDisplayInfo()
+    const primary = displays.find(d => d.main) ?? displays[0]
+    if (!primary) throw new Error('No displays found')
+    this._displayCache = { width: primary.resolution.width, height: primary.resolution.height }
+    return this._displayCache
+  }
+
+  /**
+   * Resolve percentage-based dimension values to absolute points using the primary display.
+   * Passes through absolute numbers unchanged. Only fetches display info if percentages are present.
+   */
+  private resolveDimensions<T extends Record<string, any>>(opts: T): T {
+    const keys = ['width', 'height', 'x', 'y'] as const
+    const hasPercentage = keys.some(k => typeof opts[k] === 'string' && (opts[k] as string).endsWith('%'))
+    if (!hasPercentage) return opts
+
+    const display = this.getPrimaryDisplay()
+    const resolved = { ...opts }
+
+    for (const key of keys) {
+      const val = opts[key]
+      if (typeof val === 'string' && val.endsWith('%')) {
+        const pct = parseFloat(val) / 100
+        const ref = (key === 'width' || key === 'x') ? display.width : display.height
+        ;(resolved as any)[key] = Math.round(pct * ref)
+      }
+    }
+
+    return resolved
+  }
 
   /**
    * Handle a new client connection from the native app.

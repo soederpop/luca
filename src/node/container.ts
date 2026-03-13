@@ -53,7 +53,6 @@ import "./features/google-sheets";
 import "./features/google-calendar";
 import "./features/google-docs";
 import "./features/window-manager";
-import "./features/launcher-app-command-listener";
 import "./features/nlp";
 import "./features/process-manager"
 import "./features/tts";
@@ -98,7 +97,6 @@ import type { GoogleSheets } from './features/google-sheets';
 import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
 import type { WindowManager } from './features/window-manager';
-import type { LauncherAppCommandListener } from './features/launcher-app-command-listener';
 import type { NLP } from './features/nlp';
 import type { ProcessManager } from './features/process-manager'
 import type { TTS } from './features/tts';
@@ -138,7 +136,6 @@ export {
   type GoogleCalendar,
   type GoogleDocs,
   type WindowManager,
-  type LauncherAppCommandListener,
   type NLP,
   type ProcessManager,
   type TTS,
@@ -204,7 +201,6 @@ export interface NodeFeatures extends AvailableFeatures {
   googleCalendar: typeof GoogleCalendar;
   googleDocs: typeof GoogleDocs;
   windowManager: typeof WindowManager;
-  launcherAppCommandListener: typeof LauncherAppCommandListener;
   nlp: typeof NLP;
   processManager: typeof ProcessManager;
   tts: typeof TTS;
@@ -253,7 +249,6 @@ export class NodeContainer<
   googleCalendar?: GoogleCalendar;
   googleDocs?: GoogleDocs;
   windowManager?: WindowManager;
-  launcherAppCommandListener?: LauncherAppCommandListener;
   nlp?: NLP;
   processManager?: ProcessManager;
   tts?: TTS;
