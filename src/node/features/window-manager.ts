@@ -373,10 +373,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   }
 
   private getBridgeListener(): any | undefined {
-    const listener = (this.container as any).launcherAppCommandListener
-    if (!listener || listener === this) return undefined
-    if (typeof listener.send !== 'function') return undefined
-    return listener
+    return undefined
   }
 
   /** Default state: not listening, no client connected, zero windows tracked. */
@@ -447,13 +444,15 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       this.handleClientConnect(socket)
     })
 
+    // Set immediately to prevent parallel calls from creating duplicate servers
+    this._server = server
+
     server.on('error', (err) => {
       this.setState({ lastError: err.message })
     })
 
     const finalPath = socketPath
     server.listen(finalPath, () => {
-      this._server = server
       this.setState({ listening: true, socketPath: finalPath })
       this.emit('listening')
     })
@@ -677,16 +676,17 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * ```
    */
   async spawnLayout(config: LayoutEntry[]): Promise<WindowHandle[]> {
-    const promises = config.map(entry => {
+    const handles: WindowHandle[] = []
+    for (const entry of config) {
       if (entry.type === 'tty' || ('command' in entry && !entry.type)) {
         const { type, ...opts } = entry as { type?: string } & SpawnTTYOptions
-        return this.spawnTTY(opts)
+        handles.push(await this.spawnTTY(opts))
       } else {
         const { type, ...opts } = entry as { type?: string } & SpawnOptions
-        return this.spawn(opts)
+        handles.push(await this.spawn(opts))
       }
-    })
-    return Promise.all(promises)
+    }
+    return handles
   }
 
   /**

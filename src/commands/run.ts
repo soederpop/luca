@@ -87,6 +87,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		setTimeout, clearTimeout, setInterval, clearInterval,
 		fetch, URL, URLSearchParams,
 		...container.context,
+		$doc: doc
 	})
 
 	// ─── Parse and register ## Blocks section ──────────────────────────
