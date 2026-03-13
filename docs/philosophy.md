@@ -1,17 +1,18 @@
 # Luca's Philosophy
 
-> LUCA - Lightweight Universal Conversational Architecture
+> LUCA - Lightweight Universal Conversational Architecture.
 
 If you open up a Developer console on a blank HTML page, you have the `window` object and the `document` object, and from those objects you have everything you need to build every web application you've ever interacted with, IN THEORY, without ever reloading the page.
 
 Obviously nobody builds applications this way in a single REPL, but in 2026 developers are people and Agent AIs collaborating on the same codebase in a bigger Read, Eval, Print, Loop that takes place across more computers and brains.
 
-Luca aims to provide a `container` object that gets you 60% of the way there before you write a line of application code. As the types of applications you build and who you build them for further narrow, the container grows to cover 95%.
+Luca aims to provide a `container` object that gets you 60% of the way to having ANY kind of real world, production grade full stack software, before you ever write your own line of application code. As the types of applications you build and who you build them for further narrow, the container can grows to cover 95% of every boring but necessary component you need.
 
 How? By layering, the way you layer dockerfiles. The things which change least frequently are solved once and cached. The things which change more frequently live in their own isolated layer. That loop is smaller, quicker — the difference between a dockerfile that reinstalls the OS every time you change the HTML file, and one that doesn't.
 
 ## The Layer Model
-
+> Cache to the max == CA$H to the max
+> 
 Think of it like docker layers:
 
 **Layer 1: Platform** — `NodeContainer`, `WebContainer`. Features that are universally applicable to any application in that runtime. Filesystem, networking, process management, event buses, observable state. You solve this once.
