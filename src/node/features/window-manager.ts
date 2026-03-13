@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
+import { Bus } from '../../bus.js'
 import { Server as NetServer, Socket } from 'net'
 import { homedir } from 'os'
 import { join, dirname } from 'path'
@@ -154,17 +155,76 @@ export interface WindowAckResult {
   [key: string]: any
 }
 
+// --- Layout Types ---
+
+/**
+ * A single entry in a layout configuration.
+ * Use `type: 'tty'` for terminal windows, `type: 'window'` (or omit) for browser windows.
+ * If `type` is omitted, entries with a `command` field are treated as TTY, otherwise as window.
+ */
+export type LayoutEntry =
+  | ({ type: 'window' } & SpawnOptions)
+  | ({ type: 'tty' } & SpawnTTYOptions)
+  | ({ type?: undefined } & SpawnOptions)
+  | ({ type?: undefined; command: string } & SpawnTTYOptions)
+
+// --- WindowHandle Events ---
+
+interface WindowHandleEvents {
+  close: [msg: any]
+  terminalExited: [msg: any]
+}
+
 // --- WindowHandle ---
 
 /**
  * A lightweight handle to a single native window.
  * Delegates all operations back to the WindowManager instance.
+ * Emits lifecycle events (`close`, `terminalExited`) when the native app reports them.
+ *
+ * @example
+ * ```typescript
+ * const handle = await windowManager.spawn({ url: 'https://example.com' })
+ * handle.on('close', (msg) => console.log('window closed', msg))
+ * handle.on('terminalExited', (info) => console.log('process exited', info))
+ * ```
  */
 export class WindowHandle {
+  private _events = new Bus<WindowHandleEvents>()
+
+  /** The original ack result from spawning this window. */
+  public result: WindowAckResult
+
   constructor(
     public readonly windowId: string,
-    private manager: WindowManager
-  ) {}
+    private manager: WindowManager,
+    result?: WindowAckResult
+  ) {
+    this.result = result ?? {}
+  }
+
+  /** Register a listener for a lifecycle event. */
+  on<E extends keyof WindowHandleEvents>(event: E, listener: (...args: WindowHandleEvents[E]) => void): this {
+    this._events.on(event, listener)
+    return this
+  }
+
+  /** Remove a listener for a lifecycle event. */
+  off<E extends keyof WindowHandleEvents>(event: E, listener?: (...args: WindowHandleEvents[E]) => void): this {
+    this._events.off(event, listener)
+    return this
+  }
+
+  /** Register a one-time listener for a lifecycle event. */
+  once<E extends keyof WindowHandleEvents>(event: E, listener: (...args: WindowHandleEvents[E]) => void): this {
+    this._events.once(event, listener)
+    return this
+  }
+
+  /** Emit a lifecycle event on this handle. */
+  emit<E extends keyof WindowHandleEvents>(event: E, ...args: WindowHandleEvents[E]): void {
+    this._events.emit(event, ...args)
+  }
 
   /** Bring this window to the front. */
   async focus(): Promise<WindowAckResult> {
@@ -234,8 +294,8 @@ interface ClientConnection {
  * ```typescript
  * const wm = container.feature('windowManager', { enable: true, autoListen: true })
  *
- * const result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })
- * const handle = wm.window(result.windowId)
+ * const handle = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })
+ * handle.on('close', (msg) => console.log('window closed'))
  * await handle.navigate('https://news.ycombinator.com')
  * const title = await handle.eval('document.title')
  * await handle.close()
@@ -258,6 +318,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private _client?: ClientConnection
   private _pending = new Map<string, PendingRequest>()
   private _trackedWindows = new Set<string>()
+  private _handles = new Map<string, WindowHandle>()
 
   private normalizeRequestId(value: unknown): string | undefined {
     if (typeof value !== 'string') return undefined
@@ -406,6 +467,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     }
     this._pending.clear()
     this._trackedWindows.clear()
+    this._handles.clear()
 
     if (this._client) {
       this._client.socket.destroy()
@@ -437,26 +499,29 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Sends a window dispatch to the app and waits for the ack.
    *
    * @param opts - Window configuration (url, dimensions, chrome options)
-   * @returns The window ack result including `windowId`
+   * @returns A WindowHandle for the spawned window (with `.result` containing the ack data)
    */
-  async spawn(opts: SpawnOptions = {}): Promise<WindowAckResult> {
+  async spawn(opts: SpawnOptions = {}): Promise<WindowHandle> {
     const { window: windowChrome, ...flat } = opts
 
+    let ackResult: WindowAckResult
     if (windowChrome) {
-      return this.sendWindowCommand({
+      ackResult = await this.sendWindowCommand({
         action: 'open',
         request: {
           ...flat,
           window: windowChrome,
         },
       })
+    } else {
+      ackResult = await this.sendWindowCommand({
+        action: 'open',
+        ...flat,
+        alwaysOnTop: flat.alwaysOnTop ?? false,
+      })
     }
 
-    return this.sendWindowCommand({
-      action: 'open',
-      ...flat,
-      alwaysOnTop: flat.alwaysOnTop ?? false,
-    })
+    return this.getOrCreateHandle(ackResult.windowId, ackResult)
   }
 
   /**
@@ -465,23 +530,26 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
    * Closing the window terminates the process.
    *
    * @param opts - Terminal configuration (command, args, cwd, dimensions, etc.)
-   * @returns The window ack result including `windowId` and `pid`
+   * @returns A WindowHandle for the spawned terminal (with `.result` containing the ack data)
    */
-  async spawnTTY(opts: SpawnTTYOptions): Promise<WindowAckResult> {
+  async spawnTTY(opts: SpawnTTYOptions): Promise<WindowHandle> {
     const { window: windowChrome, ...flat } = opts
 
+    let ackResult: WindowAckResult
     if (windowChrome) {
-      return this.sendWindowCommand({
+      ackResult = await this.sendWindowCommand({
         action: 'terminal',
         ...flat,
         window: windowChrome,
       })
+    } else {
+      ackResult = await this.sendWindowCommand({
+        action: 'terminal',
+        ...flat,
+      })
     }
 
-    return this.sendWindowCommand({
-      action: 'terminal',
-      ...flat,
-    })
+    return this.getOrCreateHandle(ackResult.windowId, ackResult)
   }
 
   /**
@@ -574,12 +642,78 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
   /**
    * Get a WindowHandle for chainable operations on a specific window.
+   * Returns the tracked handle if one exists, otherwise creates a new one.
    *
    * @param windowId - The window ID
    * @returns A WindowHandle instance
    */
   window(windowId: string): WindowHandle {
-    return new WindowHandle(windowId, this)
+    return this.getOrCreateHandle(windowId)
+  }
+
+  /**
+   * Spawn multiple windows in parallel from a layout configuration.
+   * Returns handles in the same order as the config entries.
+   *
+   * @param config - Array of layout entries (window or tty)
+   * @returns Array of WindowHandle instances
+   *
+   * @example
+   * ```typescript
+   * const handles = await wm.spawnLayout([
+   *   { type: 'window', url: 'https://google.com', width: 800, height: 600 },
+   *   { type: 'tty', command: 'htop' },
+   *   { url: 'https://github.com' }, // defaults to window
+   * ])
+   * ```
+   */
+  async spawnLayout(config: LayoutEntry[]): Promise<WindowHandle[]> {
+    const promises = config.map(entry => {
+      if (entry.type === 'tty' || ('command' in entry && !entry.type)) {
+        const { type, ...opts } = entry as { type?: string } & SpawnTTYOptions
+        return this.spawnTTY(opts)
+      } else {
+        const { type, ...opts } = entry as { type?: string } & SpawnOptions
+        return this.spawn(opts)
+      }
+    })
+    return Promise.all(promises)
+  }
+
+  /**
+   * Spawn multiple layouts sequentially. Each layout's windows spawn in parallel,
+   * but the next layout waits for the previous one to fully complete.
+   *
+   * @param configs - Array of layout configurations
+   * @returns Array of handle arrays, one per layout
+   *
+   * @example
+   * ```typescript
+   * const [firstBatch, secondBatch] = await wm.spawnLayouts([
+   *   [{ url: 'https://google.com' }, { url: 'https://github.com' }],
+   *   [{ type: 'tty', command: 'htop' }],
+   * ])
+   * ```
+   */
+  async spawnLayouts(configs: LayoutEntry[][]): Promise<WindowHandle[][]> {
+    const results: WindowHandle[][] = []
+    for (const config of configs) {
+      results.push(await this.spawnLayout(config))
+    }
+    return results
+  }
+
+  /** Get or create a tracked WindowHandle for a given windowId. */
+  private getOrCreateHandle(windowId: string | undefined, result?: WindowAckResult): WindowHandle {
+    const id = windowId || randomUUID()
+    let handle = this._handles.get(id)
+    if (!handle) {
+      handle = new WindowHandle(id, this, result)
+      this._handles.set(id, handle)
+    } else if (result) {
+      handle.result = result
+    }
+    return handle
   }
 
   // --- Private internals ---
@@ -613,6 +747,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       if (this._client === client) {
         this._client = undefined
         this._trackedWindows.clear()
+        this._handles.clear()
         this.setState({ clientConnected: false, windowCount: 0 })
 
         // Resolve all pending requests — the app is gone, no acks coming
@@ -665,10 +800,17 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     if (msg.type === 'windowClosed') {
       this.trackWindowClosed(msg.windowId)
+      const handle = this._handles.get(msg.windowId)
+      if (handle) {
+        handle.emit('close', msg)
+        this._handles.delete(msg.windowId)
+      }
       this.emit('windowClosed', msg)
     }
 
     if (msg.type === 'terminalExited') {
+      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
+      if (handle) handle.emit('terminalExited', msg)
       this.emit('terminalExited', msg)
     }
 
