@@ -6,7 +6,7 @@ If you open up a Developer console on a blank HTML page, you have the `window` o
 
 Obviously nobody builds applications this way in a single REPL, but in 2026 developers are people and Agent AIs collaborating on the same codebase in a bigger Read, Eval, Print, Loop that takes place across more computers and brains.
 
-Luca aims to provide a `container` object that gets you 60% of the way to having ANY kind of real world, production grade full stack software, before you ever write your own line of application code. As the types of applications you build and who you build them for further narrow, the container can grows to cover 95% of every boring but necessary component you need.
+Luca aims to provide a `container` object that gets you 60% of the way to having ANY kind of real world, production grade full stack software, before you ever write your own line of application code. As the types of applications you build and who you build them for further narrow, the container can grow to cover 95% of every boring but necessary component you need.
 
 How? By layering, the way you layer dockerfiles. The things which change least frequently are solved once and cached. The things which change more frequently live in their own isolated layer. That loop is smaller, quicker — the difference between a dockerfile that reinstalls the OS every time you change the HTML file, and one that doesn't.
 
