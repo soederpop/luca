@@ -110,6 +110,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return super.container as AGIContainer
 	}
 
+	get name() {
+		return this.resolvedFolder.split('/').pop()
+	}
+
 	/** The absolute resolved path to the assistant folder. */
 	get resolvedFolder(): string {
 		return this.container.paths.resolve(this.options.folder)
