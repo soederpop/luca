@@ -7,10 +7,30 @@ import { join } from 'path'
 async function main() {
 	// Load project-level CLI module (luca.cli.ts) for container customization
 	await loadCliModule()
+
+	// LUCA_COMMAND_DISCOVERY: "disable" skips all, "no-local" skips project, "no-home" skips user
+	const discovery = process.env.LUCA_COMMAND_DISCOVERY || ''
+
+	// Snapshot built-in commands before discovering external ones
+	const builtinCommands = new Set(container.commands.available as string[])
+
 	// Discover project-local commands (commands/ or src/commands/)
-	await discoverProjectCommands()
+	if (discovery !== 'disable' && discovery !== 'no-local') {
+		await discoverProjectCommands()
+	}
+	const afterProject = new Set(container.commands.available as string[])
+	const projectCommands = new Set([...afterProject].filter((n) => !builtinCommands.has(n)))
+
 	// Discover user-level commands (~/.luca/commands/)
-	await discoverUserCommands()
+	if (discovery !== 'disable' && discovery !== 'no-home') {
+		await discoverUserCommands()
+	}
+	const afterUser = new Set(container.commands.available as string[])
+	const userCommands = new Set([...afterUser].filter((n) => !builtinCommands.has(n) && !projectCommands.has(n)))
+
+	// Store command sources for help display
+	;(container as any)._commandSources = { builtinCommands, projectCommands, userCommands }
+
 	// Load generated introspection data if present
 	await loadProjectIntrospection()
 

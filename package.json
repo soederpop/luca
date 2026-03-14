@@ -51,9 +51,10 @@
     "compile": "bun build ./src/cli/cli.ts --compile --outfile dist/luca --external node-llama-cpp",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
+    "build:bootstrap": "bun run src/cli/cli.ts build-bootstrap",
     "test": "bun test test/*.test.ts",
-    "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds",
-    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts && bun compile",
+    "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds && bun run build:bootstrap",
+    "precommit": "bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts src/bootstrap/generated.ts && bun compile",
     "test:integration": "bun test ./test-integration/"
   },
   "devDependencies": {

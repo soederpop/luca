@@ -13,7 +13,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	outputPath: z.string().default('docs/luca').describe('The path to save generated API docs to')
 })
 
-async function apiDocs(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+export async function apiDocs(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const { container } = context
 	await container.helpers.discoverAll()
 	const outputFolder = options.outputPath ? container.paths.resolve(options.outputPath) : container.paths.resolve('docs','luca')

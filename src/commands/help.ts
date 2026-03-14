@@ -176,17 +176,43 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 		console.log()
 		console.log(c.white('  Usage: ') + c.cyan('luca') + c.dim(' <command|file> [options]'))
 		console.log()
+		const allNames = (container.commands.available as string[]).filter((n: string) => n !== 'help')
+		const maxNameLen = Math.max(...allNames.map((n: string) => n.length)) + 2
+
+		const sources = (container as any)._commandSources as
+			| { builtinCommands: Set<string>; projectCommands: Set<string>; userCommands: Set<string> }
+			| undefined
+
+		const printCommands = (names: string[]) => {
+			for (const name of names) {
+				const Cmd = container.commands.lookup(name) as any
+				const desc = Cmd.commandDescription || ''
+				console.log(`    ${c.cyan(name.padEnd(maxNameLen))} ${c.dim(desc)}`)
+			}
+		}
+
+		// Built-in commands
+		const builtinNames = sources
+			? allNames.filter((n) => sources.builtinCommands.has(n))
+			: allNames
 		console.log(c.white('  Commands:'))
 		console.log()
+		printCommands(builtinNames)
 
-		// Dynamic padding based on longest command name
-		const commandNames = (container.commands.available as string[]).filter((n: string) => n !== 'help')
-		const maxNameLen = Math.max(...commandNames.map((n: string) => n.length)) + 2
+		// Project-local commands
+		if (sources && sources.projectCommands.size > 0) {
+			console.log()
+			console.log(c.white('  Project Commands') + c.dim(' (./commands/*)'))
+			console.log()
+			printCommands(allNames.filter((n) => sources.projectCommands.has(n)))
+		}
 
-		for (const name of commandNames) {
-			const Cmd = container.commands.lookup(name) as any
-			const desc = Cmd.commandDescription || ''
-			console.log(`    ${c.cyan(name.padEnd(maxNameLen))} ${c.dim(desc)}`)
+		// User-level commands
+		if (sources && sources.userCommands.size > 0) {
+			console.log()
+			console.log(c.white('  User Commands') + c.dim(' (~/.luca/commands/*)'))
+			console.log()
+			printCommands(allNames.filter((n) => sources.userCommands.has(n)))
 		}
 
 		console.log()
