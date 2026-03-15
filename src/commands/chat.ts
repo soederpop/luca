@@ -12,7 +12,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model for the assistant'),
-	folder: z.string().default('assistants').describe('Directory containing assistant definitions'),
+
 	resume: z.string().optional().describe('Thread ID or conversation ID to resume'),
 	list: z.boolean().optional().describe('List recent conversations and exit'),
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
@@ -23,14 +23,14 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	const container = context.container as any
 	const ui = container.feature('ui')
 
-	const manager = container.feature('assistantsManager', { folder: options.folder })
-	manager.discover()
+	const manager = container.feature('assistantsManager')
+	await manager.discover()
 
 	const entries = manager.list()
 
 	if (entries.length === 0) {
 		console.error(ui.colors.red('No assistants found.'))
-		console.error(ui.colors.dim(`  Create an assistant directory in "${options.folder}/" with a CORE.md file.`))
+		console.error(ui.colors.dim(`  Create a directory with a CORE.md file anywhere in the project.`))
 		process.exit(1)
 	}
 

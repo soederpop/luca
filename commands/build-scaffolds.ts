@@ -92,6 +92,20 @@ async function buildScaffolds(options: z.infer<typeof argsSchema>, context: Cont
 		console.log(`   📄 ${type}: ${scaffolds[type].sections.length} sections, full template: ${scaffolds[type].full ? 'yes' : 'no'}`)
 	}
 
+	// Bundle the assistant example as a multi-file scaffold
+	const assistantDir = 'docs/examples/assistant'
+	const assistantFiles: Record<string, string> = {}
+	const assistantFileNames = ['CORE.md', 'tools.ts', 'hooks.ts']
+	for (const fileName of assistantFileNames) {
+		const filePath = `${assistantDir}/${fileName}`
+		if (fs.exists(filePath)) {
+			assistantFiles[fileName] = fs.readFile(filePath)
+		}
+	}
+	if (Object.keys(assistantFiles).length > 0) {
+		console.log(`   📄 assistant: ${Object.keys(assistantFiles).length} files (${Object.keys(assistantFiles).join(', ')})`)
+	}
+
 	// Read the MCP readme
 	let mcpReadme = ''
 	if (fs.exists(readmePath)) {
@@ -118,9 +132,13 @@ ${sectionsStr}
   }`
 	}).join(',\n')
 
+	const assistantFilesEntries = Object.entries(assistantFiles).map(([name, content]) =>
+		`    ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
+	).join(',\n')
+
 	const output = `// Auto-generated scaffold and MCP readme content
 // Generated at: ${new Date().toISOString()}
-// Source: docs/scaffolds/*.md and docs/mcp/readme.md
+// Source: docs/scaffolds/*.md, docs/examples/assistant/, and docs/mcp/readme.md
 //
 // Do not edit manually. Run: luca build-scaffolds
 
@@ -137,6 +155,10 @@ export interface ScaffoldData {
 
 export const scaffolds: Record<string, ScaffoldData> = {
 ${scaffoldEntries}
+}
+
+export const assistantFiles: Record<string, string> = {
+${assistantFilesEntries}
 }
 
 export const mcpReadme = \`${escapeForTemplate(mcpReadme)}\`

@@ -96,9 +96,9 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	private _entries: Map<string, AssistantEntry> = new Map()
 	private _instances: Map<string, Assistant> = new Map()
 
-	override afterInitialize() {
+	override async afterInitialize() {
 		if (this.options.autoDiscover) {
-			this.discover()
+			await this.discover()
 		}
 	}
 
@@ -107,13 +107,13 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * using the fileManager. Each directory containing a CORE.md is
 	 * treated as an assistant definition.
 	 *
-	 * @returns {this} This instance, for chaining
+	 * @returns {Promise<this>} This instance, for chaining
 	 */
-	discover(): this {
+	async discover(): Promise<this> {
 		const { fs, paths } = this.container
 		const fileManager = this.container.feature('fileManager') as any
 
-		fileManager.start()
+		await fileManager.start()
 
 		this._entries.clear()
 

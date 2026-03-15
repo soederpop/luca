@@ -12,8 +12,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model (assistant mode only)'),
-	folder: z.string().default('assistants').describe('Directory containing assistant definitions'),
-	'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it'),
+'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it'),
 	'permission-mode': z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).default('acceptEdits').describe('Permission mode for CLI agents (default: acceptEdits)'),
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
@@ -144,8 +143,8 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any): Promise<RunStats> {
 	const ui = container.feature('ui')
-	const manager = container.feature('assistantsManager', { folder: options.folder })
-	manager.discover()
+	const manager = container.feature('assistantsManager')
+	await manager.discover()
 
 	const entry = manager.get(name)
 	if (!entry) {
@@ -335,8 +334,8 @@ async function runParallel(
 		})
 	} else {
 		// Assistant targets
-		const manager = container.feature('assistantsManager', { folder: options.folder })
-		manager.discover()
+		const manager = container.feature('assistantsManager')
+		await manager.discover()
 
 		const entry = manager.get(target)
 		if (!entry) {

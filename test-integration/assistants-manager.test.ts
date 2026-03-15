@@ -51,20 +51,16 @@ describe('Assistants Manager Integration', () => {
   })
 
   it('discovers assistants from directory', () => {
-    const manager = container.feature('assistantsManager', {
-      folder: 'assistants',
-    })
-    manager.discover()
+    const manager = container.feature('assistantsManager')
+    await manager.discover()
 
     const list = manager.list()
     expect(list.length).toBe(3)
   })
 
   it('returns correct entry metadata', () => {
-    const manager = container.feature('assistantsManager', {
-      folder: 'assistants',
-    })
-    manager.discover()
+    const manager = container.feature('assistantsManager')
+    await manager.discover()
 
     const entryA = manager.get('assistant-a')
     expect(entryA).toBeDefined()
@@ -84,10 +80,8 @@ describe('Assistants Manager Integration', () => {
   })
 
   it('creates an assistant instance', () => {
-    const manager = container.feature('assistantsManager', {
-      folder: 'assistants',
-    })
-    manager.discover()
+    const manager = container.feature('assistantsManager')
+    await manager.discover()
 
     const assistant = manager.create('assistant-a', {
       model: 'gpt-4o-mini',
@@ -99,10 +93,8 @@ describe('Assistants Manager Integration', () => {
   })
 
   it('generates a summary listing', () => {
-    const manager = container.feature('assistantsManager', {
-      folder: 'assistants',
-    })
-    manager.discover()
+    const manager = container.feature('assistantsManager')
+    await manager.discover()
 
     const summary = manager.toSummary()
     expect(typeof summary).toBe('string')
@@ -112,10 +104,8 @@ describe('Assistants Manager Integration', () => {
   })
 
   it('get returns undefined for non-existent assistant', () => {
-    const manager = container.feature('assistantsManager', {
-      folder: 'assistants',
-    })
-    manager.discover()
+    const manager = container.feature('assistantsManager')
+    await manager.discover()
 
     const entry = manager.get('non-existent')
     expect(entry).toBeUndefined()
