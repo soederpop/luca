@@ -61,7 +61,7 @@ export class Repl<
    * Type `.exit` or `exit` to quit. Supports top-level await.
    *
    * @param options - Configuration for the REPL session
-   * @param options.historyPath - Custom path for the history file (defaults to node_modules/.cache/.repl_history)
+   * @param options.historyPath - Custom path for the history file (defaults to ~/.cache/luca/repl-{cwdHash}.history)
    * @param options.context - Additional variables to inject into the VM context
    * @returns The Repl instance
    *
@@ -81,11 +81,14 @@ export class Repl<
 
     const { prompt = "> " } = this.options;
 
-    // Set up history file
+    // Set up history file — per-project history keyed by cwd hash
     const userHistoryPath = options.historyPath || this.options.historyPath
-    this._historyPath = typeof userHistoryPath === 'string'
-      ? this.container.paths.resolve(userHistoryPath)
-      : this.container.paths.resolve('node_modules', '.cache', '.repl_history')
+    if (typeof userHistoryPath === 'string') {
+      this._historyPath = this.container.paths.resolve(userHistoryPath)
+    } else {
+      const cwdHash = this.container.utils.hashObject(this.container.cwd)
+      this._historyPath = this.container.paths.join(process.env.HOME!, '.cache', 'luca', `repl-${cwdHash}.history`)
+    }
 
     this.container.fs.ensureFolder(this.container.paths.dirname(this._historyPath))
 

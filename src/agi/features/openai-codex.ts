@@ -166,7 +166,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     if (this.options.codexPath) return this.options.codexPath
     if (this._resolvedCodexPath) return this._resolvedCodexPath
     try {
-      this._resolvedCodexPath = this.container.feature('proc').exec('which codex').trim()
+      this._resolvedCodexPath = this.container.feature('proc').resolveRealPath('codex')
     } catch {
       this._resolvedCodexPath = 'codex'
     }

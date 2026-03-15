@@ -304,7 +304,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (this.options.claudePath) return this.options.claudePath
     if (this._resolvedClaudePath) return this._resolvedClaudePath
     try {
-      this._resolvedClaudePath = this.container.feature('proc').exec('which claude').trim()
+      this._resolvedClaudePath = this.container.feature('proc').resolveRealPath('claude')
     } catch {
       this._resolvedClaudePath = 'claude'
     }
