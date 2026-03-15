@@ -136,6 +136,8 @@ export const FileLogLevelSchema = z.enum(['verbose', 'normal', 'minimal']).descr
 export type FileLogLevel = z.infer<typeof FileLogLevelSchema>
 
 export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
+  /** Claude CLI session ID to resume by default. When set, subsequent run()/start() calls will resume this session unless overridden. */
+  session: z.string().optional().describe('Claude CLI session ID to resume by default'),
   /** Path to the claude CLI binary. Defaults to 'claude'. */
   claudePath: z.string().optional().describe('Path to the claude CLI binary'),
   /** Default model to use for sessions. */
@@ -511,7 +513,8 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
     if (configPaths.length) args.push('--mcp-config', ...configPaths)
 
-    if (options.resumeSessionId) args.push('--resume', options.resumeSessionId)
+    const resumeSessionId = options.resumeSessionId ?? (options.sessionId ? undefined : this.options.session)
+    if (resumeSessionId) args.push('--resume', resumeSessionId)
     if (options.continue) args.push('--continue')
     if (options.dangerouslySkipPermissions) args.push('--dangerously-skip-permissions')
 
@@ -1079,6 +1082,238 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       budgetRemainingUsd: budgetRemainingUsd ?? null,
       budgetUsedPercent: budgetUsedPercent ?? null,
       sessions,
+    }
+  }
+
+  /**
+   * The Claude CLI session ID of the most recently initialized session,
+   * or the session set via the `session` option. Useful for resuming later.
+   *
+   * @returns {string | undefined} The Claude CLI session ID
+   *
+   * @example
+   * ```typescript
+   * const cc = container.feature('claudeCode')
+   * await cc.run('Do something')
+   * console.log(cc.sessionId) // the Claude CLI session ID
+   * ```
+   */
+  get sessionId(): string | undefined {
+    // Check if a default session was set via options
+    if (this.options.session) return this.options.session
+
+    // Find the most recently created session that has a Claude CLI sessionId
+    const sessions = Object.values(this.state.current.sessions) as ClaudeSession[]
+    if (sessions.length === 0) return undefined
+
+    // Return the last session's Claude CLI session ID
+    const last = sessions[sessions.length - 1]
+    return last?.sessionId
+  }
+
+  /**
+   * Export session history as a readable markdown document.
+   * Reads from a raw JSONL file (Claude CLI session log or this feature's NDJSON log)
+   * so it works independently of in-memory state.
+   *
+   * Can also accept a local session ID to export from in-memory state as a fallback.
+   *
+   * @param {string} [source] - Path to a JSONL file, a local session ID, or omit for the most recent session
+   * @returns {Promise<string>} Markdown-formatted session history
+   *
+   * @example
+   * ```typescript
+   * // From a JSONL file (works without any prior state)
+   * const md = await cc.sessionHistoryToMarkdown('/path/to/session.jsonl')
+   *
+   * // From the most recent in-memory session
+   * const md = await cc.sessionHistoryToMarkdown()
+   *
+   * // From a specific local session ID
+   * const md = await cc.sessionHistoryToMarkdown(localSessionId)
+   * ```
+   */
+  async sessionHistoryToMarkdown(source?: string): Promise<string> {
+    // If source looks like a file path, read JSONL from disk
+    if (source && (source.includes('/') || source.endsWith('.jsonl'))) {
+      return this.jsonlToMarkdown(source)
+    }
+
+    // Otherwise try to resolve from in-memory state
+    const sessionId = source || this.findLastSessionId()
+    if (!sessionId) throw new Error('No session found. Pass a JSONL file path or run a session first.')
+
+    const session = this.state.current.sessions[sessionId] as ClaudeSession | undefined
+    if (!session) throw new Error(`Session ${sessionId} not found in state. Pass a JSONL file path instead.`)
+
+    return this.sessionToMarkdown(session)
+  }
+
+  /**
+   * Find the local ID of the most recent session.
+   */
+  private findLastSessionId(): string | undefined {
+    const ids = Object.keys(this.state.current.sessions)
+    return ids.length > 0 ? ids[ids.length - 1] : undefined
+  }
+
+  /**
+   * Parse a JSONL file and convert its events to markdown.
+   */
+  private async jsonlToMarkdown(filePath: string): Promise<string> {
+    const fs = this.container.feature('fs')
+    const content = await fs.readFileAsync(filePath, 'utf-8')
+    const lines = content.split('\n').filter((l: string) => l.trim())
+
+    const events: ClaudeEvent[] = []
+    for (const line of lines) {
+      try {
+        const parsed = JSON.parse(line)
+        // Support both raw Claude events and our wrapper format (which has a .data field)
+        events.push(parsed.data ?? parsed)
+      } catch {
+        // skip malformed lines
+      }
+    }
+
+    return this.eventsToMarkdown(events, filePath)
+  }
+
+  /**
+   * Convert a ClaudeSession (from state) to markdown.
+   */
+  private sessionToMarkdown(session: ClaudeSession): string {
+    const lines: string[] = []
+
+    lines.push(`# Session: ${session.id}`)
+    if (session.sessionId) lines.push(`**Claude Session ID:** \`${session.sessionId}\``)
+    lines.push(`**Status:** ${session.status}`)
+    if (session.costUsd) lines.push(`**Cost:** $${session.costUsd.toFixed(4)}`)
+    if (session.turns) lines.push(`**Turns:** ${session.turns}`)
+    lines.push('')
+
+    lines.push(`## Prompt`)
+    lines.push('')
+    lines.push(session.prompt)
+    lines.push('')
+
+    if (session.messages.length > 0) {
+      lines.push(`## Conversation`)
+      lines.push('')
+
+      for (const msg of session.messages) {
+        this.renderAssistantMessage(lines, msg)
+      }
+    }
+
+    if (session.result) {
+      lines.push(`## Result`)
+      lines.push('')
+      lines.push(session.result)
+      lines.push('')
+    }
+
+    if (session.error) {
+      lines.push(`## Error`)
+      lines.push('')
+      lines.push(`\`\`\`\n${session.error}\n\`\`\``)
+      lines.push('')
+    }
+
+    return lines.join('\n')
+  }
+
+  /**
+   * Convert raw Claude events to markdown.
+   */
+  private eventsToMarkdown(events: ClaudeEvent[], source: string): string {
+    const lines: string[] = []
+    let sessionId: string | undefined
+    let model: string | undefined
+    let prompt: string | undefined
+    let costUsd: number | undefined
+    let turns: number | undefined
+    let durationMs: number | undefined
+
+    // Extract metadata from init and result events
+    for (const event of events) {
+      if (event.type === 'system' && (event as any).subtype === 'init') {
+        const init = event as ClaudeInitEvent
+        sessionId = init.session_id
+        model = init.model
+      }
+      if (event.type === 'result') {
+        const result = event as ClaudeResultEvent
+        costUsd = result.total_cost_usd
+        turns = result.num_turns
+        durationMs = result.duration_ms
+      }
+    }
+
+    lines.push(`# Session History`)
+    lines.push(`**Source:** \`${source}\``)
+    if (sessionId) lines.push(`**Session ID:** \`${sessionId}\``)
+    if (model) lines.push(`**Model:** ${model}`)
+    if (costUsd != null) lines.push(`**Cost:** $${costUsd.toFixed(4)}`)
+    if (turns != null) lines.push(`**Turns:** ${turns}`)
+    if (durationMs != null) lines.push(`**Duration:** ${(durationMs / 1000).toFixed(1)}s`)
+    lines.push('')
+
+    lines.push(`## Conversation`)
+    lines.push('')
+
+    for (const event of events) {
+      if (event.type === 'assistant') {
+        this.renderAssistantMessage(lines, event as ClaudeAssistantMessage)
+      } else if (event.type === 'tool_result') {
+        const tr = event as ClaudeToolResult
+        lines.push(`<details>`)
+        lines.push(`<summary>Tool Result (${tr.tool_use_id})</summary>`)
+        lines.push('')
+        lines.push('```')
+        lines.push(tr.content.length > 2000 ? tr.content.slice(0, 2000) + '\n... (truncated)' : tr.content)
+        lines.push('```')
+        lines.push(`</details>`)
+        lines.push('')
+      } else if (event.type === 'result') {
+        const result = event as ClaudeResultEvent
+        lines.push(`## Result`)
+        lines.push('')
+        if (result.is_error) {
+          lines.push(`**Error:**`)
+          lines.push(`\`\`\`\n${result.result}\n\`\`\``)
+        } else {
+          lines.push(result.result)
+        }
+        lines.push('')
+      }
+    }
+
+    return lines.join('\n')
+  }
+
+  /**
+   * Render a single assistant message to markdown lines.
+   */
+  private renderAssistantMessage(lines: string[], msg: ClaudeAssistantMessage): void {
+    lines.push(`### Assistant`)
+    if (msg.message?.usage) {
+      const u = msg.message.usage
+      lines.push(`*${u.input_tokens} in / ${u.output_tokens} out tokens*`)
+    }
+    lines.push('')
+
+    for (const block of msg.message?.content || []) {
+      if (block.type === 'text') {
+        lines.push(block.text)
+        lines.push('')
+      } else if (block.type === 'tool_use') {
+        lines.push(`**Tool Use:** \`${block.name}\``)
+        lines.push('```json')
+        lines.push(JSON.stringify(block.input, null, 2))
+        lines.push('```')
+        lines.push('')
+      }
     }
   }
 

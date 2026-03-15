@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-12T02:48:58.240Z
+// Generated at: 2026-03-15T01:57:18.031Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -1525,19 +1525,19 @@ setBuildTimeData('features.windowManager', {
               "description": ""
             },
             "width": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": ""
             },
             "height": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": ""
             },
             "x": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": ""
             },
             "y": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": ""
             },
             "alwaysOnTop": {
@@ -1552,7 +1552,7 @@ setBuildTimeData('features.windowManager', {
         }
       },
       "required": [],
-      "returns": "Promise<WindowAckResult>"
+      "returns": "Promise<WindowHandle>"
     },
     "spawnTTY": {
       "description": "Spawn a native terminal window running a command. The terminal is read-only — stdout/stderr are rendered with ANSI support. Closing the window terminates the process.",
@@ -1590,19 +1590,19 @@ setBuildTimeData('features.windowManager', {
               "description": "Window title."
             },
             "width": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": "Window width in points."
             },
             "height": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": "Window height in points."
             },
             "x": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": "Window x position."
             },
             "y": {
-              "type": "number",
+              "type": "DimensionValue",
               "description": "Window y position."
             },
             "window": {
@@ -1615,7 +1615,7 @@ setBuildTimeData('features.windowManager', {
       "required": [
         "opts"
       ],
-      "returns": "Promise<WindowAckResult>"
+      "returns": "Promise<WindowHandle>"
     },
     "focus": {
       "description": "Bring a window to the front.",
@@ -1730,7 +1730,7 @@ setBuildTimeData('features.windowManager', {
       "returns": "Promise<WindowAckResult>"
     },
     "window": {
-      "description": "Get a WindowHandle for chainable operations on a specific window.",
+      "description": "Get a WindowHandle for chainable operations on a specific window. Returns the tracked handle if one exists, otherwise creates a new one.",
       "parameters": {
         "windowId": {
           "type": "string",
@@ -1741,6 +1741,44 @@ setBuildTimeData('features.windowManager', {
         "windowId"
       ],
       "returns": "WindowHandle"
+    },
+    "spawnLayout": {
+      "description": "Spawn multiple windows in parallel from a layout configuration. Returns handles in the same order as the config entries.",
+      "parameters": {
+        "config": {
+          "type": "LayoutEntry[]",
+          "description": "Array of layout entries (window or tty)"
+        }
+      },
+      "required": [
+        "config"
+      ],
+      "returns": "Promise<WindowHandle[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const handles = await wm.spawnLayout([\n { type: 'window', url: 'https://google.com', width: 800, height: 600 },\n { type: 'tty', command: 'htop' },\n { url: 'https://github.com' }, // defaults to window\n])"
+        }
+      ]
+    },
+    "spawnLayouts": {
+      "description": "Spawn multiple layouts sequentially. Each layout's windows spawn in parallel, but the next layout waits for the previous one to fully complete.",
+      "parameters": {
+        "configs": {
+          "type": "LayoutEntry[][]",
+          "description": "Array of layout configurations"
+        }
+      },
+      "required": [
+        "configs"
+      ],
+      "returns": "Promise<WindowHandle[][]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const [firstBatch, secondBatch] = await wm.spawnLayouts([\n [{ url: 'https://google.com' }, { url: 'https://github.com' }],\n [{ type: 'tty', command: 'htop' }],\n])"
+        }
+      ]
     },
     "send": {
       "description": "Write an NDJSON message to the connected app client. Public so other features can send arbitrary protocol messages over the same socket.",
@@ -1809,7 +1847,7 @@ setBuildTimeData('features.windowManager', {
   "examples": [
     {
       "language": "ts",
-      "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
+      "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst handle = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nhandle.on('close', (msg) => console.log('window closed'))\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
     }
   ]
 });
@@ -2049,29 +2087,42 @@ setBuildTimeData('features.proc', {
         }
       ]
     },
+    "isProcessRunning": {
+      "description": "Checks whether any process matching a given name is currently running. Uses `pgrep -x` for an exact match against process names.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The process name to look for (e.g. 'afplay', 'node', 'nginx')"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "if (proc.isProcessRunning('afplay')) {\n console.log('Audio is currently playing')\n}"
+        }
+      ]
+    },
     "onSignal": {
-      "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+      "description": "",
       "parameters": {
         "signal": {
           "type": "NodeJS.Signals",
-          "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+          "description": "Parameter signal"
         },
         "handler": {
           "type": "() => void",
-          "description": "The function to call when the signal is received"
+          "description": "Parameter handler"
         }
       },
       "required": [
         "signal",
         "handler"
       ],
-      "returns": "() => void",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst off = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
-        }
-      ]
+      "returns": "() => void"
     }
   },
   "getters": {},
@@ -3195,7 +3246,20 @@ setBuildTimeData('features.os', {
   "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
   "shortcut": "features.os",
   "className": "OS",
-  "methods": {},
+  "methods": {
+    "getDisplayInfo": {
+      "description": "Gets information about all connected displays. Platform-specific: currently implemented for macOS (darwin). Linux and Windows will throw with a clear \"not yet implemented\" message.",
+      "parameters": {},
+      "required": [],
+      "returns": "DisplayInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const displays = os.getDisplayInfo()\ndisplays.forEach(d => {\n console.log(`${d.name}: ${d.resolution.width}x${d.resolution.height}${d.retina ? ' (Retina)' : ''}`)\n})"
+        }
+      ]
+    }
+  },
   "getters": {
     "arch": {
       "description": "Gets the operating system CPU architecture.",
@@ -8065,8 +8129,14 @@ setBuildTimeData('features.helpers', {
   "shortcut": "features.helpers",
   "className": "Helpers",
   "methods": {
+    "seedVirtualModules": {
+      "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('@soederpop/luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
     "discover": {
-      "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
+      "description": "Discover and register project-level helpers of the given type. Idempotent: the first caller triggers the actual scan. Subsequent callers receive the cached results. If discovery is in-flight, callers await the same promise — no duplicate work.",
       "parameters": {
         "type": {
           "type": "RegistryType",
@@ -8095,7 +8165,7 @@ setBuildTimeData('features.helpers', {
       ]
     },
     "discoverAll": {
-      "description": "Discover all helper types from their conventional folder locations.",
+      "description": "Discover all helper types from their conventional folder locations. Idempotent: safe to call from multiple places (luca.cli.ts, commands, etc.). The first caller triggers discovery; all others receive the same results.",
       "parameters": {},
       "required": [],
       "returns": "Promise<Record<string, string[]>>",
@@ -8153,6 +8223,10 @@ setBuildTimeData('features.helpers', {
     "rootDir": {
       "description": "The root directory to scan for helper folders.",
       "returns": "string"
+    },
+    "useNativeImport": {
+      "description": "Whether to use native `import()` for loading project helpers. Defaults to true if `node_modules` exists in the project root (meaning package imports like `@soederpop/luca` and `zod` are resolvable). When false, uses the VM's virtual module system instead.",
+      "returns": "boolean"
     },
     "available": {
       "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
@@ -10928,19 +11002,19 @@ export const introspectionData = [
                 "description": ""
               },
               "width": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": ""
               },
               "height": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": ""
               },
               "x": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": ""
               },
               "y": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": ""
               },
               "alwaysOnTop": {
@@ -10955,7 +11029,7 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<WindowAckResult>"
+        "returns": "Promise<WindowHandle>"
       },
       "spawnTTY": {
         "description": "Spawn a native terminal window running a command. The terminal is read-only — stdout/stderr are rendered with ANSI support. Closing the window terminates the process.",
@@ -10993,19 +11067,19 @@ export const introspectionData = [
                 "description": "Window title."
               },
               "width": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": "Window width in points."
               },
               "height": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": "Window height in points."
               },
               "x": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": "Window x position."
               },
               "y": {
-                "type": "number",
+                "type": "DimensionValue",
                 "description": "Window y position."
               },
               "window": {
@@ -11018,7 +11092,7 @@ export const introspectionData = [
         "required": [
           "opts"
         ],
-        "returns": "Promise<WindowAckResult>"
+        "returns": "Promise<WindowHandle>"
       },
       "focus": {
         "description": "Bring a window to the front.",
@@ -11133,7 +11207,7 @@ export const introspectionData = [
         "returns": "Promise<WindowAckResult>"
       },
       "window": {
-        "description": "Get a WindowHandle for chainable operations on a specific window.",
+        "description": "Get a WindowHandle for chainable operations on a specific window. Returns the tracked handle if one exists, otherwise creates a new one.",
         "parameters": {
           "windowId": {
             "type": "string",
@@ -11144,6 +11218,44 @@ export const introspectionData = [
           "windowId"
         ],
         "returns": "WindowHandle"
+      },
+      "spawnLayout": {
+        "description": "Spawn multiple windows in parallel from a layout configuration. Returns handles in the same order as the config entries.",
+        "parameters": {
+          "config": {
+            "type": "LayoutEntry[]",
+            "description": "Array of layout entries (window or tty)"
+          }
+        },
+        "required": [
+          "config"
+        ],
+        "returns": "Promise<WindowHandle[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const handles = await wm.spawnLayout([\n { type: 'window', url: 'https://google.com', width: 800, height: 600 },\n { type: 'tty', command: 'htop' },\n { url: 'https://github.com' }, // defaults to window\n])"
+          }
+        ]
+      },
+      "spawnLayouts": {
+        "description": "Spawn multiple layouts sequentially. Each layout's windows spawn in parallel, but the next layout waits for the previous one to fully complete.",
+        "parameters": {
+          "configs": {
+            "type": "LayoutEntry[][]",
+            "description": "Array of layout configurations"
+          }
+        },
+        "required": [
+          "configs"
+        ],
+        "returns": "Promise<WindowHandle[][]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const [firstBatch, secondBatch] = await wm.spawnLayouts([\n [{ url: 'https://google.com' }, { url: 'https://github.com' }],\n [{ type: 'tty', command: 'htop' }],\n])"
+          }
+        ]
       },
       "send": {
         "description": "Write an NDJSON message to the connected app client. Public so other features can send arbitrary protocol messages over the same socket.",
@@ -11212,7 +11324,7 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nconst handle = wm.window(result.windowId)\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
+        "code": "const wm = container.feature('windowManager', { enable: true, autoListen: true })\n\nconst handle = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })\nhandle.on('close', (msg) => console.log('window closed'))\nawait handle.navigate('https://news.ycombinator.com')\nconst title = await handle.eval('document.title')\nawait handle.close()\n\n// Other features can listen for non-window messages\nwm.on('message', (msg) => console.log('App says:', msg))\n\n// Other features can write raw NDJSON to the app\nwm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })"
       }
     ]
   },
@@ -11451,29 +11563,42 @@ export const introspectionData = [
           }
         ]
       },
+      "isProcessRunning": {
+        "description": "Checks whether any process matching a given name is currently running. Uses `pgrep -x` for an exact match against process names.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The process name to look for (e.g. 'afplay', 'node', 'nginx')"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "if (proc.isProcessRunning('afplay')) {\n console.log('Audio is currently playing')\n}"
+          }
+        ]
+      },
       "onSignal": {
-        "description": "Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.",
+        "description": "",
         "parameters": {
           "signal": {
             "type": "NodeJS.Signals",
-            "description": "The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2')"
+            "description": "Parameter signal"
           },
           "handler": {
             "type": "() => void",
-            "description": "The function to call when the signal is received"
+            "description": "Parameter handler"
           }
         },
         "required": [
           "signal",
           "handler"
         ],
-        "returns": "() => void",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "// Graceful shutdown\nproc.onSignal('SIGTERM', () => {\n console.log('Shutting down gracefully...')\n process.exit(0)\n})\n\n// Remove the listener later\nconst off = proc.onSignal('SIGUSR2', () => {\n console.log('Received SIGUSR2')\n})\noff()"
-          }
-        ]
+        "returns": "() => void"
       }
     },
     "getters": {},
@@ -12590,7 +12715,20 @@ export const introspectionData = [
     "description": "The OS feature provides access to operating system utilities and information. This feature wraps Node.js's built-in `os` module and provides convenient getters for system information like architecture, platform, directories, network interfaces, and hardware details.",
     "shortcut": "features.os",
     "className": "OS",
-    "methods": {},
+    "methods": {
+      "getDisplayInfo": {
+        "description": "Gets information about all connected displays. Platform-specific: currently implemented for macOS (darwin). Linux and Windows will throw with a clear \"not yet implemented\" message.",
+        "parameters": {},
+        "required": [],
+        "returns": "DisplayInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const displays = os.getDisplayInfo()\ndisplays.forEach(d => {\n console.log(`${d.name}: ${d.resolution.width}x${d.resolution.height}${d.retina ? ' (Retina)' : ''}`)\n})"
+          }
+        ]
+      }
+    },
     "getters": {
       "arch": {
         "description": "Gets the operating system CPU architecture.",
@@ -17436,8 +17574,14 @@ export const introspectionData = [
     "shortcut": "features.helpers",
     "className": "Helpers",
     "methods": {
+      "seedVirtualModules": {
+        "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('@soederpop/luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
       "discover": {
-        "description": "Discover and register project-level helpers of the given type. For class-based types (features, clients, servers), scans the matching directory for .ts files, dynamically imports each, validates the default export is a subclass of the registry's base class, and registers it. For config-based types (commands, endpoints), delegates to existing discovery mechanisms.",
+        "description": "Discover and register project-level helpers of the given type. Idempotent: the first caller triggers the actual scan. Subsequent callers receive the cached results. If discovery is in-flight, callers await the same promise — no duplicate work.",
         "parameters": {
           "type": {
             "type": "RegistryType",
@@ -17466,7 +17610,7 @@ export const introspectionData = [
         ]
       },
       "discoverAll": {
-        "description": "Discover all helper types from their conventional folder locations.",
+        "description": "Discover all helper types from their conventional folder locations. Idempotent: safe to call from multiple places (luca.cli.ts, commands, etc.). The first caller triggers discovery; all others receive the same results.",
         "parameters": {},
         "required": [],
         "returns": "Promise<Record<string, string[]>>",
@@ -17524,6 +17668,10 @@ export const introspectionData = [
       "rootDir": {
         "description": "The root directory to scan for helper folders.",
         "returns": "string"
+      },
+      "useNativeImport": {
+        "description": "Whether to use native `import()` for loading project helpers. Defaults to true if `node_modules` exists in the project root (meaning package imports like `@soederpop/luca` and `zod` are resolvable). When false, uses the VM's virtual module system instead.",
+        "returns": "boolean"
       },
       "available": {
         "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
