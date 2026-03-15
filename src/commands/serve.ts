@@ -115,7 +115,16 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		}
 	}
 
-	await expressServer.start({ port })
+	try {
+		await expressServer.start({ port })
+	} catch (error: any) {
+		if (error?.code === 'EADDRINUSE') {
+			console.error(`Port ${port} is already in use.`)
+			console.error(`Use --force to kill the process on this port, or --any-port to find another port.`)
+			process.exit(1)
+		}
+		throw error
+	}
 
 	const name = manifest.name || 'Server'
 	console.log(`\n${name} listening on http://localhost:${port}`)
