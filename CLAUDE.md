@@ -56,7 +56,8 @@ When creating a new feature (e.g. `gws`), all four of these steps must be comple
 
 1. **Feature file** — `src/node/features/gws.ts`
    - Export the class: `export class Gws extends Feature { ... }`
-   - Register at bottom: `export default features.register('gws', Gws)`
+   - Register inside the class: `static { Feature.register(this, 'gws') }`
+   - Default export is just the class: `export default Gws`
 
 2. **Side-effect import** — `src/node/container.ts` (import block ~line 20-63)
    - Add `import "./features/gws";` (this triggers registration)
@@ -78,6 +79,14 @@ If the feature has a test, it goes in `test/gws.test.ts`.
 - Zod does a lot of the heavy lifting for us with its type inference
 - For more descriptive things like class descriptions, method descriptions, we rely on jsdoc blocks.  These are parsed and used to generate modules we commit to source.  We shouldn't let these drift, so for this reason we have a pre-commit hook which ensures they're up to date
 - We rely on module augmentation a lot to make sure `container.feature()` can provide type signatures for everything that gets added to it by extension modules down the road.  ( kind of like we did with AGIContainer extending NodeContainer )
+
+## Generated Files — Build Artifacts
+
+**Files matching `generated.ts` or `.generated*.ts` are BUILD ARTIFACTS, not source of truth.** They are produced by the introspection system (which parses JSDoc blocks, Zod schemas, etc.) and bundled into the binary at compile time. **Never edit these files directly** — your changes will be overwritten on the next build.
+
+The source of truth for scaffolds and templates is the markdown files and the actual source code with their JSDoc annotations. If scaffold output is wrong, fix the markdown source or the JSDoc blocks on the real classes, then rebuild.
+
+This means **JSDoc blocks on helpers (features, clients, servers) must be valid and complete** — they are picked up by the introspection system, used to generate API docs, scaffold tutorials, and the `luca describe` output. Treat JSDoc as documentation infrastructure, not comments.
 
 ## Testing
 

@@ -3,6 +3,12 @@ import container from '@soederpop/luca/agi'
 import '@/commands/index.js'
 import { homedir } from 'os'
 import { join } from 'path'
+import { existsSync } from 'fs'
+
+/** True when node_modules exists in the project root — package imports are resolvable natively */
+function hasNodeModules(): boolean {
+	return existsSync(container.paths.resolve('node_modules'))
+}
 
 async function main() {
 	// Load project-level CLI module (luca.cli.ts) for container customization
@@ -56,8 +62,18 @@ async function loadCliModule() {
 	const modulePath = container.paths.resolve('luca.cli.ts')
 	if (!container.fs.exists(modulePath)) return
 
-	const mod = await import(modulePath)
-	const exports = mod.default || mod
+	let exports: any
+
+	if (hasNodeModules()) {
+		const mod = await import(modulePath)
+		exports = mod.default || mod
+	} else {
+		// Use VM to load luca.cli.ts so it can resolve @soederpop/luca etc.
+		const helpers = container.feature('helpers') as any
+		helpers.seedVirtualModules?.()
+		const vm = container.feature('vm') as any
+		exports = vm.loadModule(modulePath)
+	}
 
 	if (typeof exports.main === 'function') {
 		await exports.main(container)
@@ -74,7 +90,13 @@ async function discoverProjectCommands() {
 	for (const candidate of ['commands', 'src/commands']) {
 		const dir = paths.resolve(candidate)
 		if (fs.exists(dir)) {
-			await container.commands.discover({ directory: dir })
+			if (hasNodeModules()) {
+				await container.commands.discover({ directory: dir })
+			} else {
+				// Route through helpers feature for VM-based loading
+				const helpers = container.feature('helpers') as any
+				await helpers.discover('commands', { directory: dir })
+			}
 			return
 		}
 	}

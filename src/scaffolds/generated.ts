@@ -1,5 +1,5 @@
 // Auto-generated scaffold and MCP readme content
-// Generated at: 2026-03-10T18:58:23.358Z
+// Generated at: 2026-03-15T01:01:29.345Z
 // Source: docs/scaffolds/*.md and docs/mcp/readme.md
 //
 // Do not edit manually. Run: luca build-scaffolds
@@ -20,7 +20,7 @@ export const scaffolds: Record<string, ScaffoldData> = {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = FeatureStateSchema.extend({
   // Add your state fields here. These are observable — changes emit events.
@@ -54,6 +54,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
@@ -67,10 +68,14 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
     {{camelName}}: typeof {{PascalName}}
   }
 }` },
-      { heading: "Registration", code: `export default features.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Registration", code: `// Inside the class:
+static { Feature.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -100,17 +105,18 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
   }
 }
 
-export default features.register('{{camelName}}', {{PascalName}})` }
+export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -140,13 +146,14 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
   }
 }
 
-export default features.register('{{camelName}}', {{PascalName}})`,
+export default {{PascalName}}`,
     tutorial: `# Building a Feature
 
 A feature is a container-managed capability — something your application needs that lives on the machine (file I/O, caching, encryption, etc). Features are lazy-loaded, observable, and self-documenting.
@@ -161,7 +168,7 @@ When to build a feature:
 \`\`\`ts
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 \`\`\`
 
@@ -211,6 +218,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
@@ -235,10 +243,14 @@ declare module '@soederpop/luca' {
 
 ## Registration
 
-The last line of the file registers the feature in the global registry. This must happen at module level (not inside a function).
+Registration happens inside the class body using a static block. The default export is just the class itself.
 
 \`\`\`ts
-export default features.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Feature.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 \`\`\`
 
 ## Complete Example
@@ -248,7 +260,7 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 \`\`\`ts
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -278,13 +290,14 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
   }
 }
 
-export default features.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 \`\`\`
 
 ## Conventions
@@ -300,7 +313,7 @@ export default features.register('{{camelName}}', {{PascalName}})
   client: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import { Client, clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ClientStateSchema.extend({
@@ -329,6 +342,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     options = {
@@ -349,9 +363,13 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
     {{camelName}}: typeof {{PascalName}}
   }
 }` },
-      { heading: "Registration", code: `export default clients.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Registration", code: `// Inside the class:
+static { Client.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import { clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
@@ -384,16 +402,17 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super({ ...options, baseURL: options.baseURL }, context)
   }
 }
 
-export default clients.register('{{camelName}}', {{PascalName}})` }
+export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
-import { clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
@@ -426,13 +445,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super({ ...options, baseURL: options.baseURL }, context)
   }
 }
 
-export default clients.register('{{camelName}}', {{PascalName}})`,
+export default {{PascalName}}`,
     tutorial: `# Building a Client
 
 A client is a container-managed connection to an external service. Clients handle network communication — HTTP APIs, WebSocket connections, GraphQL endpoints. They extend \`RestClient\` (for HTTP), \`WebSocketClient\` (for WS), or the base \`Client\` class.
@@ -446,7 +466,7 @@ When to build a client:
 
 \`\`\`ts
 import { z } from 'zod'
-import { Client, clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 \`\`\`
@@ -487,6 +507,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     options = {
@@ -516,15 +537,21 @@ declare module '@soederpop/luca/client' {
 
 ## Registration
 
+Registration happens inside the class body using a static block. The default export is just the class itself.
+
 \`\`\`ts
-export default clients.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Client.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 \`\`\`
 
 ## Complete Example
 
 \`\`\`ts
 import { z } from 'zod'
-import { clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
@@ -557,13 +584,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super({ ...options, baseURL: options.baseURL }, context)
   }
 }
 
-export default clients.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 \`\`\`
 
 ## Conventions
@@ -578,7 +606,7 @@ export default clients.register('{{camelName}}', {{PascalName}})
   server: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'` },
@@ -615,6 +643,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -651,9 +680,13 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
     {{camelName}}: typeof {{PascalName}}
   }
 }` },
-      { heading: "Registration", code: `export default servers.register('{{camelName}}', {{PascalName}})` },
+      { heading: "Registration", code: `// Inside the class:
+static { Server.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -689,6 +722,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -717,10 +751,10 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   }
 }
 
-export default servers.register('{{camelName}}', {{PascalName}})` }
+export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -756,6 +790,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -784,7 +819,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   }
 }
 
-export default servers.register('{{camelName}}', {{PascalName}})`,
+export default {{PascalName}}`,
     tutorial: `# Building a Server
 
 A server is a container-managed listener — something that accepts connections and handles requests. Servers manage their own lifecycle (configure, start, stop) and expose observable state.
@@ -798,7 +833,7 @@ When to build a server:
 
 \`\`\`ts
 import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -845,6 +880,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -890,15 +926,21 @@ declare module '@soederpop/luca' {
 
 ## Registration
 
+Registration happens inside the class body using a static block. The default export is just the class itself.
+
 \`\`\`ts
-export default servers.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Server.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 \`\`\`
 
 ## Complete Example
 
 \`\`\`ts
 import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -934,6 +976,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -962,7 +1005,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   }
 }
 
-export default servers.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 \`\`\`
 
 ## Conventions

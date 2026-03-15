@@ -12,7 +12,7 @@ When to build a feature:
 ```ts
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 ```
 
@@ -62,6 +62,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
@@ -86,10 +87,14 @@ declare module '@soederpop/luca' {
 
 ## Registration
 
-The last line of the file registers the feature in the global registry. This must happen at module level (not inside a function).
+Registration happens inside the class body using a static block. The default export is just the class itself.
 
 ```ts
-export default features.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Feature.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 ```
 
 ## Complete Example
@@ -99,7 +104,7 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 ```ts
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
+import { Feature } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -129,13 +134,14 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Feature.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super(options, context)
   }
 }
 
-export default features.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 ```
 
 ## Conventions

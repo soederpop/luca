@@ -8,7 +8,9 @@ import { commands } from '../../command.js'
 import { endpoints } from '../../endpoint.js'
 import type { Registry } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
+import type { VM } from './vm.js'
 import { resolve, parse } from 'path'
+import { existsSync } from 'fs'
 
 export const HelpersStateSchema = FeatureStateSchema.extend({
   discovered: z.record(z.string(), z.boolean()).default({}).describe('Which registry types have been discovered'),
@@ -71,6 +73,13 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   static override eventsSchema = HelpersEventsSchema
   static { Feature.register(this, 'helpers') }
 
+  /** In-flight or completed discovery promises, keyed by registry type */
+  private _discoveryPromises: Map<string, Promise<string[]>> = new Map()
+  /** Cached results from completed discoveries */
+  private _discoveryResults: Map<string, string[]> = new Map()
+  /** In-flight or completed discoverAll promise */
+  private _discoverAllPromise: Promise<Record<string, string[]>> | null = null
+
   /**
    * Returns a mapping from registry type name to its registry singleton, base class, and conventional folder candidates.
    */
@@ -87,6 +96,95 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   /** The root directory to scan for helper folders. */
   get rootDir(): string {
     return this.options.rootDir || this.container.cwd
+  }
+
+  /**
+   * Whether to use native `import()` for loading project helpers.
+   * Defaults to true if `node_modules` exists in the project root
+   * (meaning package imports like `@soederpop/luca` and `zod` are resolvable).
+   * When false, uses the VM's virtual module system instead.
+   */
+  get useNativeImport(): boolean {
+    return existsSync(resolve(this.rootDir, 'node_modules'))
+  }
+
+  /** Track whether we've seeded the VM with virtual modules */
+  private _vmSeeded = false
+
+  /**
+   * Seeds the VM feature with virtual modules so that project-level files
+   * can `import` / `require('@soederpop/luca')`, `zod`, etc. without
+   * needing them in `node_modules`.
+   *
+   * Called automatically when `useNativeImport` is false.
+   * Can also be called externally (e.g. from the CLI) to pre-seed before discovery.
+   */
+  seedVirtualModules(): void {
+    if (this._vmSeeded) return
+    this._vmSeeded = true
+
+    const vm = this.container.feature('vm') as unknown as VM
+
+    // Provide the full @soederpop/luca barrel — everything node.ts exports
+    // We build the exports object from the already-loaded modules in memory
+    const lucaExports: Record<string, any> = {
+      // Core classes
+      Feature: UniversalFeature,
+      Container: this.container.constructor,
+      Helper: Object.getPrototypeOf(UniversalFeature.prototype).constructor,
+      Client,
+      Server,
+      Command: commands.baseClass,
+      Registry: Object.getPrototypeOf(this.container.features).constructor,
+
+      // Registries
+      features: this.container.features,
+      clients,
+      servers,
+      commands,
+      endpoints,
+
+      // Registry classes
+      ClientsRegistry: clients.constructor,
+      CommandsRegistry: commands.constructor,
+      EndpointsRegistry: endpoints.constructor,
+      ServersRegistry: servers.constructor,
+      FeaturesRegistry: this.container.features.constructor,
+
+      // The singleton container
+      default: this.container,
+
+      // Convenient feature instances
+      fs: this.container.feature('fs'),
+      ui: this.container.feature('ui'),
+      vm,
+      proc: this.container.feature('proc'),
+
+      // Zod re-export
+      z,
+    }
+
+    // Schemas
+    const schemasModule = { CommandOptionsSchema: commands.baseClass?.optionsSchema || z.object({}) }
+    try {
+      // Pull all base schemas from the already-loaded schemas/base module
+      const baseSchemas = require('../../schemas/base.js')
+      Object.assign(lucaExports, baseSchemas)
+      Object.assign(schemasModule, baseSchemas)
+    } catch {
+      // Fallback: provide the essentials
+      lucaExports.FeatureStateSchema = FeatureStateSchema
+      lucaExports.FeatureOptionsSchema = FeatureOptionsSchema
+      lucaExports.FeatureEventsSchema = FeatureEventsSchema
+      schemasModule.FeatureStateSchema = FeatureStateSchema
+      schemasModule.FeatureOptionsSchema = FeatureOptionsSchema
+      schemasModule.FeatureEventsSchema = FeatureEventsSchema
+    }
+
+    vm.defineModule('@soederpop/luca', lucaExports)
+    vm.defineModule('@soederpop/luca/schemas', schemasModule)
+    vm.defineModule('@soederpop/luca/node', lucaExports)
+    vm.defineModule('zod', { z, default: { z } })
   }
 
   /**
@@ -144,11 +242,9 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   /**
    * Discover and register project-level helpers of the given type.
    *
-   * For class-based types (features, clients, servers), scans the matching
-   * directory for .ts files, dynamically imports each, validates the default
-   * export is a subclass of the registry's base class, and registers it.
-   *
-   * For config-based types (commands, endpoints), delegates to existing discovery mechanisms.
+   * Idempotent: the first caller triggers the actual scan. Subsequent callers
+   * receive the cached results. If discovery is in-flight, callers await the
+   * same promise — no duplicate work.
    *
    * @param type - Which type of helpers to discover
    * @param options - Optional overrides
@@ -162,16 +258,33 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * ```
    */
   async discover(type: RegistryType, options: { directory?: string } = {}): Promise<string[]> {
-    const discovered = this.state.get('discovered') || {}
-
-    if (discovered[type]) {
-      return []
+    // Return cached results if already completed
+    if (this._discoveryResults.has(type)) {
+      return this._discoveryResults.get(type)!
     }
 
+    // If in-flight, await the same promise
+    if (this._discoveryPromises.has(type)) {
+      return this._discoveryPromises.get(type)!
+    }
+
+    // First caller — start the work and store the promise
+    const promise = this._doDiscover(type, options)
+    this._discoveryPromises.set(type, promise)
+
+    const names = await promise
+
+    // Cache the final results
+    this._discoveryResults.set(type, names)
+
+    return names
+  }
+
+  /** Internal: performs the actual discovery work for a single type. */
+  private async _doDiscover(type: RegistryType, options: { directory?: string } = {}): Promise<string[]> {
     const dir = options.directory || this.resolveFolderPath(type)
 
     if (!dir) {
-      this.state.set('discovered', { ...discovered, [type]: true })
       return []
     }
 
@@ -183,7 +296,9 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       names = await this.discoverConfigBased(type, dir)
     }
 
-    this.state.set('discovered', { ...this.state.get('discovered'), [type]: true })
+    // Update state for observability
+    const discovered = this.state.get('discovered') || {}
+    this.state.set('discovered', { ...discovered, [type]: true })
 
     const existing = this.state.get('registered') || []
     this.state.set('registered', [...existing, ...names.map(n => `${type}.${n}`)])
@@ -196,6 +311,9 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   /**
    * Discover all helper types from their conventional folder locations.
    *
+   * Idempotent: safe to call from multiple places (luca.cli.ts, commands, etc.).
+   * The first caller triggers discovery; all others receive the same results.
+   *
    * @returns Map of registry type to discovered helper names
    *
    * @example
@@ -205,6 +323,16 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * ```
    */
   async discoverAll(): Promise<Record<string, string[]>> {
+    if (this._discoverAllPromise) {
+      return this._discoverAllPromise
+    }
+
+    this._discoverAllPromise = this._doDiscoverAll()
+    return this._discoverAllPromise
+  }
+
+  /** Internal: performs the actual discoverAll work. */
+  private async _doDiscoverAll(): Promise<Record<string, string[]>> {
     const results: Record<string, string[]> = {}
 
     for (const type of ['features', 'clients', 'servers', 'commands', 'endpoints'] as RegistryType[]) {
@@ -244,29 +372,57 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   }
 
   /**
+   * Load a module either via native `import()` or the VM's virtual module system.
+   */
+  private async loadModuleExports(absPath: string): Promise<Record<string, any>> {
+    if (this.useNativeImport) {
+      const mod = await import(absPath)
+      return mod
+    }
+
+    this.seedVirtualModules()
+    const vm = this.container.feature('vm') as unknown as VM
+    return vm.loadModule(absPath)
+  }
+
+  /**
    * Discovers class-based helpers (features, clients, servers) from a directory.
-   * Uses fileManager for fast file matching.
+   * Uses fileManager when available (fast in git repos), falls back to Glob.
    */
   private async discoverClassBased(type: RegistryType, dir: string): Promise<string[]> {
     const { registry, baseClass } = this.registryMap[type]
-    const fm = await this.ensureFileManager()
     const discovered: string[] = []
 
     // Load build-time introspection data before importing helpers so that
     // interceptRegistration() can merge JSDoc descriptions from the generated file.
     const introspectionFile = resolve(dir, 'introspection.generated.ts')
     try {
-      const { existsSync } = await import('fs')
       if (existsSync(introspectionFile)) {
         await import(introspectionFile)
       }
     } catch {}
 
-    const tests = [`${type}/*/*.ts`, `${type}/*.ts`]
-    const files = fm.match(tests)
+    // Try fileManager first (faster in git repos), fall back to Glob
+    let files: string[] = []
+    try {
+      const fm = await this.ensureFileManager()
+      // fileManager may store absolute or relative keys — use absolute patterns
+      const absPatterns = [`${dir}/*.ts`, `${dir}/**/*.ts`]
+      const relPatterns = [`${type}/*.ts`, `${type}/**/*.ts`]
+      const matched = fm.match([...absPatterns, ...relPatterns])
+      files = matched.map((f: string) => f.startsWith('/') ? f : resolve(this.rootDir, f))
+    } catch {}
 
-    for (const file of files) {
-      const absPath = resolve(this.rootDir, file)
+    // Fall back to Glob if fileManager found nothing
+    if (files.length === 0) {
+      const { Glob } = globalThis.Bun || (await import('bun'))
+      const glob = new Glob('**/*.ts')
+      for await (const file of glob.scan({ cwd: dir })) {
+        files.push(resolve(dir, file))
+      }
+    }
+
+    for (const absPath of files) {
       const { name: fileName } = parse(absPath)
 
       if (fileName.includes('.test.') || fileName.includes('.spec.')) {
@@ -274,7 +430,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       }
 
       try {
-        const mod = await import(absPath)
+        const mod = await this.loadModuleExports(absPath)
         const ExportedClass = mod.default || mod
 
         if (typeof ExportedClass !== 'function') {
@@ -294,7 +450,6 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
         if (!registry.has(registryName)) {
           registry.register(registryName, ExportedClass)
-          // this is only if they didn't export it by default
           this.emit('registered' as any, type, registryName, ExportedClass)
         }
 
@@ -318,13 +473,50 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const beforeNames = new Set(registry.available)
 
     if (type === 'commands') {
-      await commands.discover({ directory: dir })
+      if (this.useNativeImport) {
+        await commands.discover({ directory: dir })
+      } else {
+        await this.discoverCommandsViaVM(dir)
+      }
     } else if (type === 'endpoints') {
       await this.discoverEndpoints(dir)
     }
 
     const afterNames = new Set(registry.available)
     return [...afterNames].filter(n => !beforeNames.has(n))
+  }
+
+  /**
+   * Discovers commands using the VM's virtual module system.
+   * Mirrors CommandsRegistry.discover() but uses vm.loadModule() instead of import().
+   */
+  private async discoverCommandsViaVM(dir: string): Promise<void> {
+    this.seedVirtualModules()
+    const { Glob } = globalThis.Bun || (await import('bun'))
+    const glob = new Glob('*.ts')
+
+    for await (const file of glob.scan({ cwd: dir })) {
+      if (file === 'index.ts') continue
+
+      const absPath = resolve(dir, file)
+
+      try {
+        const mod = await this.loadModuleExports(absPath)
+        const commandModule = mod.default || mod
+
+        // Support export-based command files
+        if (typeof commandModule.handler === 'function' && !commands.has(file.replace(/\.ts$/, ''))) {
+          const name = file.replace(/\.ts$/, '')
+          commands.registerHandler(name, {
+            description: commandModule.description || '',
+            argsSchema: commandModule.argsSchema,
+            handler: commandModule.handler,
+          })
+        }
+      } catch (err: any) {
+        console.warn(`Helpers gateway: failed to load command from ${absPath}: ${err.message}`)
+      }
+    }
   }
 
   /**
@@ -337,7 +529,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     for await (const file of glob.scan({ cwd: dir, absolute: true })) {
       try {
-        const mod = await import(file)
+        const mod = await this.loadModuleExports(file)
         const endpointModule = mod.default || mod
 
         if (endpointModule.path && typeof endpointModule.path === 'string') {

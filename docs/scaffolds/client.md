@@ -11,7 +11,7 @@ When to build a client:
 
 ```ts
 import { z } from 'zod'
-import { Client, clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 ```
@@ -52,6 +52,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     options = {
@@ -81,15 +82,21 @@ declare module '@soederpop/luca/client' {
 
 ## Registration
 
+Registration happens inside the class body using a static block. The default export is just the class itself.
+
 ```ts
-export default clients.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Client.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 ```
 
 ## Complete Example
 
 ```ts
 import { z } from 'zod'
-import { clients, RestClient } from '@soederpop/luca/client'
+import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
 import type { ContainerContext } from '@soederpop/luca'
 
@@ -122,13 +129,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override description = '{{description}}'
+  static { Client.register(this, '{{camelName}}') }
 
   constructor(options: {{PascalName}}Options, context: ContainerContext) {
     super({ ...options, baseURL: options.baseURL }, context)
   }
 }
 
-export default clients.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 ```
 
 ## Conventions

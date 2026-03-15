@@ -11,7 +11,7 @@ When to build a server:
 
 ```ts
 import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -58,6 +58,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -103,15 +104,21 @@ declare module '@soederpop/luca' {
 
 ## Registration
 
+Registration happens inside the class body using a static block. The default export is just the class itself.
+
 ```ts
-export default servers.register('{{camelName}}', {{PascalName}})
+// Inside the class:
+static { Server.register(this, '{{camelName}}') }
+
+// At module level:
+export default {{PascalName}}
 ```
 
 ## Complete Example
 
 ```ts
 import { z } from 'zod'
-import { Server, servers } from '@soederpop/luca'
+import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
 import type { ContainerContext, NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
@@ -147,6 +154,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
   static override description = '{{description}}'
+  static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
     return container
@@ -175,7 +183,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   }
 }
 
-export default servers.register('{{camelName}}', {{PascalName}})
+export default {{PascalName}}
 ```
 
 ## Conventions

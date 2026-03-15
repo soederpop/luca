@@ -16,15 +16,29 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		return
 	}
 
+	// 1. Collect top-level markdown files (SKILL.md, CLAUDE.md, etc.)
 	const allFiles = await fs.readdir(sourceDir)
-	const files = allFiles.filter((f: string) => f.endsWith('.md'))
+	const mdFiles = allFiles.filter((f: string) => f.endsWith('.md'))
 	const entries: Record<string, string> = {}
 
-	for (const file of files) {
+	for (const file of mdFiles) {
 		const content = (await fs.readFileAsync(`${sourceDir}/${file}`)).toString()
 		const name = file.replace(/\.md$/, '')
 		entries[name] = content
 		console.log(`   ${name}: ${content.length} chars`)
+	}
+
+	// 2. Collect template files (docs/bootstrap/templates/*)
+	const templates: Record<string, string> = {}
+	const templatesDir = `${sourceDir}/templates`
+	if (fs.exists(templatesDir)) {
+		const templateFiles = await fs.readdir(templatesDir)
+		for (const file of templateFiles) {
+			const content = (await fs.readFileAsync(`${templatesDir}/${file}`)).toString()
+			const name = file.replace(/\.[^.]+$/, '') // strip any extension
+			templates[name] = content
+			console.log(`   template/${name}: ${content.length} chars`)
+		}
 	}
 
 	const escapeForTemplate = (s: string) => s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
@@ -33,14 +47,22 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
 	).join(',\n')
 
+	const templateEntries = Object.entries(templates).map(([name, content]) =>
+		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
+	).join(',\n')
+
 	const output = `// Auto-generated bootstrap content
 // Generated at: ${new Date().toISOString()}
-// Source: docs/bootstrap/*.md
+// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*
 //
 // Do not edit manually. Run: luca build-bootstrap
 
 export const bootstrapFiles: Record<string, string> = {
 ${fileEntries}
+}
+
+export const bootstrapTemplates: Record<string, string> = {
+${templateEntries}
 }
 `
 
