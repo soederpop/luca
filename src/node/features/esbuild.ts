@@ -54,6 +54,26 @@ export class ESBuild extends Feature {
       ...options
     })
   }
+
+  /**
+   * Bundle one or more entry points, resolving imports and requires into a single output.
+   * Supports Node platform by default so require() and Node builtins are handled.
+   * Returns in-memory output files unless write is enabled in options.
+   * @param entryPoints - File paths to bundle from
+   * @param options - esbuild BuildOptions overrides
+   * @returns The build result with outputFiles when write is false
+   */
+  async bundle(entryPoints: string[], options?: esbuild.BuildOptions) {
+    return esbuild.build({
+      entryPoints,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      target: 'es2020',
+      write: false,
+      ...options
+    })
+  }
 }
 
 export default ESBuild
