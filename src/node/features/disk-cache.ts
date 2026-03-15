@@ -328,7 +328,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
  
   /**
    * Create a cacache instance with the specified path
-   * @param path - Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)
+   * @param path - Optional cache directory path (defaults to options.path or tmp/.cache/luca-disk-cache)
    * @returns Configured cacache instance with all methods bound to the path
    * @example
    * ```typescript
@@ -336,7 +336,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * ```
    */
   create(path?: string) {
-    path = path || this.options.path || this.container.paths.resolve('node_modules', '.cache', 'luca-disk-cache')
+    path = path || this.options.path || this.container.paths.resolve('tmp', '.cache', 'luca-disk-cache')
     this.container.fs.ensureFolder(path)
     const arg = (fn: (...args: any) => any) => partial(fn, path);
 
