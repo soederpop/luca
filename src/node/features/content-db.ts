@@ -1,4 +1,5 @@
 import { Feature } from '../feature.js'
+import * as contentbaseExports from 'contentbase'
 import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
@@ -52,11 +53,52 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   _collection?: Collection
+  private _contentbaseSeeded = false
 
   /** Returns the lazily-initialized Collection instance for the configured rootPath. */
   get collection() {
     if (this._collection) return this._collection
-    return this._collection = new Collection({ rootPath: this.options.rootPath })
+
+    const opts: any = { rootPath: this.options.rootPath }
+
+    // When contentbase isn't in node_modules (e.g. compiled luca binary),
+    // provide a VM-based module loader so models.ts can resolve its imports
+    if (!this._canNativeImportContentbase()) {
+      opts.moduleLoader = (filePath: string) => {
+        this._seedContentbaseVirtualModules()
+        const vm = this.container.feature('vm') as any
+        return vm.loadModule(filePath)
+      }
+    }
+
+    return this._collection = new Collection(opts)
+  }
+
+  /** Check if contentbase is resolvable via native import from the project root */
+  private _canNativeImportContentbase(): boolean {
+    const cwd = this.container.cwd
+    return existsSync(join(cwd, 'node_modules', 'contentbase'))
+  }
+
+  /** Seed the VM with virtual modules so models.ts can import from 'contentbase', 'zod', etc. */
+  private _seedContentbaseVirtualModules(): void {
+    if (this._contentbaseSeeded) return
+    this._contentbaseSeeded = true
+
+    const vm = this.container.feature('vm') as any
+
+    // Seed luca modules first (helpers does this for @soederpop/luca)
+    const helpers = this.container.feature('helpers') as any
+    if (helpers?.seedVirtualModules) {
+      helpers.seedVirtualModules()
+    }
+
+    // Register contentbase barrel — everything the library exports
+    vm.defineModule('contentbase', contentbaseExports)
+
+    // Common deps that models.ts files tend to use
+    try { vm.defineModule('js-yaml', require('js-yaml')) } catch {}
+    try { vm.defineModule('mdast-util-to-string', require('mdast-util-to-string')) } catch {}
   }
 
   /** Returns the absolute resolved path to the collection root directory. */
