@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-15T02:08:10.121Z
+// Generated at: 2026-03-15T02:33:54.578Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -850,6 +850,23 @@ setBuildTimeData('features.esbuild', {
       },
       "required": [
         "code"
+      ],
+      "returns": "void"
+    },
+    "bundle": {
+      "description": "Bundle one or more entry points, resolving imports and requires into a single output. Supports Node platform by default so require() and Node builtins are handled. Returns in-memory output files unless write is enabled in options.",
+      "parameters": {
+        "entryPoints": {
+          "type": "string[]",
+          "description": "File paths to bundle from"
+        },
+        "options": {
+          "type": "esbuild.BuildOptions",
+          "description": "esbuild BuildOptions overrides"
+        }
+      },
+      "required": [
+        "entryPoints"
       ],
       "returns": "void"
     }
@@ -5886,7 +5903,7 @@ setBuildTimeData('features.diskCache', {
       "parameters": {
         "path": {
           "type": "string",
-          "description": "Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)"
+          "description": "Optional cache directory path (defaults to options.path or tmp/.cache/luca-disk-cache)"
         }
       },
       "required": [],
@@ -8225,7 +8242,7 @@ setBuildTimeData('features.helpers', {
       "returns": "string"
     },
     "useNativeImport": {
-      "description": "Whether to use native `import()` for loading project helpers. Defaults to true if `node_modules` exists in the project root (meaning package imports like `@soederpop/luca` and `zod` are resolvable). When false, uses the VM's virtual module system instead.",
+      "description": "Whether to use native `import()` for loading project helpers. True only if `@soederpop/luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
       "returns": "boolean"
     },
     "available": {
@@ -12610,6 +12627,23 @@ export const introspectionData = [
         },
         "required": [
           "code"
+        ],
+        "returns": "void"
+      },
+      "bundle": {
+        "description": "Bundle one or more entry points, resolving imports and requires into a single output. Supports Node platform by default so require() and Node builtins are handled. Returns in-memory output files unless write is enabled in options.",
+        "parameters": {
+          "entryPoints": {
+            "type": "string[]",
+            "description": "File paths to bundle from"
+          },
+          "options": {
+            "type": "esbuild.BuildOptions",
+            "description": "esbuild BuildOptions overrides"
+          }
+        },
+        "required": [
+          "entryPoints"
         ],
         "returns": "void"
       }
@@ -17622,7 +17656,7 @@ export const introspectionData = [
         "parameters": {
           "path": {
             "type": "string",
-            "description": "Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache)"
+            "description": "Optional cache directory path (defaults to options.path or tmp/.cache/luca-disk-cache)"
           }
         },
         "required": [],
@@ -19950,7 +19984,7 @@ export const introspectionData = [
         "returns": "string"
       },
       "useNativeImport": {
-        "description": "Whether to use native `import()` for loading project helpers. Defaults to true if `node_modules` exists in the project root (meaning package imports like `@soederpop/luca` and `zod` are resolvable). When false, uses the VM's virtual module system instead.",
+        "description": "Whether to use native `import()` for loading project helpers. True only if `@soederpop/luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
         "returns": "boolean"
       },
       "available": {
