@@ -137,6 +137,13 @@ export class Python<
     let pythonPath: string | null = null
     let environmentType: PythonState['environmentType'] = null
 
+    const proc = this.container.feature('proc')
+
+    /** Resolve a binary to its full path via `which`, falling back to the bare name. */
+    const resolveBin = (name: string): string => {
+      try { return proc.exec(`which ${name}`).trim() } catch { return name }
+    }
+
     // Use explicitly provided Python path
     if (this.options.pythonPath) {
       pythonPath = this.options.pythonPath
@@ -145,10 +152,10 @@ export class Python<
     // Check for uv
     else if (existsSync(join(projectDir, 'uv.lock')) || existsSync(join(projectDir, 'pyproject.toml'))) {
       try {
-        const proc = this.container.feature('proc')
-        const result = await proc.execAndCapture('uv run python --version')
+        const uvBin = resolveBin('uv')
+        const result = await proc.execAndCapture(`${uvBin} run python --version`)
         if (result.exitCode === 0) {
-          pythonPath = 'uv run python'
+          pythonPath = `${uvBin} run python`
           environmentType = 'uv'
         }
       } catch (error) {
@@ -158,10 +165,10 @@ export class Python<
     // Check for conda
     else if (existsSync(join(projectDir, 'environment.yml')) || existsSync(join(projectDir, 'conda.yml'))) {
       try {
-        const proc = this.container.feature('proc')
-        const result = await proc.execAndCapture('conda run python --version')
+        const condaBin = resolveBin('conda')
+        const result = await proc.execAndCapture(`${condaBin} run python --version`)
         if (result.exitCode === 0) {
-          pythonPath = 'conda run python'
+          pythonPath = `${condaBin} run python`
           environmentType = 'conda'
         }
       } catch (error) {
@@ -171,10 +178,10 @@ export class Python<
     // Check for venv
     else if (existsSync(join(projectDir, 'venv')) || existsSync(join(projectDir, '.venv'))) {
       const venvPath = existsSync(join(projectDir, 'venv')) ? 'venv' : '.venv'
-      const venvPython = process.platform === 'win32' 
+      const venvPython = process.platform === 'win32'
         ? join(projectDir, venvPath, 'Scripts', 'python.exe')
         : join(projectDir, venvPath, 'bin', 'python')
-      
+
       if (existsSync(venvPython)) {
         pythonPath = venvPython
         environmentType = 'venv'
@@ -184,15 +191,16 @@ export class Python<
     // Fall back to system Python
     if (!pythonPath) {
       try {
-        const proc = this.container.feature('proc')
-        const result = await proc.execAndCapture('python3 --version')
+        const python3Bin = resolveBin('python3')
+        const result = await proc.execAndCapture(`${python3Bin} --version`)
         if (result.exitCode === 0) {
-          pythonPath = 'python3'
+          pythonPath = python3Bin
           environmentType = 'system'
         } else {
-          const result2 = await proc.execAndCapture('python --version')
+          const pythonBin = resolveBin('python')
+          const result2 = await proc.execAndCapture(`${pythonBin} --version`)
           if (result2.exitCode === 0) {
-            pythonPath = 'python'
+            pythonPath = pythonBin
             environmentType = 'system'
           }
         }

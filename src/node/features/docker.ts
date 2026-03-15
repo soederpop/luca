@@ -101,8 +101,22 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   /**
    * Get the proc feature for executing shell commands
    */
+  private _resolvedDockerPath: string | null = null
+
   get proc() {
     return this.container.feature('proc')
+  }
+
+  /** Resolve the docker binary path via `which`, caching the result. Options take precedence. */
+  get dockerPath(): string {
+    if (this.options.dockerPath) return this.options.dockerPath
+    if (this._resolvedDockerPath) return this._resolvedDockerPath
+    try {
+      this._resolvedDockerPath = this.proc.exec('which docker').trim()
+    } catch {
+      this._resolvedDockerPath = 'docker'
+    }
+    return this._resolvedDockerPath
   }
 
   /**
@@ -117,8 +131,7 @@ export class Docker extends Feature<DockerState, DockerOptions> {
    */
   async checkDockerAvailability(): Promise<boolean> {
     try {
-      const dockerPath = this.options.dockerPath || 'docker'
-      const result = await this.proc.spawnAndCapture(dockerPath, ['--version'])
+      const result = await this.proc.spawnAndCapture(this.dockerPath, ['--version'])
       
       if (result.exitCode === 0) {
         this.setState({ isDockerAvailable: true, lastError: undefined })
@@ -152,8 +165,7 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     }
 
     try {
-      const dockerPath = this.options.dockerPath || 'docker'
-      const result = await this.proc.spawnAndCapture(dockerPath, args)
+      const result = await this.proc.spawnAndCapture(this.dockerPath, args)
       
       if (result.exitCode !== 0) {
         this.setState({ lastError: result.stderr })

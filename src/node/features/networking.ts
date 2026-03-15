@@ -214,6 +214,19 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
     }
   }
 
+  private _binCache: Record<string, string> = {}
+
+  /** Resolve a binary path via `which`, caching the result. */
+  private resolveBin(name: string): string {
+    if (this._binCache[name]) return this._binCache[name]
+    try {
+      this._binCache[name] = this.proc.exec(`which ${name}`).trim()
+    } catch {
+      this._binCache[name] = name
+    }
+    return this._binCache[name]
+  }
+
   get proc() {
     return this.container.feature('proc')
   }
@@ -359,7 +372,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
    * Reads and parses the system ARP cache.
    */
   async getArpTable(): Promise<ArpEntry[]> {
-    const output = await this.proc.execAndCapture('arp -a')
+    const output = await this.proc.execAndCapture(`${this.resolveBin('arp')} -a`)
     if (output.exitCode !== 0) {
       return []
     }
@@ -605,7 +618,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   }
 
   private async isNmapAvailable(): Promise<boolean> {
-    const result = await this.proc.spawnAndCapture('nmap', ['--version'])
+    const result = await this.proc.spawnAndCapture(this.resolveBin('nmap'), ['--version'])
     return result.exitCode === 0
   }
 
@@ -619,7 +632,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
     const startTime = Date.now()
 
     const cmdArgs = [...args, '-oG', '-', target]
-    const result = await this.proc.spawnAndCapture('nmap', cmdArgs)
+    const result = await this.proc.spawnAndCapture(this.resolveBin('nmap'), cmdArgs)
 
     if (result.exitCode !== 0) {
       throw new Error(result.stderr || 'nmap scan failed')

@@ -51,6 +51,19 @@ export class Git extends Feature {
     static { Feature.register(this, 'git') }
     override state: State<GitState> = new State()
 
+    private _resolvedGitPath: string | null = null
+
+    /** Resolve the git binary path via `which`, caching the result. */
+    get gitPath(): string {
+        if (this._resolvedGitPath) return this._resolvedGitPath
+        try {
+            this._resolvedGitPath = this.container.feature('proc').exec('which git').trim()
+        } catch {
+            this._resolvedGitPath = 'git'
+        }
+        return this._resolvedGitPath
+    }
+
     /**
      * Lists files in the Git repository using git ls-files command.
      * 
@@ -121,7 +134,7 @@ export class Git extends Feature {
         }
         
         
-        return this.container.feature('proc').exec(`git ls-files ${baseDir} ${flags.join(' ')}`, { 
+        return this.container.feature('proc').exec(`${this.gitPath} ls-files ${baseDir} ${flags.join(' ')}`, { 
             cwd: this.repoRoot,
             maxBuffer: 1024 * 1024 * 100,
         }).trim().split("\n")
@@ -142,7 +155,7 @@ export class Git extends Feature {
      */
     get branch() {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec('git branch').split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
+        return this.container.feature('proc').exec(`${this.gitPath} branch`).split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
     }
     
     /**
@@ -160,7 +173,7 @@ export class Git extends Feature {
      */
     get sha() {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec('git rev-parse HEAD', { cwd: this.repoRoot })
+        return this.container.feature('proc').exec(`${this.gitPath} rev-parse HEAD`, { cwd: this.repoRoot })
     }
     
     /**
@@ -254,7 +267,7 @@ export class Git extends Feature {
         const fieldSep = '---FIELD---'
 
         const output = this.container.feature('proc').exec(
-            `git log -n ${numberOfChanges} --pretty=format:"%s${fieldSep}%b${fieldSep}%an${separator}"`,
+            `${this.gitPath} log -n ${numberOfChanges} --pretty=format:"%s${fieldSep}%b${fieldSep}%an${separator}"`,
             { cwd: this.repoRoot }
         )
 
@@ -300,7 +313,7 @@ export class Git extends Feature {
         const fieldSep = '---FIELD---'
 
         const output = proc.exec(
-            `git log --pretty=format:"%H${fieldSep}%s${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
+            `${this.gitPath} log --pretty=format:"%H${fieldSep}%s${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
             { cwd: root }
         )
 
@@ -345,7 +358,7 @@ export class Git extends Feature {
         const resolved = isAbsolute(file) ? file : resolve(this.container.cwd, file)
 
         return proc.exec(
-            `git diff ${from} ${compareTo} -- "${resolved}"`,
+            `${this.gitPath} diff ${from} ${compareTo} -- "${resolved}"`,
             { cwd: root }
         ).trim()
     }
@@ -443,7 +456,7 @@ export class Git extends Feature {
         const fieldSep = '---FIELD---'
 
         const output = proc.exec(
-            `git log --pretty=format:"%H${fieldSep}%s${fieldSep}%b${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
+            `${this.gitPath} log --pretty=format:"%H${fieldSep}%s${fieldSep}%b${separator}" -- ${resolved.map(p => `"${p}"`).join(' ')}`,
             { cwd: root }
         )
 
@@ -470,7 +483,7 @@ export class Git extends Feature {
 
         return commits.map(commit => {
             const changedFiles = proc.exec(
-                `git diff-tree --no-commit-id --name-only -r ${commit.sha}`,
+                `${this.gitPath} diff-tree --no-commit-id --name-only -r ${commit.sha}`,
                 { cwd: root }
             ).trim().split('\n').filter(Boolean)
 

@@ -80,17 +80,37 @@ export class Grep extends Feature {
     static { Feature.register(this, 'grep') }
 
     private _hasRipgrep: boolean | null = null
+    private _rgPath: string | null = null
+    private _grepPath: string | null = null
 
     /** Whether ripgrep (rg) is available on this system */
     get hasRipgrep(): boolean {
         if (this._hasRipgrep !== null) return this._hasRipgrep
         try {
-            this.container.feature('proc').exec('which rg')
+            this._rgPath = this.container.feature('proc').exec('which rg').trim()
             this._hasRipgrep = true
         } catch {
             this._hasRipgrep = false
         }
         return this._hasRipgrep
+    }
+
+    /** Resolved path to the rg binary */
+    get rgPath(): string {
+        if (this._rgPath) return this._rgPath
+        this.hasRipgrep // triggers resolution
+        return this._rgPath || 'rg'
+    }
+
+    /** Resolved path to the grep binary */
+    get grepPath(): string {
+        if (this._grepPath) return this._grepPath
+        try {
+            this._grepPath = this.container.feature('proc').exec('which grep').trim()
+        } catch {
+            this._grepPath = 'grep'
+        }
+        return this._grepPath
     }
 
     /**
@@ -302,7 +322,7 @@ export class Grep extends Feature {
             flags.push(...rawFlags)
 
             const searchPath = path || '.'
-            return `rg ${flags.join(' ')} -e ${shellQuote(pattern)} ${shellQuote(searchPath)}`
+            return `${this.rgPath} ${flags.join(' ')} -e ${shellQuote(pattern)} ${shellQuote(searchPath)}`
         } else {
             // fallback to grep — use -E for extended regex (supports ?, +, |, (), {})
             flags.push('-r', '-n', '-E')
@@ -334,7 +354,7 @@ export class Grep extends Feature {
             flags.push(...rawFlags)
 
             const searchPath = path || '.'
-            return `grep ${flags.join(' ')} -e ${shellQuote(pattern)} ${shellQuote(searchPath)}`
+            return `${this.grepPath} ${flags.join(' ')} -e ${shellQuote(pattern)} ${shellQuote(searchPath)}`
         }
     }
 

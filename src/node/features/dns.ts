@@ -131,8 +131,21 @@ export class Dns extends Feature<DnsState, DnsOptions> {
     }
   }
 
+  private _resolvedDigPath: string | null = null
+
   get proc() {
     return this.container.feature('proc')
+  }
+
+  /** Resolved path to the dig binary */
+  get digPath(): string {
+    if (this._resolvedDigPath) return this._resolvedDigPath
+    try {
+      this._resolvedDigPath = this.proc.exec('which dig').trim()
+    } catch {
+      this._resolvedDigPath = 'dig'
+    }
+    return this._resolvedDigPath
   }
 
   /**
@@ -148,7 +161,7 @@ export class Dns extends Feature<DnsState, DnsOptions> {
    * ```
    */
   async isAvailable(): Promise<boolean> {
-    const result = await this.proc.spawnAndCapture('dig', ['-v'])
+    const result = await this.proc.spawnAndCapture(this.digPath, ['-v'])
     // dig -v prints version to stderr and exits 0
     return result.exitCode === 0
   }
@@ -180,7 +193,7 @@ export class Dns extends Feature<DnsState, DnsOptions> {
    */
   async resolve(domain: string, type: DnsRecordType, options: QueryOptions = {}): Promise<DnsQueryResult> {
     const args = this.buildDigArgs(domain, type, options)
-    const result = await this.proc.spawnAndCapture('dig', args)
+    const result = await this.proc.spawnAndCapture(this.digPath, args)
 
     if (result.exitCode !== 0) {
       throw new Error(`dig query failed: ${result.stderr || 'unknown error'}`)
@@ -446,7 +459,7 @@ export class Dns extends Feature<DnsState, DnsOptions> {
     }
     args.unshift('-x', ip)
 
-    const result = await this.proc.spawnAndCapture('dig', args)
+    const result = await this.proc.spawnAndCapture(this.digPath, args)
 
     if (result.exitCode !== 0) {
       throw new Error(`dig reverse lookup failed: ${result.stderr || 'unknown error'}`)

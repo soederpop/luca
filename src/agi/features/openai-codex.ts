@@ -159,9 +159,18 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     }
   }
 
+  private _resolvedCodexPath: string | null = null
+
   /** @returns The path to the codex CLI binary, falling back to 'codex' on the PATH. */
   get codexPath(): string {
-    return this.options.codexPath || 'codex'
+    if (this.options.codexPath) return this.options.codexPath
+    if (this._resolvedCodexPath) return this._resolvedCodexPath
+    try {
+      this._resolvedCodexPath = this.container.feature('proc').exec('which codex').trim()
+    } catch {
+      this._resolvedCodexPath = 'codex'
+    }
+    return this._resolvedCodexPath
   }
 
   /**

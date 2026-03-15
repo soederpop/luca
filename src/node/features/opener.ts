@@ -37,6 +37,19 @@ export class Opener extends Feature {
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'opener') }
 
+  private _binCache: Record<string, string> = {}
+
+  /** Resolve a binary path via `which`, caching the result. */
+  private resolveBin(name: string): string {
+    if (this._binCache[name]) return this._binCache[name]
+    try {
+      this._binCache[name] = this.container.proc.exec(`which ${name}`).trim()
+    } catch {
+      this._binCache[name] = name
+    }
+    return this._binCache[name]
+  }
+
   /**
    * Opens a path or URL with the appropriate application.
    *
@@ -62,18 +75,18 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
-      await proc.spawnAndCapture('open', ['-a', 'Google Chrome', url])
+      await proc.spawnAndCapture(this.resolveBin('open'), ['-a', 'Google Chrome', url])
     } else if (platform === 'win32') {
-      await proc.spawnAndCapture('cmd', ['/c', 'start', 'chrome', url])
+      await proc.spawnAndCapture(this.resolveBin('cmd'), ['/c', 'start', 'chrome', url])
     } else {
       // Linux - try google-chrome, then chromium, then fall back to xdg-open
       try {
-        await proc.spawnAndCapture('google-chrome', [url])
+        await proc.spawnAndCapture(this.resolveBin('google-chrome'), [url])
       } catch {
         try {
-          await proc.spawnAndCapture('chromium', [url])
+          await proc.spawnAndCapture(this.resolveBin('chromium'), [url])
         } catch {
-          await proc.spawnAndCapture('xdg-open', [url])
+          await proc.spawnAndCapture(this.resolveBin('xdg-open'), [url])
         }
       }
     }
@@ -93,11 +106,11 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
-      await proc.spawnAndCapture('open', ['-a', name])
+      await proc.spawnAndCapture(this.resolveBin('open'), ['-a', name])
     } else if (platform === 'win32') {
-      await proc.spawnAndCapture('cmd', ['/c', 'start', '', name])
+      await proc.spawnAndCapture(this.resolveBin('cmd'), ['/c', 'start', '', name])
     } else {
-      await proc.spawnAndCapture(name.toLowerCase(), [])
+      await proc.spawnAndCapture(this.resolveBin(name.toLowerCase()), [])
     }
   }
 
@@ -113,10 +126,10 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     try {
-      await proc.spawnAndCapture('code', [path])
+      await proc.spawnAndCapture(this.resolveBin('code'), [path])
     } catch {
       if (this.container.os.platform === 'darwin') {
-        await proc.spawnAndCapture('open', ['-a', 'Visual Studio Code', path])
+        await proc.spawnAndCapture(this.resolveBin('open'), ['-a', 'Visual Studio Code', path])
       } else {
         throw new Error('VS Code CLI (code) not found. Install it from VS Code: Command Palette > "Shell Command: Install code command in PATH"')
       }
@@ -135,10 +148,10 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     try {
-      await proc.spawnAndCapture('cursor', [path])
+      await proc.spawnAndCapture(this.resolveBin('cursor'), [path])
     } catch {
       if (this.container.os.platform === 'darwin') {
-        await proc.spawnAndCapture('open', ['-a', 'Cursor', path])
+        await proc.spawnAndCapture(this.resolveBin('open'), ['-a', 'Cursor', path])
       } else {
         throw new Error('Cursor CLI (cursor) not found. Install it from Cursor: Command Palette > "Shell Command: Install cursor command in PATH"')
       }
@@ -149,11 +162,11 @@ export class Opener extends Feature {
     const proc = this.container.proc
 
     if (platform === 'darwin') {
-      await proc.spawnAndCapture('open', [target])
+      await proc.spawnAndCapture(this.resolveBin('open'), [target])
     } else if (platform === 'win32') {
-      await proc.spawnAndCapture('cmd', ['/c', 'start', '', target])
+      await proc.spawnAndCapture(this.resolveBin('cmd'), ['/c', 'start', '', target])
     } else {
-      await proc.spawnAndCapture('xdg-open', [target])
+      await proc.spawnAndCapture(this.resolveBin('xdg-open'), [target])
     }
   }
 }

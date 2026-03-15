@@ -37,9 +37,22 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
   static override optionsSchema = RunpodOptionsSchema
   static { Feature.register(this, 'runpod') }
 
+	private _resolvedRunpodctlPath: string | null = null
+
 	/** The proc feature used for executing CLI commands like runpodctl. */
 	get proc() {
 		return this.container.feature('proc')
+	}
+
+	/** Resolve the runpodctl binary path via `which`, caching the result. */
+	get runpodctlPath(): string {
+		if (this._resolvedRunpodctlPath) return this._resolvedRunpodctlPath
+		try {
+			this._resolvedRunpodctlPath = this.proc.exec('which runpodctl').trim()
+		} catch {
+			this._resolvedRunpodctlPath = 'runpodctl'
+		}
+		return this._resolvedRunpodctlPath
 	}
 
 	/** RunPod API key from options or the RUNPOD_API_KEY environment variable. */
@@ -510,7 +523,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	 * ```
 	 */
 	async listPods(detailed = false): Promise<PodInfo[]> {
-		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'pod', '-a'])
+		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'pod', '-a'])
 		const pods = output
 			.trim()
 			.split("\n")
@@ -550,7 +563,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	 * ```
 	 */
 	async getPodInfo(podId: string): Promise<PodInfo> {
-		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'pod', podId, '-a'])
+		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'pod', podId, '-a'])
 
 		return output
 			.trim()
@@ -588,7 +601,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	 * ```
 	 */
 	async listSecureGPUs() {
-		const { stdout: output } = await this.proc.spawnAndCapture('runpodctl', ['get', 'cloud', '--secure'])
+		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'cloud', '--secure'])
 
 		return output
 			.split("\n")

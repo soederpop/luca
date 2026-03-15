@@ -298,8 +298,17 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    *
    * @returns {string} The path to the claude binary
    */
+  private _resolvedClaudePath: string | null = null
+
   get claudePath(): string {
-    return this.options.claudePath || 'claude'
+    if (this.options.claudePath) return this.options.claudePath
+    if (this._resolvedClaudePath) return this._resolvedClaudePath
+    try {
+      this._resolvedClaudePath = this.container.feature('proc').exec('which claude').trim()
+    } catch {
+      this._resolvedClaudePath = 'claude'
+    }
+    return this._resolvedClaudePath
   }
 
   /**

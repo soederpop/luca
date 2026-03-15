@@ -58,11 +58,36 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 		}
 	}
 
+	private _resolvedSshPath: string | null = null
+	private _resolvedScpPath: string | null = null
+
 	/**
 	 * Get the proc feature for executing shell commands
 	 */
 	private get proc() {
 		return this.container.feature('proc')
+	}
+
+	/** Resolved path to the ssh binary */
+	get sshPath(): string {
+		if (this._resolvedSshPath) return this._resolvedSshPath
+		try {
+			this._resolvedSshPath = this.proc.exec('which ssh').trim()
+		} catch {
+			this._resolvedSshPath = 'ssh'
+		}
+		return this._resolvedSshPath
+	}
+
+	/** Resolved path to the scp binary */
+	get scpPath(): string {
+		if (this._resolvedScpPath) return this._resolvedScpPath
+		try {
+			this._resolvedScpPath = this.proc.exec('which scp').trim()
+		} catch {
+			this._resolvedScpPath = 'scp'
+		}
+		return this._resolvedScpPath
 	}
 
 	/**
@@ -86,7 +111,7 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	private buildSSHConnectionString(): string {
 		this.validateOptions()
 		const { host, port = 22, username, key } = this.options
-		let sshCmd = `ssh -p ${port}`
+		let sshCmd = `${this.sshPath} -p ${port}`
 		
 		if (key) {
 			sshCmd += ` -i "${key}"`
@@ -106,7 +131,7 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	private buildSCPConnectionString(): string {
 		this.validateOptions()
 		const { host, port = 22, username, key } = this.options
-		let scpCmd = `scp -P ${port}`
+		let scpCmd = `${this.scpPath} -P ${port}`
 		
 		if (key) {
 			scpCmd += ` -i "${key}"`
