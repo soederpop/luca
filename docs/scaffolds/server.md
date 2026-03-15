@@ -13,7 +13,7 @@ When to build a server:
 import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 ```
 
@@ -40,6 +40,8 @@ export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({
 
 ## Class
 
+Running `luca introspect` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls `container.servers.describe('{{camelName}}')` or `luca describe {{camelName}}`.
+
 ```ts
 /**
  * {{description}}
@@ -57,7 +59,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -120,7 +121,7 @@ export default {{PascalName}}
 import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -153,7 +154,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -189,7 +189,8 @@ export default {{PascalName}}
 ## Conventions
 
 - **Lifecycle**: Implement `configure()`, `start()`, and `stop()`. Check guards (`isConfigured`, `isListening`, `isStopped`) at the top of each.
+- **Use `afterInitialize()`**: For any setup logic instead of overriding the constructor. Lifecycle methods (`configure`, `start`, `stop`) handle the server's runtime phases.
 - **State tracking**: Set `configured`, `listening`, `stopped`, and `port` on the state. This powers the introspection system.
 - **attach() is static**: It runs when the container first loads the server class. Use it for container-level setup if needed.
 - **Port from options**: Accept port via options schema and respect it in `start()`. Allow override via start options.
-- **JSDoc everything**: Every public method needs `@param`, `@returns`, `@example`.
+- **JSDoc everything**: Every public method needs `@param`, `@returns`, `@example`. Run `luca introspect` after changes to update generated docs.

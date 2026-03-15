@@ -1,5 +1,5 @@
 // Auto-generated scaffold and MCP readme content
-// Generated at: 2026-03-15T01:01:29.345Z
+// Generated at: 2026-03-15T02:08:10.847Z
 // Source: docs/scaffolds/*.md and docs/mcp/readme.md
 //
 // Do not edit manually. Run: luca build-scaffolds
@@ -20,8 +20,7 @@ export const scaffolds: Record<string, ScaffoldData> = {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'` },
+import { Feature } from '@soederpop/luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = FeatureStateSchema.extend({
   // Add your state fields here. These are observable — changes emit events.
   // Example: itemCount: z.number().default(0).describe('Number of items stored'),
@@ -40,8 +39,6 @@ export const {{PascalName}}EventsSchema = FeatureEventsSchema.extend({
 })` },
       { heading: "Class", code: `/**
  * {{description}}
- *
- * @example
  * \`\`\`typescript
  * const {{camelName}} = container.feature('{{camelName}}')
  * \`\`\`
@@ -53,15 +50,16 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
+
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
-    // Initialize state, set up resources
+  /**
+   * Called after the feature is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up initial state, start background tasks, etc.
   }
-
-  // Add your methods here. Every public method needs JSDoc.
 }` },
       { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
   interface AvailableFeatures {
@@ -76,7 +74,6 @@ export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
   interface AvailableFeatures {
@@ -104,11 +101,10 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override shortcut = 'features.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -117,7 +113,6 @@ export default {{PascalName}}` }
     full: `import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
   interface AvailableFeatures {
@@ -145,11 +140,10 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override shortcut = 'features.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -169,7 +163,6 @@ When to build a feature:
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 \`\`\`
 
 These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
@@ -201,11 +194,11 @@ export const {{PascalName}}EventsSchema = FeatureEventsSchema.extend({
 
 The class extends \`Feature\` with your state and options types. Static properties drive registration and introspection. Every public method needs a JSDoc block with \`@param\`, \`@returns\`, and \`@example\`.
 
+Running \`luca introspect\` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls \`container.features.describe('{{camelName}}')\` or \`luca describe {{camelName}}\`.
+
 \`\`\`ts
 /**
  * {{description}}
- *
- * @example
  * \`\`\`typescript
  * const {{camelName}} = container.feature('{{camelName}}')
  * \`\`\`
@@ -217,17 +210,20 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
+
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
-    // Initialize state, set up resources
+  /**
+   * Called after the feature is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up initial state, start background tasks, etc.
   }
-
-  // Add your methods here. Every public method needs JSDoc.
 }
 \`\`\`
+
+**Important**: You almost never need to override the constructor. Use \`afterInitialize()\` for any setup logic — it runs after the feature is fully wired into the container and has access to \`this.container\`, \`this.options\`, \`this.state\`, etc.
 
 ## Module Augmentation
 
@@ -261,7 +257,6 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
   interface AvailableFeatures {
@@ -289,11 +284,10 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override shortcut = 'features.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -314,8 +308,7 @@ export default {{PascalName}}
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'` },
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ClientStateSchema.extend({
   // Add your state fields here.
   // Example: authenticated: z.boolean().default(false).describe('Whether API auth is configured'),
@@ -341,15 +334,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    options = {
-      ...options,
-      baseURL: options.baseURL || 'https://api.example.com',
-    }
-    super(options, context)
+  /**
+   * Called after the client is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up default headers, configure auth, etc.
   }
 
   // Add API methods here. Each wraps an endpoint.
@@ -371,7 +363,6 @@ export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca/client' {
   interface AvailableClients {
@@ -401,11 +392,10 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super({ ...options, baseURL: options.baseURL }, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -414,7 +404,6 @@ export default {{PascalName}}` }
     full: `import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca/client' {
   interface AvailableClients {
@@ -444,11 +433,10 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super({ ...options, baseURL: options.baseURL }, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -468,7 +456,6 @@ When to build a client:
 import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 \`\`\`
 
 Use \`RestClient\` for HTTP APIs (most common). It gives you \`get\`, \`post\`, \`put\`, \`patch\`, \`delete\` methods that handle JSON, headers, and error wrapping.
@@ -491,6 +478,8 @@ export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
 
 ## Class
 
+Running \`luca introspect\` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls \`container.clients.describe('{{camelName}}')\` or \`luca describe {{camelName}}\`.
+
 \`\`\`ts
 /**
  * {{description}}
@@ -506,15 +495,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    options = {
-      ...options,
-      baseURL: options.baseURL || 'https://api.example.com',
-    }
-    super(options, context)
+  /**
+   * Called after the client is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up default headers, configure auth, etc.
   }
 
   // Add API methods here. Each wraps an endpoint.
@@ -524,6 +512,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   // }
 }
 \`\`\`
+
+**Important**: You almost never need to override the constructor. Use \`afterInitialize()\` for setup logic — it runs after the client is fully wired into the container. Set \`baseURL\` via the options schema default instead of constructor manipulation.
 
 ## Module Augmentation
 
@@ -553,7 +543,6 @@ export default {{PascalName}}
 import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca/client' {
   interface AvailableClients {
@@ -583,11 +572,10 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super({ ...options, baseURL: options.baseURL }, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -597,10 +585,11 @@ export default {{PascalName}}
 ## Conventions
 
 - **Extend RestClient for HTTP**: It gives you typed HTTP methods. Only use base \`Client\` if you need a non-HTTP protocol.
-- **Set baseURL in constructor**: Override options to hardcode or default the API base URL.
+- **Set baseURL via options schema**: Use a Zod \`.default()\` on the \`baseURL\` field rather than overriding the constructor.
+- **Use \`afterInitialize()\`**: For any setup logic (auth, default headers, etc.) instead of overriding the constructor.
 - **Wrap endpoints as methods**: Each API endpoint gets a method. Keep them thin — just map to HTTP calls.
-- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`.
-- **Auth in options**: Pass API keys, tokens via options schema. Check them in the constructor or a setup method.
+- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`. Run \`luca introspect\` after changes to update generated docs.
+- **Auth in options**: Pass API keys, tokens via options schema. Check them in \`afterInitialize()\` or a setup method.
 `,
   },
   server: {
@@ -608,7 +597,7 @@ export default {{PascalName}}
       { heading: "Imports", code: `import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ServerStateSchema.extend({
   // Add your state fields here.
@@ -642,7 +631,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -688,7 +676,7 @@ export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -721,7 +709,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -756,7 +743,7 @@ export default {{PascalName}}` }
     full: `import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -789,7 +776,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -835,7 +821,7 @@ When to build a server:
 import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 \`\`\`
 
@@ -862,6 +848,8 @@ export const {{PascalName}}EventsSchema = ServerEventsSchema.extend({
 
 ## Class
 
+Running \`luca introspect\` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls \`container.servers.describe('{{camelName}}')\` or \`luca describe {{camelName}}\`.
+
 \`\`\`ts
 /**
  * {{description}}
@@ -879,7 +867,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -942,7 +929,7 @@ export default {{PascalName}}
 import { z } from 'zod'
 import { Server } from '@soederpop/luca'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { ContainerContext, NodeContainer } from '@soederpop/luca'
+import type { NodeContainer } from '@soederpop/luca'
 import type { ServersInterface } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
@@ -975,7 +962,6 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
   static { Server.register(this, '{{camelName}}') }
 
   static override attach(container: NodeContainer & ServersInterface) {
@@ -1011,10 +997,11 @@ export default {{PascalName}}
 ## Conventions
 
 - **Lifecycle**: Implement \`configure()\`, \`start()\`, and \`stop()\`. Check guards (\`isConfigured\`, \`isListening\`, \`isStopped\`) at the top of each.
+- **Use \`afterInitialize()\`**: For any setup logic instead of overriding the constructor. Lifecycle methods (\`configure\`, \`start\`, \`stop\`) handle the server's runtime phases.
 - **State tracking**: Set \`configured\`, \`listening\`, \`stopped\`, and \`port\` on the state. This powers the introspection system.
 - **attach() is static**: It runs when the container first loads the server class. Use it for container-level setup if needed.
 - **Port from options**: Accept port via options schema and respect it in \`start()\`. Allow override via start options.
-- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`.
+- **JSDoc everything**: Every public method needs \`@param\`, \`@returns\`, \`@example\`. Run \`luca introspect\` after changes to update generated docs.
 `,
   },
   command: {

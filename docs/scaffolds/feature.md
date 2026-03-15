@@ -13,7 +13,6 @@ When to build a feature:
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 ```
 
 These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
@@ -45,11 +44,11 @@ export const {{PascalName}}EventsSchema = FeatureEventsSchema.extend({
 
 The class extends `Feature` with your state and options types. Static properties drive registration and introspection. Every public method needs a JSDoc block with `@param`, `@returns`, and `@example`.
 
+Running `luca introspect` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls `container.features.describe('{{camelName}}')` or `luca describe {{camelName}}`.
+
 ```ts
 /**
  * {{description}}
- *
- * @example
  * ```typescript
  * const {{camelName}} = container.feature('{{camelName}}')
  * ```
@@ -61,17 +60,20 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
   static override eventsSchema = {{PascalName}}EventsSchema
-  static override description = '{{description}}'
+
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
-    // Initialize state, set up resources
+  /**
+   * Called after the feature is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up initial state, start background tasks, etc.
   }
-
-  // Add your methods here. Every public method needs JSDoc.
 }
 ```
+
+**Important**: You almost never need to override the constructor. Use `afterInitialize()` for any setup logic — it runs after the feature is fully wired into the container and has access to `this.container`, `this.options`, `this.state`, etc.
 
 ## Module Augmentation
 
@@ -105,7 +107,6 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
 import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
   interface AvailableFeatures {
@@ -133,11 +134,10 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override shortcut = 'features.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Feature.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super(options, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 

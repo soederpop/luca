@@ -13,7 +13,6 @@ When to build a client:
 import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 ```
 
 Use `RestClient` for HTTP APIs (most common). It gives you `get`, `post`, `put`, `patch`, `delete` methods that handle JSON, headers, and error wrapping.
@@ -36,6 +35,8 @@ export type {{PascalName}}Options = z.infer<typeof {{PascalName}}OptionsSchema>
 
 ## Class
 
+Running `luca introspect` captures JSDoc blocks and Zod schemas and includes them in the description whenever somebody calls `container.clients.describe('{{camelName}}')` or `luca describe {{camelName}}`.
+
 ```ts
 /**
  * {{description}}
@@ -51,15 +52,14 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    options = {
-      ...options,
-      baseURL: options.baseURL || 'https://api.example.com',
-    }
-    super(options, context)
+  /**
+   * Called after the client is initialized. Use this for any setup logic
+   * instead of overriding the constructor.
+   */
+  async afterInitialize() {
+    // Set up default headers, configure auth, etc.
   }
 
   // Add API methods here. Each wraps an endpoint.
@@ -69,6 +69,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   // }
 }
 ```
+
+**Important**: You almost never need to override the constructor. Use `afterInitialize()` for setup logic — it runs after the client is fully wired into the container. Set `baseURL` via the options schema default instead of constructor manipulation.
 
 ## Module Augmentation
 
@@ -98,7 +100,6 @@ export default {{PascalName}}
 import { z } from 'zod'
 import { Client, RestClient } from '@soederpop/luca/client'
 import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca/client' {
   interface AvailableClients {
@@ -128,11 +129,10 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override shortcut = 'clients.{{camelName}}' as const
   static override stateSchema = {{PascalName}}StateSchema
   static override optionsSchema = {{PascalName}}OptionsSchema
-  static override description = '{{description}}'
   static { Client.register(this, '{{camelName}}') }
 
-  constructor(options: {{PascalName}}Options, context: ContainerContext) {
-    super({ ...options, baseURL: options.baseURL }, context)
+  async afterInitialize() {
+    // Setup logic goes here — not in the constructor
   }
 }
 
@@ -142,7 +142,8 @@ export default {{PascalName}}
 ## Conventions
 
 - **Extend RestClient for HTTP**: It gives you typed HTTP methods. Only use base `Client` if you need a non-HTTP protocol.
-- **Set baseURL in constructor**: Override options to hardcode or default the API base URL.
+- **Set baseURL via options schema**: Use a Zod `.default()` on the `baseURL` field rather than overriding the constructor.
+- **Use `afterInitialize()`**: For any setup logic (auth, default headers, etc.) instead of overriding the constructor.
 - **Wrap endpoints as methods**: Each API endpoint gets a method. Keep them thin — just map to HTTP calls.
-- **JSDoc everything**: Every public method needs `@param`, `@returns`, `@example`.
-- **Auth in options**: Pass API keys, tokens via options schema. Check them in the constructor or a setup method.
+- **JSDoc everything**: Every public method needs `@param`, `@returns`, `@example`. Run `luca introspect` after changes to update generated docs.
+- **Auth in options**: Pass API keys, tokens via options schema. Check them in `afterInitialize()` or a setup method.
