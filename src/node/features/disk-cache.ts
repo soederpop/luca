@@ -36,15 +36,17 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   static override optionsSchema = DiskCacheOptionsSchema
   static { Feature.register(this, 'diskCache') }
 
-  constructor(options: DiskCacheOptions, context: ContainerContext) {
-    super(options, context)
-    this._cache = this.create() 
-    this.hide('_cache')
-  }
-  
   /** Returns the underlying cacache instance configured with the cache directory path. */
   get cache() {
-    return this._cache
+    if(this._cache) { 
+	    return this._cache
+    }
+
+    const cache = this.create()
+
+    Object.defineProperty(this, '_cache', { value: cache, enumerable: false })
+
+    return cache
   }
   
   /**
