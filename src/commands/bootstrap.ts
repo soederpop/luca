@@ -74,6 +74,37 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	// ── 8. luca.cli.ts ─────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('luca.cli.ts'), bootstrapTemplates['luca-cli'] || '', 'luca.cli.ts')
 
+	// ── 9. .claude/settings.json (permissions for AI coding tools) ──
+	const settingsPath = mkPath('.claude', 'settings.json')
+	const claudeSettings = {
+		permissions: {
+			allow: [
+				'Bash(luca *)',
+				'Bash(bun run *)',
+				'Bash(bun test *)',
+			],
+		},
+	}
+
+	if (!fs.exists(settingsPath)) {
+		await fs.ensureFolder(mkPath('.claude'))
+		await writeFile(fs, ui, settingsPath, JSON.stringify(claudeSettings, null, 2) + '\n', '.claude/settings.json')
+	} else {
+		// Merge luca permissions into existing settings
+		try {
+			const existing = JSON.parse(fs.readFile(settingsPath) as string)
+			const perms = existing.permissions || {}
+			const allow = new Set(perms.allow || [])
+			for (const rule of claudeSettings.permissions.allow) {
+				allow.add(rule)
+			}
+			existing.permissions = { ...perms, allow: [...allow] }
+			await writeFile(fs, ui, settingsPath, JSON.stringify(existing, null, 2) + '\n', '.claude/settings.json (merged)')
+		} catch {
+			ui.print.yellow('  ⚠ Could not parse existing .claude/settings.json, skipping merge')
+		}
+	}
+
 	// ── Summary ────────────────────────────────────────────────────
 	ui.print('')
 	ui.print.green('  ✓ Bootstrap complete!\n')

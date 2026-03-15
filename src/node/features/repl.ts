@@ -87,14 +87,14 @@ export class Repl<
       this._historyPath = this.container.paths.resolve(userHistoryPath)
     } else {
       const cwdHash = this.container.utils.hashObject(this.container.cwd)
-      this._historyPath = this.container.paths.join(process.env.HOME!, '.cache', 'luca', `repl-${cwdHash}.history`)
+      this._historyPath = this.container.paths.resolve(process.env.HOME!, '.cache', 'luca', `repl-${cwdHash}.history`)
     }
 
     this.container.fs.ensureFolder(this.container.paths.dirname(this._historyPath))
 
     // Load existing history
     try {
-      const content = fs.readFileSync(this._historyPath, 'utf-8')
+      const content = fs.readFile(this._historyPath, 'utf-8')
       this._history = content.split('\n').filter(Boolean).reverse()
     } catch {}
 
@@ -102,6 +102,7 @@ export class Repl<
     this._vmContext = vm.createContext({
       ...this.container.context,
       ...options.context,
+      setTimeout, setInterval, process, clearInterval, clearTimeout, Buffer, URL, URLSearchParams,
       // @ts-ignore
       client: (...args: any[]) => this.container.client(...args),
     })

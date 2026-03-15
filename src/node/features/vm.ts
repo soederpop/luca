@@ -155,6 +155,15 @@ export class VM<
   createContext(ctx: any = {}) {
     if (this.isContext(ctx)) return ctx
     return vm.createContext({
+      console,
+      setTimeout,
+      setInterval,
+      clearTimeout,
+      clearInterval,
+      process,
+      Buffer,
+      URL,
+      URLSearchParams,
       ...this.container.context,
       ...ctx
     })
@@ -340,6 +349,14 @@ export class VM<
       exports: {},
       module: { exports: {} },
       console,
+      setTimeout,
+      setInterval,
+      clearTimeout,
+      clearInterval,
+      process,
+      Buffer,
+      URL,
+      URLSearchParams,
       ...ctx,
     })
 
