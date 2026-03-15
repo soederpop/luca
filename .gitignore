@@ -50,3 +50,10 @@ playground/
 
 # claude
 .claude/settings.local.json
+
+# These are a pain in the ass 
+src/bootstrap/generated.ts
+src/introspection/generated.agi.ts
+src/introspection/generated.node.ts
+src/introspection/generated.web.ts
+src/scaffolds/generated.ts
