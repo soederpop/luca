@@ -13,6 +13,14 @@ export function toCamelCase(str: string): string {
 	return pascal.charAt(0).toLowerCase() + pascal.slice(1)
 }
 
+/** Convert a string to kebab-case */
+export function toKebabCase(str: string): string {
+	return str
+		.replace(/([a-z])([A-Z])/g, '$1-$2')
+		.replace(/[_\s]+/g, '-')
+		.toLowerCase()
+}
+
 /** Apply mustache-style template variables to scaffold code */
 export function applyTemplate(template: string, vars: Record<string, string>): string {
 	let result = template
@@ -30,6 +38,7 @@ export function generateScaffold(type: string, name: string, description?: strin
 	const vars = {
 		PascalName: toPascalCase(name),
 		camelName: toCamelCase(name),
+		kebabName: toKebabCase(name),
 		description: description || `A ${type} that does something useful`,
 	}
 

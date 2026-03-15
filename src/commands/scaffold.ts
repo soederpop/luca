@@ -3,7 +3,7 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import { scaffolds, assistantFiles } from '../scaffolds/generated.js'
-import { generateScaffold, toCamelCase } from '../scaffolds/template.js'
+import { generateScaffold, toCamelCase, toKebabCase } from '../scaffolds/template.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -15,7 +15,8 @@ const validTypes = [...Object.keys(scaffolds), 'assistant']
 
 export const argsSchema = CommandOptionsSchema.extend({
 	description: z.string().optional().describe('Brief description of the helper'),
-	output: z.string().optional().describe('Output file path (defaults to stdout)'),
+	output: z.string().optional().describe('Output file path (overrides default location)'),
+	print: z.boolean().default(false).describe('Print the generated code to stdout instead of writing a file'),
 	tutorial: z.boolean().default(false).describe('Show the full tutorial instead of generating code'),
 })
 
@@ -67,7 +68,8 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		ui.print('  Usage:  luca scaffold <type> <name> [options]\n')
 		ui.print('  Options:')
 		ui.print('    --description "..."   Brief description (shows in help text and docs)')
-		ui.print('    --output <path>       Write to file instead of stdout')
+		ui.print('    --output <path>       Override the default output file path')
+		ui.print('    --print               Print to stdout instead of writing a file')
 		ui.print('    --tutorial            Show the full guide for a type instead of generating code\n')
 
 		ui.print('  Types:\n')
@@ -79,21 +81,21 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		}
 
 		ui.print('  Examples:\n')
-		ui.print('    # Generate a command and write it to the right place')
-		ui.print('    luca scaffold command deploy --description "Deploy to production" --output commands/deploy.ts\n')
-		ui.print('    # Generate a feature (prints to stdout — pipe or copy)')
-		ui.print('    luca scaffold feature diskCache --description "File-backed key-value cache"\n')
-		ui.print('    # Generate an endpoint and save it')
-		ui.print('    luca scaffold endpoint users --description "User management API" --output endpoints/users.ts\n')
+		ui.print('    # Generate a command (writes to commands/deploy.ts)')
+		ui.print('    luca scaffold command deploy --description "Deploy to production"\n')
+		ui.print('    # Generate a feature (writes to features/disk-cache.ts)')
+		ui.print('    luca scaffold feature disk-cache --description "File-backed key-value cache"\n')
+		ui.print('    # Print to stdout instead of writing')
+		ui.print('    luca scaffold endpoint users --print\n')
 		ui.print('    # Read the full tutorial for a type')
 		ui.print('    luca scaffold feature --tutorial')
 		ui.print('    luca scaffold endpoint --tutorial\n')
 
 		ui.print('  Workflow:\n')
-		ui.print('    1. luca scaffold <type> <name> --output <path>   Generate the file')
+		ui.print('    1. luca scaffold <type> <name>    Generate the file')
 		ui.print('    2. Edit the generated file — add your logic')
-		ui.print('    3. luca about                                    Verify it was discovered')
-		ui.print('    4. luca describe <name>                          See the generated docs\n')
+		ui.print('    3. luca about                     Verify it was discovered')
+		ui.print('    4. luca describe <name>           See the generated docs\n')
 
 		if (type && !validTypes.includes(type)) {
 			ui.print.yellow(`  "${type}" is not a valid type. Available: ${validTypes.join(', ')}\n`)
@@ -174,17 +176,37 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		return
 	}
 
-	// Write to file or stdout
-	if (options.output) {
-		const fs = container.feature('fs')
-		const dir = container.paths.resolve(options.output, '..')
-		await fs.ensureFolder(dir)
-		await fs.writeFileAsync(options.output, code)
-		ui.print.green(`  ✓ Wrote ${type} scaffold to ${options.output}`)
-		ui.print.dim(`  Next: edit the file, then run \`luca about\` to verify discovery\n`)
-	} else {
+	// --print: just output to stdout
+	if (options.print) {
 		console.log(code)
+		return
 	}
+
+	// Default: write to file
+	const kebabName = toKebabCase(name)
+	const defaultPaths: Record<string, string> = {
+		feature: `features/${kebabName}.ts`,
+		client: `clients/${kebabName}.ts`,
+		server: `servers/${kebabName}.ts`,
+		command: `commands/${kebabName}.ts`,
+		endpoint: `endpoints/${kebabName}.ts`,
+	}
+	const outputPath = options.output || defaultPaths[type] || `${type}s/${kebabName}.ts`
+	const fs = container.feature('fs')
+	const resolvedPath = container.paths.resolve(outputPath)
+
+	// Check if file already exists
+	if (await fs.existsAsync(resolvedPath)) {
+		ui.print.yellow(`  ✗ File already exists: ${outputPath}`)
+		ui.print.dim(`  Use --output <path> to write to a different location, or --print to view the code\n`)
+		return
+	}
+
+	const dir = container.paths.resolve(outputPath, '..')
+	await fs.ensureFolder(dir)
+	await fs.writeFileAsync(resolvedPath, code)
+	ui.print.green(`  ✓ Wrote ${type} scaffold to ${outputPath}`)
+	ui.print.dim(`  Next: edit the file, then run \`luca about\` to verify discovery\n`)
 }
 
 commands.registerHandler('scaffold', {

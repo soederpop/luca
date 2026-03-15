@@ -49,7 +49,7 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 Register the command at the bottom of the file. The `description` shows up in `luca --help`.
 
 ```ts
-commands.registerHandler('{{camelName}}', {
+commands.registerHandler('{{kebabName}}', {
   description: '{{description}}',
   argsSchema,
   handler: {{camelName}},
@@ -63,7 +63,7 @@ Optional but gives TypeScript autocomplete for `commands.lookup('yourCommand')`.
 ```ts
 declare module '@soederpop/luca' {
   interface AvailableCommands {
-    {{camelName}}: ReturnType<typeof commands.registerHandler>
+    '{{kebabName}}': ReturnType<typeof commands.registerHandler>
   }
 }
 ```
@@ -77,7 +77,7 @@ import type { ContainerContext } from '@soederpop/luca'
 
 declare module '@soederpop/luca' {
   interface AvailableCommands {
-    {{camelName}}: ReturnType<typeof commands.registerHandler>
+    '{{kebabName}}': ReturnType<typeof commands.registerHandler>
   }
 }
 
@@ -87,10 +87,10 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
   const container = context.container as any
   const fs = container.feature('fs')
 
-  console.log('{{camelName}} running...')
+  console.log('{{kebabName}} running...')
 }
 
-commands.registerHandler('{{camelName}}', {
+commands.registerHandler('{{kebabName}}', {
   description: '{{description}}',
   argsSchema,
   handler: {{camelName}},
@@ -99,8 +99,8 @@ commands.registerHandler('{{camelName}}', {
 
 ## Conventions
 
-- **File location**: `commands/{{camelName}}.ts` in the project root. The `luca` CLI discovers these automatically.
-- **Naming**: camelCase for both file and registration ID. `luca my-command` maps to `commands/my-command.ts`.
+- **File location**: `commands/{{kebabName}}.ts` in the project root. The `luca` CLI discovers these automatically.
+- **Naming**: kebab-case for file and registration ID. `luca {{kebabName}}` maps to `commands/{{kebabName}}.ts`.
 - **Use the container**: Never import `fs`, `path`, `child_process` directly. Use `container.feature('fs')`, `container.paths`, `container.feature('proc')`.
 - **Positional args**: Access via `container.argv._` — it's an array where `_[0]` is the command name.
 - **Exit codes**: Return nothing for success. Throw for errors — the CLI catches and reports them.
