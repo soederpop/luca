@@ -1,5 +1,80 @@
 # Luca: Learning the Container at Runtime
 
+The Luca framework `@soederpop/luca` ships a binary `luca` that is a bun based, dependency injection tool.  This project is likely based on it if this skill is present. When you run the `luca` command, it will sometimes auto-discover and auto-load modules in the `commands/`, `clients/`, `servers/`, or `features/` folders when present.
+
+These modules are loaded through luca's VM which will inject the `container` as a global.  
+
+## `luca` CLI quick tutorial
+
+Running it like this will tell you all commands that are available (e.g. `luca describe`)
+
+```shell
+luca
+```
+
+You can see help for any command.  For learning about luca progressively, the describe command is your friend:
+
+```shell
+luca help describe
+luca describe --help
+```
+
+Outputs:
+
+```
+luca describe --help
+
+  luca describe  — Describe the container, registries, or individual helpers
+
+  Usage: luca describe [options]
+
+  Flags:
+
+    --json          Output introspection data as JSON instead of markdown
+    --pretty        Render markdown with terminal styling via ui.markdown
+    --title         Include the title header in the output (use --no-title to omit) (default: true)
+    --description   Show the description section
+    --usage         Show the usage section
+    --methods       Show the methods section
+    --getters       Show the getters section
+    --events        Show the events section
+    --state         Show the state section
+    --options       Show the options section
+    --env-vars      Show the envVars section
+    --envvars       Show the envVars section
+    --examples      Show the examples section
+```
+
+You can describe multiple things at once:
+
+```shell
+luca describe self # describes the container
+luca describe git fs proc networking # describe all of these features in concatenated output
+```
+
+Or you can request only specific aspects of the documentation (e.g. examples)
+
+```shell
+luca describe git fs --examples --usage
+```
+
+This is pretty helpful if you already kind of know which features you want to use and want the necessary context in a single document.
+
+## Testing snippets of luca code
+
+You can test snippets with the `luca eval` command.
+
+```shell
+luca eval "container.feature('proc').exec('ls')"
+```
+
+The `eval` command automatically discovers and registers every helper.
+
+## The Luca REPL / Console
+
+You can run `luca console` and have a REPL.  If you have TTY capabilities this is a very useful tool and can stay alive.
+
+
 Everything starts with `container`. You don't need to memorize APIs — you need to know the shape of things and how to ask the container what it can do. This guide teaches you that shape. From there, the system reveals itself.
 
 ## The Container
