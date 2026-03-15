@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
-import { scaffolds } from '../scaffolds/generated.js'
+import { scaffolds, assistantFiles } from '../scaffolds/generated.js'
 import { generateScaffold, toCamelCase } from '../scaffolds/template.js'
 
 declare module '../command.js' {
@@ -11,7 +11,7 @@ declare module '../command.js' {
 	}
 }
 
-const validTypes = Object.keys(scaffolds)
+const validTypes = [...Object.keys(scaffolds), 'assistant']
 
 export const argsSchema = CommandOptionsSchema.extend({
 	description: z.string().optional().describe('Brief description of the helper'),
@@ -44,6 +44,11 @@ const TYPE_INFO: Record<string, { what: string; where: string; run: string }> = 
 		what: 'A REST API route auto-discovered by `luca serve`',
 		where: 'endpoints/<name>.ts',
 		run: 'luca serve → GET/POST /api/<name>',
+	},
+	assistant: {
+		what: 'An AI assistant with a system prompt, tools, and lifecycle hooks',
+		where: 'assistants/<name>/',
+		run: 'luca chat <name>',
 	},
 }
 
@@ -128,8 +133,37 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		} else if (type === 'endpoint') {
 			ui.print(`    luca scaffold endpoint users --description "User management API"`)
 			ui.print(`    luca scaffold endpoint users --output endpoints/users.ts`)
+		} else if (type === 'assistant') {
+			ui.print(`    luca scaffold assistant chief-of-staff`)
+			ui.print(`    luca scaffold assistant chief-of-staff --output assistants/chief-of-staff`)
 		}
 		ui.print(`\n    luca scaffold ${type} --tutorial    Full guide with patterns and conventions\n`)
+		return
+	}
+
+	// ── Assistant: multi-file scaffold ───────────────────────────
+	if (type === 'assistant') {
+		if (!assistantFiles || Object.keys(assistantFiles).length === 0) {
+			ui.print.yellow('No assistant scaffold files bundled. Rebuild with: luca build-scaffolds')
+			return
+		}
+
+		const outputDir = options.output || `assistants/${toCamelCase(name)}`
+		const fs = container.feature('fs')
+		const resolvedDir = container.paths.resolve(outputDir)
+
+		await fs.ensureFolder(resolvedDir)
+
+		for (const [fileName, content] of Object.entries(assistantFiles)) {
+			const filePath = container.paths.resolve(resolvedDir, fileName)
+			await fs.writeFileAsync(filePath, content)
+		}
+
+		ui.print.green(`\n  ✓ Scaffolded assistant "${name}" in ${outputDir}/`)
+		ui.print.dim(`    CORE.md   — system prompt (edit this to define your assistant's personality)`)
+		ui.print.dim(`    tools.ts  — tool functions the assistant can call`)
+		ui.print.dim(`    hooks.ts  — lifecycle event handlers`)
+		ui.print(`\n  Start chatting:  luca chat ${name}\n`)
 		return
 	}
 
@@ -154,7 +188,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 }
 
 commands.registerHandler('scaffold', {
-	description: 'Generate boilerplate for a new luca feature, client, server, command, or endpoint',
+	description: 'Generate boilerplate for a new luca feature, client, server, command, endpoint, or assistant',
 	argsSchema,
 	handler: scaffoldCommand,
 })
