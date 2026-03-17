@@ -6,7 +6,18 @@ description: Learn the luca container at runtime — discovery patterns, CLI usa
 
 The Luca framework `@soederpop/luca` ships a binary `luca` that is a bun based, dependency injection tool.  This project is likely based on it if this skill is present. When you run the `luca` command, it will sometimes auto-discover and auto-load modules in the `commands/`, `clients/`, `servers/`, or `features/` folders when present.
 
-These modules are loaded through luca's VM which will inject the `container` as a global.  
+These modules are loaded through luca's VM which will inject the `container` as a global.
+
+**Start here:** The single most useful command is `luca describe`. It is your primary tool for understanding what the container can do. Before reading source files or searching for APIs, ask describe:
+
+```shell
+luca describe              # describe the container itself
+luca describe fs           # full docs for the fs feature
+luca describe features     # index of all available features
+luca describe git fs proc  # multiple helpers at once
+```
+
+Everything in luca is self-describing. `luca describe` outputs the documentation you need — methods, options, events, state, examples — directly in the terminal. Use it liberally.
 
 ## `luca` CLI quick tutorial
 

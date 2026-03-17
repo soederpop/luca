@@ -594,6 +594,18 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
             handler: commandModule.handler,
           }, name, 'commands')
           commands.register(name, Grafted as any)
+          continue
+        }
+
+        // 4. Plain default-exported function: export default async function name(options, context)
+        if (typeof mod.default === 'function' && !isNativeHelperClass(mod.default, Command)) {
+          const Grafted = graftModule(Command as any, {
+            description: mod.description || '',
+            argsSchema: mod.argsSchema,
+            positionals: mod.positionals,
+            handler: mod.default,
+          }, name, 'commands')
+          commands.register(name, Grafted as any)
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load command from ${absPath}: ${err.message}`)

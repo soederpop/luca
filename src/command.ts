@@ -306,6 +306,18 @@ export class CommandsRegistry extends Registry<Command<any>> {
 					handler: commandModule.handler,
 				}, name, 'commands')
 				this.register(name, Grafted as any)
+				continue
+			}
+
+			// 4. Plain default-exported function: export default async function name(options, context)
+			if (typeof mod.default === 'function' && !isNativeHelperClass(mod.default, Command)) {
+				const Grafted = graftModule(Command as any, {
+					description: mod.description || '',
+					argsSchema: mod.argsSchema,
+					positionals: mod.positionals,
+					handler: mod.default,
+				}, name, 'commands')
+				this.register(name, Grafted as any)
 			}
 		}
 	}

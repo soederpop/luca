@@ -112,8 +112,16 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print('    luca                  — see available commands')
 	ui.print('    luca about            — project info + discovered helpers')
 	ui.print('    luca serve            — start the API server (try /api/health)')
-	ui.print('    luca scaffold         — generate new commands, features, endpoints')
 	ui.print('    luca describe fs      — learn about any built-in feature')
+	ui.print('')
+	ui.print('  Need to build something? Use scaffold:\n')
+	ui.print('    luca scaffold command deploy    — add a CLI command')
+	ui.print('    luca scaffold feature cache     — add a container feature')
+	ui.print('    luca scaffold endpoint users    — add a REST route')
+	ui.print('    luca scaffold client github     — add an API client')
+	ui.print('    luca scaffold server mqtt       — add a server')
+	ui.print('')
+	ui.print.dim('    Run luca scaffold <type> --tutorial for a full guide on any type')
 	ui.print('')
 }
 

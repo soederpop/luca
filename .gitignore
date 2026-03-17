@@ -61,3 +61,4 @@ src/scaffolds/generated.ts
 
 # luca evaluation output from try-all-challenges
 attempts/
+docs/sessions
