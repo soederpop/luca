@@ -86,21 +86,11 @@ async function loadCliModule() {
 }
 
 async function discoverProjectCommands() {
-	const { fs, paths } = container
-
-	for (const candidate of ['commands', 'src/commands']) {
-		const dir = paths.resolve(candidate)
-		if (fs.exists(dir)) {
-			if (hasNodeModules()) {
-				await container.commands.discover({ directory: dir })
-			} else {
-				// Route through helpers feature for VM-based loading
-				const helpers = container.feature('helpers') as any
-				await helpers.discover('commands', { directory: dir })
-			}
-			return
-		}
-	}
+	// Always route through the helpers feature — it handles native import vs VM
+	// internally, and deduplicates concurrent/repeated discovery via promise caching.
+	// If luca.cli.ts already called helpers.discoverAll(), this resolves instantly.
+	const helpers = container.feature('helpers') as any
+	await helpers.discover('commands')
 }
 
 async function loadProjectIntrospection() {
@@ -124,11 +114,12 @@ async function loadProjectIntrospection() {
 }
 
 async function discoverUserCommands() {
-	const { fs } = container
 	const dir = join(homedir(), '.luca', 'commands')
 
-	if (fs.exists(dir)) {
-		await container.commands.discover({ directory: dir })
+	if (container.fs.exists(dir)) {
+		// Route through helpers for consistent dedup and VM/native handling
+		const helpers = container.feature('helpers') as any
+		await helpers.discover('commands', { directory: dir })
 	}
 }
 

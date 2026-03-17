@@ -277,24 +277,30 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * ```
    */
   async discover(type: RegistryType, options: { directory?: string } = {}): Promise<string[]> {
+    // Key by type + resolved directory so that different directories
+    // (e.g. project commands/ vs ~/.luca/commands/) are discovered independently
+    // while concurrent calls to the same directory coalesce on one promise.
+    const dir = options.directory || this.resolveFolderPath(type)
+    const cacheKey = dir ? `${type}:${dir}` : type
+
     // Return cached results if already completed
-    if (this._discoveryResults.has(type)) {
-      return this._discoveryResults.get(type)!
+    if (this._discoveryResults.has(cacheKey)) {
+      return this._discoveryResults.get(cacheKey)!
     }
 
     // If in-flight, await the same promise
-    if (this._discoveryPromises.has(type)) {
-      return this._discoveryPromises.get(type)!
+    if (this._discoveryPromises.has(cacheKey)) {
+      return this._discoveryPromises.get(cacheKey)!
     }
 
     // First caller — start the work and store the promise
-    const promise = this._doDiscover(type, options)
-    this._discoveryPromises.set(type, promise)
+    const promise = this._doDiscover(type, { directory: dir || undefined })
+    this._discoveryPromises.set(cacheKey, promise)
 
     const names = await promise
 
     // Cache the final results
-    this._discoveryResults.set(type, names)
+    this._discoveryResults.set(cacheKey, names)
 
     return names
   }
