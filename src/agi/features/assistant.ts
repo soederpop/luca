@@ -65,6 +65,8 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
 
+	local: z.boolean().default(false).describe('Whether to use our local models for this'),
+
 	/** History persistence mode: lifecycle (ephemeral), daily (auto-resume per day), persistent (single long-running thread), session (unique per run, resumable) */
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
 })
@@ -207,6 +209,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (!this._conversation) {
 			this._conversation = this.container.feature('conversation', {
 				model: this.options.model || 'gpt-5.2',
+				local: !!this.options.local,
 				tools: this._tools || this.loadTools(),
 				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
 				history: [

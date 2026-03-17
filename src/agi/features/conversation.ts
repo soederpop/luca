@@ -438,11 +438,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
 
 		if (this.options.local) {
-			baseURL = "http://localhost:11434/v1" 
+			baseURL = "http://localhost:1234/v1" 
 		}
 
 		return (this.container as any).client('openai', {
-			defaultModel: this.options.model || (this.options.local ? "qwen2.5:7b" : "gpt-4o"),
+			defaultModel: this.options.model || (this.options.local ? this.options.model || "qwen/qwen3-coder-30b" : "gpt-5"),
 			...this.options.clientOptions,
 			...(baseURL ? { baseURL } : {}),
 		}) as OpenAIClient
