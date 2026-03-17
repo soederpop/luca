@@ -171,6 +171,28 @@ export const CommandEventsSchema = HelperEventsSchema.extend({
   failed: z.tuple([z.any().describe('The error')]).describe('Emitted when command execution fails'),
 }).describe('Base command events')
 
+// Selector schemas
+export const SelectorStateSchema = HelperStateSchema.extend({
+  running: z.boolean().default(false).describe('Whether the selector is currently running'),
+  lastRanAt: z.number().optional().describe('Unix timestamp of last successful run'),
+}).describe('Base selector state')
+
+export const SelectorOptionsSchema = HelperOptionsSchema.extend({
+  dispatchSource: z.enum(['cli', 'headless', 'mcp', 'rpc']).default('headless').describe('How this selector was invoked'),
+}).describe('Base selector options')
+
+export interface SelectorRunResult<T = any> {
+  data: T
+  cached: boolean
+  cacheKey: string
+}
+
+export const SelectorEventsSchema = HelperEventsSchema.extend({
+  started: z.tuple([]).describe('Emitted when selector execution begins'),
+  completed: z.tuple([z.any().describe('The result data')]).describe('Emitted when selector execution finishes'),
+  failed: z.tuple([z.any().describe('The error')]).describe('Emitted when selector execution fails'),
+}).describe('Base selector events')
+
 // Endpoint schemas
 export const EndpointStateSchema = HelperStateSchema.extend({
   mounted: z.boolean().default(false).describe('Whether the endpoint is mounted on a server'),

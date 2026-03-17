@@ -10,7 +10,7 @@ declare module '../command.js' {
 	}
 }
 
-const REGISTRY_NAMES = ['features', 'clients', 'servers', 'commands', 'endpoints'] as const
+const REGISTRY_NAMES = ['features', 'clients', 'servers', 'commands', 'endpoints', 'selectors'] as const
 type RegistryName = (typeof REGISTRY_NAMES)[number]
 
 /** Maps flag names to the section they represent. 'description' is handled specially. */

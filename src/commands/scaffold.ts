@@ -46,6 +46,11 @@ const TYPE_INFO: Record<string, { what: string; where: string; run: string }> = 
 		where: 'endpoints/<name>.ts',
 		run: 'luca serve → GET/POST /api/<name>',
 	},
+	selector: {
+		what: 'A cached data query — returns structured results from the container',
+		where: 'selectors/<name>.ts',
+		run: 'luca select <name> or container.select(\'<name>\')',
+	},
 	assistant: {
 		what: 'An AI assistant with a system prompt, tools, and lifecycle hooks',
 		where: 'assistants/<name>/',
@@ -135,6 +140,9 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		} else if (type === 'endpoint') {
 			ui.print(`    luca scaffold endpoint users --description "User management API"`)
 			ui.print(`    luca scaffold endpoint users --output endpoints/users.ts`)
+		} else if (type === 'selector') {
+			ui.print(`    luca scaffold selector package-info --description "Returns parsed package.json data"`)
+			ui.print(`    luca scaffold selector package-info --output selectors/package-info.ts`)
 		} else if (type === 'assistant') {
 			ui.print(`    luca scaffold assistant chief-of-staff`)
 			ui.print(`    luca scaffold assistant chief-of-staff --output assistants/chief-of-staff`)
@@ -190,6 +198,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		server: `servers/${kebabName}.ts`,
 		command: `commands/${kebabName}.ts`,
 		endpoint: `endpoints/${kebabName}.ts`,
+		selector: `selectors/${kebabName}.ts`,
 	}
 	const outputPath = options.output || defaultPaths[type] || `${type}s/${kebabName}.ts`
 	const fs = container.feature('fs')

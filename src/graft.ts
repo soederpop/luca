@@ -1,7 +1,7 @@
 import { Helper } from './helper.js'
 import { z } from 'zod'
 
-export type GraftScope = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints'
+export type GraftScope = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints' | 'selectors'
 
 /**
  * Export names that map to static class properties or receive special handling.
@@ -14,6 +14,7 @@ const RESERVED_EXPORTS = new Set([
 	'positionals',
 	'getters',
 	'run', 'handler',
+	'cacheKey', 'cacheable',
 	'default',
 ])
 
@@ -96,6 +97,13 @@ export function graftModule<T extends typeof Helper>(
 		}
 	}
 
+	// Selector-specific statics (must be set before Object.assign)
+	if (scope === 'selectors') {
+		statics.cacheable = moduleExports.cacheable !== false
+		statics.selectorDescription = moduleExports.description ?? ''
+		statics.argsSchema = moduleExports.argsSchema ?? moduleExports.args ?? optionsSchema
+	}
+
 	Object.assign(GraftedClass, statics)
 
 	// Wire run() for Command scope
@@ -109,6 +117,23 @@ export function graftModule<T extends typeof Helper>(
 			const handlerFn = moduleExports.handler
 			;(GraftedClass as any).prototype.run = async function (args: any, context: any) {
 				return handlerFn(args, context)
+			}
+		}
+	}
+
+	// Wire run() and resolveCacheKey() for Selector scope
+	if (scope === 'selectors') {
+		if (typeof moduleExports.run === 'function') {
+			const runFn = moduleExports.run
+			;(GraftedClass as any).prototype.run = async function (args: any, context: any) {
+				return runFn(args, context)
+			}
+		}
+
+		if (typeof moduleExports.cacheKey === 'function') {
+			const cacheKeyFn = moduleExports.cacheKey
+			;(GraftedClass as any).prototype.resolveCacheKey = function (args: any, context: any) {
+				return cacheKeyFn(args, context)
 			}
 		}
 	}
@@ -146,6 +171,7 @@ const SCOPE_SUFFIXES: Record<string, string> = {
 	servers: 'Server',
 	commands: 'Command',
 	endpoints: 'Endpoint',
+	selectors: 'Selector',
 }
 
 function pascalCase(id: string): string {

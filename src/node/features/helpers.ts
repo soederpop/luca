@@ -7,6 +7,7 @@ import { Server, servers } from '../../server.js'
 import { Command, commands } from '../../command.js'
 import { graftModule, isNativeHelperClass } from '../../graft.js'
 import { endpoints } from '../../endpoint.js'
+import { Selector, selectors } from '../../selector.js'
 import type { Registry } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
 import type { VM } from './vm.js'
@@ -38,7 +39,7 @@ export const HelpersEventsSchema = FeatureEventsSchema.extend({
   ]).describe('Emitted when a single helper is registered'),
 })
 
-type RegistryType = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints'
+type RegistryType = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints' | 'selectors'
 
 const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
 
@@ -46,11 +47,11 @@ const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
  * The Helpers feature is a unified gateway for discovering and registering
  * project-level helpers from conventional folder locations.
  *
- * It scans known folder names (features/, clients/, servers/, commands/, endpoints/)
+ * It scans known folder names (features/, clients/, servers/, commands/, endpoints/, selectors/)
  * and handles registration differently based on the helper type:
  *
  * - Class-based (features, clients, servers): Dynamic import, validate subclass, register
- * - Config-based (commands, endpoints): Delegate to existing discovery mechanisms
+ * - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms
  *
  * @example
  * ```typescript
@@ -91,6 +92,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       servers: { registry: servers, baseClass: Server, folders: ['servers'] },
       commands: { registry: commands, baseClass: null, folders: ['commands'] },
       endpoints: { registry: endpoints, baseClass: null, folders: ['endpoints'] },
+      selectors: { registry: selectors, baseClass: null, folders: ['selectors'] },
     }
   }
 
@@ -162,13 +164,18 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       servers,
       commands,
       endpoints,
+      selectors,
 
       // Registry classes
       ClientsRegistry: clients.constructor,
       CommandsRegistry: commands.constructor,
       EndpointsRegistry: endpoints.constructor,
       ServersRegistry: servers.constructor,
+      SelectorsRegistry: selectors.constructor,
       FeaturesRegistry: this.container.features.constructor,
+
+      // Helper subclasses
+      Selector,
 
       // The singleton container
       default: this.container,
@@ -360,7 +367,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   private async _doDiscoverAll(): Promise<Record<string, string[]>> {
     const results: Record<string, string[]> = {}
 
-    for (const type of ['features', 'clients', 'servers', 'commands', 'endpoints'] as RegistryType[]) {
+    for (const type of ['features', 'clients', 'servers', 'commands', 'endpoints', 'selectors'] as RegistryType[]) {
       results[type] = await this.discover(type)
     }
 
@@ -525,6 +532,12 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       }
     } else if (type === 'endpoints') {
       await this.discoverEndpoints(dir)
+    } else if (type === 'selectors') {
+      if (this.useNativeImport) {
+        await selectors.discover({ directory: dir })
+      } else {
+        await this.discoverSelectorsViaVM(dir)
+      }
     }
 
     const afterNames = new Set(registry.available)
@@ -584,6 +597,49 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load command from ${absPath}: ${err.message}`)
+      }
+    }
+  }
+
+  /**
+   * Discovers selectors using the VM's virtual module system.
+   * Mirrors discoverCommandsViaVM but uses selectors registry and Selector base class.
+   */
+  private async discoverSelectorsViaVM(dir: string): Promise<void> {
+    this.seedVirtualModules()
+    const { Glob } = globalThis.Bun || (await import('bun'))
+    const glob = new Glob('*.ts')
+
+    for await (const file of glob.scan({ cwd: dir })) {
+      if (file === 'index.ts') continue
+
+      const absPath = resolve(dir, file)
+      const name = file.replace(/\.ts$/, '')
+
+      if (selectors.has(name)) continue
+
+      try {
+        const mod = await this.loadModuleExports(absPath)
+
+        // 1. Class-based: default export extends Selector
+        if (isNativeHelperClass(mod.default, Selector)) {
+          const ExportedClass = mod.default
+          if (!ExportedClass.shortcut || ExportedClass.shortcut === 'selectors.base') {
+            ExportedClass.shortcut = `selectors.${name}`
+          }
+          selectors.register(name, ExportedClass)
+          continue
+        }
+
+        const selectorModule = mod.default || mod
+
+        // 2. Module-based with `run` export
+        if (typeof selectorModule.run === 'function') {
+          const Grafted = graftModule(Selector as any, selectorModule, name, 'selectors')
+          selectors.register(name, Grafted as any)
+        }
+      } catch (err: any) {
+        console.warn(`Helpers gateway: failed to load selector from ${absPath}: ${err.message}`)
       }
     }
   }

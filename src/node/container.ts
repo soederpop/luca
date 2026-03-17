@@ -12,6 +12,7 @@ import "../servers/socket";
 import "../servers/mcp";
 import { Command, type CommandsInterface } from "../command";
 import { Endpoint, type EndpointsInterface } from "../endpoint";
+import { Selector, type SelectorsInterface } from "../selector";
 
 import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
@@ -210,7 +211,7 @@ export interface NodeFeatures extends AvailableFeatures {
   dns: typeof Dns;
 }
 
-export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface;
+export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;
 
 export interface NodeContainer extends ClientsAndServersInterface {}
 
@@ -281,7 +282,7 @@ export class NodeContainer<
       }
     });
 
-    this.use(Client).use(Server).use(Command).use(Endpoint);
+    this.use(Client).use(Server).use(Command).use(Endpoint).use(Selector);
   }
 
   override get Feature() {
