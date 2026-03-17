@@ -337,6 +337,29 @@ function getContainerData(container: any, sections: (IntrospectionSection | 'des
 	}
 }
 
+/**
+ * Walk the prototype chain of a base class to collect shared methods and getters.
+ * These are the methods/getters inherited by all helpers in a registry.
+ */
+function collectSharedMembers(baseClass: any): { methods: string[]; getters: string[] } {
+	const methods: string[] = []
+	const getters: string[] = []
+
+	let proto = baseClass?.prototype
+	while (proto && proto.constructor.name !== 'Object') {
+		for (const k of Object.getOwnPropertyNames(proto)) {
+			if (k === 'constructor' || k.startsWith('_')) continue
+			const desc = Object.getOwnPropertyDescriptor(proto, k)
+			if (!desc) continue
+			if (desc.get && !getters.includes(k)) getters.push(k)
+			else if (typeof desc.value === 'function' && !methods.includes(k)) methods.push(k)
+		}
+		proto = Object.getPrototypeOf(proto)
+	}
+
+	return { methods: methods.sort(), getters: getters.sort() }
+}
+
 function getRegistryData(container: any, registryName: RegistryName, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const available: string[] = registry.available
@@ -353,14 +376,43 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 		const jsonResult: Record<string, any> = {}
 		const textParts: string[] = [`${h} Available ${registryName} (${available.length})\n`]
 
+		// Show shared methods/getters from the base class at the top
+		const baseClass = registry.baseClass
+		if (baseClass) {
+			const shared = collectSharedMembers(baseClass)
+			const label = registryName === 'features' ? 'Feature'
+				: registryName === 'clients' ? 'Client'
+				: registryName === 'servers' ? 'Server'
+				: registryName[0]!.toUpperCase() + registryName.slice(1).replace(/s$/, '')
+
+			if (shared.getters.length) {
+				textParts.push(`**Shared ${label} Getters:** ${shared.getters.join(', ')}\n`)
+			}
+			if (shared.methods.length) {
+				textParts.push(`**Shared ${label} Methods:** ${shared.methods.map(m => m + '()').join(', ')}\n`)
+			}
+
+			jsonResult._shared = { methods: shared.methods, getters: shared.getters }
+		}
+
 		for (const id of available) {
 			const Ctor = registry.lookup(id)
 			const introspection = Ctor.introspect?.()
 			const description = introspection?.description || Ctor.description || 'No description provided'
 			// Take only the first 1-2 sentences as the summary
 			const summary = extractSummary(description)
-			jsonResult[id] = { description: summary }
-			textParts.push(`${hSub} ${id}\n\n${summary}\n`)
+
+			const featureGetters = Object.keys(introspection?.getters || {}).sort()
+			const featureMethods = Object.keys(introspection?.methods || {}).sort()
+
+			jsonResult[id] = { description: summary, methods: featureMethods, getters: featureGetters }
+
+			const memberLines: string[] = []
+			if (featureGetters.length) memberLines.push(`  getters: ${featureGetters.join(', ')}`)
+			if (featureMethods.length) memberLines.push(`  methods: ${featureMethods.map(m => m + '()').join(', ')}`)
+
+			const memberBlock = memberLines.length ? '\n' + memberLines.join('\n') + '\n' : ''
+			textParts.push(`${hSub} ${id}\n\n${summary}\n${memberBlock}`)
 		}
 
 		return { json: jsonResult, text: textParts.join('\n') }
