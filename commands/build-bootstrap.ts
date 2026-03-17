@@ -22,7 +22,7 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 	const entries: Record<string, string> = {}
 
 	for (const file of mdFiles) {
-		const content = (await fs.readFileAsync(`${sourceDir}/${file}`)).toString()
+		const content = await fs.readFileAsync(`${sourceDir}/${file}`)
 		const name = file.replace(/\.md$/, '')
 		entries[name] = content
 		console.log(`   ${name}: ${content.length} chars`)
@@ -34,7 +34,7 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 	if (fs.exists(templatesDir)) {
 		const templateFiles = await fs.readdir(templatesDir)
 		for (const file of templateFiles) {
-			const content = (await fs.readFileAsync(`${templatesDir}/${file}`)).toString()
+			const content = await fs.readFileAsync(`${templatesDir}/${file}`)
 			const name = file.replace(/\.[^.]+$/, '') // strip any extension
 			templates[name] = content
 			console.log(`   template/${name}: ${content.length} chars`)

@@ -19,7 +19,7 @@ export async function get(_parameters: any, ctx: EndpointContext) {
 
   for (const relativePath of promptFiles) {
     const name = relativePath.split('/')[1]
-    const prompt = (await fs.readFileAsync(container.paths.resolve(relativePath))).toString()
+    const prompt = await fs.readFileAsync(container.paths.resolve(relativePath))
     const lines = prompt.split('\n').filter((l: string) => l.trim())
     const title = lines[0]?.replace(/^#+\s*/, '') || name
     const description = lines[1] || ''
