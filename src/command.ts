@@ -1,9 +1,12 @@
 import { Helper } from './helper.js'
 import type { Container, ContainerContext } from './container.js'
 import { Registry } from './registry.js'
-import { CommandStateSchema, CommandOptionsSchema, CommandEventsSchema } from './schemas/base.js'
+import { CommandStateSchema, CommandOptionsSchema, CommandEventsSchema, type DispatchSource, type CommandRunResult } from './schemas/base.js'
 import { z } from 'zod'
 import { join } from 'path'
+import { graftModule, isNativeHelperClass } from './graft.js'
+
+export type { DispatchSource, CommandRunResult }
 
 export type CommandState = z.infer<typeof CommandStateSchema>
 export type CommandOptions = z.infer<typeof CommandOptionsSchema>
@@ -22,6 +25,24 @@ export interface CommandsInterface {
 
 export type CommandHandler<T = any> = (options: T, context: ContainerContext) => Promise<void>
 
+/**
+ * Type helper for module-augmentation of AvailableCommands when using the
+ * SimpleCommand (module-based) pattern instead of a full class.
+ *
+ * @example
+ * ```typescript
+ * declare module '@soederpop/luca' {
+ *   interface AvailableCommands {
+ *     serve: SimpleCommand<typeof argsSchema>
+ *   }
+ * }
+ * ```
+ */
+export type SimpleCommand<Schema extends z.ZodType = z.ZodType> = typeof Command & {
+	argsSchema: Schema
+	positionals: string[]
+}
+
 export class Command<
 	T extends CommandState = CommandState,
 	K extends CommandOptions = CommandOptions
@@ -34,35 +55,73 @@ export class Command<
 
 	static commandDescription: string = ''
 	static argsSchema: z.ZodType = CommandOptionsSchema
+	static positionals: string[] = []
+
+	/** Self-register a Command subclass from a static initialization block. */
+	static register: (SubClass: typeof Command, id?: string) => typeof Command
 
 	override get initialState(): T {
 		return ({ running: false } as unknown) as T
 	}
 
+	/**
+	 * Parse raw CLI argv against this command's argsSchema.
+	 * Kept for backward compatibility with built-in commands.
+	 */
 	parseArgs(): any {
 		const schema = (this.constructor as typeof Command).argsSchema
 		return schema.parse(this.container.options)
 	}
 
-	async execute(): Promise<void> {
-		// override in subclass
+	/**
+	 * The user-defined command payload. Override this in class-based commands,
+	 * or export a `run` function in module-based commands.
+	 *
+	 * Receives clean, named args (positionals already mapped) and the container context.
+	 */
+	async run(_args: any, _context: ContainerContext): Promise<void> {
+		// override in subclass or grafted from module export
 	}
 
-	async run(): Promise<void> {
-		// Intercept --help before the command executes
-		if (this.container.argv.help) {
+	/**
+	 * Internal dispatch normalizer. Maps positionals for CLI, passes through named
+	 * args for headless, validates via argsSchema, captures output when headless.
+	 *
+	 * @param rawInput - Named args object. When omitted, reads from container.argv.
+	 * @param source - Override the dispatch source. Defaults to constructor option.
+	 */
+	async execute(rawInput?: Record<string, any>, source?: DispatchSource): Promise<CommandRunResult | void> {
+		const dispatchSource = source ?? (this._options as any).dispatchSource ?? 'cli'
+		const Cls = this.constructor as typeof Command
+
+		// Help intercept (CLI only) — must happen before schema validation
+		// so `luca somecommand --help` works even without required args
+		if (dispatchSource === 'cli' && (this.container as any).argv?.help) {
 			const { formatCommandHelp } = await import('./commands/help.js')
 			const ui = (this.container as any).feature('ui')
-			const name = (this.constructor as typeof Command).shortcut?.replace('commands.', '') || 'unknown'
+			const name = Cls.shortcut?.replace('commands.', '') || 'unknown'
 			console.log(formatCommandHelp(name, this.constructor, ui.colors))
 			return
 		}
 
+		// Build named args from raw input
+		const raw = rawInput ?? { ...(this.container as any).argv }
+		const named = this._normalizeInput(raw, dispatchSource)
+
+		// Validate against argsSchema
+		const parsed = Cls.argsSchema.parse(named)
+
+		// For headless dispatch, capture stdout/stderr
+		if (dispatchSource !== 'cli') {
+			return this._runCaptured(parsed)
+		}
+
+		// CLI path — lifecycle events + run
 		this.state.set('running', true)
 		this.emit('started')
 
 		try {
-			await this.execute()
+			await this.run(parsed, this.context)
 			this.state.set('running', false)
 			this.state.set('exitCode', 0)
 			this.emit('completed', 0)
@@ -72,6 +131,74 @@ export class Command<
 			this.emit('failed', err)
 			throw err
 		}
+	}
+
+	/**
+	 * The public entry point for dispatching a command.
+	 * Called by the CLI and other dispatch surfaces.
+	 */
+	async dispatch(rawInput?: Record<string, any>, source?: DispatchSource): Promise<CommandRunResult | void> {
+		return this.execute(rawInput, source)
+	}
+
+	/**
+	 * Map CLI positional args to named fields based on the command's positionals declaration.
+	 * For non-CLI dispatch, args are already named — pass through.
+	 */
+	private _normalizeInput(raw: Record<string, any>, source: DispatchSource): Record<string, any> {
+		if (source !== 'cli') return raw
+
+		const Cls = this.constructor as typeof Command
+		const positionals = Cls.positionals
+		if (!positionals.length) return raw
+
+		const result = { ...raw }
+
+		// Map raw._[1], raw._[2], etc. (skipping _[0] which is command name) to named fields
+		const posArgs: string[] = (raw._ || []).slice(1)
+		for (let i = 0; i < positionals.length; i++) {
+			if (posArgs[i] !== undefined && result[positionals[i]!] === undefined) {
+				result[positionals[i]!] = posArgs[i]
+			}
+		}
+
+		return result
+	}
+
+	/**
+	 * Run the command with stdout/stderr capture for headless dispatch.
+	 * Returns a CommandRunResult with captured output.
+	 *
+	 * NOTE: Uses global console mutation — not safe for concurrent headless dispatches.
+	 * A future iteration should pass a logger through context instead.
+	 */
+	private async _runCaptured(args: any): Promise<CommandRunResult> {
+		const captured = { stdout: '', stderr: '' }
+		const origLog = console.log.bind(console)
+		const origErr = console.error.bind(console)
+
+		console.log = (...a: any[]) => { captured.stdout += a.join(' ') + '\n' }
+		console.error = (...a: any[]) => { captured.stderr += a.join(' ') + '\n' }
+
+		let exitCode = 0
+		try {
+			this.state.set('running', true)
+			this.emit('started')
+			await this.run(args, this.context)
+			this.state.set('exitCode', 0)
+			this.emit('completed', 0)
+		} catch (err: any) {
+			exitCode = 1
+			this.state.set('exitCode', 1)
+			this.emit('failed', err)
+			captured.stderr += (err?.message || String(err)) + '\n'
+		} finally {
+			console.log = origLog
+			console.error = origErr
+			this.state.set('running', false)
+		}
+
+		return { exitCode, stdout: captured.stdout, stderr: captured.stderr }
 	}
 
 	static attach(container: Container<any> & CommandsInterface) {
@@ -104,6 +231,10 @@ export class CommandsRegistry extends Registry<Command<any>> {
 	override scope = 'commands'
 	override baseClass = Command as any
 
+	/**
+	 * Internal: register a command from a handler function.
+	 * Used by built-in commands. External commands should use the module export pattern.
+	 */
 	registerHandler<T = any>(
 		name: string,
 		opts: {
@@ -112,27 +243,27 @@ export class CommandsRegistry extends Registry<Command<any>> {
 			handler: CommandHandler<T>
 		},
 	) {
-		const handler = opts.handler
-		const argsSchema = opts.argsSchema || CommandOptionsSchema
-		const desc = opts.description || ''
+		const CommandClass = graftModule(
+			Command as any,
+			{
+				description: opts.description,
+				argsSchema: opts.argsSchema,
+				handler: opts.handler,
+			},
+			name,
+			'commands',
+		) as any
 
-		const CommandClass = class extends Command {
-			static override shortcut = `commands.${name}` as const
-			static override description = desc
-			static override commandDescription = desc
-			static override optionsSchema = argsSchema as any
-			static override argsSchema = argsSchema
-
-			override async execute() {
-				await handler(this.parseArgs(), this.context)
-			}
-		}
-
-		Object.defineProperty(CommandClass, 'name', { value: `${name}Command` })
-
-		return this.register(name, CommandClass as any)
+		return this.register(name, CommandClass)
 	}
 
+	/**
+	 * Discover and register commands from a directory.
+	 * Detection order:
+	 *   1. Default export is a class extending Command → register directly
+	 *   2. Module exports a `run` function → graft as SimpleCommand
+	 *   3. Module exports a `handler` function → legacy graft
+	 */
 	async discover(options: { directory: string }) {
 		const { Glob } = globalThis.Bun || (await import('bun'))
 		const glob = new Glob('*.ts')
@@ -140,19 +271,41 @@ export class CommandsRegistry extends Registry<Command<any>> {
 		for await (const file of glob.scan({ cwd: options.directory })) {
 			if (file === 'index.ts') continue
 
+			const name = file.replace(/\.ts$/, '')
+			if (this.has(name)) continue
+
 			const mod = await import(join(options.directory, file))
+
+			// 1. Class-based: default export extends Command
+			if (isNativeHelperClass(mod.default, Command)) {
+				const ExportedClass = mod.default
+				if (!ExportedClass.shortcut || ExportedClass.shortcut === 'commands.base') {
+					ExportedClass.shortcut = `commands.${name}`
+				}
+				if (!ExportedClass.commandDescription && ExportedClass.description) {
+					ExportedClass.commandDescription = ExportedClass.description
+				}
+				this.register(name, ExportedClass)
+				continue
+			}
+
 			const commandModule = mod.default || mod
 
-			// Support export-based command files (like endpoints).
-			// If the module exports a handler function, register it
-			// using the filename as the command name.
-			if (typeof commandModule.handler === 'function' && !this.has(file.replace(/\.ts$/, ''))) {
-				const name = file.replace(/\.ts$/, '')
-				this.registerHandler(name, {
-					description: commandModule.description || '',
+			// 2. Module-based with `run` export (new SimpleCommand pattern)
+			if (typeof commandModule.run === 'function') {
+				const Grafted = graftModule(Command as any, commandModule, name, 'commands')
+				this.register(name, Grafted as any)
+				continue
+			}
+
+			// 3. Legacy: `handler` export
+			if (typeof commandModule.handler === 'function') {
+				const Grafted = graftModule(Command as any, {
+					description: commandModule.description,
 					argsSchema: commandModule.argsSchema,
 					handler: commandModule.handler,
-				})
+				}, name, 'commands')
+				this.register(name, Grafted as any)
 			}
 		}
 	}
@@ -160,5 +313,52 @@ export class CommandsRegistry extends Registry<Command<any>> {
 
 export const commands = new CommandsRegistry()
 export const helperCache = new Map()
+
+/**
+ * Self-register a Command subclass from a static initialization block.
+ * Mirrors Feature.register / Client.register / Server.register pattern.
+ *
+ * @example
+ * ```typescript
+ * export class DeployCommand extends Command {
+ *   static override description = 'Deploy to production'
+ *   static override argsSchema = deployArgsSchema
+ *   static override positionals = ['environment']
+ *   static { Command.register(this, 'deploy') }
+ *
+ *   override async run(args, context) { ... }
+ * }
+ * ```
+ */
+Command.register = function registerCommand(
+	SubClass: typeof Command,
+	id?: string,
+) {
+	const registryId = id ?? (SubClass.name
+		? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1).replace(/Command$/, '')
+		: `command_${Date.now()}`)
+
+	if (!Object.getOwnPropertyDescriptor(SubClass, 'shortcut')?.value ||
+		(SubClass as any).shortcut === 'commands.base') {
+		;(SubClass as any).shortcut = `commands.${registryId}`
+	}
+
+	if (!(SubClass as any).commandDescription && (SubClass as any).description) {
+		;(SubClass as any).commandDescription = (SubClass as any).description
+	}
+
+	commands.register(registryId, SubClass as any)
+
+	if (!Object.getOwnPropertyDescriptor(SubClass, 'attach')) {
+		;(SubClass as any).attach = (container: any) => {
+			commands.register(registryId, SubClass as any)
+			return container
+		}
+	}
+
+	return SubClass
+}
+
+export { graftModule, isNativeHelperClass } from './graft.js'
 
 export default Command

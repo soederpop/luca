@@ -154,7 +154,16 @@ export const CommandStateSchema = HelperStateSchema.extend({
 
 export const CommandOptionsSchema = HelperOptionsSchema.extend({
   _: z.array(z.string()).default([]).describe('Positional arguments from minimist'),
+  dispatchSource: z.enum(['cli', 'headless', 'mcp', 'rpc']).default('cli').describe('How this command was invoked — controls arg normalization and output capture'),
 }).describe('Base command options parsed from argv')
+
+export type DispatchSource = 'cli' | 'headless' | 'mcp' | 'rpc'
+
+export interface CommandRunResult {
+  exitCode: number
+  stdout: string
+  stderr: string
+}
 
 export const CommandEventsSchema = HelperEventsSchema.extend({
   started: z.tuple([]).describe('Emitted when command execution begins'),

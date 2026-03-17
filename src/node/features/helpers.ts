@@ -4,7 +4,8 @@ import { Feature } from '../feature.js'
 import { Feature as UniversalFeature } from '../../feature.js'
 import { Client, clients } from '../../client.js'
 import { Server, servers } from '../../server.js'
-import { commands } from '../../command.js'
+import { Command, commands } from '../../command.js'
+import { graftModule, isNativeHelperClass } from '../../graft.js'
 import { endpoints } from '../../endpoint.js'
 import type { Registry } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
@@ -148,8 +149,12 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       Helper: Object.getPrototypeOf(UniversalFeature.prototype).constructor,
       Client,
       Server,
-      Command: commands.baseClass,
+      Command,
       Registry: Object.getPrototypeOf(this.container.features).constructor,
+
+      // Utilities
+      graftModule,
+      isNativeHelperClass,
 
       // Registries
       features: this.container.features,
@@ -447,24 +452,42 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         const mod = await this.loadModuleExports(absPath)
         const ExportedClass = mod.default || mod
 
-        if (typeof ExportedClass !== 'function') {
+        // Class-based: default export is a subclass of the base
+        if (typeof ExportedClass === 'function' && isNativeHelperClass(ExportedClass, baseClass)) {
+          const shortcut = ExportedClass.shortcut as string | undefined
+          const registryName = shortcut
+            ? shortcut.replace(`${type}.`, '')
+            : this.fileNameToRegistryName(fileName)
+
+          discovered.push(registryName)
+
+          if (!registry.has(registryName)) {
+            registry.register(registryName, ExportedClass)
+            this.emit('registered' as any, type, registryName, ExportedClass)
+          }
           continue
         }
 
-        if (!this.isSubclassOf(ExportedClass, baseClass)) {
-          continue
-        }
+        // Module-based: graft exports onto a generated subclass
+        const moduleExports = mod.default && typeof mod.default === 'object' ? mod.default : mod
+        const isGraftable = (
+          moduleExports.description !== undefined ||
+          moduleExports.stateSchema !== undefined ||
+          moduleExports.optionsSchema !== undefined ||
+          typeof moduleExports.run === 'function' ||
+          typeof moduleExports.handler === 'function'
+        )
 
-        const shortcut = ExportedClass.shortcut as string | undefined
-        const registryName = shortcut
-          ? shortcut.replace(`${type}.`, '')
-          : this.fileNameToRegistryName(fileName)
+        if (isGraftable) {
+          const registryName = this.fileNameToRegistryName(fileName)
+          const GraftedClass = graftModule(baseClass, moduleExports, registryName, type as any)
 
-        discovered.push(registryName)
+          discovered.push(registryName)
 
-        if (!registry.has(registryName)) {
-          registry.register(registryName, ExportedClass)
-          this.emit('registered' as any, type, registryName, ExportedClass)
+          if (!registry.has(registryName)) {
+            registry.register(registryName, GraftedClass as any)
+            this.emit('registered' as any, type, registryName, GraftedClass)
+          }
         }
 
       } catch (err: any) {
@@ -513,19 +536,43 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       if (file === 'index.ts') continue
 
       const absPath = resolve(dir, file)
+      const name = file.replace(/\.ts$/, '')
+
+      if (commands.has(name)) continue
 
       try {
         const mod = await this.loadModuleExports(absPath)
+
+        // 1. Class-based: default export extends Command
+        if (isNativeHelperClass(mod.default, Command)) {
+          const ExportedClass = mod.default
+          if (!ExportedClass.shortcut || ExportedClass.shortcut === 'commands.base') {
+            ExportedClass.shortcut = `commands.${name}`
+          }
+          if (!ExportedClass.commandDescription && ExportedClass.description) {
+            ExportedClass.commandDescription = ExportedClass.description
+          }
+          commands.register(name, ExportedClass)
+          continue
+        }
+
         const commandModule = mod.default || mod
 
-        // Support export-based command files
-        if (typeof commandModule.handler === 'function' && !commands.has(file.replace(/\.ts$/, ''))) {
-          const name = file.replace(/\.ts$/, '')
-          commands.registerHandler(name, {
-            description: commandModule.description || '',
+        // 2. Module-based with `run` export (new SimpleCommand pattern)
+        if (typeof commandModule.run === 'function') {
+          const Grafted = graftModule(Command as any, commandModule, name, 'commands')
+          commands.register(name, Grafted as any)
+          continue
+        }
+
+        // 3. Legacy: `handler` export
+        if (typeof commandModule.handler === 'function') {
+          const Grafted = graftModule(Command as any, {
+            description: commandModule.description,
             argsSchema: commandModule.argsSchema,
             handler: commandModule.handler,
-          })
+          }, name, 'commands')
+          commands.register(name, Grafted as any)
         }
       } catch (err: any) {
         console.warn(`Helpers gateway: failed to load command from ${absPath}: ${err.message}`)

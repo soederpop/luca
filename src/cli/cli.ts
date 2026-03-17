@@ -44,16 +44,16 @@ async function main() {
 
 	if (commandName && container.commands.has(commandName)) {
 		const cmd = container.command(commandName as any)
-		await cmd.run()
+		await cmd.dispatch()
 	} else if (commandName) {
 		// not a known command — treat as implicit `run`
 		container.argv._.splice(0, 0, 'run')
 		const cmd = container.command('run' as any)
-		await cmd.run()
+		await cmd.dispatch()
 	} else {
 		container.argv._.splice(0, 0, 'help')
 		const cmd = container.command('help' as any)
-		await cmd.run()
+		await cmd.dispatch()
 	}
 }
 
