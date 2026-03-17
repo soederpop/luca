@@ -1,11 +1,19 @@
 /**
  * about — Display project information and discovered helpers.
  * Run with: luca about
+ *
+ * Positional words after the command name are available as options._
+ * For example: `luca about commands` → options._[1] === 'commands'
  */
+import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
+
 export const description = 'Display project information and discovered helpers'
 
-export async function handler(_options: any, context: any) {
-  const container = context.container
+export const argsSchema = z.object({})
+
+export default async function about(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
   const ui = container.feature('ui')
 
   // Discover all project-level helpers (commands, features, endpoints, etc.)

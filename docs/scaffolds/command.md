@@ -86,6 +86,30 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 }
 ```
 
+## Raw Positional Access (options._)
+
+Every command handler receives `options._` — an array of all positional words from the CLI. `_[0]` is always the command name; `_[1]`, `_[2]`, etc. are the words that follow. This is always available, even without a `positionals` export.
+
+```ts
+import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
+
+export const description = '{{description}}'
+
+// No positionals export — access raw words via options._
+export const argsSchema = z.object({
+  verbose: z.boolean().default(false).describe('Enable verbose output'),
+})
+
+export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  // luca {{kebabName}} hello world  →  options._ === ['{{kebabName}}', 'hello', 'world']
+  const words = (options as any)._.slice(1) // everything after the command name
+  console.log('positional words:', words)
+}
+```
+
 ## Conventions
 
 - **File location**: `commands/{{kebabName}}.ts` in the project root. The `luca` CLI discovers these automatically.

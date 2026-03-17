@@ -13,7 +13,7 @@ export const argsSchema = CommandOptionsSchema.extend({})
 
 /** Hidden option prefixes — legacy aliases that shouldn't clutter help output. */
 const HIDDEN_PREFIXES = ['only-']
-const HIDDEN_KEYS = new Set(['_', 'name', '_cacheKey'])
+const HIDDEN_KEYS = new Set(['_', 'name', '_cacheKey', 'dispatchSource'])
 
 /**
  * Extract CLI option info from a Zod schema.
