@@ -76,6 +76,24 @@ class DescribeError extends Error {
 }
 
 /**
+ * Extract a short summary from a potentially long description string.
+ * Takes text up to the first markdown heading, bullet list, or code block,
+ * capped at ~300 chars on a sentence boundary.
+ */
+function extractSummary(description: string): string {
+	// Strip from the first markdown heading/bullet/code block onward
+	const cut = description.search(/\s\*\*[A-Z][\w\s]+:\*\*|```|^\s*[-*]\s/m)
+	const text = cut > 0 ? description.slice(0, cut).trim() : description
+
+	if (text.length <= 300) return text
+
+	// Truncate on sentence boundary
+	const sentenceEnd = text.lastIndexOf('. ', 300)
+	if (sentenceEnd > 100) return text.slice(0, sentenceEnd + 1)
+	return text.slice(0, 300).trim() + '...'
+}
+
+/**
  * Normalize an identifier to a comparable form by stripping file extensions,
  * converting kebab-case and snake_case to lowercase-no-separators.
  * e.g. "disk-cache.ts" | "diskCache" | "disk_cache" → "diskcache"
@@ -327,6 +345,28 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 		return { json: {}, text: `No ${registryName} are registered.` }
 	}
 
+	// When no section filters are specified, render a concise index (like describeAll)
+	// rather than full introspection for every single helper
+	if (sections.length === 0) {
+		const h = '#'.repeat(headingDepth)
+		const hSub = '#'.repeat(headingDepth + 1)
+		const jsonResult: Record<string, any> = {}
+		const textParts: string[] = [`${h} Available ${registryName} (${available.length})\n`]
+
+		for (const id of available) {
+			const Ctor = registry.lookup(id)
+			const introspection = Ctor.introspect?.()
+			const description = introspection?.description || Ctor.description || 'No description provided'
+			// Take only the first 1-2 sentences as the summary
+			const summary = extractSummary(description)
+			jsonResult[id] = { description: summary }
+			textParts.push(`${hSub} ${id}\n\n${summary}\n`)
+		}
+
+		return { json: jsonResult, text: textParts.join('\n') }
+	}
+
+	// When specific sections are requested, render full detail for each helper
 	const jsonResult: Record<string, any> = {}
 	const textParts: string[] = []
 	for (const id of available) {

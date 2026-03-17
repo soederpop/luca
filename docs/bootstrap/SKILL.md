@@ -45,6 +45,14 @@ luca describe --help
     --examples      Show the examples section
 ```
 
+You can get an index of the available helpers, e.g.
+
+```shell
+luca describe features
+luca describe clients
+luca describe servers # etc 
+```
+
 You can describe multiple things at once:
 
 ```shell

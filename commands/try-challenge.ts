@@ -13,7 +13,7 @@ export const argsSchema = CommandOptionsSchema.extend({
   list: z.boolean().default(false).describe('List available challenges')
 })
 
-export default async function tryChallenge(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+export async function tryChallenge(options: z.infer<typeof argsSchema>, context: ContainerContext) {
   const container = context.container as any
   const fs = container.feature('fs')
   let requestedChallengeId = options._[1]!
@@ -93,8 +93,8 @@ export default async function tryChallenge(options: z.infer<typeof argsSchema>, 
   }
 }
 
-commands.registerHandler('try', {
+export default {
   description: 'Try running one of the evaluation challenges.',
   argsSchema,
   handler: tryChallenge,
-})
+}
