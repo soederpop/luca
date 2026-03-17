@@ -11,14 +11,15 @@ function hasNodeModules(): boolean {
 }
 
 async function main() {
-	// Load project-level CLI module (luca.cli.ts) for container customization
-	await loadCliModule()
-
 	// LUCA_COMMAND_DISCOVERY: "disable" skips all, "no-local" skips project, "no-home" skips user
 	const discovery = process.env.LUCA_COMMAND_DISCOVERY || ''
 
-	// Snapshot built-in commands before discovering external ones
+	// Snapshot built-in commands BEFORE loadCliModule — luca.cli.ts may call
+	// helpers.discoverAll() which registers project commands early
 	const builtinCommands = new Set(container.commands.available as string[])
+
+	// Load project-level CLI module (luca.cli.ts) for container customization
+	await loadCliModule()
 
 	// Discover project-local commands (commands/ or src/commands/)
 	if (discovery !== 'disable' && discovery !== 'no-local') {
