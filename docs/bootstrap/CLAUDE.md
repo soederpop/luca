@@ -43,6 +43,23 @@ The `luca` binary is available in the path. Key commands:
 - `docs/` — content documents managed by the `contentDb` feature (`container.docs`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
 - `luca.cli.ts` — optional project-level CLI customization (runs before any command)
 
+## Command Arguments
+
+Command handlers receive `(options, context)`. The `options` object contains:
+- **Named flags** from `argsSchema`: `--verbose` → `options.verbose`
+- **Positional args** mapped via `positionals` export: `luca cmd ./src` → `options.target`
+- **Raw positionals** in `options._`: array where `_[0]` is the command name, `_[1+]` are positional args
+
+To accept positional arguments, export a `positionals` array that maps them to named fields in `argsSchema`:
+
+```ts
+export const positionals = ['target']  // luca myCmd ./src => options.target === './src'
+export const argsSchema = z.object({
+  target: z.string().optional().describe('The target to operate on'),
+  verbose: z.boolean().default(false).describe('Enable verbose output'),
+})
+```
+
 ## Extending the Container
 
 Use `luca scaffold` to generate new helpers:

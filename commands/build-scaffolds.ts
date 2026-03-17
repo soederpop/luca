@@ -77,7 +77,7 @@ async function buildScaffolds(options: z.infer<typeof argsSchema>, context: Cont
 	const readmePath = 'docs/mcp/readme.md'
 	const outputPath = 'src/scaffolds/generated.ts'
 
-	const types = ['feature', 'client', 'server', 'command', 'endpoint']
+	const types = ['feature', 'client', 'server', 'command', 'endpoint', 'selector']
 	const scaffolds: Record<string, ScaffoldData> = {}
 
 	for (const type of types) {

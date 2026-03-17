@@ -177,27 +177,27 @@ export const argsSchema = z.object({
 
 ### Positional Arguments
 
-Access positional args via `container.argv._`. The first element (`_[0]`) is always the command name:
+Export a `positionals` array to map CLI positional args into named fields on `options`. Each entry names the corresponding positional — `positionals[0]` maps `_[1]` (the first arg after the command name), `positionals[1]` maps `_[2]`, etc.
+
+```typescript
+export const positionals = ['target', 'destination']
+
+export const argsSchema = z.object({
+  target: z.string().describe('Source path to operate on'),
+  destination: z.string().optional().describe('Where to write output'),
+})
+
+// luca my-command ./src ./out
+// => options.target === './src', options.destination === './out'
+```
+
+Positional mapping only applies when dispatched from the CLI. For programmatic dispatch (`cmd.dispatch({ target: './src' }, 'headless')`), args are already named.
+
+The raw positional array is still available as `options._` if you need it — `_[0]` is always the command name:
 
 ```typescript
 // luca greet Alice Bob
-// container.argv._ => ['greet', 'Alice', 'Bob']
-
-export default async function greet(options: any, context: ContainerContext) {
-  const args = context.container.argv._ as string[]
-  const names = args.slice(1) // ['Alice', 'Bob']
-}
-```
-
-You can also declare `positionals` to have them mapped into the options object:
-
-```typescript
-export const positionals = ['target']
-export const argsSchema = z.object({
-  target: z.string().describe('The target to operate on'),
-})
-
-// luca my-command ./src => options.target === './src'
+// options._ => ['greet', 'Alice', 'Bob']
 ```
 
 ## Using the Container
