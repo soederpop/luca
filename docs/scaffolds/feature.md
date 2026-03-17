@@ -17,6 +17,10 @@ import { Feature } from '@soederpop/luca'
 
 These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
 
+The use of dynamic imports is encouraged here, only import libraries you need when the feature is used, and only when necessary in the lifecycle of the feature if it can be done.
+
+feature's have built in ways to check if their requirements are supported and can be enabled cautiously.
+
 ## Schemas
 
 Define the shape of your feature's state, options, and events using Zod. Every field must have a `.describe()` — this becomes the documentation.
