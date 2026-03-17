@@ -3,12 +3,6 @@ import container from '@soederpop/luca/agi'
 import '@/commands/index.js'
 import { homedir } from 'os'
 import { join } from 'path'
-import { existsSync } from 'fs'
-
-/** True when node_modules exists in the project root — package imports are resolvable natively */
-function hasNodeModules(): boolean {
-	return existsSync(container.paths.resolve('node_modules'))
-}
 
 async function main() {
 	// LUCA_COMMAND_DISCOVERY: "disable" skips all, "no-local" skips project, "no-home" skips user
@@ -63,24 +57,16 @@ async function loadCliModule() {
 	const modulePath = container.paths.resolve('luca.cli.ts')
 	if (!container.fs.exists(modulePath)) return
 
-	let exports: any
+	// Use the helpers feature to load the module — it handles the native import
+	// vs VM decision using the same useNativeImport check as discovery
+	const helpers = container.feature('helpers') as any
+	const exports = await helpers.loadModuleExports(modulePath)
 
-	if (hasNodeModules()) {
-		const mod = await import(modulePath)
-		exports = mod.default || mod
-	} else {
-		// Use VM to load luca.cli.ts so it can resolve @soederpop/luca etc.
-		const helpers = container.feature('helpers') as any
-		helpers.seedVirtualModules?.()
-		const vm = container.feature('vm') as any
-		exports = vm.loadModule(modulePath)
-	}
-
-	if (typeof exports.main === 'function') {
+	if (typeof exports?.main === 'function') {
 		await exports.main(container)
 	}
 
-	if (typeof exports.onStart === 'function') {
+	if (typeof exports?.onStart === 'function') {
 		container.once('started', () => exports.onStart(container))
 	}
 }

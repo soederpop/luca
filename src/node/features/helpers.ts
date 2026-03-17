@@ -398,8 +398,12 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
   /**
    * Load a module either via native `import()` or the VM's virtual module system.
+   * Uses the same `useNativeImport` check as discovery to decide the loading strategy.
+   *
+   * @param absPath - Absolute path to the module file
+   * @returns The module's exports
    */
-  private async loadModuleExports(absPath: string): Promise<Record<string, any>> {
+  async loadModuleExports(absPath: string): Promise<Record<string, any>> {
     if (this.useNativeImport) {
       const mod = await import(absPath)
       return mod
