@@ -1,7 +1,3 @@
----
-title: "Process Orchestrator"
----
-
 # Process Orchestrator
 
 Build `luca dev` that starts 3 processes simultaneously:

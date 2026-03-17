@@ -1,7 +1,3 @@
----
-title: "Build a Multi-Feature Dashboard"
----
-
 # Build a Multi-Feature Dashboard
 
 Create a `luca dashboard` command that displays a live-updating terminal UI showing:

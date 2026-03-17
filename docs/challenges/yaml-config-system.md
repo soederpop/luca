@@ -1,7 +1,3 @@
----
-title: "YAML Config System"
----
-
 # YAML Config System
 
 Build a command suite for managing project configuration stored in `luca.config.yaml`:

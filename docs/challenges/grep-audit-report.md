@@ -1,7 +1,3 @@
----
-title: "Grep Audit Report"
----
-
 # Grep Audit Report
 
 Build `luca audit <path>` that scans a codebase at the given path and finds:

@@ -1,7 +1,3 @@
----
-title: "Content DB Round-Trip"
----
-
 # Content DB Round-Trip
 
 Populate a `docs/recipes/` collection with 5 recipe documents. Each document should have frontmatter with `title`, `tags` (array), `difficulty` (easy/medium/hard), and a markdown body with ingredients and steps.

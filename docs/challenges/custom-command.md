@@ -1,9 +1,3 @@
----
-lastRanAt: 1773554038360
-durationMs: 152591
-outputTokens: 221
----
-
 # Build a custom command
 
 Build a custom command with luca called `hello`
