@@ -457,7 +457,6 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       if (fileName.includes('.test.') || fileName.includes('.spec.')) {
         continue
       }
-
       try {
         const mod = await this.loadModuleExports(absPath)
         const ExportedClass = mod.default || mod
@@ -475,28 +474,27 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
             registry.register(registryName, ExportedClass)
             this.emit('registered' as any, type, registryName, ExportedClass)
           }
-          continue
-        }
+        } else {
+          // Module-based: graft exports onto a generated subclass
+          const moduleExports = mod.default && typeof mod.default === 'object' ? mod.default : mod
+          const isGraftable = (
+            moduleExports.description !== undefined ||
+            moduleExports.stateSchema !== undefined ||
+            moduleExports.optionsSchema !== undefined ||
+            typeof moduleExports.run === 'function' ||
+            typeof moduleExports.handler === 'function'
+          )
 
-        // Module-based: graft exports onto a generated subclass
-        const moduleExports = mod.default && typeof mod.default === 'object' ? mod.default : mod
-        const isGraftable = (
-          moduleExports.description !== undefined ||
-          moduleExports.stateSchema !== undefined ||
-          moduleExports.optionsSchema !== undefined ||
-          typeof moduleExports.run === 'function' ||
-          typeof moduleExports.handler === 'function'
-        )
+          if (isGraftable) {
+            const registryName = this.fileNameToRegistryName(fileName)
+            const GraftedClass = graftModule(baseClass, moduleExports, registryName, type as any)
 
-        if (isGraftable) {
-          const registryName = this.fileNameToRegistryName(fileName)
-          const GraftedClass = graftModule(baseClass, moduleExports, registryName, type as any)
+            discovered.push(registryName)
 
-          discovered.push(registryName)
-
-          if (!registry.has(registryName)) {
-            registry.register(registryName, GraftedClass as any)
-            this.emit('registered' as any, type, registryName, GraftedClass)
+            if (!registry.has(registryName)) {
+              registry.register(registryName, GraftedClass as any)
+              this.emit('registered' as any, type, registryName, GraftedClass)
+            }
           }
         }
 

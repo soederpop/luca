@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { State } from "../../state.js";
 import { Feature } from "../feature.js";
-import { parse, relative } from "path";
-import { statSync } from "fs";
+import { parse, relative, join as pathJoin } from "path";
+import { statSync, readFileSync, existsSync } from "fs";
 import micromatch from "micromatch";
 import { castArray } from "lodash-es";
 import chokidar from "chokidar";
@@ -154,7 +154,11 @@ export class FileManager<
     }
 
     try {
-      await this.scanFiles(options);
+      const loaded = await this.loadFromCache();
+      if (!loaded) {
+        await this.scanFiles(options);
+        await this.writeToCache();
+      }
     } catch (error) {
       console.error(error);
       this.state.set("failed", true);
@@ -164,6 +168,117 @@ export class FileManager<
     }
 
     return this;
+  }
+
+  /**
+   * Attempts to load the file index from disk cache.
+   * Only uses cache when in a clean git repo (sha hasn't changed, no dirty files).
+   * @returns true if cache was loaded successfully, false otherwise
+   */
+  /**
+   * Reads the current git SHA by reading .git/HEAD directly,
+   * avoiding the ~19ms cost of shelling out to `git rev-parse HEAD`.
+   */
+  private readGitShaFast(): string | null {
+    try {
+      const { git } = this.container;
+      if (!git.isRepo) return null;
+
+      const gitDir = pathJoin(git.repoRoot, '.git');
+      const head = readFileSync(pathJoin(gitDir, 'HEAD'), 'utf8').trim();
+
+      // Detached HEAD — already a sha
+      if (!head.startsWith('ref: ')) return head;
+
+      // Resolve the ref
+      const refPath = pathJoin(gitDir, head.slice(5));
+      if (existsSync(refPath)) {
+        return readFileSync(refPath, 'utf8').trim();
+      }
+
+      // Packed refs fallback
+      const packedRefsPath = pathJoin(gitDir, 'packed-refs');
+      if (existsSync(packedRefsPath)) {
+        const ref = head.slice(5);
+        const packed = readFileSync(packedRefsPath, 'utf8');
+        const match = packed.match(new RegExp(`^([0-9a-f]{40}) ${ref}`, 'm'));
+        if (match) return match[1];
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async loadFromCache(): Promise<boolean> {
+    try {
+      const sha = this.readGitShaFast();
+      if (!sha) return false;
+
+      const cache = this.container.feature('diskCache') as any;
+      const cacheKey = `file-index:${sha}`;
+
+      if (!(await cache.has(cacheKey))) return false;
+
+      const cached = await cache.get(cacheKey, true) as { dirs: Record<string, number>, files: Record<string, any> };
+      if (!cached?.files || !cached?.dirs) return false;
+
+      // Check if any directory mtime has changed — catches new/deleted/renamed files
+      for (const [dir, cachedMtimeMs] of Object.entries(cached.dirs)) {
+        try {
+          const current = statSync(dir).mtimeMs;
+          if (current !== cachedMtimeMs) return false;
+        } catch {
+          // Directory no longer exists
+          return false;
+        }
+      }
+
+      for (const [relativePath, file] of Object.entries(cached.files)) {
+        this.files.set(relativePath, {
+          ...file as File,
+          modifiedAt: new Date((file as any).modifiedAt),
+          createdAt: new Date((file as any).createdAt),
+        });
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Writes the current file index to disk cache, keyed by git sha.
+   * Stores directory mtimes alongside file data so the cache can be
+   * invalidated when files are added/removed without a new commit.
+   */
+  private async writeToCache(): Promise<void> {
+    try {
+      const sha = this.readGitShaFast();
+      if (!sha) return;
+
+      const cache = this.container.feature('diskCache') as any;
+      const cacheKey = `file-index:${sha}`;
+
+      // Collect unique directories and their mtimes
+      const dirs: Record<string, number> = {};
+      const files: Record<string, any> = {};
+
+      for (const [key, file] of this.files.entries()) {
+        files[key] = file;
+        if (!dirs[file.dirname]) {
+          try {
+            dirs[file.dirname] = statSync(file.dirname).mtimeMs;
+          } catch {}
+        }
+      }
+
+      await cache.set(cacheKey, { dirs, files });
+    } catch {
+      // Cache write failure is non-fatal
+    }
   }
 
   /** 

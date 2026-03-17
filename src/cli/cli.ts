@@ -5,6 +5,18 @@ import { homedir } from 'os'
 import { join } from 'path'
 
 async function main() {
+	const profile = process.env.LUCA_PROFILE === '1'
+	const t = (label?: string) => {
+		if (!profile) return () => {}
+		const start = performance.now()
+		return (suffix?: string) => {
+			const ms = (performance.now() - start).toFixed(1)
+			console.error(`[profile] ${label}${suffix ? ` ${suffix}` : ''}: ${ms}ms`)
+		}
+	}
+
+	const tTotal = t('total boot')
+
 	// LUCA_COMMAND_DISCOVERY: "disable" skips all, "no-local" skips project, "no-home" skips user
 	const discovery = process.env.LUCA_COMMAND_DISCOVERY || ''
 
@@ -13,19 +25,25 @@ async function main() {
 	const builtinCommands = new Set(container.commands.available as string[])
 
 	// Load project-level CLI module (luca.cli.ts) for container customization
+	let done = t('loadCliModule')
 	await loadCliModule()
+	done()
 
 	// Discover project-local commands (commands/ or src/commands/)
+	done = t('discoverProjectCommands')
 	if (discovery !== 'disable' && discovery !== 'no-local') {
 		await discoverProjectCommands()
 	}
+	done()
 	const afterProject = new Set(container.commands.available as string[])
 	const projectCommands = new Set([...afterProject].filter((n) => !builtinCommands.has(n)))
 
 	// Discover user-level commands (~/.luca/commands/)
+	done = t('discoverUserCommands')
 	if (discovery !== 'disable' && discovery !== 'no-home') {
 		await discoverUserCommands()
 	}
+	done()
 	const afterUser = new Set(container.commands.available as string[])
 	const userCommands = new Set([...afterUser].filter((n) => !builtinCommands.has(n) && !projectCommands.has(n)))
 
@@ -33,10 +51,13 @@ async function main() {
 	;(container as any)._commandSources = { builtinCommands, projectCommands, userCommands }
 
 	// Load generated introspection data if present
+	done = t('loadProjectIntrospection')
 	await loadProjectIntrospection()
+	done()
 
 	const commandName = container.argv._[0] as string
 
+	done = t('dispatch')
 	if (commandName && container.commands.has(commandName)) {
 		const cmd = container.command(commandName as any)
 		await cmd.dispatch()
@@ -50,6 +71,8 @@ async function main() {
 		const cmd = container.command('help' as any)
 		await cmd.dispatch()
 	}
+	done()
+	tTotal()
 }
 
 
