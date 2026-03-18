@@ -135,6 +135,11 @@ export class FileManager<
     return !!this.state.get("watching");
   }
 
+  /** Returns the list of directories currently being watched. */
+  get watchedPaths(): string[] {
+    return this.state.get("watchedPaths") || [];
+  }
+
   /** 
    * Starts the file manager and scans the files in the project.
    * @param {object} [options={}] - Options for the file manager
@@ -367,14 +372,33 @@ export class FileManager<
     return this.watcher?.getWatched() || {};
   }
 
-  /** 
-   * Watches the files in the project and updates the file manager state.
+  /**
+   * Watches directories for file changes. Can be called multiple times to add
+   * more directories to an existing watcher. Tracks all watched paths in state.
+   *
+   * When called without `paths`, watches the project's `directoryIds` (default behavior).
+   * When called with `paths`, watches only those specific directories/globs.
+   * Subsequent calls add to the existing watcher — they never replace what's already watched.
+   *
    * @param {object} [options={}] - Options for the file manager
+   * @param {string | string[]} [options.paths] - Specific directories or globs to watch. Defaults to project directoryIds.
    * @param {string | string[]} [options.exclude] - The patterns to exclude from the watch
-   * @returns {Promise<void>} The file manager instance
+   * @returns {Promise<void>}
   */
-  async watch(options: { exclude?: string | string[] } = {}) {
-    if (this.isWatching) {
+  async watch(options: { paths?: string | string[]; exclude?: string | string[] } = {}) {
+    const pathsToWatch = castArray(options.paths || this.directoryIds.map(id => this.container.paths.resolve(id)))
+      .map(p => this.container.paths.resolve(p));
+
+    // If already watching, just add the new paths
+    if (this.isWatching && this.watcher) {
+      const currentPaths: string[] = this.state.get("watchedPaths") || [];
+      const newPaths = pathsToWatch.filter(p => !currentPaths.includes(p));
+
+      if (newPaths.length) {
+        this.watcher.add(newPaths);
+        this.state.set("watchedPaths", [...currentPaths, ...newPaths]);
+      }
+
       return;
     }
 
@@ -388,11 +412,7 @@ export class FileManager<
 
     exclude.push(...castArray(this.options.exclude!).filter((v) => v?.length));
 
-    const { cwd } = this.container;
-
-    const watcher = chokidar.watch(
-      this.directoryIds.map(id => this.container.paths.resolve(id)) 
-      , {
+    const watcher = chokidar.watch(pathsToWatch, {
       ignoreInitial: true,
       persistent: true,
       ignored: [
@@ -430,6 +450,7 @@ export class FileManager<
 
     watcher.on("ready", () => {
       this.state.set("watching", true);
+      this.state.set("watchedPaths", pathsToWatch);
     });
 
     this.watcher = watcher;
@@ -443,6 +464,7 @@ export class FileManager<
     if (this.watcher) {
       this.watcher.close();
       this.state.set("watching", false);
+      this.state.set("watchedPaths", []);
       this.watcher = null;
     }
   }

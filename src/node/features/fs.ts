@@ -21,6 +21,8 @@ type WalkOptions = {
   files?: boolean;
   exclude?: string | string[];
   include?: string | string[];
+  /** When true, returned paths are relative to `baseDir` instead of absolute. */
+  relative?: boolean;
 };
 
 /**
@@ -746,7 +748,8 @@ export class FS extends Feature {
 
   /**
    * Recursively walks a directory and returns arrays of file and directory paths.
-   * Paths are absolute. Supports filtering with exclude and include glob patterns.
+   * By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`.
+   * Supports filtering with exclude and include glob patterns.
    *
    * @param {string} basePath - The base directory path to start walking from
    * @param {WalkOptions} options - Options to configure the walk behavior
@@ -754,12 +757,14 @@ export class FS extends Feature {
    * @param {boolean} [options.files=true] - Whether to include files in results
    * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '*.log')
    * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+   * @param {boolean} [options.relative=false] - When true, returned paths are relative to basePath
    * @returns {{ directories: string[], files: string[] }} Object containing arrays of directory and file paths
    *
    * @example
    * ```typescript
    * const result = fs.walk('src', { files: true, directories: false })
    * const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
+   * const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }
    * ```
    */
   walk(basePath: string, options: WalkOptions = {}) {
@@ -768,6 +773,7 @@ export class FS extends Feature {
       files = true,
       exclude = [],
       include = [],
+      relative: useRelative = false,
     } = options;
 
     const excludePatterns = Array.isArray(exclude) ? exclude : [exclude]
@@ -786,6 +792,7 @@ export class FS extends Feature {
         const name = entry.name;
         const fullPath = join(baseDir, name);
         const relativePath = relative(resolvedBase, fullPath)
+        const outputPath = useRelative ? relativePath : fullPath;
         const isDir = entry.isDirectory();
 
         if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
@@ -795,11 +802,11 @@ export class FS extends Feature {
         const passes = !includePatterns.length || matchesPattern(relativePath, includePatterns)
 
         if (isDir && directories && passes) {
-          results.directories.push(fullPath);
+          results.directories.push(outputPath);
         }
 
         if (!isDir && files && passes) {
-          results.files.push(fullPath);
+          results.files.push(outputPath);
         }
 
         if (isDir) {
@@ -817,7 +824,8 @@ export class FS extends Feature {
 
   /**
    * Asynchronously and recursively walks a directory and returns arrays of file and directory paths.
-   * Paths are absolute. Supports filtering with exclude and include glob patterns.
+   * By default paths are absolute. Pass `relative: true` to get paths relative to `baseDir`.
+   * Supports filtering with exclude and include glob patterns.
    *
    * @param {string} baseDir - The base directory path to start walking from
    * @param {WalkOptions} options - Options to configure the walk behavior
@@ -825,13 +833,15 @@ export class FS extends Feature {
    * @param {boolean} [options.files=true] - Whether to include files in results
    * @param {string | string[]} [options.exclude=[]] - Glob patterns to exclude (e.g. 'node_modules', '.git')
    * @param {string | string[]} [options.include=[]] - Glob patterns to include (only matching paths are returned)
+   * @param {boolean} [options.relative=false] - When true, returned paths are relative to baseDir
    * @returns {Promise<{ directories: string[], files: string[] }>} Promise resolving to object with directory and file paths
    * @throws {Error} Throws an error if the directory cannot be accessed
    *
    * @example
    * ```typescript
    * const result = await fs.walkAsync('src', { exclude: ['node_modules'] })
-   * console.log(`Found ${result.files.length} files and ${result.directories.length} directories`)
+   * const files = await fs.walkAsync('inbox', { relative: true })
+   * // files.files => ['contact-1.json', 'subfolder/file.txt', ...]
    * ```
    */
   async walkAsync(baseDir: string, options: WalkOptions = {}) {
@@ -840,6 +850,7 @@ export class FS extends Feature {
       files = true,
       exclude = [],
       include = [],
+      relative: useRelative = false,
     } = options;
 
     const excludePatterns = Array.isArray(exclude) ? exclude : [exclude]
@@ -858,6 +869,7 @@ export class FS extends Feature {
         const name = entry.name;
         const fullPath = join(currentDir, name);
         const relativePath = relative(resolvedBase, fullPath)
+        const outputPath = useRelative ? relativePath : fullPath;
         const isDir = entry.isDirectory();
 
         if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
@@ -867,11 +879,11 @@ export class FS extends Feature {
         const passes = !includePatterns.length || matchesPattern(relativePath, includePatterns)
 
         if (isDir && directories && passes) {
-          results.directories.push(fullPath);
+          results.directories.push(outputPath);
         }
 
         if (!isDir && files && passes) {
-          results.files.push(fullPath);
+          results.files.push(outputPath);
         }
 
         if (isDir) {
