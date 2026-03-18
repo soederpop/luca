@@ -1,365 +1,222 @@
 ---
 name: Using the luca framework
-description: Learn the luca container at runtime — discovery patterns, CLI usage, introspection, and the self-describing API surface that lets you explore features, clients, and servers without leaving your editor or terminal
+description: Learn the luca container — discover what's available with luca describe, build new helpers with luca scaffold, and prototype with luca eval
 ---
-# Luca: Learning the Container at Runtime
+# Luca: Learning the Container
 
-The Luca framework `@soederpop/luca` ships a binary `luca` that is a bun based, dependency injection tool.  This project is likely based on it if this skill is present. When you run the `luca` command, it will sometimes auto-discover and auto-load modules in the `commands/`, `clients/`, `servers/`, or `features/` folders when present.
+The Luca framework `@soederpop/luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in `commands/`, `clients/`, `servers/`, `features/`, and `endpoints/` folders.
 
-These modules are loaded through luca's VM which will inject the `container` as a global.
+There are three things to learn, in this order:
 
-**Start here:** The single most useful command is `luca describe`. It is your primary tool for understanding what the container can do. Before reading source files or searching for APIs, ask describe:
+1. **Discover** what the container can do — `luca describe`
+2. **Build** new helpers when your project needs them — `luca scaffold`
+3. **Prototype** and debug with live code — `luca eval`
+
+---
+
+## Phase 1: Discover with `luca describe`
+
+This is your primary tool. Before reading source files, searching for APIs, or writing any code — ask describe. It outputs full documentation for any part of the container: methods, options, events, state, examples.
+
+### See what's available
 
 ```shell
-luca describe              # describe the container itself
-luca describe fs           # full docs for the fs feature
 luca describe features     # index of all available features
-luca describe git fs proc  # multiple helpers at once
+luca describe clients      # index of all available clients
+luca describe servers      # index of all available servers
 ```
 
-Everything in luca is self-describing. `luca describe` outputs the documentation you need — methods, options, events, state, examples — directly in the terminal. Use it liberally.
-
-## `luca` CLI quick tutorial
-
-Running it like this will tell you all commands that are available (e.g. `luca describe`)
+### Learn about specific helpers
 
 ```shell
-luca
+luca describe fs           # full docs for the fs feature
+luca describe git          # full docs for git
+luca describe rest         # full docs for the rest client
+luca describe express      # full docs for the express server
+luca describe git fs proc  # multiple helpers in one shot
 ```
 
-You can see help for any command.  For learning about luca progressively, the describe command is your friend:
+### Get targeted documentation
+
+You can filter to only the sections you need:
 
 ```shell
-luca help describe
-luca describe --help
+luca describe fs --methods          # just the methods
+luca describe git --events          # just the events it emits
+luca describe express --options     # just the constructor options
+luca describe fs git --examples     # just examples for both
+luca describe fs --usage --methods  # combine sections
 ```
 
-Outputs:
-
-```
-luca describe --help
-
-  luca describe  — Describe the container, registries, or individual helpers
-
-  Usage: luca describe [options]
-
-  Flags:
-
-    --json          Output introspection data as JSON instead of markdown
-    --pretty        Render markdown with terminal styling via ui.markdown
-    --title         Include the title header in the output (use --no-title to omit) (default: true)
-    --description   Show the description section
-    --usage         Show the usage section
-    --methods       Show the methods section
-    --getters       Show the getters section
-    --events        Show the events section
-    --state         Show the state section
-    --options       Show the options section
-    --env-vars      Show the envVars section
-    --envvars       Show the envVars section
-    --examples      Show the examples section
-```
-
-
-You can get an index of the available helpers, e.g.
+### Describe the container itself
 
 ```shell
-luca describe features
-luca describe clients
-luca describe servers # etc 
+luca describe              # overview of the container
+luca describe self         # same thing
 ```
 
-You can describe multiple things at once:
+### Get help on any command
 
 ```shell
-luca describe self # describes the container
-luca describe git fs proc networking # describe all of these features in concatenated output
+luca                       # list all available commands
+luca describe --help       # full flag reference for describe
+luca help scaffold         # help for any command
 ```
 
-Or you can request only specific aspects of the documentation (e.g. examples)
+**Use `luca describe` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it.
+
+---
+
+## Phase 2: Build with `luca scaffold`
+
+When your project needs a new helper, scaffold it. The `scaffold` command generates correct boilerplate — you fill in the logic.
+
+### Learn how to build each type
+
+Before creating anything, read the tutorial for that helper type:
 
 ```shell
-luca describe git fs --examples --usage
+luca scaffold feature --tutorial    # how features work, full guide
+luca scaffold command --tutorial    # how commands work
+luca scaffold endpoint --tutorial   # how endpoints work
+luca scaffold client --tutorial     # how clients work
+luca scaffold server --tutorial     # how servers work
 ```
 
-This is pretty helpful if you already kind of know which features you want to use and want the necessary context in a single document.
+These tutorials are the authoritative reference for each helper type. They cover imports, schemas, class structure, registration, conventions, and complete examples.
 
-## Testing snippets of luca code
-
-You can test snippets with the `luca eval` command.
-
-```shell
-luca eval "container.feature('proc').exec('ls')"
-```
-
-The `eval` command automatically discovers and registers every helper.
-
-## The Luca REPL / Console
-
-You can run `luca console` and have a REPL.  If you have TTY capabilities this is a very useful tool and can stay alive.
-
-
-Everything starts with `container`. You don't need to memorize APIs — you need to know the shape of things and how to ask the container what it can do. This guide teaches you that shape. From there, the system reveals itself.
-
-## The Container
-
-The container is a singleton that holds everything your application needs. It organizes components into **registries** — collections you can query.
-
-```js
-// What registries exist?
-container.registries
-// => ['features', 'clients', 'servers', 'commands', 'endpoints']
-
-// What's available in each?
-container.features.available
-// => ['fs', 'git', 'proc', 'vm', 'networking', 'os', 'grep', ...]
-container.clients.available
-// => ['rest', 'websocket', ...]
-container.servers.available
-// => ['express', 'websocket', ...]
-```
-
-## Getting a Helper
-
-Use the factory function to get an instance. Features auto-enable on first access.
-
-```js
-const fs = container.feature('fs')
-const rest = container.client('rest')
-const express = container.server('express')
-```
-
-Core features are also available as top-level shortcuts in eval/repl contexts:
-
-```js
-fs.readFile('package.json')
-git.branch
-proc.exec('ls')
-```
-
-## Discovery: The Only Pattern You Need
-
-Every registry can describe its contents. Every helper instance can describe itself.
-
-```js
-// From a registry — get docs for any helper by name
-container.features.describe('fs')       // => markdown API docs
-container.features.describeAll()        // => condensed overview of all features
-container.clients.describe('rest')      // => markdown API docs for rest client
-
-// From the CLI
-// luca describe fs
-// luca describe clients
-// luca describe
-
-// From a helper instance — structured introspection
-const fs = container.feature('fs')
-fs.introspect()         // => { description, methods, getters, events, state, options }
-fs.introspectAsText()   // => same info as readable markdown
-```
-
-The container itself is introspectable:
-
-```js
-container.inspect()          // structured object with all registries, state, events
-container.inspectAsText()    // full markdown overview
-```
-
-**This is the core loop: if you know something exists, you can learn everything about it at runtime.**
-
-## State
-
-Every helper has observable state — a live object you can read, write, and watch.
-
-```js
-const feature = container.feature('fs')
-
-// Read
-feature.state.current          // snapshot of all state
-feature.state.get('someKey')   // single value
-
-// Write
-feature.state.set('key', 'value')
-
-// Watch
-feature.state.observe((changeType, key, value) => {
-  // changeType: 'add' | 'update' | 'delete'
-})
-```
-
-The container itself has state too: `container.state.current`, `container.state.observe()`.
-
-## Events
-
-Every helper is an event emitter. Components announce things without knowing who listens.
-
-```js
-feature.on('someEvent', (...args) => { })
-feature.once('someEvent', (...args) => { })
-feature.emit('someEvent', data)
-await feature.waitFor('someEvent')  // promise that resolves on next emit
-```
-
-The container emits lifecycle events:
-
-```js
-container.on('featureEnabled', (feature) => { })
-container.on('stateChange', (key, value) => { })
-```
-
-What events does a helper emit? Ask it:
-
-```js
-fs.introspect().events
-// => { fileChanged: { description, arguments }, ... }
-```
-
-## Utilities
-
-The container provides common utilities — no external imports needed:
-
-```js
-container.utils.uuid()                          // v4 UUID
-container.utils.hashObject(obj)                 // deterministic hash
-container.utils.stringUtils.camelCase('foo-bar')
-container.utils.lodash.groupBy(items, 'type')
-container.paths.resolve('src', 'index.ts')      // path operations
-```
-
-## Summary
-
-The entire API surface is discoverable from a single object:
-
-| Want to know...              | Ask                                    |
-|------------------------------|----------------------------------------|
-| What registries exist?       | `container.registries`                 |
-| What features are available? | `container.features.available`         |
-| Full docs for a feature?     | `container.features.describe('fs')`    |
-| All features at a glance?    | `container.features.describeAll()`     |
-| Structured introspection?    | `feature.introspect()`                 |
-| What state does it have?     | `feature.state.current`                |
-| What events does it emit?    | `feature.introspect().events`          |
-| Full container overview?     | `container.inspectAsText()`            |
-
-You now know the shape. For specifics — what methods `fs` has, what options `express` takes, what events `git` emits — ask the container. It will tell you everything.
-
-## Extending the Container with `luca scaffold`
-
-The `scaffold` command generates boilerplate for new helpers — features, commands, clients, servers, and endpoints. It writes the file, sets up the correct structure, and you fill in the logic.
+### Generate a helper
 
 ```shell
 luca scaffold <type> <name> --description "What it does"
 ```
 
-Every scaffolded helper is auto-discovered by the container at runtime. After generating, the workflow is:
+The workflow after scaffolding:
 
 ```shell
-luca scaffold <type> <name>        # 1. Generate the file
-# edit the generated file           # 2. Add your logic
-luca describe <name>               # 3. Verify it shows up and reads correctly
+luca scaffold command sync-data --description "Pull data from staging"
+# edit commands/sync-data.ts — add your logic
+luca describe sync-data            # verify it shows up and reads correctly
 ```
 
-### Learning about a helper type
-
-Before building something, you can read the full tutorial for any type:
-
-```shell
-luca scaffold feature --tutorial
-luca scaffold command --tutorial
-luca scaffold endpoint --tutorial
-luca scaffold client --tutorial
-luca scaffold server --tutorial
-```
-
-These tutorials cover imports, schemas, class structure, registration, conventions, and complete examples. They're the authoritative reference for how each helper type works.
+Every scaffolded helper is auto-discovered by the container at runtime.
 
 ### When to use each type
 
-| You need to…                                      | Scaffold a…  | Example                                                        |
-|---------------------------------------------------|--------------|----------------------------------------------------------------|
-| Add a reusable local capability (caching, crypto) | **feature**  | `luca scaffold feature disk-cache --description "File-backed key-value cache"` |
-| Add a CLI task (build, deploy, generate)           | **command**  | `luca scaffold command deploy --description "Deploy to production"` |
-| Talk to an external API or service                 | **client**   | `luca scaffold client github --description "GitHub API wrapper"` |
-| Accept incoming connections (HTTP, WS)             | **server**   | `luca scaffold server mqtt --description "MQTT broker"` |
-| Add a REST route to `luca serve`                   | **endpoint** | `luca scaffold endpoint users --description "User management API"` |
-
-### Use case: adding a new command
-
-Commands are the most common thing you'll scaffold. They extend the `luca` CLI with project-specific tasks.
-
-```shell
-luca scaffold command sync-data --description "Pull latest data from staging"
-```
-
-This creates `commands/sync-data.ts`. The generated file exports a description, an args schema (Zod — each field becomes a `--flag`), and a default async handler that receives parsed options and the container:
-
-```typescript
-export default async function syncData(options, context) {
-  const { container } = context
-  const fs = container.feature('fs')
-  const rest = container.client('rest')
-  // your logic here
-}
-```
-
-Run it with `luca sync-data`. Flags are auto-parsed. Help is auto-generated via `luca sync-data --help`.
-
-### Use case: adding a new feature
-
-Features are container-managed capabilities with observable state, events, and self-documenting schemas.
-
-```shell
-luca scaffold feature rate-limiter --description "Token bucket rate limiter"
-```
-
-This creates `features/rate-limiter.ts` with Zod schemas for state, options, and events, a class that extends `Feature`, and module augmentation for TypeScript. The key things to fill in:
-
-- **State schema** — fields that should be observable and reactive
-- **Options schema** — constructor parameters validated at creation time
-- **Events schema** — what this feature emits so consumers can react
-- **`afterInitialize()`** — setup logic (never override the constructor)
-- **Public methods** — each needs a JSDoc block with `@param`, `@returns`, `@example`
-
-Once saved, `container.feature('rateLimiter')` works from any command, endpoint, or script.
-
-### Use case: adding a new endpoint
-
-Endpoints are file-based REST routes served by `luca serve`.
-
-```shell
-luca scaffold endpoint webhooks --description "Incoming webhook receiver"
-```
-
-This creates `endpoints/webhooks.ts`. Export handler functions named after HTTP methods (`get`, `post`, `put`, `delete`), and Zod schemas named `getSchema`, `postSchema`, etc. for automatic validation:
-
-```typescript
-export const path = '/api/webhooks'
-
-export async function post(params, ctx) {
-  const { container } = ctx
-  // handle incoming webhook
-  return { received: true }
-}
-```
-
-Run `luca serve` and it's live at the exported path. Validation errors return 400 automatically. An OpenAPI spec is generated at `/openapi.json`.
-
-### Use case: adding a new client
-
-Clients wrap external service connections. Most extend `RestClient` for HTTP APIs.
-
-```shell
-luca scaffold client stripe --description "Stripe payments API"
-```
-
-This creates `clients/stripe.ts`. Set `baseURL` via the options schema default, add API methods that delegate to `this.get()`, `this.post()`, etc., and use `afterInitialize()` for auth setup. Then `container.client('stripe')` is available everywhere.
+| You need to...                                     | Scaffold a...  | Example                                                        |
+|----------------------------------------------------|----------------|----------------------------------------------------------------|
+| Add a reusable local capability (caching, crypto)  | **feature**    | `luca scaffold feature disk-cache --description "File-backed key-value cache"` |
+| Add a CLI task (build, deploy, generate)           | **command**    | `luca scaffold command deploy --description "Deploy to production"` |
+| Talk to an external API or service                 | **client**     | `luca scaffold client github --description "GitHub API wrapper"` |
+| Accept incoming connections (HTTP, WS)             | **server**     | `luca scaffold server mqtt --description "MQTT broker"` |
+| Add a REST route to `luca serve`                   | **endpoint**   | `luca scaffold endpoint users --description "User management API"` |
 
 ### Scaffold options
 
 ```shell
-luca scaffold command deploy --description "..."   # Write to commands/deploy.ts
-luca scaffold endpoint users --print               # Print to stdout instead of writing
-luca scaffold feature cache --output lib/cache.ts   # Override output path
+luca scaffold command deploy --description "..."    # writes to commands/deploy.ts
+luca scaffold endpoint users --print                # print to stdout instead of writing
+luca scaffold feature cache --output lib/cache.ts   # override output path
 ```
 
-See `references/api-docs/` for the full pre-generated API reference.
+---
+
+## Phase 3: Prototype with `luca eval`
+
+Once you know what's available (describe) and how to build things (scaffold), use `luca eval` to test ideas, verify behavior, and debug.
+
+```shell
+luca eval "container.features.available"
+luca eval "container.feature('proc').exec('ls')"
+luca eval "container.feature('fs').readFile('package.json')"
+```
+
+The eval command boots a full container with all helpers discovered and registered. Core features are available as top-level shortcuts:
+
+```shell
+luca eval "fs.readFile('package.json')"
+luca eval "git.branch"
+luca eval "proc.exec('ls')"
+```
+
+**Reach for eval when you're stuck.** It gives you full control of the container at runtime — you can test method calls, inspect state, verify event behavior, and debug issues that are hard to reason about from docs alone.
+
+**Use eval as a testing tool.** Before wiring up a full command handler or feature, test your logic in eval first. Want to verify how `fs.moveAsync` behaves, or whether a watcher event fires the way you expect? Run it in eval. This is the fastest way to validate container code without the overhead of building the full command around it.
+
+```shell
+# Test file operations before building a command around them
+luca eval "await fs.moveAsync('inbox/test.json', 'inbox/valid/test.json')"
+
+# First: luca describe fileManager --events  (to learn what events exist)
+# Then test the behavior:
+luca eval "const fm = container.feature('fileManager'); fm.on('file:change', (e) => console.log(e)); await fm.watch({ paths: ['inbox'] })"
+```
+
+### The REPL
+
+For interactive exploration, `luca console` opens a persistent REPL with the container in scope. Useful when you need to try multiple things in sequence.
+
+---
+
+## Key Concepts
+
+### The Container
+
+The container is a singleton that holds everything your application needs. It organizes components into **registries**: features, clients, servers, commands, and endpoints. Use the factory functions to get instances:
+
+```js
+const fs = container.feature('fs')
+const rest = container.client('rest')
+const server = container.server('express')
+```
+
+### State
+
+Every helper and the container itself have observable state:
+
+```js
+const feature = container.feature('fs')
+
+feature.state.current              // snapshot of all state
+feature.state.get('someKey')       // single value
+feature.state.set('key', 'value')  // update
+
+// Watch for changes
+feature.state.observe((changeType, key, value) => {
+  // changeType: 'add' | 'update' | 'delete'
+})
+```
+
+The container has state too: `container.state.current`, `container.state.observe()`.
+
+### Events
+
+Every helper and the container are event emitters — `on`, `once`, `emit`, `waitFor` all work as expected. Use `luca describe <name> --events` to see what a helper emits.
+
+### Utilities
+
+The container provides common utilities at `container.utils` — no external imports needed:
+
+- `container.utils.uuid()` — v4 UUID
+- `container.utils.hashObject(obj)` — deterministic hash
+- `container.utils.stringUtils` — camelCase, kebabCase, pluralize, etc.
+- `container.utils.lodash` — groupBy, keyBy, pick, omit, debounce, etc.
+- `container.paths.resolve()` / `container.paths.join()` — path operations
+
+### Programmatic introspection
+
+Everything `luca describe` outputs is also available at runtime in code:
+
+```js
+container.features.describe('fs')   // markdown docs (same as the CLI)
+feature.introspect()                // structured object: { methods, events, state, options }
+container.inspectAsText()           // full container overview as markdown
+```
+
+This is useful inside commands and scripts where you need introspection data programmatically.
+
+---
+
+## Reference
+
+See `references/api-docs/` for the full pre-generated API reference for every built-in feature, client, and server.
