@@ -94,14 +94,15 @@ export const postRateLimit = { maxRequests: 10, windowSeconds: 1 }
 
 ## Delete Handler
 
-`delete` is a reserved word in JS. Use an alias:
+`delete` is a reserved word in JS. Export `destroy` instead — it maps to the DELETE HTTP method automatically:
 
 ```ts
-const del = async (params: any, ctx: EndpointContext) => {
+export async function destroy(params: any, ctx: EndpointContext) {
   return { deleted: true }
 }
-export { del as delete }
 ```
+
+You can also use `destroySchema` and `destroyRateLimit` the same way.
 
 ## Complete Example
 

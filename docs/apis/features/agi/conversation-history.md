@@ -1,6 +1,6 @@
 # ConversationHistory (features.conversationHistory)
 
-No description provided
+Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.
 
 ## Usage
 
@@ -314,13 +314,25 @@ Delete all conversations matching a thread prefix.
 
 ### saved
 
-Event emitted by ConversationHistory
+Fired after a conversation record is persisted
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The conversation ID that was saved |
 
 
 
 ### deleted
 
-Event emitted by ConversationHistory
+Fired after a conversation record is deleted
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The conversation ID that was deleted |
 
 
 

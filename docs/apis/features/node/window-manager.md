@@ -74,10 +74,10 @@ Spawn a new native browser window. Sends a window dispatch to the app and waits 
 | Property | Type | Description |
 |----------|------|-------------|
 | `url` | `string` |  |
-| `width` | `number` |  |
-| `height` | `number` |  |
-| `x` | `number` |  |
-| `y` | `number` |  |
+| `width` | `DimensionValue` |  |
+| `height` | `DimensionValue` |  |
+| `x` | `DimensionValue` |  |
+| `y` | `DimensionValue` |  |
 | `alwaysOnTop` | `boolean` |  |
 | `window` | `{
     decorations?: 'normal' | 'hiddenTitleBar' | 'none'
@@ -88,7 +88,7 @@ Spawn a new native browser window. Sends a window dispatch to the app and waits 
     clickThrough?: boolean
   }` |  |
 
-**Returns:** `Promise<WindowAckResult>`
+**Returns:** `Promise<WindowHandle>`
 
 
 
@@ -113,13 +113,13 @@ Spawn a native terminal window running a command. The terminal is read-only — 
 | `cols` | `number` | Initial terminal columns. |
 | `rows` | `number` | Initial terminal rows. |
 | `title` | `string` | Window title. |
-| `width` | `number` | Window width in points. |
-| `height` | `number` | Window height in points. |
-| `x` | `number` | Window x position. |
-| `y` | `number` | Window y position. |
+| `width` | `DimensionValue` | Window width in points. |
+| `height` | `DimensionValue` | Window height in points. |
+| `x` | `DimensionValue` | Window x position. |
+| `y` | `DimensionValue` | Window y position. |
 | `window` | `SpawnOptions['window']` | Chrome options (decorations, alwaysOnTop, etc.) |
 
-**Returns:** `Promise<WindowAckResult>`
+**Returns:** `Promise<WindowHandle>`
 
 
 
@@ -227,7 +227,7 @@ Record a video from a window to disk.
 
 ### window
 
-Get a WindowHandle for chainable operations on a specific window.
+Get a WindowHandle for chainable operations on a specific window. Returns the tracked handle if one exists, otherwise creates a new one.
 
 **Parameters:**
 
@@ -236,6 +236,49 @@ Get a WindowHandle for chainable operations on a specific window.
 | `windowId` | `string` | ✓ | The window ID |
 
 **Returns:** `WindowHandle`
+
+
+
+### spawnLayout
+
+Spawn multiple windows in parallel from a layout configuration. Returns handles in the same order as the config entries.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `config` | `LayoutEntry[]` | ✓ | Array of layout entries (window or tty) |
+
+**Returns:** `Promise<WindowHandle[]>`
+
+```ts
+const handles = await wm.spawnLayout([
+ { type: 'window', url: 'https://google.com', width: 800, height: 600 },
+ { type: 'tty', command: 'htop' },
+ { url: 'https://github.com' }, // defaults to window
+])
+```
+
+
+
+### spawnLayouts
+
+Spawn multiple layouts sequentially. Each layout's windows spawn in parallel, but the next layout waits for the previous one to fully complete.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `configs` | `LayoutEntry[][]` | ✓ | Array of layout configurations |
+
+**Returns:** `Promise<WindowHandle[][]>`
+
+```ts
+const [firstBatch, secondBatch] = await wm.spawnLayouts([
+ [{ url: 'https://google.com' }, { url: 'https://github.com' }],
+ [{ type: 'tty', command: 'htop' }],
+])
+```
 
 
 
@@ -264,43 +307,85 @@ Write an NDJSON message to the connected app client. Public so other features ca
 
 ### listening
 
-Event emitted by WindowManager
+Emitted when the IPC server starts listening
 
 
 
 ### clientConnected
 
-Event emitted by WindowManager
+Emitted when the native app connects
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The client socket |
 
 
 
 ### clientDisconnected
 
-Event emitted by WindowManager
+Emitted when the native app disconnects
 
 
 
 ### windowAck
 
-Event emitted by WindowManager
+Emitted when a window ack is received from the app
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The window ack payload |
 
 
 
 ### windowClosed
 
-Event emitted by WindowManager
+Emitted when the native app reports a window closed event
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Window lifecycle payload emitted when a window closes |
 
 
 
 ### terminalExited
 
-Event emitted by WindowManager
+Emitted when the native app reports a terminal process exit event
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Terminal lifecycle payload emitted when a terminal process exits |
 
 
 
 ### message
 
-Event emitted by WindowManager
+Emitted for any incoming message that is not a windowAck
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The parsed message object |
+
+
+
+### error
+
+Emitted on error
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 
@@ -322,8 +407,8 @@ Event emitted by WindowManager
 ```ts
 const wm = container.feature('windowManager', { enable: true, autoListen: true })
 
-const result = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })
-const handle = wm.window(result.windowId)
+const handle = await wm.spawn({ url: 'https://google.com', width: 800, height: 600 })
+handle.on('close', (msg) => console.log('window closed'))
 await handle.navigate('https://news.ycombinator.com')
 const title = await handle.eval('document.title')
 await handle.close()
@@ -333,5 +418,28 @@ wm.on('message', (msg) => console.log('App says:', msg))
 
 // Other features can write raw NDJSON to the app
 wm.send({ id: 'abc', status: 'processing', speech: 'Working on it' })
+```
+
+
+
+**spawnLayout**
+
+```ts
+const handles = await wm.spawnLayout([
+ { type: 'window', url: 'https://google.com', width: 800, height: 600 },
+ { type: 'tty', command: 'htop' },
+ { url: 'https://github.com' }, // defaults to window
+])
+```
+
+
+
+**spawnLayouts**
+
+```ts
+const [firstBatch, secondBatch] = await wm.spawnLayouts([
+ [{ url: 'https://google.com' }, { url: 'https://github.com' }],
+ [{ type: 'tty', command: 'htop' }],
+])
 ```
 

@@ -1,6 +1,6 @@
 # Conversation (features.conversation)
 
-No description provided
+A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.
 
 ## Usage
 
@@ -174,115 +174,228 @@ Append a message to the conversation state.
 
 ### summarizeStart
 
-Event emitted by Conversation
+Fired before generating a conversation summary
 
 
 
 ### summarizeEnd
 
-Event emitted by Conversation
+Fired after the summary is generated
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The generated summary text |
 
 
 
 ### compactStart
 
-Event emitted by Conversation
+Fired before compacting the conversation history
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `messageCount` | `number` |  |
+| `keepRecent` | `number` |  |
 
 
 
 ### compactEnd
 
-Event emitted by Conversation
+Fired after compaction completes
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `summary` | `string` |  |
+| `removedCount` | `number` |  |
+| `estimatedTokens` | `number` |  |
+| `compactionCount` | `number` |  |
 
 
 
 ### autoCompactTriggered
 
-Event emitted by Conversation
+Fired when auto-compact kicks in because tokens exceeded the threshold
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `estimated` | `number` |  |
+| `limit` | `number` |  |
+| `contextWindow` | `number` |  |
 
 
 
 ### userMessage
 
-Event emitted by Conversation
+Fired when a user message is added to the conversation
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The user message content (string or ContentPart[]) |
 
 
 
 ### turnStart
 
-Event emitted by Conversation
+Fired at the start of each completion turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `turn` | `number` |  |
+| `isFollowUp` | `boolean` |  |
 
 
 
 ### rawEvent
 
-Event emitted by Conversation
+Fired for every raw event from the Responses API stream
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Raw stream event from the API |
 
 
 
 ### mcpEvent
 
-Event emitted by Conversation
+Fired for MCP-related events from the Responses API
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | MCP-related stream event |
 
 
 
 ### chunk
 
-Event emitted by Conversation
+Fired for each streaming text delta
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Text delta from the stream |
 
 
 
 ### preview
 
-Event emitted by Conversation
+Fired after each chunk with the full accumulated text
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Accumulated text so far |
 
 
 
 ### responseCompleted
 
-Event emitted by Conversation
+Fired when the Responses API stream completes
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The completed OpenAI Response object |
 
 
 
 ### toolCallsStart
 
-Event emitted by Conversation
+Fired when the model begins a batch of tool calls
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Array of tool call objects from the model |
 
 
 
 ### toolError
 
-Event emitted by Conversation
+Fired when a tool handler throws or the tool is unknown
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `any` | Error object or message |
 
 
 
 ### toolCall
 
-Event emitted by Conversation
+Fired before invoking a single tool handler
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `any` | Parsed arguments object |
 
 
 
 ### toolResult
 
-Event emitted by Conversation
+Fired after a tool handler returns successfully
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `string` | Serialized result |
 
 
 
 ### toolCallsEnd
 
-Event emitted by Conversation
+Fired after all tool calls in a turn have been executed
 
 
 
 ### turnEnd
 
-Event emitted by Conversation
+Fired at the end of each completion turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `turn` | `number` |  |
+| `hasToolCalls` | `boolean` |  |
 
 
 
 ### response
 
-Event emitted by Conversation
+Fired when the final text response is produced
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Final accumulated response text |
 
 
 

@@ -1,6 +1,6 @@
 # VoiceRecognition (features.voice)
 
-VoiceRecognition helper
+Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.
 
 ## Usage
 
@@ -64,4 +64,21 @@ Event emitted by VoiceRecognition
 ### abort
 
 Event emitted by VoiceRecognition
+
+
+
+## Examples
+
+**features.voice**
+
+```ts
+const voice = container.feature('voice', { continuous: true, autoListen: true })
+
+voice.on('transcript', ({ text }) => {
+ console.log('Heard:', text)
+})
+
+// Or start manually
+voice.start()
+```
 

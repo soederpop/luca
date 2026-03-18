@@ -91,6 +91,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       return !!this.state.get('stopped')
     }
 
+    /** The port this server will bind to. Reads from state first (set by start() or configure()), then constructor options, then defaults to 3000. */
     get port() {
       return this.state.get('port') || this.options.port || 3000
     }
@@ -105,9 +106,19 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       return this
     }
 
+    /**
+     * Start the server. Runtime options override constructor options and update state
+     * so that `server.port` always reflects the actual listening port.
+     *
+     * @param options - Optional runtime overrides for port and host
+     */
     async start(options?: StartOptions) {
       if(this.isListening) {
         return this
+      }
+
+      if (options?.port) {
+        this.state.set('port', options.port)
       }
 
       this.state.set('listening', true)

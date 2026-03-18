@@ -1,6 +1,6 @@
 # AssistantsManager (features.assistantsManager)
 
-No description provided
+Discovers and manages assistant definitions by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition that can also contain tools.ts, hooks.ts, voice.yaml, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.
 
 ## Usage
 
@@ -29,7 +29,7 @@ container.feature('assistantsManager', {
 
 Discovers assistants by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition.
 
-**Returns:** `this`
+**Returns:** `Promise<this>`
 
 
 

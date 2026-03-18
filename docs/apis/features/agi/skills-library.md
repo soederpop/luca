@@ -1,6 +1,6 @@
 # SkillsLibrary (features.skillsLibrary)
 
-No description provided
+Manages two contentbase collections of skills following the Claude Code SKILL.md format. Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/. Skills can be discovered, searched, created, updated, and removed at runtime.
 
 ## Usage
 
@@ -162,25 +162,43 @@ Generates a markdown block listing all available skills with names and descripti
 
 ### loaded
 
-Event emitted by SkillsLibrary
+Fired after both project and user skill collections are loaded
 
 
 
 ### skillCreated
 
-Event emitted by SkillsLibrary
+Fired after a new skill is written to disk
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The created SkillEntry object |
 
 
 
 ### skillUpdated
 
-Event emitted by SkillsLibrary
+Fired after an existing skill is updated
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The updated SkillEntry object |
 
 
 
 ### skillRemoved
 
-Event emitted by SkillsLibrary
+Fired after a skill is deleted
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The name of the removed skill |
 
 
 

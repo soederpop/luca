@@ -108,6 +108,35 @@ Get the introspection description for a specific helper.
 | `manifestURL` | `string` | The URL to fetch the helpers manifest from. |
 | `available` | `Record<string, string[]>` | Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry. |
 
+## Events (Zod v4 schema)
+
+### discovered
+
+Emitted after a registry type has been discovered
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Registry type that was discovered |
+| `arg1` | `array` | Names of newly registered helpers |
+
+
+
+### registered
+
+Emitted when a single helper is registered
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Registry type |
+| `arg1` | `string` | Helper name |
+| `arg2` | `any` | The helper class or module |
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |

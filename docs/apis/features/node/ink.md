@@ -217,13 +217,13 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 
 ### mounted
 
-Event emitted by Ink
+Emitted when a React element is mounted to the terminal via render()
 
 
 
 ### unmounted
 
-Event emitted by Ink
+Emitted when the mounted Ink app exits or is unmounted
 
 
 

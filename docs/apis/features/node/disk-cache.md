@@ -223,7 +223,7 @@ Create a cacache instance with the specified path
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `path` | `string` |  | Optional cache directory path (defaults to options.path or node_modules/.cache/luca-disk-cache) |
+| `path` | `string` |  | Optional cache directory path (defaults to options.path or ~/.cache/luca/disk-cache-{cwdHash}) |
 
 **Returns:** `void`
 

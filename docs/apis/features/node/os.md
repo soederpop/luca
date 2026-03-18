@@ -8,6 +8,23 @@ The OS feature provides access to operating system utilities and information. Th
 container.feature('os')
 ```
 
+## Methods
+
+### getDisplayInfo
+
+Gets information about all connected displays. Platform-specific: currently implemented for macOS (darwin). Linux and Windows will throw with a clear "not yet implemented" message.
+
+**Returns:** `DisplayInfo[]`
+
+```ts
+const displays = os.getDisplayInfo()
+displays.forEach(d => {
+ console.log(`${d.name}: ${d.resolution.width}x${d.resolution.height}${d.retina ? ' (Retina)' : ''}`)
+})
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -38,6 +55,17 @@ console.log(`Platform: ${osInfo.platform}`)
 console.log(`Architecture: ${osInfo.arch}`)
 console.log(`CPU cores: ${osInfo.cpuCount}`)
 console.log(`Home directory: ${osInfo.homedir}`)
+```
+
+
+
+**getDisplayInfo**
+
+```ts
+const displays = os.getDisplayInfo()
+displays.forEach(d => {
+ console.log(`${d.name}: ${d.resolution.width}x${d.resolution.height}${d.retina ? ' (Retina)' : ''}`)
+})
 ```
 
 

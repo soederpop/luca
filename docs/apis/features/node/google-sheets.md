@@ -134,13 +134,25 @@ Download sheet data as CSV and save to a local file.
 
 ### error
 
-Event emitted by GoogleSheets
+Sheets API error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 
 ### dataFetched
 
-Event emitted by GoogleSheets
+Sheet data was fetched
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | Number of rows |
 
 
 

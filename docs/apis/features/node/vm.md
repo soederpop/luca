@@ -1,6 +1,6 @@
 # VM (features.vm)
 
-The VM features providers a virtual machine for executing JavaScript code in a sandboxed environment. The Vm feature automatically injects the container.context object into the global scope, so these things can be referenced in the code and the code can use anything provided by the container.
+Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.
 
 ## Usage
 
@@ -69,16 +69,7 @@ container.feature('vm', {
 
 ```ts
 const vm = container.feature('vm')
-
-// Execute simple code
-const result = vm.run('1 + 2 + 3')
-console.log(result) // 6
-
-// Execute code with custom context
-const result2 = vm.run('greeting + " " + name', { 
- greeting: 'Hello', 
- name: 'World' 
-})
-console.log(result2) // 'Hello World'
+const result = vm.run('1 + 2 + 3') // 6
+const greeting = vm.run('container.uuid') // accesses container globals
 ```
 

@@ -36,7 +36,7 @@ Start the REPL session. Creates a VM context populated with the container and it
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `historyPath` | `any` | Custom path for the history file (defaults to node_modules/.cache/.repl_history) |
+| `historyPath` | `any` | Custom path for the history file (defaults to ~/.cache/luca/repl-{cwdHash}.history) |
 | `context` | `any` | Additional variables to inject into the VM context |
 
 **Returns:** `void`

@@ -1,6 +1,6 @@
 # SemanticSearch (features.semanticSearch)
 
-No description provided
+Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.
 
 ## Usage
 
@@ -353,25 +353,32 @@ Install node-llama-cpp into the user's project for local embedding support. Dete
 
 ### dbReady
 
-Event emitted by SemanticSearch
+When the SQLite database is initialized and ready
 
 
 
 ### modelLoaded
 
-Event emitted by SemanticSearch
+When the local embedding model is loaded into memory
 
 
 
 ### modelDisposed
 
-Event emitted by SemanticSearch
+When the local embedding model is disposed from memory
 
 
 
 ### indexed
 
-Event emitted by SemanticSearch
+When documents are indexed with embeddings
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `documents` | `number` | Number of documents indexed |
+| `chunks` | `number` | Number of chunks created |
 
 
 

@@ -69,13 +69,28 @@ const path = await tts.synthesize('Hello world', {
 
 ### synthesized
 
-Event emitted by TTS
+Emitted when audio synthesis completes
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The text that was synthesized |
+| `arg1` | `string` | Path to the generated audio file |
+| `arg2` | `string` | Voice used |
+| `arg3` | `number` | Duration of the API call in milliseconds |
 
 
 
 ### error
 
-Event emitted by TTS
+Emitted when synthesis fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 

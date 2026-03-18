@@ -140,13 +140,25 @@ Search events by text query across event summaries, descriptions, and locations.
 
 ### error
 
-Event emitted by GoogleCalendar
+Calendar API error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 
 ### eventsFetched
 
-Event emitted by GoogleCalendar
+Events were fetched from Calendar
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | Number of events returned |
 
 
 

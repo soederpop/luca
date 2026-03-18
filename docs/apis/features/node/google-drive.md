@@ -178,19 +178,37 @@ List all shared drives the user has access to.
 
 ### filesFetched
 
-Event emitted by GoogleDrive
+Files were fetched from Drive
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `number` | Number of files returned |
 
 
 
 ### error
 
-Event emitted by GoogleDrive
+Drive API error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 
 ### fileDownloaded
 
-Event emitted by GoogleDrive
+A file was downloaded
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | File ID |
 
 
 

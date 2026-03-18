@@ -1,6 +1,6 @@
 # WebVault (features.vault)
 
-WebVault helper
+AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.
 
 ## Usage
 
@@ -52,13 +52,8 @@ container.feature('vault')
 
 ```ts
 const vault = container.feature('vault')
-
-// Encrypt sensitive data
-const encrypted = vault.encrypt('sensitive information')
-console.log(encrypted) // Base64 encoded encrypted data
-
-// Decrypt the data
-const decrypted = vault.decrypt(encrypted)
-console.log(decrypted) // 'sensitive information'
+const encrypted = await vault.encrypt('secret data')
+const decrypted = await vault.decrypt(encrypted)
+console.log(decrypted) // 'secret data'
 ```
 

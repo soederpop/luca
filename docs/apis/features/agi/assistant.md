@@ -1,6 +1,6 @@
 # Assistant (features.assistant)
 
-No description provided
+An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).
 
 ## Usage
 
@@ -22,6 +22,8 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
+  // Whether to use our local models for this
+  local,
   // Conversation history persistence mode
   historyMode,
 })
@@ -39,6 +41,7 @@ container.feature('assistant', {
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `local` | `boolean` | Whether to use our local models for this |
 | `historyMode` | `string` | Conversation history persistence mode |
 
 ## Methods
@@ -242,6 +245,7 @@ Save the conversation to disk via conversationHistory.
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `name` | `any` |  |
 | `resolvedFolder` | `string` | The absolute resolved path to the assistant folder. |
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
@@ -290,7 +294,8 @@ Emitted when a new completion turn begins. isFollowUp is true when resuming afte
 
 | Name | Type | Description |
 |------|------|-------------|
-| `arg0` | `object` |  |
+| `turn` | `number` |  |
+| `isFollowUp` | `boolean` |  |
 
 
 
@@ -302,7 +307,8 @@ Emitted when a completion turn ends. hasToolCalls indicates whether tool calls w
 
 | Name | Type | Description |
 |------|------|-------------|
-| `arg0` | `object` |  |
+| `turn` | `number` |  |
+| `hasToolCalls` | `boolean` |  |
 
 
 

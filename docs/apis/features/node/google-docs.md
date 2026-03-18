@@ -107,13 +107,26 @@ Search for Google Docs by name or content.
 
 ### documentFetched
 
-Event emitted by GoogleDocs
+A document was fetched
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Document ID |
+| `arg1` | `string` | Title |
 
 
 
 ### error
 
-Event emitted by GoogleDocs
+Docs API error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 

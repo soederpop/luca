@@ -150,6 +150,19 @@ const version = proc.exec('node --version')
 
 
 
+### execSync
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `command` | `string` | ✓ | Parameter command |
+| `options` | `any` |  | Parameter options |
+
+**Returns:** `string`
+
+
+
 ### establishLock
 
 Establishes a PID-file lock to prevent duplicate process instances. Writes the current process PID to the given file path. If the file already exists and the PID inside it refers to a running process, the current process exits immediately. Stale PID files (where the process is no longer running) are automatically cleaned up. Cleanup handlers are registered on SIGTERM, SIGINT, and process exit to remove the PID file when the process shuts down.
@@ -219,32 +232,36 @@ for (const pid of proc.findPidsByPort(3000)) {
 
 
 
-### onSignal
+### isProcessRunning
 
-Registers a handler for a process signal (e.g. SIGINT, SIGTERM, SIGUSR1). Returns a cleanup function that removes the listener when called.
+Checks whether any process matching a given name is currently running. Uses `pgrep -x` for an exact match against process names.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `signal` | `NodeJS.Signals` | ✓ | The signal name to listen for (e.g. 'SIGINT', 'SIGTERM', 'SIGUSR2') |
-| `handler` | `() => void` | ✓ | The function to call when the signal is received |
+| `name` | `string` | ✓ | The process name to look for (e.g. 'afplay', 'node', 'nginx') |
 
-**Returns:** `() => void`
+**Returns:** `boolean`
 
 ```ts
-// Graceful shutdown
-proc.onSignal('SIGTERM', () => {
- console.log('Shutting down gracefully...')
- process.exit(0)
-})
-
-// Remove the listener later
-const off = proc.onSignal('SIGUSR2', () => {
- console.log('Received SIGUSR2')
-})
-off()
+if (proc.isProcessRunning('afplay')) {
+ console.log('Audio is currently playing')
+}
 ```
+
+
+
+### onSignal
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `signal` | `NodeJS.Signals` | ✓ | Parameter signal |
+| `handler` | `() => void` | ✓ | Parameter handler |
+
+**Returns:** `() => void`
 
 
 
@@ -371,19 +388,11 @@ for (const pid of proc.findPidsByPort(3000)) {
 
 
 
-**onSignal**
+**isProcessRunning**
 
 ```ts
-// Graceful shutdown
-proc.onSignal('SIGTERM', () => {
- console.log('Shutting down gracefully...')
- process.exit(0)
-})
-
-// Remove the listener later
-const off = proc.onSignal('SIGUSR2', () => {
- console.log('Received SIGUSR2')
-})
-off()
+if (proc.isProcessRunning('afplay')) {
+ console.log('Audio is currently playing')
+}
 ```
 

@@ -1,6 +1,6 @@
 # ExpressServer (servers.express)
 
-ExpressServer helper
+Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.
 
 ## Usage
 
@@ -125,3 +125,19 @@ container.server('express', {
 | `listening` | `boolean` | Whether the server is actively listening for connections |
 | `configured` | `boolean` | Whether the server has been configured |
 | `stopped` | `boolean` | Whether the server has been stopped |
+
+## Examples
+
+**servers.express**
+
+```ts
+const server = container.server('express', { cors: true, static: './public' })
+await server.start({ port: 3000 })
+
+// Mount endpoints programmatically
+server.mount(myEndpoint)
+
+// Access the underlying Express app
+server.app.get('/health', (req, res) => res.json({ ok: true }))
+```
+

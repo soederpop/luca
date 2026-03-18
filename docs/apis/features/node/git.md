@@ -167,6 +167,7 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `gitPath` | `string` | Resolve the git binary path via `which`, caching the result. |
 | `branch` | `any` | Gets the current Git branch name. |
 | `sha` | `any` | Gets the current Git commit SHA hash. |
 | `isRepo` | `any` | Checks if the current directory is within a Git repository. |

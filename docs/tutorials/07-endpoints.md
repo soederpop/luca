@@ -86,12 +86,11 @@ export async function put(params: z.infer<typeof putSchema>, ctx: EndpointContex
   return { user: { id, ...params }, message: 'Updated' }
 }
 
-// Use a named const + re-export for delete (reserved word)
-const del = async (_params: any, ctx: EndpointContext) => {
+// Use `destroy` for DELETE — it's a reserved word in JS
+export async function destroy(_params: any, ctx: EndpointContext) {
   const { id } = ctx.params
   return { message: `User ${id} deleted` }
 }
-export { del as delete }
 ```
 
 ## The EndpointContext
@@ -124,9 +123,10 @@ Export any of these handler functions:
 - `post` -- POST requests
 - `put` -- PUT requests
 - `patch` -- PATCH requests
-- `delete` -- DELETE requests
+- `destroy` -- DELETE requests (preferred — avoids the `delete` reserved word)
+- `delete` -- DELETE requests (also works via `export { del as delete }`)
 
-Each can have a corresponding schema export: `getSchema`, `postSchema`, `putSchema`, `patchSchema`, `deleteSchema`.
+Each can have a corresponding schema export: `getSchema`, `postSchema`, `putSchema`, `patchSchema`, `destroySchema` / `deleteSchema`.
 
 ## What Gets Exported
 
@@ -135,8 +135,8 @@ Each can have a corresponding schema export: `getSchema`, `postSchema`, `putSche
 | `path` | Yes | The route path (e.g. `/api/users`, `/api/users/:id`) |
 | `description` | No | Human-readable description (used in OpenAPI spec) |
 | `tags` | No | Array of tags for OpenAPI grouping |
-| `get`, `post`, etc. | At least one | Handler functions |
-| `getSchema`, `postSchema`, etc. | No | Zod schemas for request validation |
+| `get`, `post`, `put`, `patch`, `destroy` | At least one | Handler functions (`destroy` maps to DELETE) |
+| `getSchema`, `postSchema`, `destroySchema`, etc. | No | Zod schemas for request validation |
 
 ## Starting the Server
 

@@ -4,7 +4,7 @@ import cors from 'cors'
 import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
 import { type StartOptions, Server, type ServerState } from '../server.js'
-import { Endpoint, type EndpointModule } from '../endpoint.js'
+import { Endpoint, type EndpointModule, warnUnknownExports } from '../endpoint.js'
 
 declare module '../server' {
   interface AvailableServers {
@@ -88,26 +88,34 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       
       // @ts-ignore-next-line
       const server : Server = this
-      this.hooks.create(app, server)
-
       this._app = this.hooks.create(app, server) || app
 
       return app
     }
   
+    /**
+     * Start the Express HTTP server. A runtime `port` overrides the constructor
+     * option and is written to state so `server.port` always reflects reality.
+     *
+     * @param options - Optional runtime overrides for port and host
+     */
     override async start(options?: StartOptions) {
       if (this.isListening) {
         return this
       }
 
-      options = {
-        port: this.options.port || 3000,
-        host: this.options.host || '0.0.0.0',
-        ...options || {}
+      // Apply runtime port to state so this.port reflects the override
+      if (options?.port) {
+        this.state.set('port', options.port)
+      }
+
+      const startOptions = {
+        port: this.port,
+        host: options?.host || this.options.host || '0.0.0.0',
       }
 
       // @ts-ignore-next-line
-      await this.hooks.beforeStart(options, this)
+      await this.hooks.beforeStart(startOptions, this)
 
       // SPA history fallback: serve index.html for unmatched GET routes
       if (this.options.historyFallback && this.options.static) {
@@ -118,12 +126,12 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       }
 
       await new Promise((res) => {
-        this._listener = this.app.listen(options?.port!, options?.host!, () => {
+        this._listener = this.app.listen(startOptions.port, startOptions.host, () => {
           this.state.set('listening', true)
           res(null)
         })
       })
-      
+
       return this
     }
 
@@ -179,6 +187,8 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
           if (!endpointModule.path) {
             continue
           }
+
+          warnUnknownExports(mod, file)
 
           const endpoint = new Endpoint(
             { path: endpointModule.path, filePath: file },

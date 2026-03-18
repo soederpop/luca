@@ -1,6 +1,6 @@
 # OpenAICodex (features.openaiCodex)
 
-No description provided
+OpenAI Codex CLI wrapper feature. Spawns and manages Codex sessions as subprocesses, streaming structured JSON events back through the container's event system. Mirrors the ClaudeCode feature pattern: each call to `run()` spawns a `codex exec --json` process, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.
 
 ## Usage
 
@@ -199,67 +199,145 @@ Enable the feature. Delegates to the base Feature enable() lifecycle.
 
 ### session:event
 
-Event emitted by OpenAICodex
+Fired for every parsed JSON event from the Codex CLI stream
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `event` | `any` |  |
 
 
 
 ### session:delta
 
-Event emitted by OpenAICodex
+Fired for each text delta from an agent message
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `text` | `string` |  |
+| `role` | `string` |  |
 
 
 
 ### session:message
 
-Event emitted by OpenAICodex
+Fired when a complete agent message is received
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `message` | `any` |  |
 
 
 
 ### session:exec
 
-Event emitted by OpenAICodex
+Fired when a command execution item completes
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `exec` | `any` |  |
 
 
 
 ### session:reasoning
 
-Event emitted by OpenAICodex
+Fired when a reasoning item is received
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `text` | `string` |  |
 
 
 
 ### session:exec-start
 
-Event emitted by OpenAICodex
+Fired when a command execution item starts
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `command` | `string` |  |
 
 
 
 ### session:start
 
-Event emitted by OpenAICodex
+Fired when a new Codex session is spawned
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `prompt` | `string` |  |
 
 
 
 ### session:error
 
-Event emitted by OpenAICodex
+Fired when a session encounters an error
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `error` | `any` |  |
+| `exitCode` | `number` |  |
 
 
 
 ### session:parse-error
 
-Event emitted by OpenAICodex
+Fired when a JSON line from the CLI cannot be parsed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `line` | `string` |  |
 
 
 
 ### session:result
 
-Event emitted by OpenAICodex
+Fired when a session completes with a final result
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `result` | `string` |  |
 
 
 
 ### session:abort
 
-Event emitted by OpenAICodex
+Fired when a session is aborted by the user
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
 
 
 

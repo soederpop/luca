@@ -89,18 +89,19 @@ Scans the files in the project and updates the file manager state.
 
 ### watch
 
-Watches the files in the project and updates the file manager state.
+Watches directories for file changes. Can be called multiple times to add more directories to an existing watcher. Tracks all watched paths in state. When called without `paths`, watches the project's `directoryIds` (default behavior). When called with `paths`, watches only those specific directories/globs. Subsequent calls add to the existing watcher — they never replace what's already watched.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `{ exclude?: string | string[] }` |  | Options for the file manager |
+| `options` | `{ paths?: string | string[]; exclude?: string | string[] }` |  | Options for the file manager |
 
-`{ exclude?: string | string[] }` properties:
+`{ paths?: string | string[]; exclude?: string | string[] }` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `paths` | `any` | Specific directories or globs to watch. Defaults to project directoryIds. |
 | `exclude` | `any` | The patterns to exclude from the watch |
 
 **Returns:** `void`
@@ -148,13 +149,21 @@ Watches the files in the project and updates the file manager state.
 | `isStarted` | `any` | Whether the file manager has completed its initial scan. |
 | `isStarting` | `any` | Whether the file manager is currently performing its initial scan. |
 | `isWatching` | `any` | Whether the file watcher is actively monitoring for changes. |
+| `watchedPaths` | `string[]` | Returns the list of directories currently being watched. |
 | `watchedFiles` | `Record<string, string[]>` | Returns the directories and files currently being watched by chokidar. |
 
 ## Events (Zod v4 schema)
 
 ### file:change
 
-Event emitted by FileManager
+Emitted when a watched file is added, changed, or deleted
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `type` | `'add' | 'change' | 'delete'` | The type of file change |
+| `path` | `string` | Absolute path to the changed file |
 
 
 

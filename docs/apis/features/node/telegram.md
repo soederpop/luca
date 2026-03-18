@@ -189,31 +189,56 @@ Print a diagnostic summary of the bot's current state.
 
 ### stopped
 
-Event emitted by Telegram
+Bot stopped
 
 
 
 ### command
 
-Event emitted by Telegram
+Command triggered: [name, Context]
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` |  |
+| `arg1` | `any` |  |
 
 
 
 ### started
 
-Event emitted by Telegram
+Bot started receiving updates
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `mode` | `string` |  |
 
 
 
 ### webhook_ready
 
-Event emitted by Telegram
+Webhook registered and ready
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` |  |
 
 
 
 ### error
 
-Event emitted by Telegram
+Error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` |  |
 
 
 

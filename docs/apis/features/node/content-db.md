@@ -244,7 +244,7 @@ Rebuild the entire search index from scratch.
 
 ### reloaded
 
-Event emitted by ContentDb
+When the content collection is reloaded from disk
 
 
 

@@ -158,25 +158,50 @@ Stop the MCP server and close all connections.
 
 ### toolRegistered
 
-Event emitted by MCPServer
+Emitted when a tool is registered
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
 
 
 
 ### resourceRegistered
 
-Event emitted by MCPServer
+Emitted when a resource is registered
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Resource URI |
 
 
 
 ### promptRegistered
 
-Event emitted by MCPServer
+Emitted when a prompt is registered
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Prompt name |
 
 
 
 ### toolCalled
 
-Event emitted by MCPServer
+Emitted when a tool is called
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `any` | Arguments |
 
 
 

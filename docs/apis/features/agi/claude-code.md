@@ -1,11 +1,13 @@
 # ClaudeCode (features.claudeCode)
 
-No description provided
+Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.
 
 ## Usage
 
 ```ts
 container.feature('claudeCode', {
+  // Claude CLI session ID to resume by default
+  session,
   // Path to the claude CLI binary
   claudePath,
   // Default model to use for sessions
@@ -57,6 +59,7 @@ container.feature('claudeCode', {
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `session` | `string` | Claude CLI session ID to resume by default |
 | `claudePath` | `string` | Path to the claude CLI binary |
 | `model` | `string` | Default model to use for sessions |
 | `cwd` | `string` | Default working directory for sessions |
@@ -356,6 +359,31 @@ const sessionStats = cc.usage(sessionId)
 
 
 
+### sessionHistoryToMarkdown
+
+Export session history as a readable markdown document. Reads from a raw JSONL file (Claude CLI session log or this feature's NDJSON log) so it works independently of in-memory state. Can also accept a local session ID to export from in-memory state as a fallback.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `source` | `string` |  | Path to a JSONL file, a local session ID, or omit for the most recent session |
+
+**Returns:** `Promise<string>`
+
+```ts
+// From a JSONL file (works without any prior state)
+const md = await cc.sessionHistoryToMarkdown('/path/to/session.jsonl')
+
+// From the most recent in-memory session
+const md = await cc.sessionHistoryToMarkdown()
+
+// From a specific local session ID
+const md = await cc.sessionHistoryToMarkdown(localSessionId)
+```
+
+
+
 ### cleanupMcpTempFiles
 
 Clean up any temp MCP config files created during sessions.
@@ -382,80 +410,166 @@ Initialize the feature.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `claudePath` | `string` | Resolve the path to the claude CLI binary. |
+| `claudePath` | `string` |  |
 | `parsedVersion` | `{ major: number; minor: number; patch: number } | undefined` | Parsed semver components from the detected CLI version, or undefined if not yet checked. |
+| `sessionId` | `string | undefined` | The Claude CLI session ID of the most recently initialized session, or the session set via the `session` option. Useful for resuming later. |
 
 ## Events (Zod v4 schema)
 
 ### session:warning
 
-Event emitted by ClaudeCode
+Fired when the log reader encounters a warning
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `message` | `string` |  |
 
 
 
 ### session:log-error
 
-Event emitted by ClaudeCode
+Fired when the log reader encounters an error
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `error` | `any` |  |
 
 
 
 ### session:event
 
-Event emitted by ClaudeCode
+Fired for every parsed JSON event from the CLI stream
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `event` | `any` |  |
 
 
 
 ### session:init
 
-Event emitted by ClaudeCode
+Fired when the CLI emits its init system event
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `init` | `any` |  |
 
 
 
 ### session:delta
 
-Event emitted by ClaudeCode
+Fired for each text delta from an assistant message
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `text` | `string` |  |
+| `role` | `string` |  |
 
 
 
 ### session:stream
 
-Event emitted by ClaudeCode
+Fired for stream_event type events from the CLI
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `streamEvent` | `any` |  |
 
 
 
 ### session:message
 
-Event emitted by ClaudeCode
+Fired when a complete assistant message is received
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `message` | `any` |  |
 
 
 
 ### session:result
 
-Event emitted by ClaudeCode
+Fired when a session completes with a final result
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `result` | `string` |  |
 
 
 
 ### session:start
 
-Event emitted by ClaudeCode
+Fired when a new Claude Code session is spawned
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `prompt` | `string` |  |
 
 
 
 ### session:error
 
-Event emitted by ClaudeCode
+Fired when a session encounters an error
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `error` | `any` |  |
+| `exitCode` | `number` |  |
 
 
 
 ### session:parse-error
 
-Event emitted by ClaudeCode
+Fired when a JSON line from the CLI cannot be parsed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
+| `line` | `string` |  |
 
 
 
 ### session:abort
 
-Event emitted by ClaudeCode
+Fired when a session is aborted by the user
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` |  |
 
 
 
@@ -598,5 +712,30 @@ console.log(`Tokens: ${stats.totalInputTokens} in / ${stats.totalOutputTokens} o
 
 // Single session
 const sessionStats = cc.usage(sessionId)
+```
+
+
+
+**sessionHistoryToMarkdown**
+
+```ts
+// From a JSONL file (works without any prior state)
+const md = await cc.sessionHistoryToMarkdown('/path/to/session.jsonl')
+
+// From the most recent in-memory session
+const md = await cc.sessionHistoryToMarkdown()
+
+// From a specific local session ID
+const md = await cc.sessionHistoryToMarkdown(localSessionId)
+```
+
+
+
+**sessionId**
+
+```ts
+const cc = container.feature('claudeCode')
+await cc.run('Do something')
+console.log(cc.sessionId) // the Claude CLI session ID
 ```
 

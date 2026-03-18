@@ -113,25 +113,47 @@ await pg.close()
 
 ### query
 
-Event emitted by Postgres
+When a SELECT-like query is executed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The SQL query text |
+| `arg1` | `array` | Bound parameter values |
+| `arg2` | `number` | Number of rows returned |
 
 
 
 ### error
 
-Event emitted by Postgres
+When a postgres operation fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error object |
 
 
 
 ### execute
 
-Event emitted by Postgres
+When a write/update/delete statement is executed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The SQL statement text |
+| `arg1` | `array` | Bound parameter values |
+| `arg2` | `number` | Number of rows affected |
 
 
 
 ### closed
 
-Event emitted by Postgres
+When the postgres connection is closed
 
 
 

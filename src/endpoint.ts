@@ -37,11 +37,14 @@ export interface EndpointModule {
   put?: EndpointHandler
   patch?: EndpointHandler
   delete?: EndpointHandler
+  /** Alias for delete (since `delete` is a JS reserved word) — takes precedence over `delete` */
+  destroy?: EndpointHandler
   getSchema?: z.ZodType
   postSchema?: z.ZodType
   putSchema?: z.ZodType
   patchSchema?: z.ZodType
   deleteSchema?: z.ZodType
+  destroySchema?: z.ZodType
   /** Rate limit applied to all methods on this endpoint */
   rateLimit?: EndpointRateLimit
   /** Per-method rate limits (overrides the endpoint-level rateLimit) */
@@ -50,11 +53,23 @@ export interface EndpointModule {
   putRateLimit?: EndpointRateLimit
   patchRateLimit?: EndpointRateLimit
   deleteRateLimit?: EndpointRateLimit
+  destroyRateLimit?: EndpointRateLimit
   description?: string
   tags?: string[]
 }
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
+
+/** All recognized exports on an endpoint module */
+const KNOWN_EXPORTS = new Set([
+  'path', 'description', 'tags', 'default', 'rateLimit',
+  ...HTTP_METHODS,
+  'destroy',
+  ...HTTP_METHODS.map(m => `${m}Schema`),
+  'destroySchema',
+  ...HTTP_METHODS.map(m => `${m}RateLimit`),
+  'destroyRateLimit',
+])
 
 /**
  * Sliding-window rate limiter keyed by IP address.
@@ -175,6 +190,14 @@ export class Endpoint<
     } else if (this.options.filePath) {
       const imported = await import(`${this.options.filePath}?t=${Date.now()}`)
       this._module = imported.default || imported
+    }
+
+    // Normalize destroy → delete (destroy takes precedence as it avoids the reserved word)
+    if (this._module) {
+      const m = this._module as any
+      if (m.destroy) { m.delete = m.destroy; delete m.destroy }
+      if (m.destroySchema) { m.deleteSchema = m.destroySchema; delete m.destroySchema }
+      if (m.destroyRateLimit) { m.deleteRateLimit = m.destroyRateLimit; delete m.destroyRateLimit }
     }
 
     this.state.set('methods', this.methods)
@@ -325,6 +348,13 @@ export class Endpoint<
     }
 
     return pathItem
+  }
+}
+
+export function warnUnknownExports(mod: Record<string, any>, filePath: string): void {
+  const unknown = Object.keys(mod).filter(k => !k.startsWith('__') && !KNOWN_EXPORTS.has(k))
+  if (unknown.length > 0) {
+    console.warn(`[endpoint] ${filePath}: unknown exports: ${unknown.join(', ')}`)
   }
 }
 

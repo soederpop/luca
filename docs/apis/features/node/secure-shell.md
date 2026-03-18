@@ -105,6 +105,13 @@ await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 
 
 
+## Getters
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `sshPath` | `string` | Resolved path to the ssh binary |
+| `scpPath` | `string` | Resolved path to the scp binary |
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |

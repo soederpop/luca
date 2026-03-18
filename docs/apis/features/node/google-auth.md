@@ -110,25 +110,44 @@ Revoke the current credentials and clear cached tokens.
 
 ### tokenRefreshed
 
-Event emitted by GoogleAuth
+Access token was refreshed
 
 
 
 ### error
 
-Event emitted by GoogleAuth
+Authentication error occurred
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error |
 
 
 
 ### authorizationRequired
 
-Event emitted by GoogleAuth
+User must visit this URL to authorize
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Authorization URL to visit |
 
 
 
 ### authenticated
 
-Event emitted by GoogleAuth
+Authentication successful
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `mode` | `string` | Auth mode used |
+| `email` | `string` | User or service account email |
 
 
 

@@ -122,25 +122,47 @@ db.close()
 
 ### query
 
-Event emitted by Sqlite
+Emitted after a SELECT-like query completes successfully
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The SQL query text that was executed |
+| `arg1` | `array` | Bound parameter values |
+| `arg2` | `number` | Number of rows returned |
 
 
 
 ### error
 
-Event emitted by Sqlite
+Emitted when a SQL operation fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The error that occurred |
 
 
 
 ### execute
 
-Event emitted by Sqlite
+Emitted after a write/update/delete statement completes successfully
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The SQL statement text that was executed |
+| `arg1` | `array` | Bound parameter values |
+| `arg2` | `number` | Number of rows changed |
 
 
 
 ### closed
 
-Event emitted by Sqlite
+Emitted when the database connection is closed
 
 
 

@@ -457,6 +457,7 @@ const verified = await dns.hasTxtRecord('example.com', 'google-site-verification
 | Property | Type | Description |
 |----------|------|-------------|
 | `proc` | `any` |  |
+| `digPath` | `string` | Resolved path to the dig binary |
 
 ## State (Zod v4 schema)
 

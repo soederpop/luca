@@ -205,25 +205,60 @@ Convenience method: discover and port-scan hosts across all local networks.
 
 ### scan:start
 
-Event emitted by Networking
+When a network scan begins
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `target` | `string` | Scan target identifier |
+| `type` | `string` | Scan type identifier |
 
 
 
 ### host:discovered
 
-Event emitted by Networking
+When a host is found during network scanning
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `ip` | `string` | Host IP address |
+| `mac` | `string` | MAC address when available |
+| `reachable` | `boolean` | Whether host appears reachable |
+| `method` | `'arp' | 'tcp'` | Discovery method used for this host |
 
 
 
 ### scan:complete
 
-Event emitted by Networking
+When a network scan finishes
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `target` | `string` | Scan target identifier |
+| `type` | `string` | Scan type identifier |
+| `duration` | `number` | Scan duration in milliseconds |
+| `hostsFound` | `number` | Number of hosts discovered |
+| `portsFound` | `number` | Number of open ports discovered |
 
 
 
 ### port:open
 
-Event emitted by Networking
+When an open port is detected on a host
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `host` | `string` | Host IP address |
+| `port` | `number` | Open port number |
+| `service` | `string` | Best-effort service name |
+| `banner` | `string` | Banner text when captured |
 
 
 

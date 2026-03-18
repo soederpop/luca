@@ -102,6 +102,65 @@ Event emitted by ContainerLink
 
 
 
+### disconnection
+
+Emitted when a web container disconnects
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Container UUID |
+| `arg1` | `string` | Reason |
+
+
+
+### error
+
+Event emitted by ContainerLink
+
+
+
+### connection
+
+Emitted when a web container connects and registers
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Container UUID |
+| `arg1` | `any` | Connection metadata |
+
+
+
+### evalResult
+
+Emitted when an eval result is received
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Request ID |
+| `arg1` | `any` | Result or error |
+
+
+
+### event
+
+Emitted when a web container sends a structured event
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Container UUID |
+| `arg1` | `string` | Event name |
+| `arg2` | `any` | Event data |
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |

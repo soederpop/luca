@@ -10,21 +10,24 @@ declare module '../server' {
 }
 
 export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
-  json: z.boolean().optional().describe('Whether to automatically JSON parse/stringify messages'),
+  json: z.boolean().optional().describe('When enabled, incoming messages are automatically JSON-parsed before emitting the message event, and outgoing send/broadcast calls JSON-stringify the payload'),
 })
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
 
 export const SocketServerEventsSchema = ServerEventsSchema.extend({
-  connection: z.tuple([z.any().describe('The WebSocket client instance')]).describe('Fires when a new client connects'),
-  message: z.tuple([z.any().describe('The message data'), z.any().describe('The WebSocket client that sent the message')]).describe('Fires when a message is received from a client'),
+  connection: z.tuple([z.any().describe('The raw WebSocket client instance from the ws library')]).describe('Fires when a new client connects'),
+  message: z.tuple([z.any().describe('The message data (JSON-parsed object when json option is enabled, raw Buffer/string otherwise)'), z.any().describe('The WebSocket client that sent the message — use with server.send(ws, data) to reply')]).describe('Fires when a message is received from a client. Handler signature: (data, ws)'),
 }).describe('WebSocket server events')
 
 /**
  * WebSocket server built on the `ws` library with optional JSON message framing.
  *
  * Manages WebSocket connections, tracks connected clients, and bridges
- * messages to Luca's event bus. When `json` mode is enabled, messages
- * are automatically parsed and stringified.
+ * messages to Luca's event bus. When `json` mode is enabled, incoming
+ * messages are automatically JSON-parsed (with `.toString()` for Buffer data)
+ * and outgoing messages via `send()` / `broadcast()` are JSON-stringified.
+ * When `json` mode is disabled, raw message data is emitted as-is and
+ * `send()` / `broadcast()` still JSON-stringify for safety.
  *
  * @extends Server
  *
@@ -33,7 +36,7 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
  * const ws = container.server('websocket', { json: true })
  * await ws.start({ port: 8080 })
  *
- * ws.on('message', (client, data) => {
+ * ws.on('message', (data, client) => {
  *   console.log('Received:', data)
  *   ws.broadcast({ echo: data })
  * })
@@ -74,19 +77,43 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return this
     }
 
+    /**
+     * Start the WebSocket server. A runtime `port` overrides the constructor
+     * option and is written to state before the underlying `ws.Server` is created,
+     * so the server binds to the correct port.
+     *
+     * @param options - Optional runtime overrides for port and host
+     */
     override async start(options?: StartOptions) {
-      if(!this.isConfigured) {
+      if (this.isListening) {
+        return this
+      }
+
+      // Apply runtime port to state before configure/wss touches it
+      if (options?.port) {
+        this.state.set('port', options.port)
+        // Reset cached wss so it rebinds to the new port
+        this._wss = undefined
+      }
+
+      if(!this.isConfigured || options?.port) {
         await this.configure()
       }
-      
+
       const { wss } = this
       
       wss.on('connection', (ws) => {
         this.connections.add(ws)
         this.emit('connection', ws)
-        
-        ws.on('message', (data) => {
-          this.emit('message', data, ws)  
+
+        ws.on('message', (raw) => {
+          let data: any = raw
+          if (this.options.json) {
+            try {
+              data = JSON.parse(typeof raw === 'string' ? raw : raw.toString())
+            } catch {}
+          }
+          this.emit('message', data, ws)
         })
       })
       
@@ -133,8 +160,9 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return this
     }
     
+    /** The port this server will bind to. Defaults to 8081 if not set via constructor options or start(). */
     override get port() {
-      return this.state.get('port') || this.options.port || 8081 
+      return this.state.get('port') || this.options.port || 8081
     }
 }
 

@@ -150,31 +150,59 @@ Called by SpawnHandler when a process finishes. Updates feature-level state.
 
 ### spawned
 
-Event emitted by ProcessManager
+Emitted when a new process is spawned
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | process ID |
+| `arg1` | `any` | process metadata |
 
 
 
 ### exited
 
-Event emitted by ProcessManager
+Emitted when a process exits normally
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | process ID |
+| `arg1` | `number` | exit code |
 
 
 
 ### crashed
 
-Event emitted by ProcessManager
+Emitted when a process exits with non-zero code
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | process ID |
+| `arg1` | `number` | exit code |
+| `arg2` | `any` | error info |
 
 
 
 ### killed
 
-Event emitted by ProcessManager
+Emitted when a process is killed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | process ID |
 
 
 
 ### allStopped
 
-Event emitted by ProcessManager
+Emitted when all tracked processes have stopped
 
 
 

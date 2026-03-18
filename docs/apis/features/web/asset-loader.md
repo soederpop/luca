@@ -1,6 +1,6 @@
 # AssetLoader (features.assetLoader)
 
-The AssetLoader provides an API for injecting scripts and stylesheets into the page. It also provides a convenient way of loading any library from unpkg.com
+Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.
 
 ## Usage
 
@@ -44,4 +44,16 @@ container.feature('assetLoader')
 | `globalName` | `string` | ✓ | Parameter globalName |
 
 **Returns:** `Promise<any>`
+
+
+
+## Examples
+
+**features.assetLoader**
+
+```ts
+const loader = container.feature('assetLoader')
+await loader.loadScript('https://unpkg.com/lodash')
+await AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')
+```
 

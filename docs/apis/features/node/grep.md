@@ -185,6 +185,8 @@ const affected = await grep.findForReplace('oldFunctionName')
 | Property | Type | Description |
 |----------|------|-------------|
 | `hasRipgrep` | `boolean` | Whether ripgrep (rg) is available on this system |
+| `rgPath` | `string` | Resolved path to the rg binary |
+| `grepPath` | `string` | Resolved path to the grep binary |
 
 ## State (Zod v4 schema)
 
