@@ -157,12 +157,47 @@ export class Command<
 		// Map raw._[1], raw._[2], etc. (skipping _[0] which is command name) to named fields
 		const posArgs: string[] = (raw._ || []).slice(1)
 		for (let i = 0; i < positionals.length; i++) {
-			if (posArgs[i] !== undefined && result[positionals[i]!] === undefined) {
-				result[positionals[i]!] = posArgs[i]
+			const name = positionals[i]!
+			if (result[name] !== undefined) continue
+			if (posArgs[i] === undefined) continue
+
+			// Last positional collects all remaining args if the schema expects an array
+			if (i === positionals.length - 1 && posArgs.length > positionals.length) {
+				const isArray = this._schemaExpectsArray(Cls.argsSchema, name)
+				if (isArray) {
+					result[name] = posArgs.slice(i)
+					continue
+				}
 			}
+
+			result[name] = posArgs[i]
 		}
 
 		return result
+	}
+
+	/**
+	 * Check whether a Zod schema expects an array type for a given field.
+	 * Unwraps ZodObject → ZodOptional/ZodDefault/ZodNullable → ZodArray.
+	 */
+	private _schemaExpectsArray(schema: z.ZodType, field: string): boolean {
+		try {
+			const shape = typeof (schema as any)?._def?.shape === 'function'
+				? (schema as any)._def.shape()
+				: (schema as any)?._def?.shape
+			if (!shape || !shape[field]) return false
+			let inner = shape[field]
+			// Unwrap wrappers (optional, default, nullable)
+			while (inner) {
+				if (inner instanceof z.ZodArray) return true
+				if (inner._def?.innerType) { inner = inner._def.innerType; continue }
+				if (inner._def?.schema) { inner = inner._def.schema; continue }
+				break
+			}
+			return false
+		} catch {
+			return false
+		}
 	}
 
 	/**

@@ -144,6 +144,33 @@ describe('Command.dispatch', () => {
 		expect(received.file).toBe('myfile.ts')
 	})
 
+	it('collects remaining positionals into an array when schema expects one', async () => {
+		let received: any = null
+
+		const argsSchema = CommandOptionsSchema.extend({
+			action: z.string(),
+			files: z.array(z.string()),
+		})
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema,
+			positionals: ['action', 'files'],
+			run: async (args: any, ctx: any) => { received = args },
+		}, 'dispatch-glob-test', 'commands')
+
+		commands.register('dispatch-glob-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('dispatch-glob-test' as any)
+
+		// Simulate: luca dispatch-glob-test process foo.md bar.md baz.md
+		// Shell expands *.md before luca sees it
+		await cmd.dispatch({ _: ['dispatch-glob-test', 'process', 'foo.md', 'bar.md', 'baz.md'] }, 'cli')
+
+		expect(received).toBeDefined()
+		expect(received.action).toBe('process')
+		expect(received.files).toEqual(['foo.md', 'bar.md', 'baz.md'])
+	})
+
 	it('passes named args through for headless dispatch', async () => {
 		let received: any = null
 
