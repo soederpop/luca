@@ -629,6 +629,21 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
     // Header
     sections.push(`${heading(1)} ${data.className}\n\n${data.description || ''}`)
 
+    // Container Properties section (node containers expose these top-level getters)
+    if (data.environment?.isNode || data.environment?.isBun) {
+      sections.push([
+        `${heading(2)} Container Properties`,
+        '',
+        '| Property | Description |',
+        '|----------|-------------|',
+        '| `container.cwd` | Current working directory |',
+        '| `container.paths` | Path utilities scoped to cwd: `resolve()`, `join()`, `relative()`, `dirname()`, `basename()`, `parse()` |',
+        '| `container.manifest` | Parsed `package.json` for the current directory (`name`, `version`, `dependencies`, etc.) |',
+        '| `container.argv` | Raw parsed CLI arguments (from minimist). Prefer `positionals` export for positional args in commands |',
+        '| `container.utils` | Common utilities: `uuid()`, `hashObject()`, `stringUtils`, `lodash` |',
+      ].join('\n'))
+    }
+
     // Registries section
     if (data.registries && data.registries.length > 0) {
       sections.push(`${heading(2)} Registries`)
