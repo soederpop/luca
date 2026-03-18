@@ -161,12 +161,38 @@ export function getContainerBuildTimeData(className: string): Partial<ContainerI
 export function setBuildTimeData(key: string, data: HelperIntrospection) {
 	const existing = __INTROSPECTION__.get(key)
 
+	// Merge events: build-time AST provides descriptions, runtime Zod schemas provide arguments.
+	// For each event, preserve runtime arguments if the build-time entry has none.
+	const mergedEvents: Record<string, any> = { ...(data.events || {}) }
+	if (existing?.events) {
+		for (const [eventName, existingEvent] of Object.entries(existing.events)) {
+			if (mergedEvents[eventName]) {
+				// Build-time entry exists — merge in runtime arguments and description if build-time has none
+				const buildArgs = mergedEvents[eventName].arguments || {}
+				const runtimeArgs = (existingEvent as any).arguments || {}
+				const buildDesc = mergedEvents[eventName].description || ''
+				const runtimeDesc = (existingEvent as any).description || ''
+				const isGenericDesc = buildDesc.startsWith('Event emitted by ')
+				if (Object.keys(buildArgs).length === 0 && Object.keys(runtimeArgs).length > 0) {
+					mergedEvents[eventName] = { ...mergedEvents[eventName], arguments: runtimeArgs }
+				}
+				if (isGenericDesc && runtimeDesc) {
+					mergedEvents[eventName] = { ...mergedEvents[eventName], description: runtimeDesc }
+				}
+			} else {
+				// Event only exists in runtime (from Zod schema) — preserve it
+				mergedEvents[eventName] = existingEvent
+			}
+		}
+	}
+
 	__INTROSPECTION__.set(key, {
 		...data,
 		// preserve runtime-derived className/state/options if registration already happened
 		className: data.className || existing?.className,
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
+		events: mergedEvents,
 		getters: data.getters || existing?.getters || {},
 		envVars: existing?.envVars || data.envVars || [],
 		examples: data.examples || existing?.examples,

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureEventsSchema, FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { State } from "../../state.js";
 import { Feature } from "../feature.js";
 import { parse, relative, join as pathJoin } from "path";
@@ -37,6 +37,15 @@ export const FileManagerOptionsSchema = FeatureOptionsSchema.extend({
   exclude: z.union([z.string(), z.array(z.string())]).optional().describe('Glob patterns to exclude from file scanning'),
 })
 
+export const FileManagerEventsSchema = FeatureEventsSchema.extend({
+  'file:change': z.tuple([
+    z.object({
+      type: z.enum(['add', 'change', 'delete']).describe('The type of file change'),
+      path: z.string().describe('Absolute path to the changed file'),
+    }).describe('File change event payload'),
+  ]).describe('Emitted when a watched file is added, changed, or deleted'),
+}).describe('FileManager events')
+
 export type FileManagerState = z.infer<typeof FileManagerStateSchema>
 export type FileManagerOptions = z.infer<typeof FileManagerOptionsSchema>
 
@@ -61,6 +70,7 @@ export class FileManager<
   static override shortcut = 'features.fileManager' as const
   static override stateSchema = FileManagerStateSchema
   static override optionsSchema = FileManagerOptionsSchema
+  static override eventsSchema = FileManagerEventsSchema
   static { Feature.register(this, 'fileManager') }
   
   files: State<Record<string, File>> = new State<Record<string, File>>({
@@ -427,17 +437,17 @@ export class FileManager<
 
     watcher
       .on("add", (path) => {
+        this.updateFile(path);
         this.emit("file:change", {
           type: "add",
           path,
         });
-        this.updateFile(path);
       })
       .on("change", (path) => {
         this.updateFile(path);
         this.emit("file:change", {
-          path,
           type: "change",
+          path,
         });
       })
       .on("unlink", (path) => {
@@ -470,21 +480,29 @@ export class FileManager<
   }
 
   async updateFile(path: string) {
-    // Reuse the logic from the scanFiles method to update a single file
     const absolutePath = this.container.paths.resolve(path);
     const { name, ext, dir } = parse(absolutePath);
-    const stats = statSync(absolutePath);
 
-    this.files.set(path, {
-      dirname: dir,
-      absolutePath,
-      relativePath: path,
-      name,
-      extension: ext,
-      size: stats.size,
-      modifiedAt: stats.mtime,
-      createdAt: stats.birthtime,
-    });
+    try {
+      const stats = statSync(absolutePath);
+      this.files.set(path, {
+        dirname: dir,
+        absolutePath,
+        relativePath: path,
+        name,
+        extension: ext,
+        size: stats.size,
+        modifiedAt: stats.mtime,
+        createdAt: stats.birthtime,
+      });
+    } catch (err: any) {
+      // File may have been moved or deleted by an event handler — remove from index gracefully
+      if (err.code === 'ENOENT') {
+        this.files.delete(path);
+      } else {
+        throw err;
+      }
+    }
   }
 
   async removeFile(path: string) {

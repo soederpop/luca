@@ -1,6 +1,7 @@
 export * from '../container.js'
 import { Container } from '../container.js'
-import { Client, RestClient } from '../client.js'
+import { Client } from '../client.js'
+import { RestClient } from '../clients/rest.js'
 import { SocketClient } from './clients/socket.js'
 import type { AvailableFeatures } from '../feature.js'
 import type { ContainerState, ContainerArgv } from '../container.js' 

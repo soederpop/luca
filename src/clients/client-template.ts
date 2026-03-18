@@ -2,8 +2,8 @@ import {
   type ClientOptions,
   type ClientsInterface,
   clients,
-  RestClient,
 } from "@soederpop/luca/client";
+import { RestClient } from "./rest";
 import { type ContainerContext } from "@soederpop/luca/container";
 import { z } from 'zod'
 import { ClientStateSchema } from '@soederpop/luca/schemas/base.js'

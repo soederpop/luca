@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '../feature.js'
 import { Database } from 'bun:sqlite'
@@ -33,6 +33,16 @@ export const SemanticSearchStateSchema = FeatureStateSchema.extend({
 
 export type SemanticSearchOptions = z.infer<typeof SemanticSearchOptionsSchema>
 export type SemanticSearchState = z.infer<typeof SemanticSearchStateSchema>
+
+export const SemanticSearchEventsSchema = FeatureEventsSchema.extend({
+	modelLoaded: z.tuple([]).describe('When the local embedding model is loaded into memory'),
+	dbReady: z.tuple([]).describe('When the SQLite database is initialized and ready'),
+	indexed: z.tuple([z.object({
+		documents: z.number().describe('Number of documents indexed'),
+		chunks: z.number().describe('Number of chunks created'),
+	}).describe('Indexing result')]).describe('When documents are indexed with embeddings'),
+	modelDisposed: z.tuple([]).describe('When the local embedding model is disposed from memory'),
+}).describe('Semantic Search events')
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -273,6 +283,7 @@ function chunkByDocument(doc: DocumentInput): Chunk[] {
 export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchOptions> {
 	static override stateSchema = SemanticSearchStateSchema
 	static override optionsSchema = SemanticSearchOptionsSchema
+	static override eventsSchema = SemanticSearchEventsSchema
 	static override shortcut = 'features.semanticSearch' as const
 	static { Feature.register(this, 'semanticSearch') }
 

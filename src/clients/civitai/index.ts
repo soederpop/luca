@@ -1,8 +1,8 @@
 import {
   Client,
   type ClientOptions,
-  RestClient,
 } from "@soederpop/luca/client";
+import { RestClient } from "../rest";
 import { type ContainerContext } from "@soederpop/luca/container";
 import { isEmpty, maxBy, omitBy } from "lodash-es";
 import { NodeContainer } from "@soederpop/luca/node/container";

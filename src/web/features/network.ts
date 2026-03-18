@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import type { ContainerContext } from "../container.js";
 
@@ -8,6 +8,11 @@ export const NetworkStateSchema = FeatureStateSchema.extend({
 })
 
 export const NetworkOptionsSchema = FeatureOptionsSchema.extend({})
+
+export const NetworkEventsSchema = FeatureEventsSchema.extend({
+  online: z.tuple([]).describe('Fires when the browser regains network connectivity'),
+  offline: z.tuple([]).describe('Fires when the browser loses network connectivity'),
+}).describe('Network events')
 
 export type NetworkState = z.infer<typeof NetworkStateSchema>
 export type NetworkOptions = z.infer<typeof NetworkOptionsSchema>
@@ -37,6 +42,7 @@ export class Network<
 > extends Feature<T, K> {
   static override stateSchema = NetworkStateSchema
   static override optionsSchema = NetworkOptionsSchema
+  static override eventsSchema = NetworkEventsSchema
   static override shortcut = "features.network" as const
 
   static { Feature.register(this as any, 'network') }

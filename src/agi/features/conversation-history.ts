@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '@soederpop/luca/feature'
 import { NodeContainer, type DiskCache, type NodeFeatures } from '@soederpop/luca/node/container'
@@ -48,6 +48,11 @@ export const ConversationHistoryStateSchema = FeatureStateSchema.extend({
 	lastSaved: z.string().optional().describe('ISO timestamp of the last save operation'),
 })
 
+export const ConversationHistoryEventsSchema = FeatureEventsSchema.extend({
+	saved: z.tuple([z.string().describe('The conversation ID that was saved')]).describe('Fired after a conversation record is persisted'),
+	deleted: z.tuple([z.string().describe('The conversation ID that was deleted')]).describe('Fired after a conversation record is deleted'),
+}).describe('ConversationHistory events')
+
 export type ConversationHistoryOptions = z.infer<typeof ConversationHistoryOptionsSchema>
 export type ConversationHistoryState = z.infer<typeof ConversationHistoryStateSchema>
 
@@ -76,6 +81,7 @@ export type ConversationHistoryState = z.infer<typeof ConversationHistoryStateSc
 export class ConversationHistory extends Feature<ConversationHistoryState, ConversationHistoryOptions> {
 	static override stateSchema = ConversationHistoryStateSchema
 	static override optionsSchema = ConversationHistoryOptionsSchema
+	static override eventsSchema = ConversationHistoryEventsSchema
 	static override shortcut = 'features.conversationHistory' as const
 
 	static { Feature.register(this, 'conversationHistory') }

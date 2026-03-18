@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '@soederpop/luca/feature'
 import type { OpenAIClient } from '../../clients/openai';
@@ -96,6 +96,28 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	contextWindow: z.number().describe('The context window size for the current model'),
 })
 
+export const ConversationEventsSchema = FeatureEventsSchema.extend({
+	userMessage: z.tuple([z.any().describe('The user message content (string or ContentPart[])')]).describe('Fired when a user message is added to the conversation'),
+	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Fired at the start of each completion turn'),
+	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Fired at the end of each completion turn'),
+	toolCallsStart: z.tuple([z.any().describe('Array of tool call objects from the model')]).describe('Fired when the model begins a batch of tool calls'),
+	toolCall: z.tuple([z.string().describe('Tool name'), z.any().describe('Parsed arguments object')]).describe('Fired before invoking a single tool handler'),
+	toolResult: z.tuple([z.string().describe('Tool name'), z.string().describe('Serialized result')]).describe('Fired after a tool handler returns successfully'),
+	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error object or message')]).describe('Fired when a tool handler throws or the tool is unknown'),
+	toolCallsEnd: z.tuple([]).describe('Fired after all tool calls in a turn have been executed'),
+	chunk: z.tuple([z.string().describe('Text delta from the stream')]).describe('Fired for each streaming text delta'),
+	preview: z.tuple([z.string().describe('Accumulated text so far')]).describe('Fired after each chunk with the full accumulated text'),
+	response: z.tuple([z.string().describe('Final accumulated response text')]).describe('Fired when the final text response is produced'),
+	responseCompleted: z.tuple([z.any().describe('The completed OpenAI Response object')]).describe('Fired when the Responses API stream completes'),
+	rawEvent: z.tuple([z.any().describe('Raw stream event from the API')]).describe('Fired for every raw event from the Responses API stream'),
+	mcpEvent: z.tuple([z.any().describe('MCP-related stream event')]).describe('Fired for MCP-related events from the Responses API'),
+	summarizeStart: z.tuple([]).describe('Fired before generating a conversation summary'),
+	summarizeEnd: z.tuple([z.string().describe('The generated summary text')]).describe('Fired after the summary is generated'),
+	compactStart: z.tuple([z.object({ messageCount: z.number(), keepRecent: z.number() })]).describe('Fired before compacting the conversation history'),
+	compactEnd: z.tuple([z.object({ summary: z.string(), removedCount: z.number(), estimatedTokens: z.number(), compactionCount: z.number() })]).describe('Fired after compaction completes'),
+	autoCompactTriggered: z.tuple([z.object({ estimated: z.number(), limit: z.number(), contextWindow: z.number() })]).describe('Fired when auto-compact kicks in because tokens exceeded the threshold'),
+}).describe('Conversation events')
+
 export type ConversationOptions = z.infer<typeof ConversationOptionsSchema>
 export type ConversationState = z.infer<typeof ConversationStateSchema>
 
@@ -122,6 +144,7 @@ export type AskOptions = {
 export class Conversation extends Feature<ConversationState, ConversationOptions> {
 	static override stateSchema = ConversationStateSchema
 	static override optionsSchema = ConversationOptionsSchema
+	static override eventsSchema = ConversationEventsSchema
 	static override shortcut = 'features.conversation' as const
 
 	static { Feature.register(this, 'conversation') }

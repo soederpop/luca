@@ -261,12 +261,22 @@ export function describeEventsSchema(
       // The event value is a tuple schema — its items describe positional args
       const items = eventProp?.prefixItems || eventProp?.items
       if (Array.isArray(items)) {
-        items.forEach((item: any, index: number) => {
-          args[`arg${index}`] = {
-            type: item.type || 'any',
-            description: item.description || ''
+        if (items.length === 1 && items[0].type === 'object' && items[0].properties) {
+          // Single object payload — expand its properties as named arguments
+          for (const [propName, propSchema] of Object.entries(items[0].properties) as [string, any][]) {
+            args[propName] = {
+              type: propSchema.enum ? propSchema.enum.map((v: any) => `'${v}'`).join(' | ') : (propSchema.type || 'any'),
+              description: propSchema.description || ''
+            }
           }
-        })
+        } else {
+          items.forEach((item: any, index: number) => {
+            args[`arg${index}`] = {
+              type: item.type || 'any',
+              description: item.description || ''
+            }
+          })
+        }
       }
 
       result[eventName] = {

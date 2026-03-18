@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
@@ -30,6 +30,46 @@ export const PythonOptionsSchema = FeatureOptionsSchema.extend({
 
 export type PythonState = z.infer<typeof PythonStateSchema>
 export type PythonOptions = z.infer<typeof PythonOptionsSchema>
+
+export const PythonEventsSchema = FeatureEventsSchema.extend({
+  ready: z.tuple([]).describe('When the Python environment is ready for execution'),
+  environmentDetected: z.tuple([z.object({
+    pythonPath: z.string().nullable().describe('Path to the detected Python executable'),
+    environmentType: z.enum(['uv', 'conda', 'venv', 'system']).nullable().describe('Detected environment type'),
+  }).describe('Environment detection result')]).describe('When the Python environment type is detected'),
+  installingDependencies: z.tuple([z.object({
+    command: z.string().describe('The install command being run'),
+  }).describe('Install details')]).describe('When dependency installation begins'),
+  dependenciesInstalled: z.tuple([z.object({
+    stdout: z.string().describe('Standard output from install'),
+    stderr: z.string().describe('Standard error from install'),
+    exitCode: z.number().describe('Process exit code'),
+  }).describe('Install result')]).describe('When dependencies are successfully installed'),
+  dependencyInstallFailed: z.tuple([z.object({
+    stdout: z.string().describe('Standard output from install'),
+    stderr: z.string().describe('Standard error from install'),
+    exitCode: z.number().describe('Process exit code'),
+  }).describe('Install result')]).describe('When dependency installation fails'),
+  codeExecuted: z.tuple([z.object({
+    code: z.string().describe('The Python code that was executed'),
+    variables: z.record(z.any()).describe('Variables passed to the execution'),
+    result: z.object({
+      stdout: z.string().describe('Standard output'),
+      stderr: z.string().describe('Standard error'),
+      exitCode: z.number().describe('Process exit code'),
+    }).describe('Execution result'),
+  }).describe('Code execution details')]).describe('When Python code finishes executing'),
+  fileExecuted: z.tuple([z.object({
+    filePath: z.string().describe('Path to the executed Python file'),
+    variables: z.record(z.any()).describe('Variables passed as arguments'),
+    result: z.object({
+      stdout: z.string().describe('Standard output'),
+      stderr: z.string().describe('Standard error'),
+      exitCode: z.number().describe('Process exit code'),
+    }).describe('Execution result'),
+  }).describe('File execution details')]).describe('When a Python file finishes executing'),
+  localsParseError: z.tuple([z.any().describe('The parse error')]).describe('When captured locals fail to parse as JSON'),
+}).describe('Python events')
 
 /**
  * The Python VM feature provides Python virtual machine capabilities for executing Python code.
@@ -64,6 +104,7 @@ export class Python<
   static override shortcut = "features.python" as const
   static override stateSchema = PythonStateSchema
   static override optionsSchema = PythonOptionsSchema
+  static override eventsSchema = PythonEventsSchema
   static { Feature.register(this, 'python') }
 
   override get initialState(): T {

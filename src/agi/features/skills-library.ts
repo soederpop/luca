@@ -4,7 +4,7 @@ import os from 'os'
 import fs from 'fs/promises'
 import yaml from 'js-yaml'
 import { kebabCase } from 'lodash-es'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
 import { Collection, defineModel } from 'contentbase'
 import type { ConversationTool } from './conversation'
@@ -61,6 +61,13 @@ export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
 	userSkillsPath: z.string().optional().describe('Path to user-level global skills directory'),
 })
 
+export const SkillsLibraryEventsSchema = FeatureEventsSchema.extend({
+	loaded: z.tuple([]).describe('Fired after both project and user skill collections are loaded'),
+	skillCreated: z.tuple([z.any().describe('The created SkillEntry object')]).describe('Fired after a new skill is written to disk'),
+	skillUpdated: z.tuple([z.any().describe('The updated SkillEntry object')]).describe('Fired after an existing skill is updated'),
+	skillRemoved: z.tuple([z.string().describe('The name of the removed skill')]).describe('Fired after a skill is deleted'),
+}).describe('SkillsLibrary events')
+
 export type SkillsLibraryState = z.infer<typeof SkillsLibraryStateSchema>
 export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
 
@@ -91,6 +98,7 @@ export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
 export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOptions> {
 	static override stateSchema = SkillsLibraryStateSchema
 	static override optionsSchema = SkillsLibraryOptionsSchema
+	static override eventsSchema = SkillsLibraryEventsSchema
 	static override shortcut = 'features.skillsLibrary' as const
 
 	static { Feature.register(this, 'skillsLibrary') }

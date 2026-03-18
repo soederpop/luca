@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
 import { Client } from "@soederpop/luca/client";
 import type { Container, ContainerContext } from "@soederpop/luca/container";
 
@@ -27,6 +27,14 @@ export const OpenAIClientOptionsSchema = ClientOptionsSchema.extend({
 })
 export type OpenAIClientOptions = z.infer<typeof OpenAIClientOptionsSchema>
 
+export const OpenAIClientEventsSchema = ClientEventsSchema.extend({
+  connected: z.tuple([]).describe('Emitted when the API connection is verified'),
+  completion: z.tuple([z.any().describe('The completion or response object')]).describe('Emitted after a chat completion, legacy completion, or response is created'),
+  embedding: z.tuple([z.any().describe('The embedding response object')]).describe('Emitted after embeddings are created'),
+  image: z.tuple([z.any().describe('The image generation response object')]).describe('Emitted after an image is generated'),
+  models: z.tuple([z.any().describe('The models list response')]).describe('Emitted after listing available models'),
+}).describe('OpenAI client events')
+
 /**
  * OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation.
  *
@@ -47,6 +55,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   static override envVars = ['OPENAI_API_KEY']
   static override stateSchema = OpenAIClientStateSchema
   static override optionsSchema = OpenAIClientOptionsSchema
+  static override eventsSchema = OpenAIClientEventsSchema
 
   static { Client.register(this, 'openai') }
 

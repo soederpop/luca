@@ -106,7 +106,7 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 		const targets = [
 			{
 				name: 'node',
-				src: ['src/node/features', 'src/servers', 'src/container.ts', 'src/node/container.ts'],
+				src: ['src/node/features', 'src/clients', 'src/servers', 'src/container.ts', 'src/node/container.ts'],
 				outputPath: 'src/introspection/generated.node.ts',
 			},
 			{
@@ -116,7 +116,7 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 			},
 			{
 				name: 'agi',
-				src: ['src/node/features', 'src/servers', 'src/agi/features', 'src/container.ts', 'src/node/container.ts', 'src/agi/container.server.ts'],
+				src: ['src/node/features', 'src/clients', 'src/servers', 'src/agi/features', 'src/container.ts', 'src/node/container.ts', 'src/agi/container.server.ts'],
 				outputPath: 'src/introspection/generated.agi.ts',
 			},
 		]

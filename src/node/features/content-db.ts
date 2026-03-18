@@ -2,7 +2,7 @@ import { Feature } from '../feature.js'
 import * as contentbaseExports from 'contentbase'
 import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { join, dirname } from 'node:path'
 import { existsSync, readdirSync } from 'node:fs'
 
@@ -18,6 +18,10 @@ export const ContentDbOptionsSchema = FeatureOptionsSchema.extend({
 
 export type ContentDbState = z.infer<typeof ContentDbStateSchema>
 export type ContentDbOptions = z.infer<typeof ContentDbOptionsSchema>
+
+export const ContentDbEventsSchema = FeatureEventsSchema.extend({
+  reloaded: z.tuple([]).describe('When the content collection is reloaded from disk'),
+}).describe('ContentDb events')
 
 /**
  * Provides access to a Contentbase Collection for a folder of structured markdown files.
@@ -38,6 +42,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override shortcut = 'features.contentDb' as const
   static override stateSchema = ContentDbStateSchema
   static override optionsSchema = ContentDbOptionsSchema
+  static override eventsSchema = ContentDbEventsSchema
   static { Feature.register(this, 'contentDb') }
 
   override get initialState(): ContentDbState {

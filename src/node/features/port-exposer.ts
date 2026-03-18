@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import * as ngrok from '@ngrok/ngrok'
 import { Feature } from '../../feature.js'
 
@@ -49,6 +49,15 @@ export const PortExposerOptionsSchema = FeatureOptionsSchema.extend({
 })
 export type PortExposerOptions = z.infer<typeof PortExposerOptionsSchema>
 
+export const PortExposerEventsSchema = FeatureEventsSchema.extend({
+	exposed: z.tuple([z.object({
+		publicUrl: z.string().optional().describe('The public ngrok URL'),
+		localPort: z.number().describe('The local port being exposed'),
+	}).describe('Exposure details')]).describe('When a local port is successfully exposed via ngrok'),
+	closed: z.tuple([]).describe('When the ngrok tunnel is closed'),
+	error: z.tuple([z.any().describe('The error object')]).describe('When an ngrok operation fails'),
+}).describe('Port Exposer events')
+
 /**
  * Port Exposer Feature
  * 
@@ -81,6 +90,7 @@ export class PortExposer extends Feature<PortExposerState, PortExposerOptions> {
 	static override shortcut = 'portExposer' as const
 	static override stateSchema = PortExposerStateSchema
 	static override optionsSchema = PortExposerOptionsSchema
+	static override eventsSchema = PortExposerEventsSchema
 	static { Feature.register(this, 'portExposer') }
 
 	private ngrokListener?: ngrok.Listener

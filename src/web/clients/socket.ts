@@ -1,5 +1,7 @@
 import Websocket from 'isomorphic-ws'
-import { Client, WebSocketClient, type WebSocketClientState, type WebSocketClientOptions } from '../../client'
+import { Client } from '../../client'
+import { WebSocketClient, type WebSocketClientState, type WebSocketClientOptions } from '../../clients/websocket'
+import { WebSocketClientEventsSchema } from '../../schemas/base.js'
 
 /**
  * Web-specific WebSocket client implementation using isomorphic-ws.
@@ -11,6 +13,7 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
   declare ws: Websocket | WebSocket
 
   static override shortcut = 'clients.websocket' as const
+  static override eventsSchema = WebSocketClientEventsSchema
 
   static { Client.register(this, 'websocket') }
 

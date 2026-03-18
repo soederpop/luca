@@ -1,5 +1,5 @@
 import { Feature } from '../../feature.js'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'
 
@@ -19,6 +19,10 @@ export const OpenAPIStateSchema = FeatureStateSchema.extend({
 export const OpenAPIOptionsSchema = FeatureOptionsSchema.extend({
   url: z.string().optional().describe('URL to the OpenAPI/Swagger spec or the API server base URL')
 })
+
+export const OpenAPIEventsSchema = FeatureEventsSchema.extend({
+	loaded: z.tuple([z.any().describe('The parsed OpenAPI spec object')]).describe('Fired after the spec is fetched and parsed'),
+}).describe('OpenAPI events')
 
 export type OpenAPIOptions = z.infer<typeof OpenAPIOptionsSchema>
 export type OpenAPIState = z.infer<typeof OpenAPIStateSchema>
@@ -102,6 +106,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   static override description = 'Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions'
   static override stateSchema = OpenAPIStateSchema
   static override optionsSchema = OpenAPIOptionsSchema
+  static override eventsSchema = OpenAPIEventsSchema
 
   static { Feature.register(this, 'openapi') }
 

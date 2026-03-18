@@ -42,6 +42,9 @@ export { Registry } from './registry'
 
 // Helper subclasses & registries
 export { Client, ClientsRegistry } from './client'
+export { RestClient } from './clients/rest'
+export { GraphClient } from './clients/graph'
+export { WebSocketClient } from './clients/websocket'
 export { Command, CommandsRegistry, commands } from './command'
 export { Endpoint, EndpointsRegistry, endpoints } from './endpoint'
 export { Selector, SelectorsRegistry, selectors } from './selector'

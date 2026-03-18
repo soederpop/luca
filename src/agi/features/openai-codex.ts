@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '@soederpop/luca/feature'
 
@@ -96,6 +96,20 @@ export const OpenAICodexOptionsSchema = FeatureOptionsSchema.extend({
   fullStdout: z.boolean().optional().describe('Do not truncate stdout/stderr from command outputs'),
 })
 
+export const OpenAICodexEventsSchema = FeatureEventsSchema.extend({
+  'session:start': z.tuple([z.object({ sessionId: z.string(), prompt: z.string() })]).describe('Fired when a new Codex session is spawned'),
+  'session:event': z.tuple([z.object({ sessionId: z.string(), event: z.any() })]).describe('Fired for every parsed JSON event from the Codex CLI stream'),
+  'session:delta': z.tuple([z.object({ sessionId: z.string(), text: z.string(), role: z.string() })]).describe('Fired for each text delta from an agent message'),
+  'session:message': z.tuple([z.object({ sessionId: z.string(), message: z.any() })]).describe('Fired when a complete agent message is received'),
+  'session:exec': z.tuple([z.object({ sessionId: z.string(), exec: z.any() })]).describe('Fired when a command execution item completes'),
+  'session:exec-start': z.tuple([z.object({ sessionId: z.string(), command: z.string() })]).describe('Fired when a command execution item starts'),
+  'session:reasoning': z.tuple([z.object({ sessionId: z.string(), text: z.string() })]).describe('Fired when a reasoning item is received'),
+  'session:result': z.tuple([z.object({ sessionId: z.string(), result: z.string() })]).describe('Fired when a session completes with a final result'),
+  'session:error': z.tuple([z.object({ sessionId: z.string(), error: z.any(), exitCode: z.number().optional() })]).describe('Fired when a session encounters an error'),
+  'session:abort': z.tuple([z.object({ sessionId: z.string() })]).describe('Fired when a session is aborted by the user'),
+  'session:parse-error': z.tuple([z.object({ sessionId: z.string(), line: z.string() })]).describe('Fired when a JSON line from the CLI cannot be parsed'),
+}).describe('OpenAICodex events')
+
 export type OpenAICodexState = z.infer<typeof OpenAICodexStateSchema>
 export type OpenAICodexOptions = z.infer<typeof OpenAICodexOptionsSchema>
 
@@ -146,6 +160,7 @@ export interface CodexRunOptions {
 export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   static override stateSchema = OpenAICodexStateSchema
   static override optionsSchema = OpenAICodexOptionsSchema
+  static override eventsSchema = OpenAICodexEventsSchema
   static override shortcut = 'features.openaiCodex' as const
 
   static { Feature.register(this, 'openaiCodex') }

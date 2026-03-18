@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { SQL } from 'bun'
 import { Feature } from '../feature.js'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import type { ContainerContext } from '../../container.js'
 
 type SqlValue = string | number | boolean | bigint | Uint8Array | Buffer | null
@@ -20,6 +20,21 @@ export const PostgresOptionsSchema = FeatureOptionsSchema.extend({
 
 export type PostgresState = z.infer<typeof PostgresStateSchema>
 export type PostgresOptions = z.infer<typeof PostgresOptionsSchema>
+
+export const PostgresEventsSchema = FeatureEventsSchema.extend({
+  query: z.tuple([
+    z.string().describe('The SQL query text'),
+    z.array(z.any()).describe('Bound parameter values'),
+    z.number().describe('Number of rows returned'),
+  ]).describe('When a SELECT-like query is executed'),
+  execute: z.tuple([
+    z.string().describe('The SQL statement text'),
+    z.array(z.any()).describe('Bound parameter values'),
+    z.number().describe('Number of rows affected'),
+  ]).describe('When a write/update/delete statement is executed'),
+  error: z.tuple([z.any().describe('The error object')]).describe('When a postgres operation fails'),
+  closed: z.tuple([]).describe('When the postgres connection is closed'),
+}).describe('Postgres events')
 
 /**
  * Postgres feature for safe SQL execution through Bun's native SQL client.
@@ -46,6 +61,7 @@ export class Postgres extends Feature<PostgresState, PostgresOptions> {
   static override shortcut = 'features.postgres' as const
   static override stateSchema = PostgresStateSchema
   static override optionsSchema = PostgresOptionsSchema
+  static override eventsSchema = PostgresEventsSchema
   static { Feature.register(this, 'postgres') }
 
   private _client: SQL

@@ -1,10 +1,10 @@
 import {
   Client,
-  RestClient,
 } from "@soederpop/luca/client";
+import { RestClient } from "../rest";
 import type { ContainerContext } from "@soederpop/luca/container";
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
 
 declare module "@soederpop/luca/client" {
   interface AvailableClients {
@@ -24,6 +24,16 @@ export const ComfyUIClientOptionsSchema = ClientOptionsSchema.extend({
 
 export type ComfyUIClientState = z.infer<typeof ComfyUIClientStateSchema>
 export type ComfyUIClientOptions = z.infer<typeof ComfyUIClientOptionsSchema>
+
+export const ComfyUIClientEventsSchema = ClientEventsSchema.extend({
+  execution_start: z.tuple([z.object({ promptId: z.string().describe('The prompt ID that started executing') })]).describe('Emitted when prompt execution begins'),
+  executing: z.tuple([z.object({ node: z.string().describe('The node ID currently executing'), promptId: z.string().describe('The prompt ID') })]).describe('Emitted when a specific node begins executing'),
+  progress: z.tuple([z.object({ node: z.string().describe('The node ID'), value: z.number().describe('Current progress value'), max: z.number().describe('Maximum progress value'), promptId: z.string().describe('The prompt ID') })]).describe('Emitted during node execution with progress updates'),
+  executed: z.tuple([z.object({ node: z.string().describe('The node ID that finished'), output: z.any().describe('The node output data'), promptId: z.string().describe('The prompt ID') })]).describe('Emitted when a node finishes execution'),
+  execution_cached: z.tuple([z.object({ nodes: z.array(z.string()).describe('Array of cached node IDs'), promptId: z.string().describe('The prompt ID') })]).describe('Emitted when nodes are served from cache'),
+  execution_error: z.tuple([z.object({ promptId: z.string().describe('The prompt ID'), exception_message: z.string().optional().describe('Error message') }).passthrough()]).describe('Emitted when prompt execution fails'),
+  execution_complete: z.tuple([z.object({ promptId: z.string().describe('The prompt ID that completed') })]).describe('Emitted when prompt execution finishes successfully'),
+}).describe('ComfyUI client events')
 
 /** Maps a semantic input name to a specific node ID and field */
 export type InputMapping = Record<string, { nodeId: string; field: string }>;
@@ -66,6 +76,7 @@ export class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyUIClientO
   static override description = "ComfyUI workflow execution client";
   static override stateSchema = ComfyUIClientStateSchema;
   static override optionsSchema = ComfyUIClientOptionsSchema;
+  static override eventsSchema = ComfyUIClientEventsSchema;
 
   static { Client.register(this, 'comfyui') }
 

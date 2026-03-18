@@ -1,6 +1,7 @@
 import { describe, it, expect, spyOn } from 'bun:test'
 import { NodeContainer } from '../src/node/container'
-import { WebSocketClient, GraphClient } from '../src/client'
+import { WebSocketClient } from '../src/clients/websocket'
+import { GraphClient } from '../src/clients/graph'
 
 describe('Clients', () => {
   it('container has clients registry after construction', () => {

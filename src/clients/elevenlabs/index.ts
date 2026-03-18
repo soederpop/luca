@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
-import { Client, RestClient } from "@soederpop/luca/client";
+import { Client } from "@soederpop/luca/client";
+import { RestClient } from "../rest";
 import type { ContainerContext } from "@soederpop/luca/container";
 import type { AxiosRequestConfig } from 'axios'
 

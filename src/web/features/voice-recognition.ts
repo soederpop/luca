@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../../feature.js";
 import { type ContainerContext } from '../container.js'
 
@@ -16,6 +16,20 @@ export const VoiceRecognitionStateSchema = FeatureStateSchema.extend({
 
 export type VoiceRecognitionOptions = z.infer<typeof VoiceRecognitionOptionsSchema>
 export type VoiceRecognitionState = z.infer<typeof VoiceRecognitionStateSchema>
+
+export const VoiceRecognitionEventsSchema = FeatureEventsSchema.extend({
+  result: z.tuple([
+    z.object({
+      finalTranscript: z.string().describe('Accumulated final transcript text'),
+      interimTranscript: z.string().describe('Current interim transcript text'),
+    }).describe('Recognition result payload'),
+  ]).describe('Fires when speech recognition produces a result'),
+  error: z.tuple([z.string().describe('Error message from the recognizer')]).describe('Fires when speech recognition encounters an error'),
+  end: z.tuple([]).describe('Fires when speech recognition ends'),
+  start: z.tuple([]).describe('Fires when speech recognition starts listening'),
+  stop: z.tuple([]).describe('Fires when speech recognition is manually stopped'),
+  abort: z.tuple([]).describe('Fires when speech recognition is aborted'),
+}).describe('VoiceRecognition events')
 
 /**
  * Speech-to-text recognition using the Web Speech API (SpeechRecognition).
@@ -44,6 +58,7 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
 
   static override stateSchema = VoiceRecognitionStateSchema
   static override optionsSchema = VoiceRecognitionOptionsSchema
+  static override eventsSchema = VoiceRecognitionEventsSchema
   static override shortcut = "features.voice" as const
 
   static { Feature.register(this as any, 'voice') }

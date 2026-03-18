@@ -2,7 +2,7 @@ import { z } from 'zod'
 import net from 'net'
 import detectPort from 'detect-port'
 import { Feature } from '../feature.js'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 
 const MAX_CIDR_HOSTS = 65536
 
@@ -119,6 +119,27 @@ export const NetworkSnapshotSchema = z.object({
 })
 export type NetworkSnapshot = z.infer<typeof NetworkSnapshotSchema>
 
+export const NetworkingEventsSchema = FeatureEventsSchema.extend({
+  'host:discovered': z.tuple([DiscoverHostSchema.describe('The discovered host')]).describe('When a host is found during network scanning'),
+  'port:open': z.tuple([z.object({
+    host: z.string().describe('Host IP address'),
+    port: z.number().describe('Open port number'),
+    service: z.string().optional().describe('Best-effort service name'),
+    banner: z.string().optional().describe('Banner text when captured'),
+  }).describe('Open port details')]).describe('When an open port is detected on a host'),
+  'scan:start': z.tuple([z.object({
+    target: z.string().describe('Scan target identifier'),
+    type: z.string().describe('Scan type identifier'),
+  }).describe('Scan start details')]).describe('When a network scan begins'),
+  'scan:complete': z.tuple([z.object({
+    target: z.string().describe('Scan target identifier'),
+    type: z.string().describe('Scan type identifier'),
+    duration: z.number().describe('Scan duration in milliseconds'),
+    hostsFound: z.number().describe('Number of hosts discovered'),
+    portsFound: z.number().describe('Number of open ports discovered'),
+  }).describe('Scan completion details')]).describe('When a network scan finishes'),
+}).describe('Networking events')
+
 export const NetworkingStateSchema = FeatureStateSchema.extend({
   lastScan: z.object({
     timestamp: z.number().describe('Unix epoch timestamp in ms'),
@@ -204,6 +225,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   static override shortcut = 'features.networking' as const
   static override stateSchema = NetworkingStateSchema
   static override optionsSchema = NetworkingOptionsSchema
+  static override eventsSchema = NetworkingEventsSchema
   static { Feature.register(this, 'networking') }
 
   override get initialState(): NetworkingState {

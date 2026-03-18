@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '@soederpop/luca/feature'
 
@@ -184,6 +184,21 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to load into sessions'),
 })
 
+export const ClaudeCodeEventsSchema = FeatureEventsSchema.extend({
+  'session:start': z.tuple([z.object({ sessionId: z.string(), prompt: z.string() })]).describe('Fired when a new Claude Code session is spawned'),
+  'session:init': z.tuple([z.object({ sessionId: z.string(), init: z.any() })]).describe('Fired when the CLI emits its init system event'),
+  'session:event': z.tuple([z.object({ sessionId: z.string(), event: z.any() })]).describe('Fired for every parsed JSON event from the CLI stream'),
+  'session:stream': z.tuple([z.object({ sessionId: z.string(), streamEvent: z.any() })]).describe('Fired for stream_event type events from the CLI'),
+  'session:delta': z.tuple([z.object({ sessionId: z.string(), text: z.string(), role: z.string() })]).describe('Fired for each text delta from an assistant message'),
+  'session:message': z.tuple([z.object({ sessionId: z.string(), message: z.any() })]).describe('Fired when a complete assistant message is received'),
+  'session:result': z.tuple([z.object({ sessionId: z.string(), result: z.string() })]).describe('Fired when a session completes with a final result'),
+  'session:error': z.tuple([z.object({ sessionId: z.string(), error: z.any(), exitCode: z.number().optional() })]).describe('Fired when a session encounters an error'),
+  'session:abort': z.tuple([z.object({ sessionId: z.string() })]).describe('Fired when a session is aborted by the user'),
+  'session:warning': z.tuple([z.object({ sessionId: z.string(), message: z.string() })]).describe('Fired when the log reader encounters a warning'),
+  'session:log-error': z.tuple([z.object({ sessionId: z.string(), error: z.any() })]).describe('Fired when the log reader encounters an error'),
+  'session:parse-error': z.tuple([z.object({ sessionId: z.string(), line: z.string() })]).describe('Fired when a JSON line from the CLI cannot be parsed'),
+}).describe('ClaudeCode events')
+
 export type ClaudeCodeState = z.infer<typeof ClaudeCodeStateSchema>
 export type ClaudeCodeOptions = z.infer<typeof ClaudeCodeOptionsSchema>
 
@@ -279,6 +294,7 @@ export interface RunOptions {
 export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   static override stateSchema = ClaudeCodeStateSchema
   static override optionsSchema = ClaudeCodeOptionsSchema
+  static override eventsSchema = ClaudeCodeEventsSchema
   static override shortcut = 'features.claudeCode' as const
   static override envVars = ['TMPDIR']
 

@@ -360,6 +360,54 @@ function collectSharedMembers(baseClass: any): { methods: string[]; getters: str
 	return { methods: methods.sort(), getters: getters.sort() }
 }
 
+/**
+ * Find the intermediate parent class between a helper constructor and the registry's
+ * base class (e.g. RestClient between ElevenLabsClient and Client).
+ * Returns the intermediate class constructor, or null if the helper extends the base directly.
+ */
+function findIntermediateParent(Ctor: any, baseClass: any): { name: string; methods: string[]; getters: string[] } | null {
+	if (!baseClass) return null
+
+	// Walk up from Ctor's parent to find the chain
+	let parent = Object.getPrototypeOf(Ctor)
+	if (!parent || parent === baseClass) return null
+
+	// Check if the parent itself is a direct child of baseClass (i.e., 2nd level)
+	// We want to find the class between Ctor and baseClass
+	const chain: any[] = []
+	let current = parent
+	while (current && current !== baseClass && current !== Function.prototype) {
+		chain.push(current)
+		current = Object.getPrototypeOf(current)
+	}
+
+	// If the chain is empty or parent IS the baseClass, no intermediate
+	if (chain.length === 0 || current !== baseClass) return null
+
+	// The first entry in the chain is the direct parent of Ctor — that's our intermediate
+	const intermediate = chain[0]
+	const methods: string[] = []
+	const getters: string[] = []
+
+	// Collect only the methods/getters defined directly on the intermediate class
+	const proto = intermediate?.prototype
+	if (proto) {
+		for (const k of Object.getOwnPropertyNames(proto)) {
+			if (k === 'constructor' || k.startsWith('_')) continue
+			const desc = Object.getOwnPropertyDescriptor(proto, k)
+			if (!desc) continue
+			if (desc.get && !getters.includes(k)) getters.push(k)
+			else if (typeof desc.value === 'function' && !methods.includes(k)) methods.push(k)
+		}
+	}
+
+	return {
+		name: intermediate.name,
+		methods: methods.sort(),
+		getters: getters.sort(),
+	}
+}
+
 function getRegistryData(container: any, registryName: RegistryName, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const available: string[] = registry.available
@@ -395,7 +443,18 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 			jsonResult._shared = { methods: shared.methods, getters: shared.getters }
 		}
 
-		for (const id of available) {
+		// Sort: core framework classes (direct children of baseClass) first, then the rest
+		const sorted = [...available].sort((a, b) => {
+			const aCtor = registry.lookup(a)
+			const bCtor = registry.lookup(b)
+			const aIsDirect = !findIntermediateParent(aCtor, baseClass)
+			const bIsDirect = !findIntermediateParent(bCtor, baseClass)
+			if (aIsDirect && !bIsDirect) return -1
+			if (!aIsDirect && bIsDirect) return 1
+			return 0
+		})
+
+		for (const id of sorted) {
 			const Ctor = registry.lookup(id)
 			const introspection = Ctor.introspect?.()
 			const description = introspection?.description || Ctor.description || 'No description provided'
@@ -405,14 +464,29 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 			const featureGetters = Object.keys(introspection?.getters || {}).sort()
 			const featureMethods = Object.keys(introspection?.methods || {}).sort()
 
-			jsonResult[id] = { description: summary, methods: featureMethods, getters: featureGetters }
+			// Detect intermediate parent class (e.g. RestClient between ElevenLabsClient and Client)
+			const intermediate = findIntermediateParent(Ctor, baseClass)
+
+			const entryJson: Record<string, any> = { description: summary, methods: featureMethods, getters: featureGetters }
+			if (intermediate) {
+				entryJson.extends = intermediate.name
+				entryJson.inheritedMethods = intermediate.methods
+				entryJson.inheritedGetters = intermediate.getters
+			}
+			jsonResult[id] = entryJson
+
+			const extendsLine = intermediate ? `\n> extends ${intermediate.name}\n` : ''
 
 			const memberLines: string[] = []
 			if (featureGetters.length) memberLines.push(`  getters: ${featureGetters.join(', ')}`)
 			if (featureMethods.length) memberLines.push(`  methods: ${featureMethods.map(m => m + '()').join(', ')}`)
+			if (intermediate) {
+				if (intermediate.getters.length) memberLines.push(`  inherited getters: ${intermediate.getters.join(', ')}`)
+				if (intermediate.methods.length) memberLines.push(`  inherited methods: ${intermediate.methods.map(m => m + '()').join(', ')}`)
+			}
 
 			const memberBlock = memberLines.length ? '\n' + memberLines.join('\n') + '\n' : ''
-			textParts.push(`${hSub} ${id}\n\n${summary}\n${memberBlock}`)
+			textParts.push(`${hSub} ${id}${extendsLine}\n${summary}\n${memberBlock}`)
 		}
 
 		return { json: jsonResult, text: textParts.join('\n') }
@@ -430,13 +504,70 @@ function getRegistryData(container: any, registryName: RegistryName, sections: (
 	return { json: jsonResult, text: textParts.join('\n\n---\n\n') }
 }
 
+/** Known top-level helper base class names — anything above these is "shared" */
+const BASE_CLASS_NAMES = new Set(['Helper', 'Feature', 'Client', 'Server'])
+
+/**
+ * Build a concise summary block for an individual helper listing its interface at a glance.
+ * Shows extends line if there's an intermediate parent, then own methods/getters,
+ * then inherited methods/getters from the intermediate parent.
+ */
+function buildHelperSummary(Ctor: any): string {
+	const introspection = Ctor.introspect?.()
+	const ownMethods = Object.keys(introspection?.methods || {}).sort()
+	const ownGetters = Object.keys(introspection?.getters || {}).sort()
+
+	// Walk up the prototype chain to find an intermediate parent
+	const chain: any[] = []
+	let current = Object.getPrototypeOf(Ctor)
+	while (current && current.name && !BASE_CLASS_NAMES.has(current.name) && current !== Function.prototype) {
+		chain.push(current)
+		current = Object.getPrototypeOf(current)
+	}
+
+	const lines: string[] = []
+
+	if (chain.length > 0) {
+		lines.push(`> extends ${chain[0].name}`)
+	}
+
+	if (ownGetters.length) lines.push(`getters: ${ownGetters.join(', ')}`)
+	if (ownMethods.length) lines.push(`methods: ${ownMethods.map(m => m + '()').join(', ')}`)
+
+	// Collect inherited members from intermediate parent(s)
+	for (const parent of chain) {
+		const parentIntrospection = parent.introspect?.()
+		const inheritedMethods = Object.keys(parentIntrospection?.methods || {}).sort()
+		const inheritedGetters = Object.keys(parentIntrospection?.getters || {}).sort()
+		if (inheritedGetters.length) lines.push(`inherited getters (${parent.name}): ${inheritedGetters.join(', ')}`)
+		if (inheritedMethods.length) lines.push(`inherited methods (${parent.name}): ${inheritedMethods.map(m => m + '()').join(', ')}`)
+	}
+
+	return lines.join('\n')
+}
+
 function getHelperData(container: any, registryName: RegistryName, id: string, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const Ctor = registry.lookup(id)
+	const text = renderHelperText(Ctor, sections, noTitle, headingDepth)
+
+	// Inject summary after the title + description block for full (no-section) renders
+	let finalText = text
+	if (sections.length === 0 && !noTitle) {
+		const summary = buildHelperSummary(Ctor)
+		if (summary) {
+			// Find the first ## heading and insert the summary before it
+			const sectionHeading = '#'.repeat(headingDepth + 1) + ' '
+			const idx = text.indexOf('\n' + sectionHeading)
+			if (idx >= 0) {
+				finalText = text.slice(0, idx) + '\n\n' + summary + '\n' + text.slice(idx)
+			}
+		}
+	}
 
 	return {
 		json: renderHelperJson(Ctor, sections, noTitle),
-		text: renderHelperText(Ctor, sections, noTitle, headingDepth),
+		text: finalText,
 	}
 }
 

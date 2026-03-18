@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ServerStateSchema, ServerOptionsSchema } from '../schemas/base.js'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
 import { type StartOptions, Server, type ServerState } from '../server.js';
 import { WebSocketServer as BaseServer } from 'ws'
 
@@ -13,6 +13,11 @@ export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
   json: z.boolean().optional().describe('Whether to automatically JSON parse/stringify messages'),
 })
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
+
+export const SocketServerEventsSchema = ServerEventsSchema.extend({
+  connection: z.tuple([z.any().describe('The WebSocket client instance')]).describe('Fires when a new client connects'),
+  message: z.tuple([z.any().describe('The message data'), z.any().describe('The WebSocket client that sent the message')]).describe('Fires when a message is received from a client'),
+}).describe('WebSocket server events')
 
 /**
  * WebSocket server built on the `ws` library with optional JSON message framing.
@@ -38,6 +43,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     static override shortcut = 'servers.websocket' as const
     static override stateSchema = ServerStateSchema
     static override optionsSchema = SocketServerOptionsSchema
+    static override eventsSchema = SocketServerEventsSchema
 
     static { Server.register(this, 'websocket') }
     
