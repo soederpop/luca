@@ -58,6 +58,31 @@ export const argsSchema = z.object({
 })
 ```
 
+## What's Available
+
+The container provides more than you might expect. Before importing anything external, check here:
+
+- **YAML** — `container.feature('yaml')` wraps `js-yaml`. Use `.parse(str)` and `.stringify(obj)`.
+- **SQLite** — `container.feature('sqlite')` for databases. Parameterized queries, tagged templates.
+- **REST client** — `container.client('rest', { baseURL })`. Methods (`get`, `post`, etc.) return **parsed JSON directly**, not `{ data, status, headers }`. On HTTP errors, the error is returned (not thrown).
+- **Content DB** — `container.docs` (alias for `container.feature('contentDb')`) manages markdown documents with frontmatter. Query with `docs.query(docs.models.MyModel).fetchAll()`.
+- **Grep** — `container.feature('grep')` has `search()` and `codeAnnotations()` for finding TODOs/FIXMEs/etc.
+- **chalk** — available as `container.feature('ui').colors`, not via `import('chalk')`.
+- **figlet** — available as `container.feature('ui').asciiArt(text)`.
+- **uuid** — `container.utils.uuid()`
+- **lodash** — `container.utils.lodash` (groupBy, keyBy, pick, omit, debounce, etc.)
+- **string utils** — `container.utils.stringUtils` (camelCase, kebabCase, pluralize, etc.)
+
+## Known Gotchas
+
+- **For DELETE endpoint handlers, use `export { del as delete }`** — `delete` is a JS reserved word. Define your function with any name, then re-export it as `delete`.
+- **Bun globals (`Bun.spawn`, `Bun.serve`) are unavailable** in command/endpoint handlers. Use Node's `child_process` for spawning processes, or use `container.feature('proc').exec()`.
+- **`ui.print.*` writes to stdout** — if your command supports `--json`, gate UI output behind `if (!options.json)`.
+- **VM contexts start empty** — when using `container.feature('vm')`, inject globals explicitly (`console`, `Date`, `Promise`, `crypto`, `TextEncoder`, `setTimeout`).
+- **Long-running commands** (servers, watchers) need `await new Promise(() => {})` at the end with a `process.on('SIGINT', ...)` handler for cleanup.
+- **Shared state between endpoints**: use `ctx.request.app.locals` to share data across endpoint files.
+- **Database init**: use `luca.cli.ts` `main()` hook for table creation and seeding — it runs before any command or server starts.
+
 ## Extending the Container
 
 Use `luca scaffold` to generate new helpers:

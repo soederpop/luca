@@ -177,11 +177,16 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     }
 
     async useEndpoints(dir: string): Promise<this> {
-      const glob = new Bun.Glob('**/*.ts')
+      const { Glob } = globalThis.Bun || (await import('bun'))
+      const glob = new Glob('**/*.ts')
+
+      // Use the helpers feature's VM-aware loader so endpoints can resolve
+      // packages like zod and @soederpop/luca even from the compiled binary
+      const helpers = this.container.feature('helpers') as any
 
       for await (const file of glob.scan({ cwd: dir, absolute: true })) {
         try {
-          const mod = await import(file)
+          const mod = await helpers.loadModuleExports(file)
           const endpointModule: EndpointModule = mod.default || mod
 
           if (!endpointModule.path) {

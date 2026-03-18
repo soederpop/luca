@@ -18,12 +18,14 @@ Run `luca serve` and they're automatically discovered and mounted.
 
 ## Imports
 
-```ts
-import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
-```
+Endpoints are lightweight — just exports and handler functions. No imports are required.
 
-That's it. Endpoints are lightweight — just exports and functions.
+If your project has `@soederpop/luca` as an npm dependency, you can import `z` from `zod` and `EndpointContext` from `@soederpop/luca` for type safety. Otherwise, use `any` types — the framework handles validation and context injection for you.
+
+Access framework capabilities through the `ctx` parameter:
+- `ctx.container.feature('fs')` for file operations
+- `ctx.container.feature('yaml')` for YAML parsing
+- `ctx.container.feature('sqlite')` for database access
 
 ## Required Exports
 
@@ -37,16 +39,16 @@ export const tags = ['{{camelName}}']
 
 ## Handler Functions
 
-Export named functions for each HTTP method you support. Each receives validated parameters and an `EndpointContext`:
+Export named functions for each HTTP method you support. Each receives validated parameters and a context object:
 
 ```ts
-export async function get(params: any, ctx: EndpointContext) {
+export async function get(params: any, ctx: any) {
   const fs = ctx.container.feature('fs')
   // Your logic here
   return { message: 'ok' }
 }
 
-export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+export async function post(params: any, ctx: any) {
   // Create something
   return { created: true }
 }
@@ -64,9 +66,11 @@ Return any object — it's automatically JSON-serialized as the response.
 
 ## Validation Schemas
 
-Export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
+If `zod` is available (via `@soederpop/luca` dependency or `node_modules`), export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
 
 ```ts
+import { z } from 'zod'
+
 export const getSchema = z.object({
   q: z.string().optional().describe('Search query'),
   limit: z.number().default(20).describe('Max results'),
@@ -78,7 +82,7 @@ export const postSchema = z.object({
 })
 ```
 
-Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec.
+Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec. If zod is not available, skip schema exports — the endpoint still works, you just lose automatic validation.
 
 ## Rate Limiting
 
@@ -94,43 +98,40 @@ export const postRateLimit = { maxRequests: 10, windowSeconds: 1 }
 
 ## Delete Handler
 
-`delete` is a reserved word in JS. Export `destroy` instead — it maps to the DELETE HTTP method automatically:
+`delete` is a reserved word in JS, so you can't use it as a function name directly. Use a named export alias:
 
 ```ts
-export async function destroy(params: any, ctx: EndpointContext) {
+// Use a local name, then re-export as `delete`
+const del = async (params: any, ctx: any) => {
   return { deleted: true }
 }
+export { del as delete }
 ```
 
-You can also use `destroySchema` and `destroyRateLimit` the same way.
+You can also export `deleteSchema` and `deleteRateLimit` for validation and rate limiting on DELETE.
 
 ## Complete Example
 
-A CRUD endpoint for a resource:
+A CRUD endpoint for a resource (no external imports needed):
 
 ```ts
-import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
-
 export const path = '/api/{{camelName}}'
 export const description = '{{description}}'
 export const tags = ['{{camelName}}']
 
-export const getSchema = z.object({
-  q: z.string().optional().describe('Search query'),
-})
-
-export async function get(params: z.infer<typeof getSchema>, ctx: EndpointContext) {
+export async function get(params: any, ctx: any) {
   return { items: [], total: 0 }
 }
 
-export const postSchema = z.object({
-  name: z.string().min(1).describe('Item name'),
-})
-
-export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+export async function post(params: any, ctx: any) {
   return { item: { id: '1', ...params }, message: 'Created' }
 }
+
+const del = async (params: any, ctx: any) => {
+  const { id } = ctx.params
+  return { message: `Deleted ${id}` }
+}
+export { del as delete }
 ```
 
 ## Dynamic Route Example
@@ -139,28 +140,21 @@ For routes with URL parameters, create a nested file:
 
 ```ts
 // endpoints/{{camelName}}/[id].ts
-import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
-
 export const path = '/api/{{camelName}}/:id'
 export const description = 'Get, update, or delete a specific item'
 export const tags = ['{{camelName}}']
 
-export async function get(params: any, ctx: EndpointContext) {
+export async function get(params: any, ctx: any) {
   const { id } = ctx.params
   return { item: { id } }
 }
 
-export const putSchema = z.object({
-  name: z.string().min(1).optional().describe('Updated name'),
-})
-
-export async function put(params: z.infer<typeof putSchema>, ctx: EndpointContext) {
+export async function put(params: any, ctx: any) {
   const { id } = ctx.params
   return { item: { id, ...params }, message: 'Updated' }
 }
 
-const del = async (params: any, ctx: EndpointContext) => {
+const del = async (params: any, ctx: any) => {
   const { id } = ctx.params
   return { message: `Deleted ${id}` }
 }

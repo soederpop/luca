@@ -63,10 +63,13 @@ export class RestClient<
   }
 
   /**
-   * Send a PATCH request.
+   * Send a PATCH request. Returns the parsed response body directly (not an
+   * axios Response wrapper). On HTTP errors, returns the error as JSON instead
+   * of throwing.
    * @param url - Request path relative to baseURL
    * @param data - Request body
    * @param options - Additional axios request config
+   * @returns Parsed response body
    */
   async patch(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
@@ -87,10 +90,13 @@ export class RestClient<
   }
 
   /**
-   * Send a PUT request.
+   * Send a PUT request. Returns the parsed response body directly (not an
+   * axios Response wrapper). On HTTP errors, returns the error as JSON instead
+   * of throwing.
    * @param url - Request path relative to baseURL
    * @param data - Request body
    * @param options - Additional axios request config
+   * @returns Parsed response body
    */
   async put(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
@@ -111,10 +117,13 @@ export class RestClient<
   }
 
   /**
-   * Send a POST request.
+   * Send a POST request. Returns the parsed response body directly (not an
+   * axios Response wrapper). On HTTP errors, returns the error as JSON instead
+   * of throwing.
    * @param url - Request path relative to baseURL
    * @param data - Request body
    * @param options - Additional axios request config
+   * @returns Parsed response body
    */
   async post(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
@@ -135,10 +144,13 @@ export class RestClient<
   }
 
   /**
-   * Send a DELETE request.
+   * Send a DELETE request. Returns the parsed response body directly (not an
+   * axios Response wrapper). On HTTP errors, returns the error as JSON instead
+   * of throwing.
    * @param url - Request path relative to baseURL
    * @param params - Query parameters
    * @param options - Additional axios request config
+   * @returns Parsed response body
    */
   async delete(url: string, params: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest();
@@ -159,10 +171,13 @@ export class RestClient<
   }
 
   /**
-   * Send a GET request.
+   * Send a GET request. Returns the parsed response body directly (not an
+   * axios Response wrapper). On HTTP errors, returns the error as JSON instead
+   * of throwing.
    * @param url - Request path relative to baseURL
    * @param params - Query parameters
    * @param options - Additional axios request config
+   * @returns Parsed response body
    */
   async get(url: string, params: any = {}, options: AxiosRequestConfig = {}) {
     await this.beforeRequest()

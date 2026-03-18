@@ -37,14 +37,11 @@ export interface EndpointModule {
   put?: EndpointHandler
   patch?: EndpointHandler
   delete?: EndpointHandler
-  /** Alias for delete (since `delete` is a JS reserved word) — takes precedence over `delete` */
-  destroy?: EndpointHandler
   getSchema?: z.ZodType
   postSchema?: z.ZodType
   putSchema?: z.ZodType
   patchSchema?: z.ZodType
   deleteSchema?: z.ZodType
-  destroySchema?: z.ZodType
   /** Rate limit applied to all methods on this endpoint */
   rateLimit?: EndpointRateLimit
   /** Per-method rate limits (overrides the endpoint-level rateLimit) */
@@ -53,7 +50,6 @@ export interface EndpointModule {
   putRateLimit?: EndpointRateLimit
   patchRateLimit?: EndpointRateLimit
   deleteRateLimit?: EndpointRateLimit
-  destroyRateLimit?: EndpointRateLimit
   description?: string
   tags?: string[]
 }
@@ -64,11 +60,8 @@ const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
 const KNOWN_EXPORTS = new Set([
   'path', 'description', 'tags', 'default', 'rateLimit',
   ...HTTP_METHODS,
-  'destroy',
   ...HTTP_METHODS.map(m => `${m}Schema`),
-  'destroySchema',
   ...HTTP_METHODS.map(m => `${m}RateLimit`),
-  'destroyRateLimit',
 ])
 
 /**
@@ -192,13 +185,9 @@ export class Endpoint<
       this._module = imported.default || imported
     }
 
-    // Normalize destroy → delete (destroy takes precedence as it avoids the reserved word)
-    if (this._module) {
-      const m = this._module as any
-      if (m.destroy) { m.delete = m.destroy; delete m.destroy }
-      if (m.destroySchema) { m.deleteSchema = m.destroySchema; delete m.destroySchema }
-      if (m.destroyRateLimit) { m.deleteRateLimit = m.destroyRateLimit; delete m.destroyRateLimit }
-    }
+    // Note: DELETE handlers should be exported as `export { del as delete }`.
+    // We no longer remap `destroy` → `delete` because ESM namespace objects
+    // are frozen and the mutation throws on Bun.
 
     this.state.set('methods', this.methods)
     this.state.set('path', this.path)
