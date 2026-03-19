@@ -173,7 +173,10 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				continue
 			}
 
-			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) continue
+			if (meta && typeof meta === 'string' && meta.toLowerCase().includes('skip')) {
+				console.log(container.ui.markdown(['```' + lang, value, '```'].join('\n')))
+				continue
+			}
 
 			console.log(container.ui.markdown(['```' + lang, value, '```'].join('\n')))
 
