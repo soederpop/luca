@@ -6,3 +6,5 @@ secrets/
 *.log
 .python-version
 dist/luca
+tmp/
+*.log
