@@ -36,6 +36,19 @@ luca describe express      # full docs for the express server
 luca describe git fs proc  # multiple helpers in one shot
 ```
 
+### Drill into a specific method or getter
+
+Use dot notation to get docs for a single method or getter on any helper:
+
+```shell
+luca describe ui.banner            # docs for the banner() method on ui
+luca describe fs.readFile          # docs for readFile() on fs
+luca describe ui.colors            # docs for the colors getter on ui
+luca describe git.branch           # docs for the branch getter on git
+```
+
+This shows the description, parameters, return type, and examples for just that member. If the member doesn't exist, it lists all available methods and getters on the helper.
+
 ### Get targeted documentation
 
 You can filter to only the sections you need:
@@ -63,7 +76,7 @@ luca describe --help       # full flag reference for describe
 luca help scaffold         # help for any command
 ```
 
-**Use `luca describe` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it.
+**Use `luca describe` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (`ui.banner`, `fs.readFile`) when you need docs on just one method or getter.
 
 ---
 

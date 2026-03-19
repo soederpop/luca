@@ -15,6 +15,7 @@ The `luca` binary is available in the path. Key commands:
 - `luca` — list available commands (built-in + project commands)
 - `luca eval "expression"` — evaluate JS with the container in scope
 - `luca describe <name>` — full docs for any feature, client, or server (e.g. `luca describe fs`)
+- `luca describe <name>.<member>` — docs for a specific method or getter (e.g. `luca describe ui.banner`, `luca describe fs.readFile`)
 - `luca describe features` — index of all available features (also: `clients`, `servers`)
 - `luca serve` — start a local server using `endpoints/` folder
 - `luca run script.ts` — run a script with the container
@@ -28,7 +29,7 @@ The `luca` binary is available in the path. Key commands:
 
 ## Learning the Framework
 
-1. **Discover** — Run `luca describe features`, `luca describe clients`, `luca describe servers` to see what's available. Then `luca describe <name>` for full docs on any helper. This is your first move, always. (See `.claude/skills/luca-framework/SKILL.md` for the full mental model.)
+1. **Discover** — Run `luca describe features`, `luca describe clients`, `luca describe servers` to see what's available. Then `luca describe <name>` for full docs on any helper, or `luca describe <name>.<member>` to drill into a specific method or getter. This is your first move, always. (See `.claude/skills/luca-framework/SKILL.md` for the full mental model.)
 2. **Build** — Run `luca scaffold <type> --tutorial` before creating a new helper. It covers the full guide for that type.
 3. **Prototype** — Use `luca eval "expression"` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access.
 4. **Reference** — Browse `.claude/skills/luca-framework/references/api-docs/` for pre-generated API docs

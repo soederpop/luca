@@ -26,6 +26,7 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 		- `luca describe diskCache`
 		- `luca describe` describe the container itself
 		- `luca describe servers` describe which servers are available
+		- `luca describe ui.banner` describe a specific method or getter on a helper
 		- the arguments to describe are pretty forgiving and permissive
 
 **IMPORTANT NOTE** When trying to investigate features, clients, servers, etc, see if these tools can help you first instead of searching for files and reading them that way.  If youw ant to understand what they do, vs how theyre actually implemented
