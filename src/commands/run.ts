@@ -16,6 +16,38 @@ export const argsSchema = CommandOptionsSchema.extend({
 	dontInjectContext: z.boolean().default(false).describe('Skip auto-injecting container context into scripts (run with plain bun instead)'),
 })
 
+/**
+ * Convert esbuild ESM output imports/exports to CJS require/module.exports
+ * so the code can run in a vm context that provides `require`.
+ */
+function esmToCjs(code: string): string {
+	return code
+		// import { a, b } from 'x' → const { a, b } = require('x')
+		.replace(/^import\s+\{([^}]+)\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+			'const {$1} = require($2);')
+		// import x from 'y' → const x = require('y').default ?? require('y')
+		.replace(/^import\s+(\w+)\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+			'const $1 = require($2).default ?? require($2);')
+		// import * as x from 'y' → const x = require('y')
+		.replace(/^import\s+\*\s+as\s+(\w+)\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+			'const $1 = require($2);')
+		// import 'y' → require('y')
+		.replace(/^import\s+(['"][^'"]+['"])\s*;?$/gm,
+			'require($1);')
+		// export default → module.exports.default =
+		.replace(/^export\s+default\s+/gm, 'module.exports.default = ')
+		// export { ... } → strip (vars already in scope)
+		.replace(/^export\s+\{[^}]*\}\s*;?$/gm, '')
+		// export const/let/var → const/let/var
+		.replace(/^export\s+(const|let|var)\s+/gm, '$1 ')
+}
+
+function hasTLA(code: string): boolean {
+	// Quick check: contains await outside of async function bodies
+	// This is a heuristic — wrapTopLevelAwait does the real work
+	return /\bawait\b/.test(code) && !/^\s*\(?\s*async\b/.test(code)
+}
+
 function resolveScript(ref: string, context: ContainerContext): string | null {
 	const container = context.container as any
 	const candidates = [
@@ -196,7 +228,17 @@ async function runScript(scriptPath: string, context: ContainerContext, options:
 	const vm = container.feature('vm')
 	const esbuild = container.feature('esbuild')
 	const raw = container.fs.readFile(scriptPath)
-	const { code } = esbuild.transformSync(raw, { format: 'cjs' })
+
+	let code: string
+	if (hasTLA(raw)) {
+		// TLA is incompatible with CJS format, so transform as ESM (preserves await)
+		// then convert import/export statements to require/module.exports for the vm
+		const { code: esm } = esbuild.transformSync(raw, { format: 'esm' })
+		code = esmToCjs(esm)
+	} else {
+		const { code: cjs } = esbuild.transformSync(raw, { format: 'cjs' })
+		code = cjs
+	}
 
 	const ctx = {
 		require: vm.createRequireFor(scriptPath),

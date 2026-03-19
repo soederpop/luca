@@ -31,7 +31,7 @@ export class ESBuild extends Feature {
     return esbuild.transformSync(code, {
       loader: 'ts',
       format: 'esm',
-      target: 'es2020',
+      target: 'esnext',
       sourcemap: false,
       minify: false,
       ...options
@@ -48,7 +48,7 @@ export class ESBuild extends Feature {
     return esbuild.transform(code, {
       loader: 'ts',
       format: 'esm',
-      target: 'es2020',
+      target: 'esnext',
       sourcemap: false,
       minify: false,
       ...options
@@ -69,7 +69,7 @@ export class ESBuild extends Feature {
       bundle: true,
       platform: 'node',
       format: 'esm',
-      target: 'es2020',
+      target: 'esnext',
       write: false,
       ...options
     })
