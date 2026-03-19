@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
-import type { IntrospectionSection } from '../introspection/index.js'
+import type { IntrospectionSection, MethodIntrospection, GetterIntrospection } from '../introspection/index.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -67,6 +67,7 @@ type ResolvedTarget =
 	| { kind: 'container' }
 	| { kind: 'registry'; name: RegistryName }
 	| { kind: 'helper'; registry: RegistryName; id: string }
+	| { kind: 'member'; registry: RegistryName; id: string; member: string; memberType: 'method' | 'getter' }
 
 class DescribeError extends Error {
 	constructor(message: string) {
@@ -118,8 +119,43 @@ function fuzzyFind(registry: any, input: string): string | undefined {
 }
 
 /**
+ * Try to resolve "helperName.memberName" by searching all registries for the helper,
+ * then checking if memberName is a method or getter on it.
+ * Returns a 'member' target or null if no match.
+ */
+function resolveHelperMember(helperName: string, memberName: string, container: any): ResolvedTarget | null {
+	for (const registryName of REGISTRY_NAMES) {
+		const reg = container[registryName]
+		if (!reg) continue
+		const found = fuzzyFind(reg, helperName)
+		if (!found) continue
+
+		const Ctor = reg.lookup(found)
+		const introspection = Ctor.introspect?.()
+		if (!introspection) continue
+
+		if (introspection.methods?.[memberName]) {
+			return { kind: 'member', registry: registryName, id: found, member: memberName, memberType: 'method' }
+		}
+		if (introspection.getters?.[memberName]) {
+			return { kind: 'member', registry: registryName, id: found, member: memberName, memberType: 'getter' }
+		}
+
+		// If we found the helper but not the member, give a helpful error
+		const allMembers = [
+			...Object.keys(introspection.methods || {}).map((m: string) => m + '()'),
+			...Object.keys(introspection.getters || {}),
+		].sort()
+		throw new DescribeError(
+			`"${memberName}" is not a known method or getter on ${found}.\n\nAvailable members:\n  ${allMembers.join(', ')}`
+		)
+	}
+	return null
+}
+
+/**
  * Parse a single target string into a resolved target.
- * Accepts: "container", "features", "features.fs", "fs", etc.
+ * Accepts: "container", "features", "features.fs", "fs", "ui.banner", etc.
  */
 function resolveTarget(target: string, container: any): ResolvedTarget {
 	const lower = target.toLowerCase()
@@ -153,6 +189,12 @@ function resolveTarget(target: string, container: any): ResolvedTarget {
 			}
 			return { kind: 'helper', registry, id: resolved }
 		}
+
+		// Not a registry prefix — try "helper.member" (e.g. "ui.banner", "fs.readFile")
+		const helperName = prefix!
+		const memberName = rest.join('.')
+		const memberResult = resolveHelperMember(helperName, memberName, container)
+		if (memberResult) return memberResult
 	}
 
 	// Unqualified name: search all registries (fuzzy)
@@ -546,6 +588,76 @@ function buildHelperSummary(Ctor: any): string {
 	return lines.join('\n')
 }
 
+function getMemberData(container: any, registryName: RegistryName, id: string, member: string, memberType: 'method' | 'getter', headingDepth = 1): { json: any; text: string } {
+	const registry = container[registryName]
+	const Ctor = registry.lookup(id)
+	const introspection = Ctor.introspect?.()
+	const h = '#'.repeat(headingDepth)
+	const hSub = '#'.repeat(headingDepth + 1)
+
+	if (memberType === 'method') {
+		const method = introspection?.methods?.[member] as MethodIntrospection | undefined
+		if (!method) return { json: {}, text: `No introspection data for ${id}.${member}()` }
+
+		const parts: string[] = []
+		parts.push(`${h} ${id}.${member}()`)
+		parts.push(`> method on **${introspection.className || id}**`)
+
+		if (method.description) parts.push(method.description)
+
+		// Parameters
+		const paramEntries = Object.entries(method.parameters || {})
+		if (paramEntries.length > 0) {
+			const paramLines = [`${hSub} Parameters`, '']
+			for (const [name, info] of paramEntries) {
+				const req = (method.required || []).includes(name) ? ' *(required)*' : ''
+				paramLines.push(`- **${name}** \`${info.type}\`${req}${info.description ? ' — ' + info.description : ''}`)
+				// Nested properties (e.g. options objects)
+				if (info.properties) {
+					for (const [propName, propInfo] of Object.entries(info.properties)) {
+						paramLines.push(`  - **${propName}** \`${propInfo.type}\`${propInfo.description ? ' — ' + propInfo.description : ''}`)
+					}
+				}
+			}
+			parts.push(paramLines.join('\n'))
+		}
+
+		// Returns
+		if (method.returns && method.returns !== 'void') {
+			parts.push(`${hSub} Returns\n\n\`${method.returns}\``)
+		}
+
+		// Examples
+		if (method.examples?.length) {
+			parts.push(`${hSub} Examples`)
+			for (const ex of method.examples) {
+				parts.push(`\`\`\`${ex.language || 'typescript'}\n${ex.code}\n\`\`\``)
+			}
+		}
+
+		return { json: { [member]: method, _helper: id, _type: 'method' }, text: parts.join('\n\n') }
+	}
+
+	// Getter
+	const getter = introspection?.getters?.[member] as GetterIntrospection | undefined
+	if (!getter) return { json: {}, text: `No introspection data for ${id}.${member}` }
+
+	const parts: string[] = []
+	parts.push(`${h} ${id}.${member}`)
+	parts.push(`> getter on **${introspection.className || id}** — returns \`${getter.returns || 'unknown'}\``)
+
+	if (getter.description) parts.push(getter.description)
+
+	if (getter.examples?.length) {
+		parts.push(`${hSub} Examples`)
+		for (const ex of getter.examples) {
+			parts.push(`\`\`\`${ex.language || 'typescript'}\n${ex.code}\n\`\`\``)
+		}
+	}
+
+	return { json: { [member]: getter, _helper: id, _type: 'getter' }, text: parts.join('\n\n') }
+}
+
 function getHelperData(container: any, registryName: RegistryName, id: string, sections: (IntrospectionSection | 'description')[], noTitle = false, headingDepth = 1): { json: any; text: string } {
 	const registry = container[registryName]
 	const Ctor = registry.lookup(id)
@@ -628,6 +740,8 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 				return getRegistryData(container, item.name, sections, noTitle, headingDepth)
 			case 'helper':
 				return getHelperData(container, item.registry, item.id, sections, noTitle, headingDepth)
+			case 'member':
+				return getMemberData(container, item.registry, item.id, item.member, item.memberType, headingDepth)
 		}
 	}
 
