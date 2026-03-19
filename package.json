@@ -1,6 +1,6 @@
 {
   "name": "@soederpop/luca",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "website": "https://luca.soederpop.com",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
@@ -102,7 +102,7 @@
     "chokidar": "^3.5.3",
     "cli-markdown": "^3.5.0",
     "compromise": "^14.14.5",
-    "contentbase": "^0.0.5",
+    "contentbase": "^0.1.1",
     "cors": "^2.8.5",
     "detect-port": "^1.5.1",
     "dotenv": "^17.2.4",

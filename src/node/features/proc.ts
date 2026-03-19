@@ -22,6 +22,8 @@ interface SpawnOptions {
   onOutput?: (data: string) => void;
   /** Callback invoked when the process exits */
   onExit?: (code: number) => void;
+  /** Callback invoked when the process starts */
+  onStart?: (childProcess: ChildProcess) => void;
 }
 
 interface RawSpawnOptions {
@@ -69,6 +71,7 @@ export class ChildProcess extends Feature {
   static override shortcut = "features.proc" as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
+  // @ts-ignore TODO: fix this
   static { Feature.register(this, 'proc') }
 
   /**
@@ -184,7 +187,7 @@ export class ChildProcess extends Feature {
     const childProcess = proc.childProcess!;
 
     if (typeof options?.onStart === 'function') {
-	    options.onStart(childProcess)
+	    options.onStart(childProcess as any)
     }
 
     if (childProcess.stdout && childProcess.stderr) {
