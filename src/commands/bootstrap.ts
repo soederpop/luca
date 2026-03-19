@@ -74,7 +74,10 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	// ── 8. luca.cli.ts ─────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('luca.cli.ts'), bootstrapTemplates['luca-cli'] || '', 'luca.cli.ts')
 
-	// ── 9. .claude/settings.json (permissions for AI coding tools) ──
+	// ── 9. RUNME.md ────────────────────────────────────────────────
+	await writeFile(fs, ui, mkPath('RUNME.md'), bootstrapTemplates['runme'] || '', 'RUNME.md')
+
+	// ── 10. .claude/settings.json (permissions for AI coding tools) ──
 	const settingsPath = mkPath('.claude', 'settings.json')
 	const claudeSettings = {
 		permissions: {
@@ -113,6 +116,7 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print('    luca about            — project info + discovered helpers')
 	ui.print('    luca serve            — start the API server (try /api/health)')
 	ui.print('    luca describe fs      — learn about any built-in feature')
+	ui.print('    luca RUNME            — run the interactive markdown demo')
 	ui.print('')
 	ui.print('  Need to build something? Use scaffold:\n')
 	ui.print('    luca scaffold command deploy    — add a CLI command')
