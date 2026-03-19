@@ -1,4 +1,16 @@
 #!/usr/bin/env bun
+// @ts-ignore — bun resolves JSON imports at bundle time
+import pkg from '../../package.json'
+
+// Fast-path flags that don't need the container
+const args = process.argv.slice(2)
+if (args.includes('--version') || args.includes('-v')) {
+	console.log(`luca v${pkg.version}`)
+	console.log(`  npm: https://www.npmjs.com/package/@soederpop/luca`)
+	console.log(`  git: https://github.com/soederpop/luca`)
+	process.exit(0)
+}
+
 import container from '@soederpop/luca/agi'
 import '@/commands/index.js'
 import { homedir } from 'os'
@@ -58,7 +70,14 @@ async function main() {
 	const commandName = container.argv._[0] as string
 
 	done = t('dispatch')
-	if (commandName && container.commands.has(commandName)) {
+	if (container.argv.help && !commandName) {
+		// --help with no command is the same as `luca` with no args
+		// Clear the help flag so the help command's handler runs (not the --help intercept)
+		delete container.argv.help
+		container.argv._.splice(0, 0, 'help')
+		const cmd = container.command('help' as any)
+		await cmd.dispatch()
+	} else if (commandName && container.commands.has(commandName)) {
 		const cmd = container.command(commandName as any)
 		await cmd.dispatch()
 	} else if (commandName) {
