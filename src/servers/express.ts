@@ -209,6 +209,29 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this
     }
 
+    async useEndpointModules(modules: EndpointModule[]): Promise<this> {
+      for (const mod of modules) {
+        try {
+          const endpointModule: EndpointModule = (mod as any).default || mod
+
+          if (!endpointModule.path) {
+            continue
+          }
+
+          const endpoint = new Endpoint(
+            { path: endpointModule.path },
+            this.container.context
+          )
+          await endpoint.load(endpointModule)
+          this.useEndpoint(endpoint)
+        } catch (err) {
+          console.error(`Failed to load endpoint module (${(mod as any).path || 'unknown'}):`, err)
+        }
+      }
+
+      return this
+    }
+
     serveOpenAPISpec(options: { title?: string; version?: string; description?: string } = {}): this {
       const server = this
       this.app.get('/openapi.json', (_req: any, res: any) => {
