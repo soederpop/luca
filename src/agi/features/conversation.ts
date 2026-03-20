@@ -407,11 +407,23 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		try {
 			if (this.apiMode === 'responses') {
+				const previousResponseId = this.state.get('lastResponseId') || undefined
+				let input: OpenAI.Responses.ResponseInput
+
+				if (previousResponseId) {
+					// Can chain via previous_response_id — only send the new user message
+					input = [this.toResponsesUserMessage(content)]
+				} else {
+					// No previous response ID (first call or resumed from disk).
+					// Convert full message history to Responses API input so the model has context.
+					input = this.messagesToResponsesInput()
+				}
+
 				return await this.runResponsesLoop({
 					turn: 1,
 					accumulated: '',
-					input: [this.toResponsesUserMessage(content)],
-					previousResponseId: this.state.get('lastResponseId') || undefined,
+					input,
+					previousResponseId,
 				})
 			}
 
@@ -456,6 +468,53 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}
 	}
 
+	/**
+	 * Convert the full Chat Completions message history into Responses API input items.
+	 * Used when resuming a conversation without a previous_response_id.
+	 */
+	private messagesToResponsesInput(): OpenAI.Responses.ResponseInput {
+		const input: OpenAI.Responses.ResponseInput = []
+
+		for (const msg of this.messages) {
+			if (msg.role === 'system' || msg.role === 'developer') {
+				// System/developer messages are handled via the instructions parameter
+				continue
+			}
+
+			if (msg.role === 'user') {
+				if (typeof msg.content === 'string') {
+					input.push({
+						type: 'message',
+						role: 'user',
+						content: [{ type: 'input_text', text: msg.content }],
+					})
+				} else if (Array.isArray(msg.content)) {
+					input.push(this.toResponsesUserMessage(msg.content as ContentPart[]))
+				}
+				continue
+			}
+
+			if (msg.role === 'assistant') {
+				const content = typeof msg.content === 'string' ? msg.content : (msg.content || []).map((p: any) => p.text || '').join('')
+				if (content) {
+					input.push({
+						type: 'message',
+						role: 'assistant',
+						content: [{ type: 'output_text', text: content, annotations: [] }],
+						id: `msg_replay-${input.length}`,
+						status: 'completed',
+					} as any)
+				}
+				continue
+			}
+
+			// Tool results — skip in the replay since the assistant's tool_calls won't have matching IDs
+			// The model will still understand context from the assistant messages that followed
+		}
+
+		return input
+	}
+
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
 		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
@@ -488,13 +547,17 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const id = this.state.get('id')!
 		const existing = await this.history.load(id)
 
+		// Persist lastResponseId so the Responses API can continue the chain on resume
+		const lastResponseId = this.state.get('lastResponseId')
+		const responseMeta = lastResponseId ? { lastResponseId } : {}
+
 		if (existing) {
 			existing.messages = this.messages
 			existing.model = this.model
 			if (opts?.title) existing.title = opts.title
 			if (opts?.tags) existing.tags = opts.tags
 			if (opts?.thread) existing.thread = opts.thread
-			if (opts?.metadata) existing.metadata = { ...existing.metadata, ...opts.metadata }
+			existing.metadata = { ...existing.metadata, ...responseMeta, ...(opts?.metadata || {}) }
 			await this.history.save(existing)
 			return existing
 		}
@@ -506,7 +569,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			messages: this.messages,
 			tags: opts?.tags || this.options.tags || [],
 			thread: opts?.thread || this.options.thread || this.state.get('thread'),
-			metadata: opts?.metadata || this.options.metadata || {},
+			metadata: { ...responseMeta, ...(opts?.metadata || this.options.metadata || {}) },
 		})
 	}
 

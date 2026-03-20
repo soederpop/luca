@@ -646,6 +646,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			this.conversation.state.set('thread', threadId)
 			this.conversation.state.set('messages', messages)
 			this.state.set('conversationId', existing.id)
+
+			// Restore lastResponseId so the Responses API can continue the chain
+			if (existing.metadata?.lastResponseId) {
+				this.conversation.state.set('lastResponseId', existing.metadata.lastResponseId)
+			}
 		} else {
 			// Fresh conversation — just set thread
 			this.conversation.state.set('thread', threadId)
