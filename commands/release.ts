@@ -130,22 +130,30 @@ async function release(options: z.infer<typeof argsSchema>, context: ContainerCo
 	}
 
 	// 8. Create GitHub release and upload binaries
-	const draftFlag = options.draft ? '--draft' : ''
-	const assets = selectedTargets
-		.map(t => `${distDir}/luca-${t.suffix}${t.ext || ''}`)
-		.join(' ')
+	const assetPaths = selectedTargets
+		.map(t => container.paths.resolve(`${distDir}/luca-${t.suffix}${t.ext || ''}`))
 
 	const releaseTitle = `Luca ${tag}`
 	const releaseNotes = await generateReleaseNotes(proc, tag)
 
+	// Write notes to a temp file so gh doesn't need shell quoting
+	const notesFile = container.paths.resolve(distDir, 'release-notes.md')
+	await fileSystem.writeFileAsync(notesFile, releaseNotes)
+
 	console.log(`\n→ Creating GitHub release ${tag}...`)
-	const ghCmd = `gh release create "${tag}" ${assets} --title "${releaseTitle}" --notes ${JSON.stringify(releaseNotes)} ${draftFlag}`
-	const ghResult = await proc.execAndCapture(ghCmd, { silent: false })
+	const ghArgs = [
+		'release', 'create', tag,
+		...assetPaths,
+		'--title', releaseTitle,
+		'--notes-file', notesFile,
+		...(options.draft ? ['--draft'] : []),
+	]
+	const ghResult = await proc.spawnAndCapture('gh', ghArgs)
 
 	if (ghResult.exitCode !== 0) {
 		console.error(`Failed to create GitHub release:\n${ghResult.stderr}`)
 		console.log('The tag was pushed. You can manually create the release with:')
-		console.log(`  gh release create ${tag} ${assets}`)
+		console.log(`  gh release create ${tag} ${assetPaths.join(' ')}`)
 		return
 	}
 
