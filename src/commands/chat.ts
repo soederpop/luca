@@ -146,7 +146,7 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	const messageCount = assistant.messages?.length || 0
 	const isResuming = historyMode !== 'lifecycle' && messageCount > 1
 
-	const rl = readline.createInterface({
+	let rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout,
 	})
@@ -173,6 +173,46 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 
 		if (!question) continue
 		if (question === '.exit') break
+
+		if (question === '/console') {
+			// Pause chat readline so the REPL can own stdin
+			rl.close()
+
+			// Build feature context like `luca console` does
+			const featureContext: Record<string, any> = {}
+			for (const fname of container.features.available) {
+				try { featureContext[fname] = container.feature(fname) } catch {}
+			}
+
+			const replPrompt = ui.colors.magenta('console') + ui.colors.dim(' > ')
+			const repl = container.feature('repl', { prompt: replPrompt })
+
+			console.log()
+			console.log(ui.colors.dim('  Dropping into console. The assistant is available as `assistant`.'))
+			console.log(ui.colors.dim('  Type .exit to return to chat.'))
+			console.log()
+
+			await repl.start({
+				context: {
+					...featureContext,
+					assistant,
+					console,
+					setTimeout, setInterval, clearTimeout, clearInterval,
+					fetch,
+				},
+			})
+
+			// Wait for the REPL to close
+			await new Promise<void>((resolve) => {
+				repl._rl!.on('close', resolve)
+			})
+
+			// Resume chat readline
+			console.log()
+			console.log(ui.colors.dim(`  Back in chat with ${ui.colors.cyan(name)}.`))
+			rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+			continue
+		}
 
 		await assistant.ask(question)
 	}

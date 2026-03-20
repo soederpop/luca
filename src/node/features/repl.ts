@@ -75,11 +75,18 @@ export class Repl<
    * ```
    */
   async start(options: { historyPath?: string, context?: any } = {}) {
-    if (this.isStarted) {
-      return this;
-    }
-
     const { prompt = "> " } = this.options;
+
+    // If already started, resume with a fresh readline but reuse the VM context
+    if (this.isStarted) {
+      // Merge any new context into the existing VM context
+      if (options.context) {
+        for (const [k, v] of Object.entries(options.context)) {
+          this._vmContext![k] = v
+        }
+      }
+      return this._resume(prompt)
+    }
 
     // Set up history file — per-project history keyed by cwd hash
     const userHistoryPath = options.historyPath || this.options.historyPath
@@ -107,8 +114,16 @@ export class Repl<
       client: (...args: any[]) => this.container.client(...args),
     })
 
-    // Completer for tab autocomplete
+    this.state.set('started', true)
+
+    return this._resume(prompt)
+  }
+
+  /** Open a fresh readline and enter the REPL loop using the existing VM context. */
+  private _resume(prompt: string) {
     const ctx = this._vmContext!
+
+    // Completer for tab autocomplete
     const completer = (line: string): [string[], string] => {
       // Dot-notation: e.g. container.fea<tab>
       const dotMatch = line.match(/([a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*)*)\.([a-zA-Z_$][\w$]*)?$/)
@@ -145,8 +160,6 @@ export class Repl<
       history: this._history,
       completer,
     })
-
-    this.state.set('started', true)
 
     // REPL loop
     let lastResult: any
