@@ -17,6 +17,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	list: z.boolean().optional().describe('List recent conversations and exit'),
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
 	offRecord: z.boolean().optional().describe('Alias for --history-mode lifecycle (ephemeral, no persistence)'),
+	clear: z.boolean().optional().describe('Clear the conversation history for the resolved history mode and exit'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -71,6 +72,17 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	if (options.local) createOptions.local = options.local
 
 	const assistant = manager.create(name, createOptions)
+
+	// --clear: wipe history for the current mode and exit
+	if (options.clear) {
+		const deleted = await assistant.clearHistory()
+		if (deleted > 0) {
+			console.log(ui.colors.green(`  Cleared ${deleted} conversation(s) for ${ui.colors.cyan(name)} (${historyMode} mode).`))
+		} else {
+			console.log(ui.colors.dim(`  No history to clear for ${ui.colors.cyan(name)} (${historyMode} mode).`))
+		}
+		return
+	}
 
 	// --list: show recent conversations and exit
 	if (options.list) {
