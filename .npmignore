@@ -6,5 +6,6 @@ secrets/
 *.log
 .python-version
 dist/luca
+dist/release
 tmp/
 *.log
