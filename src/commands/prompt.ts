@@ -21,6 +21,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'repeat-anyway': z.boolean().default(false).describe('Run even if repeatable is false and the prompt has already been run'),
 	'parallel': z.boolean().default(false).describe('Run multiple prompt files in parallel with side-by-side terminal UI'),
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
+	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
 })
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
@@ -125,6 +126,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	if (target === 'claude') {
 		runOptions.permissionMode = options['permission-mode']
+		if (options.chrome) runOptions.chrome = true
 	}
 
 	const startTime = Date.now()
@@ -273,6 +275,7 @@ async function runParallel(
 
 		if (target === 'claude') {
 			runOptions.permissionMode = options['permission-mode']
+			if (options.chrome) runOptions.chrome = true
 		}
 
 		feature.on('session:message', ({ sessionId, message }: { sessionId: string; message: any }) => {

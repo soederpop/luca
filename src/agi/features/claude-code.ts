@@ -182,6 +182,8 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   settingsFile: z.string().optional().describe('Path to a custom settings file'),
   /** Directories containing Claude Code skills (SKILL.md files) to load into sessions. Passed as --add-dir. */
   skillsFolders: z.array(z.string()).optional().describe('Directories containing Claude Code skills to load into sessions'),
+  /** Launch Claude Code with a Chrome browser tool. */
+  chrome: z.boolean().optional().describe('Launch Claude Code with a Chrome browser tool'),
 })
 
 export const ClaudeCodeEventsSchema = FeatureEventsSchema.extend({
@@ -265,6 +267,8 @@ export interface RunOptions {
   debugFile?: string
   /** Path to a custom settings file. */
   settingsFile?: string
+  /** Launch Claude Code with a Chrome browser tool. */
+  chrome?: boolean
 }
 
 /**
@@ -596,6 +600,9 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     }
 
     if (options.debugFile) args.push('--debug-file', options.debugFile)
+
+    const chrome = options.chrome ?? this.options.chrome
+    if (chrome) args.push('--chrome')
 
     if (options.extraArgs?.length) {
       args.push(...options.extraArgs)
