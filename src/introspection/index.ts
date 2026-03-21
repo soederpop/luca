@@ -122,6 +122,13 @@ export type ContainerIntrospection = {
 export const __INTROSPECTION__ = new Map<string, HelperIntrospection>()
 export const __CONTAINER_INTROSPECTION__ = new Map<string, Partial<ContainerIntrospection>>()
 
+/**
+ * Separate introspection store for browser/web features.
+ * Used by the describe command to show web feature data in node
+ * without colliding with the main introspection map.
+ */
+export const __BROWSER_INTROSPECTION__ = new Map<string, HelperIntrospection>()
+
 /** Option keys inherited from base schemas that are internal and should be hidden from introspection output */
 const INTERNAL_OPTION_KEYS = new Set(['name', '_cacheKey', 'cached', 'enable'])
 

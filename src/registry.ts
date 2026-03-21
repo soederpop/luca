@@ -69,7 +69,18 @@ abstract class Registry<T extends Helper> {
     return constructor
   }
 
-  /** 
+  /**
+   * Remove a helper from this registry.
+   *
+   * @param id - The id of the helper to unregister.
+   * @returns True if the helper was removed, false if it wasn't registered.
+  */
+  unregister(id: string) : boolean {
+    const key = id.replace(`${this.scope}.`, '')
+    return this.members.delete(key)
+  }
+
+  /**
    * Check if a helper is registered in this registry.
    * 
    * @param id - The id of the helper to check.
