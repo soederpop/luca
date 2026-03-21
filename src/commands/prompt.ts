@@ -12,7 +12,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model (assistant mode only)'),
-'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it'),
+	'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it before sending to the agent.'),
 	'permission-mode': z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).default('acceptEdits').describe('Permission mode for CLI agents (default: acceptEdits)'),
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
@@ -22,7 +22,15 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
 	'dry-run': z.boolean().default(false).describe('Display the resolved prompt and options without running the assistant'),
+	'local': z.boolean().default(false).describe('Use local models for assistant mode'),
 })
+
+function normalizeTarget(raw: string): string {
+	const lower = raw.toLowerCase().replace(/[-_]/g, '')
+	if (/claude/.test(lower)) return 'claude'
+	if (/codex/.test(lower) || /openai/.test(lower)) return 'codex'
+	return raw
+}
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
 
@@ -163,6 +171,7 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	const createOptions: Record<string, any> = { ...agentOptions }
 	// CLI flags override agentOptions from frontmatter
 	if (options.model) createOptions.model = options.model
+	if (options.local) createOptions.local = true
 
 	const assistant = manager.create(name, createOptions)
 	let isFirstChunk = true
@@ -360,6 +369,7 @@ async function runParallel(
 		const assistants = prepared.map((p, i) => {
 			const createOptions: Record<string, any> = { ...p.agentOptions }
 			if (options.model) createOptions.model = options.model
+			if (options.local) createOptions.local = true
 			const assistant = manager.create(target, createOptions)
 
 			assistant.on('chunk', (text: string) => {
@@ -830,6 +840,9 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 			target = 'claude'
 		}
 	}
+
+	// Normalize target aliases (e.g. claude-code → claude, openai-codex → codex)
+	if (target) target = normalizeTarget(target)
 
 	if (!target || allPaths.length === 0) {
 		console.error('Usage: luca prompt [claude|codex|assistant-name] <path/to/prompt.md> [more paths...]')
