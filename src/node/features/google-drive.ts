@@ -59,6 +59,8 @@ export const GoogleDriveStateSchema = FeatureStateSchema.extend({
 export type GoogleDriveState = z.infer<typeof GoogleDriveStateSchema>
 
 export const GoogleDriveOptionsSchema = FeatureOptionsSchema.extend({
+  auth: z.any().describe('An authorized instance of the googleAuth feature').optional(),
+
   defaultCorpora: z.enum(['user', 'drive', 'allDrives']).optional()
     .describe('Default corpus for file queries (default: user)'),
   pageSize: z.number().optional()
@@ -114,6 +116,10 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
 
   /** Access the google-auth feature lazily. */
   get auth(): GoogleAuth {
+    if (this.options.auth) {
+      return this.options.auth as GoogleAuth
+    }
+
     return this.container.feature('googleAuth') as unknown as GoogleAuth
   }
 

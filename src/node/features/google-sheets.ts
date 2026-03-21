@@ -32,6 +32,7 @@ export const GoogleSheetsStateSchema = FeatureStateSchema.extend({
 export type GoogleSheetsState = z.infer<typeof GoogleSheetsStateSchema>
 
 export const GoogleSheetsOptionsSchema = FeatureOptionsSchema.extend({
+  auth: z.any().describe('An authorized instance of the googleAuth feature').optional(),
   defaultSpreadsheetId: z.string().optional()
     .describe('Default spreadsheet ID for operations'),
 })
@@ -84,8 +85,13 @@ export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions
 
   /** Access the google-auth feature lazily. */
   get auth(): GoogleAuth {
+    if (this.options.auth) {
+      return this.options.auth as GoogleAuth
+    }
+
     return this.container.feature('googleAuth') as unknown as GoogleAuth
   }
+
 
   /** Get or create the Sheets v4 API client. */
   private async getSheets(): Promise<sheets_v4.Sheets> {

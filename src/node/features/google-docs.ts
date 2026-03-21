@@ -15,7 +15,10 @@ export const GoogleDocsStateSchema = FeatureStateSchema.extend({
 })
 export type GoogleDocsState = z.infer<typeof GoogleDocsStateSchema>
 
-export const GoogleDocsOptionsSchema = FeatureOptionsSchema.extend({})
+export const GoogleDocsOptionsSchema = FeatureOptionsSchema.extend({
+  auth: z.any().describe('An authorized instance of the googleAuth feature').optional(),
+})
+
 export type GoogleDocsOptions = z.infer<typeof GoogleDocsOptionsSchema>
 
 export const GoogleDocsEventsSchema = FeatureEventsSchema.extend({
@@ -65,6 +68,10 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
 
   /** Access the google-auth feature lazily. */
   get auth(): GoogleAuth {
+    if (this.options.auth) {
+      return this.options.auth as GoogleAuth
+    }
+
     return this.container.feature('googleAuth') as unknown as GoogleAuth
   }
 

@@ -57,6 +57,7 @@ export const GoogleCalendarStateSchema = FeatureStateSchema.extend({
 export type GoogleCalendarState = z.infer<typeof GoogleCalendarStateSchema>
 
 export const GoogleCalendarOptionsSchema = FeatureOptionsSchema.extend({
+  auth: z.any().describe('An authorized instance of the googleAuth feature').optional(),
   defaultCalendarId: z.string().optional()
     .describe('Default calendar ID (default: "primary")'),
   timeZone: z.string().optional()
@@ -114,6 +115,10 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
 
   /** Access the google-auth feature lazily. */
   get auth(): GoogleAuth {
+    if (this.options.auth) {
+      return this.options.auth as GoogleAuth
+    }
+
     return this.container.feature('googleAuth') as unknown as GoogleAuth
   }
 
