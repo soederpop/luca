@@ -18,6 +18,8 @@ export const argsSchema = CommandOptionsSchema.extend({
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
 	offRecord: z.boolean().optional().describe('Alias for --history-mode lifecycle (ephemeral, no persistence)'),
 	clear: z.boolean().optional().describe('Clear the conversation history for the resolved history mode and exit'),
+	prependPrompt: z.string().optional().describe('Text or path to a markdown file to prepend to the system prompt'),
+	appendPrompt: z.string().optional().describe('Text or path to a markdown file to append to the system prompt'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -71,6 +73,22 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	if (options.model) createOptions.model = options.model
 	if (options.local) createOptions.local = options.local
 
+	// Resolve --prepend-prompt / --append-prompt: if it's an existing file, read it; if it ends in .md but doesn't exist, error
+	const fs = container.feature('fs')
+	for (const flag of ['prependPrompt', 'appendPrompt'] as const) {
+		const raw = options[flag]
+		if (!raw) continue
+		const resolved = container.paths.resolve(raw)
+		if (fs.exists(resolved)) {
+			createOptions[flag] = fs.readFile(resolved)
+		} else if (raw.endsWith('.md')) {
+			console.error(ui.colors.red(`File not found: ${resolved}`))
+			process.exit(1)
+		} else {
+			createOptions[flag] = raw
+		}
+	}
+
 	const assistant = manager.create(name, createOptions)
 
 	// --clear: wipe history for the current mode and exit
@@ -110,17 +128,34 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		assistant.resumeThread(options.resume)
 	}
 
-	let isFirstChunk = true
+	const ink = container.feature('ink', { enable: true })
+	await ink.loadModules()
+	const React = ink.React
+	const { Text } = ink.components
+
+	// Use the raw ink render (sync) since modules are already loaded
+	const inkModule = await import('ink')
+
+	let responseBuffer = ''
+	let inkInstance: any = null
+
+	function mdElement(content: string) {
+		const rendered = content ? String(ui.markdown(content)).trimEnd() : ''
+		return React.createElement(Text, null, rendered)
+	}
 
 	assistant.on('chunk', (text: string) => {
-		if (isFirstChunk) {
+		responseBuffer += text
+		if (!inkInstance) {
 			process.stdout.write('\n')
-			isFirstChunk = false
+			inkInstance = inkModule.render(mdElement(responseBuffer), { patchConsole: false })
+		} else {
+			inkInstance.rerender(mdElement(responseBuffer))
 		}
-		process.stdout.write(text)
 	})
 
 	assistant.on('toolCall', (toolName: string, args: any) => {
+		if (inkInstance) { inkInstance.unmount(); inkInstance = null }
 		const argsStr = JSON.stringify(args).slice(0, 120)
 		process.stdout.write(ui.colors.dim(`\n  ⟳ ${toolName}`) + ui.colors.dim(`(${argsStr})\n`))
 	})
@@ -136,8 +171,9 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	})
 
 	assistant.on('response', () => {
+		if (inkInstance) { inkInstance.unmount(); inkInstance = null }
+		responseBuffer = ''
 		process.stdout.write('\n')
-		isFirstChunk = true
 	})
 
 	// Start the assistant (loads history if applicable)
