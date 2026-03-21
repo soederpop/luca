@@ -19,7 +19,7 @@ import { join } from 'path'
 async function main() {
 	const profile = process.env.LUCA_PROFILE === '1'
 	const t = (label?: string) => {
-		if (!profile) return () => {}
+		if (!profile) return () => { }
 		const start = performance.now()
 		return (suffix?: string) => {
 			const ms = (performance.now() - start).toFixed(1)
@@ -59,8 +59,8 @@ async function main() {
 	const afterUser = new Set(container.commands.available as string[])
 	const userCommands = new Set([...afterUser].filter((n) => !builtinCommands.has(n) && !projectCommands.has(n)))
 
-	// Store command sources for help display
-	;(container as any)._commandSources = { builtinCommands, projectCommands, userCommands }
+		// Store command sources for help display
+		; (container as any)._commandSources = { builtinCommands, projectCommands, userCommands }
 
 	// Load generated introspection data if present
 	done = t('loadProjectIntrospection')
@@ -82,9 +82,33 @@ async function main() {
 		await cmd.dispatch()
 	} else if (commandName) {
 		// not a known command — treat as implicit `run`
-		container.argv._.splice(0, 0, 'run')
-		const cmd = container.command('run' as any)
-		await cmd.dispatch()
+		// 
+		if (resolveScript(commandName, container)) {
+			container.argv._.splice(0, 0, 'run')
+			const cmd = container.command('run' as any)
+			await cmd.dispatch()
+		} else {
+
+			// @ts-ignore TODO come up with a typesafe way to do this
+			if (container.state.get('missingCommandHandler')) {
+				// @ts-ignore TODO come up with a typesafe way to do this
+				const missingCommandHandler = container.state.get('missingCommandHandler') as any
+
+				if (typeof missingCommandHandler === 'function') {
+					await missingCommandHandler({
+						words: container.argv._,
+						phrase: container.argv._.join(' ')
+					}).catch((err: any) => {
+						console.error(`Missing command handler error: ${err.message}`, err)
+					})
+				}
+			} else {
+				container.argv._.splice(0, 0, 'help')
+				const cmd = container.command('help' as any)
+				await cmd.dispatch()
+			}
+		}
+
 	} else {
 		container.argv._.splice(0, 0, 'help')
 		const cmd = container.command('help' as any)
@@ -94,6 +118,21 @@ async function main() {
 	tTotal()
 }
 
+function resolveScript(ref: string, container: any) {
+	const candidates = [
+		ref,
+		`${ref}.ts`,
+		`${ref}.js`,
+		`${ref}.md`,
+	]
+
+	for (const candidate of candidates) {
+		const resolved = container.paths.resolve(candidate)
+		if (container.fs.exists(resolved)) return resolved
+	}
+
+	return null
+}
 
 async function loadCliModule() {
 	const modulePath = container.paths.resolve('luca.cli.ts')

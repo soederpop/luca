@@ -56,6 +56,7 @@ import "./features/google-drive";
 import "./features/google-sheets";
 import "./features/google-calendar";
 import "./features/google-docs";
+import "./features/google-mail";
 import "./features/window-manager";
 import "./features/nlp";
 import "./features/process-manager"
@@ -100,6 +101,7 @@ import type { GoogleDrive } from './features/google-drive';
 import type { GoogleSheets } from './features/google-sheets';
 import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
+import type { GoogleMail } from './features/google-mail';
 import type { WindowManager } from './features/window-manager';
 import type { NLP } from './features/nlp';
 import type { ProcessManager } from './features/process-manager'
@@ -139,6 +141,7 @@ export {
   type GoogleSheets,
   type GoogleCalendar,
   type GoogleDocs,
+  type GoogleMail,
   type WindowManager,
   type NLP,
   type ProcessManager,
@@ -204,6 +207,7 @@ export interface NodeFeatures extends AvailableFeatures {
   googleSheets: typeof GoogleSheets;
   googleCalendar: typeof GoogleCalendar;
   googleDocs: typeof GoogleDocs;
+  googleMail: typeof GoogleMail;
   windowManager: typeof WindowManager;
   nlp: typeof NLP;
   processManager: typeof ProcessManager;
@@ -218,9 +222,20 @@ export type ClientsAndServersInterface = ClientsInterface & ServersInterface & C
 
 export interface NodeContainer extends ClientsAndServersInterface {}
 
+/*
+export interface NodeContainerState extends ContainerState {
+  // in luca.cli.ts you can set this to true and instead of displaying the help screen
+  // it will emit a 'commandMissing' event with the command name and args
+  // so that you can handle it however you want.  This allows for a CLI dx like
+  // luca literally type whatever you want and if your project wants to try and do
+  // something with it, it will try and do it.
+  captureMissingCommands?: boolean;
+}
+*/
+
 export class NodeContainer<
   Features extends NodeFeatures = NodeFeatures,
-  K extends ContainerState = ContainerState
+  K extends ContainerState = ContainerState 
 > extends Container<Features, K> {
   fs!: FS;
   git!: Git;
@@ -252,6 +267,7 @@ export class NodeContainer<
   googleSheets?: GoogleSheets;
   googleCalendar?: GoogleCalendar;
   googleDocs?: GoogleDocs;
+  googleMail?: GoogleMail;
   windowManager?: WindowManager;
   nlp?: NLP;
   processManager?: ProcessManager;
@@ -353,5 +369,19 @@ export class NodeContainer<
       basename,
       parse
     };
+  }
+  
+  /** 
+   * In your project's luca.cli.ts you can call this method and pass it a function
+  *  and when you call an invalid command, the function will be called with the command name and args
+  *  this allows you to define your own DX behavior for handling unknown commands in your project
+    *  
+    * This is a special luca cli hook.  The function will be called with { words: string[], phrase: string, argv: any } 
+  */
+  private onMissingCommand(handler: any) {
+    // @ts-ignore
+    this.state.set('missingCommandHandler', handler)
+    
+    return this
   }
 }
