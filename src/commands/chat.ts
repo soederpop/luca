@@ -67,7 +67,7 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		? 'lifecycle'
 		: (options.historyMode || 'daily')
 
-	const createOptions: Record<string, any> = { historyMode }
+	const createOptions: Record<string, any> = { historyMode, injectTimestamps: true }
 	if (options.model) createOptions.model = options.model
 	if (options.local) createOptions.local = options.local
 

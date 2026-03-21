@@ -69,6 +69,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** History persistence mode: lifecycle (ephemeral), daily (auto-resume per day), persistent (single long-running thread), session (unique per run, resumable) */
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
+
+	/** When true, prepend a timestamp to each user message so the assistant can track the passage of time across sessions */
+	injectTimestamps: z.boolean().default(false).describe('Prepend timestamps to user messages so the assistant can perceive time passing between sessions'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -402,6 +405,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			prompt = prompt + '\n\n' + this.options.appendPrompt
 		}
 
+		if (this.options.injectTimestamps) {
+			prompt = prompt + '\n\n' + [
+				'## Timestamps',
+				'Each user message is prefixed with a timestamp in [YYYY-MM-DD HH:MM] format.',
+				'Use these to understand the passage of time between interactions.',
+				'The user may return hours or days later within the same conversation — acknowledge the time gap naturally when relevant, and use timestamps to contextualize when topics were previously discussed.',
+			].join('\n')
+		}
+
 		return prompt.trim()
 	}
 
@@ -544,6 +556,25 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 	}
 
+	/**
+	 * Prepend a [YYYY-MM-DD HH:MM] timestamp to user message content.
+	 */
+	private prependTimestamp(content: string | ContentPart[]): string | ContentPart[] {
+		const now = new Date()
+		const pad = (n: number) => String(n).padStart(2, '0')
+		const stamp = `[${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}]`
+
+		if (typeof content === 'string') {
+			return `${stamp} ${content}`
+		}
+
+		if (content.length > 0 && content[0].type === 'text') {
+			return [{ type: 'text' as const, text: `${stamp} ${content[0].text}` }, ...content.slice(1)]
+		}
+
+		return [{ type: 'text' as const, text: stamp }, ...content]
+	}
+
 	// -- History mode helpers --
 
 	/** The assistant name derived from the folder basename. */
@@ -663,9 +694,13 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * name matches an event gets wired up so it fires automatically when
 	 * that event is emitted. Must be called before any events are emitted.
 	 */
+	/** Hook names that are called directly during lifecycle, not bound as event listeners. */
+	private static lifecycleHooks = new Set(['formatSystemPrompt'])
+
 	private bindHooksToEvents() {
 		const assistant = this
 		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
+			if (Assistant.lifecycleHooks.has(eventName)) continue
 			this.on(eventName as any, (...args: any[]) => {
 				this.emit('hookFired', eventName)
 				hookFn(assistant, ...args)
@@ -688,6 +723,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (this._pendingPlugins.length) {
 			await Promise.all(this._pendingPlugins)
 			this._pendingPlugins = []
+		}
+
+		// Allow hooks.ts to export a formatSystemPrompt(assistant, prompt) => string
+		// that transforms the system prompt before the conversation is created.
+		if (this._hooks.formatSystemPrompt) {
+			const result = await this._hooks.formatSystemPrompt(this, this._systemPrompt)
+			if (typeof result === 'string') {
+				this._systemPrompt = result
+			}
 		}
 
 		// Wire up event forwarding from conversation to assistant.
@@ -744,6 +788,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		const count = (this.state.get('conversationCount') || 0) + 1
 		this.state.set('conversationCount', count)
+
+		if (this.options.injectTimestamps) {
+			question = this.prependTimestamp(question)
+		}
 
 		const result = await this.conversation.ask(question, options)
 
