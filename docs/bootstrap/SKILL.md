@@ -26,6 +26,13 @@ luca describe clients      # index of all available clients
 luca describe servers      # index of all available servers
 ```
 
+You can even learn about features in the browser container, or a specific platform (server, node are the same, browser,web are the same)
+
+```shell
+luca describe features --platform=web 
+luca describe features --platform=server
+```
+
 ### Learn about specific helpers
 
 ```shell
@@ -229,6 +236,15 @@ container.inspectAsText()           // full container overview as markdown
 This is useful inside commands and scripts where you need introspection data programmatically.
 
 ---
+
+## Server development troubleshooting
+
+- You can use `container.proc.findPidsByPort(3000)` which will return an array of numbers.
+- You can use `container.proc.kill(pid)` to kill that process
+- You can combine these two functions in `luca eval` if a server you're developing won't start because a previous instance is running (common inside e.g. claude code sessions )
+- `luca serve --force` will also replace the running process with the current one
+- `luca serve --any-port` will open on any port
+
 
 ## Reference
 
