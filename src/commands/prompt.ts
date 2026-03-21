@@ -21,6 +21,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'parallel': z.boolean().default(false).describe('Run multiple prompt files in parallel with side-by-side terminal UI'),
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
+	'dry-run': z.boolean().default(false).describe('Display the resolved prompt and options without running the assistant'),
 })
 
 const CLI_TARGETS = new Set(['claude', 'codex'])
@@ -71,9 +72,10 @@ interface PreparedPrompt {
 	resolvedPath: string
 	promptContent: string
 	filename: string
+	agentOptions: Record<string, any>
 }
 
-async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>): Promise<RunStats> {
+async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: string, container: any, options: z.infer<typeof argsSchema>, agentOptions: Record<string, any> = {}): Promise<RunStats> {
 	const ui = container.feature('ui')
 	const featureName = target === 'claude' ? 'claudeCode' : 'openaiCodex'
 	const feature = container.feature(featureName)
@@ -117,7 +119,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		})
 	}
 
-	const runOptions: Record<string, any> = { streaming: true }
+	const runOptions: Record<string, any> = { streaming: true, ...agentOptions }
 
 	if (options['in-folder']) {
 		runOptions.cwd = container.paths.resolve(options['in-folder'])
@@ -127,6 +129,9 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		runOptions.permissionMode = options['permission-mode']
 		if (options.chrome) runOptions.chrome = true
 	}
+
+	// CLI flags override agentOptions from frontmatter
+	if (options.model) runOptions.model = options.model
 
 	const startTime = Date.now()
 	const sessionId = await feature.start(promptContent, runOptions)
@@ -142,7 +147,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens }
 }
 
-async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any): Promise<RunStats> {
+async function runAssistant(name: string, promptContent: string, options: z.infer<typeof argsSchema>, container: any, agentOptions: Record<string, any> = {}): Promise<RunStats> {
 	const ui = container.feature('ui')
 	const manager = container.feature('assistantsManager')
 	await manager.discover()
@@ -155,7 +160,8 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 		process.exit(1)
 	}
 
-	const createOptions: Record<string, any> = {}
+	const createOptions: Record<string, any> = { ...agentOptions }
+	// CLI flags override agentOptions from frontmatter
 	if (options.model) createOptions.model = options.model
 
 	const assistant = manager.create(name, createOptions)
@@ -310,9 +316,11 @@ async function runParallel(
 			})
 		}
 
-		// Start all sessions
+		// Start all sessions — merge per-prompt agentOptions with shared runOptions
 		for (let i = 0; i < prepared.length; i++) {
-			const id = await feature.start(prepared[i].promptContent, runOptions)
+			const perPromptOptions = { ...prepared[i].agentOptions, ...runOptions }
+			if (options.model) perPromptOptions.model = options.model
+			const id = await feature.start(prepared[i].promptContent, perPromptOptions)
 			sessionMap.set(id, i)
 		}
 
@@ -347,12 +355,11 @@ async function runParallel(
 			process.exit(1)
 		}
 
-		const createOptions: Record<string, any> = {}
-		if (options.model) createOptions.model = options.model
-
 		const lineBuffers: string[] = prepared.map(() => '')
 
 		const assistants = prepared.map((p, i) => {
+			const createOptions: Record<string, any> = { ...p.agentOptions }
+			if (options.model) createOptions.model = options.model
 			const assistant = manager.create(target, createOptions)
 
 			assistant.on('chunk', (text: string) => {
@@ -748,8 +755,9 @@ async function preparePrompt(
 
 	let content = fs.readFile(resolvedPath) as string
 
-	// Parse frontmatter for input definitions
+	// Parse frontmatter for input definitions and agentOptions
 	let resolvedInputs: Record<string, any> = {}
+	let agentOptions: Record<string, any> = {}
 	let hasInputDefs = false
 	if (content.startsWith('---')) {
 		const fmEnd = content.indexOf('\n---', 3)
@@ -760,6 +768,9 @@ async function preparePrompt(
 			if (inputDefs) {
 				hasInputDefs = true
 				resolvedInputs = await resolveInputs(inputDefs, options, container)
+			}
+			if (meta.agentOptions && typeof meta.agentOptions === 'object') {
+				agentOptions = { ...meta.agentOptions }
 			}
 		}
 	}
@@ -800,6 +811,7 @@ async function preparePrompt(
 		resolvedPath,
 		promptContent,
 		filename: paths.basename(resolvedPath),
+		agentOptions,
 	}
 }
 
@@ -842,6 +854,28 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 			process.exit(1)
 		}
 
+		if (options['dry-run']) {
+			const ui = container.feature('ui')
+			console.log(ui.colors.bold('\n── Dry Run (Parallel) ──\n'))
+			console.log(ui.colors.bold('Target:'), target)
+			console.log(ui.colors.bold('Prompts:'), prepared.length)
+			for (const p of prepared) {
+				console.log(ui.colors.bold(`\n── ${p.filename} ──`))
+				console.log(ui.colors.dim(`  Path: ${p.resolvedPath}`))
+				console.log(ui.colors.dim(`  Length: ${p.promptContent.length} chars`))
+				if (Object.keys(p.agentOptions).length) {
+					console.log(ui.colors.dim('  Agent options:'))
+					for (const [key, val] of Object.entries(p.agentOptions)) {
+						const display = typeof val === 'object' ? JSON.stringify(val) : val
+						console.log(ui.colors.dim(`    ${key}: ${display}`))
+					}
+				}
+				console.log('')
+				process.stdout.write(ui.markdown(p.promptContent))
+			}
+			return
+		}
+
 		if (prepared.length > 1) {
 			await runParallel(target, prepared, options, container)
 			return
@@ -858,14 +892,43 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	}
 
 	const ui = container.feature('ui')
+
+	if (options['dry-run']) {
+		const runOptions: Record<string, any> = { ...p.agentOptions }
+		if (options.model) runOptions.model = options.model
+		if (options['in-folder']) runOptions.cwd = container.paths.resolve(options['in-folder'])
+		if (options['out-file']) runOptions.outFile = options['out-file']
+		if (options['include-output']) runOptions.includeOutput = true
+		if (options['exclude-sections']) runOptions.excludeSections = options['exclude-sections']
+		if (CLI_TARGETS.has(target)) {
+			runOptions.permissionMode = options['permission-mode']
+			if (options.chrome) runOptions.chrome = true
+		}
+
+		console.log(ui.colors.bold('\n── Dry Run ──\n'))
+		console.log(ui.colors.bold('Target:'), target)
+		console.log(ui.colors.bold('Prompt file:'), p.resolvedPath)
+		console.log(ui.colors.bold('Prompt length:'), `${p.promptContent.length} chars`)
+		if (Object.keys(runOptions).length) {
+			console.log(ui.colors.bold('Options:'))
+			for (const [key, val] of Object.entries(runOptions)) {
+				const display = typeof val === 'object' ? JSON.stringify(val) : val
+				console.log(`  ${key}: ${display}`)
+			}
+		}
+		console.log(ui.colors.bold('\n── Prompt Content ──\n'))
+		process.stdout.write(ui.markdown(p.promptContent))
+		return
+	}
+
 	process.stdout.write(ui.markdown(p.promptContent))
 
 	let stats: RunStats
 
 	if (CLI_TARGETS.has(target)) {
-		stats = await runClaudeOrCodex(target as 'claude' | 'codex', p.promptContent, container, options)
+		stats = await runClaudeOrCodex(target as 'claude' | 'codex', p.promptContent, container, options, p.agentOptions)
 	} else {
-		stats = await runAssistant(target, p.promptContent, options, container)
+		stats = await runAssistant(target, p.promptContent, options, container, p.agentOptions)
 	}
 
 	if (options['out-file'] && stats.collectedEvents.length) {
