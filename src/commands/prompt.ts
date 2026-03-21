@@ -837,7 +837,10 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		const candidate = paths.resolve(target)
 		if (fs.exists(candidate)) {
 			allPaths.push(target)
-			target = 'claude'
+			// this gives a way for you to say on a per project basis what you want the default coding assistant to be for the prompt command	
+			// TODO need to document this somewhere
+			const { codingAssistant } = (container.manifest.luca || {})
+			target = codingAssistant || 'claude'
 		}
 	}
 
