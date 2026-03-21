@@ -285,6 +285,10 @@ export class NodeContainer<
       }
     });
 
+    if (this.isBun) {
+	    this.addContext('Bun', Bun)
+    }
+
     this.use(Client).use(Server).use(Command).use(Endpoint).use(Selector);
   }
 

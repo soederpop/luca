@@ -187,8 +187,20 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		output: process.stdout,
 	})
 
+	let rlClosed = false
+	rl.on('close', () => { rlClosed = true })
+
+	function ensureRl() {
+		if (rlClosed) {
+			rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+			rlClosed = false
+			rl.on('close', () => { rlClosed = true })
+		}
+	}
+
 	function prompt(): Promise<string> {
 		return new Promise((resolve) => {
+			ensureRl()
 			rl.question(ui.colors.dim(`\n${name} > `), (answer: string) => resolve(answer.trim()))
 		})
 	}
@@ -247,6 +259,8 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 			console.log()
 			console.log(ui.colors.dim(`  Back in chat with ${ui.colors.cyan(name)}.`))
 			rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+			rlClosed = false
+			rl.on('close', () => { rlClosed = true })
 			continue
 		}
 

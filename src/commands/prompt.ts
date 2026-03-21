@@ -17,8 +17,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
 	'include-output': z.boolean().default(false).describe('Include tool call outputs in the markdown (requires --out-file)'),
-	'dont-touch-file': z.boolean().default(false).describe('Do not update the prompt file frontmatter with run stats'),
-	'repeat-anyway': z.boolean().default(false).describe('Run even if repeatable is false and the prompt has already been run'),
+	'inputs-file': z.string().optional().describe('Path to a JSON or YAML file supplying input values'),
 	'parallel': z.boolean().default(false).describe('Run multiple prompt files in parallel with side-by-side terminal UI'),
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
@@ -526,24 +525,6 @@ async function runParallel(
 	// Wait for sessions to fully settle
 	await sessionPromise
 
-	// Post-completion: update frontmatter
-	if (!options['dont-touch-file']) {
-		for (let i = 0; i < promptStates.length; i++) {
-			const ps = promptStates[i]
-			if (ps.status === 'error') continue
-			const rawContent = fs.readFile(prepared[i].resolvedPath) as string
-			const updates: Record<string, any> = {
-				lastRanAt: Date.now(),
-				durationMs: ps.durationMs,
-			}
-			if (ps.outputTokens > 0) {
-				updates.outputTokens = ps.outputTokens
-			}
-			const updated = updateFrontmatter(rawContent, updates, container)
-			await Bun.write(prepared[i].resolvedPath, updated)
-		}
-	}
-
 	// Post-completion: out-files
 	if (options['out-file']) {
 		const base = options['out-file']
@@ -573,26 +554,123 @@ async function runParallel(
 	}
 }
 
-function updateFrontmatter(fileContent: string, updates: Record<string, any>, container: any): string {
-	const yaml = container.feature('yaml')
+interface InputDef {
+	description?: string
+	required?: boolean
+	default?: any
+	type?: string
+	choices?: string[]
+}
 
-	if (fileContent.startsWith('---')) {
-		const endIndex = fileContent.indexOf('\n---', 3)
-		if (endIndex !== -1) {
-			const existingYaml = fileContent.slice(4, endIndex)
-			const meta = yaml.parse(existingYaml) || {}
-			Object.assign(meta, updates)
-			const newYaml = yaml.stringify(meta).trimEnd()
-			return `---\n${newYaml}\n---${fileContent.slice(endIndex + 4)}`
+function parseInputDefs(meta: Record<string, any>): Record<string, InputDef> | null {
+	if (!meta?.inputs || typeof meta.inputs !== 'object') return null
+	const defs: Record<string, InputDef> = {}
+	for (const [key, val] of Object.entries(meta.inputs)) {
+		if (typeof val === 'object' && val !== null) {
+			defs[key] = val as InputDef
+		} else {
+			// Shorthand: `topic: "What to write about"` means description-only, required
+			defs[key] = { description: typeof val === 'string' ? val : String(val) }
+		}
+	}
+	return Object.keys(defs).length ? defs : null
+}
+
+async function resolveInputs(
+	inputDefs: Record<string, InputDef>,
+	options: z.infer<typeof argsSchema>,
+	container: any,
+): Promise<Record<string, any>> {
+	const { fs, paths } = container
+	const yaml = container.feature('yaml')
+	const ui = container.feature('ui')
+
+	// Layer 1: inputs-file (lowest priority of supplied values)
+	let fileInputs: Record<string, any> = {}
+	if (options['inputs-file']) {
+		const filePath = paths.resolve(options['inputs-file'])
+		const raw = fs.readFile(filePath) as string
+		if (filePath.endsWith('.json')) {
+			fileInputs = JSON.parse(raw)
+		} else {
+			fileInputs = yaml.parse(raw) || {}
 		}
 	}
 
-	// No existing frontmatter — prepend one
-	const newYaml = yaml.stringify(updates).trimEnd()
-	return `---\n${newYaml}\n---\n\n${fileContent}`
+	// Layer 2: CLI flags (highest priority) — any unknown option that matches an input name
+	const cliInputs: Record<string, any> = {}
+	const argv = container.argv as Record<string, any>
+	for (const key of Object.keys(inputDefs)) {
+		if (argv[key] !== undefined) {
+			cliInputs[key] = argv[key]
+		}
+	}
+
+	// Merge: CLI > file > defaults
+	const supplied: Record<string, any> = {}
+	for (const [key, def] of Object.entries(inputDefs)) {
+		if (cliInputs[key] !== undefined) {
+			supplied[key] = cliInputs[key]
+		} else if (fileInputs[key] !== undefined) {
+			supplied[key] = fileInputs[key]
+		} else if (def.default !== undefined) {
+			supplied[key] = def.default
+		}
+	}
+
+	// Find missing required inputs
+	const missing: string[] = []
+	for (const [key, def] of Object.entries(inputDefs)) {
+		const isRequired = def.required !== false // default to required
+		if (isRequired && supplied[key] === undefined) {
+			missing.push(key)
+		}
+	}
+
+	if (missing.length === 0) return supplied
+
+	// In parallel mode, we can't run an interactive wizard
+	if ((options as any).parallel) {
+		console.error(`Missing required inputs for parallel mode (use --inputs-file or CLI flags): ${missing.join(', ')}`)
+		process.exit(1)
+	}
+
+	// Build wizard questions for missing inputs
+	const questions = missing.map((key) => {
+		const def = inputDefs[key]
+		const q: Record<string, any> = {
+			name: key,
+			message: def.description || key,
+		}
+
+		// Auto-infer type
+		if (def.choices?.length) {
+			q.type = 'list'
+			q.choices = def.choices
+		} else if (def.type) {
+			q.type = def.type
+		} else {
+			q.type = 'input'
+		}
+
+		if (def.default !== undefined) {
+			q.default = def.default
+		}
+
+		return q
+	})
+
+	const answers = await ui.wizard(questions, supplied)
+	return { ...supplied, ...answers }
 }
 
-async function executePromptFile(resolvedPath: string, container: any): Promise<string> {
+function substituteInputs(content: string, inputs: Record<string, any>): string {
+	return content.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+		return inputs[key] !== undefined ? String(inputs[key]) : match
+	})
+}
+
+async function executePromptFile(resolvedPath: string, container: any, inputs?: Record<string, any>): Promise<string> {
 	if (!container.docs.isLoaded) await container.docs.load()
 	const doc = await container.docs.parseMarkdownAtPath(resolvedPath)
 	const vm = container.feature('vm')
@@ -608,6 +686,7 @@ async function executePromptFile(resolvedPath: string, container: any): Promise<
 
 	const shared = vm.createContext({
 		...container.context,
+		INPUTS: inputs || {},
 		console: captureConsole,
 		setTimeout, clearTimeout, setInterval, clearInterval,
 		fetch, URL, URLSearchParams,
@@ -669,24 +748,36 @@ async function preparePrompt(
 
 	let content = fs.readFile(resolvedPath) as string
 
-	// Check repeatable gate
-	if (!options['repeat-anyway'] && content.startsWith('---')) {
+	// Parse frontmatter for input definitions
+	let resolvedInputs: Record<string, any> = {}
+	let hasInputDefs = false
+	if (content.startsWith('---')) {
 		const fmEnd = content.indexOf('\n---', 3)
 		if (fmEnd !== -1) {
 			const yaml = container.feature('yaml')
 			const meta = yaml.parse(content.slice(4, fmEnd)) || {}
-			if (meta.repeatable === false && meta.lastRanAt) {
-				console.error(`${filePath}: already run (lastRanAt: ${new Date(meta.lastRanAt).toLocaleString()}) and repeatable is false. Skipping.`)
-				return null
+			const inputDefs = parseInputDefs(meta)
+			if (inputDefs) {
+				hasInputDefs = true
+				resolvedInputs = await resolveInputs(inputDefs, options, container)
 			}
 		}
+	}
+
+	if (options['inputs-file'] && !hasInputDefs) {
+		console.warn(`Warning: --inputs-file was provided but ${filePath} does not define any inputs in its frontmatter`)
 	}
 
 	let promptContent: string
 	if (options['preserve-frontmatter']) {
 		promptContent = content
 	} else {
-		promptContent = await executePromptFile(resolvedPath, container)
+		promptContent = await executePromptFile(resolvedPath, container, resolvedInputs)
+	}
+
+	// Substitute {{key}} placeholders with resolved input values
+	if (Object.keys(resolvedInputs).length) {
+		promptContent = substituteInputs(promptContent, resolvedInputs)
 	}
 
 	// Exclude sections by heading name
@@ -775,20 +866,6 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		stats = await runClaudeOrCodex(target as 'claude' | 'codex', p.promptContent, container, options)
 	} else {
 		stats = await runAssistant(target, p.promptContent, options, container)
-	}
-
-	// Update prompt file frontmatter with run stats
-	if (!options['dont-touch-file']) {
-		const rawContent = fs.readFile(p.resolvedPath) as string
-		const updates: Record<string, any> = {
-			lastRanAt: Date.now(),
-			durationMs: stats.durationMs,
-		}
-		if (stats.outputTokens > 0) {
-			updates.outputTokens = stats.outputTokens
-		}
-		const updated = updateFrontmatter(rawContent, updates, container)
-		await Bun.write(p.resolvedPath, updated)
 	}
 
 	if (options['out-file'] && stats.collectedEvents.length) {
