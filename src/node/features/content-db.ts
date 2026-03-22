@@ -428,6 +428,23 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   async generateModelSummary(options: any) {
 	  return this.collection.generateModelSummary(options)
   }
+  
+  get modelDefinitionTable() {
+    return Object.fromEntries(this.collection.modelDefinitions.map(d => {
+      
+      const prefixPattern = this.container.paths.relative(this.collection.resolve(d.prefix))
+
+      return [d.name, {
+        description: d.name === 'Base' ? 'Any markdown document not matched to a model' : d.description,
+        glob: `${prefixPattern}/**/*.md`,
+        routePatterns: Array(d.pattern).flatMap(p => p).filter(Boolean).map(p => `${prefixPattern}/${p}`)
+      }]
+    }))
+  }
+  
+  get fileTree() {
+    return this.collection.renderFileTree()
+  }
 
   // ── Search Integration ─────────────────────────────────────────────
 

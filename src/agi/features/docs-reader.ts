@@ -108,15 +108,39 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 
 	assistant?: Assistant
 
+
+	private generateSpecificCollectionExplainer() {
+		const { contentDb } = this
+		const fileTree = contentDb.fileTree
+		const modelDefinitionTable = contentDb.modelDefinitionTable
+		const modelNames = contentDb.modelNames
+		
+		const domainTermSummary = this.container.feature('ui').endent(`
+		## Domain Specific Terms 
+		
+		When the user is referring to one of the following nouns: ${modelNames.join(', ')} they are likely
+		referencing one of the documents defined by the following content models:
+
+		${Object.entries(modelDefinitionTable).map(([name, { description, glob, routePatterns }]) => `
+		- **${name}**: ${description}
+		Glob: ${glob}
+		Route Patterns: ${routePatterns.join(', ')}
+		`).join('\n')}
+		`)
+
+		return domainTermSummary
+	}
+
 	/** Start the docs reader by loading the contentDb and wiring its tools into an assistant. */
 	async start(): Promise<DocsReader> {
 		if (this.isStarted) return this
 
 		const contentDb = this.contentDb
 		if (!contentDb.isLoaded) await contentDb.load()
+			
 
 		this.assistant = this.container.feature('assistant', {
-			systemPrompt: CONTENT_DB_SYSTEM_PROMPT,
+			systemPrompt: [CONTENT_DB_SYSTEM_PROMPT, this.generateSpecificCollectionExplainer()].filter(Boolean).join('\n\n'),
 			model: this.options.model,
 			local: this.options.local,
 		}).use(contentDb)

@@ -89,6 +89,16 @@ export class FS extends Feature {
   }
 
   /**
+   * Synchronously reads a file and returns its contents as a string.
+   * added this method because AI Assistants are understandly confused by this deviation from 2000's era node style
+   * @alias readFile
+   */
+  readFileSync(path: string, encoding?: BufferEncoding | null): string | Buffer {
+    return this.readFile(path,encoding)
+  }
+  
+
+  /**
    * Asynchronously reads a file and returns its contents as a string.
    *
    * @param {string} path - The file path relative to the container's working directory
@@ -125,6 +135,14 @@ export class FS extends Feature {
    */
   readJson(path: string) {
     return JSON.parse(this.readFile(path) as string)
+  }
+  
+  /**
+    * Read and parse a JSON file synchronously
+    * @alias readJson
+   */
+  readJsonSync(path: string) {
+    return this.readJson(path)
   }
 
   /**
