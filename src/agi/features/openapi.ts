@@ -161,7 +161,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
       endpointCount: this._endpoints.size,
     })
 
-    this.emit('loaded', this._spec)
+    this.emit('started', this._spec)
     return this
   }
 

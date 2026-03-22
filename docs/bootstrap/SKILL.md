@@ -1,17 +1,19 @@
 ---
 name: Using the luca framework
-description: Learn the luca container — discover what's available with luca describe, build new helpers with luca scaffold, and prototype with luca eval
+description: The @soederpop/luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or @soederpop/luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
 ---
 # Luca: Learning the Container
 
 The Luca framework `@soederpop/luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in `commands/`, `clients/`, `servers/`, `features/`, and `endpoints/` folders.
+
+The `luca` cli loads typescript modules in through its VM which injects a `container` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 
 There are three things to learn, in this order:
 
 1. **Discover** what the container can do — `luca describe`
 2. **Build** new helpers when your project needs them — `luca scaffold`
 3. **Prototype** and debug with live code — `luca eval`
-
+4. **Write Runnable Markdown** a great usecase is `luca run markdown.md` where the markdown codeblocks are executed inside the Luca VM.
 ---
 
 ## Phase 1: Discover with `luca describe`

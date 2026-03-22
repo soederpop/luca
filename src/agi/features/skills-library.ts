@@ -37,7 +37,7 @@ export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
 })
 
 export const SkillsLibraryEventsSchema = FeatureEventsSchema.extend({
-	loaded: z.tuple([]).describe('Fired after all skill locations have been scanned'),
+	started: z.tuple([]).describe('Fired after all skill locations have been scanned'),
 	locationAdded: z.tuple([z.string().describe('The absolute path of the added location')]).describe('Fired when a new skill location is registered'),
 	skillDiscovered: z.tuple([z.any().describe('The SkillInfo object')]).describe('Fired when a skill is discovered during scanning'),
 }).describe('SkillsLibrary events')
@@ -94,7 +94,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	override get initialState(): SkillsLibraryState {
 		return {
 			...super.initialState,
-			loaded: false,
+			started: false,
 			locations: [],
 			skillCount: 0,
 			skills: {},
@@ -109,6 +109,15 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	get availableSkills() {
 		return Object.keys(this.skills)
 	}
+	
+	get skillsTable() : Record<string, string> {
+		const skills = this.skills
+
+		return Object.fromEntries(
+			Object.keys(skills).map((name) => [name, this.skills[name]!.description])
+		)
+	}
+
 	/** Resolved path to the skills.json config file. */
 	get configPath(): string {
 		if (this.options.configPath) return this.options.configPath
@@ -117,9 +126,10 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	}
 
 	/** Whether the library has been loaded. */
-	get isLoaded(): boolean {
-		return !!this.state.get('loaded')
+	get isStarted(): boolean {
+		return !!this.state.get('started')
 	}
+	
 	/** Expand ~ to home directory in a path. */
 	private expandHome(p: string): string {
 		return p.replace(/^\~/, this.container.os.homedir)
@@ -151,7 +161,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	 * @returns This instance for chaining
 	 */
 	async start(): Promise<SkillsLibrary> {
-		if (this.isLoaded) return this
+		if (this.isStarted) return this
 
 	  const { uniq } = this.container.utils.lodash
 		const config = this.readConfig()
@@ -167,9 +177,9 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			await this.scanLocation(loc)
 		}
 
-		this.state.set('loaded', true)
+		this.state.set('started', true)
 		this.state.set('skillCount', Object.keys(this.skills).length)
-		this.emit('loaded')
+		this.emit('started')
 
 		return this
 	}
@@ -321,7 +331,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	/** Search available skills, optionally filtered by a query string. */
 	async searchAvailableSkills({ query }: { query?: string } = {}): Promise<string> {
-		if (!this.isLoaded) await this.start()
+		if (!this.isStarted) await this.start()
 
 		let skills = this.list()
 
@@ -340,7 +350,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	/** Load a skill's full SKILL.md content and metadata. */
 	async loadSkill({ skillName }: { skillName: string }): Promise<string> {
-		if (!this.isLoaded) await this.start()
+		if (!this.isStarted) await this.start()
 
 		const skill = this.find(skillName)
 		if (!skill) return `Skill "${skillName}" not found.`
@@ -352,7 +362,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	/** Ask a question about a specific skill using a DocsReader. */
 	async askSkillBasedQuestion({ skillName, question }: { skillName: string; question: string }): Promise<string> {
-		if (!this.isLoaded) await this.start()
+		if (!this.isStarted) await this.start()
 
 		const reader = this.createSkillReader(skillName)
 		const answer = await reader.ask(question)

@@ -119,7 +119,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   /** Whether the content database has been loaded. */
   get isLoaded() {
-    return this.state.get('loaded')
+    return this.state.get('started')
   }
 
   _collection?: Collection
@@ -290,7 +290,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     }
 
     await this.collection.load()
-    this.state.set('loaded', true)
+    this.state.set('started', true)
 
     return this
   }
