@@ -105,7 +105,10 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	get skills(): Record<string, SkillInfo> {
 		return (this.state.get('skills') || {}) as Record<string, SkillInfo>
 	}
-
+	
+	get availableSkills() {
+		return Object.keys(this.skills)
+	}
 	/** Resolved path to the skills.json config file. */
 	get configPath(): string {
 		if (this.options.configPath) return this.options.configPath
@@ -117,12 +120,9 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	get isLoaded(): boolean {
 		return !!this.state.get('loaded')
 	}
-
 	/** Expand ~ to home directory in a path. */
 	private expandHome(p: string): string {
-		if (!p.startsWith('~')) return p
-		const { os, paths } = this.container
-		return paths.resolve(os.homedir, p.slice(1))
+		return p.replace(/^\~/, this.container.os.homedir)
 	}
 
 	/** Read the persisted config, creating it if it doesn't exist. */
@@ -153,11 +153,17 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	async start(): Promise<SkillsLibrary> {
 		if (this.isLoaded) return this
 
+	  const { uniq } = this.container.utils.lodash
 		const config = this.readConfig()
-		const locations = config.locations.map(l => this.expandHome(l))
-		this.state.set('locations', locations)
+		const configLocations = config.locations.map(l => this.expandHome(l))
+		const allLocations = uniq([
+			...configLocations,
+			(this.container as any).paths.resolve((this.container as any).os.homedir, '.claude', 'skills'),
+			(this.container as any).paths.resolve((this.container as any).cwd, '.claude', 'skills')
+		]).filter(Boolean).filter(l => (this.container as any).fs.exists(l))
+		this.state.set('locations', allLocations)
 
-		for (const loc of locations) {
+		for (const loc of allLocations) {
 			await this.scanLocation(loc)
 		}
 
@@ -240,7 +246,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			try {
 				const parsed = await parse(skillFile)
 				const meta = (parsed.meta || {}) as Record<string, unknown>
-				const name = (meta.name as string) || entry
+				const name = entry
 
 				const info: SkillInfo = {
 					name,
