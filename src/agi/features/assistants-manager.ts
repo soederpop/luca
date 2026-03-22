@@ -182,7 +182,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	async downloadLucaCoreAssistants() {
 		const { os, paths } = this.container
-		const dest = paths.join(os.homedir, '.luca', 'assistants')
+		const dest = paths.resolve(os.homedir, '.luca', 'assistants')
 		const git = this.container.feature('git') as any
 
 		const result = await git.extractFolder({
