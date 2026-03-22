@@ -41,6 +41,30 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		}
 	}
 
+	// 3. Collect docs/examples/*.md
+	const examples: Record<string, string> = {}
+	const examplesDir = 'docs/examples'
+	if (fs.exists(examplesDir)) {
+		const exampleFiles = (await fs.readdir(examplesDir)).filter((f: string) => f.endsWith('.md'))
+		for (const file of exampleFiles) {
+			const content = await fs.readFileAsync(`${examplesDir}/${file}`)
+			examples[file] = content
+			console.log(`   example/${file}: ${content.length} chars`)
+		}
+	}
+
+	// 4. Collect docs/tutorials/*.md
+	const tutorials: Record<string, string> = {}
+	const tutorialsDir = 'docs/tutorials'
+	if (fs.exists(tutorialsDir)) {
+		const tutorialFiles = (await fs.readdir(tutorialsDir)).filter((f: string) => f.endsWith('.md'))
+		for (const file of tutorialFiles) {
+			const content = await fs.readFileAsync(`${tutorialsDir}/${file}`)
+			tutorials[file] = content
+			console.log(`   tutorial/${file}: ${content.length} chars`)
+		}
+	}
+
 	const escapeForTemplate = (s: string) => s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
 
 	const fileEntries = Object.entries(entries).map(([name, content]) =>
@@ -51,9 +75,17 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
 	).join(',\n')
 
+	const exampleEntries = Object.entries(examples).map(([name, content]) =>
+		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
+	).join(',\n')
+
+	const tutorialEntries = Object.entries(tutorials).map(([name, content]) =>
+		`  ${JSON.stringify(name)}: \`${escapeForTemplate(content)}\``
+	).join(',\n')
+
 	const output = `// Auto-generated bootstrap content
 // Generated at: ${new Date().toISOString()}
-// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*
+// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md
 //
 // Do not edit manually. Run: luca build-bootstrap
 
@@ -63,6 +95,14 @@ ${fileEntries}
 
 export const bootstrapTemplates: Record<string, string> = {
 ${templateEntries}
+}
+
+export const bootstrapExamples: Record<string, string> = {
+${exampleEntries}
+}
+
+export const bootstrapTutorials: Record<string, string> = {
+${tutorialEntries}
 }
 `
 

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
-import { bootstrapFiles, bootstrapTemplates } from '../bootstrap/generated.js'
+import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials } from '../bootstrap/generated.js'
 import { apiDocs } from './save-api-docs.js'
 import { generateScaffold } from '../scaffolds/template.js'
 
@@ -51,6 +51,21 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print.cyan('  Generating API docs...')
 	const apiDocsPath = container.paths.resolve(skillDir, 'references', 'api-docs')
 	await apiDocs({ _: [], outputPath: apiDocsPath }, context)
+
+	// ── 3b. examples and tutorials ─────────────────────────────────
+	const examplesDir = container.paths.resolve(skillDir, 'references', 'examples')
+	await fs.ensureFolder(examplesDir)
+	for (const [filename, content] of Object.entries(bootstrapExamples)) {
+		await fs.writeFileAsync(container.paths.resolve(examplesDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapExamples).length} example docs...`)
+
+	const tutorialsDir = container.paths.resolve(skillDir, 'references', 'tutorials')
+	await fs.ensureFolder(tutorialsDir)
+	for (const [filename, content] of Object.entries(bootstrapTutorials)) {
+		await fs.writeFileAsync(container.paths.resolve(tutorialsDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapTutorials).length} tutorial docs...`)
 
 	// ── 4. docs/ folder ────────────────────────────────────────────
 	await fs.ensureFolder(mkPath('docs'))
