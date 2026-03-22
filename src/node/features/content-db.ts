@@ -3,8 +3,8 @@ import * as contentbaseExports from 'contentbase'
 import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { join, dirname } from 'node:path'
-import { existsSync, readdirSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
+import type { GrepOptions } from './grep.js'
 
 export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
@@ -82,7 +82,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /** Check if contentbase is resolvable via native import from the project root */
   private _canNativeImportContentbase(): boolean {
     const cwd = this.container.cwd
-    return existsSync(join(cwd, 'node_modules', 'contentbase'))
+    return this.container.fs.exists(this.container.paths.join(cwd, 'node_modules', 'contentbase'))
   }
 
   /** Seed the VM with virtual modules so models.ts can import from 'contentbase', 'zod', etc. */
@@ -120,6 +120,25 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /** Returns an array of all registered model names from the collection. */
   get modelNames(): string[] {
     return this.collection.modelDefinitions.map((d) => d.name)
+  }
+
+  /**
+   * Returns the available document ids in the collection
+  */
+  get available() : string[] {
+	  return this.collection.available
+  }
+  
+  async grep(options: string | GrepOptions) {
+    if (typeof options === 'string') {
+      options = { pattern: options }
+    }
+    return this.container.feature('grep').search({
+      path: this.collectionPath,
+      include: ['**/*.md'],
+      exclude: ['.env', 'secrets'],
+      ...options,
+    })
   }
 
   /**
@@ -315,7 +334,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   /**
    * Lazily initialize the semanticSearch feature, attaching it to the container if needed.
-   * The dbPath defaults to `.contentbase/search.sqlite` relative to the collection root.
+   * The dbPath defaults to `~/.luca/contentbase/{hash}/search.sqlite` where hash is derived from the resolved collection path.
    */
   private async _getSemanticSearch(options?: { dbPath?: string; embeddingProvider?: string; embeddingModel?: string }) {
     if (this._semanticSearch?.state?.get('dbReady')) return this._semanticSearch
@@ -326,9 +345,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       SemanticSearch.attach(this.container as any)
     }
 
-    // Put .contentbase at project root (dirname of docs/), not inside the docs folder
-    const projectRoot = dirname(this.collectionPath)
-    const dbPath = options?.dbPath ?? join(projectRoot, '.contentbase/search.sqlite')
+    // Store search index in ~/.luca/contentbase/{hash}/ keyed by the real (symlink-resolved) collection path
+    const realPath = realpathSync(this.collectionPath)
+    const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
+    const dbPath = options?.dbPath ?? this.container.paths.join(this.container.os.homedir, '.luca', 'contentbase', pathHash, 'search.sqlite')
     this._semanticSearch = (this.container as any).feature('semanticSearch', {
       dbPath,
       ...(options?.embeddingProvider ? { embeddingProvider: options.embeddingProvider } : {}),
@@ -343,10 +363,14 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * Check if a search index exists for this collection.
    */
   private _hasSearchIndex(): boolean {
-    const dbDir = join(dirname(this.collectionPath), '.contentbase')
-    if (!existsSync(dbDir)) return false
+    const realPath = realpathSync(this.collectionPath)
+    const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
+    const dbDir = this.container.paths.join(this.container.os.homedir, '.luca', 'contentbase', pathHash)
+
+    if (!this.container.fs.exists(dbDir)) return false
+
     try {
-      const files = readdirSync(dbDir) as string[]
+      const files = this.container.fs.readdirSync(dbDir)
       return files.some((f: string) => f.startsWith('search.') && f.endsWith('.sqlite'))
     } catch {
       return false
