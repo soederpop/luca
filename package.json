@@ -48,7 +48,7 @@
     "clean": "rm -rf dist build package",
     "build:web": "bun run scripts/build-web.ts",
     "build:introspection": "bun run src/cli/cli.ts introspect",
-    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun build ./src/cli/cli.ts --compile --outfile dist/luca --external node-llama-cpp",
+    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bash scripts/stamp-build.sh && bun build ./src/cli/cli.ts --compile --outfile dist/luca --external node-llama-cpp",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
     "build:bootstrap": "bun run src/cli/cli.ts build-bootstrap",

@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 // @ts-ignore — bun resolves JSON imports at bundle time
 import pkg from '../../package.json'
+import { BUILD_SHA, BUILD_BRANCH, BUILD_DATE } from './build-info'
 
 // Fast-path flags that don't need the container
 const args = process.argv.slice(2)
 if (args.includes('--version') || args.includes('-v')) {
-	console.log(`luca v${pkg.version}`)
+	console.log(`luca v${pkg.version} (${BUILD_BRANCH}@${BUILD_SHA}) built ${BUILD_DATE}`)
 	console.log(`  npm: https://www.npmjs.com/package/@soederpop/luca`)
 	console.log(`  git: https://github.com/soederpop/luca`)
 	process.exit(0)

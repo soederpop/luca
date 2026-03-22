@@ -24,7 +24,12 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 	
 	const args = container.argv._ as string[]
 	// args[0] is "eval", the rest is the code snippet
-	const code = args.slice(1).join(' ')
+	let code = args.slice(1).join(' ')
+
+	// Read from stdin if no inline code was provided
+	if (!code.trim()) {
+		code = await Bun.stdin.text()
+	}
 
 	if (!code.trim()) {
 		console.error('Usage: luca eval "<code>" [--json]')
