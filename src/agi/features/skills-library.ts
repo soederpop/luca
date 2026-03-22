@@ -1,13 +1,12 @@
 import { z } from 'zod'
-import path from 'path'
-import os from 'os'
-import fs from 'fs/promises'
-import yaml from 'js-yaml'
-import { kebabCase } from 'lodash-es'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, cpSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
-import { Collection, defineModel } from 'contentbase'
-import type { ConversationTool } from './conversation'
+import { parse } from 'contentbase'
+import type { DocsReader } from './docs-reader.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -15,84 +14,55 @@ declare module '@soederpop/luca/feature' {
 	}
 }
 
-export interface SkillEntry {
-	/** Skill name from frontmatter */
+export interface SkillInfo {
+	/** Skill name derived from folder name or frontmatter */
 	name: string
-	/** Skill description from frontmatter */
+	/** Description from frontmatter */
 	description: string
-	/** Markdown body (instructions) */
-	body: string
-	/** Raw content including frontmatter */
-	raw: string
-	/** Which collection this came from */
-	source: 'project' | 'user'
-	/** Directory/path id within its collection */
-	pathId: string
+	/** Absolute path to the skill folder (dirname of SKILL.md) */
+	path: string
+	/** Absolute path to SKILL.md */
+	skillFilePath: string
+	/** Which location this skill was found in */
+	locationPath: string
 	/** All frontmatter metadata */
 	meta: Record<string, unknown>
 }
 
-const SkillMetaSchema = z.object({
-	name: z.string().describe('Unique name identifier for the skill'),
-	description: z.string().describe('What the skill does and when to use it'),
-	version: z.string().optional().describe('Skill version'),
-	tags: z.array(z.string()).optional().describe('Tags for categorization'),
-	author: z.string().optional().describe('Skill author'),
-	license: z.string().optional().describe('Skill license'),
-})
-
-const SkillModel = defineModel('Skill', {
-	meta: SkillMetaSchema as any,
-	match: (doc: { id: string; meta: Record<string, unknown> }) =>
-		doc.id.endsWith('/SKILL') || doc.id === 'SKILL',
-})
-
 export const SkillsLibraryStateSchema = FeatureStateSchema.extend({
-	loaded: z.boolean().describe('Whether both collections have been loaded'),
-	projectSkillCount: z.number().describe('Number of skills in the project collection'),
-	userSkillCount: z.number().describe('Number of skills in the user-level collection'),
-	totalSkillCount: z.number().describe('Total number of skills across both collections'),
+	loaded: z.boolean().describe('Whether skill locations have been scanned'),
+	locations: z.array(z.string()).describe('Tracked skill location folder paths'),
+	skillCount: z.number().describe('Total number of discovered skills'),
 })
 
 export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
-	/** Path to project-level skills directory. Defaults to .claude/skills relative to container cwd. */
-	projectSkillsPath: z.string().optional().describe('Path to project-level skills directory'),
-	/** Path to user-level skills directory. Defaults to ~/.luca/skills. */
-	userSkillsPath: z.string().optional().describe('Path to user-level global skills directory'),
+	configPath: z.string().optional().describe('Override path for skills.json (defaults to ~/.luca/skills.json)'),
 })
 
 export const SkillsLibraryEventsSchema = FeatureEventsSchema.extend({
-	loaded: z.tuple([]).describe('Fired after both project and user skill collections are loaded'),
-	skillCreated: z.tuple([z.any().describe('The created SkillEntry object')]).describe('Fired after a new skill is written to disk'),
-	skillUpdated: z.tuple([z.any().describe('The updated SkillEntry object')]).describe('Fired after an existing skill is updated'),
-	skillRemoved: z.tuple([z.string().describe('The name of the removed skill')]).describe('Fired after a skill is deleted'),
+	loaded: z.tuple([]).describe('Fired after all skill locations have been scanned'),
+	locationAdded: z.tuple([z.string().describe('The absolute path of the added location')]).describe('Fired when a new skill location is registered'),
+	skillDiscovered: z.tuple([z.any().describe('The SkillInfo object')]).describe('Fired when a skill is discovered during scanning'),
 }).describe('SkillsLibrary events')
 
 export type SkillsLibraryState = z.infer<typeof SkillsLibraryStateSchema>
 export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
 
 /**
- * Manages two contentbase collections of skills following the Claude Code SKILL.md format.
- * Project-level skills live in .claude/skills/ and user-level skills live in ~/.luca/skills/.
- * Skills can be discovered, searched, created, updated, and removed at runtime.
+ * Manages a registry of skill locations — folders containing SKILL.md files.
+ *
+ * Persists known locations to ~/.luca/skills.json and scans them on start.
+ * Each skill folder can be opened as a DocsReader for AI-assisted Q&A.
+ * Exposes tools for assistant integration via assistant.use(skillsLibrary).
  *
  * @extends Feature
- *
  * @example
  * ```typescript
- * const skills = container.feature('skillsLibrary')
- * await skills.load()
- *
- * // List and search
- * const allSkills = skills.list()
- * const matches = skills.search('code review')
- *
- * // Create a new skill
- * await skills.create({
- *   name: 'summarize',
- *   description: 'Summarize a document',
- *   body: '## Instructions\nRead the document and produce a concise summary.'
- * })
+ * const lib = container.feature('skillsLibrary')
+ * await lib.start()
+ * await lib.addLocation('~/.claude/skills')
+ * lib.list() // => SkillInfo[]
+ * const reader = lib.createSkillReader('my-skill')
  * ```
  */
 export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOptions> {
@@ -103,326 +73,279 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	static { Feature.register(this, 'skillsLibrary') }
 
-	private _projectCollection?: Collection
-	private _userCollection?: Collection
+	/** Tools for assistant integration via assistant.use(skillsLibrary). */
+	static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+		searchAvailableSkills: {
+			schema: z.object({
+				query: z.string().optional().describe('Optional search term to filter skills by name or description'),
+			}).describe('Search for available skills in the library. Returns matching skill names and descriptions.'),
+		},
+		loadSkill: {
+			schema: z.object({
+				skillName: z.string().describe('The name of the skill to load'),
+			}).describe('Load a skill by name and return its full SKILL.md content and metadata.'),
+		},
+		askSkillBasedQuestion: {
+			schema: z.object({
+				skillName: z.string().describe('The name of the skill to query'),
+				question: z.string().describe('The question to ask about the skill'),
+			}).describe('Ask a question about a specific skill using AI-assisted document reading.'),
+		},
+	}
 
-	/** @returns Default state with loaded=false and zero skill counts across both collections. */
+	/** Internal map of discovered skills keyed by name. */
+	private _skills = new Map<string, SkillInfo>()
+
+	/** @returns Default state. */
 	override get initialState(): SkillsLibraryState {
 		return {
 			...super.initialState,
 			loaded: false,
-			projectSkillCount: 0,
-			userSkillCount: 0,
-			totalSkillCount: 0,
+			locations: [],
+			skillCount: 0,
 		}
 	}
 
-	/** Returns the project-level contentbase Collection, lazily initialized. */
-	get projectCollection(): Collection {
-		if (this._projectCollection) return this._projectCollection
-		const rootPath =
-			this.options.projectSkillsPath ||
-			(this.container as any).paths.resolve('.claude', 'skills')
-		this._projectCollection = new Collection({ rootPath, extensions: ['md'] })
-		this._projectCollection.register(SkillModel)
-		return this._projectCollection
+	/** Resolved path to the skills.json config file. */
+	get configPath(): string {
+		if (this.options.configPath) return this.options.configPath
+		return join(homedir(), '.luca', 'skills.json')
 	}
 
-	/** Returns the user-level contentbase Collection, lazily initialized. */
-	get userCollection(): Collection {
-		if (this._userCollection) return this._userCollection
-		const rootPath =
-			this.options.userSkillsPath || path.resolve(os.homedir(), '.luca', 'skills')
-		this._userCollection = new Collection({ rootPath, extensions: ['md'] })
-		this._userCollection.register(SkillModel)
-		return this._userCollection
-	}
-
-	/** Whether the skills library has been loaded. */
+	/** Whether the library has been loaded. */
 	get isLoaded(): boolean {
 		return !!this.state.get('loaded')
 	}
 
-	/** Array of all skill names across both collections. */
-	get skillNames(): string[] {
-		return this.list().map((s) => s.name)
+	/** Expand ~ to home directory in a path. */
+	private expandHome(p: string): string {
+		if (!p.startsWith('~')) return p
+		return join(homedir(), p.slice(1))
+	}
+
+	/** Read the persisted config, creating it if it doesn't exist. */
+	private readConfig(): { locations: string[] } {
+		const configPath = this.configPath
+
+		if (!existsSync(configPath)) {
+			const defaultConfig = { locations: [] }
+			mkdirSync(join(homedir(), '.luca'), { recursive: true })
+			writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+			return defaultConfig
+		}
+
+		const raw = readFileSync(configPath, 'utf-8')
+		return JSON.parse(raw)
+	}
+
+	/** Write the config back to disk. */
+	private writeConfig(config: { locations: string[] }): void {
+		mkdirSync(join(homedir(), '.luca'), { recursive: true })
+		writeFileSync(this.configPath, JSON.stringify(config, null, 2))
 	}
 
 	/**
-	 * Loads both project and user skill collections from disk.
-	 * Gracefully handles missing directories.
+	 * Start the skills library: read config, scan all locations.
 	 *
-	 * @returns {Promise<SkillsLibrary>} This instance
+	 * @returns This instance for chaining
 	 */
-	async load(): Promise<SkillsLibrary> {
+	async start(): Promise<SkillsLibrary> {
 		if (this.isLoaded) return this
 
-		try {
-			await this.projectCollection.load()
-		} catch {
-			// Directory doesn't exist yet - zero project skills
+		const config = this.readConfig()
+		const locations = config.locations.map(l => this.expandHome(l))
+		this.state.set('locations', locations)
+
+		for (const loc of locations) {
+			await this.scanLocation(loc)
 		}
 
-		try {
-			await this.userCollection.load()
-		} catch {
-			// Directory doesn't exist yet - zero user skills
-		}
-
-		this.updateCounts()
 		this.state.set('loaded', true)
+		this.state.set('skillCount', this._skills.size)
 		this.emit('loaded')
+
 		return this
 	}
 
 	/**
-	 * Lists all skills from both collections. Project skills come first.
+	 * Add a new skill location folder and scan it for skills.
 	 *
-	 * @returns {SkillEntry[]} All available skills
+	 * @param locationPath - Path to a directory containing skill subfolders with SKILL.md
 	 */
-	list(): SkillEntry[] {
-		const projectSkills = this.listFromCollection(this.projectCollection, 'project')
-		const userSkills = this.listFromCollection(this.userCollection, 'user')
-		return [...projectSkills, ...userSkills]
-	}
+	async addLocation(locationPath: string): Promise<void> {
+		const resolved = this.expandHome(locationPath)
+		const current = this.state.get('locations') as string[]
 
-	/**
-	 * Finds a skill by name. Project skills take precedence over user skills.
-	 *
-	 * @param {string} name - The skill name to find (case-insensitive)
-	 * @returns {SkillEntry | undefined} The skill entry, or undefined if not found
-	 */
-	find(name: string): SkillEntry | undefined {
-		const lower = name.toLowerCase()
-		return this.list().find((s) => s.name.toLowerCase() === lower)
-	}
+		if (current.includes(resolved)) return
 
-	/**
-	 * Searches skills by substring match against name and description.
-	 *
-	 * @param {string} query - The search query
-	 * @returns {SkillEntry[]} Matching skills
-	 */
-	search(query: string): SkillEntry[] {
-		const q = query.toLowerCase()
-		return this.list().filter(
-			(s) =>
-				s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q)
-		)
-	}
+		const updated = [...current, resolved]
+		this.state.set('locations', updated)
 
-	/**
-	 * Gets a skill by name. Alias for find().
-	 *
-	 * @param {string} name - The skill name
-	 * @returns {SkillEntry | undefined} The skill entry
-	 */
-	getSkill(name: string): SkillEntry | undefined {
-		return this.find(name)
-	}
-
-	/**
-	 * Creates a new SKILL.md file in the specified collection.
-	 * Maintains the directory-per-skill structure (skill-name/SKILL.md).
-	 *
-	 * @param {object} skill - The skill to create
-	 * @param {'project' | 'user'} target - Which collection to write to (default: 'project')
-	 * @returns {Promise<SkillEntry>} The created skill entry
-	 */
-	async create(
-		skill: {
-			name: string
-			description: string
-			body: string
-			meta?: Record<string, unknown>
-		},
-		target: 'project' | 'user' = 'project'
-	): Promise<SkillEntry> {
-		const collection =
-			target === 'project' ? this.projectCollection : this.userCollection
-
-		const frontmatter = (yaml.dump({
-			name: skill.name,
-			description: skill.description,
-			...skill.meta,
-		}) as string).trim()
-
-		const content = `---\n${frontmatter}\n---\n\n${skill.body}`
-		const dirName = kebabCase(skill.name)
-		const pathId = `${dirName}/SKILL`
-
-		await fs.mkdir((collection as any).rootPath, { recursive: true })
-		await collection.saveItem(pathId, { content, extension: '.md' })
-		await collection.load({ refresh: true })
-		this.updateCounts()
-
-		const entry: SkillEntry = {
-			name: skill.name,
-			description: skill.description,
-			body: skill.body,
-			raw: content,
-			source: target,
-			pathId,
-			meta: { name: skill.name, description: skill.description, ...skill.meta },
+		// Persist — store the original (unexpanded) path for portability
+		const config = this.readConfig()
+		if (!config.locations.includes(locationPath)) {
+			config.locations.push(locationPath)
+			this.writeConfig(config)
 		}
 
-		this.emit('skillCreated', entry)
-		return entry
+		await this.scanLocation(resolved)
+		this.state.set('skillCount', this._skills.size)
+		this.emit('locationAdded', resolved)
 	}
 
 	/**
-	 * Updates an existing skill's content or metadata.
+	 * Remove a skill location and its skills from the library.
 	 *
-	 * @param {string} name - The skill name to update
-	 * @param {object} updates - Fields to update
-	 * @returns {Promise<SkillEntry>} The updated skill entry
+	 * @param locationPath - The location path to remove
 	 */
-	async update(
-		name: string,
-		updates: {
-			description?: string
-			body?: string
-			meta?: Record<string, unknown>
+	async removeLocation(locationPath: string): Promise<void> {
+		const resolved = this.expandHome(locationPath)
+		const current = this.state.get('locations') as string[]
+		this.state.set('locations', current.filter(l => l !== resolved))
+
+		// Remove skills from this location
+		for (const [name, info] of this._skills) {
+			if (info.locationPath === resolved) {
+				this._skills.delete(name)
+			}
 		}
-	): Promise<SkillEntry> {
-		const existing = this.find(name)
-		if (!existing) throw new Error(`Skill "${name}" not found`)
+		this.state.set('skillCount', this._skills.size)
 
-		const collection =
-			existing.source === 'project' ? this.projectCollection : this.userCollection
-
-		const newMeta = { ...existing.meta, ...updates.meta }
-		if (updates.description) newMeta.description = updates.description
-
-		const frontmatter = (yaml.dump(newMeta) as string).trim()
-		const body = updates.body ?? existing.body
-		const content = `---\n${frontmatter}\n---\n\n${body}`
-
-		await collection.saveItem(existing.pathId, { content, extension: '.md' })
-		await collection.load({ refresh: true })
-		this.updateCounts()
-
-		const entry: SkillEntry = {
-			name: existing.name,
-			description: updates.description ?? existing.description,
-			body,
-			raw: content,
-			source: existing.source,
-			pathId: existing.pathId,
-			meta: newMeta,
-		}
-
-		this.emit('skillUpdated', entry)
-		return entry
+		// Persist
+		const config = this.readConfig()
+		config.locations = config.locations.filter(l => this.expandHome(l) !== resolved)
+		this.writeConfig(config)
 	}
 
 	/**
-	 * Removes a skill by name, deleting its SKILL.md and cleaning up the directory.
+	 * Scan a location folder for skill subfolders containing SKILL.md.
 	 *
-	 * @param {string} name - The skill name to remove
-	 * @returns {Promise<boolean>} Whether the skill was found and removed
+	 * @param locationPath - Absolute path to scan
 	 */
-	async remove(name: string): Promise<boolean> {
-		const existing = this.find(name)
-		if (!existing) return false
+	async scanLocation(locationPath: string): Promise<void> {
+		if (!existsSync(locationPath)) return
 
-		const collection =
-			existing.source === 'project' ? this.projectCollection : this.userCollection
+		const entries = readdirSync(locationPath)
 
-		await collection.deleteItem(existing.pathId)
+		for (const entry of entries) {
+			const skillDir = join(locationPath, entry)
+			const skillFile = join(skillDir, 'SKILL.md')
 
-		const skillDir = path.resolve(
-			(collection as any).rootPath,
-			existing.pathId.split('/')[0]!
-		)
-		try {
-			await fs.rm(skillDir, { recursive: true })
-		} catch {
-			// directory might have other files or already be gone
+			if (!existsSync(skillFile)) continue
+
+			try {
+				const parsed = await parse(skillFile)
+				const meta = (parsed.meta || {}) as Record<string, unknown>
+				const name = (meta.name as string) || entry
+
+				const info: SkillInfo = {
+					name,
+					description: (meta.description as string) || '',
+					path: skillDir,
+					skillFilePath: skillFile,
+					locationPath,
+					meta,
+				}
+
+				this._skills.set(name, info)
+				this.emit('skillDiscovered', info)
+			} catch {
+				// Skip unparseable skill files
+			}
 		}
+	}
 
-		await collection.load({ refresh: true })
-		this.updateCounts()
-		this.emit('skillRemoved', existing.name)
-		return true
+	/** Return all discovered skills. */
+	list(): SkillInfo[] {
+		return Array.from(this._skills.values())
+	}
+
+	/** Find a skill by name. */
+	find(skillName: string): SkillInfo | undefined {
+		return this._skills.get(skillName)
 	}
 
 	/**
-	 * Converts all skills into ConversationTool format for use with Conversation.
-	 * Each skill becomes a tool that returns its instruction body when invoked.
+	 * Create a DocsReader for a skill's folder, enabling AI-assisted Q&A.
 	 *
-	 * @returns {Record<string, ConversationTool>} Tools keyed by sanitized skill name
+	 * @param skillName - Name of the skill to create a reader for
+	 * @returns A DocsReader instance rooted at the skill's folder
 	 */
-	toConversationTools(): Record<string, ConversationTool> {
-		const tools: Record<string, ConversationTool> = {}
+	createSkillReader(skillName: string): DocsReader {
+		const skill = this.find(skillName)
+		if (!skill) throw new Error(`Skill "${skillName}" not found in the library`)
 
-		for (const skill of this.list()) {
-			const toolName = `skill_${skill.name.replace(/[^a-zA-Z0-9_]/g, '_')}`
-			tools[toolName] = {
-				handler: async () => skill.body,
-				description: skill.description,
-				parameters: {
-					type: 'object',
-					properties: {},
-				},
+		return this.container.feature('docsReader', { contentDb: skill.path })
+	}
+
+	/**
+	 * Create a tmp directory containing symlinked/copied skill folders by name,
+	 * suitable for passing to claude --add-dir.
+	 *
+	 * @param skillNames - Array of skill names to include
+	 * @returns Absolute path to the created directory
+	 */
+	ensureFolderCreatedWithSkillsByName(skillNames: string[]): string {
+		const hash = this.container.utils.hashObject(skillNames.sort())
+		const dir = join(tmpdir(), 'luca-skills', hash)
+
+		if (existsSync(dir)) return dir
+
+		mkdirSync(dir, { recursive: true })
+
+		for (const name of skillNames) {
+			const skill = this.find(name)
+			if (!skill) throw new Error(`Skill "${name}" not found in the library`)
+
+			const dest = join(dir, name)
+			if (!existsSync(dest)) {
+				cpSync(skill.path, dest, { recursive: true })
 			}
 		}
 
-		return tools
+		return dir
 	}
 
-	/**
-	 * Generates a markdown block listing all available skills with names and descriptions.
-	 * Suitable for injecting into a system prompt.
-	 *
-	 * @returns {string} Markdown listing, or empty string if no skills
-	 */
-	toSystemPromptBlock(): string {
-		const skills = this.list()
-		if (skills.length === 0) return ''
+	// --- Tool handlers for assistant.use(skillsLibrary) ---
 
-		const lines = skills.map((s) => `- **${s.name}**: ${s.description}`)
-		return `## Available Skills\n\n${lines.join('\n')}`
-	}
+	/** Search available skills, optionally filtered by a query string. */
+	async searchAvailableSkills({ query }: { query?: string } = {}): Promise<string> {
+		if (!this.isLoaded) await this.start()
 
-	// --- Private ---
+		let skills = this.list()
 
-	private listFromCollection(
-		collection: Collection,
-		source: 'project' | 'user'
-	): SkillEntry[] {
-		if (!(collection as any).loaded) return []
-
-		const entries: SkillEntry[] = []
-		for (const pathId of collection.available) {
-			if (!pathId.endsWith('/SKILL') && pathId !== 'SKILL') continue
-
-			const item = collection.items.get(pathId)!
-			entries.push({
-				name: (item.meta.name as string) || pathId.split('/')[0] || pathId,
-				description: (item.meta.description as string) || '',
-				body: item.content,
-				raw: item.raw,
-				source,
-				pathId,
-				meta: item.meta,
-			})
+		if (query) {
+			const q = query.toLowerCase()
+			skills = skills.filter(s =>
+				s.name.toLowerCase().includes(q) ||
+				s.description.toLowerCase().includes(q)
+			)
 		}
 
-		return entries
+		if (skills.length === 0) return 'No skills found.'
+
+		return skills.map(s => `- **${s.name}**: ${s.description || '(no description)'}\n  Path: ${s.path}`).join('\n')
 	}
 
-	private updateCounts(): void {
-		const projectCount = this.listFromCollection(
-			this.projectCollection,
-			'project'
-		).length
-		const userCount = this.listFromCollection(this.userCollection, 'user').length
-		this.state.setState({
-			projectSkillCount: projectCount,
-			userSkillCount: userCount,
-			totalSkillCount: projectCount + userCount,
-		})
+	/** Load a skill's full SKILL.md content and metadata. */
+	async loadSkill({ skillName }: { skillName: string }): Promise<string> {
+		if (!this.isLoaded) await this.start()
+
+		const skill = this.find(skillName)
+		if (!skill) return `Skill "${skillName}" not found.`
+
+		const content = readFileSync(skill.skillFilePath, 'utf-8')
+
+		return `# Skill: ${skill.name}\n\n**Description:** ${skill.description}\n**Path:** ${skill.path}\n\n---\n\n${content}`
+	}
+
+	/** Ask a question about a specific skill using a DocsReader. */
+	async askSkillBasedQuestion({ skillName, question }: { skillName: string; question: string }): Promise<string> {
+		if (!this.isLoaded) await this.start()
+
+		const reader = this.createSkillReader(skillName)
+		const answer = await reader.ask(question)
+		return answer
 	}
 }
 
