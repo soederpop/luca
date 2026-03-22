@@ -22,4 +22,9 @@
 export async function main(container: any) {
   // Discover project-level helpers (commands/, features/, endpoints/)
   await container.helpers.discoverAll()
+
+  // Handle unknown commands gracefully instead of silently failing
+  container.onMissingCommand(async ({ phrase }: { phrase: string }) => {
+    container.command('help').dispatch()
+  })
 }
