@@ -13,7 +13,7 @@ export type GrepMatch = {
     content: string
 }
 
-type GrepOptions = {
+export type GrepOptions = {
     /** Pattern to search for (string or regex) */
     pattern: string
     /** Directory or file to search in (defaults to container cwd) */

@@ -248,6 +248,54 @@ export class VM<
   }
 
   /**
+   * Execute code and capture all console output as structured JSON.
+   *
+   * Returns both the execution result and an array of every `console.*` call
+   * made during execution, each entry recording the method name and arguments.
+   *
+   * @param code - The JavaScript code to execute
+   * @param ctx - Context variables to make available to the executing code
+   * @returns The result, an array of captured console calls, and the context
+   *
+   * @example
+   * ```typescript
+   * const { result, console: calls } = await vm.runCaptured('console.log("hi"); console.warn("oh"); 42')
+   * // result === 42
+   * // calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]
+   * ```
+   */
+  async runCaptured<T extends any>(code: string, ctx: any = {}): Promise<{
+    result: T
+    console: Array<{ method: string, args: any[] }>
+    context: vm.Context
+  }> {
+    const calls: Array<{ method: string, args: any[] }> = []
+    const captureConsole: Record<string, (...args: any[]) => void> = {}
+
+    for (const method of ['log', 'info', 'warn', 'error', 'debug', 'trace', 'dir', 'table'] as const) {
+      captureConsole[method] = (...args: any[]) => {
+        calls.push({ method, args })
+      }
+    }
+
+    const isExisting = this.isContext(ctx)
+    const context = isExisting ? ctx : this.createContext({ ...ctx, console: captureConsole })
+
+    // For existing contexts, swap console in for the run and restore after
+    const prevConsole = isExisting ? ctx.console : undefined
+    if (isExisting) ctx.console = captureConsole
+
+    const wrapped = this.wrapTopLevelAwait(code)
+    const script = this.createScript(wrapped)
+    try {
+      const result = (await script.runInContext(context)) as T
+      return { result, console: calls, context }
+    } finally {
+      if (isExisting) ctx.console = prevConsole
+    }
+  }
+
+  /**
    * Execute JavaScript code synchronously in a controlled environment.
    *
    * @param code - The JavaScript code to execute

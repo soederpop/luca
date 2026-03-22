@@ -42,11 +42,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	const vmFeature = container.feature('vm')
 	const sandboxContext = vmFeature.createContext({
 		container,
-		console: {
-			log: (...args: any[]) => args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '),
-			error: (...args: any[]) => args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '),
-			warn: (...args: any[]) => args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '),
-		},
+		console,
 		setTimeout,
 		setInterval,
 		clearTimeout,
@@ -154,8 +150,20 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		}),
 		handler: async (args) => {
 			try {
-				const result = await vmFeature.run(args.code, sandboxContext)
+				const { result, console: calls } = await vmFeature.runCaptured(args.code, sandboxContext)
 
+				const content: Array<{ type: 'text', text: string }> = []
+
+				// Include captured console output if any
+				if (calls.length > 0) {
+					const consoleLines = calls.map(c => {
+						const prefix = c.method === 'log' ? '' : `[${c.method}] `
+						return prefix + c.args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')
+					})
+					content.push({ type: 'text' as const, text: consoleLines.join('\n') })
+				}
+
+				// Include the result
 				let text: string
 				if (result === undefined) {
 					text = 'undefined'
@@ -173,7 +181,9 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 					text = String(result)
 				}
 
-				return { content: [{ type: 'text' as const, text }] }
+				content.push({ type: 'text' as const, text })
+
+				return { content }
 			} catch (error: any) {
 				return {
 					content: [{ type: 'text' as const, text: `Error: ${error.message}\n\n${error.stack || ''}` }],

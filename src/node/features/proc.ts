@@ -273,6 +273,7 @@ export class ChildProcess extends Feature {
   exec(command: string, options?: any): string {
     return execSync(command, {
       cwd: this.container.cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
       ...options,
     })
       .toString()
