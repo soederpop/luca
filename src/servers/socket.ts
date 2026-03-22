@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
 import { type StartOptions, Server, type ServerState } from '../server.js';
 import { WebSocketServer as BaseServer } from 'ws'
+import type { PendingRequest } from '../clients/websocket.js'
 
 declare module '../server' {
   interface AvailableServers {
@@ -63,6 +64,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     }
 
     connections : Set<any> = new Set()
+    _pending = new Map<string, PendingRequest>()
 
     async broadcast(message: any) {
       for(const ws of this.connections) {
@@ -75,6 +77,66 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     async send(ws: any, message: any) {
       await ws.send(JSON.stringify(message))
       return this
+    }
+
+    /**
+     * Send a request to a specific client and wait for a correlated response.
+     * The client is expected to reply with a message whose `replyTo` matches
+     * the `requestId` of this message.
+     *
+     * @param ws - The WebSocket client to ask
+     * @param type - A string identifying the request type
+     * @param data - Optional payload
+     * @param timeout - How long to wait (default 10 000 ms)
+     * @returns The `data` field of the response
+     *
+     * @example
+     * ```typescript
+     * ws.on('connection', async (client) => {
+     *   const info = await ws.ask(client, 'identify')
+     *   console.log('Client says:', info)
+     * })
+     * ```
+     */
+    async ask<R = any>(ws: any, type: string, data?: any, timeout = 10000): Promise<R> {
+      const requestId = this.container.utils.uuid()
+
+      return new Promise<R>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this._pending.delete(requestId)
+          reject(new Error(`ask("${type}") timed out after ${timeout}ms`))
+        }, timeout)
+
+        this._pending.set(requestId, { resolve, reject, timer })
+        this.send(ws, { type, data, requestId })
+      })
+    }
+
+    /** @internal Resolve a pending ask() if the incoming message has a replyTo field. Returns true if handled. */
+    _handleReply(message: any): boolean {
+      if (!message || !message.replyTo) return false
+
+      const pending = this._pending.get(message.replyTo)
+      if (!pending) return false
+
+      this._pending.delete(message.replyTo)
+      clearTimeout(pending.timer)
+
+      if (message.error) {
+        pending.reject(new Error(message.error))
+      } else {
+        pending.resolve(message.data)
+      }
+      return true
+    }
+
+    /** @internal Reject all pending ask() calls — used on stop. */
+    _rejectAllPending(reason: string) {
+      for (const [id, pending] of this._pending) {
+        clearTimeout(pending.timer)
+        pending.reject(new Error(reason))
+      }
+      this._pending.clear()
     }
 
     /**
@@ -115,6 +177,17 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
               data = JSON.parse(typeof raw === 'string' ? raw : raw.toString())
             } catch {}
           }
+
+          // Route reply messages to pending ask() calls
+          if (this._handleReply(data)) return
+
+          // If this message is a request (has requestId), provide a reply helper
+          if (data && data.requestId) {
+            const requestId = data.requestId
+            data.reply = (responseData: any) => this.send(ws, { replyTo: requestId, data: responseData })
+            data.replyError = (error: string) => this.send(ws, { replyTo: requestId, error })
+          }
+
           this.emit('message', data, ws)
         })
       })
@@ -128,6 +201,8 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       if (this.isStopped) {
         return this
       }
+
+      this._rejectAllPending('WebSocket server stopped')
 
       await Promise.race([
         new Promise<void>((resolve) => {

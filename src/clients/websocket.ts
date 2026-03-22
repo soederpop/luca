@@ -38,12 +38,19 @@ declare module '../client' {
  * await ws.send({ type: 'hello' })
  * ```
  */
+export interface PendingRequest<T = any> {
+  resolve: (value: T) => void
+  reject: (reason: any) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
 export class WebSocketClient<
   T extends WebSocketClientState = WebSocketClientState,
   K extends WebSocketClientOptions = WebSocketClientOptions
 > extends Client<T, K> {
   ws!: WebSocket
   _intentionalClose: boolean
+  _pending = new Map<string, PendingRequest>()
 
   static override shortcut = "clients.websocket" as const
   static override stateSchema = WebSocketClientStateSchema
@@ -97,7 +104,9 @@ export class WebSocketClient<
         try {
           data = JSON.parse(data)
         } catch {}
-        this.emit('message', data)
+        if (!this._handleReply(data)) {
+          this.emit('message', data)
+        }
       }
 
       ws.onclose = (event: any) => {
@@ -131,11 +140,68 @@ export class WebSocketClient<
   }
 
   /**
+   * Send a request and wait for a correlated response. The message is sent
+   * with a unique `requestId`; the remote side is expected to reply with a
+   * message containing `replyTo` set to that same ID.
+   *
+   * @param type - A string identifying the request type
+   * @param data - Optional payload to include with the request
+   * @param timeout - How long to wait for a response (default 10 000 ms)
+   * @returns The `data` field of the response message
+   *
+   * @example
+   * ```typescript
+   * const result = await ws.ask('getUser', { id: 42 })
+   * ```
+   */
+  async ask<R = any>(type: string, data?: any, timeout = 10000): Promise<R> {
+    const requestId = this.container.utils.uuid()
+
+    return new Promise<R>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this._pending.delete(requestId)
+        reject(new Error(`ask("${type}") timed out after ${timeout}ms`))
+      }, timeout)
+
+      this._pending.set(requestId, { resolve, reject, timer })
+      this.send({ type, data, requestId })
+    })
+  }
+
+  /** @internal Resolve a pending ask() if the incoming message has a replyTo field. Returns true if handled. */
+  _handleReply(message: any): boolean {
+    if (!message || !message.replyTo) return false
+
+    const pending = this._pending.get(message.replyTo)
+    if (!pending) return false
+
+    this._pending.delete(message.replyTo)
+    clearTimeout(pending.timer)
+
+    if (message.error) {
+      pending.reject(new Error(message.error))
+    } else {
+      pending.resolve(message.data)
+    }
+    return true
+  }
+
+  /** @internal Reject all pending ask() calls — used on disconnect. */
+  _rejectAllPending(reason: string) {
+    for (const [id, pending] of this._pending) {
+      clearTimeout(pending.timer)
+      pending.reject(new Error(reason))
+    }
+    this._pending.clear()
+  }
+
+  /**
    * Gracefully close the WebSocket connection. Suppresses auto-reconnect
    * and updates connection state to disconnected.
    */
   async disconnect(): Promise<this> {
     this._intentionalClose = true
+    this._rejectAllPending('WebSocket disconnected')
     if (this.ws) {
       this.ws.close()
     }

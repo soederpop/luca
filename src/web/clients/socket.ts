@@ -20,6 +20,8 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
   /**
    * Send data over the WebSocket with an ID envelope.
    * Wraps the payload in { id, data } before JSON serialization.
+   * Messages with a `requestId` or `replyTo` are sent as-is to
+   * preserve the ask/reply protocol.
    */
   override async send(data: any) {
     if(!this.isConnected && !this.hasError) {
@@ -30,10 +32,15 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
       throw new Error(`Missing websocket instance`)
     }
 
-    this.ws.send(JSON.stringify({
-      id: this.container.utils.uuid(),
-      data
-    }))
+    // Protocol messages (ask/reply) bypass the envelope
+    if (data && (data.requestId || data.replyTo)) {
+      this.ws.send(JSON.stringify(data))
+    } else {
+      this.ws.send(JSON.stringify({
+        id: this.container.utils.uuid(),
+        data
+      }))
+    }
   }
 
   /**
@@ -64,7 +71,13 @@ export class SocketClient<T extends WebSocketClientState = WebSocketClientState,
       }
 
       ws.onmessage = (event: any) => {
-        this.emit('message', event)
+        let data = event?.data ?? event
+        try {
+          data = JSON.parse(typeof data === 'string' ? data : data.toString())
+        } catch {}
+        if (!this._handleReply(data)) {
+          this.emit('message', data)
+        }
       }
 
       ws.onclose = (event: any) => {
