@@ -278,26 +278,28 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 *   .use(container.feature('git'))
 	 * ```
 	 */
-	use(fnOrHelper: ((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } }): this {
+	use(fnOrHelper: ((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }): this {
 		if (typeof fnOrHelper === 'function') {
 			const result = fnOrHelper(this)
 			if (result && typeof (result as any).then === 'function') {
 				const pending = this.state.get('pendingPlugins') as Promise<void>[]
 				this.state.set('pendingPlugins', [...pending, result as Promise<void>])
 			}
-		} else if (fnOrHelper && typeof fnOrHelper.toTools === 'function') {
-			const { schemas, handlers } = fnOrHelper.toTools()
-			for (const name of Object.keys(schemas)) {
-				if(typeof handlers[name] === 'function') {
-					this.addTool(
-						name,
-						handlers[name] as any,
-						schemas[name],
-					)
-				}
-			}
+		} else if (fnOrHelper && typeof (fnOrHelper as any).toTools === 'function') {
+			this._registerTools((fnOrHelper as any).toTools())
+		} else if (fnOrHelper && 'schemas' in fnOrHelper && 'handlers' in fnOrHelper) {
+			this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> })
 		}
 		return this
+	}
+
+	/** Register tools from a `{ schemas, handlers }` object. */
+	private _registerTools({ schemas, handlers }: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }) {
+		for (const name of Object.keys(schemas)) {
+			if (typeof handlers[name] === 'function') {
+				this.addTool(name, handlers[name] as any, schemas[name])
+			}
+		}
 	}
 
 	/**

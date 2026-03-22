@@ -89,6 +89,8 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
         return this
       }
 
+      await this._drainPendingPlugins()
+
       // Apply runtime port to state before configure/wss touches it
       if (options?.port) {
         this.state.set('port', options.port)

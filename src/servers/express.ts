@@ -104,6 +104,8 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
         return this
       }
 
+      await this._drainPendingPlugins()
+
       // Apply runtime port to state so this.port reflects the override
       if (options?.port) {
         this.state.set('port', options.port)

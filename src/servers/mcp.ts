@@ -472,6 +472,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     stdioCompat?: StdioCompatMode
   }) {
     if (this.isListening) return this
+    await this._drainPendingPlugins()
     if (!this.isConfigured) await this.configure()
 
     const transport = options?.transport || this.options.transport || 'stdio'

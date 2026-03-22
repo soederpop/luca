@@ -79,6 +79,44 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
         return super.container as NodeContainer
     }
 
+    /** Async functions passed to `.use()` before `start()` — drained in `start()`. */
+    _pendingPlugins: Promise<void>[] = []
+
+    /**
+     * Register a setup function against this server. The function receives the
+     * server instance and can configure it however it likes.
+     *
+     * - If the server hasn't started yet, async return values are queued and
+     *   awaited when `start()` is called.
+     * - If the server is already listening, the function is fire-and-forget.
+     * - Always returns `this` synchronously for chaining.
+     *
+     * @example
+     * ```typescript
+     * server
+     *   .use((s) => s.app.use(cors()))
+     *   .use(async (s) => { await loadRoutes(s) })
+     * await server.start()
+     * ```
+     */
+    use(fn: (server: this) => void | Promise<void>): this {
+      const result = fn(this)
+      if (result && typeof (result as any).then === 'function') {
+        if (!this.isListening) {
+          this._pendingPlugins.push(result as Promise<void>)
+        }
+      }
+      return this
+    }
+
+    /** Drain all pending `.use()` promises. Subclasses should call this at the top of `start()`. */
+    protected async _drainPendingPlugins() {
+      if (this._pendingPlugins.length) {
+        await Promise.all(this._pendingPlugins)
+        this._pendingPlugins = []
+      }
+    }
+
     get isListening() {
       return !!this.state.get('listening')
     }
@@ -116,6 +154,8 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
       if(this.isListening) {
         return this
       }
+
+      await this._drainPendingPlugins()
 
       if (options?.port) {
         this.state.set('port', options.port)
