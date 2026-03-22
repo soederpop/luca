@@ -9,3 +9,4 @@ dist/luca
 dist/release
 tmp/
 *.log
+.contentbase
