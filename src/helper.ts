@@ -35,10 +35,12 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   static stateSchema: z.ZodType = HelperStateSchema
   static optionsSchema: z.ZodType = HelperOptionsSchema
   static eventsSchema: z.ZodType = HelperEventsSchema
+  static tools: Record<string, { schema: z.ZodType, handler?: Function }> = {}
 
   protected readonly _context: ContainerContext
   protected readonly _events = new Bus<E>()
   protected readonly _options: K
+  protected readonly _instanceTools: Record<string, { schema: z.ZodType, handler?: Function }> = {}
 
   readonly state: State<T>
 
@@ -125,7 +127,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     this._context = context;
     this.state = new State<T>({ initialState: this.initialState });
     
-    this.hide('_context', '_state', '_options', '_events', 'uuid')
+    this.hide('_context', '_state', '_options', '_events', '_instanceTools', 'uuid')
     
     this.state.observe(() => {
       (this as any).emit('stateChange', this.state.current)
@@ -170,12 +172,64 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return this
   }
   
-  /** 
+  /**
    * python / lodash style get method, which will get a value from the container using dot notation
    * and will return a default value if the value is not found.
   */
   tryGet<K extends (string | string[]), T extends object = any>(key: K, defaultValue?: T) {
     return get(this, key, defaultValue)
+  }
+
+  /**
+   * Register a tool on this instance at runtime. Instance tools take precedence
+   * over class-level static tools in toTools().
+   */
+  tool(name: string, options: { schema: z.ZodType, handler?: Function }): this {
+    this._instanceTools[name] = options
+    return this
+  }
+
+  /**
+   * Collect all tools from the inheritance chain and instance, returning
+   * { schemas, handlers } with matching keys. Walks the prototype chain
+   * so subclass tools override parent tools. Instance tools win over all.
+   *
+   * If a tool has no explicit handler but this instance has a method with
+   * the same name, a handler is auto-generated that delegates to that method.
+   */
+  toTools(): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
+    // Walk the prototype chain collecting static tools (parent-first, child overwrites)
+    const merged: Record<string, { schema: z.ZodType, handler?: Function }> = {}
+    const chain: Function[] = []
+
+    let current = this.constructor as any
+    while (current && current !== Object) {
+      if (Object.hasOwn(current, 'tools') && current.tools) {
+        chain.unshift(current)
+      }
+      current = Object.getPrototypeOf(current)
+    }
+
+    for (const ctor of chain) {
+      Object.assign(merged, (ctor as any).tools)
+    }
+
+    // Instance tools win over static
+    Object.assign(merged, this._instanceTools)
+
+    const schemas: Record<string, z.ZodType> = {}
+    const handlers: Record<string, Function> = {}
+
+    for (const [name, entry] of Object.entries(merged)) {
+      schemas[name] = entry.schema
+      if (entry.handler) {
+        handlers[name] = (args: any) => entry.handler!(args, this)
+      } else if (typeof (this as any)[name] === 'function') {
+        handlers[name] = (args: any) => (this as any)[name](args)
+      }
+    }
+
+    return { schemas, handlers }
   }
 
   /** 

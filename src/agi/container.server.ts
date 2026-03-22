@@ -6,10 +6,11 @@ import { ElevenLabsClient } from '../clients/elevenlabs'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
-import { SkillsLibrary } from './features/skills-library'
 import { ConversationHistory } from './features/conversation-history'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
+import { DocsReader } from './features/docs-reader'
+import { SkillsLibrary } from './features/skills-library'
 import { SemanticSearch } from '@soederpop/luca/node/features/semantic-search'
 import { ContentDb } from '@soederpop/luca/node/features/content-db'
 
@@ -20,10 +21,11 @@ export {
 	ClaudeCode,
 	OpenAICodex,
 	Conversation,
-	SkillsLibrary,
 	ConversationHistory,
 	Assistant,
 	AssistantsManager,
+	DocsReader,
+	SkillsLibrary,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -42,10 +44,11 @@ export interface AGIFeatures extends NodeFeatures {
 	conversation: typeof Conversation
 	claudeCode: typeof ClaudeCode
 	openaiCodex: typeof OpenAICodex
-	skillsLibrary: typeof SkillsLibrary
 	conversationHistory: typeof ConversationHistory
 	assistant: typeof Assistant
 	assistantsManager: typeof AssistantsManager
+	docsReader: typeof DocsReader
+	skillsLibrary: typeof SkillsLibrary
 }
 
 export interface ConversationFactoryOptions {
@@ -73,7 +76,6 @@ export class AGIContainer<
 	openai!: OpenAIClient
 	claudeCode?: ClaudeCode
 	openaiCodex?: OpenAICodex
-	skillsLibrary?: SkillsLibrary
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
 
@@ -114,10 +116,11 @@ const container = new AGIContainer()
 	.use(ClaudeCode)
 	.use(OpenAICodex)
 	.use(Conversation)
-	.use(SkillsLibrary)
 	.use(ConversationHistory)
 	.use(Assistant)
 	.use(AssistantsManager)
+	.use(DocsReader)
+	.use(SkillsLibrary)
 	.use(SemanticSearch)
 
 container.docs = container.feature('contentDb', {

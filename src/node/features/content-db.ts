@@ -45,6 +45,71 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override eventsSchema = ContentDbEventsSchema
   static { Feature.register(this, 'contentDb') }
 
+  /** Tools that any assistant can use to progressively explore this collection. */
+  static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+    getCollectionOverview: {
+      schema: z.object({}).describe(
+        'Get a high-level overview of the document collection: models, document counts, directory tree, and search index status. Call this first to understand what is available.'
+      ),
+    },
+    listDocuments: {
+      schema: z.object({
+        model: z.string().optional().describe('Filter to documents belonging to this model name'),
+        glob: z.string().optional().describe('Glob pattern to filter document path IDs (e.g. "guides/*", "apis/**")'),
+      }).describe(
+        'List available document IDs in the collection, optionally filtered by model or glob pattern.'
+      ),
+    },
+    readDocument: {
+      schema: z.object({
+        id: z.string().describe('The document path ID to read (e.g. "guides/intro")'),
+        include: z.array(z.string()).optional().describe('Only return these section headings'),
+        exclude: z.array(z.string()).optional().describe('Remove these section headings from the output'),
+        meta: z.boolean().optional().describe('Include YAML frontmatter in the output'),
+      }).describe(
+        'Read a single document by its path ID. Use include/exclude to read only specific sections and avoid loading unnecessary content.'
+      ),
+    },
+    readMultipleDocuments: {
+      schema: z.object({
+        ids: z.array(z.string()).describe('Array of document path IDs to read'),
+        include: z.array(z.string()).optional().describe('Only return these section headings from each document'),
+        exclude: z.array(z.string()).optional().describe('Remove these section headings from each document'),
+        meta: z.boolean().optional().describe('Include YAML frontmatter in the output'),
+      }).describe(
+        'Read multiple documents at once, concatenated with dividers. Use include/exclude to focus on relevant sections.'
+      ),
+    },
+    queryDocuments: {
+      schema: z.object({
+        model: z.string().describe('The model name to query (e.g. "Plan", "Task")'),
+        where: z.string().optional().describe('Filter conditions as JSON string, e.g. \'{ "meta.status": "approved" }\' or \'{ "meta.priority": { "$gt": 3 } }\''),
+        sort: z.string().optional().describe('Sort specification as JSON string, e.g. \'{ "meta.priority": "desc" }\''),
+        limit: z.number().optional().describe('Maximum number of results to return'),
+        offset: z.number().optional().describe('Number of results to skip'),
+        select: z.array(z.string()).optional().describe('Fields to include in output (e.g. ["id", "title", "meta.status"])'),
+      }).describe(
+        'Query documents by model with MongoDB-style filtering, sorting, and pagination. Returns serialized model instances.'
+      ),
+    },
+    searchContent: {
+      schema: z.object({
+        pattern: z.string().describe('Regex pattern to search for across all documents'),
+        caseSensitive: z.boolean().optional().describe('Whether the search is case-sensitive (default: false)'),
+      }).describe(
+        'Text/regex search (grep) across all documents in the collection. Returns matching lines with file context.'
+      ),
+    },
+    semanticSearch: {
+      schema: z.object({
+        query: z.string().describe('Natural language search query'),
+        limit: z.number().optional().describe('Maximum number of results (default: 10)'),
+      }).describe(
+        'Semantic search across documents using keyword + vector similarity. Falls back to text search if no search index exists.'
+      ),
+    },
+  }
+
   override get initialState(): ContentDbState {
     return {
       ...super.initialState,
@@ -129,6 +194,42 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 	  return this.collection.available
   }
   
+  /**
+   * Render a tree view of the collection directory structure.
+   * Built with container.fs so it works without the `tree` binary.
+   */
+  renderTree(options?: { depth?: number; dirsOnly?: boolean }): string {
+    const maxDepth = options?.depth ?? Infinity
+    const dirsOnly = options?.dirsOnly ?? false
+    const fs = this.container.fs
+    const paths = this.container.paths
+    const root = this.collectionPath
+    const lines: string[] = [paths.basename(root)]
+
+    const walk = (dir: string, prefix: string, currentDepth: number) => {
+      if (currentDepth >= maxDepth) return
+      const entries: string[] = fs.readdirSync(dir).sort()
+      const filtered = entries.filter((e: string) => {
+        if (e.startsWith('.')) return false
+        if (dirsOnly) return fs.isDirectory(paths.resolve(dir, e))
+        return true
+      })
+
+      filtered.forEach((entry: string, i: number) => {
+        const isLast = i === filtered.length - 1
+        const connector = isLast ? '└── ' : '├── '
+        const fullPath = paths.resolve(dir, entry)
+        lines.push(`${prefix}${connector}${entry}`)
+        if (fs.isDirectory(fullPath)) {
+          walk(fullPath, prefix + (isLast ? '    ' : '│   '), currentDepth + 1)
+        }
+      })
+    }
+
+    walk(root, '', 0)
+    return lines.join('\n')
+  }
+
   async grep(options: string | GrepOptions) {
     if (typeof options === 'string') {
       options = { pattern: options }
@@ -548,6 +649,119 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       queryChains.push([pluralized, queryChain])
     }
     return Object.fromEntries(queryChains)
+  }
+  // ── Tool Methods ─────────────────────────────────────────────────
+  // These methods are auto-bound as tool handlers by toTools() because
+  // their names match the keys in static tools above.
+
+  /** Returns a high-level overview of the collection. */
+  async getCollectionOverview() {
+    if (!this.isLoaded) await this.load()
+
+    const modelCounts: Record<string, number> = {}
+    for (const def of this.collection.modelDefinitions) {
+      const count = await this.collection.query(def).count()
+      modelCounts[def.name] = count
+    }
+
+    return {
+      rootPath: this.collectionPath,
+      totalDocuments: this.available.length,
+      models: modelCounts,
+      tree: this.renderTree({ depth: 2 }),
+      hasSearchIndex: this._hasSearchIndex(),
+    }
+  }
+
+  /** List document IDs, optionally filtered by model or glob. */
+  async listDocuments(args: { model?: string; glob?: string }) {
+    if (!this.isLoaded) await this.load()
+
+    let ids = this.available
+
+    if (args.model) {
+      const def = this.models[args.model]
+      if (!def) return { error: `Unknown model "${args.model}". Available: ${this.modelNames.join(', ')}` }
+      const instances = await this.collection.query(def).fetchAll()
+      ids = instances.map((inst: any) => inst.id)
+    }
+
+    if (args.glob) {
+      const matched = this.collection.matchPaths(args.glob)
+      ids = ids.filter((id: string) => matched.includes(id))
+    }
+
+    return ids
+  }
+
+  /** Read a single document with optional section filtering. */
+  async readDocument(args: { id: string; include?: string[]; exclude?: string[]; meta?: boolean }) {
+    return this.read(args.id, args)
+  }
+
+  /** Read multiple documents with optional section filtering. */
+  async readMultipleDocuments(args: { ids: string[]; include?: string[]; exclude?: string[]; meta?: boolean }) {
+    return this.readMultiple(args.ids, args)
+  }
+
+  /** Query documents by model with filters, sort, limit. */
+  async queryDocuments(args: { model: string; where?: string; sort?: string; limit?: number; offset?: number; select?: string[] }) {
+    if (!this.isLoaded) await this.load()
+
+    const def = this.models[args.model]
+    if (!def) return { error: `Unknown model "${args.model}". Available: ${this.modelNames.join(', ')}` }
+
+    let q = this.collection.query(def)
+
+    if (args.where) {
+      const where: Record<string, any> = typeof args.where === 'string' ? JSON.parse(args.where) : args.where
+      for (const [path, value] of Object.entries(where)) {
+        q = q.where(path, value)
+      }
+    }
+    if (args.sort) {
+      const sort: Record<string, string> = typeof args.sort === 'string' ? JSON.parse(args.sort) : args.sort
+      for (const [path, dir] of Object.entries(sort)) {
+        q = q.sort(path, dir as 'asc' | 'desc')
+      }
+    }
+    if (args.limit) q = q.limit(args.limit)
+    if (args.offset) q = q.offset(args.offset)
+
+    const results = await q.fetchAll()
+
+    return results.map((inst: any) => {
+      const json = inst.toJSON()
+      if (args.select?.length) {
+        const picked: Record<string, any> = {}
+        for (const field of args.select) {
+          picked[field] = this.container.utils.lodash.get(json, field)
+        }
+        return picked
+      }
+      return json
+    })
+  }
+
+  /** Grep/text search across the collection. */
+  async searchContent(args: { pattern: string; caseSensitive?: boolean }) {
+    return this.grep({
+      pattern: args.pattern,
+      caseSensitive: args.caseSensitive ?? false,
+    } as GrepOptions)
+  }
+
+  /** Hybrid semantic search with graceful fallback to grep. */
+  async semanticSearch(args: { query: string; limit?: number }) {
+    try {
+      return await this.hybridSearch(args.query, { limit: args.limit ?? 10 })
+    } catch {
+      const grepResults = await this.grep({ pattern: args.query })
+      return {
+        results: grepResults,
+        note: 'No search index available — fell back to text search. Run `cbase embed` to enable semantic search.',
+      }
+    }
   }
 }
 
