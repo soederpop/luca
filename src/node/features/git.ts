@@ -426,6 +426,90 @@ export class Git extends Feature {
     }
 
     /**
+     * Extracts a folder (or entire repo) from a remote GitHub repository without cloning.
+     *
+     * Downloads the repo as a tarball and extracts only the specified subfolder,
+     * similar to how degit works. No .git history is included — just the files.
+     *
+     * Supports shorthand (`user/repo/path`), branch refs (`user/repo/path#branch`),
+     * and full GitHub URLs (`https://github.com/user/repo/tree/branch/path`).
+     *
+     * @param {object} options
+     * @param {string} options.source - Repository source in degit-style shorthand
+     * @param {string} options.destination - Local path to extract files into
+     * @param {string} [options.branch] - Branch, tag, or commit ref (overrides ref in source string)
+     * @returns {Promise<{ files: string[], source: { user: string, repo: string, ref: string, subdir: string } }>}
+     *
+     * @example
+     * ```typescript
+     * // Extract a subfolder
+     * await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+     *
+     * // Specific branch
+     * await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+     *
+     * // Full GitHub URL
+     * await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
+     * ```
+     */
+    async extractFolder({ source, destination, branch }: { source: string, destination: string, branch?: string }) {
+        const parsed = this._parseRemoteSource(source)
+        if (branch) parsed.ref = branch
+
+        const tarballUrl = `https://github.com/${parsed.user}/${parsed.repo}/archive/${parsed.ref}.tar.gz`
+        const stamp = Date.now()
+        const tarPath = this.container.paths.resolve(`tmp/.degit-${stamp}.tar.gz`)
+        const tmpExtract = this.container.paths.resolve(`tmp/.degit-extract-${stamp}`)
+        const dest = destination.startsWith('/') ? destination : this.container.paths.resolve(destination)
+
+        const proc = this.container.feature('proc')
+        const dl = this.container.feature('downloader')
+
+        await dl.download(tarballUrl, tarPath)
+
+        // Extract everything, strip the root archive directory (e.g. repo-commitsha/)
+        proc.exec(`mkdir -p ${tmpExtract}`)
+        const extractResult = await proc.execAndCapture(`tar xzf ${tarPath} -C ${tmpExtract} --strip-components=1`)
+        if (extractResult.exitCode !== 0) {
+            proc.exec(`rm -rf ${tarPath} ${tmpExtract}`)
+            throw new Error(`Failed to extract tarball: ${extractResult.stderr}`)
+        }
+
+        // Copy the subfolder (or everything) to destination
+        const sourceDir = parsed.subdir ? `${tmpExtract}/${parsed.subdir}` : tmpExtract
+        proc.exec(`rm -rf ${dest} && mkdir -p ${dest}`)
+        proc.exec(`cp -a ${sourceDir}/. ${dest}/`)
+
+        // Cleanup temp files
+        proc.exec(`rm -rf ${tarPath} ${tmpExtract}`)
+
+        const files = this.container.fs.readdirSync(dest)
+        return { files, source: parsed }
+    }
+
+    /** Parses degit-style source strings into components. */
+    private _parseRemoteSource(input: string) {
+        let ref = 'HEAD'
+        let str = input.replace(/^https?:\/\//, '')
+
+        // Handle github.com/user/repo/tree/branch/path URLs
+        const treeMatch = str.match(/^github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)(?:\/(.+))?$/)
+        if (treeMatch) {
+            return { user: treeMatch[1], repo: treeMatch[2], ref: treeMatch[3], subdir: treeMatch[4] || '' }
+        }
+
+        if (str.startsWith('github.com/')) str = str.replace('github.com/', '')
+        if (str.includes('#')) {
+            const parts = str.split('#')
+            str = parts[0]
+            ref = parts[1]
+        }
+
+        const parts = str.split('/')
+        return { user: parts[0], repo: parts[1], ref, subdir: parts.slice(2).join('/') }
+    }
+
+    /**
      * Gets the commit history for a set of files or glob patterns.
      *
      * Accepts absolute paths, relative paths (resolved from container.cwd),

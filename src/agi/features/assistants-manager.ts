@@ -110,16 +110,49 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		}
 	}
 
+	/** Resolved path to the assistants.json config file. */
+	get configPath(): string {
+		const { os, paths } = this.container
+		return paths.join(os.homedir, '.luca', 'assistants.json')
+	}
+
+	/** Read the persisted config, creating it if it doesn't exist. */
+	private _readConfig(): { locations: string[] } {
+		const { fs } = this.container
+		if (!fs.exists(this.configPath)) {
+			return { locations: [] }
+		}
+		return fs.readJson(this.configPath)
+	}
+
+	/** Write the config back to disk. */
+	private _writeConfig(config: { locations: string[] }): void {
+		const { fs, os, paths } = this.container
+		fs.mkdirp(paths.join(os.homedir, '.luca'))
+		fs.writeJson(this.configPath, config, 2)
+	}
+
 	/**
 	 * Returns the default additional locations to scan for assistants.
-	 * Includes node_modules/@soederpop/luca if it exists.
+	 * Includes node_modules/@soederpop/luca if it exists, plus any
+	 * locations persisted in ~/.luca/assistants.json.
 	 */
 	get defaultAdditionalLocations(): string[] {
-		const lucaPkgDir = this.container.paths.resolve('node_modules', '@soederpop', 'luca')
+		const { fs, paths, os } = this.container
+		const lucaPkgDir = paths.resolve('node_modules', '@soederpop', 'luca')
 		const locations: string[] = []
 
-		if (this.container.fs.exists(lucaPkgDir)) {
+		if (fs.exists(lucaPkgDir)) {
 			locations.push(lucaPkgDir)
+		}
+
+		// Include persisted locations from config
+		const config = this._readConfig()
+		for (const loc of config.locations) {
+			const expanded = loc.startsWith('~') ? paths.join(os.homedir, loc.slice(1)) : loc
+			if (!locations.includes(expanded)) {
+				locations.push(expanded)
+			}
 		}
 
 		return locations
@@ -130,6 +163,45 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	get resolvedAdditionalLocations(): string[] {
 		return [...this.defaultAdditionalLocations, ...this.options.additionalLocations]
+	}
+
+	/**
+	 * Downloads the core assistants that ship with luca from GitHub
+	 * into ~/.luca/assistants and registers that directory as a
+	 * persistent discovery location.
+	 *
+	 * @returns {Promise<{ files: string[] }>} The files extracted
+	 *
+	 * @example
+	 * ```typescript
+	 * const manager = container.feature('assistantsManager')
+	 * await manager.downloadLucaCoreAssistants()
+	 * await manager.discover()
+	 * console.log(manager.available)
+	 * ```
+	 */
+	async downloadLucaCoreAssistants() {
+		const { os, paths } = this.container
+		const dest = paths.join(os.homedir, '.luca', 'assistants')
+		const git = this.container.feature('git') as any
+
+		const result = await git.extractFolder({
+			source: 'soederpop/luca/assistants',
+			destination: dest,
+		})
+
+		// Persist ~/.luca/assistants as a discovery location
+		const config = this._readConfig()
+		const portable = '~/.luca/assistants'
+		if (!config.locations.includes(portable)) {
+			config.locations.push(portable)
+			this._writeConfig(config)
+		}
+
+		// Also add to the in-memory locations so the next discover() picks it up
+		this.addLocation(dest)
+
+		return result
 	}
 
 	/**

@@ -1,8 +1,4 @@
 import { z } from 'zod'
-import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, cpSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
 import { parse } from 'contentbase'
@@ -109,7 +105,8 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	/** Resolved path to the skills.json config file. */
 	get configPath(): string {
 		if (this.options.configPath) return this.options.configPath
-		return join(homedir(), '.luca', 'skills.json')
+		const { os, paths } = this.container
+		return paths.join(os.homedir, '.luca', 'skills.json')
 	}
 
 	/** Whether the library has been loaded. */
@@ -120,28 +117,28 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	/** Expand ~ to home directory in a path. */
 	private expandHome(p: string): string {
 		if (!p.startsWith('~')) return p
-		return join(homedir(), p.slice(1))
+		const { os, paths } = this.container
+		return paths.join(os.homedir, p.slice(1))
 	}
 
 	/** Read the persisted config, creating it if it doesn't exist. */
 	private readConfig(): { locations: string[] } {
-		const configPath = this.configPath
+		const { fs } = this.container
 
-		if (!existsSync(configPath)) {
-			const defaultConfig = { locations: [] }
-			mkdirSync(join(homedir(), '.luca'), { recursive: true })
-			writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2))
+		if (!fs.exists(this.configPath)) {
+			const defaultConfig = { locations: [] as string[] }
+			this.writeConfig(defaultConfig)
 			return defaultConfig
 		}
 
-		const raw = readFileSync(configPath, 'utf-8')
-		return JSON.parse(raw)
+		return fs.readJson(this.configPath)
 	}
 
 	/** Write the config back to disk. */
 	private writeConfig(config: { locations: string[] }): void {
-		mkdirSync(join(homedir(), '.luca'), { recursive: true })
-		writeFileSync(this.configPath, JSON.stringify(config, null, 2))
+		const { fs, os, paths } = this.container
+		fs.mkdirp(paths.join(os.homedir, '.luca'))
+		fs.writeJson(this.configPath, config, 2)
 	}
 
 	/**
@@ -223,15 +220,16 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	 * @param locationPath - Absolute path to scan
 	 */
 	async scanLocation(locationPath: string): Promise<void> {
-		if (!existsSync(locationPath)) return
+		const { fs, paths } = this.container
+		if (!fs.exists(locationPath)) return
 
-		const entries = readdirSync(locationPath)
+		const entries = fs.readdirSync(locationPath)
 
 		for (const entry of entries) {
-			const skillDir = join(locationPath, entry)
-			const skillFile = join(skillDir, 'SKILL.md')
+			const skillDir = paths.join(locationPath, entry)
+			const skillFile = paths.join(skillDir, 'SKILL.md')
 
-			if (!existsSync(skillFile)) continue
+			if (!fs.exists(skillFile)) continue
 
 			try {
 				const parsed = await parse(skillFile)
@@ -286,20 +284,21 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	 * @returns Absolute path to the created directory
 	 */
 	ensureFolderCreatedWithSkillsByName(skillNames: string[]): string {
+		const { fs, paths, os } = this.container
 		const hash = this.container.utils.hashObject(skillNames.sort())
-		const dir = join(tmpdir(), 'luca-skills', hash)
+		const dir = paths.join(os.tmpdir, 'luca-skills', hash)
 
-		if (existsSync(dir)) return dir
+		if (fs.exists(dir)) return dir
 
-		mkdirSync(dir, { recursive: true })
+		fs.mkdirp(dir)
 
 		for (const name of skillNames) {
 			const skill = this.find(name)
 			if (!skill) throw new Error(`Skill "${name}" not found in the library`)
 
-			const dest = join(dir, name)
-			if (!existsSync(dest)) {
-				cpSync(skill.path, dest, { recursive: true })
+			const dest = paths.join(dir, name)
+			if (!fs.exists(dest)) {
+				fs.copy(skill.path, dest)
 			}
 		}
 
@@ -334,7 +333,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const skill = this.find(skillName)
 		if (!skill) return `Skill "${skillName}" not found.`
 
-		const content = readFileSync(skill.skillFilePath, 'utf-8')
+		const content = this.container.fs.readFile(skill.skillFilePath)
 
 		return `# Skill: ${skill.name}\n\n**Description:** ${skill.description}\n**Path:** ${skill.path}\n\n---\n\n${content}`
 	}

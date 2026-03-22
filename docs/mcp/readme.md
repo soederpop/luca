@@ -17,7 +17,7 @@ import { Server, servers, ServerStateSchema } from '@soederpop/luca'
 import { commands, CommandOptionsSchema } from '@soederpop/luca'
 ```
 
-Never import from `fs`, `path`, `crypto`, or other Node builtins. Never import third-party packages in consumer code. The only exception is inside helper implementations themselves — a feature that wraps a library may import it.
+Never import from `fs`, `path`, `crypto`, or other Node builtins. Never import third-party packages in consumer code. If a container feature wraps the functionality, use it.
 
 ## Zod v4
 
