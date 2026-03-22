@@ -94,6 +94,8 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	estimatedInputTokens: z.number().describe('Estimated input token count for the current messages array'),
 	compactionCount: z.number().describe('Number of times compact() has been called'),
 	contextWindow: z.number().describe('The context window size for the current model'),
+	tools: z.record(z.string(), z.any()).describe('Active tools map including any runtime overrides'),
+	callMaxTokens: z.number().nullable().describe('Per-call max tokens override, cleared after each ask()'),
 })
 
 export const ConversationEventsSchema = FeatureEventsSchema.extend({
@@ -149,17 +151,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	static { Feature.register(this, 'conversation') }
 
-	private _callMaxTokens: number | undefined = undefined
-
 	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
 	private get maxTokens(): number | undefined {
-		return this._callMaxTokens ?? this.options.maxTokens ?? undefined
-	}
-
-	private _toolsOverride?: Record<string, ConversationTool>
-
-	private get _tools(): Record<string, ConversationTool> {
-		return this._toolsOverride ?? this.options.tools ?? {}
+		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? undefined
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -179,12 +173,18 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			estimatedInputTokens: 0,
 			compactionCount: 0,
 			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5'),
+			tools: (this.options.tools || {}) as Record<string, ConversationTool>,
+			callMaxTokens: null,
 		}
 	}
 
 	/** Returns the registered tools available for the model to call. */
 	get tools() : Record<string, ConversationTool> {
-		return this._toolsOverride ?? this.options.tools ?? {}
+		return (this.state.get('tools') || {}) as Record<string, ConversationTool>
+	}
+	
+	get availableTools() {
+		return Object.keys(this.tools)
 	}
 
 	/**
@@ -192,10 +192,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * Uses the same format as tools passed at construction time.
 	 */
 	addTool(name: string, tool: ConversationTool): this {
-		if (!this._toolsOverride) {
-			this._toolsOverride = { ...this._tools }
-		}
-		this._toolsOverride[name] = tool
+		this.state.set('tools', { ...this.tools, [name]: tool })
 		return this
 	}
 
@@ -203,10 +200,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * Remove a tool by name.
 	 */
 	removeTool(name: string): this {
-		if (!this._toolsOverride) {
-			this._toolsOverride = { ...this._tools }
-		}
-		delete this._toolsOverride[name]
+		const current = { ...this.tools }
+		delete current[name]
+		this.state.set('tools', current)
 		return this
 	}
 
@@ -215,10 +211,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * Accepts the same Record<string, ConversationTool> format used at construction time.
 	 */
 	updateTools(tools: Record<string, ConversationTool>): this {
-		if (!this._toolsOverride) {
-			this._toolsOverride = { ...this._tools }
-		}
-		Object.assign(this._toolsOverride, tools)
+		this.state.set('tools', { ...this.tools, ...tools })
 		return this
 	}
 
@@ -425,7 +418,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * ])
 	 */
 	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
-		this._callMaxTokens = options?.maxTokens
+		this.state.set('callMaxTokens', options?.maxTokens ?? null)
 
 		// Auto-compact before adding the new message
 		if (this.options.autoCompact) {
@@ -466,7 +459,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			return await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
 		} finally {
-			this._callMaxTokens = undefined
+			this.state.set('callMaxTokens', null)
 		}
 	}
 
@@ -621,6 +614,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		input: OpenAI.Responses.ResponseInput
 		previousResponseId?: string
 	}): Promise<string> {
+
 		const { turn } = context
 		let accumulated = context.accumulated
 		let turnContent = ''
@@ -697,7 +691,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			const functionOutputs: OpenAI.Responses.ResponseInputItem.FunctionCallOutput[] = []
 			for (const call of functionCalls) {
 				const toolName = call.name
-				const tool = this._tools[toolName]
+				const tool = this.tools[toolName]
 				const callCount = (this.state.get('toolCalls') || 0) + 1
 				this.state.set('toolCalls', callCount)
 
@@ -778,10 +772,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * @returns {Promise<string>} The final assistant text response (accumulated across all turns)
 	 */
 	private async runChatCompletionLoop(context: { turn: number; accumulated: string } = { turn: 1, accumulated: '' }): Promise<string> {
+		
 		const { turn } = context
 		let accumulated = context.accumulated
 
-		const hasTools = Object.keys(this._tools || {}).length > 0
+		const hasTools = Object.keys(this.tools).length > 0
 		const toolsParam = hasTools ? this.openaiTools : undefined
 
 		this.state.set('streaming', true)
@@ -856,7 +851,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			for (const tc of toolCalls) {
 				const toolName = tc.function.name
-				const tool = this._tools[toolName]
+				const tool = this.tools[toolName]
 				const callCount = (this.state.get('toolCalls') || 0) + 1
 				this.state.set('toolCalls', callCount)
 

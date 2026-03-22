@@ -38,6 +38,14 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 	docsFolder: z.string().describe('The resolved docs folder'),
 	conversationId: z.string().optional().describe('The active conversation persistence ID'),
 	threadId: z.string().optional().describe('The active thread ID'),
+	systemPrompt: z.string().describe('The loaded system prompt text'),
+	meta: z.record(z.string(), z.any()).describe('Parsed YAML frontmatter from CORE.md'),
+	tools: z.record(z.string(), z.any()).describe('Registered tool implementations'),
+	hooks: z.record(z.string(), z.any()).describe('Loaded event hook functions'),
+	resumeThreadId: z.string().optional().describe('Thread ID override for resume'),
+	pendingPlugins: z.array(z.any()).describe('Pending async plugin promises'),
+	conversation: z.any().nullable().describe('The active Conversation feature instance'),
+	subagents: z.record(z.string(), z.any()).describe('Cached subagent instances'),
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
@@ -111,6 +119,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			conversationCount: 0,
 			lastResponse: '',
 			folder: this.resolvedFolder,
+			systemPrompt: '',
+			meta: {},
+			tools: {},
+			hooks: {},
+			resumeThreadId: undefined,
+			pendingPlugins: [],
+			conversation: null,
+			subagents: {},
 		}
 	}
 
@@ -180,16 +196,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.container.feature('contentDb', { rootPath: this.resolvedDocsFolder })
 	}
 
-	private _conversation?: Conversation
-	private _resumeThreadId?: string
-
-	// Using `declare` to prevent class field initializers from overwriting
-	// values set during afterInitialize() (called from the base constructor).
-	declare private _tools: Record<string, ConversationTool>
-	declare private _hooks: Record<string, (...args: any[]) => any>
-	declare private _systemPrompt: string
-	declare private _meta: Record<string, any>
-	declare private _pendingPlugins: Promise<void>[]
 
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
@@ -197,14 +203,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * so every emitted event automatically invokes its corresponding hook.
 	 */
 	override afterInitialize() {
-		this._pendingPlugins = []
+		this.state.set('pendingPlugins', [])
 
 		// Load system prompt synchronously
-		this._systemPrompt = this.loadSystemPrompt()
+		this.state.set('systemPrompt', this.loadSystemPrompt())
 
 		// Load tools and hooks synchronously via vm.performSync
-		this._tools = this.loadTools()
-		this._hooks = this.loadHooks()
+		this.state.set('tools', this.loadTools())
+		this.state.set('hooks', this.loadHooks())
 
 		// Bind hooks to events BEFORE emitting created so the created hook fires
 		this.bindHooksToEvents()
@@ -213,18 +219,25 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	get conversation(): Conversation {
-		if (!this._conversation) {
-			this._conversation = this.container.feature('conversation', {
-				model: this.options.model || 'gpt-5.2',
+		let conv = this.state.get('conversation') as Conversation | null
+		if (!conv) {
+			conv = this.container.feature('conversation', {
+				model: this.options.model || 'gpt-5.4',
 				local: !!this.options.local,
-				tools: this._tools || this.loadTools(),
+				tools: this.tools,
+				api: 'chat',
 				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
 				history: [
-					{ role: 'system', content: this._systemPrompt || this.loadSystemPrompt() },
+					{ role: 'system', content: this.systemPrompt || this.loadSystemPrompt() },
 				],
 			})
+			this.state.set('conversation', conv)
 		}
-		return this._conversation
+		return conv
+	}
+
+	get availableTools() {
+		return Object.keys(this.tools)
 	}
 
 	get messages() {
@@ -238,12 +251,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The current system prompt text. */
 	get systemPrompt(): string {
-		return this._systemPrompt
+		return this.state.get('systemPrompt') || ''
 	}
 
 	/** The tools registered with this assistant. */
 	get tools(): Record<string, ConversationTool> {
-		return this._tools
+		return (this.state.get('tools') || {}) as Record<string, ConversationTool>
 	}
 
 	/**
@@ -269,7 +282,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (typeof fnOrHelper === 'function') {
 			const result = fnOrHelper(this)
 			if (result && typeof (result as any).then === 'function') {
-				this._pendingPlugins.push(result as Promise<void>)
+				const pending = this.state.get('pendingPlugins') as Promise<void>[]
+				this.state.set('pendingPlugins', [...pending, result as Promise<void>])
 			}
 		} else if (fnOrHelper && typeof fnOrHelper.toTools === 'function') {
 			const { schemas, handlers } = fnOrHelper.toTools()
@@ -304,13 +318,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	addTool(name: string, handler: (...args: any[]) => any, schema?: z.ZodType): this {
 		if (!name) throw new Error('addTool handler must be a named function')
 
+		const current = { ...this.tools }
+
 		if (schema) {
 			const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
 			// OpenAI requires `required` to list ALL property keys — optional params
 			// must still appear in `required` but use a default value in the schema.
 			const properties = jsonSchema.properties || {}
 			const required = Object.keys(properties)
-			this._tools[name] = {
+			current[name] = {
 				handler: handler as ConversationTool['handler'],
 				description: jsonSchema.description || name,
 				parameters: {
@@ -320,13 +336,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				},
 			}
 		} else {
-			this._tools[name] = {
+			current[name] = {
 				handler: handler as ConversationTool['handler'],
 				description: name,
 				parameters: { type: 'object', properties: {} },
 			}
 		}
 
+		this.state.set('tools', current)
 		this.emit('toolsChanged')
 
 		return this
@@ -339,17 +356,20 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	removeTool(nameOrHandler: string | ((...args: any[]) => any)): this {
+		const current = { ...this.tools }
+
 		if (typeof nameOrHandler === 'string') {
-			delete this._tools[nameOrHandler]
+			delete current[nameOrHandler]
 		} else {
-			for (const [name, tool] of Object.entries(this._tools)) {
+			for (const [name, tool] of Object.entries(current)) {
 				if (tool.handler === nameOrHandler) {
-					delete this._tools[name]
+					delete current[name]
 					break
 				}
 			}
 		}
-		
+
+		this.state.set('tools', current)
 		this.emit('toolsChanged')
 
 		return this
@@ -417,7 +437,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * Parsed YAML frontmatter from CORE.md, or empty object if none.
 	 */
 	get meta(): Record<string, any> {
-		return this._meta ?? {}
+		return (this.state.get('meta') || {}) as Record<string, any>
 	}
 
 	/**
@@ -430,7 +450,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	loadSystemPrompt(): string {
 		const { fs } = this.container
 		let prompt = ''
-		this._meta = {}
+		this.state.set('meta', {})
 
 		if (this.options.systemPrompt) {
 			prompt = this.options.systemPrompt
@@ -440,7 +460,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 			if (fmMatch) {
 				const yaml = this.container.feature('yaml')
-				this._meta = yaml.parse(fmMatch[1]!) ?? {}
+				this.state.set('meta', yaml.parse(fmMatch[1]!) ?? {})
 				prompt = raw.slice(fmMatch[0].length)
 			} else {
 				prompt = raw
@@ -702,7 +722,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	resumeThread(threadId: string): this {
-		this._resumeThreadId = threadId
+		this.state.set('resumeThreadId', threadId)
 		return this
 	}
 
@@ -735,7 +755,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const mode = this.options.historyMode || 'lifecycle'
 		if (mode === 'lifecycle') return
 
-		const threadId = this._resumeThreadId || this.buildThreadId(mode)
+		const threadId = (this.state.get('resumeThreadId') as string | undefined) || this.buildThreadId(mode)
 		this.state.set('threadId', threadId)
 
 		const existing = await this.conversationHistory.findByThread(threadId)
@@ -746,7 +766,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 			// Swap in fresh system prompt if it changed
 			if (messages.length > 0 && (messages[0]!.role === 'system' || messages[0]!.role === 'developer')) {
-				messages[0] = { role: messages[0]!.role, content: this._systemPrompt }
+				messages[0] = { role: messages[0]!.role, content: this.systemPrompt }
 			}
 
 			this.conversation.state.set('id', existing.id)
@@ -775,7 +795,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	private bindHooksToEvents() {
 		const assistant = this
-		for (const [eventName, hookFn] of Object.entries(this._hooks)) {
+		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
+		for (const [eventName, hookFn] of Object.entries(hooks)) {
 			if (Assistant.lifecycleHooks.has(eventName)) continue
 			this.on(eventName as any, (...args: any[]) => {
 				this.emit('hookFired', eventName)
@@ -796,17 +817,19 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (this.isStarted) return this
 
 		// Wait for any async .use() plugins to finish before starting
-		if (this._pendingPlugins.length) {
-			await Promise.all(this._pendingPlugins)
-			this._pendingPlugins = []
+		const pending = this.state.get('pendingPlugins') as Promise<void>[]
+		if (pending.length) {
+			await Promise.all(pending)
+			this.state.set('pendingPlugins', [])
 		}
 
 		// Allow hooks.ts to export a formatSystemPrompt(assistant, prompt) => string
 		// that transforms the system prompt before the conversation is created.
-		if (this._hooks.formatSystemPrompt) {
-			const result = await this._hooks.formatSystemPrompt(this, this._systemPrompt)
+		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
+		if (hooks.formatSystemPrompt) {
+			const result = await hooks.formatSystemPrompt(this, this.systemPrompt)
 			if (typeof result === 'string') {
-				this._systemPrompt = result
+				this.state.set('systemPrompt', result)
 			}
 		}
 
@@ -836,8 +859,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 		
 		this.on('toolsChanged', () => {
-			if (this._conversation) {
-				this._conversation.updateTools(this._tools)
+			const conv = this.state.get('conversation') as Conversation | null
+			if (conv) {
+				conv.updateTools(this.tools)
 			}
 		})
 
@@ -903,8 +927,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	// -- Subagent API --
 
-	private _subagents: Map<string, Assistant> = new Map()
-
 	/**
 	 * Names of assistants available as subagents, discovered via the assistantsManager.
 	 *
@@ -934,8 +956,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * ```
 	 */
 	async subagent(id: string, options: Record<string, any> = {}): Promise<Assistant> {
-		const cached = this._subagents.get(id)
-		if (cached) return cached
+		const subagents = (this.state.get('subagents') || {}) as Record<string, Assistant>
+		if (subagents[id]) return subagents[id]
 
 		const manager = this.container.feature('assistantsManager')
 
@@ -946,7 +968,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const instance = manager.create(id, options)
 		await instance.start()
 
-		this._subagents.set(id, instance)
+		this.state.set('subagents', { ...subagents, [id]: instance })
 		return instance
 	}
 }

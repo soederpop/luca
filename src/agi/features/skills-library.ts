@@ -29,6 +29,7 @@ export const SkillsLibraryStateSchema = FeatureStateSchema.extend({
 	loaded: z.boolean().describe('Whether skill locations have been scanned'),
 	locations: z.array(z.string()).describe('Tracked skill location folder paths'),
 	skillCount: z.number().describe('Total number of discovered skills'),
+	skills: z.record(z.string(), z.any()).describe('Discovered skills keyed by name'),
 })
 
 export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
@@ -89,9 +90,6 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		},
 	}
 
-	/** Internal map of discovered skills keyed by name. */
-	private _skills = new Map<string, SkillInfo>()
-
 	/** @returns Default state. */
 	override get initialState(): SkillsLibraryState {
 		return {
@@ -99,7 +97,13 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			loaded: false,
 			locations: [],
 			skillCount: 0,
+			skills: {},
 		}
+	}
+
+	/** Discovered skills keyed by name. */
+	get skills(): Record<string, SkillInfo> {
+		return (this.state.get('skills') || {}) as Record<string, SkillInfo>
 	}
 
 	/** Resolved path to the skills.json config file. */
@@ -158,7 +162,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 
 		this.state.set('loaded', true)
-		this.state.set('skillCount', this._skills.size)
+		this.state.set('skillCount', Object.keys(this.skills).length)
 		this.emit('loaded')
 
 		return this
@@ -186,7 +190,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 
 		await this.scanLocation(resolved)
-		this.state.set('skillCount', this._skills.size)
+		this.state.set('skillCount', Object.keys(this.skills).length)
 		this.emit('locationAdded', resolved)
 	}
 
@@ -201,12 +205,14 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		this.state.set('locations', current.filter(l => l !== resolved))
 
 		// Remove skills from this location
-		for (const [name, info] of this._skills) {
-			if (info.locationPath === resolved) {
-				this._skills.delete(name)
+		const remaining: Record<string, SkillInfo> = {}
+		for (const [name, info] of Object.entries(this.skills)) {
+			if (info.locationPath !== resolved) {
+				remaining[name] = info
 			}
 		}
-		this.state.set('skillCount', this._skills.size)
+		this.state.set('skills', remaining)
+		this.state.set('skillCount', Object.keys(remaining).length)
 
 		// Persist
 		const config = this.readConfig()
@@ -245,7 +251,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 					meta,
 				}
 
-				this._skills.set(name, info)
+				this.state.set('skills', { ...this.skills, [name]: info })
 				this.emit('skillDiscovered', info)
 			} catch {
 				// Skip unparseable skill files
@@ -255,12 +261,12 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	/** Return all discovered skills. */
 	list(): SkillInfo[] {
-		return Array.from(this._skills.values())
+		return Object.values(this.skills)
 	}
 
 	/** Find a skill by name. */
 	find(skillName: string): SkillInfo | undefined {
-		return this._skills.get(skillName)
+		return this.skills[skillName]
 	}
 
 	/**

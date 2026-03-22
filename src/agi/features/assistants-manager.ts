@@ -44,6 +44,9 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	discovered: z.boolean().describe('Whether discovery has been run'),
 	assistantCount: z.number().describe('Number of discovered assistant definitions'),
 	activeCount: z.number().describe('Number of currently instantiated assistants'),
+	entries: z.record(z.string(), z.any()).describe('Discovered assistant entries keyed by name'),
+	instances: z.record(z.string(), z.any()).describe('Active assistant instances keyed by name'),
+	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({})
@@ -85,6 +88,9 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			discovered: false,
 			assistantCount: 0,
 			activeCount: 0,
+			entries: {},
+			instances: {},
+			factories: {},
 		}
 	}
 
@@ -92,9 +98,20 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		return super.container as AGIContainer
 	}
 
-	private _entries: Map<string, AssistantEntry> = new Map()
-	private _instances: Map<string, Assistant> = new Map()
-	private _factories: Map<string, (options: Record<string, any>) => Assistant> = new Map()
+	/** Discovered assistant entries keyed by name. */
+	get entries(): Record<string, AssistantEntry> {
+		return (this.state.get('entries') || {}) as Record<string, AssistantEntry>
+	}
+
+	/** Active assistant instances keyed by name. */
+	get instances(): Record<string, Assistant> {
+		return (this.state.get('instances') || {}) as Record<string, Assistant>
+	}
+
+	/** Registered factory functions keyed by name. */
+	get factories(): Record<string, (options: Record<string, any>) => Assistant> {
+		return (this.state.get('factories') || {}) as Record<string, (options: Record<string, any>) => Assistant>
+	}
 
 	/**
 	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/
@@ -105,7 +122,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	async discover(): Promise<this> {
 		const { fs, paths, os } = this.container
 
-		this._entries.clear()
+		const discovered: Record<string, AssistantEntry> = {}
 
 		const locations = [
 			`${os.homedir}/.luca/assistants`,
@@ -115,9 +132,9 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		for (const location of locations) {
 			if (!fs.exists(location)) continue
 
-			const entries = fs.readdirSync(location)
+			const dirEntries = fs.readdirSync(location)
 
-			for (const entry of entries) {
+			for (const entry of dirEntries) {
 				const folder = `${location}/${entry}`
 				if (!fs.isDirectory(folder)) continue
 
@@ -125,22 +142,23 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 				if (!hasCorePrompt) continue
 
 				// Don't overwrite earlier entries (home takes precedence for same name)
-				if (!this._entries.has(entry)) {
-					this._entries.set(entry, {
+				if (!discovered[entry]) {
+					discovered[entry] = {
 						name: entry,
 						folder,
 						hasCorePrompt: true,
 						hasTools: fs.exists(`${folder}/tools.ts`),
 						hasHooks: fs.exists(`${folder}/hooks.ts`),
 						hasVoice: fs.exists(`${folder}/voice.yaml`),
-					})
+					}
 				}
 			}
 		}
 
 		this.state.setState({
+			entries: discovered,
 			discovered: true,
-			assistantCount: this._entries.size,
+			assistantCount: Object.keys(discovered).length,
 		})
 
 		this.emit('discovered')
@@ -173,8 +191,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	get available() {
-		const entryKeys = Array.from(this._entries.keys())
-		const factoryKeys = Array.from(this._factories.keys())
+		const entryKeys = Object.keys(this.entries)
+		const factoryKeys = Object.keys(this.factories)
 		return [...new Set([...entryKeys, ...factoryKeys])]
 	}
 
@@ -184,7 +202,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @returns {AssistantEntry[]} All discovered entries
 	 */
 	list(): AssistantEntry[] {
-		return Array.from(this._entries.values())
+		return Object.values(this.entries)
 	}
 
 	/**
@@ -194,7 +212,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @returns {AssistantEntry | undefined} The entry, or undefined if not found
 	 */
 	get(name: string): AssistantEntry | undefined {
-		return this._entries.get(name)
+		return this.entries[name]
 	}
 
 	/**
@@ -218,7 +236,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * ```
 	 */
 	register(id: string, factory: (options: Record<string, any>) => Assistant): this {
-		this._factories.set(id, factory)
+		this.state.set('factories', { ...this.factories, [id]: factory })
 		this.emit('assistantRegistered', id)
 		return this
 	}
@@ -241,11 +259,11 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {
 		// Check registered factories first
-		const factory = this._factories.get(name)
+		const factory = this.factories[name]
 		if (factory) {
 			const instance = factory(options)
-			this._instances.set(name, instance)
-			this.state.set('activeCount', this._instances.size)
+			const updated = { ...this.instances, [name]: instance }
+			this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
 			this.emit('assistantCreated', name, instance)
 			return instance
 		}
@@ -253,9 +271,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const entry = this.get(name)
 
 		if (!entry) {
-			const available = [...this._entries.keys(), ...this._factories.keys()]
 			throw new Error(
-				`Assistant "${name}" not found. Available assistants: ${available.join(', ') || '(none — run discover() first)'}`
+				`Assistant "${name}" not found. Available assistants: ${this.available.join(', ') || '(none — run discover() first)'}`
 			)
 		}
 
@@ -264,8 +281,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			...options,
 		})
 
-		this._instances.set(name, instance)
-		this.state.set('activeCount', this._instances.size)
+		const updated = { ...this.instances, [name]: instance }
+		this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
 		this.emit('assistantCreated', name, instance)
 
 		return instance
@@ -278,7 +295,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @returns {Assistant | undefined} The instance, or undefined if not yet created
 	 */
 	getInstance(name: string): Assistant | undefined {
-		return this._instances.get(name)
+		return this.instances[name]
 	}
 
 	/**
