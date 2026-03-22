@@ -32,7 +32,7 @@ The `luca` binary is available in the path. Key commands:
 1. **Discover** — Run `luca describe features`, `luca describe clients`, `luca describe servers` to see what's available. Then `luca describe <name>` for full docs on any helper, or `luca describe <name>.<member>` to drill into a specific method or getter. This is your first move, always. (See `.claude/skills/luca-framework/SKILL.md` for the full mental model.)
 2. **Build** — Run `luca scaffold <type> --tutorial` before creating a new helper. It covers the full guide for that type.
 3. **Prototype** — Use `luca eval "expression"` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access.
-4. **Reference** — Browse `.claude/skills/luca-framework/references/api-docs/` for pre-generated API docs
+4. **Reference** — Browse `.claude/skills/luca-framework/references/` for pre-generated API docs, runnable examples, and tutorials
 
 ## Project Structure
 

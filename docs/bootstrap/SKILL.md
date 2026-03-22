@@ -248,4 +248,6 @@ This is useful inside commands and scripts where you need introspection data pro
 
 ## Reference
 
-See `references/api-docs/` for the full pre-generated API reference for every built-in feature, client, and server.
+- `references/api-docs/` — full pre-generated API reference for every built-in feature, client, and server
+- `references/examples/` — runnable example docs for each feature (e.g. `fs.md`, `git.md`, `proc.md`)
+- `references/tutorials/` — step-by-step tutorials covering the container, helpers, commands, endpoints, and more

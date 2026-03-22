@@ -1,6 +1,6 @@
 # SemanticSearch (features.semanticSearch)
 
-No description provided
+A vector search engine backed by SQLite that indexes documents with embeddings for semantic, keyword, and hybrid search. Supports local GGUF embedding models and configurable chunking strategies for splitting documents into searchable segments.
 
 ## Usage
 

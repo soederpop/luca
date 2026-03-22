@@ -40,7 +40,7 @@ Send a PATCH request.
 | `data` | `any` |  | Request body |
 | `options` | `AxiosRequestConfig` |  | Additional axios request config |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -56,7 +56,7 @@ Send a PUT request.
 | `data` | `any` |  | Request body |
 | `options` | `AxiosRequestConfig` |  | Additional axios request config |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -72,7 +72,7 @@ Send a POST request.
 | `data` | `any` |  | Request body |
 | `options` | `AxiosRequestConfig` |  | Additional axios request config |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -88,7 +88,7 @@ Send a DELETE request.
 | `params` | `any` |  | Query parameters |
 | `options` | `AxiosRequestConfig` |  | Additional axios request config |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -104,7 +104,7 @@ Send a GET request.
 | `params` | `any` |  | Query parameters |
 | `options` | `AxiosRequestConfig` |  | Additional axios request config |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 

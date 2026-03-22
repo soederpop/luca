@@ -1,6 +1,6 @@
 # Conversation (features.conversation)
 
-A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.
+An observable conversation class that enables long-running chat threads with an LLM. Supports streaming responses, tool calling with automatic handler dispatch, message state management, and context window compaction. Works with both local (Ollama) and remote (OpenAI) backends.
 
 ## Usage
 

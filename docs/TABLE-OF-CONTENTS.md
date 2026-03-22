@@ -120,7 +120,6 @@
 - [OpenAICodex (features.openaiCodex)](./apis/features/agi/openai-codex.md)
 - [OpenAPI (features.openapi)](./apis/features/agi/openapi.md)
 - [SemanticSearch (features.semanticSearch)](./apis/features/agi/semantic-search.md)
-- [SkillsLibrary (features.skillsLibrary)](./apis/features/agi/skills-library.md)
 - [ContainerLink (features.containerLink)](./apis/features/node/container-link.md)
 - [ContentDb (features.contentDb)](./apis/features/node/content-db.md)
 - [DiskCache (features.diskCache)](./apis/features/node/disk-cache.md)

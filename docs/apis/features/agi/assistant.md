@@ -1,6 +1,6 @@
 # Assistant (features.assistant)
 
-An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).
+An Assistant is a wrapper around an LLM chat thread where you supply a system prompt and tools. You can optionally use a folder to load the system prompt (CORE.md), tool implementations (tools.ts), and event hooks (hooks.ts) from disk. The AssistantsManager feature will automatically discover any assistant definitions that live on disk in your project.
 
 ## Usage
 
