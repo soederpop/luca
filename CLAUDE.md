@@ -40,6 +40,7 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 - The container is intended to provide a collection of blessed, approved, audited modules that we've built and curated together.  It is intended to be the primary API and interface through the system  
 - The container should provide you with everything you need, and you should not need to be importing dependencies or other modules.  If you find yourself stuck by this constraint, raise this concern, and we can work on finding a way to bring in a feature or client
 - When trying to find paths in the project, use `container.paths.resolve()` or `container.paths.join()` instead of `import { resolve } from 'path'`
+- **`paths.join()` vs `paths.resolve()` gotcha:** `paths.join()` always prepends `container.cwd` — even if you pass an absolute path as the first arg. Use `paths.resolve(absolutePath, 'sub')` when the base is already absolute (e.g. `os.tmpdir`). `resolve` respects absolute first args just like Node's `path.resolve`.
 - **NEVER import from `fs`, `path`, or other Node builtins when the container provides equivalents.** Use `container.feature('fs')` for file operations, `container.paths` for path operations. This applies everywhere — command handlers, scripts, and feature implementations alike. If a container feature wraps the functionality, use it.
 
 ## Container Utilities

@@ -458,11 +458,13 @@ export class Git extends Feature {
 
         const tarballUrl = `https://github.com/${parsed.user}/${parsed.repo}/archive/${parsed.ref}.tar.gz`
         const stamp = Date.now()
-        const tarPath = this.container.paths.resolve(`tmp/.degit-${stamp}.tar.gz`)
-        const tmpExtract = this.container.paths.resolve(`tmp/.degit-extract-${stamp}`)
+        const tmpBase = this.container.paths.resolve(this.container.feature('os').tmpdir, 'luca-degit')
+        const proc = this.container.feature('proc')
+        proc.exec(`mkdir -p ${tmpBase}`)
+        const tarPath = this.container.paths.resolve(tmpBase, `.degit-${stamp}.tar.gz`)
+        const tmpExtract = this.container.paths.resolve(tmpBase, `.degit-extract-${stamp}`)
         const dest = destination.startsWith('/') ? destination : this.container.paths.resolve(destination)
 
-        const proc = this.container.feature('proc')
         const dl = this.container.feature('downloader')
 
         await dl.download(tarballUrl, tarPath)

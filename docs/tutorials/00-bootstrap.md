@@ -140,6 +140,24 @@ luca eval "grep.search('.', 'TODO')"
 | Full container overview?       | `container.inspectAsText()`            |
 | CLI docs for a helper?         | `luca describe <name>`                 |
 
+## Gotchas
+
+### `paths.join()` vs `paths.resolve()`
+
+`container.paths.join()` and `container.paths.resolve()` are Node's `path.join` and `path.resolve` curried with `container.cwd`. This means `paths.join()` always prepends `cwd` — even if you pass an absolute path as the first argument.
+
+```js
+// WRONG — paths.join will prepend cwd to the absolute tmpdir path
+const bad = container.paths.join(os.tmpdir, 'mydir')
+// => "/your/project/tmp/mydir" (not what you want)
+
+// RIGHT — paths.resolve respects absolute first args
+const good = container.paths.resolve(os.tmpdir, 'mydir')
+// => "/tmp/mydir"
+```
+
+**Rule of thumb:** Use `paths.join()` for project-relative paths, `paths.resolve()` when the base is already absolute.
+
 ## What's Next
 
 - [The Container](./02-container.md) — deep dive into state, events, and lifecycle
