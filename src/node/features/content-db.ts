@@ -147,7 +147,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /** Check if contentbase is resolvable via native import from the project root */
   private _canNativeImportContentbase(): boolean {
     const cwd = this.container.cwd
-    return this.container.fs.exists(this.container.paths.join(cwd, 'node_modules', 'contentbase'))
+    return this.container.fs.exists(this.container.paths.resolve(cwd, 'node_modules', 'contentbase'))
   }
 
   /** Seed the VM with virtual modules so models.ts can import from 'contentbase', 'zod', etc. */
@@ -449,7 +449,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     // Store search index in ~/.luca/contentbase/{hash}/ keyed by the real (symlink-resolved) collection path
     const realPath = realpathSync(this.collectionPath)
     const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
-    const dbPath = options?.dbPath ?? this.container.paths.join(this.container.os.homedir, '.luca', 'contentbase', pathHash, 'search.sqlite')
+    const dbPath = options?.dbPath ?? this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash, 'search.sqlite')
     this._semanticSearch = (this.container as any).feature('semanticSearch', {
       dbPath,
       ...(options?.embeddingProvider ? { embeddingProvider: options.embeddingProvider } : {}),
@@ -466,7 +466,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   private _hasSearchIndex(): boolean {
     const realPath = realpathSync(this.collectionPath)
     const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
-    const dbDir = this.container.paths.join(this.container.os.homedir, '.luca', 'contentbase', pathHash)
+    const dbDir = this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash)
 
     if (!this.container.fs.exists(dbDir)) return false
 

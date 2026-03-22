@@ -359,7 +359,7 @@ export class NodeContainer<
       },
       join(...paths: string[]) {
         if (paths.length && paths[0].startsWith('/')) {
-          console.warn(`[luca] paths.join() called with absolute path "${paths[0]}" — this will prepend cwd. Use paths.resolve() instead.`)
+          console.trace(`[luca] paths.join() called with absolute path "${paths[0]}" — this will prepend cwd. Use paths.resolve() instead.`)
         }
         return join(cwd, ...paths);
       },

@@ -44,24 +44,17 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	discovered: z.boolean().describe('Whether discovery has been run'),
 	assistantCount: z.number().describe('Number of discovered assistant definitions'),
 	activeCount: z.number().describe('Number of currently instantiated assistants'),
-	additionalLocations: z.array(z.string()).describe('Additional directories scanned for assistant definitions'),
 })
 
-export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({
-	/** Whether to automatically run discovery after initialization. */
-	autoDiscover: z.boolean().default(false).describe('Automatically discover assistants on init'),
-	/** Additional directories to scan for assistant definitions (folders containing CORE.md). Defaults to node_modules/@soederpop/luca. */
-	additionalLocations: z.array(z.string()).default([]).describe('Additional directories to scan for CORE.md assistant definitions'),
-})
+export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({})
 
 export type AssistantsManagerState = z.infer<typeof AssistantsManagerStateSchema>
 export type AssistantsManagerOptions = z.infer<typeof AssistantsManagerOptionsSchema>
 
 /**
- * Discovers and manages assistant definitions by finding all CORE.md files
- * in the project using the fileManager. Each directory containing a CORE.md
- * is treated as an assistant definition that can also contain tools.ts,
- * hooks.ts, voice.yaml, and a docs/ folder.
+ * Discovers and manages assistant definitions by looking for subdirectories
+ * in two locations: ~/.luca/assistants/ and cwd/assistants/. Each subdirectory
+ * containing a CORE.md is treated as an assistant definition.
  *
  * Use `discover()` to scan for available assistants, `list()` to enumerate them,
  * and `create(name)` to instantiate one as a running Assistant feature.
@@ -72,8 +65,8 @@ export type AssistantsManagerOptions = z.infer<typeof AssistantsManagerOptionsSc
  * ```typescript
  * const manager = container.feature('assistantsManager')
  * manager.discover()
- * console.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]
- * const assistant = manager.create('assistants/chief-of-staff')
+ * console.log(manager.list()) // [{ name: 'chief-of-staff', folder: '...', ... }]
+ * const assistant = manager.create('chief-of-staff')
  * const answer = await assistant.ask('Hello!')
  * ```
  */
@@ -92,7 +85,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			discovered: false,
 			assistantCount: 0,
 			activeCount: 0,
-			additionalLocations: [],
 		}
 	}
 
@@ -104,71 +96,60 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	private _instances: Map<string, Assistant> = new Map()
 	private _factories: Map<string, (options: Record<string, any>) => Assistant> = new Map()
 
-	override async afterInitialize() {
-		if (this.options.autoDiscover) {
-			await this.discover()
-		}
-	}
-
-	/** Resolved path to the assistants.json config file. */
-	get configPath(): string {
-		const { os, paths } = this.container
-		return paths.join(os.homedir, '.luca', 'assistants.json')
-	}
-
-	/** Read the persisted config, creating it if it doesn't exist. */
-	private _readConfig(): { locations: string[] } {
-		const { fs } = this.container
-		if (!fs.exists(this.configPath)) {
-			return { locations: [] }
-		}
-		return fs.readJson(this.configPath)
-	}
-
-	/** Write the config back to disk. */
-	private _writeConfig(config: { locations: string[] }): void {
-		const { fs, os, paths } = this.container
-		fs.mkdirp(paths.join(os.homedir, '.luca'))
-		fs.writeJson(this.configPath, config, 2)
-	}
-
 	/**
-	 * Returns the default additional locations to scan for assistants.
-	 * Includes node_modules/@soederpop/luca if it exists, plus any
-	 * locations persisted in ~/.luca/assistants.json.
+	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/
+	 * and cwd/assistants/. Each subdirectory containing a CORE.md is an assistant.
+	 *
+	 * @returns {Promise<this>} This instance, for chaining
 	 */
-	get defaultAdditionalLocations(): string[] {
+	async discover(): Promise<this> {
 		const { fs, paths, os } = this.container
-		const lucaPkgDir = paths.resolve('node_modules', '@soederpop', 'luca')
-		const locations: string[] = []
 
-		if (fs.exists(lucaPkgDir)) {
-			locations.push(lucaPkgDir)
-		}
+		this._entries.clear()
 
-		// Include persisted locations from config
-		const config = this._readConfig()
-		for (const loc of config.locations) {
-			const expanded = loc.startsWith('~') ? paths.join(os.homedir, loc.slice(1)) : loc
-			if (!locations.includes(expanded)) {
-				locations.push(expanded)
+		const locations = [
+			`${os.homedir}/.luca/assistants`,
+			paths.resolve('assistants'),
+		]
+
+		for (const location of locations) {
+			if (!fs.exists(location)) continue
+
+			const entries = fs.readdirSync(location)
+
+			for (const entry of entries) {
+				const folder = `${location}/${entry}`
+				if (!fs.isDirectory(folder)) continue
+
+				const hasCorePrompt = fs.exists(`${folder}/CORE.md`)
+				if (!hasCorePrompt) continue
+
+				// Don't overwrite earlier entries (home takes precedence for same name)
+				if (!this._entries.has(entry)) {
+					this._entries.set(entry, {
+						name: entry,
+						folder,
+						hasCorePrompt: true,
+						hasTools: fs.exists(`${folder}/tools.ts`),
+						hasHooks: fs.exists(`${folder}/hooks.ts`),
+						hasVoice: fs.exists(`${folder}/voice.yaml`),
+					})
+				}
 			}
 		}
 
-		return locations
-	}
+		this.state.setState({
+			discovered: true,
+			assistantCount: this._entries.size,
+		})
 
-	/**
-	 * Returns the resolved list of additional locations: explicit options merged with defaults.
-	 */
-	get resolvedAdditionalLocations(): string[] {
-		return [...this.defaultAdditionalLocations, ...this.options.additionalLocations]
+		this.emit('discovered')
+		return this
 	}
 
 	/**
 	 * Downloads the core assistants that ship with luca from GitHub
-	 * into ~/.luca/assistants and registers that directory as a
-	 * persistent discovery location.
+	 * into ~/.luca/assistants.
 	 *
 	 * @returns {Promise<{ files: string[] }>} The files extracted
 	 *
@@ -182,128 +163,13 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 */
 	async downloadLucaCoreAssistants() {
 		const { os, paths } = this.container
-		const dest = paths.resolve(os.homedir, '.luca', 'assistants')
+		const dest = `${os.homedir}/.luca/assistants`
 		const git = this.container.feature('git') as any
 
-		const result = await git.extractFolder({
+		return await git.extractFolder({
 			source: 'soederpop/luca/assistants',
 			destination: dest,
 		})
-
-		// Persist ~/.luca/assistants as a discovery location
-		const config = this._readConfig()
-		const portable = '~/.luca/assistants'
-		if (!config.locations.includes(portable)) {
-			config.locations.push(portable)
-			this._writeConfig(config)
-		}
-
-		// Also add to the in-memory locations so the next discover() picks it up
-		this.addLocation(dest)
-
-		return result
-	}
-
-	/**
-	 * Discovers assistants by finding all CORE.md files in the project
-	 * using the fileManager, plus any additional locations. Each directory
-	 * containing a CORE.md is treated as an assistant definition.
-	 *
-	 * @returns {Promise<this>} This instance, for chaining
-	 */
-	async discover(): Promise<this> {
-		const { fs, paths } = this.container
-		const fileManager = this.container.feature('fileManager') as any
-
-		await fileManager.start()
-
-		this._entries.clear()
-
-		// Scan the project using fileManager
-		const coreFiles = fileManager.matchFiles('**/CORE.md')
-
-		for (const file of coreFiles) {
-			const dir = file.dirname
-			const name = file.relativeDirname
-
-			this._entries.set(name, {
-				name,
-				folder: dir,
-				hasCorePrompt: true,
-				hasTools: fs.exists(paths.resolve(dir, 'tools.ts')),
-				hasHooks: fs.exists(paths.resolve(dir, 'hooks.ts')),
-				hasVoice: fs.exists(paths.resolve(dir, 'voice.yaml')),
-			})
-		}
-
-		// Scan additional locations
-		const additionalLocations = this.resolvedAdditionalLocations
-
-		for (const location of additionalLocations) {
-			if (!fs.exists(location)) continue
-			await this._scanLocation(location)
-		}
-
-		this.state.setState({
-			discovered: true,
-			assistantCount: this._entries.size,
-			additionalLocations,
-		})
-
-		this.emit('discovered')
-		return this
-	}
-
-	/**
-	 * Adds a directory to scan during discovery. Call discover() again
-	 * to pick up assistants from the new location.
-	 *
-	 * @param {string} location - Absolute path to a directory to scan for CORE.md files
-	 * @returns {this} This instance, for chaining
-	 */
-	addLocation(location: string): this {
-		const current = this.options.additionalLocations || []
-		if (!current.includes(location)) {
-			current.push(location)
-			this.options.additionalLocations = current
-		}
-		return this
-	}
-
-	/**
-	 * Scans a directory recursively for CORE.md files and adds them as entries.
-	 */
-	private async _scanLocation(location: string): Promise<void> {
-		const { fs, paths } = this.container
-
-		try {
-			const { files } = fs.walk(location, {
-				include: ['CORE.md'],
-				exclude: ['node_modules', '.git'],
-			})
-
-			for (const filePath of files) {
-				const dir = paths.dirname(filePath)
-				// Use a name relative to the scanned location, prefixed to avoid collisions
-				const relativePath = paths.relative(location, dir)
-				const locationBasename = paths.basename(location)
-				const name = `${locationBasename}/${relativePath}`
-
-				// Don't overwrite project-local entries
-				if (!this._entries.has(name)) {
-					this._entries.set(name, {
-						name,
-						folder: dir,
-						hasCorePrompt: true,
-						hasTools: fs.exists(paths.resolve(dir, 'tools.ts')),
-						hasHooks: fs.exists(paths.resolve(dir, 'hooks.ts')),
-						hasVoice: fs.exists(paths.resolve(dir, 'voice.yaml')),
-					})
-				}
-			}
-		} catch {
-			// Location might not exist or walk may fail — just skip it
-		}
 	}
 
 	get available() {
@@ -324,25 +190,11 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	/**
 	 * Looks up a single assistant entry by name.
 	 *
-	 * @param {string} name - The assistant name (e.g. 'assistants/chief-of-staff')
+	 * @param {string} name - The assistant name (e.g. 'chief-of-staff')
 	 * @returns {AssistantEntry | undefined} The entry, or undefined if not found
 	 */
 	get(name: string): AssistantEntry | undefined {
-		const found = this._entries.get(name)
-
-		if (found) {
-			return found
-		}
-
-		const aliases = this.available.filter(key => key === name || key.endsWith(`/${name}`))
-
-		if (aliases.length === 1) {
-			return this._entries.get(aliases[0]!)
-		} else if (aliases.length > 1) {
-			throw new Error(`Ambiguous assistant name "${name}", matches: ${aliases.join(', ')}`)
-		}
-
-		return undefined
+		return this._entries.get(name)
 	}
 
 	/**
@@ -384,7 +236,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 *
 	 * @example
 	 * ```typescript
-	 * const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
+	 * const assistant = manager.create('chief-of-staff', { model: 'gpt-4.1' })
 	 * ```
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {

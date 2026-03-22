@@ -156,8 +156,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return this._callMaxTokens ?? this.options.maxTokens ?? undefined
 	}
 
+	private _toolsOverride?: Record<string, ConversationTool>
+
 	private get _tools(): Record<string, ConversationTool> {
-		return this.options.tools || {}
+		return this._toolsOverride ?? this.options.tools ?? {}
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -181,8 +183,43 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/** Returns the registered tools available for the model to call. */
-	get tools() : Record<string, any> {
-		return this.options.tools || {}
+	get tools() : Record<string, ConversationTool> {
+		return this._toolsOverride ?? this.options.tools ?? {}
+	}
+
+	/**
+	 * Add or replace a single tool by name.
+	 * Uses the same format as tools passed at construction time.
+	 */
+	addTool(name: string, tool: ConversationTool): this {
+		if (!this._toolsOverride) {
+			this._toolsOverride = { ...this._tools }
+		}
+		this._toolsOverride[name] = tool
+		return this
+	}
+
+	/**
+	 * Remove a tool by name.
+	 */
+	removeTool(name: string): this {
+		if (!this._toolsOverride) {
+			this._toolsOverride = { ...this._tools }
+		}
+		delete this._toolsOverride[name]
+		return this
+	}
+
+	/**
+	 * Merge new tools into the conversation, replacing any with the same name.
+	 * Accepts the same Record<string, ConversationTool> format used at construction time.
+	 */
+	updateTools(tools: Record<string, ConversationTool>): this {
+		if (!this._toolsOverride) {
+			this._toolsOverride = { ...this._tools }
+		}
+		Object.assign(this._toolsOverride, tools)
+		return this
 	}
 
 	/** Returns configured remote MCP servers keyed by server label. */

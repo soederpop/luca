@@ -106,7 +106,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	get configPath(): string {
 		if (this.options.configPath) return this.options.configPath
 		const { os, paths } = this.container
-		return paths.join(os.homedir, '.luca', 'skills.json')
+		return paths.resolve(os.homedir, '.luca', 'skills.json')
 	}
 
 	/** Whether the library has been loaded. */
@@ -118,7 +118,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	private expandHome(p: string): string {
 		if (!p.startsWith('~')) return p
 		const { os, paths } = this.container
-		return paths.join(os.homedir, p.slice(1))
+		return paths.resolve(os.homedir, p.slice(1))
 	}
 
 	/** Read the persisted config, creating it if it doesn't exist. */
@@ -137,7 +137,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	/** Write the config back to disk. */
 	private writeConfig(config: { locations: string[] }): void {
 		const { fs, os, paths } = this.container
-		fs.mkdirp(paths.join(os.homedir, '.luca'))
+		fs.mkdirp(paths.resolve(os.homedir, '.luca'))
 		fs.writeJson(this.configPath, config, 2)
 	}
 
@@ -226,8 +226,8 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const entries = fs.readdirSync(locationPath)
 
 		for (const entry of entries) {
-			const skillDir = paths.join(locationPath, entry)
-			const skillFile = paths.join(skillDir, 'SKILL.md')
+			const skillDir = paths.resolve(locationPath, entry)
+			const skillFile = paths.resolve(skillDir, 'SKILL.md')
 
 			if (!fs.exists(skillFile)) continue
 
@@ -286,7 +286,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	ensureFolderCreatedWithSkillsByName(skillNames: string[]): string {
 		const { fs, paths, os } = this.container
 		const hash = this.container.utils.hashObject(skillNames.sort())
-		const dir = paths.join(os.tmpdir, 'luca-skills', hash)
+		const dir = paths.resolve(os.tmpdir, 'luca-skills', hash)
 
 		if (fs.exists(dir)) return dir
 
@@ -296,7 +296,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			const skill = this.find(name)
 			if (!skill) throw new Error(`Skill "${name}" not found in the library`)
 
-			const dest = paths.join(dir, name)
+			const dest = paths.resolve(dir, name)
 			if (!fs.exists(dest)) {
 				fs.copy(skill.path, dest)
 			}

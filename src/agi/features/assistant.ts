@@ -188,6 +188,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	declare private _tools: Record<string, ConversationTool>
 	declare private _hooks: Record<string, (...args: any[]) => any>
 	declare private _systemPrompt: string
+	declare private _meta: Record<string, any>
 	declare private _pendingPlugins: Promise<void>[]
 
 	/**
@@ -272,11 +273,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 		} else if (fnOrHelper && typeof fnOrHelper.toTools === 'function') {
 			const { schemas, handlers } = fnOrHelper.toTools()
-			for (const name of Object.keys(handlers)) {
-				this.addTool(
-					Object.defineProperty(handlers[name]!, 'name', { value: name }),
-					schemas[name],
-				)
+			for (const name of Object.keys(schemas)) {
+				if(typeof handlers[name] === 'function') {
+					this.addTool(
+						name,
+						handlers[name] as any,
+						schemas[name],
+					)
+				}
 			}
 		}
 		return this
@@ -297,8 +301,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * }, z.object({ city: z.string() }).describe('Get weather for a city'))
 	 * ```
 	 */
-	addTool(handler: (...args: any[]) => any, schema?: z.ZodType): this {
-		const name = handler.name
+	addTool(name: string, handler: (...args: any[]) => any, schema?: z.ZodType): this {
 		if (!name) throw new Error('addTool handler must be a named function')
 
 		if (schema) {
@@ -324,6 +327,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 		}
 
+		this.emit('toolsChanged')
+
 		return this
 	}
 
@@ -344,6 +349,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				}
 			}
 		}
+		
+		this.emit('toolsChanged')
 
 		return this
 	}
@@ -407,18 +414,37 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
+	 * Parsed YAML frontmatter from CORE.md, or empty object if none.
+	 */
+	get meta(): Record<string, any> {
+		return this._meta ?? {}
+	}
+
+	/**
 	 * Load the system prompt from CORE.md, applying any prepend/append options.
+	 * YAML frontmatter (between --- fences) is stripped from the prompt and
+	 * stored in `_meta`.
 	 *
 	 * @returns {string} The assembled system prompt
 	 */
 	loadSystemPrompt(): string {
 		const { fs } = this.container
 		let prompt = ''
+		this._meta = {}
 
 		if (this.options.systemPrompt) {
 			prompt = this.options.systemPrompt
 		} else if (fs.exists(this.corePromptPath)) {
-			prompt = fs.readFile(this.corePromptPath).toString()
+			const raw = fs.readFile(this.corePromptPath).toString()
+			const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
+
+			if (fmMatch) {
+				const yaml = this.container.feature('yaml')
+				this._meta = yaml.parse(fmMatch[1]!) ?? {}
+				prompt = raw.slice(fmMatch[0].length)
+			} else {
+				prompt = raw
+			}
 		}
 
 		if (this.options.prependPrompt) {
@@ -454,6 +480,13 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Skip loading if no tools file exists (runtime-created assistants)
 		if (!this.container.fs.exists(this.toolsModulePath)) {
 			return this.mergeOptionTools(tools)
+		}
+
+		// Ensure virtual modules (zod, @soederpop/luca, etc.) are seeded so tools
+		// files outside the project tree can resolve them through the VM
+		if (this.container.features.has('helpers')) {
+			const helpers = this.container.feature('helpers') as any
+			helpers.seedVirtualModules()
 		}
 
 		const vm = this.container.feature('vm')
@@ -801,6 +834,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (mode === 'daily' || mode === 'persistent') {
 			(this.conversation.options as any).autoCompact = true
 		}
+		
+		this.on('toolsChanged', () => {
+			if (this._conversation) {
+				this._conversation.updateTools(this._tools)
+			}
+		})
 
 		this.state.set('started', true)
 		this.emit('started')

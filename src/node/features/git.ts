@@ -458,9 +458,10 @@ export class Git extends Feature {
 
         const tarballUrl = `https://github.com/${parsed.user}/${parsed.repo}/archive/${parsed.ref}.tar.gz`
         const stamp = Date.now()
-        const tmpBase = this.container.paths.resolve(this.container.feature('os').tmpdir, 'luca-degit')
+        const fs = this.container.feature('fs')
         const proc = this.container.feature('proc')
-        proc.exec(`mkdir -p ${tmpBase}`)
+        const tmpBase = this.container.paths.resolve(this.container.feature('os').tmpdir, 'luca-degit')
+        fs.ensureFolder(tmpBase)
         const tarPath = this.container.paths.resolve(tmpBase, `.degit-${stamp}.tar.gz`)
         const tmpExtract = this.container.paths.resolve(tmpBase, `.degit-extract-${stamp}`)
         const dest = destination.startsWith('/') ? destination : this.container.paths.resolve(destination)
@@ -470,22 +471,25 @@ export class Git extends Feature {
         await dl.download(tarballUrl, tarPath)
 
         // Extract everything, strip the root archive directory (e.g. repo-commitsha/)
-        proc.exec(`mkdir -p ${tmpExtract}`)
+        fs.ensureFolder(tmpExtract)
         const extractResult = await proc.execAndCapture(`tar xzf ${tarPath} -C ${tmpExtract} --strip-components=1`)
         if (extractResult.exitCode !== 0) {
-            proc.exec(`rm -rf ${tarPath} ${tmpExtract}`)
+            await fs.rmdir(tmpExtract)
+            await fs.rm(tarPath)
             throw new Error(`Failed to extract tarball: ${extractResult.stderr}`)
         }
 
         // Copy the subfolder (or everything) to destination
         const sourceDir = parsed.subdir ? `${tmpExtract}/${parsed.subdir}` : tmpExtract
-        proc.exec(`rm -rf ${dest} && mkdir -p ${dest}`)
-        proc.exec(`cp -a ${sourceDir}/. ${dest}/`)
+        if (fs.existsSync(dest)) await fs.rmdir(dest)
+        fs.ensureFolder(dest)
+        fs.copy(sourceDir, dest, { overwrite: true })
 
         // Cleanup temp files
-        proc.exec(`rm -rf ${tarPath} ${tmpExtract}`)
+        await fs.rm(tarPath)
+        await fs.rmdir(tmpExtract)
 
-        const files = this.container.fs.readdirSync(dest)
+        const files = fs.readdirSync(dest)
         return { files, source: parsed }
     }
 

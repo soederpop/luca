@@ -70,7 +70,7 @@ export class TTS extends Feature<TTSState, TTSOptions> {
 
   /** Directory where generated audio files are saved. */
   get outputDir(): string {
-    return this.options.outputDir || this.container.paths.join(this.container.feature('os').homedir, '.luca', 'tts-cache')
+    return this.options.outputDir || this.container.paths.resolve(this.container.feature('os').homedir, '.luca', 'tts-cache')
   }
 
   /** The 20 preset voice names available in Chatterbox Turbo. */
