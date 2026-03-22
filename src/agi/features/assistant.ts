@@ -41,11 +41,14 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
-	/** The folder containing the assistant definition (CORE.md, tools.ts, hooks.ts) */
-	folder: z.string().describe('The folder containing the assistant definition'),
+	/** The folder containing the assistant definition (CORE.md, tools.ts, hooks.ts). Optional for runtime-created assistants. */
+	folder: z.string().default('.').describe('The folder containing the assistant definition. Defaults to cwd for runtime-created assistants.'),
 
 	/** If the docs folder is different from folder/docs */
 	docsFolder: z.string().optional().describe('The folder containing the assistant documentation'),
+
+	/** Provide a complete system prompt directly, bypassing CORE.md. Useful for runtime-created assistants. */
+	systemPrompt: z.string().optional().describe('Provide a complete system prompt directly, bypassing CORE.md'),
 
 	/** Text to prepend to the system prompt from CORE.md */
 	prependPrompt: z.string().optional().describe('Text to prepend to the system prompt'),
@@ -243,23 +246,38 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	/**
-	 * Apply a setup function to this assistant. The function receives the
-	 * assistant instance and can configure tools, hooks, event listeners, etc.
+	 * Apply a setup function or a Helper instance to this assistant.
 	 *
-	 * @param fn - Setup function that receives this assistant
+	 * When passed a function, it receives the assistant and can configure
+	 * tools, hooks, event listeners, etc.
+	 *
+	 * When passed a Helper instance that exposes tools via toTools(),
+	 * those tools are automatically added to this assistant.
+	 *
+	 * @param fnOrHelper - Setup function or Helper instance
 	 * @returns this, for chaining
 	 *
 	 * @example
 	 * ```typescript
 	 * assistant
 	 *   .use(setupLogging)
-	 *   .use(addAnalyticsTools)
+	 *   .use(container.feature('git'))
 	 * ```
 	 */
-	use(fn: (assistant: this) => void | Promise<void>): this {
-		const result = fn(this)
-		if (result && typeof (result as any).then === 'function') {
-			this._pendingPlugins.push(result as Promise<void>)
+	use(fnOrHelper: ((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } }): this {
+		if (typeof fnOrHelper === 'function') {
+			const result = fnOrHelper(this)
+			if (result && typeof (result as any).then === 'function') {
+				this._pendingPlugins.push(result as Promise<void>)
+			}
+		} else if (fnOrHelper && typeof fnOrHelper.toTools === 'function') {
+			const { schemas, handlers } = fnOrHelper.toTools()
+			for (const name of Object.keys(handlers)) {
+				this.addTool(
+					Object.defineProperty(handlers[name]!, 'name', { value: name }),
+					schemas[name],
+				)
+			}
 		}
 		return this
 	}
@@ -285,13 +303,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		if (schema) {
 			const jsonSchema = (schema as any).toJSONSchema() as Record<string, any>
+			// OpenAI requires `required` to list ALL property keys — optional params
+			// must still appear in `required` but use a default value in the schema.
+			const properties = jsonSchema.properties || {}
+			const required = Object.keys(properties)
 			this._tools[name] = {
 				handler: handler as ConversationTool['handler'],
 				description: jsonSchema.description || name,
 				parameters: {
 					type: jsonSchema.type || 'object',
-					properties: jsonSchema.properties || {},
-					...(jsonSchema.required ? { required: jsonSchema.required } : {}),
+					properties,
+					required,
 				},
 			}
 		} else {
@@ -393,8 +415,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const { fs } = this.container
 		let prompt = ''
 
-		if (fs.exists(this.corePromptPath)) {
-			prompt = fs.readFile(this.corePromptPath)
+		if (this.options.systemPrompt) {
+			prompt = this.options.systemPrompt
+		} else if (fs.exists(this.corePromptPath)) {
+			prompt = fs.readFile(this.corePromptPath).toString()
 		}
 
 		if (this.options.prependPrompt) {
@@ -426,6 +450,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	loadTools(): Record<string, ConversationTool> {
 		const tools: Record<string, ConversationTool> = {}
+
+		// Skip loading if no tools file exists (runtime-created assistants)
+		if (!this.container.fs.exists(this.toolsModulePath)) {
+			return this.mergeOptionTools(tools)
+		}
+
 		const vm = this.container.feature('vm')
 
 		let moduleExports: Record<string, any>
@@ -441,7 +471,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			console.error(`Failed to load tools from ${this.toolsModulePath}`)
 			console.error(`There may be a syntax error in this file. Please check it.`)
 			console.error(err.message || err)
-			return tools
+			return this.mergeOptionTools(tools)
 		}
 
 		if (Object.keys(moduleExports).length) {
@@ -472,7 +502,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 		}
 
-		// Merge in option-provided tools and schemas
+		return this.mergeOptionTools(tools)
+	}
+
+	/**
+	 * Merge tools provided via constructor options into the tool map.
+	 * This allows runtime-created assistants to define tools entirely via options.
+	 */
+	private mergeOptionTools(tools: Record<string, ConversationTool>): Record<string, ConversationTool> {
 		if (this.options.tools) {
 			const optionSchemas = this.options.schemas || {}
 
@@ -513,6 +550,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	loadHooks(): Record<string, (...args: any[]) => any> {
 		const hooks: Record<string, (...args: any[]) => any> = {}
+
+		// Skip loading if no hooks file exists (runtime-created assistants)
+		if (!this.container.fs.exists(this.hooksModulePath)) {
+			return hooks
+		}
+
 		const vm = this.container.feature('vm')
 
 		let moduleExports: Record<string, any>
@@ -817,6 +860,55 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 
 		return this.conversation.save(opts)
+	}
+
+	// -- Subagent API --
+
+	private _subagents: Map<string, Assistant> = new Map()
+
+	/**
+	 * Names of assistants available as subagents, discovered via the assistantsManager.
+	 *
+	 * @returns {string[]} Available assistant names
+	 */
+	get availableSubagents(): string[] {
+		try {
+			const manager = this.container.feature('assistantsManager')
+			return manager.available
+		} catch {
+			return []
+		}
+	}
+
+	/**
+	 * Get or create a subagent assistant. Uses the assistantsManager to discover
+	 * and create the assistant, then caches the instance for reuse across tool calls.
+	 *
+	 * @param id - The assistant name (e.g. 'codingAssistant')
+	 * @param options - Additional options to pass to the assistant constructor
+	 * @returns {Promise<Assistant>} The subagent assistant instance, started and ready
+	 *
+	 * @example
+	 * ```typescript
+	 * const researcher = await assistant.subagent('codingAssistant')
+	 * const answer = await researcher.ask('Find all usages of container.feature("fs")')
+	 * ```
+	 */
+	async subagent(id: string, options: Record<string, any> = {}): Promise<Assistant> {
+		const cached = this._subagents.get(id)
+		if (cached) return cached
+
+		const manager = this.container.feature('assistantsManager')
+
+		if (!manager.state.get('discovered')) {
+			await manager.discover()
+		}
+
+		const instance = manager.create(id, options)
+		await instance.start()
+
+		this._subagents.set(id, instance)
+		return instance
 	}
 }
 

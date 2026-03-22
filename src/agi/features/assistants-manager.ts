@@ -35,17 +35,23 @@ export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
 		z.string().describe('The assistant name'),
 		z.any().describe('The assistant instance'),
 	]).describe('Emitted when a new assistant instance is created'),
+	assistantRegistered: z.tuple([
+		z.string().describe('The assistant id'),
+	]).describe('Emitted when an assistant factory is registered at runtime'),
 })
 
 export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	discovered: z.boolean().describe('Whether discovery has been run'),
 	assistantCount: z.number().describe('Number of discovered assistant definitions'),
 	activeCount: z.number().describe('Number of currently instantiated assistants'),
+	additionalLocations: z.array(z.string()).describe('Additional directories scanned for assistant definitions'),
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({
 	/** Whether to automatically run discovery after initialization. */
 	autoDiscover: z.boolean().default(false).describe('Automatically discover assistants on init'),
+	/** Additional directories to scan for assistant definitions (folders containing CORE.md). Defaults to node_modules/@soederpop/luca. */
+	additionalLocations: z.array(z.string()).default([]).describe('Additional directories to scan for CORE.md assistant definitions'),
 })
 
 export type AssistantsManagerState = z.infer<typeof AssistantsManagerStateSchema>
@@ -86,6 +92,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			discovered: false,
 			assistantCount: 0,
 			activeCount: 0,
+			additionalLocations: [],
 		}
 	}
 
@@ -95,6 +102,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 	private _entries: Map<string, AssistantEntry> = new Map()
 	private _instances: Map<string, Assistant> = new Map()
+	private _factories: Map<string, (options: Record<string, any>) => Assistant> = new Map()
 
 	override async afterInitialize() {
 		if (this.options.autoDiscover) {
@@ -103,9 +111,31 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
+	 * Returns the default additional locations to scan for assistants.
+	 * Includes node_modules/@soederpop/luca if it exists.
+	 */
+	get defaultAdditionalLocations(): string[] {
+		const lucaPkgDir = this.container.paths.resolve('node_modules', '@soederpop', 'luca')
+		const locations: string[] = []
+
+		if (this.container.fs.exists(lucaPkgDir)) {
+			locations.push(lucaPkgDir)
+		}
+
+		return locations
+	}
+
+	/**
+	 * Returns the resolved list of additional locations: explicit options merged with defaults.
+	 */
+	get resolvedAdditionalLocations(): string[] {
+		return [...this.defaultAdditionalLocations, ...this.options.additionalLocations]
+	}
+
+	/**
 	 * Discovers assistants by finding all CORE.md files in the project
-	 * using the fileManager. Each directory containing a CORE.md is
-	 * treated as an assistant definition.
+	 * using the fileManager, plus any additional locations. Each directory
+	 * containing a CORE.md is treated as an assistant definition.
 	 *
 	 * @returns {Promise<this>} This instance, for chaining
 	 */
@@ -117,6 +147,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 		this._entries.clear()
 
+		// Scan the project using fileManager
 		const coreFiles = fileManager.matchFiles('**/CORE.md')
 
 		for (const file of coreFiles) {
@@ -133,17 +164,80 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			})
 		}
 
+		// Scan additional locations
+		const additionalLocations = this.resolvedAdditionalLocations
+
+		for (const location of additionalLocations) {
+			if (!fs.exists(location)) continue
+			await this._scanLocation(location)
+		}
+
 		this.state.setState({
 			discovered: true,
 			assistantCount: this._entries.size,
+			additionalLocations,
 		})
 
 		this.emit('discovered')
 		return this
 	}
 
+	/**
+	 * Adds a directory to scan during discovery. Call discover() again
+	 * to pick up assistants from the new location.
+	 *
+	 * @param {string} location - Absolute path to a directory to scan for CORE.md files
+	 * @returns {this} This instance, for chaining
+	 */
+	addLocation(location: string): this {
+		const current = this.options.additionalLocations || []
+		if (!current.includes(location)) {
+			current.push(location)
+			this.options.additionalLocations = current
+		}
+		return this
+	}
+
+	/**
+	 * Scans a directory recursively for CORE.md files and adds them as entries.
+	 */
+	private async _scanLocation(location: string): Promise<void> {
+		const { fs, paths } = this.container
+
+		try {
+			const { files } = fs.walk(location, {
+				include: ['CORE.md'],
+				exclude: ['node_modules', '.git'],
+			})
+
+			for (const filePath of files) {
+				const dir = paths.dirname(filePath)
+				// Use a name relative to the scanned location, prefixed to avoid collisions
+				const relativePath = paths.relative(location, dir)
+				const locationBasename = paths.basename(location)
+				const name = `${locationBasename}/${relativePath}`
+
+				// Don't overwrite project-local entries
+				if (!this._entries.has(name)) {
+					this._entries.set(name, {
+						name,
+						folder: dir,
+						hasCorePrompt: true,
+						hasTools: fs.exists(paths.resolve(dir, 'tools.ts')),
+						hasHooks: fs.exists(paths.resolve(dir, 'hooks.ts')),
+						hasVoice: fs.exists(paths.resolve(dir, 'voice.yaml')),
+					})
+				}
+			}
+		} catch {
+			// Location might not exist or walk may fail — just skip it
+		}
+	}
+
 	get available() {
-		return Array.from(this._entries.keys()) 
+		const entryKeys = Array.from(this._entries.keys())
+		const factoryKeys = Array.from(this._factories.keys())
+		return [...new Set([...entryKeys, ...factoryKeys])]
 	}
 
 	/**
@@ -180,14 +274,41 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
+	 * Registers a factory function that creates an assistant at runtime.
+	 * Registered factories take precedence over discovered entries when
+	 * calling `create()`.
+	 *
+	 * @param {string} id - The assistant identifier
+	 * @param {(options: Record<string, any>) => Assistant} factory - Factory function that receives create options and returns an Assistant
+	 * @returns {this} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.register('custom-bot', (options) => {
+	 *   return container.feature('assistant', {
+	 *     systemPrompt: 'You are a custom bot.',
+	 *     ...options,
+	 *   })
+	 * })
+	 * const bot = manager.create('custom-bot')
+	 * ```
+	 */
+	register(id: string, factory: (options: Record<string, any>) => Assistant): this {
+		this._factories.set(id, factory)
+		this.emit('assistantRegistered', id)
+		return this
+	}
+
+	/**
 	 * Creates and returns a new Assistant feature instance for the given name.
+	 * Checks runtime-registered factories first, then falls back to discovered entries.
 	 * The assistant is configured with the discovered folder path. Any additional
 	 * options are merged in.
 	 *
-	 * @param {string} name - The assistant name (must match a discovered entry)
+	 * @param {string} name - The assistant name (must match a registered factory or discovered entry)
 	 * @param {Record<string, any>} options - Additional options to pass to the Assistant constructor
 	 * @returns {Assistant} The created assistant instance
-	 * @throws {Error} If the name is not found among discovered assistants
+	 * @throws {Error} If the name is not found among registered factories or discovered assistants
 	 *
 	 * @example
 	 * ```typescript
@@ -195,10 +316,20 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * ```
 	 */
 	create(name: string, options: Record<string, any> = {}): Assistant {
+		// Check registered factories first
+		const factory = this._factories.get(name)
+		if (factory) {
+			const instance = factory(options)
+			this._instances.set(name, instance)
+			this.state.set('activeCount', this._instances.size)
+			this.emit('assistantCreated', name, instance)
+			return instance
+		}
+
 		const entry = this.get(name)
 
 		if (!entry) {
-			const available = Array.from(this._entries.keys())
+			const available = [...this._entries.keys(), ...this._factories.keys()]
 			throw new Error(
 				`Assistant "${name}" not found. Available assistants: ${available.join(', ') || '(none — run discover() first)'}`
 			)
