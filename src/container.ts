@@ -10,6 +10,7 @@ import { pluralize, singularize } from 'inflect'
 import { z } from 'zod'
 import { ContainerStateSchema, describeZodShape } from './schemas/base'
 import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index'
+import { ContainerDescriber } from './container-describer'
 
 export { z }
 
@@ -146,6 +147,16 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     lodash: {
       uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit,
     }
+  }
+
+  private _describer?: ContainerDescriber
+
+  /** Lazy-initialized ContainerDescriber for introspecting registries, helpers, and members. */
+  get describer(): ContainerDescriber {
+    if (!this._describer) {
+      this._describer = new ContainerDescriber(this)
+    }
+    return this._describer
   }
 
   /**

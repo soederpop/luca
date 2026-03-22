@@ -267,6 +267,81 @@ export class CommandsRegistry extends Registry<Command<any>> {
 	override baseClass = Command as any
 
 	/**
+	 * Convert all registered commands into a `{ schemas, handlers }` object
+	 * compatible with `assistant.use()`.
+	 *
+	 * Each command becomes a tool whose parameters come from the command's
+	 * `argsSchema` (with internal CLI fields stripped) and whose handler
+	 * dispatches the command headlessly, returning `{ exitCode, stdout, stderr }`.
+	 *
+	 * @param container - The container used to instantiate and dispatch commands
+	 * @param options - Optional filter/transform options
+	 * @param options.include - Only include these command names (default: all)
+	 * @param options.exclude - Exclude these command names (default: none)
+	 * @param options.prefix - Prefix tool names (e.g. 'luca_' → 'luca_eval')
+	 */
+	toTools(
+		container: Container<any> & CommandsInterface,
+		options?: { include?: string[], exclude?: string[], prefix?: string },
+	): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
+		const schemas: Record<string, z.ZodType> = {}
+		const handlers: Record<string, Function> = {}
+		const prefix = options?.prefix ?? ''
+		const includeSet = options?.include ? new Set(options.include) : null
+		const excludeSet = new Set(options?.exclude ?? [])
+
+		// Internal fields inherited from HelperOptionsSchema / CommandOptionsSchema
+		const internalFields = ['_', 'dispatchSource', 'name', '_cacheKey']
+
+		for (const name of this.available) {
+			if (excludeSet.has(name)) continue
+			if (includeSet && !includeSet.has(name)) continue
+
+			const Cmd = this.lookup(name) as typeof Command
+			const rawSchema = Cmd.argsSchema
+			const description = Cmd.commandDescription || Cmd.description || name
+
+			// Build a clean schema by stripping internal CLI fields from the argsSchema.
+			// If the schema is a ZodObject we can use .omit(), otherwise create a
+			// virtual passthrough schema so the tool still flows through.
+			let toolSchema: z.ZodType
+			try {
+				const shape = typeof (rawSchema as any)?._def?.shape === 'function'
+					? (rawSchema as any)._def.shape()
+					: (rawSchema as any)?._def?.shape
+
+				if (shape) {
+					// Build a new object schema omitting internal fields
+					const cleanShape: Record<string, z.ZodType> = {}
+					for (const [key, val] of Object.entries(shape)) {
+						if (internalFields.includes(key)) continue
+						cleanShape[key] = val as z.ZodType
+					}
+
+					toolSchema = Object.keys(cleanShape).length > 0
+						? z.object(cleanShape).describe(description)
+						: z.object({}).describe(description)
+				} else {
+					// Not a ZodObject — wrap as passthrough
+					toolSchema = z.object({}).describe(description)
+				}
+			} catch {
+				toolSchema = z.object({}).describe(description)
+			}
+
+			const toolName = `${prefix}${name}`
+			schemas[toolName] = toolSchema
+			handlers[toolName] = async (args: Record<string, any>) => {
+				const cmd = container.command(name as any)
+				const result = await cmd.dispatch(args ?? {}, 'headless')
+				return result ?? { exitCode: 0, stdout: '', stderr: '' }
+			}
+		}
+
+		return { schemas, handlers }
+	}
+
+	/**
 	 * Internal: register a command from a handler function.
 	 * Used by built-in commands. External commands should use the module export pattern.
 	 */
