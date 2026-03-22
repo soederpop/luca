@@ -31,6 +31,10 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 
 **IMPORTANT NOTE** When trying to investigate features, clients, servers, etc, see if these tools can help you first instead of searching for files and reading them that way.  If youw ant to understand what they do, vs how theyre actually implemented
 
+## OpenAI Tool Schemas (Zod → JSON Schema)
+
+**OpenAI requires `required` to list ALL property keys in `properties`**, even optional ones. Zod's `toJSONSchema()` only puts non-optional fields in `required`, which OpenAI rejects with "Missing 'X'" errors. The `assistant.addTool()` method handles this automatically by always setting `required: Object.keys(properties)`. Do NOT use `z.any()` or `z.record(z.any())` in tool schemas — Zod v4's `toJSONSchema()` cannot serialize `z.any()` and will throw `schema._zod is undefined`. Use concrete types like `z.string()` instead (e.g. accept a JSON string and parse it at runtime).
+
 ## Coding style and guidelines
 
 - The container is intended to provide a collection of blessed, approved, audited modules that we've built and curated together.  It is intended to be the primary API and interface through the system  
