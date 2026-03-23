@@ -28,6 +28,7 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
 	hookFired: z.tuple([z.string().describe('Hook/event name')]).describe('Emitted when a hook function is called'),
+	systemPromptExtensionsChanged: z.tuple([]).describe('Emitted when system prompt extensions are added or removed'),
 })
 
 export const AssistantStateSchema = FeatureStateSchema.extend({
@@ -39,6 +40,7 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 	conversationId: z.string().optional().describe('The active conversation persistence ID'),
 	threadId: z.string().optional().describe('The active thread ID'),
 	systemPrompt: z.string().describe('The loaded system prompt text'),
+	systemPromptExtensions: z.record(z.string(), z.string()).describe('Named extensions appended to the system prompt'),
 	meta: z.record(z.string(), z.any()).describe('Parsed YAML frontmatter from CORE.md'),
 	tools: z.record(z.string(), z.any()).describe('Registered tool implementations'),
 	hooks: z.record(z.string(), z.any()).describe('Loaded event hook functions'),
@@ -120,6 +122,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			lastResponse: '',
 			folder: this.resolvedFolder,
 			systemPrompt: '',
+			systemPromptExtensions: {},
 			meta: {},
 			tools: {},
 			hooks: {},
@@ -228,7 +231,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				api: 'chat',
 				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
 				history: [
-					{ role: 'system', content: this.systemPrompt || this.loadSystemPrompt() },
+					{ role: 'system', content: this.effectiveSystemPrompt },
 				],
 			})
 			this.state.set('conversation', conv)
@@ -252,6 +255,60 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/** The current system prompt text. */
 	get systemPrompt(): string {
 		return this.state.get('systemPrompt') || ''
+	}
+
+	/** The named extensions appended to the system prompt. */
+	get systemPromptExtensions(): Record<string, string> {
+		return (this.state.get('systemPromptExtensions') || {}) as Record<string, string>
+	}
+
+	/** The system prompt with all extensions appended. This is the value passed to the conversation. */
+	get effectiveSystemPrompt(): string {
+		const base = this.systemPrompt
+		const extensions = Object.values(this.systemPromptExtensions)
+		if (!extensions.length) return base
+		return [base, ...extensions].join('\n\n')
+	}
+
+	/**
+	 * Add or update a named system prompt extension. The value is appended
+	 * to the base system prompt when passed to the conversation.
+	 *
+	 * @param key - A unique identifier for this extension
+	 * @param value - The text to append
+	 * @returns this, for chaining
+	 */
+	addSystemPromptExtension(key: string, value: string): this {
+		this.state.set('systemPromptExtensions', { ...this.systemPromptExtensions, [key]: value })
+		this.syncSystemPromptToConversation()
+		this.emit('systemPromptExtensionsChanged')
+		return this
+	}
+
+	/**
+	 * Remove a named system prompt extension.
+	 *
+	 * @param key - The identifier of the extension to remove
+	 * @returns this, for chaining
+	 */
+	removeSystemPromptExtension(key: string): this {
+		const current = { ...this.systemPromptExtensions }
+		delete current[key]
+		this.state.set('systemPromptExtensions', current)
+		this.syncSystemPromptToConversation()
+		this.emit('systemPromptExtensionsChanged')
+		return this
+	}
+
+	/** Update the conversation's system message to reflect the current effective prompt. */
+	private syncSystemPromptToConversation() {
+		const conv = this.state.get('conversation') as Conversation | null
+		if (!conv) return
+		const messages = [...conv.messages]
+		if (messages.length > 0 && (messages[0]!.role === 'system' || messages[0]!.role === 'developer')) {
+			messages[0] = { ...messages[0]!, content: this.effectiveSystemPrompt }
+			conv.state.set('messages', messages)
+		}
 	}
 
 	/** The tools registered with this assistant. */
@@ -287,6 +344,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 		} else if (fnOrHelper && typeof (fnOrHelper as any).toTools === 'function') {
 			this._registerTools((fnOrHelper as any).toTools())
+			if (typeof (fnOrHelper as any).setupToolsConsumer === 'function') {
+				(fnOrHelper as any).setupToolsConsumer(this)
+			}
 		} else if (fnOrHelper && 'schemas' in fnOrHelper && 'handlers' in fnOrHelper) {
 			this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> })
 		}
@@ -768,7 +828,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 			// Swap in fresh system prompt if it changed
 			if (messages.length > 0 && (messages[0]!.role === 'system' || messages[0]!.role === 'developer')) {
-				messages[0] = { role: messages[0]!.role, content: this.systemPrompt }
+				messages[0] = { role: messages[0]!.role, content: this.effectiveSystemPrompt }
 			}
 
 			this.conversation.state.set('id', existing.id)
