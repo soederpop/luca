@@ -97,6 +97,7 @@ export const WindowManagerEventsSchema = FeatureEventsSchema.extend({
   windowAck: z.tuple([z.any().describe('The window ack payload')]).describe('Emitted when a window ack is received from the app'),
   windowClosed: z.tuple([z.any().describe('Lifecycle payload; includes canonical lowercase `windowId` when the closed window can be inferred (from `windowId`, `id`, nested fields, etc.)')]).describe('Emitted when the native app reports a window closed event'),
   terminalExited: z.tuple([z.any().describe('Terminal lifecycle payload emitted when a terminal process exits')]).describe('Emitted when the native app reports a terminal process exit event'),
+  windowFocus: z.tuple([z.any().describe('Focus payload with windowId, kind, focused (boolean), and frame {x, y, width, height}')]).describe('Emitted when a window gains or loses focus'),
   error: z.tuple([z.any().describe('The error')]).describe('Emitted on error'),
 })
 
@@ -210,6 +211,8 @@ export type LayoutEntry =
 interface WindowHandleEvents {
   close: [msg: any]
   terminalExited: [msg: any]
+  focus: [msg: any]
+  blur: [msg: any]
 }
 
 // --- WindowHandle ---
@@ -1178,6 +1181,16 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       this.broadcastToProducers(JSON.stringify(messageOut))
     }
 
+    if (msg.type === 'windowFocus') {
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle) handle.emit(messageOut.focused ? 'focus' : 'blur', messageOut)
+      this.emit('windowFocus', messageOut)
+      // Broadcast to all producers
+      this.broadcastToProducers(JSON.stringify(messageOut))
+    }
+
     this.emit('message', messageOut)
   }
 
@@ -1333,6 +1346,14 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       const handle = key ? this._handles.get(key) : undefined
       if (handle) handle.emit('terminalExited', messageOut)
       this.emit('terminalExited', messageOut)
+    }
+
+    if (msg.type === 'windowFocus') {
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle) handle.emit(messageOut.focused ? 'focus' : 'blur', messageOut)
+      this.emit('windowFocus', messageOut)
     }
 
     this.emit('message', messageOut)
