@@ -138,9 +138,16 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     this.container.emit('helperInitialized', this)
   }
   
-  /** 
+  /**
+   * The static shortcut identifier for this helper type, e.g. "features.assistant".
+  */
+  get shortcut(): string {
+    return (this.constructor as any).shortcut || ''
+  }
+
+  /**
    * Every helper has a cache key which is computed at the time it is created through the container.
-   * 
+   *
    * This ensures only a single instance of the helper exists for the requested options.
   */
   get cacheKey() {
@@ -188,6 +195,26 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     this._instanceTools[name] = options
     return this
   }
+
+  /**
+   * Called when another helper (e.g. an assistant) consumes this helper's
+   * tools via `use()`. Override this to detect the consumer type and react —
+   * for example, adding system prompt extensions to an assistant.
+   *
+   * Use `consumer.shortcut` to identify the consumer type:
+   * ```typescript
+   * override setupToolsConsumer(consumer: Helper) {
+   *   if (consumer.shortcut === 'features.assistant') {
+   *     (consumer as any).addSystemPromptExtension('myFeature', 'usage hints here')
+   *   }
+   * }
+   * ```
+   *
+   * The default implementation is a no-op.
+   *
+   * @param consumer - The helper instance that is consuming this helper's tools
+   */
+  setupToolsConsumer(consumer: Helper): void {}
 
   /**
    * Collect all tools from the inheritance chain and instance, returning
