@@ -345,6 +345,10 @@ interface ClientConnection {
  * (in-flight command ids), and `producerCount` (broker). Sockets, promises, and
  * `WindowHandle` instances stay internal.
  *
+ * **Producer state:** The broker pushes `windowStateSync` on the control socket when a
+ * producer connects and whenever the window roster changes, so every process sees the
+ * same `windows` / `windowCount` / `clientConnected` as the broker (not only its own acks).
+ *
  * @example
  * ```typescript
  * const wm = container.feature('windowManager', { enable: true, autoListen: true })
@@ -1007,6 +1011,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
           windows: {},
           pendingOperations: [],
         })
+        this.broadcastWindowStateSync()
 
         // Resolve all pending requests — the app is gone
         for (const [, pending] of this._pending) {
@@ -1046,6 +1051,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     const client: ClientConnection = { socket, buffer: '' }
     this._producers.set(id, client)
     this.syncProducerCount()
+    this.sendWindowStateSyncToSocket(socket)
 
     socket.on('data', (chunk) => {
       client.buffer += chunk.toString()
@@ -1115,7 +1121,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     if (msg.type === 'windowAck') {
       this.emit('windowAck', msg)
-      this.updateTrackedWindowsFromAck(msg)
+      const rosterChanged = this.updateTrackedWindowsFromAck(msg)
 
       const ackId = this.normalizeRequestId(msg.id)
 
@@ -1126,6 +1132,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
         try {
           producerSocket.write(line + '\n')
         } catch { /* producer disconnected */ }
+        if (rosterChanged) this.broadcastWindowStateSync()
         return
       }
 
@@ -1140,6 +1147,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
           }
         }
       }
+      if (rosterChanged) this.broadcastWindowStateSync()
       return
     }
 
@@ -1157,6 +1165,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       this.emit('windowClosed', messageOut)
       // Broadcast to all producers
       this.broadcastToProducers(JSON.stringify(messageOut))
+      this.broadcastWindowStateSync()
     }
 
     if (msg.type === 'terminalExited') {
@@ -1179,6 +1188,31 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
         producer.socket.write(line + '\n')
       } catch { /* producer gone */ }
     }
+  }
+
+  /** Broker: snapshot of roster + app connectivity for producers (internal protocol). */
+  private buildWindowStateSyncPayload(): Record<string, unknown> {
+    return {
+      type: 'windowStateSync',
+      windows: this.state.get('windows') ?? {},
+      windowCount: this.state.get('windowCount') ?? 0,
+      clientConnected: this.state.get('clientConnected') ?? false,
+    }
+  }
+
+  /** Broker: push current window roster to one producer control socket. */
+  private sendWindowStateSyncToSocket(socket: Socket): void {
+    if (this._mode !== 'broker') return
+    try {
+      socket.write(JSON.stringify(this.buildWindowStateSyncPayload()) + '\n')
+    } catch { /* gone */ }
+  }
+
+  /** Broker: fan out roster snapshot so all producers converge with broker state. */
+  private broadcastWindowStateSync(): void {
+    if (this._mode !== 'broker' || this._producers.size === 0) return
+    const line = JSON.stringify(this.buildWindowStateSyncPayload())
+    this.broadcastToProducers(line)
   }
 
   // =====================================================================
@@ -1217,7 +1251,21 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       socket.on('close', () => {
         this._controlClient = undefined
         this._mode = null
-        this.setState({ listening: false, mode: undefined, pendingOperations: [] })
+        for (const [mapKey, handle] of [...this._handles.entries()]) {
+          handle.emit('close', {
+            type: 'windowClosed',
+            windowId: mapKey,
+            reason: 'brokerDisconnected',
+          })
+        }
+        this._handles.clear()
+        this.setState({
+          listening: false,
+          mode: undefined,
+          pendingOperations: [],
+          windows: {},
+          windowCount: 0,
+        })
 
         // Resolve all pending requests — broker is gone
         for (const [, pending] of this._pending) {
@@ -1241,6 +1289,11 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private processProducerIncoming(line: string): void {
     let msg: any
     try { msg = JSON.parse(line) } catch { return }
+
+    if (msg.type === 'windowStateSync') {
+      this.applyProducerWindowStateSync(msg)
+      return
+    }
 
     if (msg.type === 'windowAck') {
       this.emit('windowAck', msg)
@@ -1436,23 +1489,60 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     })
   }
 
-  private updateTrackedWindowsFromAck(msg: any): void {
-    if (!msg?.success) return
-    if (typeof msg?.action !== 'string') return
+  /** Returns true if the open-window roster changed (broker should fan out `windowStateSync`). */
+  private updateTrackedWindowsFromAck(msg: any): boolean {
+    if (!msg?.success) return false
+    if (typeof msg?.action !== 'string') return false
 
     const action = msg.action.toLowerCase()
     const resultWindowId = msg?.result?.windowId
 
     if (action === 'open' || action === 'spawn' || action === 'terminal') {
+      const before = Object.keys(this.state.get('windows') ?? {}).length
       this.trackWindowOpened(resultWindowId, {
         kind: action === 'terminal' ? 'terminal' : 'browser',
         lastAck: msg,
       })
-      return
+      return Object.keys(this.state.get('windows') ?? {}).length !== before
     }
 
     if (action === 'close') {
+      const before = Object.keys(this.state.get('windows') ?? {}).length
       this.trackWindowClosed(resultWindowId)
+      return Object.keys(this.state.get('windows') ?? {}).length !== before
+    }
+
+    return false
+  }
+
+  /** Producer: apply broker snapshot; drop local handles for windows no longer in the roster. */
+  private applyProducerWindowStateSync(msg: any): void {
+    const raw = msg?.windows
+    const windows =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? (raw as Record<string, WindowTrackedEntry>)
+        : {}
+    const windowCount =
+      typeof msg?.windowCount === 'number' ? msg.windowCount : Object.keys(windows).length
+    const patch: Partial<WindowManagerState> = { windows, windowCount }
+    if (typeof msg?.clientConnected === 'boolean') {
+      patch.clientConnected = msg.clientConnected
+    }
+    this.setState(patch)
+    this.pruneHandlesMissingFromRoster(windows)
+  }
+
+  private pruneHandlesMissingFromRoster(windows: Record<string, WindowTrackedEntry>): void {
+    const allowed = new Set(Object.keys(windows))
+    for (const [mapKey, handle] of [...this._handles.entries()]) {
+      if (!allowed.has(mapKey)) {
+        handle.emit('close', {
+          type: 'windowClosed',
+          windowId: mapKey,
+          reason: 'windowStateSync',
+        })
+        this._handles.delete(mapKey)
+      }
     }
   }
 
