@@ -49,6 +49,24 @@ export const WindowManagerOptionsSchema = FeatureOptionsSchema.extend({
 })
 export type WindowManagerOptions = z.infer<typeof WindowManagerOptionsSchema>
 
+/** One window as tracked in feature state (keys are canonical lowercase ids). */
+export const WindowTrackedEntrySchema = z.object({
+  windowId: z.string().describe('Canonical id (lowercase)'),
+  nativeWindowId: z.string().optional().describe('Last id string from the native app (may differ in casing)'),
+  openedAt: z.number().optional().describe('Epoch ms when this process first recorded the window'),
+  lastAck: z.any().optional().describe('JSON-serializable snapshot of the last relevant ack payload'),
+  kind: z.enum(['browser', 'terminal', 'unknown']).optional().describe('How the window was opened, if known'),
+})
+export type WindowTrackedEntry = z.infer<typeof WindowTrackedEntrySchema>
+
+/** In-flight window IPC op (the Promise + timer remain internal to the feature). */
+export const WindowPendingOperationSchema = z.object({
+  requestId: z.string(),
+  action: z.string().optional(),
+  startedAt: z.number(),
+})
+export type WindowPendingOperation = z.infer<typeof WindowPendingOperationSchema>
+
 export const WindowManagerStateSchema = FeatureStateSchema.extend({
   listening: z.boolean().default(false)
     .describe('Whether the IPC server is listening'),
@@ -57,7 +75,13 @@ export const WindowManagerStateSchema = FeatureStateSchema.extend({
   socketPath: z.string().optional()
     .describe('The socket path in use'),
   windowCount: z.number().default(0)
-    .describe('Number of tracked windows'),
+    .describe('Number of tracked windows (mirrors keys of `windows`)'),
+  windows: z.record(z.string(), WindowTrackedEntrySchema).default({})
+    .describe('Open windows keyed by canonical id'),
+  pendingOperations: z.array(WindowPendingOperationSchema).default([])
+    .describe('Window commands awaiting windowAck'),
+  producerCount: z.number().default(0)
+    .describe('Producer sockets connected to this broker (broker mode only)'),
   lastError: z.string().optional()
     .describe('Last error message'),
   mode: z.enum(['broker', 'producer']).optional()
@@ -317,6 +341,10 @@ interface ClientConnection {
  * - Multiple luca processes can trigger window operations simultaneously
  * - Automatic broker detection and producer fallback
  *
+ * Observable state includes `windows` (open window metadata), `pendingOperations`
+ * (in-flight command ids), and `producerCount` (broker). Sockets, promises, and
+ * `WindowHandle` instances stay internal.
+ *
  * @example
  * ```typescript
  * const wm = container.feature('windowManager', { enable: true, autoListen: true })
@@ -343,7 +371,6 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
   // --- Shared state ---
   private _pending = new Map<string, PendingRequest>()
-  private _trackedWindows = new Set<string>()
   private _handles = new Map<string, WindowHandle>()
   private _mode: 'broker' | 'producer' | null = null
 
@@ -399,6 +426,42 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     return { ...msg, windowId: key }
   }
 
+  /** Structured clone via JSON for stashing ack snapshots in observable state. */
+  private snapshotForState(value: unknown): any {
+    if (value === undefined) return undefined
+    try {
+      return JSON.parse(JSON.stringify(value))
+    } catch {
+      return undefined
+    }
+  }
+
+  private syncProducerCount(): void {
+    this.setState({ producerCount: this._producers.size })
+  }
+
+  private registerPendingOperation(id: string, action: string | undefined, entry: PendingRequest): void {
+    this._pending.set(id, entry)
+    this.setState((cur) => ({
+      pendingOperations: [
+        ...(cur.pendingOperations ?? []),
+        { requestId: id, action, startedAt: Date.now() },
+      ],
+    }))
+  }
+
+  /** Clears timer, drops from `_pending` and from `pendingOperations` state. */
+  private takePendingRequest(id: string): PendingRequest | undefined {
+    const pending = this._pending.get(id)
+    if (!pending) return undefined
+    clearTimeout(pending.timer)
+    this._pending.delete(id)
+    this.setState((cur) => ({
+      pendingOperations: (cur.pendingOperations ?? []).filter((o) => o.requestId !== id),
+    }))
+    return pending
+  }
+
   /** Default state: not listening, no client connected, zero windows tracked. */
   override get initialState(): WindowManagerState {
     return {
@@ -406,6 +469,9 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       listening: false,
       clientConnected: false,
       windowCount: 0,
+      windows: {},
+      pendingOperations: [],
+      producerCount: 0,
     }
   }
 
@@ -513,7 +579,6 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       pending.resolve({ ok: false, error: 'Server stopping' })
     }
     this._pending.clear()
-    this._trackedWindows.clear()
     this._handles.clear()
 
     // --- Producer cleanup ---
@@ -562,7 +627,16 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     }
 
     this._mode = null
-    this.setState({ listening: false, clientConnected: false, socketPath: undefined, windowCount: 0, mode: undefined })
+    this.setState({
+      listening: false,
+      clientConnected: false,
+      socketPath: undefined,
+      windowCount: 0,
+      windows: {},
+      pendingOperations: [],
+      producerCount: 0,
+      mode: undefined,
+    })
     return this
   }
 
@@ -596,7 +670,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       })
     }
 
-    return this.getOrCreateHandle(ackResult.windowId, ackResult)
+    return this.getOrCreateHandle(ackResult.windowId, ackResult, 'browser')
   }
 
   /**
@@ -625,7 +699,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       })
     }
 
-    return this.getOrCreateHandle(ackResult.windowId, ackResult)
+    return this.getOrCreateHandle(ackResult.windowId, ackResult, 'terminal')
   }
 
   /**
@@ -803,7 +877,11 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   // =====================================================================
 
   /** Get or create a tracked WindowHandle for a given windowId. */
-  private getOrCreateHandle(windowId: string | undefined, result?: WindowAckResult): WindowHandle {
+  private getOrCreateHandle(
+    windowId: string | undefined,
+    result?: WindowAckResult,
+    kind: 'browser' | 'terminal' | 'unknown' = 'unknown',
+  ): WindowHandle {
     const id = windowId ?? result?.windowId ?? randomUUID()
     const mapKey = this.handleMapKey(id) ?? id
     let handle = this._handles.get(mapKey)
@@ -813,6 +891,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     } else if (result) {
       handle.result = result
     }
+    this.trackWindowOpened(id, { kind: kind !== 'unknown' ? kind : undefined })
     return handle
   }
 
@@ -921,9 +1000,13 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     socket.on('close', () => {
       if (this._client === client) {
         this._client = undefined
-        this._trackedWindows.clear()
         this._handles.clear()
-        this.setState({ clientConnected: false, windowCount: 0 })
+        this.setState({
+          clientConnected: false,
+          windowCount: 0,
+          windows: {},
+          pendingOperations: [],
+        })
 
         // Resolve all pending requests — the app is gone
         for (const [, pending] of this._pending) {
@@ -962,6 +1045,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     const id = randomUUID()
     const client: ClientConnection = { socket, buffer: '' }
     this._producers.set(id, client)
+    this.syncProducerCount()
 
     socket.on('data', (chunk) => {
       client.buffer += chunk.toString()
@@ -974,6 +1058,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     socket.on('close', () => {
       this._producers.delete(id)
+      this.syncProducerCount()
       // Clean up request origins for this producer
       for (const [reqId, sock] of this._requestOrigins) {
         if (sock === socket) this._requestOrigins.delete(reqId)
@@ -982,6 +1067,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
     socket.on('error', () => {
       this._producers.delete(id)
+      this.syncProducerCount()
     })
   }
 
@@ -1044,15 +1130,14 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       }
 
       // Otherwise resolve locally (broker's own request)
-      if (ackId && this._pending.has(ackId)) {
-        const pending = this._pending.get(ackId)!
-        this._pending.delete(ackId)
-        clearTimeout(pending.timer)
-
-        if (msg.success) {
-          pending.resolve(msg.result ?? msg)
-        } else {
-          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+      if (ackId) {
+        const pending = this.takePendingRequest(ackId)
+        if (pending) {
+          if (msg.success) {
+            pending.resolve(msg.result ?? msg)
+          } else {
+            pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+          }
         }
       }
       return
@@ -1132,7 +1217,7 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       socket.on('close', () => {
         this._controlClient = undefined
         this._mode = null
-        this.setState({ listening: false, mode: undefined })
+        this.setState({ listening: false, mode: undefined, pendingOperations: [] })
 
         // Resolve all pending requests — broker is gone
         for (const [, pending] of this._pending) {
@@ -1162,15 +1247,14 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       this.updateTrackedWindowsFromAck(msg)
 
       const ackId = this.normalizeRequestId(msg.id)
-      if (ackId && this._pending.has(ackId)) {
-        const pending = this._pending.get(ackId)!
-        this._pending.delete(ackId)
-        clearTimeout(pending.timer)
-
-        if (msg.success) {
-          pending.resolve(msg.result ?? msg)
-        } else {
-          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+      if (ackId) {
+        const pending = this.takePendingRequest(ackId)
+        if (pending) {
+          if (msg.success) {
+            pending.resolve(msg.result ?? msg)
+          } else {
+            pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+          }
         }
       }
       return
@@ -1271,11 +1355,13 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
         const id = this.normalizeRequestId(rawId) || rawId
 
         const timer = setTimeout(() => {
-          this._pending.delete(id)
-          resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+          const p = this.takePendingRequest(id)
+          if (p) {
+            p.resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+          }
         }, timeoutMs)
 
-        this._pending.set(id, { resolve, reject, timer })
+        this.registerPendingOperation(id, windowPayload.action, { resolve, reject, timer })
 
         const payload = {
           id,
@@ -1304,11 +1390,13 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       const id = this.normalizeRequestId(rawId) || rawId
 
       const timer = setTimeout(() => {
-        this._pending.delete(id)
-        resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+        const p = this.takePendingRequest(id)
+        if (p) {
+          p.resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+        }
       }, timeoutMs)
 
-      this._pending.set(id, { resolve, reject, timer })
+      this.registerPendingOperation(id, windowPayload.action, { resolve, reject, timer })
 
       const payload = {
         id,
@@ -1319,11 +1407,12 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       const sent = this.send(payload)
 
       if (!sent) {
-        clearTimeout(timer)
-        this._pending.delete(id)
+        const p = this.takePendingRequest(id)
         const error = `Failed to send window ${windowPayload.action}: client disconnected`
         this.setState({ lastError: error })
-        resolve({ ok: false, error, code: 'Disconnected' })
+        if (p) {
+          p.resolve({ ok: false, error, code: 'Disconnected' })
+        }
       }
     })
   }
@@ -1355,7 +1444,10 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     const resultWindowId = msg?.result?.windowId
 
     if (action === 'open' || action === 'spawn' || action === 'terminal') {
-      this.trackWindowOpened(resultWindowId)
+      this.trackWindowOpened(resultWindowId, {
+        kind: action === 'terminal' ? 'terminal' : 'browser',
+        lastAck: msg,
+      })
       return
     }
 
@@ -1364,18 +1456,36 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     }
   }
 
-  private trackWindowOpened(windowId: unknown): void {
+  private trackWindowOpened(
+    windowId: unknown,
+    extra?: { kind?: 'browser' | 'terminal' | 'unknown'; lastAck?: unknown },
+  ): void {
     const normalized = this.normalizeRequestId(windowId)
     if (!normalized) return
-    this._trackedWindows.add(normalized)
-    this.setState({ windowCount: this._trackedWindows.size })
+    const native = typeof windowId === 'string' ? windowId : normalized
+    this.setState((cur) => {
+      const windows = { ...(cur.windows ?? {}) }
+      const prev = windows[normalized]
+      windows[normalized] = {
+        windowId: normalized,
+        nativeWindowId: prev?.nativeWindowId ?? native,
+        openedAt: prev?.openedAt ?? Date.now(),
+        lastAck:
+          extra?.lastAck !== undefined ? this.snapshotForState(extra.lastAck) : prev?.lastAck,
+        kind: extra?.kind ?? prev?.kind ?? 'unknown',
+      }
+      return { windows, windowCount: Object.keys(windows).length }
+    })
   }
 
   private trackWindowClosed(windowId: unknown): void {
     const normalized = this.normalizeRequestId(windowId)
     if (!normalized) return
-    this._trackedWindows.delete(normalized)
-    this.setState({ windowCount: this._trackedWindows.size })
+    this.setState((cur) => {
+      const windows = { ...(cur.windows ?? {}) }
+      delete windows[normalized]
+      return { windows, windowCount: Object.keys(windows).length }
+    })
   }
 }
 
