@@ -71,7 +71,7 @@ export const WindowManagerEventsSchema = FeatureEventsSchema.extend({
   clientDisconnected: z.tuple([]).describe('Emitted when the native app disconnects'),
   message: z.tuple([z.any().describe('The parsed message object')]).describe('Emitted for any incoming message that is not a windowAck'),
   windowAck: z.tuple([z.any().describe('The window ack payload')]).describe('Emitted when a window ack is received from the app'),
-  windowClosed: z.tuple([z.any().describe('Window lifecycle payload emitted when a window closes')]).describe('Emitted when the native app reports a window closed event'),
+  windowClosed: z.tuple([z.any().describe('Lifecycle payload; includes canonical lowercase `windowId` when the closed window can be inferred (from `windowId`, `id`, nested fields, etc.)')]).describe('Emitted when the native app reports a window closed event'),
   terminalExited: z.tuple([z.any().describe('Terminal lifecycle payload emitted when a terminal process exits')]).describe('Emitted when the native app reports a terminal process exit event'),
   error: z.tuple([z.any().describe('The error')]).describe('Emitted on error'),
 })
@@ -227,6 +227,10 @@ export class WindowHandle {
     this._events.off(event, listener)
     return this
   }
+  
+  async waitFor(event: string) {
+    return this._events.waitFor(event as any)
+  }
 
   /** Register a one-time listener for a lifecycle event. */
   once<E extends keyof WindowHandleEvents>(event: E, listener: (...args: WindowHandleEvents[E]) => void): this {
@@ -356,6 +360,43 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   private normalizeRequestId(value: unknown): string | undefined {
     if (typeof value !== 'string') return undefined
     return value.toLowerCase()
+  }
+
+  /** Lowercase map key for `_handles` so lookups match regardless of native id casing. */
+  private handleMapKey(value: unknown): string | undefined {
+    if (typeof value === 'number' && !Number.isNaN(value)) return String(value).toLowerCase()
+    return this.normalizeRequestId(value)
+  }
+
+  /**
+   * Best-effort window id from a native lifecycle message (field names differ by app version).
+   */
+  private extractLifecycleWindowId(msg: any): string | undefined {
+    if (!msg || typeof msg !== 'object') return undefined
+    const candidates = [
+      msg.windowId,
+      msg.window_id,
+      msg.windowID,
+      msg.window?.id,
+      msg.window?.windowId,
+      msg.payload?.windowId,
+      msg.result?.windowId,
+      msg.id,
+    ]
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.length > 0) return c
+      if (typeof c === 'number' && !Number.isNaN(c)) return String(c)
+    }
+    return undefined
+  }
+
+  /** Copy lifecycle message and set `windowId` to a canonical lowercase string when inferable. */
+  private enrichLifecycleWithCanonicalWindowId(msg: any): any {
+    const raw = this.extractLifecycleWindowId(msg)
+    if (raw === undefined) return msg
+    const key = this.handleMapKey(raw)
+    if (!key) return msg
+    return { ...msg, windowId: key }
   }
 
   /** Default state: not listening, no client connected, zero windows tracked. */
@@ -763,11 +804,12 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
 
   /** Get or create a tracked WindowHandle for a given windowId. */
   private getOrCreateHandle(windowId: string | undefined, result?: WindowAckResult): WindowHandle {
-    const id = windowId || randomUUID()
-    let handle = this._handles.get(id)
+    const id = windowId ?? result?.windowId ?? randomUUID()
+    const mapKey = this.handleMapKey(id) ?? id
+    let handle = this._handles.get(mapKey)
     if (!handle) {
       handle = new WindowHandle(id, this, result)
-      this._handles.set(id, handle)
+      this._handles.set(mapKey, handle)
     } else if (result) {
       handle.result = result
     }
@@ -1016,27 +1058,33 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       return
     }
 
+    let messageOut = msg
+
     if (msg.type === 'windowClosed') {
-      this.trackWindowClosed(msg.windowId)
-      const handle = this._handles.get(msg.windowId)
-      if (handle) {
-        handle.emit('close', msg)
-        this._handles.delete(msg.windowId)
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      this.trackWindowClosed(messageOut.windowId)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle && key) {
+        handle.emit('close', messageOut)
+        this._handles.delete(key)
       }
-      this.emit('windowClosed', msg)
+      this.emit('windowClosed', messageOut)
       // Broadcast to all producers
-      this.broadcastToProducers(line)
+      this.broadcastToProducers(JSON.stringify(messageOut))
     }
 
     if (msg.type === 'terminalExited') {
-      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
-      if (handle) handle.emit('terminalExited', msg)
-      this.emit('terminalExited', msg)
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle) handle.emit('terminalExited', messageOut)
+      this.emit('terminalExited', messageOut)
       // Broadcast to all producers
-      this.broadcastToProducers(line)
+      this.broadcastToProducers(JSON.stringify(messageOut))
     }
 
-    this.emit('message', msg)
+    this.emit('message', messageOut)
   }
 
   /** Send an NDJSON line to all connected producers. */
@@ -1128,23 +1176,29 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       return
     }
 
+    let messageOut = msg
+
     if (msg.type === 'windowClosed') {
-      this.trackWindowClosed(msg.windowId)
-      const handle = this._handles.get(msg.windowId)
-      if (handle) {
-        handle.emit('close', msg)
-        this._handles.delete(msg.windowId)
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      this.trackWindowClosed(messageOut.windowId)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle && key) {
+        handle.emit('close', messageOut)
+        this._handles.delete(key)
       }
-      this.emit('windowClosed', msg)
+      this.emit('windowClosed', messageOut)
     }
 
     if (msg.type === 'terminalExited') {
-      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
-      if (handle) handle.emit('terminalExited', msg)
-      this.emit('terminalExited', msg)
+      messageOut = this.enrichLifecycleWithCanonicalWindowId(msg)
+      const key = this.handleMapKey(messageOut.windowId)
+      const handle = key ? this._handles.get(key) : undefined
+      if (handle) handle.emit('terminalExited', messageOut)
+      this.emit('terminalExited', messageOut)
     }
 
-    this.emit('message', msg)
+    this.emit('message', messageOut)
   }
 
   // =====================================================================
