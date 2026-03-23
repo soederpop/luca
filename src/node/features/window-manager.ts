@@ -16,6 +16,10 @@ const DEFAULT_SOCKET_PATH = join(
   'ipc-window.sock'
 )
 
+function controlPathFor(socketPath: string): string {
+  return socketPath.replace(/\.sock$/, '-control.sock')
+}
+
 const ErrorCodes = ['BadRequest', 'NotFound', 'EvalFailed', 'Internal', 'Timeout', 'Disconnected', 'NoClient'] as const
 type WindowManagerErrorCode = typeof ErrorCodes[number]
 
@@ -56,6 +60,8 @@ export const WindowManagerStateSchema = FeatureStateSchema.extend({
     .describe('Number of tracked windows'),
   lastError: z.string().optional()
     .describe('Last error message'),
+  mode: z.enum(['broker', 'producer']).optional()
+    .describe('Whether this instance is the broker (owns app socket) or a producer (routes through broker)'),
 })
 export type WindowManagerState = z.infer<typeof WindowManagerStateSchema>
 
@@ -282,8 +288,17 @@ interface ClientConnection {
 /**
  * WindowManager Feature — Native window control via LucaVoiceLauncher
  *
- * Acts as an IPC server that the native macOS launcher app connects to.
- * Communicates over a Unix domain socket using NDJSON (newline-delimited JSON).
+ * Uses a broker/producer architecture so multiple luca processes can trigger
+ * window operations without competing for the same Unix socket.
+ *
+ * **Architecture:**
+ * - The first process to call `listen()` becomes the **broker**. It owns
+ *   the app-facing socket (`ipc-window.sock`) and a control socket
+ *   (`ipc-window-control.sock`).
+ * - Subsequent processes detect the broker and become **producers**. They
+ *   connect to the control socket and route commands through the broker.
+ * - The broker forwards producer commands to the native app and routes
+ *   acks and lifecycle events back to the originating producer.
  *
  * **Protocol:**
  * - Bun listens on a Unix domain socket; the native app connects as a client
@@ -295,7 +310,8 @@ interface ClientConnection {
  * **Capabilities:**
  * - Spawn native browser windows with configurable chrome
  * - Navigate, focus, close, and eval JavaScript in windows
- * - Automatic socket file cleanup and fallback paths
+ * - Multiple luca processes can trigger window operations simultaneously
+ * - Automatic broker detection and producer fallback
  *
  * @example
  * ```typescript
@@ -321,59 +337,25 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   static override eventsSchema = WindowManagerEventsSchema
   static { Feature.register(this, 'windowManager') }
 
-  private _server?: NetServer
-  private _client?: ClientConnection
+  // --- Shared state ---
   private _pending = new Map<string, PendingRequest>()
   private _trackedWindows = new Set<string>()
   private _handles = new Map<string, WindowHandle>()
+  private _mode: 'broker' | 'producer' | null = null
+
+  // --- Broker-only state ---
+  private _server?: NetServer              // app-facing socket server
+  private _controlServer?: NetServer       // producer-facing socket server
+  private _client?: ClientConnection       // the connected native app
+  private _producers = new Map<string, ClientConnection>()    // connected producer processes
+  private _requestOrigins = new Map<string, Socket>()         // requestId → producer socket
+
+  // --- Producer-only state ---
+  private _controlClient?: ClientConnection  // connection to broker's control socket
 
   private normalizeRequestId(value: unknown): string | undefined {
     if (typeof value !== 'string') return undefined
     return value.toLowerCase()
-  }
-
-  private waitForAnyClientConnection(timeoutMs: number, bridge?: any): Promise<'direct' | 'bridge' | undefined> {
-    if (this._client) return Promise.resolve('direct')
-    if (bridge?.isClientConnected) return Promise.resolve('bridge')
-
-    return new Promise<'direct' | 'bridge' | undefined>((resolve) => {
-      let settled = false
-
-      const cleanup = () => {
-        this.off('clientConnected', onDirectConnected)
-        bridge?.off?.('clientConnected', onBridgeConnected)
-      }
-
-      const timer = setTimeout(() => {
-        if (settled) return
-        settled = true
-        cleanup()
-        resolve(undefined)
-      }, timeoutMs)
-
-      const onDirectConnected = () => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        cleanup()
-        resolve('direct')
-      }
-
-      const onBridgeConnected = () => {
-        if (settled) return
-        settled = true
-        clearTimeout(timer)
-        cleanup()
-        resolve('bridge')
-      }
-
-      this.once('clientConnected', onDirectConnected)
-      bridge?.once?.('clientConnected', onBridgeConnected)
-    })
-  }
-
-  private getBridgeListener(): any | undefined {
-    return undefined
   }
 
   /** Default state: not listening, no client connected, zero windows tracked. */
@@ -386,12 +368,22 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     }
   }
 
-  /** Whether the IPC server is currently listening. */
+  /** Whether this instance is acting as the broker. */
+  get isBroker(): boolean {
+    return this._mode === 'broker'
+  }
+
+  /** Whether this instance is acting as a producer. */
+  get isProducer(): boolean {
+    return this._mode === 'producer'
+  }
+
+  /** Whether the IPC server is currently listening (broker) or connected to broker (producer). */
   get isListening(): boolean {
     return this.state.get('listening') || false
   }
 
-  /** Whether the native app client is currently connected. */
+  /** Whether the native app client is currently connected (only meaningful for broker). */
   get isClientConnected(): boolean {
     return this.state.get('clientConnected') || false
   }
@@ -400,24 +392,29 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     await super.enable(options)
 
     if (this.options.autoListen) {
-      this.listen()
+      await this.listen()
     }
 
     return this
   }
 
   /**
-   * Start listening on the Unix domain socket for the native app to connect.
-   * Fire-and-forget — binds the socket and returns immediately. Sits quietly
-   * until the native app connects; does nothing visible if it never does.
+   * Start the window manager. Automatically detects whether a broker already
+   * exists and either becomes the broker or connects as a producer.
    *
-   * @param socketPath - Override the configured socket path
+   * - If no broker is running: becomes the broker, binds the app socket and
+   *   a control socket for producers.
+   * - If a broker is already running: connects as a producer through the
+   *   control socket.
+   *
+   * @param socketPath - Override the configured app socket path
    * @returns This feature instance for chaining
    */
-  listen(socketPath?: string): this {
-    if (this._server) return this
+  async listen(socketPath?: string): Promise<this> {
+    if (this._mode) return this
 
     socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
+    const controlPath = controlPathFor(socketPath)
 
     // Ensure the directory exists
     const dir = dirname(socketPath)
@@ -430,43 +427,46 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       }
     }
 
-    // Clean up stale socket file
-    if (existsSync(socketPath)) {
-      try {
-        unlinkSync(socketPath)
-      } catch (error: any) {
-        this.setState({ lastError: `Failed to remove stale socket at ${socketPath}: ${error?.message || String(error)}` })
-        return this
-      }
+    // Try to connect to an existing broker's control socket
+    const brokerAlive = await this.probeSocket(controlPath)
+    if (brokerAlive) {
+      return this.connectAsProducer(controlPath, socketPath)
     }
 
-    const server = new NetServer((socket) => {
-      this.handleClientConnect(socket)
-    })
-
-    // Set immediately to prevent parallel calls from creating duplicate servers
-    this._server = server
-
-    server.on('error', (err) => {
-      this.setState({ lastError: err.message })
-    })
-
-    const finalPath = socketPath
-    server.listen(finalPath, () => {
-      this.setState({ listening: true, socketPath: finalPath })
-      this.emit('listening')
-    })
-
-    return this
+    // No broker — we become the broker
+    return this.becomeBroker(socketPath, controlPath)
   }
 
   /**
-   * Stop the IPC server and clean up all connections.
+   * Remove stale socket files without starting or stopping the server.
+   * Useful when a previous process crashed and left dead sockets behind.
+   * Will not remove sockets that have live listeners.
+   *
+   * @param socketPath - Override the configured socket path
+   * @returns true if a stale socket was removed
+   */
+  async cleanupSocket(socketPath?: string): Promise<boolean> {
+    socketPath = socketPath || this.options.socketPath || DEFAULT_SOCKET_PATH
+    if (this._server) return false
+    if (!existsSync(socketPath)) return false
+    const isAlive = await this.probeSocket(socketPath)
+    if (isAlive) return false
+    try {
+      unlinkSync(socketPath)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Stop the window manager and clean up all connections.
    * Rejects any pending window operation requests.
    *
    * @returns This feature instance for chaining
    */
   async stop(): Promise<this> {
+    // Resolve all pending requests
     for (const [, pending] of this._pending) {
       clearTimeout(pending.timer)
       pending.resolve({ ok: false, error: 'Server stopping' })
@@ -475,12 +475,33 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     this._trackedWindows.clear()
     this._handles.clear()
 
+    // --- Producer cleanup ---
+    if (this._controlClient) {
+      this._controlClient.socket.destroy()
+      this._controlClient = undefined
+    }
+
+    // --- Broker cleanup ---
     if (this._client) {
       this._client.socket.destroy()
       this._client = undefined
     }
 
+    for (const [, producer] of this._producers) {
+      producer.socket.destroy()
+    }
+    this._producers.clear()
+    this._requestOrigins.clear()
+
     const socketPath = this.state.get('socketPath')
+    const controlPath = socketPath ? controlPathFor(socketPath) : undefined
+
+    if (this._controlServer) {
+      await new Promise<void>((resolve) => {
+        this._controlServer!.close(() => resolve())
+      })
+      this._controlServer = undefined
+    }
 
     if (this._server) {
       await new Promise<void>((resolve) => {
@@ -489,12 +510,18 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
       this._server = undefined
     }
 
-    // Clean up the socket file
-    if (socketPath && existsSync(socketPath)) {
-      try { unlinkSync(socketPath) } catch { /* ignore */ }
+    // Clean up socket files (only if we were the broker)
+    if (this._mode === 'broker') {
+      if (socketPath && existsSync(socketPath)) {
+        try { unlinkSync(socketPath) } catch { /* ignore */ }
+      }
+      if (controlPath && existsSync(controlPath)) {
+        try { unlinkSync(controlPath) } catch { /* ignore */ }
+      }
     }
 
-    this.setState({ listening: false, clientConnected: false, socketPath: undefined, windowCount: 0 })
+    this._mode = null
+    this.setState({ listening: false, clientConnected: false, socketPath: undefined, windowCount: 0, mode: undefined })
     return this
   }
 
@@ -712,6 +739,28 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     return results
   }
 
+  /**
+   * Write an NDJSON message to the connected app client.
+   * In producer mode, routes through the broker.
+   * Public so other features can send arbitrary protocol messages over the same socket.
+   *
+   * @param msg - The message object to send (will be JSON-serialized + newline)
+   * @returns True if the message was written, false if no connection is available
+   */
+  send(msg: Record<string, any>): boolean {
+    if (this._mode === 'producer' && this._controlClient) {
+      this._controlClient.socket.write(JSON.stringify(msg) + '\n')
+      return true
+    }
+    if (!this._client) return false
+    this._client.socket.write(JSON.stringify(msg) + '\n')
+    return true
+  }
+
+  // =====================================================================
+  // Private — Broker / Producer lifecycle
+  // =====================================================================
+
   /** Get or create a tracked WindowHandle for a given windowId. */
   private getOrCreateHandle(windowId: string | undefined, result?: WindowAckResult): WindowHandle {
     const id = windowId || randomUUID()
@@ -725,7 +774,382 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     return handle
   }
 
-  // --- Private internals ---
+  /**
+   * Probe an existing socket to see if a live listener is behind it.
+   * Attempts a quick connect — if it succeeds, someone is listening.
+   */
+  private probeSocket(socketPath: string): Promise<boolean> {
+    if (!existsSync(socketPath)) return Promise.resolve(false)
+    return new Promise<boolean>((resolve) => {
+      const probe = new Socket()
+      const timer = setTimeout(() => {
+        probe.destroy()
+        resolve(false)
+      }, 500)
+
+      probe.once('connect', () => {
+        clearTimeout(timer)
+        probe.destroy()
+        resolve(true)
+      })
+
+      probe.once('error', () => {
+        clearTimeout(timer)
+        probe.destroy()
+        resolve(false)
+      })
+
+      probe.connect(socketPath)
+    })
+  }
+
+  // =====================================================================
+  // Broker mode — owns the app socket and the control socket
+  // =====================================================================
+
+  private async becomeBroker(socketPath: string, controlPath: string): Promise<this> {
+    // Clean up stale app socket
+    if (existsSync(socketPath)) {
+      try { unlinkSync(socketPath) } catch { /* ignore */ }
+    }
+    // Clean up stale control socket
+    if (existsSync(controlPath)) {
+      try { unlinkSync(controlPath) } catch { /* ignore */ }
+    }
+
+    // Bind the app-facing socket (native launcher connects here)
+    const server = new NetServer((socket) => {
+      this.handleAppClientConnect(socket)
+    })
+    this._server = server
+
+    server.on('error', (err) => {
+      this.setState({ lastError: err.message })
+    })
+
+    await new Promise<void>((resolve) => {
+      server.listen(socketPath, () => resolve())
+    })
+
+    // Bind the control socket (producer processes connect here)
+    const controlServer = new NetServer((socket) => {
+      this.handleProducerConnect(socket)
+    })
+    this._controlServer = controlServer
+
+    controlServer.on('error', (err) => {
+      this.setState({ lastError: `Control socket error: ${err.message}` })
+    })
+
+    await new Promise<void>((resolve) => {
+      controlServer.listen(controlPath, () => resolve())
+    })
+
+    this._mode = 'broker'
+    this.setState({ listening: true, socketPath, mode: 'broker' })
+    this.emit('listening')
+
+    return this
+  }
+
+  /**
+   * Handle a new app client connection from the native launcher.
+   * Sets up NDJSON buffering and event forwarding.
+   */
+  private handleAppClientConnect(socket: Socket): void {
+    const client: ClientConnection = { socket, buffer: '' }
+
+    if (this._client) {
+      this._client.socket.destroy()
+    }
+    this._client = client
+
+    this.setState({ clientConnected: true })
+    this.emit('clientConnected', socket)
+
+    socket.on('data', (chunk) => {
+      client.buffer += chunk.toString()
+      const lines = client.buffer.split('\n')
+      client.buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.trim()) this.processAppMessage(line)
+      }
+    })
+
+    socket.on('close', () => {
+      if (this._client === client) {
+        this._client = undefined
+        this._trackedWindows.clear()
+        this._handles.clear()
+        this.setState({ clientConnected: false, windowCount: 0 })
+
+        // Resolve all pending requests — the app is gone
+        for (const [, pending] of this._pending) {
+          clearTimeout(pending.timer)
+          pending.resolve({ ok: false, error: 'Client disconnected' })
+        }
+        this._pending.clear()
+
+        // Notify producers that app disconnected — resolve their in-flight requests
+        for (const [reqId, producerSocket] of this._requestOrigins) {
+          try {
+            producerSocket.write(JSON.stringify({
+              type: 'windowAck',
+              id: reqId,
+              success: false,
+              error: 'App client disconnected',
+            }) + '\n')
+          } catch { /* producer gone */ }
+        }
+        this._requestOrigins.clear()
+
+        this.emit('clientDisconnected')
+      }
+    })
+
+    socket.on('error', (err) => {
+      this.setState({ lastError: err.message })
+    })
+  }
+
+  /**
+   * Handle a new producer connection on the control socket.
+   * Producers send window commands; broker forwards to app and routes acks back.
+   */
+  private handleProducerConnect(socket: Socket): void {
+    const id = randomUUID()
+    const client: ClientConnection = { socket, buffer: '' }
+    this._producers.set(id, client)
+
+    socket.on('data', (chunk) => {
+      client.buffer += chunk.toString()
+      const lines = client.buffer.split('\n')
+      client.buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.trim()) this.processProducerMessage(line, socket)
+      }
+    })
+
+    socket.on('close', () => {
+      this._producers.delete(id)
+      // Clean up request origins for this producer
+      for (const [reqId, sock] of this._requestOrigins) {
+        if (sock === socket) this._requestOrigins.delete(reqId)
+      }
+    })
+
+    socket.on('error', () => {
+      this._producers.delete(id)
+    })
+  }
+
+  /**
+   * Process a message from a producer. Records the origin so acks can be
+   * routed back, then forwards the command to the app client.
+   */
+  private processProducerMessage(line: string, producerSocket: Socket): void {
+    let msg: any
+    try { msg = JSON.parse(line) } catch { return }
+
+    const requestId = this.normalizeRequestId(msg.id)
+    if (requestId) {
+      this._requestOrigins.set(requestId, producerSocket)
+    }
+
+    // Forward to the native app client
+    if (!this._client) {
+      // No app connected — send error back to producer immediately
+      if (requestId) {
+        this._requestOrigins.delete(requestId)
+        try {
+          producerSocket.write(JSON.stringify({
+            type: 'windowAck',
+            id: msg.id,
+            success: false,
+            error: 'No native launcher client connected',
+          }) + '\n')
+        } catch { /* producer gone */ }
+      }
+      return
+    }
+
+    this._client.socket.write(line + '\n')
+  }
+
+  /**
+   * Process a message from the native app (broker mode).
+   * Routes windowAck back to the originating producer or resolves locally.
+   * Broadcasts lifecycle events to all producers.
+   */
+  private processAppMessage(line: string): void {
+    let msg: any
+    try { msg = JSON.parse(line) } catch { return }
+
+    if (msg.type === 'windowAck') {
+      this.emit('windowAck', msg)
+      this.updateTrackedWindowsFromAck(msg)
+
+      const ackId = this.normalizeRequestId(msg.id)
+
+      // Route to originating producer if this was a proxied request
+      if (ackId && this._requestOrigins.has(ackId)) {
+        const producerSocket = this._requestOrigins.get(ackId)!
+        this._requestOrigins.delete(ackId)
+        try {
+          producerSocket.write(line + '\n')
+        } catch { /* producer disconnected */ }
+        return
+      }
+
+      // Otherwise resolve locally (broker's own request)
+      if (ackId && this._pending.has(ackId)) {
+        const pending = this._pending.get(ackId)!
+        this._pending.delete(ackId)
+        clearTimeout(pending.timer)
+
+        if (msg.success) {
+          pending.resolve(msg.result ?? msg)
+        } else {
+          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+        }
+      }
+      return
+    }
+
+    if (msg.type === 'windowClosed') {
+      this.trackWindowClosed(msg.windowId)
+      const handle = this._handles.get(msg.windowId)
+      if (handle) {
+        handle.emit('close', msg)
+        this._handles.delete(msg.windowId)
+      }
+      this.emit('windowClosed', msg)
+      // Broadcast to all producers
+      this.broadcastToProducers(line)
+    }
+
+    if (msg.type === 'terminalExited') {
+      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
+      if (handle) handle.emit('terminalExited', msg)
+      this.emit('terminalExited', msg)
+      // Broadcast to all producers
+      this.broadcastToProducers(line)
+    }
+
+    this.emit('message', msg)
+  }
+
+  /** Send an NDJSON line to all connected producers. */
+  private broadcastToProducers(line: string): void {
+    for (const [, producer] of this._producers) {
+      try {
+        producer.socket.write(line + '\n')
+      } catch { /* producer gone */ }
+    }
+  }
+
+  // =====================================================================
+  // Producer mode — routes commands through the broker
+  // =====================================================================
+
+  private connectAsProducer(controlPath: string, socketPath: string): Promise<this> {
+    return new Promise<this>((resolve, reject) => {
+      const socket = new Socket()
+      const client: ClientConnection = { socket, buffer: '' }
+
+      const timer = setTimeout(() => {
+        socket.destroy()
+        this.setState({ lastError: `Timed out connecting to broker at ${controlPath}` })
+        reject(new WindowManagerError(`Timed out connecting to broker`, 'Timeout'))
+      }, 3000)
+
+      socket.connect(controlPath, () => {
+        clearTimeout(timer)
+        this._mode = 'producer'
+        this._controlClient = client
+        this.setState({ listening: true, socketPath, mode: 'producer' })
+        this.emit('listening')
+        resolve(this)
+      })
+
+      socket.on('data', (chunk) => {
+        client.buffer += chunk.toString()
+        const lines = client.buffer.split('\n')
+        client.buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (line.trim()) this.processProducerIncoming(line)
+        }
+      })
+
+      socket.on('close', () => {
+        this._controlClient = undefined
+        this._mode = null
+        this.setState({ listening: false, mode: undefined })
+
+        // Resolve all pending requests — broker is gone
+        for (const [, pending] of this._pending) {
+          clearTimeout(pending.timer)
+          pending.resolve({ ok: false, error: 'Broker disconnected' })
+        }
+        this._pending.clear()
+      })
+
+      socket.on('error', (err) => {
+        clearTimeout(timer)
+        this.setState({ lastError: `Broker connection error: ${err.message}` })
+      })
+    })
+  }
+
+  /**
+   * Process a message received from the broker (producer mode).
+   * Handles windowAck (resolves pending requests) and lifecycle events.
+   */
+  private processProducerIncoming(line: string): void {
+    let msg: any
+    try { msg = JSON.parse(line) } catch { return }
+
+    if (msg.type === 'windowAck') {
+      this.emit('windowAck', msg)
+      this.updateTrackedWindowsFromAck(msg)
+
+      const ackId = this.normalizeRequestId(msg.id)
+      if (ackId && this._pending.has(ackId)) {
+        const pending = this._pending.get(ackId)!
+        this._pending.delete(ackId)
+        clearTimeout(pending.timer)
+
+        if (msg.success) {
+          pending.resolve(msg.result ?? msg)
+        } else {
+          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
+        }
+      }
+      return
+    }
+
+    if (msg.type === 'windowClosed') {
+      this.trackWindowClosed(msg.windowId)
+      const handle = this._handles.get(msg.windowId)
+      if (handle) {
+        handle.emit('close', msg)
+        this._handles.delete(msg.windowId)
+      }
+      this.emit('windowClosed', msg)
+    }
+
+    if (msg.type === 'terminalExited') {
+      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
+      if (handle) handle.emit('terminalExited', msg)
+      this.emit('terminalExited', msg)
+    }
+
+    this.emit('message', msg)
+  }
+
+  // =====================================================================
+  // Shared internals
+  // =====================================================================
 
   private _displayCache: { width: number; height: number } | null = null
 
@@ -767,103 +1191,106 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
   }
 
   /**
-   * Handle a new client connection from the native app.
-   * Sets up NDJSON buffering and event forwarding.
+   * Send a window dispatch command and wait for the ack.
+   * In broker mode, sends directly to the app client.
+   * In producer mode, routes through the broker via the control socket.
+   * If not yet started, calls listen() to auto-detect mode.
    */
-  private handleClientConnect(socket: Socket): void {
-    const client: ClientConnection = { socket, buffer: '' }
+  private sendWindowCommand(windowPayload: Record<string, any>): Promise<WindowAckResult> {
+    return new Promise<WindowAckResult>(async (resolve, reject) => {
+      const timeoutMs = this.options.requestTimeoutMs || 10000
 
-    // Replace any existing client (single-client model)
-    if (this._client) {
-      this._client.socket.destroy()
-    }
-    this._client = client
-
-    this.setState({ clientConnected: true })
-    this.emit('clientConnected', socket)
-
-    socket.on('data', (chunk) => {
-      client.buffer += chunk.toString()
-      const lines = client.buffer.split('\n')
-      client.buffer = lines.pop() || ''
-      for (const line of lines) {
-        if (line.trim()) this.processLine(line)
+      // Auto-start if needed
+      if (!this._mode) {
+        await this.listen()
       }
-    })
 
-    socket.on('close', () => {
-      if (this._client === client) {
-        this._client = undefined
-        this._trackedWindows.clear()
-        this._handles.clear()
-        this.setState({ clientConnected: false, windowCount: 0 })
-
-        // Resolve all pending requests — the app is gone, no acks coming
-        for (const [id, pending] of this._pending) {
-          clearTimeout(pending.timer)
-          pending.resolve({ ok: false, error: 'Client disconnected' })
+      // In producer mode, we don't wait for app client — the broker handles that.
+      // We just need our control connection to be alive.
+      if (this._mode === 'producer') {
+        if (!this._controlClient) {
+          resolve({ ok: false, error: 'Not connected to broker', code: 'Disconnected' })
+          return
         }
-        this._pending.clear()
 
-        this.emit('clientDisconnected')
+        const rawId = randomUUID()
+        const id = this.normalizeRequestId(rawId) || rawId
+
+        const timer = setTimeout(() => {
+          this._pending.delete(id)
+          resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+        }, timeoutMs)
+
+        this._pending.set(id, { resolve, reject, timer })
+
+        const payload = {
+          id,
+          status: 'processing',
+          window: windowPayload,
+          timestamp: new Date().toISOString(),
+        }
+
+        this._controlClient.socket.write(JSON.stringify(payload) + '\n')
+        return
       }
-    })
 
-    socket.on('error', (err) => {
-      this.setState({ lastError: err.message })
+      // Broker mode — send directly to app client
+      if (!this._client) {
+        // Wait for app client to connect
+        const connected = await this.waitForAppClient(timeoutMs)
+        if (!connected) {
+          const error = `No native launcher client connected on socket ${this.state.get('socketPath') || this.options.socketPath}`
+          this.setState({ lastError: error })
+          resolve({ ok: false, error, code: 'NoClient' })
+          return
+        }
+      }
+
+      const rawId = randomUUID()
+      const id = this.normalizeRequestId(rawId) || rawId
+
+      const timer = setTimeout(() => {
+        this._pending.delete(id)
+        resolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
+      }, timeoutMs)
+
+      this._pending.set(id, { resolve, reject, timer })
+
+      const payload = {
+        id,
+        status: 'processing',
+        window: windowPayload,
+        timestamp: new Date().toISOString(),
+      }
+      const sent = this.send(payload)
+
+      if (!sent) {
+        clearTimeout(timer)
+        this._pending.delete(id)
+        const error = `Failed to send window ${windowPayload.action}: client disconnected`
+        this.setState({ lastError: error })
+        resolve({ ok: false, error, code: 'Disconnected' })
+      }
     })
   }
 
-  /**
-   * Process a single complete NDJSON line from the app.
-   * Resolves pending windowAck requests; emits `message` for everything else.
-   */
-  private processLine(line: string): void {
-    let msg: any
-    try {
-      msg = JSON.parse(line)
-    } catch {
-      return // Malformed JSON ignored per spec
-    }
+  /** Wait for the native app to connect (broker mode only). */
+  private waitForAppClient(timeoutMs: number): Promise<boolean> {
+    if (this._client) return Promise.resolve(true)
 
-    // WindowAck from app (response to a window dispatch)
-    if (msg.type === 'windowAck') {
-      this.emit('windowAck', msg)
-      this.updateTrackedWindowsFromAck(msg)
+    return new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        this.off('clientConnected', onConnected)
+        resolve(false)
+      }, timeoutMs)
 
-      const ackId = this.normalizeRequestId(msg.id)
-      if (ackId && this._pending.has(ackId)) {
-        const pending = this._pending.get(ackId)!
-        this._pending.delete(ackId)
-        clearTimeout(pending.timer)
-
-        if (msg.success) {
-          pending.resolve(msg.result ?? msg)
-        } else {
-          pending.resolve({ ok: false, error: msg.error || 'Window operation failed' })
-        }
+      const onConnected = () => {
+        clearTimeout(timer)
+        resolve(true)
       }
-      return
-    }
 
-    if (msg.type === 'windowClosed') {
-      this.trackWindowClosed(msg.windowId)
-      const handle = this._handles.get(msg.windowId)
-      if (handle) {
-        handle.emit('close', msg)
-        this._handles.delete(msg.windowId)
-      }
-      this.emit('windowClosed', msg)
-    }
-
-    if (msg.type === 'terminalExited') {
-      const handle = msg.windowId ? this._handles.get(msg.windowId) : undefined
-      if (handle) handle.emit('terminalExited', msg)
-      this.emit('terminalExited', msg)
-    }
-
-    // Everything else is forwarded as a generic message
-    this.emit('message', msg)
+      this.once('clientConnected', onConnected)
+    })
   }
 
   private updateTrackedWindowsFromAck(msg: any): void {
@@ -895,100 +1322,6 @@ export class WindowManager extends Feature<WindowManagerState, WindowManagerOpti
     if (!normalized) return
     this._trackedWindows.delete(normalized)
     this.setState({ windowCount: this._trackedWindows.size })
-  }
-
-  /**
-   * Send a window dispatch command to the app and wait for the ack.
-   * Generates a UUID for correlation and sets up a timeout.
-   */
-  private sendWindowCommand(windowPayload: Record<string, any>): Promise<WindowAckResult> {
-    return new Promise<WindowAckResult>(async (resolve, reject) => {
-      const timeoutMs = this.options.requestTimeoutMs || 10000
-      const bridge = this.getBridgeListener()
-
-      // If the command-listener already owns the socket, bridge through it instead
-      // of binding a competing server on the same path.
-      if (!this._server && !bridge?.isListening) {
-        this.listen()
-      }
-
-      const connectionMode = await this.waitForAnyClientConnection(timeoutMs, bridge)
-      if (!connectionMode) {
-        const error = `No native launcher client connected on socket ${this.state.get('socketPath') || this.options.socketPath}`
-        this.setState({ lastError: error })
-        resolve({ ok: false, error, code: 'NoClient' })
-        return
-      }
-
-      const rawId = randomUUID()
-      const id = this.normalizeRequestId(rawId) || rawId
-      const usingBridge = connectionMode === 'bridge'
-
-      let bridgeMessageListener: ((msg: any) => void) | undefined
-      const cleanupBridgeListener = () => {
-        if (usingBridge && bridgeMessageListener) {
-          bridge.off?.('message', bridgeMessageListener)
-          bridgeMessageListener = undefined
-        }
-      }
-
-      if (usingBridge) {
-        bridgeMessageListener = (msg: any) => {
-          if (!msg || msg.type !== 'windowAck') return
-          const ackId = this.normalizeRequestId(msg.id)
-          if (ackId !== id) return
-          this.processLine(JSON.stringify(msg))
-        }
-        bridge.on?.('message', bridgeMessageListener)
-      }
-
-      const completeResolve = (value: any) => {
-        cleanupBridgeListener()
-        resolve(value)
-      }
-
-      const completeReject = (reason: any) => {
-        cleanupBridgeListener()
-        reject(reason)
-      }
-
-      const timer = setTimeout(() => {
-        this._pending.delete(id)
-        completeResolve({ ok: false, error: `Window ${windowPayload.action} timed out after ${timeoutMs}ms`, code: 'Timeout' })
-      }, timeoutMs)
-
-      this._pending.set(id, { resolve: completeResolve, reject: completeReject, timer })
-
-      const payload = {
-        id,
-        status: 'processing',
-        window: windowPayload,
-        timestamp: new Date().toISOString(),
-      }
-      const sent = usingBridge ? bridge.send(payload) : this.send(payload)
-
-      if (!sent) {
-        clearTimeout(timer)
-        this._pending.delete(id)
-        cleanupBridgeListener()
-        const error = `Failed to send window ${windowPayload.action}: client disconnected`
-        this.setState({ lastError: error })
-        resolve({ ok: false, error, code: 'Disconnected' })
-      }
-    })
-  }
-
-  /**
-   * Write an NDJSON message to the connected app client.
-   * Public so other features can send arbitrary protocol messages over the same socket.
-   *
-   * @param msg - The message object to send (will be JSON-serialized + newline)
-   * @returns True if the message was written, false if no client is connected
-   */
-  send(msg: Record<string, any>): boolean {
-    if (!this._client) return false
-    this._client.socket.write(JSON.stringify(msg) + '\n')
-    return true
   }
 }
 
