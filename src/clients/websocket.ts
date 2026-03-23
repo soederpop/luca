@@ -19,6 +19,12 @@ declare module '../client' {
  * providing a clean interface for sending/receiving messages, tracking connection
  * state, and optional auto-reconnection with exponential backoff.
  *
+ * Supports ask/reply semantics when paired with the Luca WebSocket server.
+ * The client can `ask(type, data)` the server and await a typed response.
+ * Incoming messages with a `requestId` are treated as asks from the server
+ * and can be answered with `send({ replyTo: requestId, data })`. Requests
+ * time out if no reply arrives within the configurable window.
+ *
  * Events emitted:
  * - `open` — connection established
  * - `message` — message received (JSON-parsed when possible)
@@ -36,6 +42,9 @@ declare module '../client' {
  * ws.on('message', (data) => console.log('Received:', data))
  * await ws.connect()
  * await ws.send({ type: 'hello' })
+ *
+ * // ask/reply: request data from the server
+ * const result = await ws.ask('getUser', { id: 42 })
  * ```
  */
 export interface PendingRequest<T = any> {

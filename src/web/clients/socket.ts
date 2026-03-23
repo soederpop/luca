@@ -6,7 +6,10 @@ import { WebSocketClientEventsSchema } from '../../schemas/base.js'
 /**
  * Web-specific WebSocket client implementation using isomorphic-ws.
  * Extends the base WebSocketClient with platform-specific transport and
- * an envelope format that wraps sent data with a unique ID.
+ * an envelope format that wraps sent data with a unique ID. Inherits
+ * ask/reply semantics from the base WebSocketClient — protocol messages
+ * (those with `requestId` or `replyTo`) bypass the envelope wrapper to
+ * maintain compatibility with the Luca WebSocket server's ask/reply flow.
  */
 export class SocketClient<T extends WebSocketClientState = WebSocketClientState, K extends WebSocketClientOptions = WebSocketClientOptions> extends WebSocketClient<T,K> {
   // @ts-expect-error widening ws type for isomorphic-ws compatibility

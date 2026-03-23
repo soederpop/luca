@@ -1,9 +1,4 @@
 {
   "mcpServers": {
-    "contentbase": {
-      "command": "bun",
-      "args": ["run", "/Users/jon/@soederpop/contentbase/src/cli/index.ts", "mcp"],
-      "cwd": "/Users/jon/@soederpop/luca"
-    }
   }
 }

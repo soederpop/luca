@@ -30,6 +30,12 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
  * When `json` mode is disabled, raw message data is emitted as-is and
  * `send()` / `broadcast()` still JSON-stringify for safety.
  *
+ * Supports ask/reply semantics when paired with the Luca WebSocket client.
+ * The server can `ask(ws, type, data)` a connected client and await a typed
+ * response, or handle incoming asks from clients by listening for messages
+ * with a `requestId` and replying via `send(ws, { replyTo, data })`.
+ * Requests time out if no reply arrives within the configurable window.
+ *
  * @extends Server
  *
  * @example
@@ -40,6 +46,12 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
  * ws.on('message', (data, client) => {
  *   console.log('Received:', data)
  *   ws.broadcast({ echo: data })
+ * })
+ *
+ * // ask/reply: request info from a connected client
+ * ws.on('connection', async (client) => {
+ *   const info = await ws.ask(client, 'identify')
+ *   console.log('Client says:', info)
  * })
  * ```
  */

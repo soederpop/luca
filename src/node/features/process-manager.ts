@@ -3,6 +3,87 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature } from '../feature.js'
 import { State } from '../../state.js'
 import { Bus, type EventMap } from '../../bus.js'
+import type { ChildProcess } from './proc.js'
+
+// ─── Output Buffer ─────────────────────────────────────────────────────────
+
+const HEAD_LINES = 20
+const TAIL_LINES = 50
+
+/**
+ * A memory-efficient output buffer that keeps the first N lines (head)
+ * and the last M lines (tail), discarding everything in between.
+ */
+class OutputBuffer {
+  private _head: string[] = []
+  private _tail: string[] = []
+  private _totalLines = 0
+  private _partial = ''
+  private _headFull = false
+
+  constructor(
+    private _headLimit = HEAD_LINES,
+    private _tailLimit = TAIL_LINES
+  ) {}
+
+  /** Append a chunk of output (may contain partial lines) */
+  append(chunk: string): void {
+    const text = this._partial + chunk
+    const lines = text.split('\n')
+
+    // Last element is a partial line (no trailing newline) — hold it
+    this._partial = lines.pop()!
+
+    for (const line of lines) {
+      this._pushLine(line)
+    }
+  }
+
+  /** Flush any remaining partial line */
+  flush(): void {
+    if (this._partial) {
+      this._pushLine(this._partial)
+      this._partial = ''
+    }
+  }
+
+  get totalLines() { return this._totalLines }
+
+  /** Get the head lines (first N lines of output) */
+  get head(): string[] { return this._head }
+
+  /** Get the tail lines (last M lines of output) */
+  get tail(): string[] { return this._tail }
+
+  /** Number of lines dropped between head and tail */
+  get droppedLines(): number {
+    return Math.max(0, this._totalLines - this._head.length - this._tail.length)
+  }
+
+  /** Format the buffer for display */
+  toString(): string {
+    const parts: string[] = []
+    if (this._head.length) parts.push(this._head.join('\n'))
+    if (this.droppedLines > 0) parts.push(`\n... (${this.droppedLines} lines omitted) ...\n`)
+    if (this._tail.length && this._totalLines > this._headLimit) parts.push(this._tail.join('\n'))
+    return parts.join('\n')
+  }
+
+  private _pushLine(line: string): void {
+    this._totalLines++
+
+    if (!this._headFull) {
+      this._head.push(line)
+      if (this._head.length >= this._headLimit) this._headFull = true
+      return
+    }
+
+    this._tail.push(line)
+    if (this._tail.length > this._tailLimit) {
+      this._tail.shift()
+    }
+  }
+}
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -33,11 +114,11 @@ export const ProcessManagerOptionsSchema = FeatureOptionsSchema.extend({
 export type ProcessManagerOptions = z.infer<typeof ProcessManagerOptionsSchema>
 
 export const ProcessManagerEventsSchema = FeatureEventsSchema.extend({
-  spawned: z.tuple([z.string().describe('process ID'), z.any().describe('process metadata')])
+  spawned: z.tuple([z.string().describe('process ID'), z.string().describe('process metadata')])
     .describe('Emitted when a new process is spawned'),
   exited: z.tuple([z.string().describe('process ID'), z.number().describe('exit code')])
     .describe('Emitted when a process exits normally'),
-  crashed: z.tuple([z.string().describe('process ID'), z.number().describe('exit code'), z.any().describe('error info')])
+  crashed: z.tuple([z.string().describe('process ID'), z.number().describe('exit code'), z.string().describe('error info')])
     .describe('Emitted when a process exits with non-zero code'),
   killed: z.tuple([z.string().describe('process ID')])
     .describe('Emitted when a process is killed'),
@@ -87,7 +168,8 @@ export interface SpawnOptions {
  *
  * Provides observable state, events, and methods to interact with
  * the running process. Returned immediately from `ProcessManager.spawn()`
- * without blocking.
+ * without blocking. Maintains a memory-efficient output buffer that keeps
+ * the first 20 lines and last 50 lines of stdout/stderr.
  *
  * @example
  * ```ts
@@ -100,8 +182,10 @@ export interface SpawnOptions {
 export class SpawnHandler {
   readonly state: State<SpawnHandlerState>
   readonly events = new Bus<SpawnHandlerEvents>()
+  readonly stdout = new OutputBuffer(HEAD_LINES, TAIL_LINES)
+  readonly stderr = new OutputBuffer(HEAD_LINES, TAIL_LINES)
 
-  private _process!: ReturnType<typeof Bun.spawn>
+  private _childProcess: any = null
   private _manager: ProcessManager
   private _exitPromise: Promise<number> | null = null
   private _exitResolve: ((code: number) => void) | null = null
@@ -155,36 +239,44 @@ export class SpawnHandler {
   get exitCode() { return this.state.get('exitCode') }
 
   /**
-   * Start the process. Called internally by `ProcessManager.spawn()`.
+   * Start the process using proc.spawnAndCapture. Called internally by `ProcessManager.spawn()`.
    */
   _start(spawnOptions: SpawnOptions = {}): void {
     const command = this.state.get('command')!
     const args = this.state.get('args')!
+    const proc = this._manager.container.feature('proc') as ChildProcess
 
-    const proc = Bun.spawn([command, ...args], {
-      cwd: spawnOptions.cwd ?? this._manager.container.cwd,
-      env: { ...process.env, ...spawnOptions.env },
-      stdin: spawnOptions.stdin ?? 'ignore',
-      stdout: spawnOptions.stdout ?? 'pipe',
-      stderr: spawnOptions.stderr ?? 'pipe',
-    })
+    const cwd = spawnOptions.cwd ?? this._manager.container.cwd
 
-    this._process = proc
-    this.state.set('pid', proc.pid)
-
-    // Stream stdout
-    if (proc.stdout && typeof proc.stdout === 'object' && 'getReader' in proc.stdout) {
-      this._readStream(proc.stdout as ReadableStream<Uint8Array>, 'stdout')
-    }
-
-    // Stream stderr
-    if (proc.stderr && typeof proc.stderr === 'object' && 'getReader' in proc.stderr) {
-      this._readStream(proc.stderr as ReadableStream<Uint8Array>, 'stderr')
-    }
-
-    // Wait for exit
-    proc.exited.then((code: number) => {
-      this._onExit(code)
+    // Use proc.spawnAndCapture with hooks for real-time streaming
+    proc.spawnAndCapture(command, args, {
+      cwd,
+      onStart: (childProcess: any) => {
+        this._childProcess = childProcess
+        if (childProcess.pid) {
+          this.state.set('pid', childProcess.pid)
+        }
+      },
+      onOutput: (data: string) => {
+        this.stdout.append(data)
+        this.events.emit('stdout', data)
+      },
+      onError: (data: string) => {
+        this.stderr.append(data)
+        this.events.emit('stderr', data)
+      },
+      onExit: (code: number) => {
+        this.stdout.flush()
+        this.stderr.flush()
+        this._onExit(code)
+      },
+    }).catch((err: any) => {
+      // spawnAndCapture rejected — treat as crash
+      this.stdout.flush()
+      this.stderr.flush()
+      if (!this.isDone) {
+        this._onExit(err?.code ?? 1)
+      }
     })
   }
 
@@ -205,6 +297,8 @@ export class SpawnHandler {
       if (err.code !== 'ESRCH') throw err
     }
 
+    this.stdout.flush()
+    this.stderr.flush()
     this.state.set('status', 'killed')
     this.state.set('endedAt', Date.now())
     this.events.emit('killed')
@@ -232,11 +326,25 @@ export class SpawnHandler {
    * @param data - String or Uint8Array to write
    */
   write(data: string | Uint8Array): void {
-    const stdin = this._process?.stdin
-    if (!stdin || typeof stdin === 'number') {
+    const stdin = this._childProcess?.stdin
+    if (!stdin) {
       throw new Error('stdin is not piped — pass { stdin: "pipe" } in spawn options')
     }
-    ;(stdin as import('bun').FileSink).write(data)
+    stdin.write(data)
+  }
+
+  /**
+   * Peek at the buffered output. Returns head (first 20 lines), tail (last 50 lines),
+   * and metadata about how much was dropped.
+   */
+  peek(stream: 'stdout' | 'stderr' = 'stdout'): { head: string[]; tail: string[]; totalLines: number; droppedLines: number } {
+    const buf = stream === 'stderr' ? this.stderr : this.stdout
+    return {
+      head: buf.head,
+      tail: buf.tail,
+      totalLines: buf.totalLines,
+      droppedLines: buf.droppedLines,
+    }
   }
 
   /** Subscribe to handler events */
@@ -258,22 +366,6 @@ export class SpawnHandler {
   }
 
   // ─── Internal ─────────────────────────────────────────────────────────────
-
-  private async _readStream(stream: ReadableStream<Uint8Array>, type: 'stdout' | 'stderr') {
-    const reader = stream.getReader()
-    const decoder = new TextDecoder()
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const text = decoder.decode(value, { stream: true })
-        this.events.emit(type, text)
-      }
-    } catch {
-      // Stream closed — process is ending
-    }
-  }
 
   private _onExit(code: number): void {
     if (this.isDone) return
@@ -309,6 +401,9 @@ export class SpawnHandler {
  * state, events, and lifecycle methods. The feature tracks all spawned processes,
  * maintains observable state, and can automatically kill them on parent exit.
  *
+ * Each handler maintains a memory-efficient output buffer: the first 20 lines (head)
+ * and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.
+ *
  * @example
  * ```typescript
  * const pm = container.feature('processManager', { enable: true })
@@ -316,6 +411,9 @@ export class SpawnHandler {
  * const server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })
  * server.on('stdout', (data) => console.log('[api]', data))
  * server.on('crash', (code) => console.error('API crashed:', code))
+ *
+ * // Peek at buffered output
+ * const { head, tail } = server.peek()
  *
  * // Kill one
  * server.kill()
@@ -337,9 +435,165 @@ export class ProcessManager extends Feature {
   static override eventsSchema = ProcessManagerEventsSchema
   static { Feature.register(this, 'processManager') }
 
+  /** Tools that an assistant can use to spawn and manage processes. */
+  static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+    spawnProcess: {
+      schema: z.object({
+        command: z.string().describe('The command to execute (e.g. "node", "bun", "python")'),
+        args: z.string().optional().describe('Space-separated arguments to pass to the command'),
+        tag: z.string().optional().describe('A label for this process so you can find it later'),
+        cwd: z.string().optional().describe('Working directory for the process'),
+      }).describe(
+        'Spawn a long-running process (server, watcher, daemon) that runs in the background. Returns immediately with a process ID you can use to check status or kill it later.'
+      ),
+    },
+    runCommand: {
+      schema: z.object({
+        command: z.string().describe('The command to execute (e.g. "npm install", "bun test")'),
+        cwd: z.string().optional().describe('Working directory for the command'),
+      }).describe(
+        'Run a command and wait for it to complete. Returns the full stdout/stderr output and exit code. Use this for commands you expect to finish (builds, installs, tests).'
+      ),
+    },
+    listProcesses: {
+      schema: z.object({}).describe(
+        'List all tracked processes with their status, PID, command, uptime, and a preview of recent output.'
+      ),
+    },
+    getProcessOutput: {
+      schema: z.object({
+        id: z.string().optional().describe('The process ID to get output for'),
+        tag: z.string().optional().describe('The tag of the process to get output for'),
+        stream: z.string().optional().describe('Which stream to read: "stdout" (default) or "stderr"'),
+      }).describe(
+        'Peek at a process\'s buffered output — shows the first 20 lines and last 50 lines of stdout or stderr.'
+      ),
+    },
+    killProcess: {
+      schema: z.object({
+        id: z.string().optional().describe('The process ID to kill'),
+        tag: z.string().optional().describe('The tag of the process to kill'),
+        signal: z.string().optional().describe('Signal to send: "SIGTERM" (default, graceful) or "SIGKILL" (force)'),
+      }).describe(
+        'Kill a running process by ID or tag.'
+      ),
+    },
+  }
+
   private _handlers = new Map<string, SpawnHandler>()
   private _cleanupRegistered = false
   private _cleanupHandlers: Array<() => void> = []
+
+  // ─── Tool Handlers ──────────────────────────────────────────────────────
+
+  /**
+   * Tool handler: spawn a long-running background process.
+   */
+  async spawnProcess(args: { command: string; args?: string; tag?: string; cwd?: string }) {
+    const cmdArgs = args.args ? args.args.split(/\s+/) : []
+    const handler = this.spawn(args.command, cmdArgs, {
+      tag: args.tag,
+      cwd: args.cwd,
+    })
+
+    return {
+      id: handler.id,
+      pid: handler.pid,
+      tag: handler.tag,
+      command: `${args.command} ${args.args ?? ''}`.trim(),
+      status: 'running',
+    }
+  }
+
+  /**
+   * Tool handler: run a command to completion and return its output.
+   */
+  async runCommand(args: { command: string; cwd?: string }) {
+    const proc = this.container.feature('proc') as ChildProcess
+    const result = await proc.spawnAndCapture('sh', ['-c', args.command], {
+      cwd: args.cwd ?? this.container.cwd,
+    })
+
+    return {
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      success: result.exitCode === 0,
+    }
+  }
+
+  /**
+   * Tool handler: list all tracked processes.
+   */
+  async listProcesses() {
+    const handlers = this.list()
+    if (handlers.length === 0) return { processes: [], message: 'No tracked processes.' }
+
+    return {
+      processes: handlers.map(h => {
+        const now = Date.now()
+        const startedAt = h.state.get('startedAt')!
+        const endedAt = h.state.get('endedAt')
+        const duration = (endedAt ?? now) - startedAt
+        const lastStdout = h.stdout.tail.length ? h.stdout.tail.slice(-3) : h.stdout.head.slice(-3)
+
+        return {
+          id: h.id,
+          tag: h.tag,
+          pid: h.pid,
+          command: `${h.state.get('command')} ${(h.state.get('args') ?? []).join(' ')}`.trim(),
+          status: h.status,
+          exitCode: h.exitCode,
+          uptimeMs: duration,
+          uptime: formatDuration(duration),
+          outputLines: h.stdout.totalLines,
+          errorLines: h.stderr.totalLines,
+          recentOutput: lastStdout,
+        }
+      }),
+    }
+  }
+
+  /**
+   * Tool handler: peek at a process's buffered output.
+   */
+  async getProcessOutput(args: { id?: string; tag?: string; stream?: string }) {
+    const handler = args.id ? this.get(args.id) : args.tag ? this.getByTag(args.tag) : undefined
+    if (!handler) return { error: `Process not found. Provide a valid id or tag.` }
+
+    const streamName = (args.stream === 'stderr' ? 'stderr' : 'stdout') as 'stdout' | 'stderr'
+    const peek = handler.peek(streamName)
+
+    return {
+      id: handler.id,
+      tag: handler.tag,
+      status: handler.status,
+      stream: streamName,
+      totalLines: peek.totalLines,
+      droppedLines: peek.droppedLines,
+      head: peek.head,
+      tail: peek.tail,
+    }
+  }
+
+  /**
+   * Tool handler: kill a process by ID or tag.
+   */
+  async killProcess(args: { id?: string; tag?: string; signal?: string }) {
+    const handler = args.id ? this.get(args.id) : args.tag ? this.getByTag(args.tag) : undefined
+    if (!handler) return { error: `Process not found. Provide a valid id or tag.` }
+
+    if (handler.isDone) {
+      return { id: handler.id, status: handler.status, message: 'Process already finished.' }
+    }
+
+    const signal = (args.signal ?? 'SIGTERM') as NodeJS.Signals
+    handler.kill(signal)
+
+    return { id: handler.id, status: handler.status, signal, message: 'Process killed.' }
+  }
+
+  // ─── Core API ───────────────────────────────────────────────────────────
 
   /**
    * Spawn a long-running process and return a handle immediately.
@@ -538,6 +792,19 @@ export class ProcessManager extends Feature {
     this._cleanupHandlers = []
     this._cleanupRegistered = false
   }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  if (minutes < 60) return `${minutes}m ${secs}s`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${hours}h ${mins}m`
 }
 
 export default ProcessManager
