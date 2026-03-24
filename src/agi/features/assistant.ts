@@ -962,6 +962,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	private unbindHooksFromEvents() {
+		if (!this._boundHookListeners) return
 		for (const { event, listener } of this._boundHookListeners) {
 			this.off(event as any, listener)
 		}
