@@ -29,6 +29,7 @@ export const AssistantEventsSchema = FeatureEventsSchema.extend({
 	toolResult: z.tuple([z.string().describe('Tool name'), z.any().describe('Result value')]).describe('Emitted when a tool returns a result'),
 	toolError: z.tuple([z.string().describe('Tool name'), z.any().describe('Error')]).describe('Emitted when a tool call fails'),
 	hookFired: z.tuple([z.string().describe('Hook/event name')]).describe('Emitted when a hook function is called'),
+	reloaded: z.tuple([]).describe('Emitted after tools, hooks, and system prompt are reloaded from disk'),
 	systemPromptExtensionsChanged: z.tuple([]).describe('Emitted when system prompt extensions are added or removed'),
 })
 
@@ -461,6 +462,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	addTool(name: string, handler: (...args: any[]) => any, schema?: z.ZodType): this {
 		if (!name) throw new Error('addTool handler must be a named function')
+		if (!this._runtimeToolNames) this._runtimeToolNames = new Set()
+		this._runtimeToolNames.add(name)
 
 		const current = { ...this.tools }
 
@@ -504,10 +507,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		if (typeof nameOrHandler === 'string') {
 			delete current[nameOrHandler]
+			this._runtimeToolNames?.delete(nameOrHandler)
 		} else {
 			for (const [name, tool] of Object.entries(current)) {
 				if (tool.handler === nameOrHandler) {
 					delete current[name]
+					this._runtimeToolNames?.delete(name)
 					break
 				}
 			}
@@ -936,17 +941,68 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	/** Hook names that are called directly during lifecycle, not bound as event listeners. */
 	private static lifecycleHooks = new Set(['formatSystemPrompt'])
+	/** Stored references to bound hook listeners so they can be unbound on reload. Lazily initialized because afterInitialize runs before field initializers. */
+	private _boundHookListeners!: Array<{ event: string; listener: (...args: any[]) => void }>
+	/** Tool names added at runtime via addTool()/use(), so reload() can preserve them. */
+	private _runtimeToolNames!: Set<string>
 
 	private bindHooksToEvents() {
+		if (!this._boundHookListeners) this._boundHookListeners = []
 		const assistant = this
 		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
 		for (const [eventName, hookFn] of Object.entries(hooks)) {
 			if (Assistant.lifecycleHooks.has(eventName)) continue
-			this.on(eventName as any, (...args: any[]) => {
+			const listener = (...args: any[]) => {
 				this.emit('hookFired', eventName)
 				hookFn(assistant, ...args)
-			})
+			}
+			this._boundHookListeners.push({ event: eventName, listener })
+			this.on(eventName as any, listener)
 		}
+	}
+
+	private unbindHooksFromEvents() {
+		for (const { event, listener } of this._boundHookListeners) {
+			this.off(event as any, listener)
+		}
+		this._boundHookListeners = []
+	}
+
+	/**
+	 * Reload tools, hooks, and system prompt from disk. Useful during development
+	 * or when tool/hook files have been modified and you want the assistant to
+	 * pick up changes without restarting.
+	 *
+	 * @returns this, for chaining
+	 */
+	reload(): this {
+		// Unbind existing hook listeners
+		this.unbindHooksFromEvents()
+
+		// Snapshot runtime-added tools before reloading from disk
+		const runtimeTools: Record<string, ConversationTool> = {}
+		if (this._runtimeToolNames?.size) {
+			const current = this.tools
+			for (const name of this._runtimeToolNames) {
+				if (current[name]) runtimeTools[name] = current[name]
+			}
+		}
+
+		// Reload system prompt from disk
+		this.state.set('systemPrompt', this.loadSystemPrompt())
+
+		// Reload tools from disk (merges with option tools), then restore runtime tools
+		const diskTools = this.loadTools()
+		this.state.set('tools', { ...diskTools, ...runtimeTools })
+		this.emit('toolsChanged')
+
+		// Reload hooks from disk and rebind
+		this.state.set('hooks', this.loadHooks())
+		this.bindHooksToEvents()
+
+		this.emit('reloaded')
+
+		return this
 	}
 
 	/**

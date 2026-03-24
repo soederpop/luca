@@ -197,6 +197,12 @@ export class Endpoint<
 
   async reload(): Promise<this> {
     this._module = null
+    if (this.options.filePath) {
+      const helpers = this.container.feature('helpers') as any
+      const mod = await helpers.loadModuleExports(this.options.filePath, { cacheBust: true })
+      const endpointModule: EndpointModule = mod.default || mod
+      return this.load(endpointModule)
+    }
     return this.load()
   }
 

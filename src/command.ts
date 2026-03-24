@@ -109,7 +109,26 @@ export class Command<
 		const named = this._normalizeInput(raw, dispatchSource)
 
 		// Validate against argsSchema
-		const parsed = Cls.argsSchema.parse(named)
+		let parsed: any
+		try {
+			parsed = Cls.argsSchema.parse(named)
+		} catch (err: any) {
+			if (err?.name === 'ZodError' && dispatchSource === 'cli') {
+				const ui = (this.container as any).feature('ui')
+				const cmdName = Cls.shortcut?.replace('commands.', '') || 'unknown'
+				const issues = err.issues || []
+
+				ui.print.red(`\n  Error: Invalid options for "${cmdName}"\n`)
+				for (const issue of issues) {
+					const path = issue.path?.length ? issue.path.join('.') : 'input'
+					ui.print(`  ${ui.colors.yellow('→')} ${ui.colors.bold(path)}: ${issue.message}`)
+				}
+				ui.print('')
+				ui.print.dim(`  Run ${ui.colors.cyan(`luca ${cmdName} --help`)} for usage info.\n`)
+				process.exit(1)
+			}
+			throw err
+		}
 
 		// For headless dispatch, capture stdout/stderr
 		if (dispatchSource !== 'cli') {

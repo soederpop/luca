@@ -211,6 +211,24 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this
     }
 
+    /**
+     * Reload a mounted endpoint by its file path. Re-reads the module through
+     * the helpers VM loader so the next request picks up the new handlers.
+     *
+     * @param filePath - Absolute path to the endpoint file
+     * @returns The reloaded Endpoint, or null if no mounted endpoint matches
+     */
+    async reloadEndpoint(filePath: string): Promise<Endpoint | null> {
+      const endpoint = this._mountedEndpoints.find(ep => (ep.options as any).filePath === filePath)
+      if (!endpoint) return null
+
+      const helpers = this.container.feature('helpers') as any
+      const mod = await helpers.loadModuleExports(filePath, { cacheBust: true })
+      const endpointModule: EndpointModule = mod.default || mod
+      await endpoint.load(endpointModule)
+      return endpoint
+    }
+
     async useEndpointModules(modules: EndpointModule[]): Promise<this> {
       for (const mod of modules) {
         try {

@@ -704,16 +704,42 @@ function presentIntrospectionAsTypeScript(introspection: HelperIntrospection, se
     }
   }
 
-  // State
+  // State — render as the observable State<T> object, not just currentState
   if (shouldRender('state') && introspection.state && Object.keys(introspection.state).length > 0) {
     if (members.length > 0) members.push('')
     const stateMembers = Object.entries(introspection.state)
       .map(([name, info]) => {
-        const comment = info.description ? `    /** ${info.description} */\n` : ''
-        return `${comment}    ${name}: ${normalizeTypeString(info.type || 'any')};`
+        const comment = info.description ? `      /** ${info.description} */\n` : ''
+        return `${comment}      ${name}: ${normalizeTypeString(info.type || 'any')};`
       })
       .join('\n')
-    members.push(`  state: {\n${stateMembers}\n  };`)
+    const stateShape = `{\n${stateMembers}\n    }`
+    members.push(`  state: {`)
+    members.push(`    /** The current version number, incremented on each change */`)
+    members.push(`    readonly version: number;`)
+    members.push(`    /** Get the value of a state key */`)
+    members.push(`    get<K extends keyof T>(key: K): T[K] | undefined;`)
+    members.push(`    /** Set a state key to a new value, notifying observers */`)
+    members.push(`    set<K extends keyof T>(key: K, value: T[K]): this;`)
+    members.push(`    /** Delete a state key, notifying observers */`)
+    members.push(`    delete<K extends keyof T>(key: K): this;`)
+    members.push(`    /** Check if a state key exists */`)
+    members.push(`    has<K extends keyof T>(key: K): boolean;`)
+    members.push(`    /** Get all state keys */`)
+    members.push(`    keys(): string[];`)
+    members.push(`    /** Get the current state snapshot */`)
+    members.push(`    readonly current: ${stateShape};`)
+    members.push(`    /** Get all entries as [key, value] pairs */`)
+    members.push(`    entries(): [string, any][];`)
+    members.push(`    /** Get all state values */`)
+    members.push(`    values(): any[];`)
+    members.push(`    /** Register an observer callback for state changes. Returns an unsubscribe function. */`)
+    members.push(`    observe(callback: (changeType: 'add' | 'update' | 'delete', key: string, value?: any) => void): () => void;`)
+    members.push(`    /** Merge partial state, notifying observers for each changed key */`)
+    members.push(`    setState(value: Partial<${stateShape}> | ((current: ${stateShape}, state: this) => Partial<${stateShape}>)): void;`)
+    members.push(`    /** Clear all state, notifying observers */`)
+    members.push(`    clear(): void;`)
+    members.push(`  };`)
   }
 
   // Options
@@ -804,5 +830,16 @@ function isGenericObjectType(type: string): boolean {
 function normalizeTypeString(type: string): string {
   if (!type) return 'any'
   // The AST scanner sometimes wraps types in quotes
-  return type.replace(/^["']|["']$/g, '')
+  type = type.replace(/^["']|["']$/g, '')
+  // Convert internal ReturnType<typeof this.container.feature<'name'>> to a clean import reference
+  // e.g. ReturnType<typeof this.container.feature<'proc'>> → import('luca').Proc
+  type = type.replace(
+    /ReturnType<typeof this\.container\.(feature|client|server)<'([^']+)'>>/g,
+    (_match, _kind, name) => {
+      // Convert shortcut name to PascalCase class name
+      const className = name.replace(/(^|[-_])(\w)/g, (_: string, _sep: string, ch: string) => ch.toUpperCase())
+      return `import('@soederpop/luca').${className}`
+    }
+  )
+  return type
 }

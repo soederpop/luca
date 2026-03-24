@@ -408,11 +408,14 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * Uses the same `useNativeImport` check as discovery to decide the loading strategy.
    *
    * @param absPath - Absolute path to the module file
+   * @param options - Optional settings
+   * @param options.cacheBust - When true, appends a timestamp query to bypass the native import cache (useful for hot reload)
    * @returns The module's exports
    */
-  async loadModuleExports(absPath: string): Promise<Record<string, any>> {
+  async loadModuleExports(absPath: string, options?: { cacheBust?: boolean }): Promise<Record<string, any>> {
     if (this.useNativeImport) {
-      const mod = await import(absPath)
+      const importPath = options?.cacheBust ? `${absPath}?t=${Date.now()}` : absPath
+      const mod = await import(importPath)
       return mod
     }
 

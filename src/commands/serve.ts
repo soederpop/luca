@@ -19,6 +19,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	force: z.boolean().default(false).describe('Kill any process currently using the target port'),
 	anyPort: z.boolean().default(false).describe('Find an available port starting above 3000'),
 	open: z.boolean().default(true).describe('Open the server URL in Google Chrome'),
+	watch: z.boolean().default(false).describe('Watch endpoint files and hot-reload handlers on change'),
 })
 
 export default async function serve(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -155,6 +156,32 @@ export default async function serve(options: z.infer<typeof argsSchema>, context
 		} else {
 			console.log(`\nNo endpoints found in ${endpointsDir}`)
 		}
+	}
+
+	if (options.watch && endpointsDir) {
+		const fm = container.feature('fileManager')
+		await fm.watch({ paths: [endpointsDir] })
+
+		fm.on('file:change', async ({ type, path: filePath }: { type: string; path: string }) => {
+			if (!filePath.endsWith('.ts')) return
+
+			if (type === 'change') {
+				try {
+					const ep = await expressServer.reloadEndpoint(filePath)
+					if (ep) {
+						console.log(`[watch] Reloaded ${ep.methods.map((m: string) => m.toUpperCase()).join(',')} ${ep.path}`)
+					}
+				} catch (err: any) {
+					console.error(`[watch] Failed to reload ${filePath}: ${err.message}`)
+				}
+			} else if (type === 'add') {
+				console.log(`[watch] New file detected: ${filePath} (restart to mount)`)
+			} else if (type === 'delete') {
+				console.log(`[watch] File deleted: ${filePath} (restart to unmount)`)
+			}
+		})
+
+		console.log(`\n[watch] Watching ${endpointsDir} for changes`)
 	}
 
 	console.log()
