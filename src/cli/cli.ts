@@ -37,9 +37,15 @@ async function main() {
 	// helpers.discoverAll() which registers project commands early
 	const builtinCommands = new Set(container.commands.available as string[])
 
+	// Load global CLI module (~/.luca/luca.cli.ts) before project-level —
+	// lets users set up global helpers, discovery roots, etc.
+	let done = t('loadGlobalCliModule')
+	await loadCliModule(join(homedir(), '.luca', 'luca.cli.ts'))
+	done()
+
 	// Load project-level CLI module (luca.cli.ts) for container customization
-	let done = t('loadCliModule')
-	await loadCliModule()
+	done = t('loadCliModule')
+	await loadCliModule(container.paths.resolve('luca.cli.ts'))
 	done()
 
 	// Discover project-local commands (commands/ or src/commands/)
@@ -51,10 +57,10 @@ async function main() {
 	const afterProject = new Set(container.commands.available as string[])
 	const projectCommands = new Set([...afterProject].filter((n) => !builtinCommands.has(n)))
 
-	// Discover user-level commands (~/.luca/commands/)
-	done = t('discoverUserCommands')
+	// Discover user-level helpers (~/.luca/{features,clients,servers,commands,selectors}/)
+	done = t('discoverUserHelpers')
 	if (discovery !== 'disable' && discovery !== 'no-home') {
-		await discoverUserCommands()
+		await discoverUserHelpers()
 	}
 	done()
 	const afterUser = new Set(container.commands.available as string[])
@@ -135,8 +141,7 @@ function resolveScript(ref: string, container: any) {
 	return null
 }
 
-async function loadCliModule() {
-	const modulePath = container.paths.resolve('luca.cli.ts')
+async function loadCliModule(modulePath: string) {
 	if (!container.fs.exists(modulePath)) return
 
 	// Use the helpers feature to load the module — it handles the native import
@@ -181,13 +186,17 @@ async function loadProjectIntrospection() {
 	}
 }
 
-async function discoverUserCommands() {
-	const dir = join(homedir(), '.luca', 'commands')
+const DISCOVERABLE_TYPES = ['features', 'clients', 'servers', 'commands', 'selectors'] as const
 
-	if (container.fs.exists(dir)) {
-		// Route through helpers for consistent dedup and VM/native handling
-		const helpers = container.feature('helpers') as any
-		await helpers.discover('commands', { directory: dir })
+async function discoverUserHelpers() {
+	const lucaHome = join(homedir(), '.luca')
+	const helpers = container.feature('helpers') as any
+
+	for (const type of DISCOVERABLE_TYPES) {
+		const dir = join(lucaHome, type)
+		if (container.fs.exists(dir)) {
+			await helpers.discover(type, { directory: dir })
+		}
 	}
 }
 

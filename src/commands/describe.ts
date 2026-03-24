@@ -163,7 +163,12 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 
 	if (wantsTypeScript) {
 		const output = renderResultAsTypeScript(result, targets, describer, sections)
-		console.log(output)
+		if (options.pretty) {
+			const ui = container.feature('ui')
+			console.log(ui.markdown('```ts\n' + output + '\n```'))
+		} else {
+			console.log(output)
+		}
 	} else if (options.json) {
 		console.log(JSON.stringify(result.json, null, 2))
 	} else if (options.pretty) {
