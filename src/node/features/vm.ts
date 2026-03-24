@@ -67,7 +67,7 @@ export class VM<
    * // import { Container } from '@soederpop/luca'  → works
    * ```
    */
-  defineModule(id: string, exports: any) {
+  defineModule(id: string, exports: any): void {
     this.modules.set(id, exports)
   }
 
@@ -78,7 +78,7 @@ export class VM<
    * @param filePath - The file path to scope native require resolution to
    * @returns A require function with `.resolve` preserved from the native require
    */
-  createRequireFor(filePath: string) {
+  createRequireFor(filePath: string): ((id: string) => any) & { resolve: RequireResolve } {
     const nodeRequire = createRequire(filePath)
     const modules = this.modules
 
@@ -111,7 +111,7 @@ export class VM<
    * const result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))
    * ```
    */
-  createScript(code: string, options?: vm.ScriptOptions) {
+  createScript(code: string, options?: vm.ScriptOptions): vm.Script {
     return new vm.Script(code, {
       ...options
     })
@@ -152,7 +152,7 @@ export class VM<
    * const result = vm.runSync('user.name', context)
    * ```
    */
-  createContext(ctx: any = {}) {
+  createContext(ctx: any = {}): vm.Context {
     if (this.isContext(ctx)) return ctx
     return vm.createContext({
       console,

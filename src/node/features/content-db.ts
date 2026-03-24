@@ -118,15 +118,15 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   /** Whether the content database has been loaded. */
-  get isLoaded() {
-    return this.state.get('started')
+  get isLoaded(): boolean {
+    return !!this.state.get('started')
   }
 
   _collection?: Collection
   private _contentbaseSeeded = false
 
   /** Returns the lazily-initialized Collection instance for the configured rootPath. */
-  get collection() {
+  get collection(): Collection {
     if (this._collection) return this._collection
 
     const opts: any = { rootPath: this.options.rootPath }
@@ -172,7 +172,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   /** Returns the absolute resolved path to the collection root directory. */
-  get collectionPath() {
+  get collectionPath(): string {
     return this.container.paths.resolve(this.options.rootPath)
   }
 
@@ -429,7 +429,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 	  return this.collection.generateModelSummary(options)
   }
   
-  get modelDefinitionTable() {
+  get modelDefinitionTable(): Record<string, { description: string; glob: string; routePatterns: string[] }> {
     return Object.fromEntries(this.collection.modelDefinitions.map(d => {
       
       const prefixPattern = this.container.paths.relative(this.collection.resolve(d.prefix))
@@ -442,7 +442,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     }))
   }
   
-  get fileTree() {
+  get fileTree(): string {
     return this.collection.renderFileTree()
   }
 
@@ -579,7 +579,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /**
    * Get the current search index status.
    */
-  get searchIndexStatus() {
+  get searchIndexStatus(): { exists: boolean; documentCount: number; chunkCount: number; embeddingCount: number; lastIndexedAt: any; provider: any; model: any; dimensions: number; dbSizeBytes: number } {
     if (!this._semanticSearch?.state?.get('dbReady')) {
       if (!this._hasSearchIndex()) {
         return { exists: false, documentCount: 0, chunkCount: 0, embeddingCount: 0, lastIndexedAt: null, provider: null, model: null, dimensions: 0, dbSizeBytes: 0 }

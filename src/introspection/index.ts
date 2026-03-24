@@ -75,6 +75,11 @@ export type HelperIntrospection = {
 	envVars?: string[]
 	// class-level @example blocks from JSDoc
 	examples?: ExampleIntrospection[]
+	// referenced type definitions resolved from parameter and return types
+	types?: Record<string, {
+		description: string;
+		properties: Record<string, { type: string; description: string; optional?: boolean }>
+	}>
 }
 
 export type RegistryIntrospection = {
@@ -203,6 +208,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		getters: data.getters || existing?.getters || {},
 		envVars: existing?.envVars || data.envVars || [],
 		examples: data.examples || existing?.examples,
+		types: { ...(existing?.types || {}), ...(data.types || {}) },
 	})
 }
 
@@ -259,6 +265,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 			? helperConstructor.envVars
 			: (existing?.envVars || []),
 		examples: existing?.examples,
+		types: existing?.types,
 	}
 
 	// Always populate state and options from Zod schemas at runtime

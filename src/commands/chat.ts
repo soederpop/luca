@@ -21,6 +21,8 @@ export const argsSchema = CommandOptionsSchema.extend({
 	prependPrompt: z.string().optional().describe('Text or path to a markdown file to prepend to the system prompt'),
 	appendPrompt: z.string().optional().describe('Text or path to a markdown file to append to the system prompt'),
 	use: z.union([z.string(), z.array(z.string())]).optional().describe('Feature(s) to inject into the assistant via .use(). Supports options: --use "contentDb:rootPath=/tmp;lazy=true"'),
+	forbidTool: z.union([z.string(), z.array(z.string())]).optional().describe('Tool name patterns to exclude (supports * glob). Can be specified multiple times.'),
+	allowTool: z.union([z.string(), z.array(z.string())]).optional().describe('Tool name patterns to allow (strict allowlist, supports * glob). Can be specified multiple times.'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -73,6 +75,8 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	const createOptions: Record<string, any> = { historyMode, injectTimestamps: true }
 	if (options.model) createOptions.model = options.model
 	if (options.local) createOptions.local = options.local
+	if (options.forbidTool) createOptions.forbidTools = Array.isArray(options.forbidTool) ? options.forbidTool : [options.forbidTool]
+	if (options.allowTool) createOptions.allowTools = Array.isArray(options.allowTool) ? options.allowTool : [options.allowTool]
 
 	// Resolve --prepend-prompt / --append-prompt: if it's an existing file, read it; if it ends in .md but doesn't exist, error
 	const fs = container.feature('fs')

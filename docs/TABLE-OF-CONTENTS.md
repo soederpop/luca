@@ -57,8 +57,6 @@
 - [ui](./examples/ui.md)
 - [Vault](./examples/vault.md)
 - [vm](./examples/vm.md)
-- [Window Manager](./examples/window-manager.md)
-- [Window Manager Layouts](./examples/window-manager-layouts.md)
 - [YAML](./examples/yaml.md)
 - [YAML Tree](./examples/yaml-tree.md)
 
@@ -159,7 +157,6 @@
 - [UI (features.ui)](./apis/features/node/ui.md)
 - [WebVault (features.vault)](./apis/features/node/vault.md)
 - [VM (features.vm)](./apis/features/node/vm.md)
-- [WindowManager (features.windowManager)](./apis/features/node/window-manager.md)
 - [YAML (features.yaml)](./apis/features/node/yaml.md)
 - [YamlTree (features.yamlTree)](./apis/features/node/yaml-tree.md)
 - [AssetLoader (features.assetLoader)](./apis/features/web/asset-loader.md)

@@ -37,7 +37,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   static { Feature.register(this, 'diskCache') }
 
   /** Returns the underlying cacache instance configured with the cache directory path. */
-  get cache() {
+  get cache(): ReturnType<typeof this.create> {
     if(this._cache) { 
 	    return this._cache
     }
@@ -61,7 +61,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
    * ```
    */
-  async saveFile(key: string, outputPath: string, isBase64 = false) {
+  async saveFile(key: string, outputPath: string, isBase64 = false): Promise<Buffer | string> {
     const outPath = this.container.paths.resolve(outputPath)
     const content = await this.get(key)  
     const data = isBase64 ? Buffer.from(content, 'base64') : content 
@@ -79,7 +79,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.ensure('config', JSON.stringify(defaultConfig))
    * ```
    */
-  async ensure(key: string, content: string) {
+  async ensure(key: string, content: string): Promise<string> {
     const exists = await this.has(key)
     
     if (!exists) {
@@ -102,7 +102,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.copy('file1', 'file2', true) // force overwrite
    * ```
    */
-  async copy(source: string, destination: string, overwrite: boolean = false) {
+  async copy(source: string, destination: string, overwrite: boolean = false): Promise<string> {
     if(!overwrite && (await this.has(destination))) {
       throw new Error('Destination already exists')
     }
@@ -125,7 +125,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.move('old_key', 'new_key', true) // force overwrite
    * ```
    */
-  async move(source: string, destination: string, overwrite: boolean = false) {
+  async move(source: string, destination: string, overwrite: boolean = false): Promise<string> {
     if(!overwrite && (await this.has(destination))) {
       throw new Error('Destination already exists')
     }
@@ -147,7 +147,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * }
    * ```
    */
-  async has(key: string) {
+  async has(key: string): Promise<boolean> {
     return this.cache.get.info(key).then((r:any) => r != null)
   }
 
@@ -162,7 +162,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * const data = await diskCache.get('myData', true) // parse as JSON
    * ```
    */
-  async get(key: string, json = false) {
+  async get(key: string, json = false): Promise<any> {
     const val = this.options.encrypt 
       ? await this.securely.get(key) 
       : await this.cache.get(key).then((data: any) => data.data.toString())
@@ -191,7 +191,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.set('file', content, { size: 1024, type: 'image' })
    * ```
    */
-  async set(key: string, value: any, meta?: any) {
+  async set(key: string, value: any, meta?: any): Promise<any> {
     if (this.options.encrypt) {
       return this.securely.set(key, value, meta)
     }
@@ -216,7 +216,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.rm('obsoleteKey')
    * ```
    */
-  async rm(key: string) {
+  async rm(key: string): Promise<any> {
     return this.cache.rm.entry(key)
   }
   
@@ -230,7 +230,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * await diskCache.clearAll(true) // Must explicitly confirm
    * ```
    */
-  async clearAll(confirm = false) {
+  async clearAll(confirm = false): Promise<this> {
     if(confirm !== true) {
       throw new Error('Must confirm with clearAll(true)')
     }
@@ -281,7 +281,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * const decrypted = await cache.securely.get('sensitive')
    * ```
    */
-  get securely() {
+  get securely(): { set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> } {
     const { secret, encrypt } = this.options
     
     if (!encrypt) {

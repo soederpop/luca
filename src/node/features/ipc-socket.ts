@@ -139,7 +139,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @returns True if the socket is configured as a client
    */
-  get isClient() {
+  get isClient(): boolean {
     return this.state.get('mode') === 'client'
   }
 
@@ -148,14 +148,14 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @returns True if the socket is configured as a server
    */
-  get isServer() {
+  get isServer(): boolean {
     return this.state.get('mode') === 'server'
   }
 
   /**
    * Returns the number of currently connected clients (server mode).
    */
-  get clientCount() {
+  get clientCount(): number {
     return this.clients.size
   }
 
@@ -326,7 +326,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * 
    * @returns The active Socket connection, or undefined if not connected
    */
-  get connection() {
+  get connection(): Socket | undefined {
     return this._connection
   }
 
@@ -337,7 +337,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * @param exclude - Optional client ID to exclude from broadcast
    * @returns This instance for method chaining
    */
-  broadcast(message: any, exclude?: string) {
+  broadcast(message: any, exclude?: string): this {
     const envelope = JSON.stringify({
       data: message,
       id: this.container.utils.uuid()
@@ -377,7 +377,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @param message - The message to send
    */
-  async send(message: any) {
+  async send(message: any): Promise<void> {
     if(!this._connection) {
       throw new Error("No connection.")
     }
@@ -449,7 +449,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * @param data - The reply payload
    * @param clientId - Target client (server mode; for client mode, omit)
    */
-  reply(requestId: string, data: any, clientId?: string) {
+  reply(requestId: string, data: any, clientId?: string): void {
     const envelope = JSON.stringify({
       id: this.container.utils.uuid(),
       data,
@@ -557,7 +557,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /**
    * Disconnects the client and stops any reconnection attempts.
    */
-  disconnect() {
+  disconnect(): void {
     this._reconnect.enabled = false
     if (this._reconnect.timer) {
       clearTimeout(this._reconnect.timer)

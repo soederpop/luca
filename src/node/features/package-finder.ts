@@ -148,7 +148,7 @@ export class PackageFinder<
    * }, '/project/node_modules/lodash/package.json');
    * ```
    */
-  addPackage(manifest: PartialManifest, path: string) {
+  addPackage(manifest: PartialManifest, path: string): void {
     const { name } = manifest
     
     if (!this.packages[name]) {
@@ -179,7 +179,7 @@ export class PackageFinder<
    * });
    * ```
    */
-  get duplicates() {
+  get duplicates(): string[] {
     return Object.keys(
       pickBy(this.packages, (packages) => packages.length > 1)
     )
@@ -199,7 +199,7 @@ export class PackageFinder<
    * console.log(`Found ${finder.packageNames.length} unique packages`);
    * ```
    */
-  async start() {
+  async start(): Promise<this | undefined> {
     if (this.isStarted) {
       return this;
     }
@@ -234,7 +234,7 @@ export class PackageFinder<
    * console.log(`Scanned ${finder.manifests.length} packages`);
    * ```
    */
-  async scan(options: { exclude?: string | string[] } = {}) {
+  async scan(options: { exclude?: string | string[] } = {}): Promise<this> {
     const packageFolders = await this.findAllPackageFolders()
     const manifestPaths = packageFolders.map((folder) => `${folder}/package.json`)
 
@@ -256,7 +256,7 @@ export class PackageFinder<
    * 
    * @returns True if the finder has been started and scanning is complete
    */
-  get isStarted() {
+  get isStarted(): boolean {
     return !!this.state.get("started");
   }
  
@@ -271,7 +271,7 @@ export class PackageFinder<
    * console.log(`Found ${names.length} unique packages`);
    * ```
    */
-  get packageNames() {
+  get packageNames(): string[] {
     return Object.keys(this.packages)
   }
   
@@ -294,7 +294,7 @@ export class PackageFinder<
    * });
    * ```
    */
-  get scopes() {
+  get scopes(): string[] {
     return Array.from(
       new Set(this.packageNames.filter(p => p.startsWith('@')).map(p => p.split('/')[0]))
     )
@@ -317,7 +317,7 @@ export class PackageFinder<
    * }
    * ```
    */
-  findByName(name: string) {
+  findByName(name: string): PartialManifest | undefined {
     return this.find((i) => i.name === name)  
   }
 
@@ -340,7 +340,7 @@ export class PackageFinder<
    * });
    * ```
    */
-  findDependentsOf(packageName: string) {
+  findDependentsOf(packageName: string): PartialManifest[] {
     return this.filter(({ dependencies = {}, devDependencies = {} }) => {
       return packageName in dependencies || packageName in devDependencies
     })
@@ -361,7 +361,7 @@ export class PackageFinder<
    * const utility = finder.find(pkg => pkg.description?.includes('utility'));
    * ```
    */
-  find(filter: (manifest: PartialManifest) => boolean) {
+  find(filter: (manifest: PartialManifest) => boolean): PartialManifest | undefined {
     return this.manifests.find(filter)
   }
   
@@ -383,7 +383,7 @@ export class PackageFinder<
    * const scoped = finder.filter(pkg => pkg.name.startsWith('@'));
    * ```
    */
-  filter(filter: (manifest: PartialManifest) => boolean) {
+  filter(filter: (manifest: PartialManifest) => boolean): PartialManifest[] {
     return this.manifests.filter(filter)
   }
 
@@ -404,7 +404,7 @@ export class PackageFinder<
    * const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
    * ```
    */
-  exclude(filter: (manifest: PartialManifest) => boolean) {
+  exclude(filter: (manifest: PartialManifest) => boolean): PartialManifest[] {
     return this.manifests.filter((m) => !filter(m))
   }
 
@@ -428,7 +428,7 @@ export class PackageFinder<
    * }, {});
    * ```
    */
-  get manifests() {
+  get manifests(): (PartialManifest & { __path: string })[] {
     return Object.values(this.packages).flat()
   }
   
@@ -452,7 +452,7 @@ export class PackageFinder<
    *   });
    * ```
    */
-  get counts() {
+  get counts(): Record<string, number> {
     return mapValues(this.packages, (packages) => packages.length)
   }
 
@@ -489,7 +489,7 @@ export class PackageFinder<
     return results;
   }
 
-  async findLocalPackageFolders() {
+  async findLocalPackageFolders(): Promise<string[]> {
 	  const cmd = "find . -name package.json"
 	  const result = this.container.proc.exec(cmd)
 	  const all = result.split("\n").filter(Boolean).map((path: string) => this.container.paths.dirname(path))

@@ -233,7 +233,7 @@ export class ChildProcess extends Feature {
    * Useful when callers need streaming access to stdout/stderr and
    * direct lifecycle control (for example, cancellation via kill()).
    */
-  spawn(command: string, args: string[] = [], options: RawSpawnOptions = {}) {
+  spawn(command: string, args: string[] = [], options: RawSpawnOptions = {}): import('child_process').ChildProcess {
     const cwd = options.cwd ?? this.container.cwd
     const stdout = options.stdout ?? 'pipe'
     const stderr = options.stderr ?? 'pipe'

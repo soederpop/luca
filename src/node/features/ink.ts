@@ -128,7 +128,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * Exposed so consumers don't need a separate react import.
    * Lazy-loaded — first access triggers the import.
    */
-  get React() {
+  get React(): typeof import('react') {
     // return a promise the first time, but for ergonomics we also
     // expose a sync getter that throws if react hasn't loaded yet.
     if (this._reactModule) return this._reactModule
@@ -151,7 +151,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * const { Box, Text } = ink.components
    * ```
    */
-  async loadModules() {
+  async loadModules(): Promise<this> {
     await Promise.all([this._getInk(), this._getReact()])
     return this
   }
@@ -163,7 +163,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * const { Box, Text, Static, Spacer } = ink.components
    * ```
    */
-  get components() {
+  get components(): { Box: typeof import('ink').Box; Text: typeof import('ink').Text; Static: typeof import('ink').Static; Transform: typeof import('ink').Transform; Newline: typeof import('ink').Newline; Spacer: typeof import('ink').Spacer } {
     const ink = this._inkModule
     if (!ink) {
       throw new Error(
@@ -188,7 +188,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * const { useInput, useApp, useFocus } = ink.hooks
    * ```
    */
-  get hooks() {
+  get hooks(): { useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor } {
     const ink = this._inkModule
     if (!ink) {
       throw new Error(
@@ -211,7 +211,7 @@ export class Ink extends Feature<InkState, InkOptions> {
   /**
    * The Ink measureElement utility.
    */
-  get measureElement() {
+  get measureElement(): typeof import('ink').measureElement {
     const ink = this._inkModule
     if (!ink) {
       throw new Error('Ink not loaded yet.')
@@ -229,7 +229,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * @param options - Ink render options (stdout, stdin, debug, etc.)
    * @returns The Ink instance with rerender, unmount, waitUntilExit, clear
    */
-  async render(node: any, options: Record<string, any> = {}) {
+  async render(node: any, options: Record<string, any> = {}): Promise<any> {
     const ink = await this._getInk()
     await this._getReact()
 
@@ -280,7 +280,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * ink.rerender(React.createElement(Text, null, 'Updated!'))
    * ```
    */
-  rerender(node: any) {
+  rerender(node: any): void {
     if (!this._instance) {
       throw new Error('No mounted ink app. Call render() first.')
     }
@@ -304,7 +304,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * console.log(ink.isMounted) // false
    * ```
    */
-  unmount() {
+  unmount(): void {
     if (this._instance) {
       this._instance.unmount()
       this.setState({ mounted: false })
@@ -351,7 +351,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * ink.clear()
    * ```
    */
-  clear() {
+  clear(): void {
     if (this._instance) {
       this._instance.clear()
     }
@@ -367,7 +367,7 @@ export class Ink extends Feature<InkState, InkOptions> {
   /**
    * The raw ink render instance if you need low-level access.
    */
-  get instance() {
+  get instance(): any | null {
     return this._instance
   }
 
@@ -387,7 +387,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * )
    * ```
    */
-  registerBlock(name: string, component: Function) {
+  registerBlock(name: string, component: Function): this {
     this._blocks.set(name, component)
     return this
   }
@@ -407,7 +407,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * await ink.renderBlock('Greeting', { name: 'Jon' })
    * ```
    */
-  async renderBlock(name: string, data?: Record<string, any>) {
+  async renderBlock(name: string, data?: Record<string, any>): Promise<void> {
     const component = this._blocks.get(name)
     if (!component) {
       throw new Error(`No block registered with name "${name}". Available: ${[...this._blocks.keys()].join(', ') || '(none)'}`)
@@ -450,7 +450,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    * await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
    * ```
    */
-  async renderBlockAsync(name: string, data?: Record<string, any>, options?: { timeout?: number }) {
+  async renderBlockAsync(name: string, data?: Record<string, any>, options?: { timeout?: number }): Promise<void> {
     const component = this._blocks.get(name)
     if (!component) {
       throw new Error(`No block registered with name "${name}". Available: ${[...this._blocks.keys()].join(', ') || '(none)'}`)

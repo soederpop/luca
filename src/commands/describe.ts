@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
-import type { HelperIntrospection } from '../introspection/index.js'
+import type { HelperIntrospection, IntrospectionSection } from '../introspection/index.js'
 import { __INTROSPECTION__, __BROWSER_INTROSPECTION__ } from '../introspection/index.js'
 import { features } from '../feature.js'
 import { ContainerDescriber } from '../container-describer.js'
 import type { BrowserFeatureData } from '../container-describer.js'
+import { presentIntrospectionAsTypeScript } from '../helper.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -16,6 +17,8 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	json: z.boolean().default(false).describe('Output introspection data as JSON instead of markdown'),
+	typescript: z.boolean().default(false).describe('Output introspection data as TypeScript interface declarations'),
+	ts: z.boolean().default(false).describe('Alias for --typescript'),
 	pretty: z.boolean().default(false).describe('Render markdown with terminal styling via ui.markdown'),
 	title: z.boolean().default(true).describe('Include the title header in the output (use --no-title to omit)'),
 	// Clean section flags (can be combined: --description --usage)
@@ -156,7 +159,12 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 		platform: options.platform as any,
 	})
 
-	if (options.json) {
+	const wantsTypeScript = options.typescript || options.ts
+
+	if (wantsTypeScript) {
+		const output = renderResultAsTypeScript(result, targets, describer, sections)
+		console.log(output)
+	} else if (options.json) {
 		console.log(JSON.stringify(result.json, null, 2))
 	} else if (options.pretty) {
 		const ui = container.feature('ui')
@@ -164,6 +172,63 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	} else {
 		console.log(result.text)
 	}
+}
+
+/**
+ * Renders the describe result as TypeScript interface declarations.
+ * Handles single helpers, arrays of helpers (registry describes), and the container.
+ */
+function renderResultAsTypeScript(result: { json: any; text: string }, targets: string[], describer: ContainerDescriber, sections: (IntrospectionSection | 'description')[]): string {
+	const json = result.json
+	const section = sections.length === 1 && sections[0] !== 'description' ? sections[0] as IntrospectionSection : undefined
+
+	// Single helper introspection object (has shortcut = full data, or id = filtered data)
+	if (json && (json.shortcut || json.id)) {
+		// If sections were applied, the JSON is partial — get full data and pass section to renderer
+		const fullData = json.shortcut ? json : __INTROSPECTION__.get(json.id) || json
+		return presentIntrospectionAsTypeScript(fullData, section)
+	}
+
+	// Container introspection (has className, registries, factories)
+	if (json && json.className && json.registries) {
+		const container = (describer as any).container
+		return container.inspectAsType()
+	}
+
+	// Array of results (e.g. from registry describe or multiple targets)
+	if (Array.isArray(json)) {
+		const interfaces = json
+			.filter((item: any) => item && (item.shortcut || item.id))
+			.map((item: any) => {
+				const fullData = item.shortcut ? item : __INTROSPECTION__.get(item.id) || item
+				return presentIntrospectionAsTypeScript(fullData, section)
+			})
+		return interfaces.join('\n\n')
+	}
+
+	// Object keyed by helper id (registry describe format — has _shared and per-helper summaries)
+	if (json && typeof json === 'object' && !json._helper && json._shared) {
+		const ids = Object.keys(json).filter(k => k !== '_shared')
+		const interfaces = ids
+			.map((id: string) => {
+				// Try qualified key first (e.g. "clients.rest"), then scan the introspection map
+				for (const prefix of ['features', 'clients', 'servers', 'commands', 'endpoints']) {
+					const data = __INTROSPECTION__.get(`${prefix}.${id}`)
+					if (data) return presentIntrospectionAsTypeScript(data, section)
+				}
+				return null
+			})
+			.filter(Boolean)
+		if (interfaces.length > 0) return interfaces.join('\n\n')
+	}
+
+	// Member-level result (has _helper and _type) — render the full helper interface
+	if (json && json._helper) {
+		const fullData = __INTROSPECTION__.get(json._helper) || __INTROSPECTION__.get(`features.${json._helper}`)
+		if (fullData) return presentIntrospectionAsTypeScript(fullData)
+	}
+
+	return result.text
 }
 
 commands.registerHandler('describe', {

@@ -78,12 +78,12 @@ export class FileManager<
   });
 
   /** Returns an array of all relative file paths indexed by the file manager. */
-  get fileIds() {
+  get fileIds(): string[] {
     return Array.from(this.files.keys());
   }
 
   /** Returns an array of all file metadata objects indexed by the file manager. */
-  get fileObjects() {
+  get fileObjects(): File[] {
     return Array.from(this.files.values());
   }
 
@@ -92,7 +92,7 @@ export class FileManager<
    * @param {string | string[]} patterns - The patterns to match against the file IDs
    * @returns {string[]} The file IDs that match the patterns
   */
-  match(patterns: string | string[]) {
+  match(patterns: string | string[]): string[] {
     return micromatch(this.files.keys(), patterns);
   }
 
@@ -102,7 +102,7 @@ export class FileManager<
    * @param {string | string[]} patterns - The patterns to match against the file IDs
    * @returns {File[]} The file objects that match the patterns
   */
-  matchFiles(patterns: string | string[]) {
+  matchFiles(patterns: string | string[]): (File | undefined)[] {
     const fileIds = this.match(Array.isArray(patterns) ? patterns : [patterns]);
     return fileIds.map((fileId) => this.files.get(fileId));
   }
@@ -110,7 +110,7 @@ export class FileManager<
   /** 
    * Returns the directory IDs for all of the files in the project.
   */
-  get directoryIds() {
+  get directoryIds(): string[] {
     return Array.from(
       new Set(
         this.files
@@ -122,7 +122,7 @@ export class FileManager<
   }
 
   /** Returns an array of unique file extensions found across all indexed files. */
-  get uniqueExtensions() {
+  get uniqueExtensions(): string[] {
     return Array.from(
       new Set(
         this.files.values().map((file) => file.extension)
@@ -131,17 +131,17 @@ export class FileManager<
   }
 
   /** Whether the file manager has completed its initial scan. */
-  get isStarted() {
+  get isStarted(): boolean {
     return !!this.state.get("started");
   }
 
   /** Whether the file manager is currently performing its initial scan. */
-  get isStarting() {
+  get isStarting(): boolean {
     return !!this.state.get("starting");
   }
 
   /** Whether the file watcher is actively monitoring for changes. */
-  get isWatching() {
+  get isWatching(): boolean {
     return !!this.state.get("watching");
   }
 
@@ -156,7 +156,7 @@ export class FileManager<
    * @param {string | string[]} [options.exclude] - The patterns to exclude from the scan
    * @returns {Promise<FileManager>} The file manager instance
   */
-  async start(options: { exclude?: string | string[] } = {}) {
+  async start(options: { exclude?: string | string[] } = {}): Promise<this> {
     if (this.isStarted) {
       return this;
     }
@@ -302,7 +302,7 @@ export class FileManager<
    * @param {string | string[]} [options.exclude] - The patterns to exclude from the scan
    * @returns {Promise<FileManager>} The file manager instance
   */
-  async scanFiles(options: { exclude?: string | string[] } = {}) {
+  async scanFiles(options: { exclude?: string | string[] } = {}): Promise<this> {
     const { cwd, git, fs } = this.container;
 
     const fileIds: string[] = [];
@@ -416,7 +416,7 @@ export class FileManager<
    * @param {string | string[]} [options.exclude] - The patterns to exclude from the watch
    * @returns {Promise<void>}
   */
-  async watch(options: { paths?: string | string[]; exclude?: string | string[] } = {}) {
+  async watch(options: { paths?: string | string[]; exclude?: string | string[] } = {}): Promise<void> {
     const pathsToWatch = castArray(options.paths || this.directoryIds.map(id => this.container.paths.resolve(id)))
       .map(p => this.container.paths.resolve(p));
 
@@ -487,7 +487,7 @@ export class FileManager<
     this.watcher = watcher;
   }
 
-  async stopWatching() {
+  async stopWatching(): Promise<void> {
     if (!this.isWatching) {
       return;
     }
@@ -500,7 +500,7 @@ export class FileManager<
     }
   }
 
-  async updateFile(path: string) {
+  async updateFile(path: string): Promise<void> {
     const absolutePath = this.container.paths.resolve(path);
     const { name, ext, dir } = parse(absolutePath);
 
@@ -526,7 +526,7 @@ export class FileManager<
     }
   }
 
-  async removeFile(path: string) {
+  async removeFile(path: string): Promise<void> {
     this.files.delete(path);
   }
 }

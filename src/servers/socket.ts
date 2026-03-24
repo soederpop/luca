@@ -65,7 +65,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     
     _wss?: BaseServer 
 
-    get wss() {
+    get wss(): BaseServer {
       if (this._wss) {
         return this._wss
       }
@@ -78,7 +78,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     connections : Set<any> = new Set()
     _pending = new Map<string, PendingRequest>()
 
-    async broadcast(message: any) {
+    async broadcast(message: any): Promise<this> {
       for(const ws of this.connections) {
         await ws.send(JSON.stringify(message))
       }
@@ -86,7 +86,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return this
     }
     
-    async send(ws: any, message: any) {
+    async send(ws: any, message: any): Promise<this> {
       await ws.send(JSON.stringify(message))
       return this
     }
@@ -158,7 +158,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
      *
      * @param options - Optional runtime overrides for port and host
      */
-    override async start(options?: StartOptions) {
+    override async start(options?: StartOptions): Promise<this> {
       if (this.isListening) {
         return this
       }
@@ -209,7 +209,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
       return this
     }
 
-    override async stop() {
+    override async stop(): Promise<this> {
       if (this.isStopped) {
         return this
       }
@@ -250,7 +250,7 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     }
     
     /** The port this server will bind to. Defaults to 8081 if not set via constructor options or start(). */
-    override get port() {
+    override get port(): number {
       return this.state.get('port') || this.options.port || 8081
     }
 }

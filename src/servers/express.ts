@@ -55,11 +55,11 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
     _listener?: any
     _mountedEndpoints: Endpoint[] = []
 
-    get express() {
+    get express(): typeof express {
       return express
     }
 
-    get hooks() {
+    get hooks(): { create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any } {
       const { create = defaultCreate, beforeStart = () => {} } = this.options  
       
       return {
@@ -68,7 +68,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       }
     }
 
-    get app() {
+    get app(): Express {
       if(this._app) {
         return this._app
       }
@@ -99,7 +99,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
      *
      * @param options - Optional runtime overrides for port and host
      */
-    override async start(options?: StartOptions) {
+    override async start(options?: StartOptions): Promise<this> {
       if (this.isListening) {
         return this
       }
@@ -137,7 +137,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this
     }
 
-    override async stop() {
+    override async stop(): Promise<this> {
       if (this.isStopped) {
         return this
       }
@@ -167,7 +167,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return this
     }
     
-    override async configure() {
+    override async configure(): Promise<this> {
       this.state.set('configured', true)
       return this
     }

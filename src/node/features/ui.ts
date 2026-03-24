@@ -104,7 +104,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * @param text - The markdown string to parse and render
    * @returns The rendered terminal-formatted string
    */
-  markdown(text: string) {
+  markdown(text: string): string | Promise<string> {
     return marked.parse(text)
   }
 
@@ -220,7 +220,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * });
    * ```
    */
-  get randomColor() {
+  get randomColor(): string | undefined {
     const colors = Object.keys(this.colors);
     const index = Math.floor(Math.random() * colors.length);
 
@@ -321,7 +321,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * ], { version: '1.0.0' });
    * ```
    */
-  wizard(questions: any[], initialAnswers: any = {}) {
+  wizard(questions: any[], initialAnswers: any = {}): Promise<any> {
     return inquirer.createPromptModule()(questions, initialAnswers);
   }
 
@@ -331,7 +331,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * @param question - The question message to display
    * @returns Promise resolving to the answers object with a `question` key
    */
-  askQuestion(question: string) {
+  askQuestion(question: string): Promise<any> {
     return inquirer.createPromptModule()([{
       type: 'input',
       name: 'question',
@@ -371,7 +371,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * const editedMarkdown = await ui.openInEditor(markdown, '.md');
    * ```
    */
-  async openInEditor(text: string, extension = ".ts") {
+  async openInEditor(text: string, extension = ".ts"): Promise<unknown> {
     const results = await new Promise((resolve, reject) => {
       /*
       editAsync(
@@ -429,7 +429,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * console.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));
    * ```
    */
-  asciiArt(text: string, font: Fonts) {
+  asciiArt(text: string, font: Fonts): string {
     if (!figlet) return text;
     return figlet.textSync(text, font);
   }
@@ -481,7 +481,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * // Available colors: any chalk color names
    * ```
    */
-  banner(text: string, options: { font: Fonts; colors: Color[] } = { font: 'Star Wars', colors: ['red', 'white', 'blue'] }) {
+  banner(text: string, options: { font: Fonts; colors: Color[] } = { font: 'Star Wars', colors: ['red', 'white', 'blue'] }): string {
     const art = this.asciiArt(text, options.font || 'Star Wars');
     const colored = this.applyGradient(art, options.colors || ['red', 'white', 'blue']);
 
@@ -495,7 +495,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * @param args - Tagged template literal arguments
    * @returns The dedented string
    */
-  endent(...args: any[]) {
+  endent(...args: any[]): string {
     // @ts-ignore
     return endent(...args)
   }
@@ -544,7 +544,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     text: string,
     lineColors: Color[] = ["red", "white", "blue"],
     direction: "horizontal" | "vertical" = "horizontal"
-  ) {
+  ): string {
     if (direction === "horizontal") {
       return this.applyHorizontalGradient(text, lineColors);
     }
@@ -587,7 +587,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   applyHorizontalGradient(
     text: string,
     lineColors: Color[] = ["red", "white", "blue"]
-  ) {
+  ): string {
     const gColors = Object.fromEntries(
       lineColors.map((color) => [color, this.colors[color]])
     );
@@ -639,7 +639,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   applyVerticalGradient(
     text: string,
     lineColors: Color[] = ["red", "white", "blue"]
-  ) {
+  ): string {
     const gColors = Object.fromEntries(
       lineColors.map((color) => [color, this.colors[color]])
     );
@@ -689,7 +689,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * const title = ui.padLeft('TITLE', 20, '-'); // '---------------TITLE'
    * ```
    */
-  padLeft(str: string, length: number, padChar = " ") {
+  padLeft(str: string, length: number, padChar = " "): string {
     if (str.length >= length) {
       return str;
     }
@@ -744,7 +744,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
    * ```
    */
-  padRight(str: string, length: number, padChar = " ") {
+  padRight(str: string, length: number, padChar = " "): string {
     if (str.length >= length) {
       return str;
     }

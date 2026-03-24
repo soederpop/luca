@@ -98,7 +98,7 @@ export class Git extends Feature {
      * })
      * ```
      */
-    async lsFiles(options: LsFilesOptions = {}) {
+    async lsFiles(options: LsFilesOptions = {}): Promise<string[]> {
         const { 
             cached = false, 
             deleted = false, 
@@ -153,7 +153,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    get branch() {
+    get branch(): string | null {
         if(!this.isRepo) { return null }
         return this.container.feature('proc').exec(`${this.gitPath} branch`).split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
     }
@@ -171,7 +171,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    get sha() {
+    get sha(): string | null {
         if(!this.isRepo) { return null }
         return this.container.feature('proc').exec(`${this.gitPath} rev-parse HEAD`, { cwd: this.repoRoot })
     }
@@ -190,7 +190,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    get isRepo() {
+    get isRepo(): boolean {
         return !!this.repoRoot
     }
     
@@ -208,7 +208,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    get isRepoRoot() {
+    get isRepoRoot(): boolean {
         return this.repoRoot == this.container.cwd
     }
     
@@ -228,7 +228,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    get repoRoot() {
+    get repoRoot(): string | null {
         if (this.state.has('repoRoot')) {
             return this.state.get('repoRoot')
         }
@@ -260,7 +260,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    async getLatestChanges(numberOfChanges: number = 10) {
+    async getLatestChanges(numberOfChanges: number = 10): Promise<Array<{ title: string, message: string, author: string }>> {
         if (!this.isRepo) return []
 
         const separator = '---COMMIT---'
@@ -299,7 +299,7 @@ export class Git extends Feature {
      * }
      * ```
      */
-    fileLog(...files: string[]) {
+    fileLog(...files: string[]): Array<{ sha: string, message: string }> {
         if (!this.isRepo || !files.length) return []
 
         const proc = this.container.feature('proc')
@@ -349,7 +349,7 @@ export class Git extends Feature {
      * const d = git.diff('src/index.ts', 'feature-branch', 'main')
      * ```
      */
-    diff(file: string, compareTo: string, compareFrom?: string) {
+    diff(file: string, compareTo: string, compareFrom?: string): string {
         if (!this.isRepo) return ''
 
         const proc = this.container.feature('proc')
@@ -531,7 +531,7 @@ export class Git extends Feature {
      * const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
      * ```
      */
-    getChangeHistoryForFiles(...paths: string[]) {
+    getChangeHistoryForFiles(...paths: string[]): Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }> {
         if (!this.isRepo || !paths.length) return []
 
         const proc = this.container.feature('proc')

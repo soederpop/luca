@@ -189,6 +189,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     const getters = this.extractGetters(classNode, sourceFile);
     const events = this.extractEvents(classNode, sourceFile);
     const examples = this.extractJSDocExamples(classNode);
+    const types = this.collectReferencedTypes(methods, getters, sourceFile);
 
     // state and options are derived at runtime from Zod schemas
     // via interceptRegistration — no need to extract them at build time
@@ -204,6 +205,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       options: {},
       envVars: [],
       ...(examples.length > 0 ? { examples } : {}),
+      ...(Object.keys(types).length > 0 ? { types } : {}),
     };
   }
 
@@ -230,7 +232,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
    * These are framework internals (class references, utility objects) not useful in inspection.
    */
   private static CONTAINER_SKIP_GETTERS = new Set([
-    'Feature', 'Helper', 'State', 'z', 'features',
+    'Feature', 'Helper', 'State', 'z',
   ]);
 
   private extendsContainer(classNode: ts.ClassDeclaration): boolean {
@@ -298,6 +300,9 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         // Skip methods starting with _ (internal methods like _hide)
         if (methodName.startsWith('_')) continue;
 
+        // Skip methods tagged with @internal
+        if (this.hasJSDocTag(member, 'internal')) continue;
+
         const description = this.extractJSDocDescription(member) || '';
         const parameters = this.extractParameters(member);
         const required = this.extractRequiredParameters(member);
@@ -327,6 +332,9 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         // Skip container framework getters
         if (IntrospectionScannerFeature.CONTAINER_SKIP_GETTERS.has(getterName)) continue;
 
+        // Skip getters tagged with @internal
+        if (this.hasJSDocTag(member, 'internal')) continue;
+
         // Skip private getters unless includePrivate is true
         const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
         if (isPrivate && !this.options.includePrivate) continue;
@@ -336,7 +344,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         if (isStatic) continue;
 
         const description = this.extractJSDocDescriptionFromAccessor(member) || '';
-        const returns = member.type ? member.type.getText() : 'any';
+        const returns = this.resolveReturnType(member, member.type, 'any');
         const examples = this.extractJSDocExamples(member);
 
         getters[getterName] = {
@@ -486,6 +494,9 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
         if (isStatic) continue;
 
+        // Skip methods tagged with @internal
+        if (this.hasJSDocTag(member, 'internal')) continue;
+
         const description = this.extractJSDocDescription(member) || '';
         const parameters = this.extractParameters(member);
         const required = this.extractRequiredParameters(member);
@@ -539,8 +550,11 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
         if (isStatic) continue;
 
+        // Skip getters tagged with @internal
+        if (this.hasJSDocTag(member, 'internal')) continue;
+
         const description = this.extractJSDocDescriptionFromAccessor(member) || '';
-        const returns = member.type ? member.type.getText() : 'any';
+        const returns = this.resolveReturnType(member, member.type, 'any');
         const examples = this.extractJSDocExamples(member);
 
         getters[getterName] = {
@@ -552,6 +566,57 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     }
 
     return getters;
+  }
+
+  /**
+   * Extract a return type from a node, preferring explicit TS annotation,
+   * falling back to JSDoc @returns {Type}, then to the given default.
+   */
+  private resolveReturnType(node: ts.Node, typeNode: ts.TypeNode | undefined, fallback: string): string {
+    if (typeNode) return typeNode.getText();
+
+    const sourceFile = node.getSourceFile();
+    const fullText = sourceFile.getFullText();
+    const ranges = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+
+    if (ranges && ranges.length > 0) {
+      for (let i = ranges.length - 1; i >= 0; i--) {
+        const range = ranges[i];
+        if (!range) continue;
+        const commentText = fullText.substring(range.pos, range.end);
+        if (!commentText.startsWith('/**')) continue;
+
+        const match = commentText.match(/@returns?\s*\{([^}]+)\}/);
+        if (match) return match[1].trim();
+      }
+    }
+
+    return fallback;
+  }
+
+  /**
+   * Check if a node's JSDoc comment contains a specific @tag (e.g. @internal).
+   */
+  private hasJSDocTag(node: ts.Node, tagName: string): boolean {
+    const sourceFile = node.getSourceFile();
+    const fullText = sourceFile.getFullText();
+    const ranges = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+
+    if (!ranges || ranges.length === 0) return false;
+
+    for (let i = ranges.length - 1; i >= 0; i--) {
+      const range = ranges[i];
+      if (!range) continue;
+      const commentText = fullText.substring(range.pos, range.end);
+      if (!commentText.startsWith('/**')) continue;
+
+      // Check for @tagName anywhere in the JSDoc
+      if (new RegExp(`@${tagName}\\b`).test(commentText)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private extractJSDocDescriptionFromAccessor(node: ts.GetAccessorDeclaration): string | null {
@@ -782,6 +847,161 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
   }
 
   /**
+   * Collect all non-primitive type names referenced in method parameters and return types,
+   * then resolve each to its properties from the source file. Returns a map of type name
+   * to its property definitions, suitable for emitting as standalone interface declarations.
+   */
+  private collectReferencedTypes(
+    methods: Record<string, MethodIntrospection>,
+    getters: Record<string, { returns: string; description: string }>,
+    sourceFile: ts.SourceFile
+  ): Record<string, { description: string; properties: Record<string, { type: string; description: string; optional?: boolean }> }> {
+    const types: Record<string, { description: string; properties: Record<string, { type: string; description: string; optional?: boolean }> }> = {};
+    const seen = new Set<string>();
+
+    const tryResolve = (rawType: string) => {
+      // Extract type names from complex type strings
+      // e.g. "Promise<GrepMatch[]>" -> "GrepMatch"
+      // e.g. "GrepOptions" -> "GrepOptions"
+      // e.g. "string | Foo" -> "Foo"
+      // e.g. "Omit<GrepOptions, 'pattern'>" -> "GrepOptions"
+      const typeNames = this.extractTypeNames(rawType);
+
+      for (const typeName of typeNames) {
+        if (seen.has(typeName)) continue;
+        seen.add(typeName);
+
+        if (IntrospectionScannerFeature.PRIMITIVE_TYPES.has(typeName)) continue;
+
+        const properties = this.resolveTypePropertiesWithOptional(typeName, sourceFile);
+        if (properties && Object.keys(properties).length > 0) {
+          // Extract JSDoc description from the type declaration itself
+          const description = this.extractTypeDescription(typeName, sourceFile) || '';
+          types[typeName] = { description, properties };
+
+          // Recursively resolve types referenced in properties
+          for (const prop of Object.values(properties)) {
+            tryResolve(prop.type);
+          }
+        }
+      }
+    };
+
+    // Collect from method parameters and return types
+    for (const method of Object.values(methods)) {
+      for (const param of Object.values(method.parameters || {})) {
+        tryResolve(param.type);
+      }
+      if (method.returns) {
+        tryResolve(method.returns);
+      }
+    }
+
+    // Collect from getter return types
+    for (const getter of Object.values(getters)) {
+      if (getter.returns) {
+        tryResolve(getter.returns);
+      }
+    }
+
+    return types;
+  }
+
+  /**
+   * Extract concrete type names from a potentially complex type string.
+   * Handles generics, unions, intersections, arrays, and utility types.
+   */
+  private extractTypeNames(typeStr: string): string[] {
+    if (!typeStr) return [];
+
+    // Remove Promise<...> wrapper but keep the inner type
+    // Remove array suffix [], Partial<>, Omit<>, Pick<>, etc.
+    // Split on | and & for unions/intersections
+    const names: string[] = [];
+
+    // Match identifiers that look like type names (PascalCase or known patterns)
+    // This regex finds all capitalized identifiers that aren't JS built-ins
+    const matches = typeStr.match(/\b([A-Z][A-Za-z0-9_]*)\b/g) || [];
+    const BUILTIN_TYPES = new Set([
+      'Promise', 'Array', 'Record', 'Map', 'Set', 'WeakMap', 'WeakSet',
+      'Partial', 'Required', 'Readonly', 'Pick', 'Omit', 'Exclude', 'Extract',
+      'Buffer', 'Date', 'RegExp', 'Error', 'Function', 'Symbol',
+      'AsyncIterable', 'Iterable', 'Iterator', 'AsyncIterator',
+      'InstanceType', 'ReturnType', 'Parameters',
+      'HTMLElement', 'Event', 'EventTarget',
+      'Stats', // Node.js fs.Stats — commonly used but not resolvable in-file
+    ]);
+
+    for (const match of matches) {
+      if (!BUILTIN_TYPES.has(match) && !IntrospectionScannerFeature.PRIMITIVE_TYPES.has(match.toLowerCase())) {
+        names.push(match);
+      }
+    }
+
+    return [...new Set(names)];
+  }
+
+  /**
+   * Like resolveTypeProperties but also captures whether each property is optional (has ?).
+   */
+  private resolveTypePropertiesWithOptional(typeName: string, sourceFile: ts.SourceFile): Record<string, { type: string; description: string; optional?: boolean }> | null {
+    for (const statement of sourceFile.statements) {
+      if (ts.isTypeAliasDeclaration(statement) && statement.name.text === typeName) {
+        if (ts.isTypeLiteralNode(statement.type)) {
+          return this.extractTypeLiteralMembersWithOptional(statement.type, sourceFile);
+        }
+      }
+      if (ts.isInterfaceDeclaration(statement) && statement.name.text === typeName) {
+        return this.extractInterfaceMembersWithOptional(statement, sourceFile);
+      }
+    }
+    return null;
+  }
+
+  private extractTypeLiteralMembersWithOptional(node: ts.TypeLiteralNode, sourceFile: ts.SourceFile): Record<string, { type: string; description: string; optional?: boolean }> | null {
+    const members: Record<string, { type: string; description: string; optional?: boolean }> = {};
+    for (const member of node.members) {
+      if (ts.isPropertySignature(member) && member.name) {
+        const name = member.name.getText();
+        const type = member.type ? member.type.getText() : 'any';
+        const description = this.extractJSDocFromNode(member, sourceFile) || '';
+        const optional = !!member.questionToken;
+        members[name] = { type, description, ...(optional ? { optional } : {}) };
+      }
+    }
+    return Object.keys(members).length > 0 ? members : null;
+  }
+
+  private extractInterfaceMembersWithOptional(node: ts.InterfaceDeclaration, sourceFile: ts.SourceFile): Record<string, { type: string; description: string; optional?: boolean }> | null {
+    const members: Record<string, { type: string; description: string; optional?: boolean }> = {};
+    for (const member of node.members) {
+      if (ts.isPropertySignature(member) && member.name) {
+        const name = member.name.getText();
+        const type = member.type ? member.type.getText() : 'any';
+        const description = this.extractJSDocFromNode(member, sourceFile) || '';
+        const optional = !!member.questionToken;
+        members[name] = { type, description, ...(optional ? { optional } : {}) };
+      }
+    }
+    return Object.keys(members).length > 0 ? members : null;
+  }
+
+  /**
+   * Extract the JSDoc description from a type alias or interface declaration.
+   */
+  private extractTypeDescription(typeName: string, sourceFile: ts.SourceFile): string | null {
+    for (const statement of sourceFile.statements) {
+      if (
+        (ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement)) &&
+        statement.name.text === typeName
+      ) {
+        return this.extractJSDocFromNode(statement, sourceFile);
+      }
+    }
+    return null;
+  }
+
+  /**
    * Extracts a JSDoc description from any node that may have leading comments.
    */
   private extractJSDocFromNode(node: ts.Node, sourceFile: ts.SourceFile): string | null {
@@ -828,10 +1048,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
   }
 
   private extractReturnType(method: ts.MethodDeclaration): string {
-    if (method.type) {
-      return method.type.getText();
-    }
-    return 'void';
+    return this.resolveReturnType(method, method.type, 'void');
   }
 
   private extractEvents(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): Record<string, EventIntrospection> {

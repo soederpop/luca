@@ -86,6 +86,15 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** When true, prepend a timestamp to each user message so the assistant can track the passage of time across sessions */
 	injectTimestamps: z.boolean().default(false).describe('Prepend timestamps to user messages so the assistant can perceive time passing between sessions'),
+
+	/** Strict allowlist of tool names to include. Only these tools will be available. Supports "*" glob matching. */
+	allowTools: z.array(z.string()).optional().describe('Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching.'),
+
+	/** Denylist of tool names to exclude. Matching tools will be removed. Supports "*" glob matching. */
+	forbidTools: z.array(z.string()).optional().describe('Denylist of tool name patterns to exclude. Supports * glob matching.'),
+
+	/** Convenience alias for allowTools — an explicit list of tool names (exact matches only). */
+	toolNames: z.array(z.string()).optional().describe('Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -334,7 +343,59 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/** The tools registered with this assistant. */
 	get tools(): Record<string, ConversationTool> {
-		return (this.state.get('tools') || {}) as Record<string, ConversationTool>
+		const all = (this.state.get('tools') || {}) as Record<string, ConversationTool>
+		return this.applyToolFilters(all)
+	}
+
+	/**
+	 * Apply allowTools, forbidTools, and toolNames filters from options.
+	 * toolNames is treated as an exact-match allowlist. allowTools/forbidTools support "*" glob patterns.
+	 * allowTools is applied first (strict allowlist), then forbidTools removes from whatever remains.
+	 */
+	private applyToolFilters(tools: Record<string, ConversationTool>): Record<string, ConversationTool> {
+		const { allowTools, forbidTools, toolNames } = this.options
+		if (!allowTools && !forbidTools && !toolNames) return tools
+
+		let names = Object.keys(tools)
+
+		// toolNames is a strict exact-match allowlist
+		if (toolNames) {
+			const allowed = new Set(toolNames)
+			names = names.filter(n => allowed.has(n))
+		}
+
+		// allowTools: only keep names matching at least one pattern
+		if (allowTools) {
+			names = names.filter(n => allowTools.some(pattern => this.matchToolPattern(pattern, n)))
+		}
+
+		// forbidTools: remove names matching any pattern
+		if (forbidTools) {
+			names = names.filter(n => !forbidTools.some(pattern => this.matchToolPattern(pattern, n)))
+		}
+
+		const result: Record<string, ConversationTool> = {}
+		for (const n of names) {
+			result[n] = tools[n]
+		}
+		return result
+	}
+
+	/**
+	 * Match a tool name against a pattern that supports "*" as a wildcard.
+	 * - "*" matches everything
+	 * - "prefix*" matches names starting with prefix
+	 * - "*suffix" matches names ending with suffix
+	 * - "pre*suf" matches names starting with pre and ending with suf
+	 * - exact string matches exactly
+	 */
+	private matchToolPattern(pattern: string, name: string): boolean {
+		if (pattern === '*') return true
+		if (!pattern.includes('*')) return pattern === name
+
+		// Convert glob pattern to regex: escape regex chars, replace * with .*
+		const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+		return new RegExp(`^${escaped}$`).test(name)
 	}
 
 	/**

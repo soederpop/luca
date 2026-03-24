@@ -73,6 +73,31 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return presentIntrospectionJSONAsMarkdown(introspection, depth, section)
   }
 
+  /**
+   * Returns the introspection data formatted as a TypeScript interface declaration.
+   * Useful for AI agents that reason better with structured type information,
+   * or for generating `.d.ts` files that accurately describe a helper's public API.
+   *
+   * @example
+   * ```ts
+   * console.log(container.feature('fs').inspectAsType())
+   * // interface FS {
+   * //   readonly cwd: string;
+   * //   readFile(path: string): Promise<string>;
+   * //   ...
+   * // }
+   * ```
+   */
+  static inspectAsType(section?: IntrospectionSection) : string {
+    return this.introspectAsType(section)
+  }
+
+  static introspectAsType(section?: IntrospectionSection) : string {
+    const introspection = this.introspect()
+    if (!introspection) return ''
+    return presentIntrospectionAsTypeScript(introspection, section)
+  }
+
 
   /**
    * All Helpers can be introspect()ed and, assuming the introspection data has been loaded into the registry,
@@ -90,8 +115,8 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
   /** Alias for introspect */
   inspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
-    return this.introspect()
-  } 
+    return this.introspect(section)
+  }
 
   /**
    * Returns the introspection data formatted as a markdown string.
@@ -110,7 +135,23 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
   inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
     return this.introspectAsText(sectionOrDepth, startHeadingDepth)
   }
-  
+
+  /**
+   * Returns the introspection data formatted as a TypeScript interface declaration.
+   * Useful for AI agents that reason better with structured type information,
+   * or for generating `.d.ts` files that accurately describe a helper's public API.
+   */
+  introspectAsType(section?: IntrospectionSection) : string {
+    const introspection = this.introspect()
+    if (!introspection) return ''
+    return presentIntrospectionAsTypeScript(introspection, section)
+  }
+
+  /** Alias for introspectAsType */
+  inspectAsType(section?: IntrospectionSection) : string {
+    return this.introspectAsType(section)
+  }
+
   constructor(options: K, context: ContainerContext) {
     const optionSchema = (this.constructor as any).optionsSchema
     if (optionSchema && typeof optionSchema.safeParse === 'function') {
@@ -593,6 +634,7 @@ function normalizeLang(lang: string): string {
 }
 
 export { presentIntrospectionJSONAsMarkdown as presentIntrospectionAsMarkdown }
+export { presentIntrospectionAsTypeScript, renderTypeScriptParams, normalizeTypeString, isGenericObjectType }
 
 function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection) {
   const sections: string[] = []
@@ -625,4 +667,142 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
   }
 
   return sections.join('\n\n')
+}
+
+/**
+ * Renders introspection data as a TypeScript interface declaration.
+ * Produces a valid interface string that describes the helper's public API —
+ * getters, methods, state shape, options shape, and event listener signatures.
+ */
+function presentIntrospectionAsTypeScript(introspection: HelperIntrospection, section?: IntrospectionSection): string {
+  const interfaceName = introspection.className || introspection.id.split('.').pop() || 'Unknown'
+  const members: string[] = []
+
+  const shouldRender = (s: IntrospectionSection) => !section || section === s
+
+  // Getters
+  if (shouldRender('getters') && introspection.getters && Object.keys(introspection.getters).length > 0) {
+    for (const [name, info] of Object.entries(introspection.getters)) {
+      const returnType = normalizeTypeString(info.returns || 'any')
+      if (info.description) {
+        members.push(`  /** ${info.description} */`)
+      }
+      members.push(`  readonly ${name}: ${returnType};`)
+    }
+  }
+
+  // Methods
+  if (shouldRender('methods') && introspection.methods && Object.keys(introspection.methods).length > 0) {
+    if (members.length > 0) members.push('')
+    for (const [name, info] of Object.entries(introspection.methods)) {
+      if (info.description) {
+        members.push(`  /** ${info.description} */`)
+      }
+      const params = renderTypeScriptParams(info)
+      const returnType = normalizeTypeString(info.returns || 'void')
+      members.push(`  ${name}(${params}): ${returnType};`)
+    }
+  }
+
+  // State
+  if (shouldRender('state') && introspection.state && Object.keys(introspection.state).length > 0) {
+    if (members.length > 0) members.push('')
+    const stateMembers = Object.entries(introspection.state)
+      .map(([name, info]) => {
+        const comment = info.description ? `    /** ${info.description} */\n` : ''
+        return `${comment}    ${name}: ${normalizeTypeString(info.type || 'any')};`
+      })
+      .join('\n')
+    members.push(`  state: {\n${stateMembers}\n  };`)
+  }
+
+  // Options
+  if (shouldRender('options') && introspection.options && Object.keys(introspection.options).length > 0) {
+    if (members.length > 0) members.push('')
+    const optionMembers = Object.entries(introspection.options)
+      .map(([name, info]) => {
+        const comment = info.description ? `    /** ${info.description} */\n` : ''
+        return `${comment}    ${name}?: ${normalizeTypeString(info.type || 'any')};`
+      })
+      .join('\n')
+    members.push(`  options: {\n${optionMembers}\n  };`)
+  }
+
+  // Events — rendered as on() overloads
+  if (shouldRender('events') && introspection.events && Object.keys(introspection.events).length > 0) {
+    if (members.length > 0) members.push('')
+    for (const [eventName, eventInfo] of Object.entries(introspection.events)) {
+      const args = Object.entries(eventInfo.arguments || {})
+      const listenerParams = args.length > 0
+        ? args.map(([argName, argInfo]) => `${argName}: ${normalizeTypeString(argInfo.type || 'any')}`).join(', ')
+        : ''
+      if (eventInfo.description) {
+        members.push(`  /** ${eventInfo.description} */`)
+      }
+      members.push(`  on(event: '${eventName}', listener: (${listenerParams}) => void): this;`)
+    }
+  }
+
+  const description = introspection.description
+    ? `/**\n * ${introspection.description.split('\n').join('\n * ')}\n */\n`
+    : ''
+
+  const mainInterface = `${description}interface ${interfaceName} {\n${members.join('\n')}\n}`
+
+  // Emit referenced type declarations above the main interface
+  const types = introspection.types
+  if (types && Object.keys(types).length > 0) {
+    const typeDeclarations = Object.entries(types).map(([typeName, typeInfo]) => {
+      const typeDesc = typeInfo.description
+        ? `/**\n * ${typeInfo.description.split('\n').join('\n * ')}\n */\n`
+        : ''
+      const props = Object.entries(typeInfo.properties)
+        .map(([propName, propInfo]) => {
+          const comment = propInfo.description ? `  /** ${propInfo.description} */\n` : ''
+          const opt = propInfo.optional ? '?' : ''
+          return `${comment}  ${propName}${opt}: ${normalizeTypeString(propInfo.type || 'any')};`
+        })
+        .join('\n')
+      return `${typeDesc}interface ${typeName} {\n${props}\n}`
+    })
+
+    return typeDeclarations.join('\n\n') + '\n\n' + mainInterface
+  }
+
+  return mainInterface
+}
+
+/** Build a TypeScript parameter list string from method introspection */
+function renderTypeScriptParams(method: { parameters: Record<string, { type: string, description?: string, properties?: Record<string, { type: string, description?: string }> }>, required: string[] }): string {
+  const entries = Object.entries(method.parameters || {})
+  if (entries.length === 0) return ''
+
+  return entries.map(([name, info]) => {
+    const isRequired = (method.required || []).includes(name)
+    let type = normalizeTypeString(info.type || 'any')
+
+    // If the parameter has expanded sub-properties but a generic type string,
+    // render an inline object type from those properties instead
+    if (info.properties && Object.keys(info.properties).length > 0 && isGenericObjectType(type)) {
+      const props = Object.entries(info.properties)
+        .map(([propName, propInfo]) => `${propName}?: ${normalizeTypeString(propInfo.type || 'any')}`)
+        .join('; ')
+      type = `{ ${props} }`
+    }
+
+    return `${name}${isRequired ? '' : '?'}: ${type}`
+  }).join(', ')
+}
+
+/** Returns true if the type string looks like a generic object type that sub-properties would refine */
+function isGenericObjectType(type: string): boolean {
+  const lower = type.toLowerCase()
+  return lower === 'object' || lower === 'any' || lower === 'record<string, any>' || lower === '{}'
+}
+
+/** Clean up type strings from introspection data for use in interface declarations */
+function normalizeTypeString(type: string): string {
+  if (!type) return 'any'
+  // The AST scanner sometimes wraps types in quotes
+  return type.replace(/^["']|["']$/g, '')
 }

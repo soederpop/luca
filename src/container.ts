@@ -2,7 +2,7 @@
 import { Bus } from './bus'
 import { SetStateValue, State } from './state'
 import { AvailableFeatures, features, Feature, FeaturesRegistry } from './feature'
-import { Helper } from './helper'
+import { Helper, normalizeTypeString, renderTypeScriptParams, isGenericObjectType } from './helper'
 import uuid from 'node-uuid'
 import hashObject from './hash-object'
 import { uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit, kebabCase, camelCase, upperFirst, lowerFirst } from 'lodash-es'
@@ -40,22 +40,53 @@ export interface Plugin<T> {
 
 export type Extension<T> = 'string' | keyof AvailableFeatures | Plugin<T> | { attach: (container: Container<any>, options?: any) => T}
 
-export interface ContainerContext<T extends AvailableFeatures = any> {
-  container: Container<T> 
+export interface ContainerUtils {
+  /** Generate a v4 UUID */
+  uuid: () => string
+  /** Deterministic hash of any object */
+  hashObject: (obj: any) => string
+  /** String case conversion and inflection utilities */
+  stringUtils: { kebabCase: typeof kebabCase; camelCase: typeof camelCase; upperFirst: typeof upperFirst; lowerFirst: typeof lowerFirst; pluralize: typeof pluralize; singularize: typeof singularize }
+  /** Lodash utility subset */
+  lodash: { uniq: typeof uniq; keyBy: typeof keyBy; uniqBy: typeof uniqBy; groupBy: typeof groupBy; debounce: typeof debounce; throttle: typeof throttle; mapValues: typeof mapValues; mapKeys: typeof mapKeys; pick: typeof pick; get: typeof get; set: typeof set; omit: typeof omit }
 }
 
-/** 
- * Containers are single objects that contain state, an event bus, and registries of helpers such as:
- * 
- * - features
- * - clients
- * - servers
- * 
- * A Helper represents a category of components in your program which have a common interface, e.g. all servers can be started / stopped, all features can be enabled, if supported, all clients can connect to something.
- * 
- * A Helper can be introspected at runtime to learn about the interface of the helper. A helper has state, and emits events.
- * 
- * You can design your own containers and load them up with the helpers you want for that environment.
+export interface ContainerContext<T extends AvailableFeatures = any> {
+  container: Container<T>
+}
+
+/**
+ * The Container is the core runtime object in Luca. It is a singleton per process that acts as an
+ * event bus, state machine, and dependency injector. It holds registries of helpers (features, clients,
+ * servers, commands, endpoints) and provides factory methods to create instances from them.
+ *
+ * All helper instances share the container's context, enabling them to communicate and coordinate.
+ * The container detects its runtime environment (Node, Bun, browser, Electron) and can load
+ * platform-specific feature implementations accordingly.
+ *
+ * Use `container.feature('name')` to create feature instances, `container.use(Plugin)` to extend
+ * the container with new capabilities, and `container.on('event', handler)` to react to lifecycle events.
+ *
+ * @example
+ * ```ts
+ * // Create a feature instance (cached — same args return same instance)
+ * const fs = container.feature('fs')
+ * const content = fs.readFile('README.md')
+ * ```
+ *
+ * @example
+ * ```ts
+ * // Listen for state changes
+ * container.on('stateChange', (state) => console.log('State changed:', state))
+ * container.setState({ started: true })
+ * ```
+ *
+ * @example
+ * ```ts
+ * // Extend with a plugin
+ * container.use(MyClient)  // calls MyClient.attach(container)
+ * container.use('contentDb') // enable a feature by name
+ * ```
 */
 export class Container<Features extends AvailableFeatures = AvailableFeatures, ContainerState extends ContainerState = ContainerState > {
   static stateSchema = ContainerStateSchema
@@ -100,13 +131,18 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   /**
    * Creates a new subcontainer instance of the same concrete Container subclass.
-   *
    * The new instance is constructed with the same options as this container,
    * shallow-merged with any overrides you provide. This preserves the runtime
-   * container type (e.g. NodeContainer, BrowserContainer, etc.).
+   * container type (e.g. NodeContainer, AGIContainer, etc.).
    *
-   * @param options - Options to override for the new container instance.
-   * @returns A new container instance of the same subclass.
+   * @param options - Options to override for the new container instance
+   * @returns A new container instance of the same subclass
+   *
+   * @example
+   * ```ts
+   * const child = container.subcontainer({ cwd: '/tmp/workspace' })
+   * child.cwd // '/tmp/workspace'
+   * ```
    */
   subcontainer<This extends Container<any, any>>(
     this: This,
@@ -124,12 +160,12 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
 
   /** The observable state object for this container instance. */
-  get state() {
+  get state(): State<ContainerState> {
     return this._state
   }
 
   /** Returns the list of shortcut IDs for all currently enabled features. */
-  get enabledFeatureIds() {
+  get enabledFeatureIds(): string[] {
     return this.state.get('enabledFeatures') || []
   }
 
@@ -140,18 +176,40 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     ) as AvailableInstanceTypes<Features>
   }
   
-  utils = {
-    hashObject: (obj: any) => hashObject(obj),
-    get stringUtils() { return stringUtils },
-    uuid: () => v4(),
-    lodash: {
-      uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit,
+  /**
+   * Common utilities available on every container. Provides UUID generation, object hashing,
+   * string case conversion, and lodash helpers — no imports needed.
+   *
+   * - `utils.uuid()` — generate a v4 UUID
+   * - `utils.hashObject(obj)` — deterministic hash of any object
+   * - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }`
+   * - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`
+   *
+   * @example
+   * ```ts
+   * const id = container.utils.uuid()
+   * const hash = container.utils.hashObject({ foo: 'bar' })
+   * const name = container.utils.stringUtils.camelCase('my-feature')
+   * const unique = container.utils.lodash.uniq([1, 2, 2, 3])
+   * ```
+   */
+  get utils(): ContainerUtils {
+    return {
+      hashObject: (obj: any) => hashObject(obj),
+      get stringUtils() { return stringUtils },
+      uuid: () => v4(),
+      lodash: {
+        uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit,
+      }
     }
   }
 
   private _describer?: ContainerDescriber
 
-  /** Lazy-initialized ContainerDescriber for introspecting registries, helpers, and members. */
+  /**
+   * Lazy-initialized ContainerDescriber for introspecting registries, helpers, and members.
+   * @internal
+   */
   get describer(): ContainerDescriber {
     if (!this._describer) {
       this._describer = new ContainerDescriber(this)
@@ -159,15 +217,22 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return this._describer
   }
 
-  /**
-   * Add a value to the container's shared context, which is passed to all helper instances.
-   * Accepts either a key and value, or an object of key-value pairs to add.
-   *
-   * @param {K} key - The context key (or object of key-value pairs)
-   * @param {ContainerContext[K]} value - The context value (omit when passing an object)
-   */
   addContext<K extends keyof ContainerContext>(key: K, value: ContainerContext[K]): this
   addContext(context: Partial<ContainerContext>): this
+  /**
+   * Add a value to the container's shared context, which is passed to all helper instances.
+   * Accepts either a key and value, or an object of key-value pairs to merge in.
+   *
+   * @param key - The context key, or an object of key-value pairs to merge
+   * @param value - The context value (omit when passing an object)
+   * @returns The container instance (for chaining)
+   *
+   * @example
+   * ```ts
+   * container.addContext('db', dbConnection)
+   * container.addContext({ db: dbConnection, cache: redisClient })
+   * ```
+   */
   addContext(keyOrContext: keyof ContainerContext | Partial<ContainerContext>, value?: ContainerContext[keyof ContainerContext]): this {
     if (arguments.length === 1 && typeof keyOrContext === 'object' && keyOrContext !== null) {
       for (const [k, v] of Object.entries(keyOrContext)) {
@@ -205,17 +270,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * 
    * @returns The current state of the container.
   */
-  get currentState() {
+  get currentState(): ContainerState {
     return this.state.current
   }
 
-  /** 
-   * Sets the state of the container.
-   * 
-   * @param newState - The new state of the container.
-   * @returns The container instance.
+  /**
+   * Sets the state of the container. Accepts a partial state object to merge, or a function
+   * that receives the current state and returns the new state.
+   *
+   * @param newState - A partial state object to merge, or a function `(current) => newState`
+   * @returns The container instance (for chaining)
+   *
+   * @example
+   * ```ts
+   * container.setState({ started: true })
+   * container.setState((prev) => ({ ...prev, started: true }))
+   * ```
   */
-  setState(newState: SetStateValue<ContainerState>) {
+  setState(newState: SetStateValue<ContainerState>): this {
     this.state.setState(newState)
     return this
   }
@@ -232,26 +304,59 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return State
   }
 
+  /**
+   * The features registry. Use it to check what features are available, look up feature classes,
+   * or check if a feature is registered.
+   *
+   * @example
+   * ```ts
+   * container.features.available   // ['fs', 'git', 'grep', ...]
+   * container.features.has('fs')   // true
+   * container.features.lookup('fs') // FS class
+   * ```
+   */
   get features(): FeaturesRegistry {
     return features
   }
   
-  /** 
-   * Convenience method for creating a new event bus instance.
+  /**
+   * Create a new standalone event bus instance. Useful when you need a scoped event channel
+   * that is independent of the container's own event bus.
+   *
+   * @returns A new Bus instance
+   *
+   * @example
+   * ```ts
+   * const myBus = container.bus()
+   * myBus.on('data', (payload) => console.log(payload))
+   * myBus.emit('data', { count: 42 })
+   * ```
   */
-  bus() {
+  bus(): Bus {
     return new Bus()
   }
-  
-  /** 
-   * Convenience method for creating a new observable State object.
+
+  /**
+   * Create a new standalone observable State object. Useful when you need reactive state
+   * that is independent of the container's own state.
+   *
+   * @param initialState - The initial state object (defaults to empty)
+   * @returns A new State instance
+   *
+   * @example
+   * ```ts
+   * const myState = container.newState({ count: 0, loading: false })
+   * myState.observe(() => console.log('Changed:', myState.current))
+   * myState.set('count', 1)
+   * ```
   */
-  newState<T extends object = any>(initialState: T = {} as T) {
+  newState<T extends object = any>(initialState: T = {} as T): State<T> {
     return new State<T>({ initialState })
   }
 
   /**
    * Parse helper options through the helper's static options schema so defaults are materialized.
+   * @internal
    */
   normalizeHelperOptions(BaseClass: any, options: any, fallbackName?: string) {
     const candidate = { ...(options || {}) }
@@ -277,6 +382,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     throw new Error(`Invalid options for ${target}: ${details || parsed.error.message}`)
   }
 
+  /** @internal */
   buildHelperCacheKey(type: string, id: string, options: any, omitOptionKeys: string[] = []) {
     const hashableOptions = omit(options || {}, uniq(['_cacheKey', ...omitOptionKeys]))
 
@@ -288,6 +394,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     })
   }
 
+  /** @internal */
   createHelperInstance({
     cache,
     type,
@@ -353,17 +460,22 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     }) as InstanceType<Features[T]>
   }
   
-  /** 
-   * TODO:
-   * 
-   * A container should be able to container.use(plugin) and that plugin should be able to define
-   * an asynchronous method that will be run when the container is started.  Right now there's nothing
-   * to do with starting / stopping a container but that might be neat.
+  /**
+   * Start the container. Emits the 'started' event and sets `state.started` to true.
+   * Plugins and features can listen for this event to perform initialization.
+   *
+   * @returns The container instance
+   *
+   * @example
+   * ```ts
+   * container.on('started', () => console.log('Ready'))
+   * await container.start()
+   * ```
   */
-  async start() {
+  async start(): Promise<this> {
     this.emit('started', this as Container<Features>)
     this.state.set('started', true)
-    return this  
+    return this
   }
   
   /** 
@@ -377,80 +489,126 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   /**
    * Returns true if the container is running in a browser.
    */ 
-  get isBrowser() {
+  get isBrowser(): boolean {
     return typeof window !== 'undefined' && typeof document !== 'undefined'
   }
- 
-  /** 
+
+  /**
    * Returns true if the container is running in Bun.
    */
-  get isBun() {
+  get isBun(): boolean {
     return this.isNode && typeof Bun !== 'undefined'
   }
 
-  /** 
+  /**
    * Returns true if the container is running in Node.
    */
-  get isNode() {
+  get isNode(): boolean {
     return typeof process !== 'undefined' && typeof process.versions !== 'undefined' && typeof process.versions.node !== 'undefined'
   }
-  
-  /** 
+
+  /**
    * Returns true if the container is running in Electron.
    */
-  get isElectron() {
+  get isElectron(): boolean {
     return typeof process !== 'undefined' && typeof process.versions !== 'undefined' && typeof process.versions.electron !== 'undefined'
   }
-  
-  /** 
+
+  /**
    * Returns true if the container is running in development mode.
    */
-  get isDevelopment() {
+  get isDevelopment(): boolean {
     return typeof process !== 'undefined' && process.env.NODE_ENV === 'development'
   }
-  
-  /** 
+
+  /**
    * Returns true if the container is running in production mode.
    */
-  get isProduction() {
+  get isProduction(): boolean {
     return typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
   }
-  
-  /** 
+
+  /**
    * Returns true if the container is running in a CI environment.
    */
-  get isCI() {
+  get isCI(): boolean {
     return typeof process !== 'undefined' && process.env.CI !== undefined && String(process.env.CI).length > 0
   }
 
-  /** Emit an event on the container's event bus. */
-  emit(event: string, ...args: any[]) {
+  /**
+   * Emit an event on the container's event bus.
+   *
+   * @param event - The event name
+   * @param args - Arguments to pass to listeners
+   * @returns The container instance (for chaining)
+   *
+   * @example
+   * ```ts
+   * container.emit('taskCompleted', { id: 'abc', result: 42 })
+   * ```
+   */
+  emit(event: string, ...args: any[]): this {
     this._events.emit(event, ...args)
     return this
   }
 
-  /** Subscribe to an event on the container's event bus. */
-  on(event: string, listener: (...args: any[]) => void) {
+  /**
+   * Subscribe to an event on the container's event bus.
+   *
+   * @param event - The event name
+   * @param listener - The callback function
+   * @returns The container instance (for chaining)
+   *
+   * @example
+   * ```ts
+   * container.on('featureEnabled', (id, feature) => {
+   *   console.log(`Feature ${id} enabled`)
+   * })
+   * ```
+   */
+  on(event: string, listener: (...args: any[]) => void): this {
     this._events.on(event, listener)
     return this
   }
 
-  /** Unsubscribe a listener from an event on the container's event bus. */
-  off(event: string, listener?: (...args: any[]) => void) {
+  /**
+   * Unsubscribe a listener from an event on the container's event bus.
+   *
+   * @param event - The event name
+   * @param listener - The listener to remove
+   * @returns The container instance (for chaining)
+   */
+  off(event: string, listener?: (...args: any[]) => void): this {
     this._events.off(event, listener)
     return this
   }
 
-  /** Subscribe to an event on the container's event bus, but only fire once. */
-  once(event: string, listener: (...args: any[]) => void) {
+  /**
+   * Subscribe to an event on the container's event bus, but only fire once.
+   *
+   * @param event - The event name
+   * @param listener - The callback function (invoked at most once)
+   * @returns The container instance (for chaining)
+   */
+  once(event: string, listener: (...args: any[]) => void): this {
     this._events.once(event, listener)
     return this
   }
 
   /**
-   * Returns a promise that will resolve when the event is emitted
+   * Returns a promise that resolves the next time the given event is emitted.
+   * Useful for awaiting one-time lifecycle transitions.
+   *
+   * @param event - The event name to wait for
+   * @returns A promise that resolves with the event arguments
+   *
+   * @example
+   * ```ts
+   * await container.waitFor('started')
+   * console.log('Container is ready')
+   * ```
   */
-  async waitFor(event: string) {
+  async waitFor(event: string): Promise<any> {
     const resp = await this._events.waitFor(event)
     return resp
   }
@@ -458,9 +616,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   /**
    * Register a helper type (registry + factory pair) on this container.
    * Called automatically by Helper.attach() methods (e.g. Client.attach, Server.attach).
-   *
-   * @param registryName - The plural name of the registry, e.g. "clients", "servers"
-   * @param factoryName - The singular factory method name, e.g. "client", "server"
+   * @internal
    */
   registerHelperType(registryName: string, factoryName: string) {
     const registries = uniq([...this.state.get('registries')!, registryName])
@@ -484,7 +640,15 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * Returns a full introspection object for this container, merging build-time AST data
    * (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).
    *
-   * @returns {ContainerIntrospection} The complete introspection data
+   * @returns The complete introspection data as a structured object
+   *
+   * @example
+   * ```ts
+   * const info = container.inspect()
+   * console.log(info.methods)   // all public methods with descriptions
+   * console.log(info.getters)   // all getters with return types
+   * console.log(info.registries) // features, clients, servers, etc.
+   * ```
    */
   inspect(): ContainerIntrospection {
     const className = this.constructor.name
@@ -550,12 +714,18 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   /**
    * Returns a human-readable markdown representation of this container's introspection data.
-   * Useful in REPLs, AI agent contexts, or documentation generation.
+   * Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name
+   * to render only that section (e.g. 'methods', 'getters', 'events', 'state').
    *
-   * The first argument can be a section name (`'methods'`, `'getters'`, etc.) to render only
-   * that section, or a number for the starting heading depth (backward compatible).
+   * @param sectionOrDepth - A section name to render, or heading depth number
+   * @param startHeadingDepth - Starting markdown heading depth (default 1)
+   * @returns Markdown-formatted introspection text
    *
-   * @returns {string} Markdown-formatted introspection text
+   * @example
+   * ```ts
+   * console.log(container.inspectAsText())           // full description
+   * console.log(container.inspectAsText('methods'))   // just methods
+   * ```
    */
   inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
     let section: IntrospectionSection | undefined
@@ -572,15 +742,37 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     return presentContainerIntrospectionAsMarkdown(data, depth, section)
   }
 
-  /** Alias for inspectAsText */
+  /** Alias for inspectAsText. */
   introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
     return this.inspectAsText(sectionOrDepth, startHeadingDepth)
   }
   
-  /** Alias for inspectAsJSON */
-  introspectAsJSON(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): any {
+  /** Alias for inspect, returns JSON introspection data. */
+  introspectAsJSON(): ContainerIntrospection {
+    return this.inspect()
+  }
+
+  /**
+   * Returns the container's introspection data formatted as a TypeScript interface declaration.
+   * Includes the container's own methods, getters, factories, and registered helper types.
+   *
+   * @example
+   * ```ts
+   * console.log(container.inspectAsType())
+   * // interface NodeContainer {
+   * //   feature<T>(id: string, options?: object): T;
+   * //   readonly uuid: string;
+   * //   ...
+   * // }
+   * ```
+   */
+  inspectAsType(): string {
+    return this.introspectAsType()
+  }
+
+  introspectAsType(): string {
     const data = this.inspect()
-    return presentContainerIntrospectionAsJSON(data, depth, section)
+    return presentContainerIntrospectionAsTypeScript(data)
   }
 
   /** Make a property non-enumerable, which is nice for inspecting it in the REPL */
@@ -593,7 +785,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   }
 
   /** Sleep for the specified number of milliseconds. Useful for scripting and sequencing. */
-  async sleep(ms = 1000) {
+  async sleep(ms: number = 1000): Promise<this> {
     await new Promise((res) => setTimeout(res,ms))
     return this
   }
@@ -601,10 +793,22 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   _plugins: (() => void)[] = []
 
   /**
-   * Apply a plugin or enable a feature by string name. Plugins must have a static attach(container) method.
+   * Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method
+   * that extend the container with new registries, factories, or capabilities.
    *
-   * @param {Extension<T>} plugin - A feature name string, or a class/object with a static attach method
-   * @param {any} options - Options to pass to the plugin's attach method
+   * @param plugin - A feature name string, or a class/object with a static attach method
+   * @param options - Options to pass to the plugin's attach method
+   * @returns The container instance (with the plugin's type merged in)
+   *
+   * @example
+   * ```ts
+   * // Enable a feature by name
+   * container.use('contentDb')
+   *
+   * // Attach a plugin class (e.g. Client, Server, or custom)
+   * container.use(Client)    // registers the clients registry + client() factory
+   * container.use(Server)    // registers the servers registry + server() factory
+   * ```
    */
   use<T = {}>(plugin: Extension<T>, options: any = {}) : this & T {
     const container = this
@@ -640,20 +844,8 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
     // Header
     sections.push(`${heading(1)} ${data.className}\n\n${data.description || ''}`)
 
-    // Container Properties section (node containers expose these top-level getters)
-    if (data.environment?.isNode || data.environment?.isBun) {
-      sections.push([
-        `${heading(2)} Container Properties`,
-        '',
-        '| Property | Description |',
-        '|----------|-------------|',
-        '| `container.cwd` | Current working directory |',
-        '| `container.paths` | Path utilities scoped to cwd: `resolve()`, `join()`, `relative()`, `dirname()`, `basename()`, `parse()` |',
-        '| `container.manifest` | Parsed `package.json` for the current directory (`name`, `version`, `dependencies`, etc.) |',
-        '| `container.argv` | Raw parsed CLI arguments (from minimist). Prefer `positionals` export for positional args in commands |',
-        '| `container.utils` | Common utilities: `uuid()`, `hashObject()`, `stringUtils`, `lodash` |',
-      ].join('\n'))
-    }
+    // Container Properties section — dynamic from getters data, not hardcoded
+    // (cwd, paths, manifest, argv, utils etc. come through as getters from the introspection scanner)
 
     // Registries section
     if (data.registries && data.registries.length > 0) {
@@ -718,6 +910,15 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
         sections.push(`**Returns:** \`${methodInfo.returns}\``)
       }
 
+      if ((methodInfo as any).examples && (methodInfo as any).examples.length > 0) {
+        for (const example of (methodInfo as any).examples) {
+          if (example.title) {
+            sections.push(`**Example: ${example.title}**`)
+          }
+          sections.push(`\`\`\`${example.language || 'ts'}\n${example.code}\n\`\`\``)
+        }
+      }
+
       sections.push('')
     }
   }
@@ -731,10 +932,27 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
       `|----------|------|-------------|`,
     ]
 
+    const gettersWithExamples: [string, any][] = []
+
     for (const [getterName, getterInfo] of Object.entries(data.getters)) {
-      getterTableRows.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${getterInfo.description || ''} |`)
+      // Truncate long descriptions in the table
+      const desc = getterInfo.description || ''
+      const shortDesc = desc.length > 120 ? desc.slice(0, 117) + '...' : desc
+      getterTableRows.push(`| \`${getterName}\` | \`${getterInfo.returns || 'any'}\` | ${shortDesc} |`)
+      if ((getterInfo as any).examples && (getterInfo as any).examples.length > 0) {
+        gettersWithExamples.push([getterName, getterInfo])
+      }
     }
     sections.push(getterTableRows.join('\n'))
+
+    // Render examples for getters that have them
+    if (gettersWithExamples.length > 0) {
+      for (const [getterName, getterInfo] of gettersWithExamples) {
+        for (const example of (getterInfo as any).examples) {
+          sections.push(`\`\`\`${example.language || 'ts'}\n${example.code}\n\`\`\``)
+        }
+      }
+    }
   }
 
   // Events section
@@ -804,4 +1022,84 @@ function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, s
   }
 
   return sections.join('\n\n')
+}
+
+function presentContainerIntrospectionAsTypeScript(data: ContainerIntrospection): string {
+  const members: string[] = []
+
+  // Getters
+  if (data.getters && Object.keys(data.getters).length > 0) {
+    for (const [name, info] of Object.entries(data.getters)) {
+      if (info.description) {
+        members.push(`  /** ${info.description} */`)
+      }
+      members.push(`  readonly ${name}: ${normalizeTypeString(info.returns || 'any')};`)
+    }
+  }
+
+  // Methods
+  if (data.methods && Object.keys(data.methods).length > 0) {
+    if (members.length > 0) members.push('')
+    for (const [name, info] of Object.entries(data.methods)) {
+      if (info.description) {
+        members.push(`  /** ${info.description} */`)
+      }
+      const params = renderTypeScriptParams(info)
+      members.push(`  ${name}(${params}): ${normalizeTypeString(info.returns || 'void')};`)
+    }
+  }
+
+  // Factory methods
+  if (data.factories && data.factories.length > 0) {
+    if (members.length > 0) members.push('')
+    members.push('  // Factory methods')
+    for (const factory of data.factories) {
+      members.push(`  ${factory}(id: string, options?: Record<string, any>): any;`)
+    }
+  }
+
+  // Registries
+  if (data.registries && data.registries.length > 0) {
+    if (members.length > 0) members.push('')
+    members.push('  // Registries')
+    for (const reg of data.registries) {
+      const available = reg.available.length > 0
+        ? reg.available.map(a => `'${a}'`).join(' | ')
+        : 'string'
+      members.push(`  readonly ${reg.name}: { available: (${available})[]; lookup(id: string): any; };`)
+    }
+  }
+
+  // Events — as on() overloads
+  if (data.events && Object.keys(data.events).length > 0) {
+    if (members.length > 0) members.push('')
+    for (const [eventName, eventInfo] of Object.entries(data.events)) {
+      const args = Object.entries(eventInfo.arguments || {})
+      const listenerParams = args.length > 0
+        ? args.map(([argName, argInfo]) => `${argName}: ${normalizeTypeString(argInfo.type || 'any')}`).join(', ')
+        : ''
+      if (eventInfo.description) {
+        members.push(`  /** ${eventInfo.description} */`)
+      }
+      members.push(`  on(event: '${eventName}', listener: (${listenerParams}) => void): this;`)
+    }
+  }
+
+  // State
+  if (data.state && Object.keys(data.state).length > 0) {
+    if (members.length > 0) members.push('')
+    const stateMembers = Object.entries(data.state)
+      .map(([name, info]) => {
+        const comment = info.description ? `    /** ${info.description} */\n` : ''
+        return `${comment}    ${name}: ${normalizeTypeString(info.type || 'any')};`
+      })
+      .join('\n')
+    members.push(`  state: {\n${stateMembers}\n  };`)
+  }
+
+  const description = data.description
+    ? `/**\n * ${data.description.split('\n').join('\n * ')}\n */\n`
+    : ''
+
+  return `${description}interface ${data.className} {\n${members.join('\n')}\n}`
 }

@@ -48,7 +48,7 @@ export class OS extends Feature {
    * console.log(`Running on ${arch} architecture`)
    * ```
    */
-  get arch() {
+  get arch(): string {
     return os.arch()
   }
   
@@ -63,7 +63,7 @@ export class OS extends Feature {
    * console.log(`Temp directory: ${tempDir}`)
    * ```
    */
-  get tmpdir() {
+  get tmpdir(): string {
     return os.tmpdir()
   }
   
@@ -78,7 +78,7 @@ export class OS extends Feature {
    * console.log(`User home: ${home}`)
    * ```
    */
-  get homedir() {
+  get homedir(): string {
     return os.homedir()
   }
   
@@ -93,7 +93,7 @@ export class OS extends Feature {
    * console.log(`System has ${cores} CPU cores`)
    * ```
    */
-  get cpuCount() {
+  get cpuCount(): number {
     return os.cpus().length
   }
 
@@ -108,7 +108,7 @@ export class OS extends Feature {
    * console.log(`Hostname: ${hostname}`)
    * ```
    */
-  get hostname() {
+  get hostname(): string {
     return os.hostname()
   }
 
@@ -125,7 +125,7 @@ export class OS extends Feature {
    * }
    * ```
    */
-  get platform() {
+  get platform(): string {
     return os.platform()
   }
   
@@ -142,7 +142,7 @@ export class OS extends Feature {
    * })
    * ```
    */
-  get networkInterfaces() {
+  get networkInterfaces(): NodeJS.Dict<os.NetworkInterfaceInfo[]> {
     return os.networkInterfaces()
   }
   

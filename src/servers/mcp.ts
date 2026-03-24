@@ -428,7 +428,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
    * Configure the MCP protocol server and register all protocol handlers.
    * Called automatically before start() if not already configured.
    */
-  override async configure() {
+  override async configure(): Promise<this> {
     if (this.isConfigured) return this
 
     const serverName = this.options.serverName || this.container.manifest?.name || 'luca-mcp'
@@ -470,7 +470,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     host?: string
     mcpCompat?: MCPCompatMode
     stdioCompat?: StdioCompatMode
-  }) {
+  }): Promise<this> {
     if (this.isListening) return this
     await this._drainPendingPlugins()
     if (!this.isConfigured) await this.configure()
@@ -499,7 +499,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
   /**
    * Stop the MCP server and close all connections.
    */
-  override async stop() {
+  override async stop(): Promise<this> {
     if (this.isStopped) return this
 
     if (this._mcpServer) {
@@ -631,7 +631,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
   }
 
   /** Start an HTTP transport using StreamableHTTPServerTransport. */
-  private async _startHTTPTransport(port: number, compat: MCPCompatMode) {
+  private async _startHTTPTransport(port: number, compat: MCPCompatMode): Promise<void> {
     const { createServer } = await import('node:http')
     const { StreamableHTTPServerTransport } = await import(
       '@modelcontextprotocol/sdk/server/streamableHttp.js'

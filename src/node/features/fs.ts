@@ -13,6 +13,7 @@ import {
   realpathSync,
 
   rmSync as nodeRmSync,
+  type Stats,
 } from "fs";
 import { join, resolve, dirname, relative } from "path";
 import { readFile, stat, lstat, realpath, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm } from "fs/promises";
@@ -145,7 +146,7 @@ export class FS extends Feature {
    * console.log(config.version)
    * ```
    */
-  readJson(path: string) {
+  readJson(path: string): any {
     return JSON.parse(this.readFile(path) as string)
   }
   
@@ -153,7 +154,7 @@ export class FS extends Feature {
     * Read and parse a JSON file synchronously
     * @alias readJson
    */
-  readJsonSync(path: string) {
+  readJsonSync(path: string): any {
     return this.readJson(path)
   }
 
@@ -170,7 +171,7 @@ export class FS extends Feature {
    * console.log(config.version)
    * ```
    */
-  async readJsonAsync(path: string) {
+  async readJsonAsync(path: string): Promise<any> {
     const content = await this.readFileAsync(path)
     return JSON.parse(content as string)
   }
@@ -188,7 +189,7 @@ export class FS extends Feature {
    * console.log(entries) // ['index.ts', 'utils.ts', 'components']
    * ```
    */
-  readdirSync(path: string) {
+  readdirSync(path: string): string[] {
     return readdirSync(this.container.paths.resolve(path))
   }
 
@@ -205,7 +206,7 @@ export class FS extends Feature {
    * console.log(entries) // ['index.ts', 'utils.ts', 'components']
    * ```
    */
-  async readdir(path: string) {
+  async readdir(path: string): Promise<string[]> {
     return await readdir(this.container.paths.resolve(path))
   }
 
@@ -226,7 +227,7 @@ export class FS extends Feature {
    * fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
    * ```
    */
-  writeFile(path: string, content: Buffer | string) {
+  writeFile(path: string, content: Buffer | string): void {
     writeFileSync(this.container.paths.resolve(path), content)
   }
 
@@ -261,7 +262,7 @@ export class FS extends Feature {
    * fs.writeJson('config.json', { version: '1.0.0', debug: false })
    * ```
    */
-  writeJson(path: string, data: any, indent: number = 2) {
+  writeJson(path: string, data: any, indent: number = 2): void {
     this.writeFile(path, JSON.stringify(data, null, indent) + '\n')
   }
 
@@ -294,7 +295,7 @@ export class FS extends Feature {
    * fs.appendFile('log.txt', 'New line\n')
    * ```
    */
-  appendFile(path: string, content: Buffer | string) {
+  appendFile(path: string, content: Buffer | string): void {
     appendFileSync(this.container.paths.resolve(path), content)
   }
 
@@ -332,7 +333,7 @@ export class FS extends Feature {
    * fs.ensureFile('logs/app.log', '', false)
    * ```
    */
-  ensureFile(path: string, content: string, overwrite = false) {
+  ensureFile(path: string, content: string, overwrite = false): string {
     path = this.container.paths.resolve(path);
 
     if (this.exists(path) && !overwrite) {
@@ -359,7 +360,7 @@ export class FS extends Feature {
    * await fs.ensureFileAsync('config/settings.json', '{}', true)
    * ```
    */
-  async ensureFileAsync(path: string, content: string, overwrite = false) {
+  async ensureFileAsync(path: string, content: string, overwrite = false): Promise<string> {
     path = this.container.paths.resolve(path);
 
     if (this.exists(path) && !overwrite) {
@@ -384,7 +385,7 @@ export class FS extends Feature {
    * fs.ensureFolder('logs/debug')
    * ```
    */
-  ensureFolder(path: string) {
+  ensureFolder(path: string): string {
     mkdirSync(this.container.paths.resolve(path), { recursive: true });
     return this.container.paths.resolve(path);
   }
@@ -401,7 +402,7 @@ export class FS extends Feature {
    * await fs.ensureFolderAsync('logs/debug')
    * ```
    */
-  async ensureFolderAsync(path: string) {
+  async ensureFolderAsync(path: string): Promise<string> {
     const resolved = this.container.paths.resolve(path);
     await mkdir(resolved, { recursive: true });
     return resolved;
@@ -418,7 +419,7 @@ export class FS extends Feature {
    * fs.mkdirp('deep/nested/path')
    * ```
    */
-  mkdirp(folder: string) {
+  mkdirp(folder: string): string {
     return this.ensureFolder(folder)
   }
 
@@ -479,7 +480,7 @@ export class FS extends Feature {
    * }
    * ```
    */
-  async existsAsync(path: string) {
+  async existsAsync(path: string): Promise<boolean> {
     const filePath = this.container.paths.resolve(path);
     return stat(filePath).then(() => true).catch(() => false)
   }
@@ -519,7 +520,7 @@ export class FS extends Feature {
    * console.log(info.size, info.mtime)
    * ```
    */
-  stat(path: string) {
+  stat(path: string): Stats {
     return statSync(this.container.paths.resolve(path))
   }
 
@@ -536,7 +537,7 @@ export class FS extends Feature {
    * console.log(info.size, info.mtime)
    * ```
    */
-  async statAsync(path: string) {
+  async statAsync(path: string): Promise<Stats> {
     return stat(this.container.paths.resolve(path))
   }
 
@@ -631,7 +632,7 @@ export class FS extends Feature {
    * fs.rmSync('temp/cache.tmp')
    * ```
    */
-  rmSync(path: string) {
+  rmSync(path: string): void {
     nodeRmSync(this.container.paths.resolve(path), { force: true })
   }
 
@@ -662,7 +663,7 @@ export class FS extends Feature {
    * fs.rmdirSync('temp/cache')
    * ```
    */
-  rmdirSync(dirPath: string) {
+  rmdirSync(dirPath: string): void {
     nodeRmSync(this.container.paths.resolve(dirPath), { recursive: true, force: true })
   }
 
@@ -702,7 +703,7 @@ export class FS extends Feature {
    * fs.copy('src', 'backup/src')
    * ```
    */
-  copy(src: string, dest: string, options: { overwrite?: boolean } = {}) {
+  copy(src: string, dest: string, options: { overwrite?: boolean } = {}): void {
     const { overwrite = true } = options
     const resolvedSrc = this.container.paths.resolve(src)
     const resolvedDest = this.container.paths.resolve(dest)
@@ -746,7 +747,7 @@ export class FS extends Feature {
    * fs.move('old-dir', 'new-dir')
    * ```
    */
-  move(src: string, dest: string) {
+  move(src: string, dest: string): void {
     const resolvedSrc = this.container.paths.resolve(src)
     const resolvedDest = this.container.paths.resolve(dest)
     const destDir = dirname(resolvedDest)
@@ -819,7 +820,7 @@ export class FS extends Feature {
    * const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }
    * ```
    */
-  walk(basePath: string, options: WalkOptions = {}) {
+  walk(basePath: string, options: WalkOptions = {}): { directories: string[], files: string[] } {
     const {
       directories = true,
       files = true,
@@ -898,7 +899,7 @@ export class FS extends Feature {
    * // files.files => ['contact-1.json', 'subfolder/file.txt', ...]
    * ```
    */
-  async walkAsync(baseDir: string, options: WalkOptions = {}) {
+  async walkAsync(baseDir: string, options: WalkOptions = {}): Promise<{ directories: string[], files: string[] }> {
     const {
       directories = true,
       files = true,

@@ -57,7 +57,6 @@ import "./features/google-sheets";
 import "./features/google-calendar";
 import "./features/google-docs";
 import "./features/google-mail";
-import "./features/window-manager";
 import "./features/nlp";
 import "./features/process-manager"
 import "./features/tts";
@@ -102,7 +101,6 @@ import type { GoogleSheets } from './features/google-sheets';
 import type { GoogleCalendar } from './features/google-calendar';
 import type { GoogleDocs } from './features/google-docs';
 import type { GoogleMail } from './features/google-mail';
-import type { WindowManager } from './features/window-manager';
 import type { NLP } from './features/nlp';
 import type { ProcessManager } from './features/process-manager'
 import type { TTS } from './features/tts';
@@ -142,7 +140,6 @@ export {
   type GoogleCalendar,
   type GoogleDocs,
   type GoogleMail,
-  type WindowManager,
   type NLP,
   type ProcessManager,
   type TTS,
@@ -208,7 +205,6 @@ export interface NodeFeatures extends AvailableFeatures {
   googleCalendar: typeof GoogleCalendar;
   googleDocs: typeof GoogleDocs;
   googleMail: typeof GoogleMail;
-  windowManager: typeof WindowManager;
   nlp: typeof NLP;
   processManager: typeof ProcessManager;
   tts: typeof TTS;
@@ -233,9 +229,35 @@ export interface NodeContainerState extends ContainerState {
 }
 */
 
+/**
+ * Server-side container for Node.js and Bun environments. Extends the base Container with
+ * file system access, process management, git integration, and other server-side capabilities.
+ *
+ * Auto-enables core features on construction: fs, proc, git, grep, os, networking, ui, vm, esbuild, helpers.
+ * Also attaches Client, Server, Command, Endpoint, and Selector helper types, providing
+ * `container.client()`, `container.server()`, `container.command()`, etc. factory methods.
+ *
+ * @example
+ * ```ts
+ * import container from '@soederpop/luca/node'
+ *
+ * // File operations
+ * const content = container.fs.readFile('README.md')
+ *
+ * // Path utilities (scoped to cwd)
+ * const full = container.paths.resolve('src/index.ts')
+ *
+ * // Create a REST client
+ * const api = container.client('rest', { baseURL: 'https://api.example.com' })
+ *
+ * // Start an Express server
+ * const app = container.server('express', { port: 3000 })
+ * await app.start()
+ * ```
+ */
 export class NodeContainer<
   Features extends NodeFeatures = NodeFeatures,
-  K extends ContainerState = ContainerState 
+  K extends ContainerState = ContainerState
 > extends Container<Features, K> {
   fs!: FS;
   git!: Git;
@@ -268,7 +290,6 @@ export class NodeContainer<
   googleCalendar?: GoogleCalendar;
   googleDocs?: GoogleDocs;
   googleMail?: GoogleMail;
-  windowManager?: WindowManager;
   nlp?: NLP;
   processManager?: ProcessManager;
   tts?: TTS;
@@ -318,7 +339,7 @@ export class NodeContainer<
   }
 
   /** Returns the parsed package.json manifest for the current working directory. */
-  get manifest() {
+  get manifest(): Record<string, any> {
     try {
       const packageJson = this.fs.findUp("packageon");
 
@@ -339,19 +360,19 @@ export class NodeContainer<
   }
 
   /** Returns the parsed command-line arguments (from minimist). */
-  get argv() {
+  get argv(): Record<string, any> & { _: string[] } {
     return this.options as any;
   }
 
   /** Returns URL utility functions for parsing URIs. */
-  get urlUtils() {
+  get urlUtils(): { parse: (uri: string) => url.URL | null } {
     return {
       parse: (uri: string) => url.parse(uri)
     }
   }
 
   /** Returns path utility functions scoped to the current working directory (join, resolve, relative, dirname, parse). */
-  get paths() {
+  get paths(): { dirname: (path: string) => string; join: (...paths: string[]) => string; resolve: (...paths: string[]) => string; relative: (...paths: string[]) => string; basename: typeof basename; parse: typeof parse } {
     const { cwd } = this;
     return {
       dirname(path: string) {

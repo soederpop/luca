@@ -249,11 +249,11 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
     return this._binCache[name]
   }
 
-  get proc() {
+  get proc(): ReturnType<typeof this.container.feature<'proc'>> {
     return this.container.feature('proc')
   }
 
-  get os() {
+  get os(): ReturnType<typeof this.container.feature<'os'>> {
     return this.container.feature('os')
   }
   
@@ -630,7 +630,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   /**
    * Optional nmap wrapper for users that already have nmap installed.
    */
-  get nmap() {
+  get nmap(): { isAvailable: () => Promise<boolean>; scan: (target: string, args?: string[]) => Promise<{ hosts: NmapHost[]; raw: string }>; quickScan: (cidr: string) => Promise<{ hosts: NmapHost[]; raw: string }>; fullScan: (target: string) => Promise<{ hosts: NmapHost[]; raw: string }> } {
     return {
       isAvailable: async () => this.isNmapAvailable(),
       scan: async (target: string, args: string[] = []) => this.runNmapScan(target, args),

@@ -11,6 +11,7 @@ import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
 import { DocsReader } from './features/docs-reader'
 import { SkillsLibrary } from './features/skills-library'
+import { BrowserUse } from './features/browser-use'
 import { SemanticSearch } from '@soederpop/luca/node/features/semantic-search'
 import { ContentDb } from '@soederpop/luca/node/features/content-db'
 
@@ -26,6 +27,7 @@ export {
 	AssistantsManager,
 	DocsReader,
 	SkillsLibrary,
+	BrowserUse,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -49,6 +51,7 @@ export interface AGIFeatures extends NodeFeatures {
 	assistantsManager: typeof AssistantsManager
 	docsReader: typeof DocsReader
 	skillsLibrary: typeof SkillsLibrary
+	browserUse: typeof BrowserUse
 }
 
 export interface ConversationFactoryOptions {
@@ -121,6 +124,7 @@ const container = new AGIContainer()
 	.use(AssistantsManager)
 	.use(DocsReader)
 	.use(SkillsLibrary)
+	.use(BrowserUse)
 	.use(SemanticSearch)
 
 container.docs = container.feature('contentDb', {

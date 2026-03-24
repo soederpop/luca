@@ -27,7 +27,7 @@ export class ESBuild extends Feature {
    * @param options - The options to pass to esbuild
    * @returns The transformed code
    */
-  transformSync(code: string, options?: esbuild.TransformOptions) {
+  transformSync(code: string, options?: esbuild.TransformOptions): esbuild.TransformResult {
     return esbuild.transformSync(code, {
       loader: 'ts',
       format: 'esm',
@@ -44,7 +44,7 @@ export class ESBuild extends Feature {
    * @param options - The options to pass to esbuild
    * @returns The transformed code
    */
-  async transform(code: string, options?: esbuild.TransformOptions) {
+  async transform(code: string, options?: esbuild.TransformOptions): Promise<esbuild.TransformResult> {
     return esbuild.transform(code, {
       loader: 'ts',
       format: 'esm',
@@ -63,7 +63,7 @@ export class ESBuild extends Feature {
    * @param options - esbuild BuildOptions overrides
    * @returns The build result with outputFiles when write is false
    */
-  async bundle(entryPoints: string[], options?: esbuild.BuildOptions) {
+  async bundle(entryPoints: string[], options?: esbuild.BuildOptions): Promise<esbuild.BuildResult> {
     return esbuild.build({
       entryPoints,
       bundle: true,

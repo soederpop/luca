@@ -50,7 +50,7 @@ export class RestClient<
     }
   }
 
-  async beforeRequest() {
+  async beforeRequest(): Promise<void> {
   }
 
   /** Whether JSON content-type headers should be set automatically. */
@@ -71,7 +71,7 @@ export class RestClient<
    * @param options - Additional axios request config
    * @returns Parsed response body
    */
-  async patch(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
+  async patch(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
     await this.beforeRequest();
     return this.axios({
       ...options,
@@ -98,7 +98,7 @@ export class RestClient<
    * @param options - Additional axios request config
    * @returns Parsed response body
    */
-  async put(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
+  async put(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
     await this.beforeRequest();
     return this.axios({
       ...options,
@@ -125,7 +125,7 @@ export class RestClient<
    * @param options - Additional axios request config
    * @returns Parsed response body
    */
-  async post(url: string, data: any = {}, options: AxiosRequestConfig = {}) {
+  async post(url: string, data: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
     await this.beforeRequest();
     return this.axios({
       ...options,
@@ -152,7 +152,7 @@ export class RestClient<
    * @param options - Additional axios request config
    * @returns Parsed response body
    */
-  async delete(url: string, params: any = {}, options: AxiosRequestConfig = {}) {
+  async delete(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
     await this.beforeRequest();
     return this.axios({
       ...options,
@@ -179,7 +179,7 @@ export class RestClient<
    * @param options - Additional axios request config
    * @returns Parsed response body
    */
-  async get(url: string, params: any = {}, options: AxiosRequestConfig = {}) {
+  async get(url: string, params: any = {}, options: AxiosRequestConfig = {}): Promise<any> {
     await this.beforeRequest()
     return this.axios({
       ...options,
@@ -198,7 +198,7 @@ export class RestClient<
   }
 
   /** Handle an axios error by emitting 'failure' and returning the error as JSON. */
-  async handleError(error: AxiosError) {
+  async handleError(error: AxiosError): Promise<object> {
     this.emit('failure', error)
     return error.toJSON();
   }
