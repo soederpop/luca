@@ -12,7 +12,8 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model (assistant mode only)'),
-	'preserve-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it before sending to the agent.'),
+	'include-frontmatter': z.boolean().default(false).describe('Keep YAML frontmatter in the prompt instead of stripping it before sending to the agent.'),
+	'skip-eval': z.boolean().default(false).describe('Skip execution of fenced code blocks in the prompt file'),
 	'permission-mode': z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).default('acceptEdits').describe('Permission mode for CLI agents (default: acceptEdits)'),
 	'in-folder': z.string().optional().describe('Run the CLI agent in this directory (resolved via container.paths)'),
 	'out-file': z.string().optional().describe('Save session output as a markdown file'),
@@ -790,10 +791,29 @@ async function preparePrompt(
 	}
 
 	let promptContent: string
-	if (options['preserve-frontmatter']) {
-		promptContent = content
+	if (options['skip-eval']) {
+		// Strip frontmatter but don't execute code blocks
+		if (content.startsWith('---')) {
+			const fmEnd = content.indexOf('\n---', 3)
+			if (fmEnd !== -1) {
+				promptContent = content.slice(fmEnd + 4).trimStart()
+			} else {
+				promptContent = content
+			}
+		} else {
+			promptContent = content
+		}
 	} else {
 		promptContent = await executePromptFile(resolvedPath, container, resolvedInputs)
+	}
+
+	// Re-attach frontmatter if requested
+	if (options['include-frontmatter'] && content.startsWith('---')) {
+		const fmEnd = content.indexOf('\n---', 3)
+		if (fmEnd !== -1) {
+			const frontmatter = content.slice(0, fmEnd + 4)
+			promptContent = frontmatter + '\n' + promptContent
+		}
 	}
 
 	// Substitute {{key}} placeholders with resolved input values

@@ -241,7 +241,7 @@ Be specific and actionable. Reference concrete file paths, APIs, and patterns. T
     '--in-folder', sessionFolder,
     '--out-file', `${sessionFolder}/logs/synthesis-session.md`,
     '--dont-touch-file',
-    '--preserve-frontmatter',
+    '--include-frontmatter',
   ], {
     onOutput: (str: string) => { process.stdout.write(str) },
     onError: (str: string) => { process.stderr.write(str) },
