@@ -226,7 +226,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    */
   toTools(): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
     // Walk the prototype chain collecting static tools (parent-first, child overwrites)
-    const merged: Record<string, { schema: z.ZodType, handler?: Function }> = {}
+    const merged: Record<string, { schema: z.ZodType, description?: string, handler?: Function }> = {}
     const chain: Function[] = []
 
     let current = this.constructor as any
@@ -248,7 +248,11 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     const handlers: Record<string, Function> = {}
 
     for (const [name, entry] of Object.entries(merged)) {
-      schemas[name] = entry.schema
+      // If the tool entry has a description but the schema doesn't, attach it
+      // so addTool() picks it up from jsonSchema.description.
+      schemas[name] = entry.description && !entry.schema.description
+        ? entry.schema.describe(entry.description)
+        : entry.schema
       if (entry.handler) {
         handlers[name] = (args: any) => entry.handler!(args, this)
       } else if (typeof (this as any)[name] === 'function') {
