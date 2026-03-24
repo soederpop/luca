@@ -20,6 +20,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	clear: z.boolean().optional().describe('Clear the conversation history for the resolved history mode and exit'),
 	prependPrompt: z.string().optional().describe('Text or path to a markdown file to prepend to the system prompt'),
 	appendPrompt: z.string().optional().describe('Text or path to a markdown file to append to the system prompt'),
+	use: z.union([z.string(), z.array(z.string())]).optional().describe('Feature(s) to inject into the assistant via .use(). Supports options: --use "contentDb:rootPath=/tmp;lazy=true"'),
 })
 
 export default async function chat(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -175,6 +176,23 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		responseBuffer = ''
 		process.stdout.write('\n')
 	})
+
+	// --use: inject features into the assistant
+	if (options.use) {
+		const items = Array.isArray(options.use) ? options.use : [options.use]
+		for (const item of items) {
+			const [namepart, optStr] = item.split(':')
+			const featureOpts: Record<string, any> = { enable: true }
+			if (optStr) {
+				for (const pair of optStr.split(';')) {
+					const [k, v] = pair.split('=')
+					if (k) featureOpts[k.trim()] = v?.trim() === 'true' ? true : v?.trim() === 'false' ? false : v?.trim()
+				}
+			}
+			const feature = container.feature(namepart.trim(), featureOpts)
+			assistant.use(feature)
+		}
+	}
 
 	// Start the assistant (loads history if applicable)
 	await assistant.start()
