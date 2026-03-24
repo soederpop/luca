@@ -125,6 +125,44 @@ export type ConversationState = z.infer<typeof ConversationStateSchema>
 
 export type AskOptions = {
 	maxTokens?: number
+	/**
+	 * When provided, enables OpenAI Structured Outputs. The model is constrained
+	 * to return JSON matching this Zod schema. The return value of ask() will be
+	 * the parsed object instead of a raw string.
+	 */
+	schema?: z.ZodType
+}
+
+/**
+ * Recursively set `additionalProperties: false` on every object-type node
+ * in a JSON Schema tree. OpenAI strict mode requires this at every level.
+ * Also ensures every object has a `required` array listing all its property keys.
+ */
+function strictifySchema(schema: Record<string, any>): Record<string, any> {
+	const clone = { ...schema }
+
+	if (clone.type === 'object' && clone.properties) {
+		clone.additionalProperties = false
+		clone.required = Object.keys(clone.properties)
+		const props: Record<string, any> = {}
+		for (const [key, val] of Object.entries(clone.properties)) {
+			props[key] = strictifySchema(val as Record<string, any>)
+		}
+		clone.properties = props
+	}
+
+	if (clone.items) {
+		clone.items = strictifySchema(clone.items)
+	}
+
+	// anyOf / oneOf / allOf
+	for (const combiner of ['anyOf', 'oneOf', 'allOf'] as const) {
+		if (Array.isArray(clone[combiner])) {
+			clone[combiner] = clone[combiner].map((s: Record<string, any>) => strictifySchema(s))
+		}
+	}
+
+	return clone
 }
 
 /**
@@ -150,6 +188,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	static override shortcut = 'features.conversation' as const
 
 	static { Feature.register(this, 'conversation') }
+
+	/**
+	 * Pluggable tool executor. Called for each tool invocation with the tool
+	 * name, parsed args, and the default handler. Return the serialized result string.
+	 * The Assistant replaces this to wire in beforeToolCall/afterToolCall interceptors.
+	 */
+	toolExecutor: ((name: string, args: Record<string, any>, handler: (...args: any[]) => Promise<any>) => Promise<string>) | null = null
+
+	/** The active structured output schema for the current ask() call, if any. */
+	private _activeSchema: z.ZodType | null = null
 
 	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
 	private get maxTokens(): number | undefined {
@@ -419,6 +467,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 */
 	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
 		this.state.set('callMaxTokens', options?.maxTokens ?? null)
+		this._activeSchema = options?.schema ?? null
 
 		// Auto-compact before adding the new message
 		if (this.options.autoCompact) {
@@ -436,6 +485,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('userMessage', content)
 
 		try {
+			let raw: string
+
 			if (this.apiMode === 'responses') {
 				const previousResponseId = this.state.get('lastResponseId') || undefined
 				let input: OpenAI.Responses.ResponseInput
@@ -449,17 +500,31 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					input = this.messagesToResponsesInput()
 				}
 
-				return await this.runResponsesLoop({
+				raw = await this.runResponsesLoop({
 					turn: 1,
 					accumulated: '',
 					input,
 					previousResponseId,
 				})
+			} else {
+				raw = await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
 			}
 
-			return await this.runChatCompletionLoop({ turn: 1, accumulated: '' })
+			// When a structured output schema is active, parse the JSON response
+			if (this._activeSchema) {
+				try {
+					const parsed = JSON.parse(raw)
+					return parsed
+				} catch {
+					// Model returned something that isn't valid JSON — return raw
+					return raw
+				}
+			}
+
+			return raw
 		} finally {
 			this.state.set('callMaxTokens', null)
+			this._activeSchema = null
 		}
 	}
 
@@ -545,6 +610,28 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return input
 	}
 
+	/**
+	 * Build the OpenAI response_format / text.format config from the active Zod schema.
+	 * Returns undefined when no schema is active.
+	 */
+	private get structuredOutputConfig(): { name: string; schema: Record<string, any>; strict: true } | undefined {
+		if (!this._activeSchema) return undefined
+
+		const raw = (this._activeSchema as any).toJSONSchema() as Record<string, any>
+		const strict = strictifySchema(raw)
+
+		// Derive a name from the schema description or fall back to a default.
+		// OpenAI requires [a-zA-Z0-9_-] max 64 chars.
+		const desc = raw.description || 'structured_output'
+		const name = desc.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+
+		return {
+			name,
+			schema: { type: strict.type || 'object', properties: strict.properties, required: strict.required, additionalProperties: false },
+			strict: true,
+		}
+	}
+
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
 		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
@@ -604,6 +691,40 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
+	 * Execute a single tool call, routing through the pluggable toolExecutor
+	 * if one is set (e.g. by the Assistant's interceptor chain).
+	 */
+	private async executeTool(toolName: string, rawArgs: string): Promise<string> {
+		const tool = this.tools[toolName]
+		const callCount = (this.state.get('toolCalls') || 0) + 1
+		this.state.set('toolCalls', callCount)
+
+		if (!tool) {
+			const result = JSON.stringify({ error: `Unknown tool: ${toolName}` })
+			this.emit('toolError', toolName, result)
+			return result
+		}
+
+		if (this.toolExecutor) {
+			const args = rawArgs ? JSON.parse(rawArgs) : {}
+			return this.toolExecutor(toolName, args, tool.handler)
+		}
+
+		try {
+			const args = rawArgs ? JSON.parse(rawArgs) : {}
+			this.emit('toolCall', toolName, args)
+			const output = await tool.handler(args)
+			const result = typeof output === 'string' ? output : JSON.stringify(output)
+			this.emit('toolResult', toolName, result)
+			return result
+		} catch (err: any) {
+			const result = JSON.stringify({ error: err.message || String(err) })
+			this.emit('toolError', toolName, err)
+			return result
+		}
+	}
+
+	/**
 	 * Runs the streaming Responses API loop. Handles local function calls by
 	 * executing handlers and submitting `function_call_output` items until
 	 * the model produces a final text response.
@@ -625,6 +746,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.state.set('streaming', true)
 		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
+		const textFormat = this.structuredOutputConfig
+			? { text: { format: { type: 'json_schema' as const, ...this.structuredOutputConfig } } }
+			: {}
+
 		try {
 			const stream = await this.openai.raw.responses.create({
 				model: this.model as OpenAI.Responses.ResponseCreateParams['model'],
@@ -634,6 +759,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
 				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
 				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
+				...textFormat,
 			})
 
 			for await (const event of stream) {
@@ -690,27 +816,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			const functionOutputs: OpenAI.Responses.ResponseInputItem.FunctionCallOutput[] = []
 			for (const call of functionCalls) {
-				const toolName = call.name
-				const tool = this.tools[toolName]
-				const callCount = (this.state.get('toolCalls') || 0) + 1
-				this.state.set('toolCalls', callCount)
-
-				let result: string
-				if (!tool) {
-					result = JSON.stringify({ error: `Unknown tool: ${toolName}` })
-					this.emit('toolError', toolName, result)
-				} else {
-					try {
-						const args = call.arguments ? JSON.parse(call.arguments) : {}
-						this.emit('toolCall', toolName, args)
-						const output = await tool.handler(args)
-						result = typeof output === 'string' ? output : JSON.stringify(output)
-						this.emit('toolResult', toolName, result)
-					} catch (err: any) {
-						result = JSON.stringify({ error: err.message || String(err) })
-						this.emit('toolError', toolName, err)
-					}
-				}
+				const result = await this.executeTool(call.name, call.arguments || '{}')
 
 				this.pushMessage({
 					role: 'tool',
@@ -785,6 +891,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		let turnContent = ''
 		let toolCalls: Array<{ id: string; function: { name: string; arguments: string }; type: 'function' }> = []
 
+		const responseFormat = this.structuredOutputConfig
+			? { response_format: { type: 'json_schema' as const, json_schema: this.structuredOutputConfig } }
+			: {}
+
 		try {
 			const stream = await this.openai.raw.chat.completions.create({
 				model: this.model,
@@ -792,6 +902,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
 				...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
+				...responseFormat,
 			})
 
 			for await (const chunk of stream) {
@@ -850,28 +961,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('toolCallsStart', toolCalls)
 
 			for (const tc of toolCalls) {
-				const toolName = tc.function.name
-				const tool = this.tools[toolName]
-				const callCount = (this.state.get('toolCalls') || 0) + 1
-				this.state.set('toolCalls', callCount)
-
-				let result: string
-
-				if (!tool) {
-					result = JSON.stringify({ error: `Unknown tool: ${toolName}` })
-					this.emit('toolError', toolName, result)
-				} else {
-					try {
-						const args = JSON.parse(tc.function.arguments)
-						this.emit('toolCall', toolName, args)
-						const output = await tool.handler(args)
-						result = typeof output === 'string' ? output : JSON.stringify(output)
-						this.emit('toolResult', toolName, result)
-					} catch (err: any) {
-						result = JSON.stringify({ error: err.message || String(err) })
-						this.emit('toolError', toolName, err)
-					}
-				}
+				const result = await this.executeTool(tc.function.name, tc.function.arguments)
 
 				const toolMessage: OpenAI.Chat.Completions.ChatCompletionToolMessageParam = {
 					role: 'tool',

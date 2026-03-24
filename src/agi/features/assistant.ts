@@ -7,6 +7,7 @@ import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@soederpop/luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
+import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -112,6 +113,26 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	static override shortcut = 'features.assistant' as const
 
 	static { Feature.register(this, 'assistant') }
+
+	readonly interceptors = {
+		beforeAsk: new InterceptorChain<InterceptorPoints['beforeAsk']>(),
+		beforeTurn: new InterceptorChain<InterceptorPoints['beforeTurn']>(),
+		beforeToolCall: new InterceptorChain<InterceptorPoints['beforeToolCall']>(),
+		afterToolCall: new InterceptorChain<InterceptorPoints['afterToolCall']>(),
+		beforeResponse: new InterceptorChain<InterceptorPoints['beforeResponse']>(),
+	}
+
+	/**
+	 * Register an interceptor at a given point in the pipeline.
+	 *
+	 * @param point - The interception point
+	 * @param fn - Middleware function receiving (ctx, next)
+	 * @returns this, for chaining
+	 */
+	intercept<K extends InterceptorPoint>(point: K, fn: InterceptorFn<InterceptorPoints[K]>): this {
+		this.interceptors[point].add(fn as any)
+		return this
+	}
 
 	/** @returns Default state with the assistant not started, zero conversations, and the resolved folder path. */
 	override get initialState(): AssistantState {
@@ -911,6 +932,38 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.conversation.on('toolResult', (name: string, result: any) => this.emit('toolResult', name, result))
 		this.conversation.on('toolError', (name: string, error: any) => this.emit('toolError', name, error))
 
+		// Install interceptor-aware tool executor on the conversation
+		this.conversation.toolExecutor = async (name: string, args: Record<string, any>, handler: (...a: any[]) => Promise<any>) => {
+			const ctx = { name, args, result: undefined as string | undefined, error: undefined, skip: false }
+
+			await this.interceptors.beforeToolCall.run(ctx, async () => {})
+
+			if (ctx.skip) {
+				const result = ctx.result ?? JSON.stringify({ skipped: true })
+				this.emit('toolResult', ctx.name, result)
+				return result
+			}
+
+			try {
+				this.emit('toolCall', ctx.name, ctx.args)
+				const output = await handler(ctx.args)
+				ctx.result = typeof output === 'string' ? output : JSON.stringify(output)
+			} catch (err: any) {
+				ctx.error = err
+				ctx.result = JSON.stringify({ error: err.message || String(err) })
+			}
+
+			await this.interceptors.afterToolCall.run(ctx, async () => {})
+
+			if (ctx.error && !ctx.result?.includes('"error"')) {
+				this.emit('toolError', ctx.name, ctx.error)
+			} else {
+				this.emit('toolResult', ctx.name, ctx.result!)
+			}
+
+			return ctx.result!
+		}
+
 		// Load conversation history for non-lifecycle modes
 		await this.loadConversationHistory()
 
@@ -961,7 +1014,23 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			question = this.prependTimestamp(question)
 		}
 
-		const result = await this.conversation.ask(question, options)
+		// Run beforeAsk interceptors — they can rewrite the question or short-circuit
+		if (this.interceptors.beforeAsk.hasInterceptors) {
+			const ctx = { question, options } as InterceptorPoints['beforeAsk']
+			await this.interceptors.beforeAsk.run(ctx, async () => {})
+			if (ctx.result !== undefined) return ctx.result
+			question = ctx.question
+			options = ctx.options
+		}
+
+		let result = await this.conversation.ask(question, options)
+
+		// Run beforeResponse interceptors — they can rewrite the final text
+		if (this.interceptors.beforeResponse.hasInterceptors) {
+			const ctx = { text: result }
+			await this.interceptors.beforeResponse.run(ctx, async () => {})
+			result = ctx.text
+		}
 
 		// Auto-save for non-lifecycle modes
 		if (this.options.historyMode !== 'lifecycle' && this.state.get('threadId')) {

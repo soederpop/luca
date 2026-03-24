@@ -9,11 +9,13 @@ import {
   readFileSync,
   cpSync,
   renameSync,
+  lstatSync,
+  realpathSync,
 
   rmSync as nodeRmSync,
 } from "fs";
 import { join, resolve, dirname, relative } from "path";
-import { readFile, stat, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm } from "fs/promises";
+import { readFile, stat, lstat, realpath, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm } from "fs/promises";
 import { native as rimraf } from 'rimraf'
 
 type WalkOptions = {
@@ -38,6 +40,16 @@ function matchesPattern(filePath: string, patterns: string[]): boolean {
       .replace(/\{\{GLOBSTAR\}\}/g, '.*')
     return new RegExp(`(^|/)${regex}($|/)`).test(filePath)
   })
+}
+
+/** Sync: check if a symlink target is a directory */
+function lstatFollowIsDir(fullPath: string): boolean {
+  try { return statSync(fullPath).isDirectory() } catch { return false }
+}
+
+/** Async: check if a symlink target is a directory */
+async function lstatFollowIsDirAsync(fullPath: string): Promise<boolean> {
+  try { return (await stat(fullPath)).isDirectory() } catch { return false }
 }
 
 /**
@@ -473,6 +485,28 @@ export class FS extends Feature {
   }
 
   /**
+   * Checks if a path is a symbolic link.
+   *
+   * @param {string} path - The path to check
+   * @returns {boolean} True if the path is a symlink
+   */
+  isSymlink(path: string): boolean {
+    const filePath = this.container.paths.resolve(path);
+    try { return lstatSync(filePath).isSymbolicLink() } catch { return false }
+  }
+
+  /**
+   * Resolves a symlink to its real path. Returns the resolved path as-is if not a symlink.
+   *
+   * @param {string} path - The path to resolve
+   * @returns {string} The real path after resolving all symlinks
+   */
+  realpath(path: string): string {
+    const filePath = this.container.paths.resolve(path);
+    return realpathSync(filePath)
+  }
+
+  /**
    * Synchronously returns the stat object for a file or directory.
    *
    * @param {string} path - The path to stat
@@ -811,7 +845,9 @@ export class FS extends Feature {
         const fullPath = join(baseDir, name);
         const relativePath = relative(resolvedBase, fullPath)
         const outputPath = useRelative ? relativePath : fullPath;
-        const isDir = entry.isDirectory();
+        // Follow symlinks: isDirectory() returns false for symlinks,
+        // so check isSymbolicLink() and resolve to the real target
+        const isDir = entry.isDirectory() || (entry.isSymbolicLink() && lstatFollowIsDir(fullPath));
 
         if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
           continue
@@ -888,7 +924,9 @@ export class FS extends Feature {
         const fullPath = join(currentDir, name);
         const relativePath = relative(resolvedBase, fullPath)
         const outputPath = useRelative ? relativePath : fullPath;
-        const isDir = entry.isDirectory();
+        // Follow symlinks: isDirectory() returns false for symlinks,
+        // so check isSymbolicLink() and resolve to the real target
+        const isDir = entry.isDirectory() || (entry.isSymbolicLink() && await lstatFollowIsDirAsync(fullPath));
 
         if (excludePatterns.length && matchesPattern(relativePath, excludePatterns)) {
           continue

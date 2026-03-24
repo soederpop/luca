@@ -3,7 +3,7 @@ import { FeatureEventsSchema, FeatureStateSchema, FeatureOptionsSchema } from '.
 import { State } from "../../state.js";
 import { Feature } from "../feature.js";
 import { parse, relative, join as pathJoin } from "path";
-import { statSync, readFileSync, existsSync } from "fs";
+import { statSync, readFileSync, existsSync, readdirSync, lstatSync } from "fs";
 import micromatch from "micromatch";
 import { castArray } from "lodash-es";
 import chokidar from "chokidar";
@@ -339,7 +339,28 @@ export class FileManager<
           }
         }
       }
+
+      // git ls-files doesn't traverse symlinked directories — walk them via fs
+      // to pick up their contents. fs.walk now follows symlinks natively.
+      try {
+        const topEntries = readdirSync(cwd, { withFileTypes: true });
+        for (const entry of topEntries) {
+          if (entry.isSymbolicLink()) {
+            const fullPath = pathJoin(cwd, entry.name);
+            try {
+              const target = statSync(fullPath);
+              if (target.isDirectory()) {
+                const walked = await fs.walkAsync(fullPath, { exclude });
+                for (const absFile of walked.files) {
+                  fileIds.push(relative(cwd, absFile));
+                }
+              }
+            } catch {}
+          }
+        }
+      } catch {}
     } else {
+      // fs.walkAsync follows symlinks, so non-git repos get symlink support for free
       await fs.walkAsync(cwd).then(({ files } : { files: string[] }) => fileIds.push(...files));
     }
 

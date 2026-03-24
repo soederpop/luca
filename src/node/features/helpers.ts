@@ -438,24 +438,22 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       }
     } catch {}
 
-    // Try fileManager first (faster in git repos), fall back to Glob
+    // Try fileManager first (faster in git repos, and now symlink-aware),
+    // fall back to fs.walk which also follows symlinks natively.
     let files: string[] = []
     try {
       const fm = await this.ensureFileManager()
-      // fileManager may store absolute or relative keys — use absolute patterns
       const absPatterns = [`${dir}/*.ts`, `${dir}/**/*.ts`]
       const relPatterns = [`${type}/*.ts`, `${type}/**/*.ts`]
       const matched = fm.match([...absPatterns, ...relPatterns])
       files = matched.map((f: string) => f.startsWith('/') ? f : resolve(this.rootDir, f))
     } catch {}
 
-    // Fall back to Glob if fileManager found nothing
+    // Fall back to fs.walk if fileManager found nothing
     if (files.length === 0) {
-      const { Glob } = globalThis.Bun || (await import('bun'))
-      const glob = new Glob('**/*.ts')
-      for await (const file of glob.scan({ cwd: dir })) {
-        files.push(resolve(dir, file))
-      }
+      const { fs } = this.container
+      const walked = fs.walk(dir, { include: ['**/*.ts'] })
+      files = walked.files
     }
 
     for (const absPath of files) {
@@ -550,10 +548,15 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    */
   private async discoverCommandsViaVM(dir: string): Promise<void> {
     this.seedVirtualModules()
-    const { Glob } = globalThis.Bun || (await import('bun'))
-    const glob = new Glob('*.ts')
+    const { fs } = this.container
+    // Commands are top-level only (not recursive) — walk and filter to *.ts in the immediate dir
+    const walked = fs.walk(dir, { include: ['*.ts'] })
+    const tsFiles = walked.files
+      .map(f => parse(f))
+      .filter(p => p.dir === dir) // top-level only
+      .map(p => p.base)
 
-    for await (const file of glob.scan({ cwd: dir })) {
+    for (const file of tsFiles) {
       if (file === 'index.ts') continue
 
       const absPath = resolve(dir, file)
@@ -619,10 +622,14 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    */
   private async discoverSelectorsViaVM(dir: string): Promise<void> {
     this.seedVirtualModules()
-    const { Glob } = globalThis.Bun || (await import('bun'))
-    const glob = new Glob('*.ts')
+    const { fs } = this.container
+    const walked = fs.walk(dir, { include: ['*.ts'] })
+    const tsFiles = walked.files
+      .map(f => parse(f))
+      .filter(p => p.dir === dir)
+      .map(p => p.base)
 
-    for await (const file of glob.scan({ cwd: dir })) {
+    for (const file of tsFiles) {
       if (file === 'index.ts') continue
 
       const absPath = resolve(dir, file)
@@ -661,10 +668,10 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * Actual mounting to an express server is handled separately by ExpressServer.useEndpoints().
    */
   private async discoverEndpoints(dir: string): Promise<void> {
-    const { Glob } = globalThis.Bun || (await import('bun'))
-    const glob = new Glob('**/*.ts')
+    const { fs } = this.container
+    const walked = fs.walk(dir, { include: ['**/*.ts'] })
 
-    for await (const file of glob.scan({ cwd: dir, absolute: true })) {
+    for (const file of walked.files) {
       try {
         const mod = await this.loadModuleExports(file)
         const endpointModule = mod.default || mod
