@@ -58,10 +58,9 @@ playground/
 #src/introspection/generated.node.ts
 #src/introspection/generated.web.ts
 #src/scaffolds/generated.ts
-
+#src/cli/build-info.ts
 
 # luca evaluation output from try-all-challenges
 attempts/
 docs/sessions
-src/cli/build-info.ts
 
