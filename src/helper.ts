@@ -149,6 +149,20 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
     this.container.emit('helperInitialized', this)
   }
+
+  /**
+   * Returns the names of the methods for this helper.
+  */
+  get $methods() : string[] {
+    return Object.keys((this.introspect() || {}).methods || [])
+  }
+ 
+  /**
+   * Returns the names of the getters for this helper.
+  */
+  get $getters() : string[] {
+    return Object.keys((this.introspect() || {}).getters || [])
+  }
   
   /**
    * The static shortcut identifier for this helper type, e.g. "features.assistant".
