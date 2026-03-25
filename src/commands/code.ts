@@ -111,6 +111,7 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 
 	coder.on('toolCall', (toolName: string, args: any) => {
 		if (inkInstance) { inkInstance.unmount(); inkInstance = null }
+		responseBuffer = ''
 		const argsStr = JSON.stringify(args).slice(0, 120)
 		process.stdout.write(colors.dim(`\n  ⟳ ${toolName}`) + colors.dim(`(${argsStr})\n`))
 	})

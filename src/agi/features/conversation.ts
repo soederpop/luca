@@ -738,13 +738,20 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			return result
 		}
 
+		let args: Record<string, any>
+		try {
+			args = rawArgs ? JSON.parse(rawArgs) : {}
+		} catch (parseErr: any) {
+			const result = JSON.stringify({ error: `Failed to parse tool arguments: ${parseErr.message}`, rawArgs })
+			this.emit('toolError', toolName, parseErr)
+			return result
+		}
+
 		if (this.toolExecutor) {
-			const args = rawArgs ? JSON.parse(rawArgs) : {}
 			return this.toolExecutor(toolName, args, tool.handler)
 		}
 
 		try {
-			const args = rawArgs ? JSON.parse(rawArgs) : {}
 			this.emit('toolCall', toolName, args)
 			const output = await tool.handler(args)
 			const result = typeof output === 'string' ? output : JSON.stringify(output)

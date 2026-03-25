@@ -13,6 +13,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	output: z.string().default('.').describe('Output folder path (defaults to cwd)'),
+	'update-skill': z.boolean().default(false).describe('Only update .claude/skills/luca-framework in the current project'),
 })
 
 async function bootstrap(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -21,6 +22,11 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	const fs = container.feature('fs')
 	const ui = container.feature('ui')
 	const proc = container.feature('proc')
+
+	// ── --update-skill: refresh skill files in the current project ──
+	if (options['update-skill']) {
+		return await updateSkill(container, fs, ui)
+	}
 
 	// Require an explicit target — don't silently bootstrap into cwd
 	let target = args[1] || (options.output !== '.' ? options.output : '')
@@ -152,6 +158,36 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+async function updateSkill(container: any, fs: any, ui: any) {
+	const skillDir = container.paths.resolve('.claude', 'skills', 'luca-framework')
+
+	// Wipe existing skill directory so stale files don't linger
+	if (fs.exists(skillDir)) {
+		await fs.rmdir(skillDir)
+	}
+
+	await fs.ensureFolder(skillDir)
+	await writeFile(fs, ui, container.paths.resolve(skillDir, 'SKILL.md'), bootstrapFiles['SKILL'] || '', '.claude/skills/luca-framework/SKILL.md')
+
+	const examplesDir = container.paths.resolve(skillDir, 'references', 'examples')
+	await fs.ensureFolder(examplesDir)
+	for (const [filename, content] of Object.entries(bootstrapExamples)) {
+		await fs.writeFileAsync(container.paths.resolve(examplesDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapExamples).length} example docs...`)
+
+	const tutorialsDir = container.paths.resolve(skillDir, 'references', 'tutorials')
+	await fs.ensureFolder(tutorialsDir)
+	for (const [filename, content] of Object.entries(bootstrapTutorials)) {
+		await fs.writeFileAsync(container.paths.resolve(tutorialsDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapTutorials).length} tutorial docs...`)
+
+	ui.print('')
+	ui.print.green('  ✓ Skill updated!')
+	ui.print('')
+}
 
 async function writeFile(fs: any, ui: any, path: string, content: string, label: string) {
 	ui.print.cyan(`  Writing ${label}...`)
