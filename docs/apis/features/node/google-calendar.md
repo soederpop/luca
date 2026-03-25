@@ -6,6 +6,8 @@ Google Calendar feature for listing calendars and reading events. Depends on the
 
 ```ts
 container.feature('googleCalendar', {
+  // An authorized instance of the googleAuth feature
+  auth,
   // Default calendar ID (default: "primary")
   defaultCalendarId,
   // Default timezone for event queries (e.g. "America/Chicago")
@@ -17,6 +19,7 @@ container.feature('googleCalendar', {
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `auth` | `any` | An authorized instance of the googleAuth feature |
 | `defaultCalendarId` | `string` | Default calendar ID (default: "primary") |
 | `timeZone` | `string` | Default timezone for event queries (e.g. "America/Chicago") |
 

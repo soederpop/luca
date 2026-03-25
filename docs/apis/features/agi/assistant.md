@@ -1,15 +1,17 @@
 # Assistant (features.assistant)
 
-An Assistant is a wrapper around an LLM chat thread where you supply a system prompt and tools. You can optionally use a folder to load the system prompt (CORE.md), tool implementations (tools.ts), and event hooks (hooks.ts) from disk. The AssistantsManager feature will automatically discover any assistant definitions that live on disk in your project.
+An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).
 
 ## Usage
 
 ```ts
 container.feature('assistant', {
-  // The folder containing the assistant definition
+  // The folder containing the assistant definition. Defaults to cwd for runtime-created assistants.
   folder,
   // The folder containing the assistant documentation
   docsFolder,
+  // Provide a complete system prompt directly, bypassing CORE.md
+  systemPrompt,
   // Text to prepend to the system prompt
   prependPrompt,
   // Text to append to the system prompt
@@ -22,10 +24,30 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
+  // Sampling temperature (0-2)
+  temperature,
+  // Nucleus sampling cutoff (0-1)
+  topP,
+  // Top-K sampling. Only supported by local/Anthropic models
+  topK,
+  // Frequency penalty (-2 to 2)
+  frequencyPenalty,
+  // Presence penalty (-2 to 2)
+  presencePenalty,
+  // Stop sequences
+  stop,
   // Whether to use our local models for this
   local,
   // Conversation history persistence mode
   historyMode,
+  // Prepend timestamps to user messages so the assistant can perceive time passing between sessions
+  injectTimestamps,
+  // Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching.
+  allowTools,
+  // Denylist of tool name patterns to exclude. Supports * glob matching.
+  forbidTools,
+  // Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.
+  toolNames,
 })
 ```
 
@@ -33,18 +55,44 @@ container.feature('assistant', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `folder` | `string` | The folder containing the assistant definition |
+| `folder` | `string` | The folder containing the assistant definition. Defaults to cwd for runtime-created assistants. |
 | `docsFolder` | `string` | The folder containing the assistant documentation |
+| `systemPrompt` | `string` | Provide a complete system prompt directly, bypassing CORE.md |
 | `prependPrompt` | `string` | Text to prepend to the system prompt |
 | `appendPrompt` | `string` | Text to append to the system prompt |
 | `tools` | `object` | Override or extend the tools loaded from tools.ts |
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `temperature` | `number` | Sampling temperature (0-2) |
+| `topP` | `number` | Nucleus sampling cutoff (0-1) |
+| `topK` | `number` | Top-K sampling. Only supported by local/Anthropic models |
+| `frequencyPenalty` | `number` | Frequency penalty (-2 to 2) |
+| `presencePenalty` | `number` | Presence penalty (-2 to 2) |
+| `stop` | `array` | Stop sequences |
 | `local` | `boolean` | Whether to use our local models for this |
 | `historyMode` | `string` | Conversation history persistence mode |
+| `injectTimestamps` | `boolean` | Prepend timestamps to user messages so the assistant can perceive time passing between sessions |
+| `allowTools` | `array` | Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching. |
+| `forbidTools` | `array` | Denylist of tool name patterns to exclude. Supports * glob matching. |
+| `toolNames` | `array` | Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns. |
 
 ## Methods
+
+### intercept
+
+Register an interceptor at a given point in the pipeline.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `point` | `K` | ✓ | The interception point |
+| `fn` | `InterceptorFn<InterceptorPoints[K]>` | ✓ | Middleware function receiving (ctx, next) |
+
+**Returns:** `this`
+
+
 
 ### afterInitialize
 
@@ -54,22 +102,51 @@ Called immediately after the assistant is constructed. Synchronously loads the s
 
 
 
-### use
+### addSystemPromptExtension
 
-Apply a setup function to this assistant. The function receives the assistant instance and can configure tools, hooks, event listeners, etc.
+Add or update a named system prompt extension. The value is appended to the base system prompt when passed to the conversation.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `fn` | `(assistant: this) => void | Promise<void>` | ✓ | Setup function that receives this assistant |
+| `key` | `string` | ✓ | A unique identifier for this extension |
+| `value` | `string` | ✓ | The text to append |
+
+**Returns:** `this`
+
+
+
+### removeSystemPromptExtension
+
+Remove a named system prompt extension.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `key` | `string` | ✓ | The identifier of the extension to remove |
+
+**Returns:** `this`
+
+
+
+### use
+
+Apply a setup function or a Helper instance to this assistant. When passed a function, it receives the assistant and can configure tools, hooks, event listeners, etc. When passed a Helper instance that exposes tools via toTools(), those tools are automatically added to this assistant.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `fnOrHelper` | `((assistant: this) => void | Promise<void>) | { toTools: () => { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } } | { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> }` | ✓ | Setup function or Helper instance |
 
 **Returns:** `this`
 
 ```ts
 assistant
  .use(setupLogging)
- .use(addAnalyticsTools)
+ .use(container.feature('git'))
 ```
 
 
@@ -82,6 +159,7 @@ Add a tool to this assistant. The tool name is derived from the handler's functi
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
+| `name` | `string` | ✓ | Parameter name |
 | `handler` | `(...args: any[]) => any` | ✓ | A named function that implements the tool |
 | `schema` | `z.ZodType` |  | Optional Zod schema describing the tool's parameters |
 
@@ -142,7 +220,7 @@ Simulate a user question and assistant response by appending both messages to th
 
 ### loadSystemPrompt
 
-Load the system prompt from CORE.md, applying any prepend/append options.
+Load the system prompt from CORE.md, applying any prepend/append options. YAML frontmatter (between --- fences) is stripped from the prompt and stored in `_meta`.
 
 **Returns:** `string`
 
@@ -200,6 +278,14 @@ Delete all history for this assistant+project.
 
 
 
+### reload
+
+Reload tools, hooks, and system prompt from disk. Useful during development or when tool/hook files have been modified and you want the assistant to pick up changes without restarting.
+
+**Returns:** `this`
+
+
+
 ### start
 
 Start the assistant by creating the conversation and wiring up events. The system prompt, tools, and hooks are already loaded synchronously during initialization.
@@ -241,6 +327,26 @@ Save the conversation to disk via conversationHistory.
 
 
 
+### subagent
+
+Get or create a subagent assistant. Uses the assistantsManager to discover and create the assistant, then caches the instance for reuse across tool calls.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | ✓ | The assistant name (e.g. 'codingAssistant') |
+| `options` | `Record<string, any>` |  | Additional options to pass to the assistant constructor |
+
+**Returns:** `Promise<Assistant>`
+
+```ts
+const researcher = await assistant.subagent('codingAssistant')
+const answer = await researcher.ask('Find all usages of container.feature("fs")')
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -255,22 +361,39 @@ Save the conversation to disk via conversationHistory.
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
 | `conversation` | `Conversation` |  |
+| `availableTools` | `any` |  |
 | `messages` | `any` |  |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
 | `systemPrompt` | `string` | The current system prompt text. |
+| `systemPromptExtensions` | `Record<string, string>` | The named extensions appended to the system prompt. |
+| `effectiveSystemPrompt` | `string` | The system prompt with all extensions appended. This is the value passed to the conversation. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
+| `meta` | `Record<string, any>` | Parsed YAML frontmatter from CORE.md, or empty object if none. |
 | `paths` | `any` | Provides a helper for creating paths off of the assistant's base folder |
 | `assistantName` | `string` | The assistant name derived from the folder basename. |
 | `cwdHash` | `string` | An 8-char hash of the container cwd for per-project thread isolation. |
 | `threadPrefix` | `string` | The thread prefix for this assistant+project combination. |
 | `conversationHistory` | `ConversationHistory` | The conversationHistory feature instance. |
 | `currentThreadId` | `string | undefined` | The active thread ID (undefined in lifecycle mode). |
+| `availableSubagents` | `string[]` | Names of assistants available as subagents, discovered via the assistantsManager. |
 
 ## Events (Zod v4 schema)
 
 ### created
 
 Emitted immediately after the assistant loads its prompt, tools, and hooks.
+
+
+
+### systemPromptExtensionsChanged
+
+Emitted when system prompt extensions are added or removed
+
+
+
+### toolsChanged
+
+Event emitted by Assistant
 
 
 
@@ -283,6 +406,12 @@ Emitted when a hook function is called
 | Name | Type | Description |
 |------|------|-------------|
 | `arg0` | `string` | Hook/event name |
+
+
+
+### reloaded
+
+Emitted after tools, hooks, and system prompt are reloaded from disk
 
 
 
@@ -435,6 +564,15 @@ Event emitted by Assistant
 | `docsFolder` | `string` | The resolved docs folder |
 | `conversationId` | `string` | The active conversation persistence ID |
 | `threadId` | `string` | The active thread ID |
+| `systemPrompt` | `string` | The loaded system prompt text |
+| `systemPromptExtensions` | `object` | Named extensions appended to the system prompt |
+| `meta` | `object` | Parsed YAML frontmatter from CORE.md |
+| `tools` | `object` | Registered tool implementations |
+| `hooks` | `object` | Loaded event hook functions |
+| `resumeThreadId` | `string` | Thread ID override for resume |
+| `pendingPlugins` | `array` | Pending async plugin promises |
+| `conversation` | `any` | The active Conversation feature instance |
+| `subagents` | `object` | Cached subagent instances |
 
 ## Examples
 
@@ -454,7 +592,7 @@ const answer = await assistant.ask('What capabilities do you have?')
 ```ts
 assistant
  .use(setupLogging)
- .use(addAnalyticsTools)
+ .use(container.feature('git'))
 ```
 
 
@@ -473,5 +611,14 @@ assistant.addTool(function getWeather(args) {
 
 ```ts
 const answer = await assistant.ask('What capabilities do you have?')
+```
+
+
+
+**subagent**
+
+```ts
+const researcher = await assistant.subagent('codingAssistant')
+const answer = await researcher.ask('Find all usages of container.feature("fs")')
 ```
 

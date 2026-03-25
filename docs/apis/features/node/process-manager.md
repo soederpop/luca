@@ -1,6 +1,6 @@
 # ProcessManager (features.processManager)
 
-Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit.
+Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.
 
 ## Usage
 
@@ -18,6 +18,70 @@ container.feature('processManager', {
 | `autoCleanup` | `boolean` | Register process.on exit/SIGINT/SIGTERM handlers to kill all tracked processes |
 
 ## Methods
+
+### spawnProcess
+
+Tool handler: spawn a long-running background process.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ command: string; args?: string; tag?: string; cwd?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### runCommand
+
+Tool handler: run a command to completion and return its output.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ command: string; cwd?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### listProcesses
+
+Tool handler: list all tracked processes.
+
+**Returns:** `void`
+
+
+
+### getProcessOutput
+
+Tool handler: peek at a process's buffered output.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ id?: string; tag?: string; stream?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### killProcess
+
+Tool handler: kill a process by ID or tag.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ id?: string; tag?: string; signal?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
 
 ### spawn
 
@@ -157,7 +221,7 @@ Emitted when a new process is spawned
 | Name | Type | Description |
 |------|------|-------------|
 | `arg0` | `string` | process ID |
-| `arg1` | `any` | process metadata |
+| `arg1` | `string` | process metadata |
 
 
 
@@ -184,7 +248,7 @@ Emitted when a process exits with non-zero code
 |------|------|-------------|
 | `arg0` | `string` | process ID |
 | `arg1` | `number` | exit code |
-| `arg2` | `any` | error info |
+| `arg2` | `string` | error info |
 
 
 
@@ -224,6 +288,9 @@ const pm = container.feature('processManager', { enable: true })
 const server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })
 server.on('stdout', (data) => console.log('[api]', data))
 server.on('crash', (code) => console.error('API crashed:', code))
+
+// Peek at buffered output
+const { head, tail } = server.peek()
 
 // Kill one
 server.kill()

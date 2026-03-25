@@ -34,7 +34,7 @@ Lists files in the Git repository using git ls-files command. This method provid
 | `exclude` | `string | string[]` | Patterns to exclude from results |
 | `baseDir` | `string` | Base directory to list files from |
 
-**Returns:** `void`
+**Returns:** `Promise<string[]>`
 
 ```ts
 // Get all tracked files
@@ -62,7 +62,7 @@ Gets the latest commits from the repository. Returns an array of commit objects 
 |------|------|----------|-------------|
 | `numberOfChanges` | `number` |  | The number of recent commits to return |
 
-**Returns:** `void`
+**Returns:** `Promise<Array<{ title: string, message: string, author: string }>>`
 
 ```ts
 const changes = await git.getLatestChanges(5)
@@ -83,7 +83,7 @@ Gets a lightweight commit log for one or more files. Returns the SHA and message
 |------|------|----------|-------------|
 | `files` | `string[]` | ✓ | File paths (absolute or relative to container.cwd) |
 
-**Returns:** `void`
+**Returns:** `Array<{ sha: string, message: string }>`
 
 ```ts
 const log = git.fileLog('package.json')
@@ -107,7 +107,7 @@ Gets the diff for a file between two refs. By default compares from the current 
 | `compareTo` | `string` | ✓ | The target ref (commit SHA, branch, tag) to compare to |
 | `compareFrom` | `string` |  | The base ref to compare from (defaults to current HEAD) |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Diff package.json between HEAD and a specific commit
@@ -144,6 +144,31 @@ git.displayDiff('src/index.ts', 'abc1234')
 
 
 
+### extractFolder
+
+Extracts a folder (or entire repo) from a remote GitHub repository without cloning. Downloads the repo as a tarball and extracts only the specified subfolder, similar to how degit works. No .git history is included — just the files. Supports shorthand (`user/repo/path`), branch refs (`user/repo/path#branch`), and full GitHub URLs (`https://github.com/user/repo/tree/branch/path`).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `{ source, destination, branch }` | `{ source: string, destination: string, branch?: string }` | ✓ | Parameter { source, destination, branch } |
+
+**Returns:** `Promise<{ files: string[], source: { user: string, repo: string, ref: string, subdir: string`
+
+```ts
+// Extract a subfolder
+await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+
+// Specific branch
+await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+
+// Full GitHub URL
+await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
+```
+
+
+
 ### getChangeHistoryForFiles
 
 Gets the commit history for a set of files or glob patterns. Accepts absolute paths, relative paths (resolved from container.cwd), or glob patterns. Returns commits that touched any of the matched files, with each entry noting which of your queried files were in that commit.
@@ -154,7 +179,7 @@ Gets the commit history for a set of files or glob patterns. Accepts absolute pa
 |------|------|----------|-------------|
 | `paths` | `string[]` | ✓ | File paths or glob patterns to get history for |
 
-**Returns:** `void`
+**Returns:** `Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }>`
 
 ```ts
 const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
@@ -168,11 +193,11 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 | Property | Type | Description |
 |----------|------|-------------|
 | `gitPath` | `string` | Resolve the git binary path via `which`, caching the result. |
-| `branch` | `any` | Gets the current Git branch name. |
-| `sha` | `any` | Gets the current Git commit SHA hash. |
-| `isRepo` | `any` | Checks if the current directory is within a Git repository. |
-| `isRepoRoot` | `any` | Checks if the current working directory is the root of the Git repository. |
-| `repoRoot` | `any` | Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory. |
+| `branch` | `string | null` | Gets the current Git branch name. |
+| `sha` | `string | null` | Gets the current Git commit SHA hash. |
+| `isRepo` | `boolean` | Checks if the current directory is within a Git repository. |
+| `isRepoRoot` | `boolean` | Checks if the current working directory is the root of the Git repository. |
+| `repoRoot` | `string | null` | Gets the absolute path to the Git repository root directory. This method caches the repository root path for performance. It searches upward from the current directory to find the .git directory. |
 
 ## State (Zod v4 schema)
 
@@ -261,6 +286,21 @@ git.displayDiff(raw)
 
 // Fetch and display in one call
 git.displayDiff('src/index.ts', 'abc1234')
+```
+
+
+
+**extractFolder**
+
+```ts
+// Extract a subfolder
+await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+
+// Specific branch
+await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+
+// Full GitHub URL
+await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
 ```
 
 

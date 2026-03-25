@@ -30,6 +30,21 @@ const buffer = fs.readFile('image.png', null)
 
 
 
+### readFileSync
+
+Synchronously reads a file and returns its contents as a string. added this method because AI Assistants are understandly confused by this deviation from 2000's era node style
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `encoding` | `BufferEncoding | null` |  | Parameter encoding |
+
+**Returns:** `string | Buffer`
+
+
+
 ### readFileAsync
 
 Asynchronously reads a file and returns its contents as a string.
@@ -60,12 +75,26 @@ Synchronously reads and parses a JSON file.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path to the JSON file |
 
-**Returns:** `void`
+**Returns:** `any`
 
 ```ts
 const config = fs.readJson('config.json')
 console.log(config.version)
 ```
+
+
+
+### readJsonSync
+
+Read and parse a JSON file synchronously
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `any`
 
 
 
@@ -79,7 +108,7 @@ Asynchronously reads and parses a JSON file.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path to the JSON file |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 ```ts
 const config = await fs.readJsonAsync('config.json')
@@ -98,7 +127,7 @@ Synchronously reads the contents of a directory.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The directory path relative to the container's working directory |
 
-**Returns:** `void`
+**Returns:** `string[]`
 
 ```ts
 const entries = fs.readdirSync('src')
@@ -117,7 +146,7 @@ Asynchronously reads the contents of a directory.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The directory path relative to the container's working directory |
 
-**Returns:** `void`
+**Returns:** `Promise<string[]>`
 
 ```ts
 const entries = await fs.readdir('src')
@@ -157,7 +186,7 @@ Asynchronously writes content to a file.
 | `path` | `string` | ✓ | The file path where content should be written |
 | `content` | `Buffer | string` | ✓ | The content to write to the file |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.writeFileAsync('output.txt', 'Hello World')
@@ -198,7 +227,7 @@ Asynchronously writes an object to a file as JSON.
 | `data` | `any` | ✓ | The data to serialize as JSON |
 | `indent` | `number` |  | The number of spaces to use for indentation |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.writeJsonAsync('config.json', { version: '1.0.0', debug: false })
@@ -236,7 +265,7 @@ Asynchronously appends content to a file.
 | `path` | `string` | ✓ | The file path to append to |
 | `content` | `Buffer | string` | ✓ | The content to append |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.appendFileAsync('log.txt', 'New line\n')
@@ -256,7 +285,7 @@ Synchronously ensures a file exists with the specified content, creating directo
 | `content` | `string` | ✓ | The content to write to the file |
 | `overwrite` | `any` |  | Whether to overwrite the file if it already exists |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 fs.ensureFile('logs/app.log', '', false)
@@ -276,7 +305,7 @@ Asynchronously ensures a file exists with the specified content, creating direct
 | `content` | `string` | ✓ | The content to write to the file |
 | `overwrite` | `any` |  | Whether to overwrite the file if it already exists |
 
-**Returns:** `void`
+**Returns:** `Promise<string>`
 
 ```ts
 await fs.ensureFileAsync('config/settings.json', '{}', true)
@@ -294,7 +323,7 @@ Synchronously ensures a directory exists, creating parent directories as needed.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The directory path to create |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 fs.ensureFolder('logs/debug')
@@ -312,7 +341,7 @@ Asynchronously ensures a directory exists, creating parent directories as needed
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The directory path to create |
 
-**Returns:** `void`
+**Returns:** `Promise<string>`
 
 ```ts
 await fs.ensureFolderAsync('logs/debug')
@@ -330,7 +359,7 @@ Alias for ensureFolder. Synchronously creates a directory and all parent directo
 |------|------|----------|-------------|
 | `folder` | `string` | ✓ | The directory path to create |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 fs.mkdirp('deep/nested/path')
@@ -388,13 +417,41 @@ Asynchronously checks if a file or directory exists.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path to check for existence |
 
-**Returns:** `void`
+**Returns:** `Promise<boolean>`
 
 ```ts
 if (await fs.existsAsync('config.json')) {
  console.log('Config file exists!')
 }
 ```
+
+
+
+### isSymlink
+
+Checks if a path is a symbolic link.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path to check |
+
+**Returns:** `boolean`
+
+
+
+### realpath
+
+Resolves a symlink to its real path. Returns the resolved path as-is if not a symlink.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path to resolve |
+
+**Returns:** `string`
 
 
 
@@ -408,7 +465,7 @@ Synchronously returns the stat object for a file or directory.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path to stat |
 
-**Returns:** `void`
+**Returns:** `Stats`
 
 ```ts
 const info = fs.stat('package.json')
@@ -427,7 +484,7 @@ Asynchronously returns the stat object for a file or directory.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path to stat |
 
-**Returns:** `void`
+**Returns:** `Promise<Stats>`
 
 ```ts
 const info = await fs.statAsync('package.json')
@@ -544,7 +601,7 @@ Asynchronously removes a file.
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path of the file to remove |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.rm('temp/cache.tmp')
@@ -580,7 +637,7 @@ Asynchronously removes a directory and all its contents.
 |------|------|----------|-------------|
 | `dirPath` | `string` | ✓ | The path of the directory to remove |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.rmdir('temp/cache')
@@ -633,7 +690,7 @@ Asynchronously copies a file or directory. Auto-detects whether the source is a 
 |----------|------|-------------|
 | `overwrite` | `any` | Whether to overwrite existing files at the destination |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.copyAsync('src/config.json', 'backup/config.json')
@@ -673,7 +730,7 @@ Asynchronously moves (renames) a file or directory. Falls back to copy + delete 
 | `src` | `string` | ✓ | The source path to move from |
 | `dest` | `string` | ✓ | The destination path to move to |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await fs.moveAsync('temp/draft.txt', 'final/document.txt')
@@ -703,7 +760,7 @@ Recursively walks a directory and returns arrays of file and directory paths. By
 | `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned) |
 | `relative` | `boolean` | When true, returned paths are relative to `baseDir` instead of absolute. |
 
-**Returns:** `void`
+**Returns:** `{ directories: string[], files: string[] }`
 
 ```ts
 const result = fs.walk('src', { files: true, directories: false })
@@ -734,7 +791,7 @@ Asynchronously and recursively walks a directory and returns arrays of file and 
 | `include` | `string | string[]` | ] - Glob patterns to include (only matching paths are returned) |
 | `relative` | `boolean` | When true, returned paths are relative to `baseDir` instead of absolute. |
 
-**Returns:** `void`
+**Returns:** `Promise<{ directories: string[], files: string[] }>`
 
 ```ts
 const result = await fs.walkAsync('src', { exclude: ['node_modules'] })

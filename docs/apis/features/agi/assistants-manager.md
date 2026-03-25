@@ -1,35 +1,35 @@
 # AssistantsManager (features.assistantsManager)
 
-Discovers and manages assistant definitions by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition that can also contain tools.ts, hooks.ts, voice.yaml, and a docs/ folder. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.
+Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/. Each subdirectory containing a CORE.md is treated as an assistant definition. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.
 
 ## Usage
 
 ```ts
-container.feature('assistantsManager', {
-  // Automatically discover assistants on init
-  autoDiscover,
-})
+container.feature('assistantsManager')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `autoDiscover` | `boolean` | Automatically discover assistants on init |
 
 ## Methods
 
-### afterInitialize
-
-**Returns:** `void`
-
-
-
 ### discover
 
-Discovers assistants by finding all CORE.md files in the project using the fileManager. Each directory containing a CORE.md is treated as an assistant definition.
+Discovers assistants by listing subdirectories in ~/.luca/assistants/ and cwd/assistants/. Each subdirectory containing a CORE.md is an assistant.
 
 **Returns:** `Promise<this>`
+
+
+
+### downloadLucaCoreAssistants
+
+Downloads the core assistants that ship with luca from GitHub into ~/.luca/assistants.
+
+**Returns:** `Promise<{ files: string[]`
+
+```ts
+const manager = container.feature('assistantsManager')
+await manager.downloadLucaCoreAssistants()
+await manager.discover()
+console.log(manager.available)
+```
 
 
 
@@ -49,27 +49,52 @@ Looks up a single assistant entry by name.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `name` | `string` | ✓ | The assistant name (e.g. 'assistants/chief-of-staff') |
+| `name` | `string` | ✓ | The assistant name (e.g. 'chief-of-staff') |
 
 **Returns:** `AssistantEntry | undefined`
 
 
 
-### create
+### register
 
-Creates and returns a new Assistant feature instance for the given name. The assistant is configured with the discovered folder path. Any additional options are merged in.
+Registers a factory function that creates an assistant at runtime. Registered factories take precedence over discovered entries when calling `create()`.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `name` | `string` | ✓ | The assistant name (must match a discovered entry) |
+| `id` | `string` | ✓ | The assistant identifier |
+| `factory` | `(options: Record<string, any>) => Assistant` | ✓ | Factory function that receives create options and returns an Assistant |
+
+**Returns:** `this`
+
+```ts
+manager.register('custom-bot', (options) => {
+ return container.feature('assistant', {
+   systemPrompt: 'You are a custom bot.',
+   ...options,
+ })
+})
+const bot = manager.create('custom-bot')
+```
+
+
+
+### create
+
+Creates and returns a new Assistant feature instance for the given name. Checks runtime-registered factories first, then falls back to discovered entries. The assistant is configured with the discovered folder path. Any additional options are merged in.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | The assistant name (must match a registered factory or discovered entry) |
 | `options` | `Record<string, any>` |  | Additional options to pass to the Assistant constructor |
 
 **Returns:** `Assistant`
 
 ```ts
-const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
+const assistant = manager.create('chief-of-staff', { model: 'gpt-4.1' })
 ```
 
 
@@ -100,6 +125,9 @@ Generates a markdown summary of all discovered assistants, listing their names a
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `entries` | `Record<string, AssistantEntry>` | Discovered assistant entries keyed by name. |
+| `instances` | `Record<string, Assistant>` | Active assistant instances keyed by name. |
+| `factories` | `Record<string, (options: Record<string, any>) => Assistant>` | Registered factory functions keyed by name. |
 | `available` | `any` |  |
 
 ## Events (Zod v4 schema)
@@ -107,6 +135,18 @@ Generates a markdown summary of all discovered assistants, listing their names a
 ### discovered
 
 Emitted when assistant discovery scan completes
+
+
+
+### assistantRegistered
+
+Emitted when an assistant factory is registered at runtime
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | The assistant id |
 
 
 
@@ -131,6 +171,9 @@ Emitted when a new assistant instance is created
 | `discovered` | `boolean` | Whether discovery has been run |
 | `assistantCount` | `number` | Number of discovered assistant definitions |
 | `activeCount` | `number` | Number of currently instantiated assistants |
+| `entries` | `object` | Discovered assistant entries keyed by name |
+| `instances` | `object` | Active assistant instances keyed by name |
+| `factories` | `object` | Registered factory functions keyed by name |
 
 ## Examples
 
@@ -139,9 +182,34 @@ Emitted when a new assistant instance is created
 ```ts
 const manager = container.feature('assistantsManager')
 manager.discover()
-console.log(manager.list()) // [{ name: 'assistants/chief-of-staff', folder: '...', ... }]
-const assistant = manager.create('assistants/chief-of-staff')
+console.log(manager.list()) // [{ name: 'chief-of-staff', folder: '...', ... }]
+const assistant = manager.create('chief-of-staff')
 const answer = await assistant.ask('Hello!')
+```
+
+
+
+**downloadLucaCoreAssistants**
+
+```ts
+const manager = container.feature('assistantsManager')
+await manager.downloadLucaCoreAssistants()
+await manager.discover()
+console.log(manager.available)
+```
+
+
+
+**register**
+
+```ts
+manager.register('custom-bot', (options) => {
+ return container.feature('assistant', {
+   systemPrompt: 'You are a custom bot.',
+   ...options,
+ })
+})
+const bot = manager.create('custom-bot')
 ```
 
 
@@ -149,6 +217,6 @@ const answer = await assistant.ask('Hello!')
 **create**
 
 ```ts
-const assistant = manager.create('assistants/chief-of-staff', { model: 'gpt-4.1' })
+const assistant = manager.create('chief-of-staff', { model: 'gpt-4.1' })
 ```
 

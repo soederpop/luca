@@ -102,7 +102,7 @@ Register an MCP prompt. Prompts are reusable message templates that AI clients c
 
 Configure the MCP protocol server and register all protocol handlers. Called automatically before start() if not already configured.
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -135,7 +135,7 @@ Start the MCP server with the specified transport.
 | `transport` | `any` | 'stdio' for CLI integration, 'http' for remote access |
 | `port` | `any` | Port for HTTP transport (default 3001) |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -143,7 +143,7 @@ Start the MCP server with the specified transport.
 
 Stop the MCP server and close all connections.
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 

@@ -1,6 +1,6 @@
 # WebSocketClient (clients.websocket)
 
-WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state, and optional auto-reconnection with exponential backoff. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number)
+WebSocketClient helper
 
 ## Usage
 
@@ -50,6 +50,26 @@ Send data over the WebSocket connection. Automatically JSON-serializes the paylo
 | `data` | `any` | ✓ | The data to send (will be JSON.stringify'd) |
 
 **Returns:** `Promise<void>`
+
+
+
+### ask
+
+Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `type` | `string` | ✓ | A string identifying the request type |
+| `data` | `any` |  | Optional payload to include with the request |
+| `timeout` | `any` |  | How long to wait for a response (default 10 000 ms) |
+
+**Returns:** `Promise<R>`
+
+```ts
+const result = await ws.ask('getUser', { id: 42 })
+```
 
 
 
@@ -146,16 +166,9 @@ Emitted when a request fails
 
 ## Examples
 
-**clients.websocket**
+**ask**
 
 ```ts
-const ws = container.client('websocket', {
- baseURL: 'ws://localhost:8080',
- reconnect: true,
- maxReconnectAttempts: 5
-})
-ws.on('message', (data) => console.log('Received:', data))
-await ws.connect()
-await ws.send({ type: 'hello' })
+const result = await ws.ask('getUser', { id: 42 })
 ```
 

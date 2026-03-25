@@ -39,25 +39,27 @@ container.server('express', {
 
 ### start
 
+Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality.
+
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `StartOptions` |  | Parameter options |
+| `options` | `StartOptions` |  | Optional runtime overrides for port and host |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
 ### stop
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
 ### configure
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -80,6 +82,32 @@ container.server('express', {
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `dir` | `string` | ✓ | Parameter dir |
+
+**Returns:** `Promise<this>`
+
+
+
+### reloadEndpoint
+
+Reload a mounted endpoint by its file path. Re-reads the module through the helpers VM loader so the next request picks up the new handlers.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | `string` | ✓ | Absolute path to the endpoint file |
+
+**Returns:** `Promise<Endpoint | null>`
+
+
+
+### useEndpointModules
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `modules` | `EndpointModule[]` | ✓ | Parameter modules |
 
 **Returns:** `Promise<this>`
 
@@ -113,9 +141,9 @@ container.server('express', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `express` | `any` |  |
-| `hooks` | `any` |  |
-| `app` | `any` |  |
+| `express` | `typeof express` |  |
+| `hooks` | `{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }` |  |
+| `app` | `Express` |  |
 
 ## State (Zod v4 schema)
 

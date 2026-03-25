@@ -32,7 +32,7 @@ container.feature('ink', {
 
 Pre-load ink + react modules so the sync getters work. Called automatically by render(), but you can call it early.
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 ```ts
 const ink = container.feature('ink', { enable: true })
@@ -54,7 +54,7 @@ Mount a React element to the terminal. Wraps `ink.render()` — automatically lo
 | `node` | `any` | ✓ | A React element (JSX or React.createElement) |
 | `options` | `Record<string, any>` |  | Ink render options (stdout, stdin, debug, etc.) |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -138,7 +138,7 @@ Register a named React function component as a renderable block.
 | `name` | `string` | ✓ | Unique block name |
 | `component` | `Function` | ✓ | A React function component |
 
-**Returns:** `void`
+**Returns:** `this`
 
 ```ts
 ink.registerBlock('Greeting', ({ name }) =>
@@ -159,7 +159,7 @@ Render a registered block by name with optional props. Looks up the component, c
 | `name` | `string` | ✓ | The registered block name |
 | `data` | `Record<string, any>` |  | Props to pass to the component |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```ts
 await ink.renderBlock('Greeting', { name: 'Jon' })
@@ -179,7 +179,7 @@ Render a registered block that needs to stay mounted for async work. The compone
 | `data` | `Record<string, any>` |  | Props to pass to the component (a `done` prop is added automatically) |
 | `options` | `{ timeout?: number }` |  | `timeout` in ms before force-unmounting (default 30 000) |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 ```tsx
 // In a ## Blocks section:
@@ -205,12 +205,12 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `React` | `any` | The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import. |
-| `components` | `any` | All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ``` |
-| `hooks` | `any` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` |
-| `measureElement` | `any` | The Ink measureElement utility. |
+| `React` | `typeof import('react')` | The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import. |
+| `components` | `{ Box: typeof import('ink').Box; Text: typeof import('ink').Text; Static: typeof import('ink').Static; Transform: typeof import('ink').Transform; Newline: typeof import('ink').Newline; Spacer: typeof import('ink').Spacer }` | All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ``` |
+| `hooks` | `{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` |
+| `measureElement` | `typeof import('ink').measureElement` | The Ink measureElement utility. |
 | `isMounted` | `boolean` | Whether an ink app is currently mounted. |
-| `instance` | `any` | The raw ink render instance if you need low-level access. |
+| `instance` | `any | null` | The raw ink render instance if you need low-level access. |
 | `blocks` | `string[]` | List all registered block names. |
 
 ## Events (Zod v4 schema)

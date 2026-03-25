@@ -19,6 +19,32 @@ container.feature('contentDb', {
 
 ## Methods
 
+### renderTree
+
+Render a tree view of the collection directory structure. Built with container.fs so it works without the `tree` binary.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ depth?: number; dirsOnly?: boolean }` |  | Parameter options |
+
+**Returns:** `string`
+
+
+
+### grep
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `string | GrepOptions` | ✓ | Parameter options |
+
+**Returns:** `void`
+
+
+
 ### query
 
 Query documents belonging to a specific model definition.
@@ -228,16 +254,111 @@ Rebuild the entire search index from scratch.
 
 
 
+### getCollectionOverview
+
+Returns a high-level overview of the collection.
+
+**Returns:** `void`
+
+
+
+### listDocuments
+
+List document IDs, optionally filtered by model or glob.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ model?: string; glob?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### readDocument
+
+Read a single document with optional section filtering.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ id: string; include?: string[]; exclude?: string[]; meta?: boolean }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### readMultipleDocuments
+
+Read multiple documents with optional section filtering.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ ids: string[]; include?: string[]; exclude?: string[]; meta?: boolean }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### queryDocuments
+
+Query documents by model with filters, sort, limit.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ model: string; where?: string; sort?: string; limit?: number; offset?: number; select?: string[] }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### searchContent
+
+Grep/text search across the collection.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ pattern: string; caseSensitive?: boolean }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### semanticSearch
+
+Hybrid semantic search with graceful fallback to grep.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `{ query: string; limit?: number }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
 ## Getters
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `isLoaded` | `any` | Whether the content database has been loaded. |
-| `collection` | `any` | Returns the lazily-initialized Collection instance for the configured rootPath. |
-| `collectionPath` | `any` | Returns the absolute resolved path to the collection root directory. |
+| `isLoaded` | `boolean` | Whether the content database has been loaded. |
+| `collection` | `Collection` | Returns the lazily-initialized Collection instance for the configured rootPath. |
+| `collectionPath` | `string` | Returns the absolute resolved path to the collection root directory. |
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |
-| `searchIndexStatus` | `any` | Get the current search index status. |
+| `available` | `string[]` | Returns the available document ids in the collection |
+| `modelDefinitionTable` | `Record<string, { description: string; glob: string; routePatterns: string[] }>` |  |
+| `fileTree` | `string` |  |
+| `searchIndexStatus` | `{ exists: boolean; documentCount: number; chunkCount: number; embeddingCount: number; lastIndexedAt: any; provider: any; model: any; dimensions: number; dbSizeBytes: number }` | Get the current search index status. |
 | `queries` | `Record<string, ReturnType<typeof this.query>>` | Returns an object with query builders keyed by model name (singular and plural, lowercased). Provides a convenient shorthand for querying without looking up model definitions manually. |
 
 ## Events (Zod v4 schema)

@@ -5,8 +5,17 @@ Google Docs feature for reading documents and converting them to Markdown. Depen
 ## Usage
 
 ```ts
-container.feature('googleDocs')
+container.feature('googleDocs', {
+  // An authorized instance of the googleAuth feature
+  auth,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `auth` | `any` | An authorized instance of the googleAuth feature |
 
 ## Methods
 

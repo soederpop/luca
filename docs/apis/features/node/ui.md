@@ -20,7 +20,7 @@ Parse markdown text and render it for terminal display using marked-terminal.
 |------|------|----------|-------------|
 | `text` | `string` | ✓ | The markdown string to parse and render |
 
-**Returns:** `void`
+**Returns:** `string | Promise<string>`
 
 
 
@@ -64,7 +64,7 @@ Creates an interactive wizard using inquirer prompts. This method provides a con
 | `questions` | `any[]` | ✓ | Array of inquirer question objects |
 | `initialAnswers` | `any` |  | Pre-populated answers to skip questions or provide defaults |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 ```ts
 // Basic wizard
@@ -109,7 +109,7 @@ Prompt the user with a single text input question.
 |------|------|----------|-------------|
 | `question` | `string` | ✓ | The question message to display |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 
 
@@ -124,7 +124,7 @@ Opens text in the user's external editor for editing. This method integrates wit
 | `text` | `string` | ✓ | The initial text content to edit |
 | `extension` | `any` |  | File extension for syntax highlighting (default: ".ts") |
 
-**Returns:** `void`
+**Returns:** `Promise<unknown>`
 
 ```ts
 // Edit code snippet
@@ -153,7 +153,7 @@ Generates ASCII art from text using the specified font. This method converts reg
 | `text` | `string` | ✓ | The text to convert to ASCII art |
 | `font` | `Fonts` | ✓ | The figlet font to use (see fonts property for available options) |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Create a banner
@@ -191,7 +191,7 @@ Creates a styled banner with ASCII art and color gradients. This method combines
 | `font` | `any` | The figlet font to use for ASCII art generation |
 | `colors` | `any` | Array of colors for the gradient effect |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Classic patriotic banner
@@ -229,7 +229,7 @@ Dedent and format a tagged template literal using endent. Strips leading indenta
 |------|------|----------|-------------|
 | `args` | `any[]` | ✓ | Tagged template literal arguments |
 
-**Returns:** `void`
+**Returns:** `string`
 
 
 
@@ -245,7 +245,7 @@ Applies color gradients to text with configurable direction. This method creates
 | `lineColors` | `Color[]` |  | Array of colors to cycle through in the gradient |
 | `direction` | `"horizontal" | "vertical"` |  | Gradient direction: 'horizontal' or 'vertical' |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Horizontal rainbow effect
@@ -281,7 +281,7 @@ Applies horizontal color gradients character by character. This method creates c
 | `text` | `string` | ✓ | The text to apply horizontal gradients to |
 | `lineColors` | `Color[]` |  | Array of colors to cycle through |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Rainbow effect across characters
@@ -310,7 +310,7 @@ Applies vertical color gradients line by line. This method creates color transit
 | `text` | `string` | ✓ | The text to apply vertical gradients to (supports newlines) |
 | `lineColors` | `Color[]` |  | Array of colors to cycle through for each line |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Patriotic vertical gradient
@@ -342,7 +342,7 @@ Pads text on the left to reach the specified length. This utility method adds pa
 | `length` | `number` | ✓ | The desired total length after padding |
 | `padChar` | `any` |  | The character to use for padding (default: " ") |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Number alignment
@@ -375,7 +375,7 @@ Pads text on the right to reach the specified length. This utility method adds p
 | `length` | `number` | ✓ | The desired total length after padding |
 | `padChar` | `any` |  | The character to use for padding (default: " ") |
 
-**Returns:** `void`
+**Returns:** `string`
 
 ```ts
 // Create aligned table columns
@@ -409,7 +409,7 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 |----------|------|-------------|
 | `colors` | `typeof colors` | Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. |
 | `colorPalette` | `string[]` | Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application. |
-| `randomColor` | `any` | Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing. |
+| `randomColor` | `string | undefined` | Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing. |
 | `fonts` | `string[]` | Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names |
 
 ## State (Zod v4 schema)

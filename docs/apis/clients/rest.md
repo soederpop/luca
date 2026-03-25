@@ -24,13 +24,13 @@ container.client('rest', {
 
 ### beforeRequest
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 
 
 ### patch
 
-Send a PATCH request.
+Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.
 
 **Parameters:**
 
@@ -46,7 +46,7 @@ Send a PATCH request.
 
 ### put
 
-Send a PUT request.
+Send a PUT request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.
 
 **Parameters:**
 
@@ -62,7 +62,7 @@ Send a PUT request.
 
 ### post
 
-Send a POST request.
+Send a POST request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.
 
 **Parameters:**
 
@@ -78,7 +78,7 @@ Send a POST request.
 
 ### delete
 
-Send a DELETE request.
+Send a DELETE request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.
 
 **Parameters:**
 
@@ -94,7 +94,7 @@ Send a DELETE request.
 
 ### get
 
-Send a GET request.
+Send a GET request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.
 
 **Parameters:**
 
@@ -118,7 +118,7 @@ Handle an axios error by emitting 'failure' and returning the error as JSON.
 |------|------|----------|-------------|
 | `error` | `AxiosError` | ✓ | Parameter error |
 
-**Returns:** `void`
+**Returns:** `Promise<object>`
 
 
 

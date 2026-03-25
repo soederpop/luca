@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-25T03:04:44.359Z
+// Generated at: 2026-03-25T06:00:46.973Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -5925,6 +5925,312 @@ setBuildTimeData('features.googleCalendar', {
       }
     }
   }
+});
+
+setBuildTimeData('features.redis', {
+  "id": "features.redis",
+  "description": "Redis feature for shared state and pub/sub communication between container instances. Wraps ioredis with a focused API for the primitives that matter most: key/value state, pub/sub messaging, and cross-instance coordination. Uses a dedicated subscriber connection for pub/sub (ioredis requirement), created lazily on first subscribe call.",
+  "shortcut": "features.redis",
+  "className": "RedisFeature",
+  "methods": {
+    "set": {
+      "description": "Set a key to a string value with optional TTL.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "value": {
+          "type": "string",
+          "description": "The string value to store"
+        },
+        "ttl": {
+          "type": "number",
+          "description": "Optional time-to-live in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<void>"
+    },
+    "get": {
+      "description": "Get a key's value. Returns null if the key doesn't exist.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<string | null>"
+    },
+    "del": {
+      "description": "Delete one or more keys.",
+      "parameters": {
+        "keys": {
+          "type": "string[]",
+          "description": "One or more key names to delete"
+        }
+      },
+      "required": [
+        "keys"
+      ],
+      "returns": "Promise<number>"
+    },
+    "exists": {
+      "description": "Check if a key exists.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "expire": {
+      "description": "Set a key's TTL in seconds.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "seconds": {
+          "type": "number",
+          "description": "TTL in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "seconds"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "keys": {
+      "description": "Find keys matching a glob pattern (respects prefix).",
+      "parameters": {
+        "pattern": {
+          "type": "string",
+          "description": "Glob pattern, e.g. \"worker:*\""
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "setJSON": {
+      "description": "Store a value as JSON.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "value": {
+          "type": "unknown",
+          "description": "Any JSON-serializable value"
+        },
+        "ttl": {
+          "type": "number",
+          "description": "Optional TTL in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<void>"
+    },
+    "getJSON": {
+      "description": "Retrieve and parse a JSON value.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<T | null>"
+    },
+    "hset": {
+      "description": "Set fields on a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        },
+        "fields": {
+          "type": "Record<string, string>",
+          "description": "Object of field/value pairs"
+        }
+      },
+      "required": [
+        "key",
+        "fields"
+      ],
+      "returns": "Promise<void>"
+    },
+    "hgetall": {
+      "description": "Get all fields from a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<Record<string, string>>"
+    },
+    "hget": {
+      "description": "Get a single field from a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        },
+        "field": {
+          "type": "string",
+          "description": "The field name"
+        }
+      },
+      "required": [
+        "key",
+        "field"
+      ],
+      "returns": "Promise<string | null>"
+    },
+    "subscribe": {
+      "description": "Subscribe to one or more channels. Optionally pass a handler that fires only for these channels. The feature also emits a `message` event for all messages.",
+      "parameters": {
+        "channels": {
+          "type": "string | string[]",
+          "description": "Channel name(s) to subscribe to"
+        },
+        "handler": {
+          "type": "MessageHandler",
+          "description": "Optional per-channel message handler"
+        }
+      },
+      "required": [
+        "channels"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await redis.subscribe('tasks', (channel, msg) => {\n console.log(`Got ${msg} on ${channel}`)\n})"
+        }
+      ]
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe from one or more channels.",
+      "parameters": {
+        "channels": {
+          "type": "string[]",
+          "description": "Channel name(s) to unsubscribe from"
+        }
+      },
+      "required": [
+        "channels"
+      ],
+      "returns": "Promise<void>"
+    },
+    "publish": {
+      "description": "Publish a message to a channel.",
+      "parameters": {
+        "channel": {
+          "type": "string",
+          "description": "The channel to publish to"
+        },
+        "message": {
+          "type": "string",
+          "description": "The message string (use JSON.stringify for objects)"
+        }
+      },
+      "required": [
+        "channel",
+        "message"
+      ],
+      "returns": "Promise<number>"
+    },
+    "ensureLocalDocker": {
+      "description": "Spin up a local Redis instance via Docker. Checks if a container with the given name already exists and starts it if stopped, or creates a new one from redis:alpine. Requires the docker feature to be available on the container.",
+      "parameters": {
+        "options": {
+          "type": "{ name?: string; port?: number; image?: string }",
+          "description": "Container name and host port"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379', lazyConnect: true })\nawait redis.ensureLocalDocker()"
+        }
+      ]
+    },
+    "close": {
+      "description": "Close all redis connections (main client + subscriber).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "getters": {
+    "client": {
+      "description": "The underlying ioredis client for advanced operations.",
+      "returns": "Redis"
+    },
+    "subscriber": {
+      "description": "The dedicated subscriber connection, if pub/sub is active.",
+      "returns": "Redis | null"
+    }
+  },
+  "events": {
+    "message": {
+      "name": "message",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "subscribed": {
+      "name": "subscribed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "unsubscribed": {
+      "name": "unsubscribed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "closed": {
+      "name": "closed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\n\n// Shared state\nawait redis.set('worker:status', 'active')\nconst status = await redis.get('worker:status')\n\n// Pub/sub between instances\nredis.on('message', (channel, msg) => console.log(`${channel}: ${msg}`))\nawait redis.subscribe('tasks')\nawait redis.publish('tasks', JSON.stringify({ type: 'ping' }))\n\n// JSON helpers\nawait redis.setJSON('config', { workers: 4, debug: true })\nconst config = await redis.getJSON<{ workers: number }>('config')"
+    }
+  ]
 });
 
 setBuildTimeData('features.fs', {
@@ -11880,6 +12186,270 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
+setBuildTimeData('clients.elevenlabs', {
+  "id": "clients.elevenlabs",
+  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+  "shortcut": "clients.elevenlabs",
+  "className": "ElevenLabsClient",
+  "methods": {
+    "beforeRequest": {
+      "description": "Inject the xi-api-key header before each request.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Validate the API key by listing available models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await el.connect()"
+        }
+      ]
+    },
+    "listVoices": {
+      "description": "List available voices with optional search and filtering.",
+      "parameters": {
+        "options": {
+          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+          "description": "Query parameters for filtering voices"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+        }
+      ]
+    },
+    "getVoice": {
+      "description": "Get details for a single voice.",
+      "parameters": {
+        "voiceId": {
+          "type": "string",
+          "description": "The voice ID to look up"
+        }
+      },
+      "required": [
+        "voiceId"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+        }
+      ]
+    },
+    "listModels": {
+      "description": "List available TTS models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+        }
+      ]
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text, returning audio as a Buffer.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+        }
+      ]
+    },
+    "say": {
+      "description": "Synthesize speech and write the audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "File path to write the audio to"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "apiKey": {
+      "description": "The resolved API key from options or environment.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "voices": {
+      "name": "voices",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "voiceId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "outputFormat": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "voiceSettings": {
+          "type": "ElevenLabsVoiceSettings",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "ElevenLabsVoiceSettings": {
+      "description": "",
+      "properties": {
+        "stability": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "similarityBoost": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "style": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "speed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "useSpeakerBoost": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('clients.supabase', {
   "id": "clients.supabase",
   "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
@@ -12365,270 +12935,6 @@ setBuildTimeData('clients.comfyui', {
         },
         "images": {
           "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
-setBuildTimeData('clients.elevenlabs', {
-  "id": "clients.elevenlabs",
-  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-  "shortcut": "clients.elevenlabs",
-  "className": "ElevenLabsClient",
-  "methods": {
-    "beforeRequest": {
-      "description": "Inject the xi-api-key header before each request.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Validate the API key by listing available models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await el.connect()"
-        }
-      ]
-    },
-    "listVoices": {
-      "description": "List available voices with optional search and filtering.",
-      "parameters": {
-        "options": {
-          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-          "description": "Query parameters for filtering voices"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-        }
-      ]
-    },
-    "getVoice": {
-      "description": "Get details for a single voice.",
-      "parameters": {
-        "voiceId": {
-          "type": "string",
-          "description": "The voice ID to look up"
-        }
-      },
-      "required": [
-        "voiceId"
-      ],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-        }
-      ]
-    },
-    "listModels": {
-      "description": "List available TTS models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any[]>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-        }
-      ]
-    },
-    "synthesize": {
-      "description": "Synthesize speech from text, returning audio as a Buffer.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<Buffer>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-        }
-      ]
-    },
-    "say": {
-      "description": "Synthesize speech and write the audio to a file.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "outputPath": {
-          "type": "string",
-          "description": "File path to write the audio to"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text",
-        "outputPath"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-        }
-      ]
-    }
-  },
-  "getters": {
-    "apiKey": {
-      "description": "The resolved API key from options or environment.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "voices": {
-      "name": "voices",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "speech": {
-      "name": "speech",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-    }
-  ],
-  "types": {
-    "SynthesizeOptions": {
-      "description": "",
-      "properties": {
-        "voiceId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "modelId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "outputFormat": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "voiceSettings": {
-          "type": "ElevenLabsVoiceSettings",
-          "description": "",
-          "optional": true
-        },
-        "disableCache": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    },
-    "ElevenLabsVoiceSettings": {
-      "description": "",
-      "properties": {
-        "stability": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "similarityBoost": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "style": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "speed": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "useSpeakerBoost": {
-          "type": "boolean",
           "description": "",
           "optional": true
         }
@@ -17205,6 +17511,460 @@ setBuildTimeData('features.conversationHistory', {
       }
     }
   }
+});
+
+setBuildTimeData('features.autoAssistant', {
+  "id": "features.autoAssistant",
+  "description": "An autonomous assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Tools are stacked from feature bundles (fileTools, processManager, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
+  "shortcut": "features.autoAssistant",
+  "className": "AutonomousAssistant",
+  "methods": {
+    "getPermission": {
+      "description": "Get the effective permission level for a tool.",
+      "parameters": {
+        "toolName": {
+          "type": "string",
+          "description": "Parameter toolName"
+        }
+      },
+      "required": [
+        "toolName"
+      ],
+      "returns": "PermissionLevel"
+    },
+    "setPermission": {
+      "description": "Set permission level for one or more tools.",
+      "parameters": {
+        "toolName": {
+          "type": "string | string[]",
+          "description": "Parameter toolName"
+        },
+        "level": {
+          "type": "PermissionLevel",
+          "description": "Parameter level"
+        }
+      },
+      "required": [
+        "toolName",
+        "level"
+      ],
+      "returns": "this"
+    },
+    "setDefaultPermission": {
+      "description": "Set the default permission level for unconfigured tools.",
+      "parameters": {
+        "level": {
+          "type": "PermissionLevel",
+          "description": "Parameter level"
+        }
+      },
+      "required": [
+        "level"
+      ],
+      "returns": "this"
+    },
+    "permitTool": {
+      "description": "Allow a tool (or tools) to run without approval.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "gateTool": {
+      "description": "Require approval before a tool (or tools) can run.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "blockTool": {
+      "description": "Block a tool (or tools) from ever running.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "approve": {
+      "description": "Approve a pending tool call by ID. The tool will execute.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "this"
+    },
+    "deny": {
+      "description": "Deny a pending tool call by ID. The tool call will be skipped.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "this"
+    },
+    "approveAll": {
+      "description": "Approve all pending tool calls.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
+    "denyAll": {
+      "description": "Deny all pending tool calls.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
+    "start": {
+      "description": "Initialize the inner assistant, stack tool bundles, and wire up the permission interceptor.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "ask": {
+      "description": "Ask the autonomous assistant a question. Auto-starts if needed. Tool calls will be gated by the permission system.",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        },
+        "options": {
+          "type": "Record<string, any>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "Promise<string>"
+    },
+    "use": {
+      "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
+      "parameters": {
+        "spec": {
+          "type": "ToolBundleSpec",
+          "description": "Parameter spec"
+        }
+      },
+      "required": [
+        "spec"
+      ],
+      "returns": "this"
+    }
+  },
+  "getters": {
+    "assistant": {
+      "description": "The inner assistant. Throws if not started.",
+      "returns": "Assistant"
+    },
+    "permissions": {
+      "description": "Current permission map from state.",
+      "returns": "Record<string, PermissionLevel>"
+    },
+    "pendingApprovals": {
+      "description": "Current pending approvals.",
+      "returns": "PendingApproval[]"
+    },
+    "isStarted": {
+      "description": "Whether the assistant is started and ready.",
+      "returns": "boolean"
+    },
+    "tools": {
+      "description": "The tools registered on the inner assistant.",
+      "returns": "Record<string, any>"
+    },
+    "conversation": {
+      "description": "The conversation on the inner assistant (if started).",
+      "returns": "any"
+    },
+    "messages": {
+      "description": "Messages from the inner assistant's conversation.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "permissionGranted": {
+      "name": "permissionGranted",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "permissionDenied": {
+      "name": "permissionDenied",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "toolBlocked": {
+      "name": "toolBlocked",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "chunk": {
+      "name": "chunk",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "response": {
+      "name": "response",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "toolResult": {
+      "name": "toolResult",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "started": {
+      "name": "started",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    },
+    "permissionRequest": {
+      "name": "permissionRequest",
+      "description": "Event emitted by AutonomousAssistant",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const auto = container.feature('autoAssistant', {\n tools: ['fileTools', { feature: 'processManager', except: ['killAllProcesses'] }],\n permissions: {\n   readFile: 'allow',\n   searchFiles: 'allow',\n   writeFile: 'ask',\n   editFile: 'ask',\n   deleteFile: 'deny',\n },\n defaultPermission: 'ask',\n systemPrompt: 'You are a coding assistant.',\n})\n\nauto.on('permissionRequest', ({ id, toolName, args }) => {\n console.log(`Tool \"${toolName}\" wants to run with`, args)\n // Show UI, then:\n auto.approve(id)  // or auto.deny(id)\n})\n\nawait auto.ask('Refactor the auth module to use async/await')"
+    }
+  ],
+  "types": {
+    "PendingApproval": {
+      "description": "A pending approval awaiting user decision.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "toolName": {
+          "type": "string",
+          "description": ""
+        },
+        "args": {
+          "type": "Record<string, any>",
+          "description": ""
+        },
+        "timestamp": {
+          "type": "number",
+          "description": ""
+        },
+        "resolve": {
+          "type": "(decision: 'approve' | 'deny') => void",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('features.fileTools', {
+  "id": "features.fileTools",
+  "description": "Curated file-system and code-search tools for AI assistants. Wraps the container's `fs` and `grep` features into a focused tool surface modeled on the tools that coding assistants (Claude Code, Cursor, etc.) rely on: read, write, edit, list, search, find, stat, mkdir, move, copy, delete. Usage: ```typescript const fileTools = container.feature('fileTools') assistant.use(fileTools) // or selectively: assistant.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] })) ```",
+  "shortcut": "features.fileTools",
+  "className": "FileTools",
+  "methods": {
+    "readFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string; offset?: number; limit?: number }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "writeFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string; content: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "editFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string; oldString: string; newString: string; replaceAll?: boolean }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "listDirectory": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path?: string; recursive?: boolean; include?: string; exclude?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "searchFiles": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ pattern: string; path?: string; include?: string; exclude?: string; ignoreCase?: boolean; maxResults?: number }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "findFiles": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ pattern: string; path?: string; exclude?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "fileInfo": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "createDirectory": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "moveFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ source: string; destination: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "copyFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ source: string; destination: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "deleteFile": {
+      "description": "",
+      "parameters": {
+        "args": {
+          "type": "{ path: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<string>"
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant uses fileTools, inject system prompt guidance about how to use the tools effectively.",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": []
 });
 
 // Container introspection data
@@ -23613,6 +24373,311 @@ export const introspectionData = [
     }
   },
   {
+    "id": "features.redis",
+    "description": "Redis feature for shared state and pub/sub communication between container instances. Wraps ioredis with a focused API for the primitives that matter most: key/value state, pub/sub messaging, and cross-instance coordination. Uses a dedicated subscriber connection for pub/sub (ioredis requirement), created lazily on first subscribe call.",
+    "shortcut": "features.redis",
+    "className": "RedisFeature",
+    "methods": {
+      "set": {
+        "description": "Set a key to a string value with optional TTL.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "value": {
+            "type": "string",
+            "description": "The string value to store"
+          },
+          "ttl": {
+            "type": "number",
+            "description": "Optional time-to-live in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<void>"
+      },
+      "get": {
+        "description": "Get a key's value. Returns null if the key doesn't exist.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<string | null>"
+      },
+      "del": {
+        "description": "Delete one or more keys.",
+        "parameters": {
+          "keys": {
+            "type": "string[]",
+            "description": "One or more key names to delete"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "returns": "Promise<number>"
+      },
+      "exists": {
+        "description": "Check if a key exists.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "expire": {
+        "description": "Set a key's TTL in seconds.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "seconds": {
+            "type": "number",
+            "description": "TTL in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "seconds"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "keys": {
+        "description": "Find keys matching a glob pattern (respects prefix).",
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern, e.g. \"worker:*\""
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "setJSON": {
+        "description": "Store a value as JSON.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "value": {
+            "type": "unknown",
+            "description": "Any JSON-serializable value"
+          },
+          "ttl": {
+            "type": "number",
+            "description": "Optional TTL in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<void>"
+      },
+      "getJSON": {
+        "description": "Retrieve and parse a JSON value.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<T | null>"
+      },
+      "hset": {
+        "description": "Set fields on a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          },
+          "fields": {
+            "type": "Record<string, string>",
+            "description": "Object of field/value pairs"
+          }
+        },
+        "required": [
+          "key",
+          "fields"
+        ],
+        "returns": "Promise<void>"
+      },
+      "hgetall": {
+        "description": "Get all fields from a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<Record<string, string>>"
+      },
+      "hget": {
+        "description": "Get a single field from a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          },
+          "field": {
+            "type": "string",
+            "description": "The field name"
+          }
+        },
+        "required": [
+          "key",
+          "field"
+        ],
+        "returns": "Promise<string | null>"
+      },
+      "subscribe": {
+        "description": "Subscribe to one or more channels. Optionally pass a handler that fires only for these channels. The feature also emits a `message` event for all messages.",
+        "parameters": {
+          "channels": {
+            "type": "string | string[]",
+            "description": "Channel name(s) to subscribe to"
+          },
+          "handler": {
+            "type": "MessageHandler",
+            "description": "Optional per-channel message handler"
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await redis.subscribe('tasks', (channel, msg) => {\n console.log(`Got ${msg} on ${channel}`)\n})"
+          }
+        ]
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe from one or more channels.",
+        "parameters": {
+          "channels": {
+            "type": "string[]",
+            "description": "Channel name(s) to unsubscribe from"
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "returns": "Promise<void>"
+      },
+      "publish": {
+        "description": "Publish a message to a channel.",
+        "parameters": {
+          "channel": {
+            "type": "string",
+            "description": "The channel to publish to"
+          },
+          "message": {
+            "type": "string",
+            "description": "The message string (use JSON.stringify for objects)"
+          }
+        },
+        "required": [
+          "channel",
+          "message"
+        ],
+        "returns": "Promise<number>"
+      },
+      "ensureLocalDocker": {
+        "description": "Spin up a local Redis instance via Docker. Checks if a container with the given name already exists and starts it if stopped, or creates a new one from redis:alpine. Requires the docker feature to be available on the container.",
+        "parameters": {
+          "options": {
+            "type": "{ name?: string; port?: number; image?: string }",
+            "description": "Container name and host port"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379', lazyConnect: true })\nawait redis.ensureLocalDocker()"
+          }
+        ]
+      },
+      "close": {
+        "description": "Close all redis connections (main client + subscriber).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "getters": {
+      "client": {
+        "description": "The underlying ioredis client for advanced operations.",
+        "returns": "Redis"
+      },
+      "subscriber": {
+        "description": "The dedicated subscriber connection, if pub/sub is active.",
+        "returns": "Redis | null"
+      }
+    },
+    "events": {
+      "message": {
+        "name": "message",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "subscribed": {
+        "name": "subscribed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "unsubscribed": {
+        "name": "unsubscribed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "closed": {
+        "name": "closed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\n\n// Shared state\nawait redis.set('worker:status', 'active')\nconst status = await redis.get('worker:status')\n\n// Pub/sub between instances\nredis.on('message', (channel, msg) => console.log(`${channel}: ${msg}`))\nawait redis.subscribe('tasks')\nawait redis.publish('tasks', JSON.stringify({ type: 'ping' }))\n\n// JSON helpers\nawait redis.setJSON('config', { workers: 4, debug: true })\nconst config = await redis.getJSON<{ workers: number }>('config')"
+      }
+    ]
+  },
+  {
     "id": "features.fs",
     "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
     "shortcut": "features.fs",
@@ -29546,6 +30611,269 @@ export const introspectionData = [
     ]
   },
   {
+    "id": "clients.elevenlabs",
+    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+    "shortcut": "clients.elevenlabs",
+    "className": "ElevenLabsClient",
+    "methods": {
+      "beforeRequest": {
+        "description": "Inject the xi-api-key header before each request.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Validate the API key by listing available models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await el.connect()"
+          }
+        ]
+      },
+      "listVoices": {
+        "description": "List available voices with optional search and filtering.",
+        "parameters": {
+          "options": {
+            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+            "description": "Query parameters for filtering voices"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+          }
+        ]
+      },
+      "getVoice": {
+        "description": "Get details for a single voice.",
+        "parameters": {
+          "voiceId": {
+            "type": "string",
+            "description": "The voice ID to look up"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+          }
+        ]
+      },
+      "listModels": {
+        "description": "List available TTS models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+          }
+        ]
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text, returning audio as a Buffer.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+          }
+        ]
+      },
+      "say": {
+        "description": "Synthesize speech and write the audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "File path to write the audio to"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "apiKey": {
+        "description": "The resolved API key from options or environment.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "voices": {
+        "name": "voices",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "voiceId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "outputFormat": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "voiceSettings": {
+            "type": "ElevenLabsVoiceSettings",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "ElevenLabsVoiceSettings": {
+        "description": "",
+        "properties": {
+          "stability": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "similarityBoost": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "style": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "speed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "useSpeakerBoost": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "clients.supabase",
     "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
     "shortcut": "clients.supabase",
@@ -30029,269 +31357,6 @@ export const introspectionData = [
           },
           "images": {
             "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "clients.elevenlabs",
-    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-    "shortcut": "clients.elevenlabs",
-    "className": "ElevenLabsClient",
-    "methods": {
-      "beforeRequest": {
-        "description": "Inject the xi-api-key header before each request.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Validate the API key by listing available models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await el.connect()"
-          }
-        ]
-      },
-      "listVoices": {
-        "description": "List available voices with optional search and filtering.",
-        "parameters": {
-          "options": {
-            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-            "description": "Query parameters for filtering voices"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-          }
-        ]
-      },
-      "getVoice": {
-        "description": "Get details for a single voice.",
-        "parameters": {
-          "voiceId": {
-            "type": "string",
-            "description": "The voice ID to look up"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-          }
-        ]
-      },
-      "listModels": {
-        "description": "List available TTS models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any[]>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-          }
-        ]
-      },
-      "synthesize": {
-        "description": "Synthesize speech from text, returning audio as a Buffer.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<Buffer>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-          }
-        ]
-      },
-      "say": {
-        "description": "Synthesize speech and write the audio to a file.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "outputPath": {
-            "type": "string",
-            "description": "File path to write the audio to"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text",
-          "outputPath"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-          }
-        ]
-      }
-    },
-    "getters": {
-      "apiKey": {
-        "description": "The resolved API key from options or environment.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "voices": {
-        "name": "voices",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "speech": {
-        "name": "speech",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-      }
-    ],
-    "types": {
-      "SynthesizeOptions": {
-        "description": "",
-        "properties": {
-          "voiceId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "modelId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "outputFormat": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "voiceSettings": {
-            "type": "ElevenLabsVoiceSettings",
-            "description": "",
-            "optional": true
-          },
-          "disableCache": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      },
-      "ElevenLabsVoiceSettings": {
-        "description": "",
-        "properties": {
-          "stability": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "similarityBoost": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "style": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "speed": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "useSpeakerBoost": {
-            "type": "boolean",
             "description": "",
             "optional": true
           }
@@ -34855,6 +35920,458 @@ export const introspectionData = [
         }
       }
     }
+  },
+  {
+    "id": "features.autoAssistant",
+    "description": "An autonomous assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Tools are stacked from feature bundles (fileTools, processManager, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
+    "shortcut": "features.autoAssistant",
+    "className": "AutonomousAssistant",
+    "methods": {
+      "getPermission": {
+        "description": "Get the effective permission level for a tool.",
+        "parameters": {
+          "toolName": {
+            "type": "string",
+            "description": "Parameter toolName"
+          }
+        },
+        "required": [
+          "toolName"
+        ],
+        "returns": "PermissionLevel"
+      },
+      "setPermission": {
+        "description": "Set permission level for one or more tools.",
+        "parameters": {
+          "toolName": {
+            "type": "string | string[]",
+            "description": "Parameter toolName"
+          },
+          "level": {
+            "type": "PermissionLevel",
+            "description": "Parameter level"
+          }
+        },
+        "required": [
+          "toolName",
+          "level"
+        ],
+        "returns": "this"
+      },
+      "setDefaultPermission": {
+        "description": "Set the default permission level for unconfigured tools.",
+        "parameters": {
+          "level": {
+            "type": "PermissionLevel",
+            "description": "Parameter level"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "returns": "this"
+      },
+      "permitTool": {
+        "description": "Allow a tool (or tools) to run without approval.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "gateTool": {
+        "description": "Require approval before a tool (or tools) can run.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "blockTool": {
+        "description": "Block a tool (or tools) from ever running.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "approve": {
+        "description": "Approve a pending tool call by ID. The tool will execute.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "this"
+      },
+      "deny": {
+        "description": "Deny a pending tool call by ID. The tool call will be skipped.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "this"
+      },
+      "approveAll": {
+        "description": "Approve all pending tool calls.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
+      "denyAll": {
+        "description": "Deny all pending tool calls.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
+      "start": {
+        "description": "Initialize the inner assistant, stack tool bundles, and wire up the permission interceptor.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "ask": {
+        "description": "Ask the autonomous assistant a question. Auto-starts if needed. Tool calls will be gated by the permission system.",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          },
+          "options": {
+            "type": "Record<string, any>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "Promise<string>"
+      },
+      "use": {
+        "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
+        "parameters": {
+          "spec": {
+            "type": "ToolBundleSpec",
+            "description": "Parameter spec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "returns": "this"
+      }
+    },
+    "getters": {
+      "assistant": {
+        "description": "The inner assistant. Throws if not started.",
+        "returns": "Assistant"
+      },
+      "permissions": {
+        "description": "Current permission map from state.",
+        "returns": "Record<string, PermissionLevel>"
+      },
+      "pendingApprovals": {
+        "description": "Current pending approvals.",
+        "returns": "PendingApproval[]"
+      },
+      "isStarted": {
+        "description": "Whether the assistant is started and ready.",
+        "returns": "boolean"
+      },
+      "tools": {
+        "description": "The tools registered on the inner assistant.",
+        "returns": "Record<string, any>"
+      },
+      "conversation": {
+        "description": "The conversation on the inner assistant (if started).",
+        "returns": "any"
+      },
+      "messages": {
+        "description": "Messages from the inner assistant's conversation.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "permissionGranted": {
+        "name": "permissionGranted",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "permissionDenied": {
+        "name": "permissionDenied",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "toolBlocked": {
+        "name": "toolBlocked",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "chunk": {
+        "name": "chunk",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "response": {
+        "name": "response",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "toolResult": {
+        "name": "toolResult",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "started": {
+        "name": "started",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      },
+      "permissionRequest": {
+        "name": "permissionRequest",
+        "description": "Event emitted by AutonomousAssistant",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const auto = container.feature('autoAssistant', {\n tools: ['fileTools', { feature: 'processManager', except: ['killAllProcesses'] }],\n permissions: {\n   readFile: 'allow',\n   searchFiles: 'allow',\n   writeFile: 'ask',\n   editFile: 'ask',\n   deleteFile: 'deny',\n },\n defaultPermission: 'ask',\n systemPrompt: 'You are a coding assistant.',\n})\n\nauto.on('permissionRequest', ({ id, toolName, args }) => {\n console.log(`Tool \"${toolName}\" wants to run with`, args)\n // Show UI, then:\n auto.approve(id)  // or auto.deny(id)\n})\n\nawait auto.ask('Refactor the auth module to use async/await')"
+      }
+    ],
+    "types": {
+      "PendingApproval": {
+        "description": "A pending approval awaiting user decision.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "toolName": {
+            "type": "string",
+            "description": ""
+          },
+          "args": {
+            "type": "Record<string, any>",
+            "description": ""
+          },
+          "timestamp": {
+            "type": "number",
+            "description": ""
+          },
+          "resolve": {
+            "type": "(decision: 'approve' | 'deny') => void",
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.fileTools",
+    "description": "Curated file-system and code-search tools for AI assistants. Wraps the container's `fs` and `grep` features into a focused tool surface modeled on the tools that coding assistants (Claude Code, Cursor, etc.) rely on: read, write, edit, list, search, find, stat, mkdir, move, copy, delete. Usage: ```typescript const fileTools = container.feature('fileTools') assistant.use(fileTools) // or selectively: assistant.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] })) ```",
+    "shortcut": "features.fileTools",
+    "className": "FileTools",
+    "methods": {
+      "readFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string; offset?: number; limit?: number }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "writeFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string; content: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "editFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string; oldString: string; newString: string; replaceAll?: boolean }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "listDirectory": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path?: string; recursive?: boolean; include?: string; exclude?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "searchFiles": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ pattern: string; path?: string; include?: string; exclude?: string; ignoreCase?: boolean; maxResults?: number }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "findFiles": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ pattern: string; path?: string; exclude?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "fileInfo": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "createDirectory": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "moveFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ source: string; destination: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "copyFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ source: string; destination: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "deleteFile": {
+        "description": "",
+        "parameters": {
+          "args": {
+            "type": "{ path: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<string>"
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant uses fileTools, inject system prompt guidance about how to use the tools effectively.",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": []
   }
 ];
 

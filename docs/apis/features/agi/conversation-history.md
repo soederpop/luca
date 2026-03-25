@@ -1,14 +1,14 @@
 # ConversationHistory (features.conversationHistory)
 
-A queryable store, backed by the file system, for maintaining conversation history and easily restoring it. Each conversation is stored as a JSON record keyed by ID, with lightweight metadata stored alongside for efficient listing and search without loading full message arrays.
+Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.
 
 ## Usage
 
 ```ts
 container.feature('conversationHistory', {
-  // Directory for conversation storage
+  // Custom cache directory for conversation storage
   cachePath,
-  // Namespace prefix to isolate datasets
+  // Namespace prefix for cache keys to isolate datasets
   namespace,
 })
 ```
@@ -17,8 +17,8 @@ container.feature('conversationHistory', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `cachePath` | `string` | Directory for conversation storage |
-| `namespace` | `string` | Namespace prefix to isolate datasets |
+| `cachePath` | `string` | Custom cache directory for conversation storage |
+| `namespace` | `string` | Namespace prefix for cache keys to isolate datasets |
 
 ## Methods
 
@@ -307,7 +307,8 @@ Delete all conversations matching a thread prefix.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `namespace` | `string` | The namespace prefix used for key isolation |
+| `diskCache` | `DiskCache` |  |
+| `namespace` | `string` |  |
 
 ## Events (Zod v4 schema)
 

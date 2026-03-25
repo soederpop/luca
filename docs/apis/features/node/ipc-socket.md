@@ -1,6 +1,6 @@
 # IpcSocket (features.ipcSocket)
 
-IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Dual-mode operation: server and client functionality - JSON message serialization/deserialization - Multiple client connection support (server mode) - Event-driven message handling - Automatic socket cleanup and management - Broadcast messaging to all connected clients - Lock file management for socket paths **Communication Pattern:** - Messages are automatically JSON-encoded with unique IDs - Both server and client emit 'message' events for incoming data - Server can broadcast to all connected clients - Client maintains single connection to server **Socket Management:** - Automatic cleanup of stale socket files - Connection tracking and management - Graceful shutdown procedures - Lock file protection against conflicts **Usage Examples:** **Server Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/myapp.sock', true); // removeLock=true ipc.on('connection', (socket) => { console.log('Client connected'); }); ipc.on('message', (data) => { console.log('Received:', data); ipc.broadcast({ reply: 'ACK', original: data }); }); ``` **Client Mode:** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/myapp.sock'); ipc.on('message', (data) => { console.log('Server says:', data); }); await ipc.send({ type: 'request', payload: 'hello' }); ```
+IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Reply to sender, or ask and wait ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```
 
 ## Usage
 
@@ -64,81 +64,113 @@ try {
 
 ### broadcast
 
-Broadcasts a message to all connected clients (server mode only). This method sends a JSON-encoded message with a unique ID to every client currently connected to the server. Each message is automatically wrapped with metadata including a UUID for tracking. **Message Format:** Messages are automatically wrapped in the format: ```json { "data": <your_message>, "id": "<uuid>" } ```
+Broadcasts a message to all connected clients (server mode only).
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `message` | `any` | ✓ | The message object to broadcast to all clients |
+| `message` | `any` | ✓ | The message object to broadcast |
+| `exclude` | `string` |  | Optional client ID to exclude from broadcast |
 
-**Returns:** `void`
+**Returns:** `this`
 
-```ts
-// Broadcast to all connected clients
-ipc.broadcast({ 
- type: 'notification',
- message: 'Server is shutting down in 30 seconds',
- timestamp: Date.now()
-});
 
-// Chain multiple operations
-ipc.broadcast({ status: 'ready' })
-  .broadcast({ time: new Date().toISOString() });
-```
+
+### sendTo
+
+Sends a message to a specific client by ID (server mode only).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `clientId` | `string` | ✓ | The target client ID |
+| `message` | `any` | ✓ | The message to send |
+
+**Returns:** `boolean`
 
 
 
 ### send
 
-Sends a message to the server (client mode only). This method sends a JSON-encoded message with a unique ID to the connected server. The message is automatically wrapped with metadata for tracking purposes. **Message Format:** Messages are automatically wrapped in the format: ```json { "data": <your_message>, "id": "<uuid>" } ```
+Fire-and-forget: sends a message to the server (client mode only). For server→client, use sendTo() or broadcast().
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `message` | `any` | ✓ | The message object to send to the server |
+| `message` | `any` | ✓ | The message to send |
+
+**Returns:** `Promise<void>`
+
+
+
+### ask
+
+Sends a message and waits for a correlated reply. Works in both client and server mode. The recipient should call `reply(requestId, response)` to respond.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `message` | `any` | ✓ | The message to send |
+| `options` | `{ clientId?: string; timeoutMs?: number }` |  | Optional: clientId (server mode target), timeoutMs |
+
+**Returns:** `Promise<any>`
+
+
+
+### reply
+
+Sends a reply to a previous ask() call, correlated by requestId.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `requestId` | `string` | ✓ | The requestId from the incoming message |
+| `data` | `any` | ✓ | The reply payload |
+| `clientId` | `string` |  | Target client (server mode; for client mode, omit) |
 
 **Returns:** `void`
-
-```ts
-// Send a simple message
-await ipc.send({ type: 'ping' });
-
-// Send complex data
-await ipc.send({
- type: 'data_update',
- payload: { users: [...], timestamp: Date.now() }
-});
-```
 
 
 
 ### connect
 
-Connects to an IPC server at the specified socket path (client mode). This method establishes a client connection to an existing IPC server. Once connected, the client can send messages to the server and receive responses. The connection is maintained until explicitly closed or the server terminates. **Connection Behavior:** - Sets the socket mode to 'client' - Returns existing connection if already connected - Automatically handles connection events and cleanup - JSON-parses incoming messages and emits 'message' events - Cleans up connection reference when socket closes **Error Handling:** - Throws error if already in server mode - Rejects promise on connection failures - Automatically cleans up on connection close
+Connects to an IPC server at the specified socket path (client mode).
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `socketPath` | `string` | ✓ | The file system path to the server's Unix domain socket |
+| `socketPath` | `string` | ✓ | Path to the server's Unix domain socket |
+| `options` | `{ reconnect?: boolean; name?: string }` |  | Optional: reconnect (enable auto-reconnect), name (identify this client) |
 
 **Returns:** `Promise<Socket>`
 
-```ts
-// Connect to server
-const socket = await ipc.connect('/tmp/myapp.sock');
-console.log('Connected to IPC server');
 
-// Handle incoming messages
-ipc.on('message', (data) => {
- console.log('Server message:', data);
-});
 
-// Send messages
-await ipc.send({ type: 'hello', client_id: 'client_001' });
-```
+### disconnect
+
+Disconnects the client and stops any reconnection attempts.
+
+**Returns:** `void`
+
+
+
+### probeSocket
+
+Probe an existing socket to see if a live listener is behind it. Attempts a quick connect — if it succeeds, someone is listening.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `socketPath` | `string` | ✓ | Parameter socketPath |
+
+**Returns:** `Promise<boolean>`
 
 
 
@@ -146,11 +178,19 @@ await ipc.send({ type: 'hello', client_id: 'client_001' });
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `isClient` | `any` | Checks if the IPC socket is operating in client mode. |
-| `isServer` | `any` | Checks if the IPC socket is operating in server mode. |
-| `connection` | `any` | Gets the current client connection socket. |
+| `isClient` | `boolean` | Checks if the IPC socket is operating in client mode. |
+| `isServer` | `boolean` | Checks if the IPC socket is operating in server mode. |
+| `clientCount` | `number` | Returns the number of currently connected clients (server mode). |
+| `connectedClients` | `Array<{ id: string; name?: string; connectedAt: number }>` | Returns info about all connected clients (server mode). |
+| `connection` | `Socket | undefined` | Gets the current client connection socket. |
 
 ## Events (Zod v4 schema)
+
+### disconnection
+
+Event emitted by IpcSocket
+
+
 
 ### connection
 
@@ -205,55 +245,5 @@ try {
 } catch (error) {
  console.error('Failed to stop server:', error.message);
 }
-```
-
-
-
-**broadcast**
-
-```ts
-// Broadcast to all connected clients
-ipc.broadcast({ 
- type: 'notification',
- message: 'Server is shutting down in 30 seconds',
- timestamp: Date.now()
-});
-
-// Chain multiple operations
-ipc.broadcast({ status: 'ready' })
-  .broadcast({ time: new Date().toISOString() });
-```
-
-
-
-**send**
-
-```ts
-// Send a simple message
-await ipc.send({ type: 'ping' });
-
-// Send complex data
-await ipc.send({
- type: 'data_update',
- payload: { users: [...], timestamp: Date.now() }
-});
-```
-
-
-
-**connect**
-
-```ts
-// Connect to server
-const socket = await ipc.connect('/tmp/myapp.sock');
-console.log('Connected to IPC server');
-
-// Handle incoming messages
-ipc.on('message', (data) => {
- console.log('Server message:', data);
-});
-
-// Send messages
-await ipc.send({ type: 'hello', client_id: 'client_001' });
 ```
 

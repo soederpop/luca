@@ -92,7 +92,7 @@ Convert a single endpoint (by name) to an OpenAI function definition.
 
 Return a compact JSON summary of all endpoints, useful for logging or REPL inspection.
 
-**Returns:** `void`
+**Returns:** `{ title: string, version: string, serverUrl: string, endpointCount: number, endpoints: object[]`
 
 
 
@@ -109,7 +109,7 @@ Return a compact JSON summary of all endpoints, useful for logging or REPL inspe
 
 ## Events (Zod v4 schema)
 
-### loaded
+### started
 
 Event emitted by OpenAPI
 

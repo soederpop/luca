@@ -52,6 +52,8 @@ container.feature('claudeCode', {
   settingsFile,
   // Directories containing Claude Code skills to load into sessions
   skillsFolders,
+  // Launch Claude Code with a Chrome browser tool
+  chrome,
 })
 ```
 
@@ -82,6 +84,7 @@ container.feature('claudeCode', {
 | `strictMcpConfig` | `boolean` | Require strict MCP config validation |
 | `settingsFile` | `string` | Path to a custom settings file |
 | `skillsFolders` | `array` | Directories containing Claude Code skills to load into sessions |
+| `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool |
 
 ## Methods
 
@@ -180,6 +183,7 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `debug` | `string | boolean` | Enable debug output. Pass a string for specific debug channels, or true for all. |
 | `debugFile` | `string` | Path to write debug output to a file. |
 | `settingsFile` | `string` | Path to a custom settings file. |
+| `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
 
 **Returns:** `Promise<ClaudeSession>`
 
@@ -258,6 +262,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `debug` | `string | boolean` | Enable debug output. Pass a string for specific debug channels, or true for all. |
 | `debugFile` | `string` | Path to write debug output to a file. |
 | `settingsFile` | `string` | Path to a custom settings file. |
+| `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
 
 **Returns:** `Promise<string>`
 
@@ -346,7 +351,7 @@ Get aggregated usage statistics across all sessions, or for a specific session.
 |------|------|----------|-------------|
 | `sessionId` | `string` |  | Optional session ID to get usage for a single session |
 
-**Returns:** `void`
+**Returns:** `{ totalCostUsd: number; totalInputTokens: number; totalOutputTokens: number; totalCacheReadTokens: number; totalCacheCreationTokens: number; totalTurns: number; sessionCount: number; sessions: Array<{ id: string; costUsd: number; turns: number; inputTokens: number; outputTokens: number; status: string`
 
 ```ts
 const stats = cc.usage()

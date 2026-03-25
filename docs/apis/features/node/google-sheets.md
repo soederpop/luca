@@ -6,6 +6,8 @@ Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. 
 
 ```ts
 container.feature('googleSheets', {
+  // An authorized instance of the googleAuth feature
+  auth,
   // Default spreadsheet ID for operations
   defaultSpreadsheetId,
 })
@@ -15,6 +17,7 @@ container.feature('googleSheets', {
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `auth` | `any` | An authorized instance of the googleAuth feature |
 | `defaultSpreadsheetId` | `string` | Default spreadsheet ID for operations |
 
 ## Methods

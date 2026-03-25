@@ -70,6 +70,7 @@ Spawns a process and captures its output with real-time monitoring capabilities.
 | `onError` | `(data: string) => void` | Callback invoked when stderr data is received |
 | `onOutput` | `(data: string) => void` | Callback invoked when stdout data is received |
 | `onExit` | `(code: number) => void` | Callback invoked when the process exits |
+| `onStart` | `(childProcess: ChildProcess) => void` | Callback invoked when the process starts |
 
 **Returns:** `Promise<{
     stderr: string;
@@ -126,7 +127,7 @@ Spawn a raw child process and return the handle immediately. Useful when callers
 | `stdout` | `"pipe" | "inherit" | "ignore"` | Stdout mode for the child process |
 | `stderr` | `"pipe" | "inherit" | "ignore"` | Stderr mode for the child process |
 
-**Returns:** `void`
+**Returns:** `import('child_process').ChildProcess`
 
 
 

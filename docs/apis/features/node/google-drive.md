@@ -6,6 +6,8 @@ Google Drive feature for listing, searching, browsing, and downloading files. De
 
 ```ts
 container.feature('googleDrive', {
+  // An authorized instance of the googleAuth feature
+  auth,
   // Default corpus for file queries (default: user)
   defaultCorpora,
   // Default number of results per page (default: 100)
@@ -17,6 +19,7 @@ container.feature('googleDrive', {
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `auth` | `any` | An authorized instance of the googleAuth feature |
 | `defaultCorpora` | `string` | Default corpus for file queries (default: user) |
 | `pageSize` | `number` | Default number of results per page (default: 100) |
 

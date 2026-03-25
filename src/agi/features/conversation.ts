@@ -64,7 +64,7 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	local: z.boolean().optional().describe('Whether to use the local ollama models instead of the remote OpenAI models'),
 
 	/** Maximum number of output tokens per completion */
-	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion (default 512)'),
 
 	/** Sampling temperature (0-2). Higher = more random, lower = more deterministic. */
 	temperature: z.number().min(0).max(2).optional().describe('Sampling temperature (0-2). Higher = more random, lower = more deterministic'),
@@ -212,9 +212,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** The active structured output schema for the current ask() call, if any. */
 	private _activeSchema: z.ZodType | null = null
 
-	/** Resolved max tokens: per-call override > options-level > undefined (no limit). */
+	/** Resolved max tokens: per-call override > options-level > default 512. */
 	private get maxTokens(): number | undefined {
-		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? undefined
+		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? 512
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -301,6 +301,26 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Whether a streaming response is currently in progress. */
 	get isStreaming(): boolean {
 		return !!this.state.get('streaming')
+	}
+
+	/**
+	 * Returns the correct parameter name for limiting output tokens.
+	 * Local models (LM Studio, Ollama) and legacy OpenAI models use max_tokens.
+	 * Newer OpenAI models (gpt-4o+, gpt-4.1, gpt-5, o1, o3, o4) require max_completion_tokens.
+	 */
+	private get maxTokensParam(): 'max_tokens' | 'max_completion_tokens' {
+		if (this.options.local) return 'max_tokens'
+
+		const model = this.model
+		const needsCompletionTokens = [
+			'gpt-4o', 'gpt-4.1', 'gpt-5', 'o1', 'o3', 'o4',
+		]
+
+		if (needsCompletionTokens.some((prefix) => model.startsWith(prefix))) {
+			return 'max_completion_tokens'
+		}
+
+		return 'max_tokens'
 	}
 
 	/** The context window size for the current model (from options override or auto-detected). */
@@ -920,7 +940,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				messages: this.messages,
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
-				...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
+				...(this.maxTokens ? { [this.maxTokensParam]: this.maxTokens } : {}),
 				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
 				...(this.options.topP != null ? { top_p: this.options.topP } : {}),
 				...(this.options.topK != null ? { top_k: this.options.topK } : {}),

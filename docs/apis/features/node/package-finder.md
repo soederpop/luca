@@ -57,7 +57,7 @@ finder.addPackage({
 
 Starts the package finder and performs the initial workspace scan. This method is idempotent - calling it multiple times will not re-scan if already started. It triggers the complete workspace scanning process.
 
-**Returns:** `void`
+**Returns:** `Promise<this | undefined>`
 
 ```ts
 await finder.start();
@@ -82,7 +82,7 @@ Performs a comprehensive scan of all node_modules directories in the workspace. 
 |----------|------|-------------|
 | `exclude` | `any` | Optional exclusion patterns (not implemented) |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 ```ts
 // Manual scan (usually called automatically by start())
@@ -104,7 +104,7 @@ Finds the first package manifest matching the given name. If multiple versions o
 |------|------|----------|-------------|
 | `name` | `string` | ✓ | The exact package name to search for |
 
-**Returns:** `void`
+**Returns:** `PartialManifest | undefined`
 
 ```ts
 const lodash = finder.findByName('lodash');
@@ -125,7 +125,7 @@ Finds all packages that declare the specified package as a dependency. Searches 
 |------|------|----------|-------------|
 | `packageName` | `string` | ✓ | The name of the package to find dependents for |
 
-**Returns:** `void`
+**Returns:** `PartialManifest[]`
 
 ```ts
 const reactDependents = finder.findDependentsOf('react');
@@ -147,7 +147,7 @@ Finds the first package manifest matching the provided filter function.
 |------|------|----------|-------------|
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for matching packages |
 
-**Returns:** `void`
+**Returns:** `PartialManifest | undefined`
 
 ```ts
 // Find a package with specific version
@@ -169,7 +169,7 @@ Finds all package manifests matching the provided filter function.
 |------|------|----------|-------------|
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for matching packages |
 
-**Returns:** `void`
+**Returns:** `PartialManifest[]`
 
 ```ts
 // Find all packages with 'babel' in the name
@@ -194,7 +194,7 @@ Returns all packages that do NOT match the provided filter function. This is the
 |------|------|----------|-------------|
 | `filter` | `(manifest: PartialManifest) => boolean` | ✓ | Function that returns true for packages to exclude |
 
-**Returns:** `void`
+**Returns:** `PartialManifest[]`
 
 ```ts
 // Get all non-development packages (those not in devDependencies)
@@ -208,7 +208,7 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 
 ### findLocalPackageFolders
 
-**Returns:** `void`
+**Returns:** `Promise<string[]>`
 
 
 
@@ -216,12 +216,12 @@ const unscoped = finder.exclude(pkg => pkg.name.startsWith('@'));
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `duplicates` | `any` | Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project. |
-| `isStarted` | `any` | Checks if the package finder has completed its initial scan. |
-| `packageNames` | `any` | Gets an array of all unique package names discovered in the workspace. |
-| `scopes` | `any` | Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel'). |
-| `manifests` | `any` | Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only. |
-| `counts` | `any` | Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist. |
+| `duplicates` | `string[]` | Gets a list of package names that have multiple versions/instances installed. This is useful for identifying potential dependency conflicts or opportunities for deduplication in the project. |
+| `isStarted` | `boolean` | Checks if the package finder has completed its initial scan. |
+| `packageNames` | `string[]` | Gets an array of all unique package names discovered in the workspace. |
+| `scopes` | `string[]` | Gets an array of all scoped package prefixes found in the workspace. Scoped packages are those starting with '@' (e.g., @types/node, @babel/core). This returns just the scope part (e.g., '@types', '@babel'). |
+| `manifests` | `(PartialManifest & { __path: string })[]` | Gets a flat array of all package manifests found in the workspace. This includes all versions/instances of packages, unlike packageNames which returns unique names only. |
+| `counts` | `Record<string, number>` | Gets a count of instances for each package name. Useful for quickly identifying which packages have multiple versions and how many instances of each exist. |
 
 ## State (Zod v4 schema)
 

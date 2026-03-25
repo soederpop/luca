@@ -22,7 +22,7 @@ Retrieve a file from the disk cache and save it to the local disk
 | `outputPath` | `string` | ✓ | The local path where the file should be saved |
 | `isBase64` | `any` |  | Whether the cached content is base64 encoded |
 
-**Returns:** `void`
+**Returns:** `Promise<Buffer | string>`
 
 ```ts
 await diskCache.saveFile('myFile', './output/file.txt')
@@ -42,7 +42,7 @@ Ensure a key exists in the cache, setting it with the provided content if it doe
 | `key` | `string` | ✓ | The cache key to check/set |
 | `content` | `string` | ✓ | The content to set if the key doesn't exist |
 
-**Returns:** `void`
+**Returns:** `Promise<string>`
 
 ```ts
 await diskCache.ensure('config', JSON.stringify(defaultConfig))
@@ -62,7 +62,7 @@ Copy a cached item from one key to another
 | `destination` | `string` | ✓ | The destination cache key |
 | `overwrite` | `boolean` |  | Whether to overwrite if destination exists (default: false) |
 
-**Returns:** `void`
+**Returns:** `Promise<string>`
 
 ```ts
 await diskCache.copy('original', 'backup')
@@ -83,7 +83,7 @@ Move a cached item from one key to another (copy then delete source)
 | `destination` | `string` | ✓ | The destination cache key |
 | `overwrite` | `boolean` |  | Whether to overwrite if destination exists (default: false) |
 
-**Returns:** `void`
+**Returns:** `Promise<string>`
 
 ```ts
 await diskCache.move('temp', 'permanent')
@@ -102,7 +102,7 @@ Check if a key exists in the cache
 |------|------|----------|-------------|
 | `key` | `string` | ✓ | The cache key to check |
 
-**Returns:** `void`
+**Returns:** `Promise<boolean>`
 
 ```ts
 if (await diskCache.has('myKey')) {
@@ -123,7 +123,7 @@ Retrieve a value from the cache
 | `key` | `string` | ✓ | The cache key to retrieve |
 | `json` | `any` |  | Whether to parse the value as JSON (default: false) |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 ```ts
 const text = await diskCache.get('myText')
@@ -144,7 +144,7 @@ Store a value in the cache
 | `value` | `any` | ✓ | The value to store (string, object, or any serializable data) |
 | `meta` | `any` |  | Optional metadata to associate with the cached item |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 ```ts
 await diskCache.set('myKey', 'Hello World')
@@ -164,7 +164,7 @@ Remove a cached item
 |------|------|----------|-------------|
 | `key` | `string` | ✓ | The cache key to remove |
 
-**Returns:** `void`
+**Returns:** `Promise<any>`
 
 ```ts
 await diskCache.rm('obsoleteKey')
@@ -182,7 +182,7 @@ Clear all cached items
 |------|------|----------|-------------|
 | `confirm` | `any` |  | Must be set to true to confirm the operation |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 ```ts
 await diskCache.clearAll(true) // Must explicitly confirm
@@ -237,8 +237,8 @@ const customCache = diskCache.create('/custom/cache/path')
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `cache` | `any` | Returns the underlying cacache instance configured with the cache directory path. |
-| `securely` | `any` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
+| `cache` | `ReturnType<typeof this.create>` | Returns the underlying cacache instance configured with the cache directory path. |
+| `securely` | `{ set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> }` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
 
 ## State (Zod v4 schema)
 

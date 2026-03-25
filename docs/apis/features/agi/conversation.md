@@ -1,6 +1,6 @@
 # Conversation (features.conversation)
 
-An observable conversation class that enables long-running chat threads with an LLM. Supports streaming responses, tool calling with automatic handler dispatch, message state management, and context window compaction. Works with both local (Ollama) and remote (OpenAI) backends.
+A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.
 
 ## Usage
 
@@ -30,8 +30,20 @@ container.feature('conversation', {
   clientOptions,
   // Whether to use the local ollama models instead of the remote OpenAI models
   local,
-  // Maximum number of output tokens per completion
+  // Maximum number of output tokens per completion (default 512)
   maxTokens,
+  // Sampling temperature (0-2). Higher = more random, lower = more deterministic
+  temperature,
+  // Nucleus sampling cutoff (0-1). Lower = more focused
+  topP,
+  // Top-K sampling. Only supported by local/Anthropic models
+  topK,
+  // Frequency penalty (-2 to 2). Positive = discourage repetition
+  frequencyPenalty,
+  // Presence penalty (-2 to 2). Positive = encourage new topics
+  presencePenalty,
+  // Stop sequences — generation halts when any of these strings is produced
+  stop,
   // Enable automatic compaction when input tokens approach the context limit
   autoCompact,
   // Fraction of context window at which auto-compact triggers (default 0.8)
@@ -59,13 +71,70 @@ container.feature('conversation', {
 | `metadata` | `object` | Arbitrary metadata to attach to this conversation |
 | `clientOptions` | `object` | Options for the OpenAI client |
 | `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
-| `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `maxTokens` | `number` | Maximum number of output tokens per completion (default 512) |
+| `temperature` | `number` | Sampling temperature (0-2). Higher = more random, lower = more deterministic |
+| `topP` | `number` | Nucleus sampling cutoff (0-1). Lower = more focused |
+| `topK` | `number` | Top-K sampling. Only supported by local/Anthropic models |
+| `frequencyPenalty` | `number` | Frequency penalty (-2 to 2). Positive = discourage repetition |
+| `presencePenalty` | `number` | Presence penalty (-2 to 2). Positive = encourage new topics |
+| `stop` | `array` | Stop sequences — generation halts when any of these strings is produced |
 | `autoCompact` | `boolean` | Enable automatic compaction when input tokens approach the context limit |
 | `compactThreshold` | `number` | Fraction of context window at which auto-compact triggers (default 0.8) |
 | `contextWindow` | `number` | Override the inferred context window size for this model |
 | `compactKeepRecent` | `number` | Number of recent messages to preserve after compaction (default 4) |
 
 ## Methods
+
+### addTool
+
+Add or replace a single tool by name. Uses the same format as tools passed at construction time.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | Parameter name |
+| `tool` | `ConversationTool` | ✓ | Parameter tool |
+
+`ConversationTool` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `handler` | `(...args: any[]) => Promise<any>` |  |
+| `description` | `string` |  |
+| `parameters` | `Record<string, any>` |  |
+
+**Returns:** `this`
+
+
+
+### removeTool
+
+Remove a tool by name.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | Parameter name |
+
+**Returns:** `this`
+
+
+
+### updateTools
+
+Merge new tools into the conversation, replacing any with the same name. Accepts the same Record<string, ConversationTool> format used at construction time.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `tools` | `Record<string, ConversationTool>` | ✓ | Parameter tools |
+
+**Returns:** `this`
+
+
 
 ### estimateTokens
 
@@ -113,6 +182,7 @@ Send a message and get a streamed response. Automatically handles tool calls by 
 | Property | Type | Description |
 |----------|------|-------------|
 | `maxTokens` | `number` |  |
+| `schema` | `z.ZodType` | When provided, enables OpenAI Structured Outputs. The model is constrained to return JSON matching this Zod schema. The return value of ask() will be the parsed object instead of a raw string. |
 
 **Returns:** `Promise<string>`
 
@@ -159,7 +229,8 @@ Append a message to the conversation state.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `tools` | `Record<string, any>` | Returns the registered tools available for the model to call. |
+| `tools` | `Record<string, ConversationTool>` | Returns the registered tools available for the model to call. |
+| `availableTools` | `any` |  |
 | `mcpServers` | `Record<string, ConversationMCPServer>` | Returns configured remote MCP servers keyed by server label. |
 | `messages` | `Message[]` | Returns the full message history of the conversation. |
 | `model` | `string` | Returns the OpenAI model name being used for completions. |
@@ -241,6 +312,45 @@ Fired when a user message is added to the conversation
 | Name | Type | Description |
 |------|------|-------------|
 | `arg0` | `any` | The user message content (string or ContentPart[]) |
+
+
+
+### toolError
+
+Fired when a tool handler throws or the tool is unknown
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `any` | Error object or message |
+
+
+
+### toolCall
+
+Fired before invoking a single tool handler
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `any` | Parsed arguments object |
+
+
+
+### toolResult
+
+Fired after a tool handler returns successfully
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Tool name |
+| `arg1` | `string` | Serialized result |
 
 
 
@@ -329,45 +439,6 @@ Fired when the model begins a batch of tool calls
 
 
 
-### toolError
-
-Fired when a tool handler throws or the tool is unknown
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `any` | Error object or message |
-
-
-
-### toolCall
-
-Fired before invoking a single tool handler
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `any` | Parsed arguments object |
-
-
-
-### toolResult
-
-Fired after a tool handler returns successfully
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `string` | Serialized result |
-
-
-
 ### toolCallsEnd
 
 Fired after all tool calls in a turn have been executed
@@ -417,6 +488,8 @@ Fired when the final text response is produced
 | `estimatedInputTokens` | `number` | Estimated input token count for the current messages array |
 | `compactionCount` | `number` | Number of times compact() has been called |
 | `contextWindow` | `number` | The context window size for the current model |
+| `tools` | `object` | Active tools map including any runtime overrides |
+| `callMaxTokens` | `any` | Per-call max tokens override, cleared after each ask() |
 
 ## Examples
 

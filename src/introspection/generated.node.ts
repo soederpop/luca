@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-25T03:04:44.246Z
+// Generated at: 2026-03-25T06:00:46.856Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -5925,6 +5925,312 @@ setBuildTimeData('features.googleCalendar', {
       }
     }
   }
+});
+
+setBuildTimeData('features.redis', {
+  "id": "features.redis",
+  "description": "Redis feature for shared state and pub/sub communication between container instances. Wraps ioredis with a focused API for the primitives that matter most: key/value state, pub/sub messaging, and cross-instance coordination. Uses a dedicated subscriber connection for pub/sub (ioredis requirement), created lazily on first subscribe call.",
+  "shortcut": "features.redis",
+  "className": "RedisFeature",
+  "methods": {
+    "set": {
+      "description": "Set a key to a string value with optional TTL.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "value": {
+          "type": "string",
+          "description": "The string value to store"
+        },
+        "ttl": {
+          "type": "number",
+          "description": "Optional time-to-live in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<void>"
+    },
+    "get": {
+      "description": "Get a key's value. Returns null if the key doesn't exist.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<string | null>"
+    },
+    "del": {
+      "description": "Delete one or more keys.",
+      "parameters": {
+        "keys": {
+          "type": "string[]",
+          "description": "One or more key names to delete"
+        }
+      },
+      "required": [
+        "keys"
+      ],
+      "returns": "Promise<number>"
+    },
+    "exists": {
+      "description": "Check if a key exists.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "expire": {
+      "description": "Set a key's TTL in seconds.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "seconds": {
+          "type": "number",
+          "description": "TTL in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "seconds"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "keys": {
+      "description": "Find keys matching a glob pattern (respects prefix).",
+      "parameters": {
+        "pattern": {
+          "type": "string",
+          "description": "Glob pattern, e.g. \"worker:*\""
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "setJSON": {
+      "description": "Store a value as JSON.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        },
+        "value": {
+          "type": "unknown",
+          "description": "Any JSON-serializable value"
+        },
+        "ttl": {
+          "type": "number",
+          "description": "Optional TTL in seconds"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "returns": "Promise<void>"
+    },
+    "getJSON": {
+      "description": "Retrieve and parse a JSON value.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The key name"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<T | null>"
+    },
+    "hset": {
+      "description": "Set fields on a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        },
+        "fields": {
+          "type": "Record<string, string>",
+          "description": "Object of field/value pairs"
+        }
+      },
+      "required": [
+        "key",
+        "fields"
+      ],
+      "returns": "Promise<void>"
+    },
+    "hgetall": {
+      "description": "Get all fields from a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "returns": "Promise<Record<string, string>>"
+    },
+    "hget": {
+      "description": "Get a single field from a hash.",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "The hash key"
+        },
+        "field": {
+          "type": "string",
+          "description": "The field name"
+        }
+      },
+      "required": [
+        "key",
+        "field"
+      ],
+      "returns": "Promise<string | null>"
+    },
+    "subscribe": {
+      "description": "Subscribe to one or more channels. Optionally pass a handler that fires only for these channels. The feature also emits a `message` event for all messages.",
+      "parameters": {
+        "channels": {
+          "type": "string | string[]",
+          "description": "Channel name(s) to subscribe to"
+        },
+        "handler": {
+          "type": "MessageHandler",
+          "description": "Optional per-channel message handler"
+        }
+      },
+      "required": [
+        "channels"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await redis.subscribe('tasks', (channel, msg) => {\n console.log(`Got ${msg} on ${channel}`)\n})"
+        }
+      ]
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe from one or more channels.",
+      "parameters": {
+        "channels": {
+          "type": "string[]",
+          "description": "Channel name(s) to unsubscribe from"
+        }
+      },
+      "required": [
+        "channels"
+      ],
+      "returns": "Promise<void>"
+    },
+    "publish": {
+      "description": "Publish a message to a channel.",
+      "parameters": {
+        "channel": {
+          "type": "string",
+          "description": "The channel to publish to"
+        },
+        "message": {
+          "type": "string",
+          "description": "The message string (use JSON.stringify for objects)"
+        }
+      },
+      "required": [
+        "channel",
+        "message"
+      ],
+      "returns": "Promise<number>"
+    },
+    "ensureLocalDocker": {
+      "description": "Spin up a local Redis instance via Docker. Checks if a container with the given name already exists and starts it if stopped, or creates a new one from redis:alpine. Requires the docker feature to be available on the container.",
+      "parameters": {
+        "options": {
+          "type": "{ name?: string; port?: number; image?: string }",
+          "description": "Container name and host port"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379', lazyConnect: true })\nawait redis.ensureLocalDocker()"
+        }
+      ]
+    },
+    "close": {
+      "description": "Close all redis connections (main client + subscriber).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "getters": {
+    "client": {
+      "description": "The underlying ioredis client for advanced operations.",
+      "returns": "Redis"
+    },
+    "subscriber": {
+      "description": "The dedicated subscriber connection, if pub/sub is active.",
+      "returns": "Redis | null"
+    }
+  },
+  "events": {
+    "message": {
+      "name": "message",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "subscribed": {
+      "name": "subscribed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "unsubscribed": {
+      "name": "unsubscribed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    },
+    "closed": {
+      "name": "closed",
+      "description": "Event emitted by RedisFeature",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\n\n// Shared state\nawait redis.set('worker:status', 'active')\nconst status = await redis.get('worker:status')\n\n// Pub/sub between instances\nredis.on('message', (channel, msg) => console.log(`${channel}: ${msg}`))\nawait redis.subscribe('tasks')\nawait redis.publish('tasks', JSON.stringify({ type: 'ping' }))\n\n// JSON helpers\nawait redis.setJSON('config', { workers: 4, debug: true })\nconst config = await redis.getJSON<{ workers: number }>('config')"
+    }
+  ]
 });
 
 setBuildTimeData('features.fs', {
@@ -11880,6 +12186,303 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
+setBuildTimeData('clients.comfyui', {
+  "id": "clients.comfyui",
+  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+  "shortcut": "clients.comfyui",
+  "className": "ComfyUIClient",
+  "methods": {
+    "queuePrompt": {
+      "description": "Queue a prompt (API-format workflow) for execution.",
+      "parameters": {
+        "prompt": {
+          "type": "Record<string, any>",
+          "description": "The API-format workflow object"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Override the client ID for this request"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<{ prompt_id: string; number: number }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+        }
+      ]
+    },
+    "getQueue": {
+      "description": "Get the current prompt queue status.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+    },
+    "getHistory": {
+      "description": "Get execution history, optionally for a specific prompt.",
+      "parameters": {
+        "promptId": {
+          "type": "string",
+          "description": "If provided, returns history for this prompt only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "getSystemStats": {
+      "description": "Get system stats including GPU memory and queue info.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "getObjectInfo": {
+      "description": "Get node type info with input/output schemas.",
+      "parameters": {
+        "nodeClass": {
+          "type": "string",
+          "description": "If provided, returns info for this node type only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "interrupt": {
+      "description": "Interrupt the currently executing prompt.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "getModels": {
+      "description": "List available models, optionally filtered by type.",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "getEmbeddings": {
+      "description": "List available embedding models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "uploadImage": {
+      "description": "Upload an image to ComfyUI's input directory.",
+      "parameters": {
+        "file": {
+          "type": "Buffer | Blob",
+          "description": "The image data as Buffer or Blob"
+        },
+        "filename": {
+          "type": "string",
+          "description": "File name for the upload"
+        },
+        "opts": {
+          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+          "description": "Upload options (subfolder, type, overwrite)"
+        }
+      },
+      "required": [
+        "file",
+        "filename"
+      ],
+      "returns": "Promise<any>"
+    },
+    "viewImage": {
+      "description": "Download a generated image from ComfyUI as a Buffer.",
+      "parameters": {
+        "filename": {
+          "type": "string",
+          "description": "The image filename"
+        },
+        "subfolder": {
+          "type": "any",
+          "description": "Subfolder within the output directory"
+        },
+        "type": {
+          "type": "any",
+          "description": "Image type ('output', 'input', 'temp')"
+        }
+      },
+      "required": [
+        "filename"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "connectWs": {
+      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disconnectWs": {
+      "description": "Close the WebSocket connection.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "toApiFormat": {
+      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "runWorkflow": {
+      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        },
+        "inputs": {
+          "type": "Record<string, any>",
+          "description": "Parameter inputs"
+        },
+        "options": {
+          "type": "WorkflowRunOptions",
+          "description": "Parameter options",
+          "properties": {
+            "poll": {
+              "type": "boolean",
+              "description": "Use polling instead of WebSocket for tracking execution"
+            },
+            "pollInterval": {
+              "type": "number",
+              "description": "Polling interval in ms (default 1000)"
+            },
+            "inputMap": {
+              "type": "InputMapping",
+              "description": "Named input mapping: semantic name -> { nodeId, field }"
+            },
+            "outputDir": {
+              "type": "string",
+              "description": "If provided, output images are downloaded to this directory"
+            }
+          }
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<WorkflowResult>"
+    }
+  },
+  "getters": {
+    "clientId": {
+      "description": "The unique client ID used for WebSocket session tracking.",
+      "returns": "string"
+    },
+    "wsURL": {
+      "description": "The WebSocket URL derived from baseURL or overridden via options.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "execution_start": {
+      "name": "execution_start",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_complete": {
+      "name": "execution_complete",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executing": {
+      "name": "executing",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "progress": {
+      "name": "progress",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executed": {
+      "name": "executed",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_cached": {
+      "name": "execution_cached",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_error": {
+      "name": "execution_error",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+    }
+  ],
+  "types": {
+    "WorkflowRunOptions": {
+      "description": "",
+      "properties": {
+        "poll": {
+          "type": "boolean",
+          "description": "Use polling instead of WebSocket for tracking execution",
+          "optional": true
+        },
+        "pollInterval": {
+          "type": "number",
+          "description": "Polling interval in ms (default 1000)",
+          "optional": true
+        },
+        "inputMap": {
+          "type": "InputMapping",
+          "description": "Named input mapping: semantic name -> { nodeId, field }",
+          "optional": true
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "If provided, output images are downloaded to this directory",
+          "optional": true
+        }
+      }
+    },
+    "WorkflowResult": {
+      "description": "",
+      "properties": {
+        "promptId": {
+          "type": "string",
+          "description": ""
+        },
+        "outputs": {
+          "type": "Record<string, any>",
+          "description": ""
+        },
+        "images": {
+          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('clients.supabase', {
   "id": "clients.supabase",
   "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
@@ -12332,303 +12935,6 @@ setBuildTimeData('clients.elevenlabs', {
         },
         "useSpeakerBoost": {
           "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
-setBuildTimeData('clients.comfyui', {
-  "id": "clients.comfyui",
-  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-  "shortcut": "clients.comfyui",
-  "className": "ComfyUIClient",
-  "methods": {
-    "queuePrompt": {
-      "description": "Queue a prompt (API-format workflow) for execution.",
-      "parameters": {
-        "prompt": {
-          "type": "Record<string, any>",
-          "description": "The API-format workflow object"
-        },
-        "clientId": {
-          "type": "string",
-          "description": "Override the client ID for this request"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<{ prompt_id: string; number: number }>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-        }
-      ]
-    },
-    "getQueue": {
-      "description": "Get the current prompt queue status.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-    },
-    "getHistory": {
-      "description": "Get execution history, optionally for a specific prompt.",
-      "parameters": {
-        "promptId": {
-          "type": "string",
-          "description": "If provided, returns history for this prompt only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<Record<string, any>>"
-    },
-    "getSystemStats": {
-      "description": "Get system stats including GPU memory and queue info.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "getObjectInfo": {
-      "description": "Get node type info with input/output schemas.",
-      "parameters": {
-        "nodeClass": {
-          "type": "string",
-          "description": "If provided, returns info for this node type only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "interrupt": {
-      "description": "Interrupt the currently executing prompt.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "getModels": {
-      "description": "List available models, optionally filtered by type.",
-      "parameters": {
-        "type": {
-          "type": "string",
-          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-        }
-      },
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "getEmbeddings": {
-      "description": "List available embedding models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "uploadImage": {
-      "description": "Upload an image to ComfyUI's input directory.",
-      "parameters": {
-        "file": {
-          "type": "Buffer | Blob",
-          "description": "The image data as Buffer or Blob"
-        },
-        "filename": {
-          "type": "string",
-          "description": "File name for the upload"
-        },
-        "opts": {
-          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-          "description": "Upload options (subfolder, type, overwrite)"
-        }
-      },
-      "required": [
-        "file",
-        "filename"
-      ],
-      "returns": "Promise<any>"
-    },
-    "viewImage": {
-      "description": "Download a generated image from ComfyUI as a Buffer.",
-      "parameters": {
-        "filename": {
-          "type": "string",
-          "description": "The image filename"
-        },
-        "subfolder": {
-          "type": "any",
-          "description": "Subfolder within the output directory"
-        },
-        "type": {
-          "type": "any",
-          "description": "Image type ('output', 'input', 'temp')"
-        }
-      },
-      "required": [
-        "filename"
-      ],
-      "returns": "Promise<Buffer>"
-    },
-    "connectWs": {
-      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "disconnectWs": {
-      "description": "Close the WebSocket connection.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "toApiFormat": {
-      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-      "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
-        }
-      },
-      "required": [
-        "workflow"
-      ],
-      "returns": "Promise<Record<string, any>>"
-    },
-    "runWorkflow": {
-      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
-      "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
-        },
-        "inputs": {
-          "type": "Record<string, any>",
-          "description": "Parameter inputs"
-        },
-        "options": {
-          "type": "WorkflowRunOptions",
-          "description": "Parameter options",
-          "properties": {
-            "poll": {
-              "type": "boolean",
-              "description": "Use polling instead of WebSocket for tracking execution"
-            },
-            "pollInterval": {
-              "type": "number",
-              "description": "Polling interval in ms (default 1000)"
-            },
-            "inputMap": {
-              "type": "InputMapping",
-              "description": "Named input mapping: semantic name -> { nodeId, field }"
-            },
-            "outputDir": {
-              "type": "string",
-              "description": "If provided, output images are downloaded to this directory"
-            }
-          }
-        }
-      },
-      "required": [
-        "workflow"
-      ],
-      "returns": "Promise<WorkflowResult>"
-    }
-  },
-  "getters": {
-    "clientId": {
-      "description": "The unique client ID used for WebSocket session tracking.",
-      "returns": "string"
-    },
-    "wsURL": {
-      "description": "The WebSocket URL derived from baseURL or overridden via options.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "execution_start": {
-      "name": "execution_start",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_complete": {
-      "name": "execution_complete",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executing": {
-      "name": "executing",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "progress": {
-      "name": "progress",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executed": {
-      "name": "executed",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_cached": {
-      "name": "execution_cached",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_error": {
-      "name": "execution_error",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
-    }
-  ],
-  "types": {
-    "WorkflowRunOptions": {
-      "description": "",
-      "properties": {
-        "poll": {
-          "type": "boolean",
-          "description": "Use polling instead of WebSocket for tracking execution",
-          "optional": true
-        },
-        "pollInterval": {
-          "type": "number",
-          "description": "Polling interval in ms (default 1000)",
-          "optional": true
-        },
-        "inputMap": {
-          "type": "InputMapping",
-          "description": "Named input mapping: semantic name -> { nodeId, field }",
-          "optional": true
-        },
-        "outputDir": {
-          "type": "string",
-          "description": "If provided, output images are downloaded to this directory",
-          "optional": true
-        }
-      }
-    },
-    "WorkflowResult": {
-      "description": "",
-      "properties": {
-        "promptId": {
-          "type": "string",
-          "description": ""
-        },
-        "outputs": {
-          "type": "Record<string, any>",
-          "description": ""
-        },
-        "images": {
-          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
           "description": "",
           "optional": true
         }
@@ -19490,6 +19796,311 @@ export const introspectionData = [
     }
   },
   {
+    "id": "features.redis",
+    "description": "Redis feature for shared state and pub/sub communication between container instances. Wraps ioredis with a focused API for the primitives that matter most: key/value state, pub/sub messaging, and cross-instance coordination. Uses a dedicated subscriber connection for pub/sub (ioredis requirement), created lazily on first subscribe call.",
+    "shortcut": "features.redis",
+    "className": "RedisFeature",
+    "methods": {
+      "set": {
+        "description": "Set a key to a string value with optional TTL.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "value": {
+            "type": "string",
+            "description": "The string value to store"
+          },
+          "ttl": {
+            "type": "number",
+            "description": "Optional time-to-live in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<void>"
+      },
+      "get": {
+        "description": "Get a key's value. Returns null if the key doesn't exist.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<string | null>"
+      },
+      "del": {
+        "description": "Delete one or more keys.",
+        "parameters": {
+          "keys": {
+            "type": "string[]",
+            "description": "One or more key names to delete"
+          }
+        },
+        "required": [
+          "keys"
+        ],
+        "returns": "Promise<number>"
+      },
+      "exists": {
+        "description": "Check if a key exists.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "expire": {
+        "description": "Set a key's TTL in seconds.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "seconds": {
+            "type": "number",
+            "description": "TTL in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "seconds"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "keys": {
+        "description": "Find keys matching a glob pattern (respects prefix).",
+        "parameters": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern, e.g. \"worker:*\""
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "setJSON": {
+        "description": "Store a value as JSON.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          },
+          "value": {
+            "type": "unknown",
+            "description": "Any JSON-serializable value"
+          },
+          "ttl": {
+            "type": "number",
+            "description": "Optional TTL in seconds"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "returns": "Promise<void>"
+      },
+      "getJSON": {
+        "description": "Retrieve and parse a JSON value.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The key name"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<T | null>"
+      },
+      "hset": {
+        "description": "Set fields on a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          },
+          "fields": {
+            "type": "Record<string, string>",
+            "description": "Object of field/value pairs"
+          }
+        },
+        "required": [
+          "key",
+          "fields"
+        ],
+        "returns": "Promise<void>"
+      },
+      "hgetall": {
+        "description": "Get all fields from a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "returns": "Promise<Record<string, string>>"
+      },
+      "hget": {
+        "description": "Get a single field from a hash.",
+        "parameters": {
+          "key": {
+            "type": "string",
+            "description": "The hash key"
+          },
+          "field": {
+            "type": "string",
+            "description": "The field name"
+          }
+        },
+        "required": [
+          "key",
+          "field"
+        ],
+        "returns": "Promise<string | null>"
+      },
+      "subscribe": {
+        "description": "Subscribe to one or more channels. Optionally pass a handler that fires only for these channels. The feature also emits a `message` event for all messages.",
+        "parameters": {
+          "channels": {
+            "type": "string | string[]",
+            "description": "Channel name(s) to subscribe to"
+          },
+          "handler": {
+            "type": "MessageHandler",
+            "description": "Optional per-channel message handler"
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await redis.subscribe('tasks', (channel, msg) => {\n console.log(`Got ${msg} on ${channel}`)\n})"
+          }
+        ]
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe from one or more channels.",
+        "parameters": {
+          "channels": {
+            "type": "string[]",
+            "description": "Channel name(s) to unsubscribe from"
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "returns": "Promise<void>"
+      },
+      "publish": {
+        "description": "Publish a message to a channel.",
+        "parameters": {
+          "channel": {
+            "type": "string",
+            "description": "The channel to publish to"
+          },
+          "message": {
+            "type": "string",
+            "description": "The message string (use JSON.stringify for objects)"
+          }
+        },
+        "required": [
+          "channel",
+          "message"
+        ],
+        "returns": "Promise<number>"
+      },
+      "ensureLocalDocker": {
+        "description": "Spin up a local Redis instance via Docker. Checks if a container with the given name already exists and starts it if stopped, or creates a new one from redis:alpine. Requires the docker feature to be available on the container.",
+        "parameters": {
+          "options": {
+            "type": "{ name?: string; port?: number; image?: string }",
+            "description": "Container name and host port"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379', lazyConnect: true })\nawait redis.ensureLocalDocker()"
+          }
+        ]
+      },
+      "close": {
+        "description": "Close all redis connections (main client + subscriber).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "getters": {
+      "client": {
+        "description": "The underlying ioredis client for advanced operations.",
+        "returns": "Redis"
+      },
+      "subscriber": {
+        "description": "The dedicated subscriber connection, if pub/sub is active.",
+        "returns": "Redis | null"
+      }
+    },
+    "events": {
+      "message": {
+        "name": "message",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "subscribed": {
+        "name": "subscribed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "unsubscribed": {
+        "name": "unsubscribed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      },
+      "closed": {
+        "name": "closed",
+        "description": "Event emitted by RedisFeature",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const redis = container.feature('redis', { url: 'redis://localhost:6379' })\n\n// Shared state\nawait redis.set('worker:status', 'active')\nconst status = await redis.get('worker:status')\n\n// Pub/sub between instances\nredis.on('message', (channel, msg) => console.log(`${channel}: ${msg}`))\nawait redis.subscribe('tasks')\nawait redis.publish('tasks', JSON.stringify({ type: 'ping' }))\n\n// JSON helpers\nawait redis.setJSON('config', { workers: 4, debug: true })\nconst config = await redis.getJSON<{ workers: number }>('config')"
+      }
+    ]
+  },
+  {
     "id": "features.fs",
     "description": "The FS feature provides methods for interacting with the file system, relative to the container's cwd.",
     "shortcut": "features.fs",
@@ -25423,6 +26034,302 @@ export const introspectionData = [
     ]
   },
   {
+    "id": "clients.comfyui",
+    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+    "shortcut": "clients.comfyui",
+    "className": "ComfyUIClient",
+    "methods": {
+      "queuePrompt": {
+        "description": "Queue a prompt (API-format workflow) for execution.",
+        "parameters": {
+          "prompt": {
+            "type": "Record<string, any>",
+            "description": "The API-format workflow object"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "Override the client ID for this request"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<{ prompt_id: string; number: number }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+          }
+        ]
+      },
+      "getQueue": {
+        "description": "Get the current prompt queue status.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+      },
+      "getHistory": {
+        "description": "Get execution history, optionally for a specific prompt.",
+        "parameters": {
+          "promptId": {
+            "type": "string",
+            "description": "If provided, returns history for this prompt only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "getSystemStats": {
+        "description": "Get system stats including GPU memory and queue info.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "getObjectInfo": {
+        "description": "Get node type info with input/output schemas.",
+        "parameters": {
+          "nodeClass": {
+            "type": "string",
+            "description": "If provided, returns info for this node type only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "interrupt": {
+        "description": "Interrupt the currently executing prompt.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "getModels": {
+        "description": "List available models, optionally filtered by type.",
+        "parameters": {
+          "type": {
+            "type": "string",
+            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "getEmbeddings": {
+        "description": "List available embedding models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "uploadImage": {
+        "description": "Upload an image to ComfyUI's input directory.",
+        "parameters": {
+          "file": {
+            "type": "Buffer | Blob",
+            "description": "The image data as Buffer or Blob"
+          },
+          "filename": {
+            "type": "string",
+            "description": "File name for the upload"
+          },
+          "opts": {
+            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+            "description": "Upload options (subfolder, type, overwrite)"
+          }
+        },
+        "required": [
+          "file",
+          "filename"
+        ],
+        "returns": "Promise<any>"
+      },
+      "viewImage": {
+        "description": "Download a generated image from ComfyUI as a Buffer.",
+        "parameters": {
+          "filename": {
+            "type": "string",
+            "description": "The image filename"
+          },
+          "subfolder": {
+            "type": "any",
+            "description": "Subfolder within the output directory"
+          },
+          "type": {
+            "type": "any",
+            "description": "Image type ('output', 'input', 'temp')"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "connectWs": {
+        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disconnectWs": {
+        "description": "Close the WebSocket connection.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "toApiFormat": {
+        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "runWorkflow": {
+        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          },
+          "inputs": {
+            "type": "Record<string, any>",
+            "description": "Parameter inputs"
+          },
+          "options": {
+            "type": "WorkflowRunOptions",
+            "description": "Parameter options",
+            "properties": {
+              "poll": {
+                "type": "boolean",
+                "description": "Use polling instead of WebSocket for tracking execution"
+              },
+              "pollInterval": {
+                "type": "number",
+                "description": "Polling interval in ms (default 1000)"
+              },
+              "inputMap": {
+                "type": "InputMapping",
+                "description": "Named input mapping: semantic name -> { nodeId, field }"
+              },
+              "outputDir": {
+                "type": "string",
+                "description": "If provided, output images are downloaded to this directory"
+              }
+            }
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<WorkflowResult>"
+      }
+    },
+    "getters": {
+      "clientId": {
+        "description": "The unique client ID used for WebSocket session tracking.",
+        "returns": "string"
+      },
+      "wsURL": {
+        "description": "The WebSocket URL derived from baseURL or overridden via options.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "execution_start": {
+        "name": "execution_start",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_complete": {
+        "name": "execution_complete",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executing": {
+        "name": "executing",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "progress": {
+        "name": "progress",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executed": {
+        "name": "executed",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_cached": {
+        "name": "execution_cached",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_error": {
+        "name": "execution_error",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+      }
+    ],
+    "types": {
+      "WorkflowRunOptions": {
+        "description": "",
+        "properties": {
+          "poll": {
+            "type": "boolean",
+            "description": "Use polling instead of WebSocket for tracking execution",
+            "optional": true
+          },
+          "pollInterval": {
+            "type": "number",
+            "description": "Polling interval in ms (default 1000)",
+            "optional": true
+          },
+          "inputMap": {
+            "type": "InputMapping",
+            "description": "Named input mapping: semantic name -> { nodeId, field }",
+            "optional": true
+          },
+          "outputDir": {
+            "type": "string",
+            "description": "If provided, output images are downloaded to this directory",
+            "optional": true
+          }
+        }
+      },
+      "WorkflowResult": {
+        "description": "",
+        "properties": {
+          "promptId": {
+            "type": "string",
+            "description": ""
+          },
+          "outputs": {
+            "type": "Record<string, any>",
+            "description": ""
+          },
+          "images": {
+            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "clients.supabase",
     "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
     "shortcut": "clients.supabase",
@@ -25873,302 +26780,6 @@ export const introspectionData = [
           },
           "useSpeakerBoost": {
             "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "clients.comfyui",
-    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-    "shortcut": "clients.comfyui",
-    "className": "ComfyUIClient",
-    "methods": {
-      "queuePrompt": {
-        "description": "Queue a prompt (API-format workflow) for execution.",
-        "parameters": {
-          "prompt": {
-            "type": "Record<string, any>",
-            "description": "The API-format workflow object"
-          },
-          "clientId": {
-            "type": "string",
-            "description": "Override the client ID for this request"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<{ prompt_id: string; number: number }>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-          }
-        ]
-      },
-      "getQueue": {
-        "description": "Get the current prompt queue status.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-      },
-      "getHistory": {
-        "description": "Get execution history, optionally for a specific prompt.",
-        "parameters": {
-          "promptId": {
-            "type": "string",
-            "description": "If provided, returns history for this prompt only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<Record<string, any>>"
-      },
-      "getSystemStats": {
-        "description": "Get system stats including GPU memory and queue info.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "getObjectInfo": {
-        "description": "Get node type info with input/output schemas.",
-        "parameters": {
-          "nodeClass": {
-            "type": "string",
-            "description": "If provided, returns info for this node type only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "interrupt": {
-        "description": "Interrupt the currently executing prompt.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "getModels": {
-        "description": "List available models, optionally filtered by type.",
-        "parameters": {
-          "type": {
-            "type": "string",
-            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-          }
-        },
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "getEmbeddings": {
-        "description": "List available embedding models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "uploadImage": {
-        "description": "Upload an image to ComfyUI's input directory.",
-        "parameters": {
-          "file": {
-            "type": "Buffer | Blob",
-            "description": "The image data as Buffer or Blob"
-          },
-          "filename": {
-            "type": "string",
-            "description": "File name for the upload"
-          },
-          "opts": {
-            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-            "description": "Upload options (subfolder, type, overwrite)"
-          }
-        },
-        "required": [
-          "file",
-          "filename"
-        ],
-        "returns": "Promise<any>"
-      },
-      "viewImage": {
-        "description": "Download a generated image from ComfyUI as a Buffer.",
-        "parameters": {
-          "filename": {
-            "type": "string",
-            "description": "The image filename"
-          },
-          "subfolder": {
-            "type": "any",
-            "description": "Subfolder within the output directory"
-          },
-          "type": {
-            "type": "any",
-            "description": "Image type ('output', 'input', 'temp')"
-          }
-        },
-        "required": [
-          "filename"
-        ],
-        "returns": "Promise<Buffer>"
-      },
-      "connectWs": {
-        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "disconnectWs": {
-        "description": "Close the WebSocket connection.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "toApiFormat": {
-        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-        "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "returns": "Promise<Record<string, any>>"
-      },
-      "runWorkflow": {
-        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
-        "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
-          },
-          "inputs": {
-            "type": "Record<string, any>",
-            "description": "Parameter inputs"
-          },
-          "options": {
-            "type": "WorkflowRunOptions",
-            "description": "Parameter options",
-            "properties": {
-              "poll": {
-                "type": "boolean",
-                "description": "Use polling instead of WebSocket for tracking execution"
-              },
-              "pollInterval": {
-                "type": "number",
-                "description": "Polling interval in ms (default 1000)"
-              },
-              "inputMap": {
-                "type": "InputMapping",
-                "description": "Named input mapping: semantic name -> { nodeId, field }"
-              },
-              "outputDir": {
-                "type": "string",
-                "description": "If provided, output images are downloaded to this directory"
-              }
-            }
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "returns": "Promise<WorkflowResult>"
-      }
-    },
-    "getters": {
-      "clientId": {
-        "description": "The unique client ID used for WebSocket session tracking.",
-        "returns": "string"
-      },
-      "wsURL": {
-        "description": "The WebSocket URL derived from baseURL or overridden via options.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "execution_start": {
-        "name": "execution_start",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_complete": {
-        "name": "execution_complete",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executing": {
-        "name": "executing",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "progress": {
-        "name": "progress",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executed": {
-        "name": "executed",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_cached": {
-        "name": "execution_cached",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_error": {
-        "name": "execution_error",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
-      }
-    ],
-    "types": {
-      "WorkflowRunOptions": {
-        "description": "",
-        "properties": {
-          "poll": {
-            "type": "boolean",
-            "description": "Use polling instead of WebSocket for tracking execution",
-            "optional": true
-          },
-          "pollInterval": {
-            "type": "number",
-            "description": "Polling interval in ms (default 1000)",
-            "optional": true
-          },
-          "inputMap": {
-            "type": "InputMapping",
-            "description": "Named input mapping: semantic name -> { nodeId, field }",
-            "optional": true
-          },
-          "outputDir": {
-            "type": "string",
-            "description": "If provided, output images are downloaded to this directory",
-            "optional": true
-          }
-        }
-      },
-      "WorkflowResult": {
-        "description": "",
-        "properties": {
-          "promptId": {
-            "type": "string",
-            "description": ""
-          },
-          "outputs": {
-            "type": "Record<string, any>",
-            "description": ""
-          },
-          "images": {
-            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
             "description": "",
             "optional": true
           }

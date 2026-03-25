@@ -1,17 +1,17 @@
 # DocsReader (features.docsReader)
 
-No description provided
+The DocsReader feature is an AI Assisted wrapper around a ContentDB feature. You can ask it questions about the content, and it will use the ContentDB to find the answers from the documents.
 
 ## Usage
 
 ```ts
 container.feature('docsReader', {
-  // A ContentDb instance to read documents from
+  // Either the contentDb instance or the path to the contentDb you want to load
   contentDb,
-  // Optional system prompt to prepend before the docs listing
-  systemPrompt,
-  // OpenAI model to use for the conversation
+  // The model to use for the conversation
   model,
+  // Whether to use a local model for the conversation
+  local,
 })
 ```
 
@@ -19,39 +19,19 @@ container.feature('docsReader', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `contentDb` | `any` | A ContentDb instance to read documents from |
-| `systemPrompt` | `string` | Optional system prompt to prepend before the docs listing |
-| `model` | `string` | OpenAI model to use for the conversation |
+| `contentDb` | `any` | Either the contentDb instance or the path to the contentDb you want to load |
+| `model` | `string` | The model to use for the conversation |
+| `local` | `boolean` | Whether to use a local model for the conversation |
 
 ## Methods
 
-### buildTools
+### calculateCacheKeyForQuestion
 
-Build the tool definitions (listDocs, readDoc, readDocOutline, readDocs) that the conversation model uses to query the content database.
+**Parameters:**
 
-**Returns:** `Record<string, ConversationTool>`
-
-
-
-### buildSystemPrompt
-
-Build the system prompt by combining the optional prefix with a table of contents generated from the content database.
-
-**Returns:** `string`
-
-
-
-### createConversation
-
-Create and return a new Conversation feature configured with the docs reader's system prompt and tools.
-
-**Returns:** `Conversation`
-
-
-
-### start
-
-Initialize the docs reader by loading the content database, creating the conversation, and emitting the start event.
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `question` | `string` | ✓ | Parameter question |
 
 **Returns:** `void`
 
@@ -59,15 +39,33 @@ Initialize the docs reader by loading the content database, creating the convers
 
 ### ask
 
-Ask the docs reader a question. It will read relevant documents and return an answer based on their content.
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `question` | `string` | ✓ | Parameter question |
+
+**Returns:** `void`
+
+
+
+### askCached
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `question` | `string` | ✓ | The question to ask |
+| `question` | `string` | ✓ | Parameter question |
 
 **Returns:** `void`
+
+
+
+### start
+
+Start the docs reader by loading the contentDb and wiring its tools into an assistant.
+
+**Returns:** `Promise<DocsReader>`
 
 
 
@@ -75,26 +73,21 @@ Ask the docs reader a question. It will read relevant documents and return an an
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `contentDb` | `ContentDb` | The ContentDb instance this reader draws from. |
-| `isStarted` | `any` | Whether the reader has been started and is ready to answer questions. |
+| `isStarted` | `boolean` | Whether the docs reader has been started. |
+| `answerCache` | `any` |  |
+| `contentDb` | `ContentDb` |  |
 
 ## Events (Zod v4 schema)
 
-### start
+### started
 
 Event emitted by DocsReader
 
 
 
-### preview
+### loaded
 
-Event emitted by DocsReader
-
-
-
-### answered
-
-Event emitted by DocsReader
+Fired after the docs reader has been started
 
 
 
@@ -103,19 +96,4 @@ Event emitted by DocsReader
 | Property | Type | Description |
 |----------|------|-------------|
 | `enabled` | `boolean` | Whether this feature is currently enabled |
-| `started` | `boolean` | Whether the docs reader has been initialized |
-| `docsLoaded` | `boolean` | Whether the content database has been loaded |
-
-## Examples
-
-**features.docsReader**
-
-```ts
-const reader = container.feature('docsReader', {
- contentDb: myContentDb,
- model: 'gpt-4.1'
-})
-await reader.start()
-const answer = await reader.ask('How does authentication work?')
-```
-
+| `started` | `boolean` | Whether the docs reader has been started |

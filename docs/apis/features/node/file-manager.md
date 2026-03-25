@@ -29,7 +29,7 @@ Matches the file IDs against the pattern(s) provided
 |------|------|----------|-------------|
 | `patterns` | `string | string[]` | ✓ | The patterns to match against the file IDs |
 
-**Returns:** `void`
+**Returns:** `string[]`
 
 
 
@@ -43,7 +43,7 @@ Matches the file IDs against the pattern(s) provided and returns the file object
 |------|------|----------|-------------|
 | `patterns` | `string | string[]` | ✓ | The patterns to match against the file IDs |
 
-**Returns:** `void`
+**Returns:** `(File | undefined)[]`
 
 
 
@@ -63,7 +63,7 @@ Starts the file manager and scans the files in the project.
 |----------|------|-------------|
 | `exclude` | `any` | The patterns to exclude from the scan |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -83,7 +83,7 @@ Scans the files in the project and updates the file manager state.
 |----------|------|-------------|
 | `exclude` | `any` | The patterns to exclude from the scan |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -104,13 +104,13 @@ Watches directories for file changes. Can be called multiple times to add more d
 | `paths` | `any` | Specific directories or globs to watch. Defaults to project directoryIds. |
 | `exclude` | `any` | The patterns to exclude from the watch |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 
 
 ### stopWatching
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 
 
@@ -122,7 +122,7 @@ Watches directories for file changes. Can be called multiple times to add more d
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | Parameter path |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 
 
@@ -134,7 +134,7 @@ Watches directories for file changes. Can be called multiple times to add more d
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | Parameter path |
 
-**Returns:** `void`
+**Returns:** `Promise<void>`
 
 
 
@@ -142,13 +142,13 @@ Watches directories for file changes. Can be called multiple times to add more d
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `fileIds` | `any` | Returns an array of all relative file paths indexed by the file manager. |
-| `fileObjects` | `any` | Returns an array of all file metadata objects indexed by the file manager. |
-| `directoryIds` | `any` | Returns the directory IDs for all of the files in the project. |
-| `uniqueExtensions` | `any` | Returns an array of unique file extensions found across all indexed files. |
-| `isStarted` | `any` | Whether the file manager has completed its initial scan. |
-| `isStarting` | `any` | Whether the file manager is currently performing its initial scan. |
-| `isWatching` | `any` | Whether the file watcher is actively monitoring for changes. |
+| `fileIds` | `string[]` | Returns an array of all relative file paths indexed by the file manager. |
+| `fileObjects` | `File[]` | Returns an array of all file metadata objects indexed by the file manager. |
+| `directoryIds` | `string[]` | Returns the directory IDs for all of the files in the project. |
+| `uniqueExtensions` | `string[]` | Returns an array of unique file extensions found across all indexed files. |
+| `isStarted` | `boolean` | Whether the file manager has completed its initial scan. |
+| `isStarting` | `boolean` | Whether the file manager is currently performing its initial scan. |
+| `isWatching` | `boolean` | Whether the file watcher is actively monitoring for changes. |
 | `watchedPaths` | `string[]` | Returns the list of directories currently being watched. |
 | `watchedFiles` | `Record<string, string[]>` | Returns the directories and files currently being watched by chokidar. |
 

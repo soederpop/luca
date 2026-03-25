@@ -32,7 +32,7 @@ Finds the next available port starting from the specified port number. This meth
 |------|------|----------|-------------|
 | `startAt` | `any` |  | The port number to start searching from (0 means system will choose) |
 
-**Returns:** `void`
+**Returns:** `Promise<number>`
 
 ```ts
 // Find any available port
@@ -55,7 +55,7 @@ Checks if a specific port is available for use. This method attempts to detect i
 |------|------|----------|-------------|
 | `checkPort` | `any` |  | The port number to check for availability |
 
-**Returns:** `void`
+**Returns:** `Promise<boolean>`
 
 ```ts
 // Check if port 8080 is available
@@ -197,9 +197,9 @@ Convenience method: discover and port-scan hosts across all local networks.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `proc` | `any` |  |
-| `os` | `any` |  |
-| `nmap` | `any` | Optional nmap wrapper for users that already have nmap installed. |
+| `proc` | `ReturnType<typeof this.container.feature<'proc'>>` |  |
+| `os` | `ReturnType<typeof this.container.feature<'os'>>` |  |
+| `nmap` | `{ isAvailable: () => Promise<boolean>; scan: (target: string, args?: string[]) => Promise<{ hosts: NmapHost[]; raw: string }>; quickScan: (cidr: string) => Promise<{ hosts: NmapHost[]; raw: string }>; fullScan: (target: string) => Promise<{ hosts: NmapHost[]; raw: string }> }` | Optional nmap wrapper for users that already have nmap installed. |
 
 ## Events (Zod v4 schema)
 

@@ -1,6 +1,6 @@
 # Python (features.python)
 
-The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.
+The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables
 
 ## Usage
 
@@ -136,6 +136,154 @@ Gets information about the current Python environment.
 
 
 
+### startSession
+
+Starts a persistent Python session by spawning the bridge process. The bridge sets up sys.path for the project directory, then enters a JSON-line REPL loop. State (variables, imports) persists across run() calls until stopSession() or resetSession() is called.
+
+**Returns:** `Promise<void>`
+
+```ts
+const python = container.feature('python', { dir: '/path/to/project' })
+await python.enable()
+await python.startSession()
+await python.run('x = 42')
+const result = await python.run('print(x)')
+console.log(result.stdout) // '42\n'
+await python.stopSession()
+```
+
+
+
+### stopSession
+
+Stops the persistent Python session and cleans up the bridge process.
+
+**Returns:** `Promise<void>`
+
+```ts
+await python.stopSession()
+```
+
+
+
+### run
+
+Executes Python code in the persistent session. Variables and imports survive across calls. This is the session equivalent of execute().
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `code` | `string` | ✓ | Python code to execute |
+| `variables` | `Record<string, any>` |  | Variables to inject into the namespace before execution |
+
+**Returns:** `Promise<RunResult>`
+
+```ts
+await python.startSession()
+
+// State persists across calls
+await python.run('x = 42')
+const result = await python.run('print(x * 2)')
+console.log(result.stdout) // '84\n'
+
+// Inject variables from JS
+const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
+console.log(result2.stdout) // 'Hello World!\n'
+```
+
+
+
+### eval
+
+Evaluates a Python expression in the persistent session and returns its value.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `expression` | `string` | ✓ | Python expression to evaluate |
+
+**Returns:** `Promise<any>`
+
+```ts
+await python.run('x = 42')
+const result = await python.eval('x * 2')
+console.log(result) // 84
+```
+
+
+
+### importModule
+
+Imports a Python module into the persistent session namespace.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `moduleName` | `string` | ✓ | Dotted module path (e.g. 'myapp.models') |
+| `alias` | `string` |  | Optional alias for the import (defaults to the last segment) |
+
+**Returns:** `Promise<void>`
+
+```ts
+await python.importModule('json')
+await python.importModule('myapp.models', 'models')
+const result = await python.eval('models.User')
+```
+
+
+
+### call
+
+Calls a function by dotted path in the persistent session namespace.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `funcPath` | `string` | ✓ | Dotted path to the function (e.g. 'json.dumps' or 'my_func') |
+| `args` | `any[]` |  | Positional arguments |
+| `kwargs` | `Record<string, any>` |  | Keyword arguments |
+
+**Returns:** `Promise<any>`
+
+```ts
+await python.importModule('json')
+const result = await python.call('json.dumps', [{ a: 1 }], { indent: 2 })
+```
+
+
+
+### getLocals
+
+Returns all non-dunder variables from the persistent session namespace.
+
+**Returns:** `Promise<Record<string, any>>`
+
+```ts
+await python.run('x = 42\ny = "hello"')
+const locals = await python.getLocals()
+console.log(locals) // { x: 42, y: 'hello' }
+```
+
+
+
+### resetSession
+
+Clears all variables and imports from the persistent session namespace. The session remains active — you can continue calling run() after reset.
+
+**Returns:** `Promise<void>`
+
+```ts
+await python.run('x = 42')
+await python.resetSession()
+// x is now undefined
+```
+
+
+
 ## Getters
 
 | Property | Type | Description |
@@ -194,6 +342,24 @@ Event emitted by Python
 
 
 
+### sessionError
+
+Event emitted by Python
+
+
+
+### sessionStarted
+
+Event emitted by Python
+
+
+
+### sessionStopped
+
+Event emitted by Python
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -204,25 +370,27 @@ Event emitted by Python
 | `environmentType` | `any` | Detected Python environment type (uv, conda, venv, or system) |
 | `isReady` | `boolean` | Whether the Python environment is ready for execution |
 | `lastExecutedScript` | `any` | Path to the last executed Python script |
+| `sessionActive` | `boolean` | Whether a persistent Python session is currently active |
+| `sessionId` | `any` | Unique ID of the current persistent session |
 
 ## Examples
 
 **features.python**
 
 ```ts
-const python = container.feature('python', { 
+const python = container.feature('python', {
  dir: "/path/to/python/project",
- contextScript: "/path/to/setup-context.py"
 })
 
-// Auto-install dependencies
-await python.installDependencies()
-
-// Execute Python code
+// Stateless execution
 const result = await python.execute('print("Hello from Python!")')
 
-// Execute with custom variables
-const result2 = await python.execute('print(f"Hello {name}!")', { name: 'World' })
+// Persistent session
+await python.startSession()
+await python.run('import myapp.models')
+await python.run('users = myapp.models.User.objects.all()')
+const result = await python.run('print(len(users))')
+await python.stopSession()
 ```
 
 
@@ -274,5 +442,93 @@ console.log(result.locals) // { x: 42, y: 84 }
 ```ts
 const result = await python.executeFile('/path/to/script.py')
 console.log(result.stdout)
+```
+
+
+
+**startSession**
+
+```ts
+const python = container.feature('python', { dir: '/path/to/project' })
+await python.enable()
+await python.startSession()
+await python.run('x = 42')
+const result = await python.run('print(x)')
+console.log(result.stdout) // '42\n'
+await python.stopSession()
+```
+
+
+
+**stopSession**
+
+```ts
+await python.stopSession()
+```
+
+
+
+**run**
+
+```ts
+await python.startSession()
+
+// State persists across calls
+await python.run('x = 42')
+const result = await python.run('print(x * 2)')
+console.log(result.stdout) // '84\n'
+
+// Inject variables from JS
+const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
+console.log(result2.stdout) // 'Hello World!\n'
+```
+
+
+
+**eval**
+
+```ts
+await python.run('x = 42')
+const result = await python.eval('x * 2')
+console.log(result) // 84
+```
+
+
+
+**importModule**
+
+```ts
+await python.importModule('json')
+await python.importModule('myapp.models', 'models')
+const result = await python.eval('models.User')
+```
+
+
+
+**call**
+
+```ts
+await python.importModule('json')
+const result = await python.call('json.dumps', [{ a: 1 }], { indent: 2 })
+```
+
+
+
+**getLocals**
+
+```ts
+await python.run('x = 42\ny = "hello"')
+const locals = await python.getLocals()
+console.log(locals) // { x: 42, y: 'hello' }
+```
+
+
+
+**resetSession**
+
+```ts
+await python.run('x = 42')
+await python.resetSession()
+// x is now undefined
 ```
 

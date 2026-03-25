@@ -1,6 +1,6 @@
 # WebsocketServer (servers.websocket)
 
-WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety.
+WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
 
 ## Usage
 
@@ -33,7 +33,7 @@ container.server('websocket', {
 |------|------|----------|-------------|
 | `message` | `any` | ✓ | Parameter message |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -46,25 +46,51 @@ container.server('websocket', {
 | `ws` | `any` | ✓ | Parameter ws |
 | `message` | `any` | ✓ | Parameter message |
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
-### start
+### ask
+
+Send a request to a specific client and wait for a correlated response. The client is expected to reply with a message whose `replyTo` matches the `requestId` of this message.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `options` | `StartOptions` |  | Parameter options |
+| `ws` | `any` | ✓ | The WebSocket client to ask |
+| `type` | `string` | ✓ | A string identifying the request type |
+| `data` | `any` |  | Optional payload |
+| `timeout` | `any` |  | How long to wait (default 10 000 ms) |
 
-**Returns:** `void`
+**Returns:** `Promise<R>`
+
+```ts
+ws.on('connection', async (client) => {
+ const info = await ws.ask(client, 'identify')
+ console.log('Client says:', info)
+})
+```
+
+
+
+### start
+
+Start the WebSocket server. A runtime `port` overrides the constructor option and is written to state before the underlying `ws.Server` is created, so the server binds to the correct port.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `StartOptions` |  | Optional runtime overrides for port and host |
+
+**Returns:** `Promise<this>`
 
 
 
 ### stop
 
-**Returns:** `void`
+**Returns:** `Promise<this>`
 
 
 
@@ -72,8 +98,8 @@ container.server('websocket', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `wss` | `any` |  |
-| `port` | `any` |  |
+| `wss` | `BaseServer` |  |
+| `port` | `number` | The port this server will bind to. Defaults to 8081 if not set via constructor options or start(). |
 
 ## Events (Zod v4 schema)
 
@@ -122,6 +148,23 @@ await ws.start({ port: 8080 })
 ws.on('message', (data, client) => {
  console.log('Received:', data)
  ws.broadcast({ echo: data })
+})
+
+// ask/reply: request info from a connected client
+ws.on('connection', async (client) => {
+ const info = await ws.ask(client, 'identify')
+ console.log('Client says:', info)
+})
+```
+
+
+
+**ask**
+
+```ts
+ws.on('connection', async (client) => {
+ const info = await ws.ask(client, 'identify')
+ console.log('Client says:', info)
 })
 ```
 
