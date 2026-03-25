@@ -34,6 +34,8 @@
     "./container": "./src/container.ts",
     "./client": "./src/client.ts",
     "./clients/*": "./src/clients/*",
+    "./server": "./src/server.ts",
+    "./servers/*": "./src/servers/*",
     "./feature": "./src/feature.ts",
     "./react": "./src/react/index.ts",
     "./introspection": "./src/introspection/index.ts"

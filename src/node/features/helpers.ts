@@ -3,7 +3,12 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature } from '../feature.js'
 import { Feature as UniversalFeature } from '../../feature.js'
 import { Client, clients } from '../../client.js'
+import { RestClient } from '../../clients/rest.js'
+import { GraphClient } from '../../clients/graph.js'
+import { WebSocketClient } from '../../clients/websocket.js'
 import { Server, servers } from '../../server.js'
+import { ExpressServer } from '../../servers/express.js'
+import { WebsocketServer } from '../../servers/socket.js'
 import { Command, commands } from '../../command.js'
 import { graftModule, isNativeHelperClass } from '../../graft.js'
 import { endpoints } from '../../endpoint.js'
@@ -176,6 +181,11 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
       // Helper subclasses
       Selector,
+      RestClient,
+      GraphClient,
+      WebSocketClient,
+      ExpressServer,
+      WebsocketServer,
 
       // The singleton container
       default: this.container,
@@ -210,6 +220,16 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('@soederpop/luca', lucaExports)
     vm.defineModule('@soederpop/luca/schemas', schemasModule)
     vm.defineModule('@soederpop/luca/node', lucaExports)
+
+    // Deep import paths AIs and developers might reach for
+    vm.defineModule('@soederpop/luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
+    vm.defineModule('@soederpop/luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
+    vm.defineModule('@soederpop/luca/clients/rest', { RestClient, default: RestClient })
+    vm.defineModule('@soederpop/luca/clients/graph', { GraphClient, default: GraphClient })
+    vm.defineModule('@soederpop/luca/clients/websocket', { WebSocketClient, default: WebSocketClient })
+    vm.defineModule('@soederpop/luca/servers/express', { ExpressServer, default: ExpressServer })
+    vm.defineModule('@soederpop/luca/servers/socket', { WebsocketServer, default: WebsocketServer })
+
     vm.defineModule('zod', { z, default: { z } })
   }
 
