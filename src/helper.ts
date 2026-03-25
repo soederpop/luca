@@ -50,20 +50,10 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return {} as T
   }
 
-  /** Alias for introspect */
-  static inspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
-    return this.introspect(section)
-  }
-
   static introspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
     const data = introspect((this as any).shortcut || '')
     if (!data || !section) return data
     return filterIntrospection(data, section)
-  }
-
-  /** Alias for introspectAsText */
-  static inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
-    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
   }
 
   static introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
@@ -80,7 +70,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    *
    * @example
    * ```ts
-   * console.log(container.feature('fs').inspectAsType())
+   * console.log(container.feature('fs').introspectAsType())
    * // interface FS {
    * //   readonly cwd: string;
    * //   readFile(path: string): Promise<string>;
@@ -88,10 +78,6 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * // }
    * ```
    */
-  static inspectAsType(section?: IntrospectionSection) : string {
-    return this.introspectAsType(section)
-  }
-
   static introspectAsType(section?: IntrospectionSection) : string {
     const introspection = this.introspect()
     if (!introspection) return ''
@@ -113,11 +99,6 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return filterIntrospection(base, section)
   }
 
-  /** Alias for introspect */
-  inspect(section?: IntrospectionSection) : HelperIntrospection | undefined {
-    return this.introspect(section)
-  }
-
   /**
    * Returns the introspection data formatted as a markdown string.
    *
@@ -131,11 +112,6 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return presentIntrospectionJSONAsMarkdown(introspection, depth, section)
   }
 
-  /** Alias for introspectAsText */
-  inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number) : string {
-    return this.introspectAsText(sectionOrDepth, startHeadingDepth)
-  }
-
   /**
    * Returns the introspection data formatted as a TypeScript interface declaration.
    * Useful for AI agents that reason better with structured type information,
@@ -145,11 +121,6 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     const introspection = this.introspect()
     if (!introspection) return ''
     return presentIntrospectionAsTypeScript(introspection, section)
-  }
-
-  /** Alias for introspectAsType */
-  inspectAsType(section?: IntrospectionSection) : string {
-    return this.introspectAsType(section)
   }
 
   constructor(options: K, context: ContainerContext) {

@@ -24,7 +24,7 @@ export async function apiDocs(options: z.infer<typeof argsSchema>, context: Cont
 
 	const mkPath = (...args) => container.paths.resolve(outputFolder, ...args)
 
-	const result = await container.fs.writeFileAsync(mkPath('agi-container.md'), container.inspectAsText())
+	const result = await container.fs.writeFileAsync(mkPath('agi-container.md'), container.introspectAsText())
 
 	for(let reg of ['features','clients','servers']) {
 		const helperIds = container[reg].available

@@ -18,11 +18,11 @@ Introspection serves two audiences:
 
 ```typescript
 // Structured data about the entire container
-const info = container.inspect()
+const info = container.introspect()
 // Returns: registries, enabled features, state schema, available helpers
 
 // Human-readable markdown
-const docs = container.inspectAsText()
+const docs = container.introspectAsText()
 ```
 
 ## Registry-Level Discovery

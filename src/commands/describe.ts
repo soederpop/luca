@@ -197,7 +197,7 @@ function renderResultAsTypeScript(result: { json: any; text: string }, targets: 
 	// Container introspection (has className, registries, factories)
 	if (json && json.className && json.registries) {
 		const container = (describer as any).container
-		return container.inspectAsType()
+		return container.introspectAsType()
 	}
 
 	// Array of results (e.g. from registry describe or multiple targets)

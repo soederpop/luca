@@ -232,7 +232,7 @@ Everything `luca describe` outputs is also available at runtime in code:
 ```js
 container.features.describe('fs')   // markdown docs (same as the CLI)
 feature.introspect()                // structured object: { methods, events, state, options }
-container.inspectAsText()           // full container overview as markdown
+container.introspectAsText()           // full container overview as markdown
 ```
 
 This is useful inside commands and scripts where you need introspection data programmatically.

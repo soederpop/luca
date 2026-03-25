@@ -531,11 +531,11 @@ export class ContainerDescriber {
 		const container = this.container
 
 		if (sections.length === 0) {
-			const data = container.inspect()
-			return { json: data, text: container.inspectAsText(undefined, headingDepth) }
+			const data = container.introspect()
+			return { json: data, text: container.introspectAsText(undefined, headingDepth) }
 		}
 
-		const data = container.inspect()
+		const data = container.introspect()
 		const introspectionSections = sections.filter((s): s is IntrospectionSection => s !== 'description')
 		const textParts: string[] = []
 		const jsonResult: Record<string, any> = {}
@@ -552,7 +552,7 @@ export class ContainerDescriber {
 		}
 
 		for (const section of introspectionSections) {
-			textParts.push(container.inspectAsText(section, headingDepth))
+			textParts.push(container.introspectAsText(section, headingDepth))
 			jsonResult[section] = data[section]
 		}
 

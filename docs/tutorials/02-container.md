@@ -201,10 +201,10 @@ Discover everything about the container at runtime:
 
 ```typescript
 // Structured introspection data
-const info = container.inspect()
+const info = container.introspect()
 
 // Human-readable markdown
-const docs = container.inspectAsText()
+const docs = container.introspectAsText()
 ```
 
 This is what makes Luca especially powerful for AI agents -- they can discover the entire API surface at runtime without reading documentation.

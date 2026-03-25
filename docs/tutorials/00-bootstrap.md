@@ -101,8 +101,8 @@ fs.introspectAsText()
 The container itself is introspectable:
 
 ```js
-container.inspect()          // structured object with all registries, state, events
-container.inspectAsText()    // full markdown overview
+container.introspect()          // structured object with all registries, state, events
+container.introspectAsText()    // full markdown overview
 ```
 
 ## The REPL
@@ -137,7 +137,7 @@ luca eval "grep.search('.', 'TODO')"
 | Structured introspection?      | `feature.introspect()`                 |
 | What state does it have?       | `feature.state.current`               |
 | What events does it emit?      | `feature.introspect().events`          |
-| Full container overview?       | `container.inspectAsText()`            |
+| Full container overview?       | `container.introspectAsText()`            |
 | CLI docs for a helper?         | `luca describe <name>`                 |
 
 ## Gotchas

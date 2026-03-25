@@ -7,7 +7,7 @@ Luca's introspection system lets you discover everything about a container and i
 The container knows what it is, what registries it has, and what's available in each one.
 
 ```ts
-const info = container.inspect()
+const info = container.introspect()
 console.log(info.className)
 console.log(info.registries.map(r => `${r.name}: ${r.available.length} available`))
 console.log('factories:', info.factoryNames)
@@ -17,17 +17,17 @@ console.log('enabled features:', info.enabledFeatures)
 You can get the full introspection as markdown:
 
 ```ts
-console.log(container.inspectAsText())
+console.log(container.introspectAsText())
 ```
 
 Or request a single section:
 
 ```ts
-console.log(container.inspectAsText('methods'))
+console.log(container.introspectAsText('methods'))
 ```
 
 ```ts
-console.log(container.inspectAsText('getters'))
+console.log(container.introspectAsText('getters'))
 ```
 
 ## Querying Registries
@@ -126,7 +126,7 @@ const git = container.feature('git')
 console.log(git.introspectAsText('methods', 3)) // headings start at ###
 ```
 
-## Inspecting State and Options
+## Introspecting State and Options
 
 Features that declare Zod schemas for state and options expose them through introspection:
 

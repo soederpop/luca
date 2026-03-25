@@ -644,13 +644,13 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    *
    * @example
    * ```ts
-   * const info = container.inspect()
+   * const info = container.introspect()
    * console.log(info.methods)   // all public methods with descriptions
    * console.log(info.getters)   // all getters with return types
    * console.log(info.registries) // features, clients, servers, etc.
    * ```
    */
-  inspect(): ContainerIntrospection {
+  introspect(): ContainerIntrospection {
     const className = this.constructor.name
     const buildTimeData = getContainerBuildTimeData(className) || {}
 
@@ -723,11 +723,11 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    *
    * @example
    * ```ts
-   * console.log(container.inspectAsText())           // full description
-   * console.log(container.inspectAsText('methods'))   // just methods
+   * console.log(container.introspectAsText())           // full description
+   * console.log(container.introspectAsText('methods'))   // just methods
    * ```
    */
-  inspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
+  introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
     let section: IntrospectionSection | undefined
     let depth = 1
 
@@ -738,18 +738,13 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       depth = sectionOrDepth
     }
 
-    const data = this.inspect()
+    const data = this.introspect()
     return presentContainerIntrospectionAsMarkdown(data, depth, section)
   }
 
-  /** Alias for inspectAsText. */
-  introspectAsText(sectionOrDepth?: IntrospectionSection | number, startHeadingDepth?: number): string {
-    return this.inspectAsText(sectionOrDepth, startHeadingDepth)
-  }
-  
-  /** Alias for inspect, returns JSON introspection data. */
+  /** Returns JSON introspection data. */
   introspectAsJSON(): ContainerIntrospection {
-    return this.inspect()
+    return this.introspect()
   }
 
   /**
@@ -758,7 +753,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    *
    * @example
    * ```ts
-   * console.log(container.inspectAsType())
+   * console.log(container.introspectAsType())
    * // interface NodeContainer {
    * //   feature<T>(id: string, options?: object): T;
    * //   readonly uuid: string;
@@ -766,12 +761,8 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * // }
    * ```
    */
-  inspectAsType(): string {
-    return this.introspectAsType()
-  }
-
   introspectAsType(): string {
-    const data = this.inspect()
+    const data = this.introspect()
     return presentContainerIntrospectionAsTypeScript(data)
   }
 

@@ -140,7 +140,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'  container.commands.available    — list available command names',
 			'  container.features.describe(n)  — get docs for a feature by name',
 			'  container.clients.describe(n)   — get docs for a client by name',
-			'  container.inspectAsText()       — full container introspection',
+			'  container.introspectAsText()       — full container introspection',
 			'  fs.readFile(path)               — read a file',
 			'  fs.readdir(dir)                 — list directory contents',
 			'  proc.exec(cmd)                  — run a shell command',
@@ -208,7 +208,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				.describe('Optional section to filter to. Omit for full overview.'),
 		}),
 		handler: (args) => {
-			return container.inspectAsText(args.section)
+			return container.introspectAsText(args.section)
 		},
 	})
 
@@ -340,9 +340,9 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				'container.features.describe("fs")      // Docs for the fs feature',
 				'container.features.describe("vm")      // Docs for the vm feature',
 				'container.clients.describe("rest")     // Docs for the rest client',
-				'container.inspectAsText()              // Full container introspection',
-				'container.inspectAsText("methods")     // Just the methods section',
-				'container.inspectAsText("state")       // Just the state section',
+				'container.introspectAsText()              // Full container introspection',
+				'container.introspectAsText("methods")     // Just the methods section',
+				'container.introspectAsText("state")       // Just the state section',
 				'```',
 				'',
 				'### Using features directly',
@@ -375,7 +375,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	mcpServer.prompt('introspect', {
 		description: 'Get full introspection of the Luca container — all registries, state, methods, events, and environment info.',
 		handler: async () => {
-			const text = container.inspectAsText()
+			const text = container.introspectAsText()
 			return [{
 				role: 'user' as const,
 				content: `Here is the full container introspection:\n\n${text}`,
@@ -388,7 +388,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		name: 'Container Info',
 		description: 'Full introspection of the running Luca container',
 		mimeType: 'text/markdown',
-		handler: () => container.inspectAsText(),
+		handler: () => container.introspectAsText(),
 	})
 
 	// --- Resource: feature list ---

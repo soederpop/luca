@@ -19,11 +19,23 @@ export const argsSchema = CommandOptionsSchema.extend({
 async function bootstrap(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const { container } = context
 	const args = container.argv._ as string[]
-	const outputDir = container.paths.resolve(args[1] || options.output)
 	const fs = container.feature('fs')
 	const ui = container.feature('ui')
 	const proc = container.feature('proc')
 
+	// Require an explicit target — don't silently bootstrap into cwd
+	let target = args[1] || (options.output !== '.' ? options.output : '')
+
+	if (!target) {
+		const answer = await ui.askQuestion('Project name (folder to create):')
+		target = answer?.question?.trim()
+		if (!target) {
+			ui.print.red('\n  No project name given, aborting.\n')
+			return
+		}
+	}
+
+	const outputDir = container.paths.resolve(target)
 	await fs.ensureFolder(outputDir)
 	const mkPath = (...segments: string[]) => container.paths.resolve(outputDir, ...segments)
 
