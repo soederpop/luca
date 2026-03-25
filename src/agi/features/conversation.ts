@@ -66,6 +66,19 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
 
+	/** Sampling temperature (0-2). Higher = more random, lower = more deterministic. */
+	temperature: z.number().min(0).max(2).optional().describe('Sampling temperature (0-2). Higher = more random, lower = more deterministic'),
+	/** Nucleus sampling: only consider tokens with top_p cumulative probability (0-1). */
+	topP: z.number().min(0).max(1).optional().describe('Nucleus sampling cutoff (0-1). Lower = more focused'),
+	/** Top-K sampling: only consider the K most likely tokens. Not supported by OpenAI — used with local/Anthropic models. */
+	topK: z.number().optional().describe('Top-K sampling. Only supported by local/Anthropic models'),
+	/** Penalizes tokens based on how often they already appeared (-2 to 2). */
+	frequencyPenalty: z.number().min(-2).max(2).optional().describe('Frequency penalty (-2 to 2). Positive = discourage repetition'),
+	/** Penalizes tokens based on whether they appeared at all (-2 to 2). */
+	presencePenalty: z.number().min(-2).max(2).optional().describe('Presence penalty (-2 to 2). Positive = encourage new topics'),
+	/** Stop sequences — model stops generating when it encounters any of these strings. */
+	stop: z.array(z.string()).optional().describe('Stop sequences — generation halts when any of these strings is produced'),
+
 	/** Enable automatic compaction when estimated input tokens approach the context limit */
 	autoCompact: z.boolean().optional().describe('Enable automatic compaction when input tokens approach the context limit'),
 	/** Fraction of contextWindow at which auto-compact triggers (0.0–1.0, default 0.8) */
@@ -759,6 +772,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
 				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
 				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
+				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
+				...(this.options.topP != null ? { top_p: this.options.topP } : {}),
+				...(this.options.topK != null ? { top_k: this.options.topK } : {}),
+				...(this.options.frequencyPenalty != null ? { frequency_penalty: this.options.frequencyPenalty } : {}),
+				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
+				...(this.options.stop ? { stop: this.options.stop } : {}),
 				...textFormat,
 			})
 
@@ -902,6 +921,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
 				...(this.maxTokens ? { max_tokens: this.maxTokens } : {}),
+				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
+				...(this.options.topP != null ? { top_p: this.options.topP } : {}),
+				...(this.options.topK != null ? { top_k: this.options.topK } : {}),
+				...(this.options.frequencyPenalty != null ? { frequency_penalty: this.options.frequencyPenalty } : {}),
+				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
+				...(this.options.stop ? { stop: this.options.stop } : {}),
 				...responseFormat,
 			})
 

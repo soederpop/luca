@@ -79,6 +79,18 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+	/** Sampling temperature (0-2). Higher = more random, lower = more deterministic. */
+	temperature: z.number().min(0).max(2).optional().describe('Sampling temperature (0-2)'),
+	/** Nucleus sampling cutoff (0-1). */
+	topP: z.number().min(0).max(1).optional().describe('Nucleus sampling cutoff (0-1)'),
+	/** Top-K sampling. Only supported by local/Anthropic models. */
+	topK: z.number().optional().describe('Top-K sampling. Only supported by local/Anthropic models'),
+	/** Frequency penalty (-2 to 2). */
+	frequencyPenalty: z.number().min(-2).max(2).optional().describe('Frequency penalty (-2 to 2)'),
+	/** Presence penalty (-2 to 2). */
+	presencePenalty: z.number().min(-2).max(2).optional().describe('Presence penalty (-2 to 2)'),
+	/** Stop sequences. */
+	stop: z.array(z.string()).optional().describe('Stop sequences'),
 
 	local: z.boolean().default(false).describe('Whether to use our local models for this'),
 
@@ -261,6 +273,12 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				tools: this.tools,
 				api: 'chat',
 				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
+				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
+				...(this.options.topP != null ? { topP: this.options.topP } : {}),
+				...(this.options.topK != null ? { topK: this.options.topK } : {}),
+				...(this.options.frequencyPenalty != null ? { frequencyPenalty: this.options.frequencyPenalty } : {}),
+				...(this.options.presencePenalty != null ? { presencePenalty: this.options.presencePenalty } : {}),
+				...(this.options.stop ? { stop: this.options.stop } : {}),
 				history: [
 					{ role: 'system', content: this.effectiveSystemPrompt },
 				],
