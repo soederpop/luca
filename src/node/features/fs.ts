@@ -18,6 +18,7 @@ import {
 import { join, resolve, dirname, relative } from "path";
 import { readFile, stat, lstat, realpath, unlink, mkdir, writeFile, appendFile, readdir, cp, rename, rm as nodeRm } from "fs/promises";
 import { native as rimraf } from 'rimraf'
+import micromatch from 'micromatch'
 
 type WalkOptions = {
   directories?: boolean;
@@ -30,17 +31,10 @@ type WalkOptions = {
 
 /**
  * Checks whether a path matches any of the given glob-like patterns.
- * Supports simple wildcards: * matches anything except /, ** matches anything including /.
+ * Delegates to micromatch for correct glob semantics (**, *, {}, etc.).
  */
 function matchesPattern(filePath: string, patterns: string[]): boolean {
-  return patterns.some(pattern => {
-    const regex = pattern
-      .replace(/\./g, '\\.')
-      .replace(/\*\*/g, '{{GLOBSTAR}}')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\{\{GLOBSTAR\}\}/g, '.*')
-    return new RegExp(`(^|/)${regex}($|/)`).test(filePath)
-  })
+  return micromatch.isMatch(filePath, patterns, { dot: true })
 }
 
 /** Sync: check if a symlink target is a directory */
