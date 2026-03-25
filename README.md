@@ -115,6 +115,36 @@ luca serve   # serves endpoints/ folder as HTTP routes
 
 See [`docs/CLI.md`](./docs/CLI.md) for the full CLI reference.
 
+## Importing the container into your own scripts / modules
+
+```ts
+import container from '@soederpop/luca'
+```
+
+That's it — you get one object with everything on it. No factory function, no setup. It's a singleton.
+
+We do export the framework classes (`WebContainer`, `Feature`, `Client`, `Server`, etc.) if you want to extend them, but for using the system you only ever need the default export.
+
+### In the browser via esm.sh
+
+**Static import:**
+
+```js
+import container from 'https://esm.sh/@soederpop/luca/web'
+
+container.features.available  // ['fetch', 'state', 'ui', ...]
+```
+
+**Dynamic import:**
+
+```js
+const { default: container } = await import('https://esm.sh/@soederpop/luca/web')
+
+container.features.available  // same singleton
+```
+
+With dynamic import you have to pick it off `default` yourself — there's no top-level default binding like the static form gives you. Either way, it's the same singleton container, and `window.luca` is set automatically so you can poke at it from the console.
+
 ## How It Works
 
 ### Self-documenting at runtime
