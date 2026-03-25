@@ -86,6 +86,47 @@ console.log('Install exit code:', result.exitCode)
 
 When no `installCommand` is provided, the feature infers the correct command from the detected environment type (e.g., `uv sync` for uv, `pip install -e .` for venv).
 
+## Persistent Sessions
+
+Start a long-lived Python process where state persists across calls. Ideal for working inside real Python codebases, data analysis, and anything with expensive setup.
+
+```ts skip
+const python = container.feature('python', { dir: '/path/to/python-project' })
+await python.enable()
+await python.startSession()
+
+// State persists across calls
+await python.run('x = 42')
+const result = await python.run('print(x * 2)')
+console.log('stdout:', result.stdout) // '84\n'
+
+// Evaluate expressions and get values back
+const val = await python.eval('x + 1')
+console.log('eval:', val) // 43
+
+// Import project modules (sys.path is set up automatically)
+await python.importModule('json')
+const encoded = await python.call('json.dumps', [{ key: 'value' }], { indent: 2 })
+console.log('call:', encoded)
+
+// Inspect the namespace
+const locals = await python.getLocals()
+console.log('locals:', Object.keys(locals))
+
+// Errors don't crash the session
+const bad = await python.run('raise ValueError("oops")')
+console.log('error:', bad.error) // 'oops'
+
+// Still alive
+const check = await python.run('print("still here")')
+console.log(check.stdout) // 'still here\n'
+
+// Clean up
+await python.stopSession()
+```
+
+See the [Python Sessions tutorial](../tutorials/19-python-sessions.md) for real-world patterns (data pipelines, Django, ML models).
+
 ## Summary
 
-The `python` feature bridges Luca and Python by auto-detecting environments, managing dependencies, and providing inline code execution with variable injection. It supports uv, conda, venv, and system Python installations.
+The `python` feature bridges Luca and Python by auto-detecting environments, managing dependencies, and providing both stateless execution and persistent sessions. It supports uv, conda, venv, and system Python installations.

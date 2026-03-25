@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-24T19:30:40.789Z
+// Generated at: 2026-03-25T03:04:44.359Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -7566,7 +7566,7 @@ setBuildTimeData('features.postgres', {
 
 setBuildTimeData('features.python', {
   "id": "features.python",
-  "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
+  "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
   "shortcut": "features.python",
   "className": "Python",
   "methods": {
@@ -7666,6 +7666,146 @@ setBuildTimeData('features.python', {
       "parameters": {},
       "required": [],
       "returns": "Promise<{ version: string; path: string; packages: string[] }>"
+    },
+    "startSession": {
+      "description": "Starts a persistent Python session by spawning the bridge process. The bridge sets up sys.path for the project directory, then enters a JSON-line REPL loop. State (variables, imports) persists across run() calls until stopSession() or resetSession() is called.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const python = container.feature('python', { dir: '/path/to/project' })\nawait python.enable()\nawait python.startSession()\nawait python.run('x = 42')\nconst result = await python.run('print(x)')\nconsole.log(result.stdout) // '42\\n'\nawait python.stopSession()"
+        }
+      ]
+    },
+    "stopSession": {
+      "description": "Stops the persistent Python session and cleans up the bridge process.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.stopSession()"
+        }
+      ]
+    },
+    "run": {
+      "description": "Executes Python code in the persistent session. Variables and imports survive across calls. This is the session equivalent of execute().",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Python code to execute"
+        },
+        "variables": {
+          "type": "Record<string, any>",
+          "description": "Variables to inject into the namespace before execution"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "Promise<RunResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'"
+        }
+      ]
+    },
+    "eval": {
+      "description": "Evaluates a Python expression in the persistent session and returns its value.",
+      "parameters": {
+        "expression": {
+          "type": "string",
+          "description": "Python expression to evaluate"
+        }
+      },
+      "required": [
+        "expression"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.run('x = 42')\nconst result = await python.eval('x * 2')\nconsole.log(result) // 84"
+        }
+      ]
+    },
+    "importModule": {
+      "description": "Imports a Python module into the persistent session namespace.",
+      "parameters": {
+        "moduleName": {
+          "type": "string",
+          "description": "Dotted module path (e.g. 'myapp.models')"
+        },
+        "alias": {
+          "type": "string",
+          "description": "Optional alias for the import (defaults to the last segment)"
+        }
+      },
+      "required": [
+        "moduleName"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.importModule('json')\nawait python.importModule('myapp.models', 'models')\nconst result = await python.eval('models.User')"
+        }
+      ]
+    },
+    "call": {
+      "description": "Calls a function by dotted path in the persistent session namespace.",
+      "parameters": {
+        "funcPath": {
+          "type": "string",
+          "description": "Dotted path to the function (e.g. 'json.dumps' or 'my_func')"
+        },
+        "args": {
+          "type": "any[]",
+          "description": "Positional arguments"
+        },
+        "kwargs": {
+          "type": "Record<string, any>",
+          "description": "Keyword arguments"
+        }
+      },
+      "required": [
+        "funcPath"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.importModule('json')\nconst result = await python.call('json.dumps', [{ a: 1 }], { indent: 2 })"
+        }
+      ]
+    },
+    "getLocals": {
+      "description": "Returns all non-dunder variables from the persistent session namespace.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, any>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.run('x = 42\\ny = \"hello\"')\nconst locals = await python.getLocals()\nconsole.log(locals) // { x: 42, y: 'hello' }"
+        }
+      ]
+    },
+    "resetSession": {
+      "description": "Clears all variables and imports from the persistent session namespace. The session remains active — you can continue calling run() after reset.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await python.run('x = 42')\nawait python.resetSession()\n// x is now undefined"
+        }
+      ]
     }
   },
   "getters": {
@@ -7722,6 +7862,21 @@ setBuildTimeData('features.python', {
       "name": "fileExecuted",
       "description": "Event emitted by Python",
       "arguments": {}
+    },
+    "sessionError": {
+      "name": "sessionError",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "sessionStarted": {
+      "name": "sessionStarted",
+      "description": "Event emitted by Python",
+      "arguments": {}
+    },
+    "sessionStopped": {
+      "name": "sessionStopped",
+      "description": "Event emitted by Python",
+      "arguments": {}
     }
   },
   "state": {},
@@ -7730,9 +7885,38 @@ setBuildTimeData('features.python', {
   "examples": [
     {
       "language": "ts",
-      "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
+      "code": "const python = container.feature('python', {\n dir: \"/path/to/python/project\",\n})\n\n// Stateless execution\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Persistent session\nawait python.startSession()\nawait python.run('import myapp.models')\nawait python.run('users = myapp.models.User.objects.all()')\nconst result = await python.run('print(len(users))')\nawait python.stopSession()"
     }
-  ]
+  ],
+  "types": {
+    "RunResult": {
+      "description": "Result from a persistent session run() call.",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": ""
+        },
+        "result": {
+          "type": "any",
+          "description": ""
+        },
+        "stdout": {
+          "type": "string",
+          "description": ""
+        },
+        "error": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "traceback": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.jsonTree', {
@@ -11696,6 +11880,202 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
+  "methods": {
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
+      "parameters": {
+        "table": {
+          "type": "string",
+          "description": "The table or view name to query"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "returns": "void"
+    },
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
+      "parameters": {
+        "fn": {
+          "type": "string",
+          "description": "The function name"
+        },
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
+        },
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signOut": {
+      "description": "Sign the current user out.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
+    },
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+    }
+  ]
+});
+
 setBuildTimeData('clients.comfyui', {
   "id": "clients.comfyui",
   "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
@@ -12255,202 +12635,6 @@ setBuildTimeData('clients.elevenlabs', {
       }
     }
   }
-});
-
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
 });
 
 setBuildTimeData('servers.mcp', {
@@ -25063,7 +25247,7 @@ export const introspectionData = [
   },
   {
     "id": "features.python",
-    "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions.",
+    "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
     "shortcut": "features.python",
     "className": "Python",
     "methods": {
@@ -25163,6 +25347,146 @@ export const introspectionData = [
         "parameters": {},
         "required": [],
         "returns": "Promise<{ version: string; path: string; packages: string[] }>"
+      },
+      "startSession": {
+        "description": "Starts a persistent Python session by spawning the bridge process. The bridge sets up sys.path for the project directory, then enters a JSON-line REPL loop. State (variables, imports) persists across run() calls until stopSession() or resetSession() is called.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const python = container.feature('python', { dir: '/path/to/project' })\nawait python.enable()\nawait python.startSession()\nawait python.run('x = 42')\nconst result = await python.run('print(x)')\nconsole.log(result.stdout) // '42\\n'\nawait python.stopSession()"
+          }
+        ]
+      },
+      "stopSession": {
+        "description": "Stops the persistent Python session and cleans up the bridge process.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.stopSession()"
+          }
+        ]
+      },
+      "run": {
+        "description": "Executes Python code in the persistent session. Variables and imports survive across calls. This is the session equivalent of execute().",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Python code to execute"
+          },
+          "variables": {
+            "type": "Record<string, any>",
+            "description": "Variables to inject into the namespace before execution"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "Promise<RunResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'"
+          }
+        ]
+      },
+      "eval": {
+        "description": "Evaluates a Python expression in the persistent session and returns its value.",
+        "parameters": {
+          "expression": {
+            "type": "string",
+            "description": "Python expression to evaluate"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.run('x = 42')\nconst result = await python.eval('x * 2')\nconsole.log(result) // 84"
+          }
+        ]
+      },
+      "importModule": {
+        "description": "Imports a Python module into the persistent session namespace.",
+        "parameters": {
+          "moduleName": {
+            "type": "string",
+            "description": "Dotted module path (e.g. 'myapp.models')"
+          },
+          "alias": {
+            "type": "string",
+            "description": "Optional alias for the import (defaults to the last segment)"
+          }
+        },
+        "required": [
+          "moduleName"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.importModule('json')\nawait python.importModule('myapp.models', 'models')\nconst result = await python.eval('models.User')"
+          }
+        ]
+      },
+      "call": {
+        "description": "Calls a function by dotted path in the persistent session namespace.",
+        "parameters": {
+          "funcPath": {
+            "type": "string",
+            "description": "Dotted path to the function (e.g. 'json.dumps' or 'my_func')"
+          },
+          "args": {
+            "type": "any[]",
+            "description": "Positional arguments"
+          },
+          "kwargs": {
+            "type": "Record<string, any>",
+            "description": "Keyword arguments"
+          }
+        },
+        "required": [
+          "funcPath"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.importModule('json')\nconst result = await python.call('json.dumps', [{ a: 1 }], { indent: 2 })"
+          }
+        ]
+      },
+      "getLocals": {
+        "description": "Returns all non-dunder variables from the persistent session namespace.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, any>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.run('x = 42\\ny = \"hello\"')\nconst locals = await python.getLocals()\nconsole.log(locals) // { x: 42, y: 'hello' }"
+          }
+        ]
+      },
+      "resetSession": {
+        "description": "Clears all variables and imports from the persistent session namespace. The session remains active — you can continue calling run() after reset.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await python.run('x = 42')\nawait python.resetSession()\n// x is now undefined"
+          }
+        ]
       }
     },
     "getters": {
@@ -25219,6 +25543,21 @@ export const introspectionData = [
         "name": "fileExecuted",
         "description": "Event emitted by Python",
         "arguments": {}
+      },
+      "sessionError": {
+        "name": "sessionError",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "sessionStarted": {
+        "name": "sessionStarted",
+        "description": "Event emitted by Python",
+        "arguments": {}
+      },
+      "sessionStopped": {
+        "name": "sessionStopped",
+        "description": "Event emitted by Python",
+        "arguments": {}
       }
     },
     "state": {},
@@ -25227,9 +25566,38 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const python = container.feature('python', { \n dir: \"/path/to/python/project\",\n contextScript: \"/path/to/setup-context.py\"\n})\n\n// Auto-install dependencies\nawait python.installDependencies()\n\n// Execute Python code\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Execute with custom variables\nconst result2 = await python.execute('print(f\"Hello {name}!\")', { name: 'World' })"
+        "code": "const python = container.feature('python', {\n dir: \"/path/to/python/project\",\n})\n\n// Stateless execution\nconst result = await python.execute('print(\"Hello from Python!\")')\n\n// Persistent session\nawait python.startSession()\nawait python.run('import myapp.models')\nawait python.run('users = myapp.models.User.objects.all()')\nconst result = await python.run('print(len(users))')\nawait python.stopSession()"
       }
-    ]
+    ],
+    "types": {
+      "RunResult": {
+        "description": "Result from a persistent session run() call.",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": ""
+          },
+          "result": {
+            "type": "any",
+            "description": ""
+          },
+          "stdout": {
+            "type": "string",
+            "description": ""
+          },
+          "error": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "traceback": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.jsonTree",
@@ -29178,6 +29546,201 @@ export const introspectionData = [
     ]
   },
   {
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
+    "methods": {
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
+        "parameters": {
+          "table": {
+            "type": "string",
+            "description": "The table or view name to query"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "returns": "void"
+      },
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
+        "parameters": {
+          "fn": {
+            "type": "string",
+            "description": "The function name"
+          },
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
+          },
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signOut": {
+        "description": "Sign the current user out.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
+      },
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+      }
+    ]
+  },
+  {
     "id": "clients.comfyui",
     "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
     "shortcut": "clients.comfyui",
@@ -29735,201 +30298,6 @@ export const introspectionData = [
         }
       }
     }
-  },
-  {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
   },
   {
     "id": "servers.mcp",

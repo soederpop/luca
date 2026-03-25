@@ -3,6 +3,9 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature } from "../feature.js";
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
+import { tmpdir } from 'os';
+import { bridgeScript } from '../../python/generated.js';
+import type { ChildProcess } from 'child_process';
 
 export const PythonStateSchema = FeatureStateSchema.extend({
   /** Path to the detected Python executable */
@@ -15,6 +18,10 @@ export const PythonStateSchema = FeatureStateSchema.extend({
   isReady: z.boolean().default(false).describe('Whether the Python environment is ready for execution'),
   /** Path to the last executed Python script */
   lastExecutedScript: z.string().nullable().default(null).describe('Path to the last executed Python script'),
+  /** Whether a persistent Python session is currently active */
+  sessionActive: z.boolean().default(false).describe('Whether a persistent Python session is currently active'),
+  /** Unique ID of the current persistent session */
+  sessionId: z.string().nullable().default(null).describe('Unique ID of the current persistent session'),
 })
 
 export const PythonOptionsSchema = FeatureOptionsSchema.extend({
@@ -69,32 +76,56 @@ export const PythonEventsSchema = FeatureEventsSchema.extend({
     }).describe('Execution result'),
   }).describe('File execution details')]).describe('When a Python file finishes executing'),
   localsParseError: z.tuple([z.any().describe('The parse error')]).describe('When captured locals fail to parse as JSON'),
+  sessionStarted: z.tuple([z.object({
+    sessionId: z.string().describe('Unique session identifier'),
+  }).describe('Session start details')]).describe('When a persistent Python session starts'),
+  sessionStopped: z.tuple([z.object({
+    sessionId: z.string().describe('Session identifier that stopped'),
+  }).describe('Session stop details')]).describe('When a persistent Python session stops'),
+  sessionError: z.tuple([z.object({
+    error: z.string().describe('Error message'),
+    sessionId: z.string().nullable().describe('Session identifier, if available'),
+  }).describe('Session error details')]).describe('When a session-level error occurs'),
 }).describe('Python events')
+
+/** Result from a persistent session run() call. */
+export interface RunResult {
+  ok: boolean
+  result: any
+  stdout: string
+  error?: string
+  traceback?: string
+}
 
 /**
  * The Python VM feature provides Python virtual machine capabilities for executing Python code.
- * 
+ *
  * This feature automatically detects Python environments (uv, conda, venv, system) and provides
  * methods to install dependencies and execute Python scripts. It can manage project-specific
  * Python environments and maintain context between executions.
- * 
+ *
+ * Supports two modes:
+ * - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call
+ * - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains
+ *   state across `run()` calls, enabling real codebase interaction with imports and session variables
+ *
  * @example
  * ```typescript
- * const python = container.feature('python', { 
+ * const python = container.feature('python', {
  *   dir: "/path/to/python/project",
- *   contextScript: "/path/to/setup-context.py"
  * })
- * 
- * // Auto-install dependencies
- * await python.installDependencies()
- * 
- * // Execute Python code
+ *
+ * // Stateless execution
  * const result = await python.execute('print("Hello from Python!")')
- * 
- * // Execute with custom variables
- * const result2 = await python.execute('print(f"Hello {name}!")', { name: 'World' })
+ *
+ * // Persistent session
+ * await python.startSession()
+ * await python.run('import myapp.models')
+ * await python.run('users = myapp.models.User.objects.all()')
+ * const result = await python.run('print(len(users))')
+ * await python.stopSession()
  * ```
- * 
+ *
  * @extends Feature
  */
 export class Python<
@@ -107,6 +138,11 @@ export class Python<
   static override eventsSchema = PythonEventsSchema
   static { Feature.register(this, 'python') }
 
+  private _bridgeProcess: ChildProcess | null = null
+  private _bridgeScriptPath: string | null = null
+  private _pendingRequests = new Map<string, { resolve: (v: any) => void, reject: (e: any) => void }>()
+  private _stdoutBuffer = ''
+
   override get initialState(): T {
     return {
       ...super.initialState,
@@ -114,7 +150,9 @@ export class Python<
       projectDir: null,
       environmentType: null,
       isReady: false,
-      lastExecutedScript: null
+      lastExecutedScript: null,
+      sessionActive: false,
+      sessionId: null,
     } as T
   }
 
@@ -365,8 +403,8 @@ export class Python<
 	
 		const { projectDir, pythonPath } = this
 
-    // Create temporary script
-    const tempDir = join(projectDir, '.luca-python-temp')
+    // Create temporary script in system temp dir (not inside the project)
+    const tempDir = `${tmpdir()}/luca-python-temp`
     await fs.ensureFolder(tempDir)
     const scriptPath = join(tempDir, `script-${Date.now()}.py`)
     
@@ -481,6 +519,381 @@ export class Python<
     const packages = packagesResult.stdout.trim().split('\n').filter(line => line.length > 0)
     
     return { version, path, packages }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Persistent session methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Splits the (possibly multi-word) pythonPath into a command and args array
+   * suitable for proc.spawn(). For example, `uv run python` becomes
+   * `{ command: 'uv', args: ['run', 'python', ...extraArgs] }`.
+   */
+  private _parsePythonCommand(extraArgs: string[]): { command: string, args: string[] } {
+    const parts = this.pythonPath.split(/\s+/)
+    return { command: parts[0], args: [...parts.slice(1), ...extraArgs] }
+  }
+
+  /**
+   * Writes the bundled bridge.py to a temp directory and returns its path.
+   * Reuses the same path across calls within a process.
+   */
+  private async _ensureBridgeScript(): Promise<string> {
+    if (this._bridgeScriptPath) return this._bridgeScriptPath
+
+    const fs = this.container.feature('fs')
+    const bridgeDir = `${tmpdir()}/luca-python-bridge`
+    await fs.ensureFolder(bridgeDir)
+    const scriptPath = `${bridgeDir}/bridge.py`
+    await fs.writeFileAsync(scriptPath, bridgeScript)
+    this._bridgeScriptPath = scriptPath
+    return scriptPath
+  }
+
+  /**
+   * Sends a JSON-line request to the bridge process and returns a promise
+   * that resolves when the matching response (by id) arrives.
+   *
+   * @param type - The request type (exec, eval, import, call, get_locals, reset)
+   * @param payload - Additional fields to include in the request
+   * @param timeout - Timeout in ms (default 30000)
+   */
+  private _sendRequest(type: string, payload: Record<string, any> = {}, timeout = 30000): Promise<any> {
+    if (!this._bridgeProcess || !this._bridgeProcess.stdin) {
+      return Promise.reject(new Error('No active Python session. Call startSession() first.'))
+    }
+
+    const id = this.container.utils.uuid()
+    const request = JSON.stringify({ id, type, ...payload }) + '\n'
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this._pendingRequests.delete(id)
+        reject(new Error(`Python bridge request timed out after ${timeout}ms (type: ${type})`))
+      }, timeout)
+
+      this._pendingRequests.set(id, {
+        resolve: (value: any) => {
+          clearTimeout(timer)
+          resolve(value)
+        },
+        reject: (err: any) => {
+          clearTimeout(timer)
+          reject(err)
+        },
+      })
+
+      this._bridgeProcess!.stdin!.write(request)
+    })
+  }
+
+  /**
+   * Handles incoming stdout data from the bridge process. Buffers partial
+   * lines and parses complete JSON-line responses, resolving their matching
+   * pending requests.
+   */
+  private _onBridgeData(chunk: Buffer | string): void {
+    this._stdoutBuffer += chunk.toString()
+
+    const lines = this._stdoutBuffer.split('\n')
+    // Keep the last (possibly incomplete) segment in the buffer
+    this._stdoutBuffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const response = JSON.parse(line)
+        const id = response.id
+        if (id && this._pendingRequests.has(id)) {
+          const pending = this._pendingRequests.get(id)!
+          this._pendingRequests.delete(id)
+          pending.resolve(response)
+        }
+        // Non-id responses (like the initial "ready") are handled by startSession
+      } catch {
+        // Not JSON — could be stray output, ignore
+      }
+    }
+  }
+
+  /**
+   * Starts a persistent Python session by spawning the bridge process.
+   *
+   * The bridge sets up sys.path for the project directory, then enters a
+   * JSON-line REPL loop. State (variables, imports) persists across run() calls
+   * until stopSession() or resetSession() is called.
+   *
+   * @example
+   * ```typescript
+   * const python = container.feature('python', { dir: '/path/to/project' })
+   * await python.enable()
+   * await python.startSession()
+   * await python.run('x = 42')
+   * const result = await python.run('print(x)')
+   * console.log(result.stdout) // '42\n'
+   * await python.stopSession()
+   * ```
+   */
+  async startSession(): Promise<void> {
+    if (this.state.get('sessionActive')) {
+      throw new Error('A Python session is already active. Call stopSession() first.')
+    }
+
+    const proc = this.container.feature('proc')
+    const bridgePath = await this._ensureBridgeScript()
+    const { command, args } = this._parsePythonCommand(['-u', bridgePath])
+
+    const child = proc.spawn(command, args, {
+      cwd: this.projectDir,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+
+    this._bridgeProcess = child
+    this._stdoutBuffer = ''
+
+    // Wait for the ready signal from the bridge
+    const readyPromise = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('Python bridge failed to start within 15 seconds'))
+      }, 15000)
+
+      const onData = (chunk: Buffer | string) => {
+        this._stdoutBuffer += chunk.toString()
+        const lines = this._stdoutBuffer.split('\n')
+        this._stdoutBuffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const msg = JSON.parse(line)
+            if (msg.type === 'ready' && msg.ok) {
+              clearTimeout(timer)
+              // Switch to the normal data handler
+              child.stdout!.removeListener('data', onData)
+              child.stdout!.on('data', this._onBridgeData.bind(this))
+              resolve()
+              return
+            }
+          } catch {
+            // ignore non-JSON during init
+          }
+        }
+      }
+
+      child.stdout!.on('data', onData)
+
+      child.on('error', (err: Error) => {
+        clearTimeout(timer)
+        reject(new Error(`Python bridge process error: ${err.message}`))
+      })
+
+      child.on('exit', (code: number | null) => {
+        clearTimeout(timer)
+        reject(new Error(`Python bridge exited during startup with code ${code}`))
+      })
+    })
+
+    // Send init handshake with project directory
+    child.stdin!.write(JSON.stringify({ project_dir: this.projectDir }) + '\n')
+
+    await readyPromise
+
+    // Register crash handler (after successful startup)
+    child.removeAllListeners('exit')
+    child.on('exit', (code: number | null) => {
+      const sessionId = this.state.get('sessionId')
+      this.state.set('sessionActive', false)
+      this._bridgeProcess = null
+
+      // Reject all pending requests
+      for (const [id, pending] of this._pendingRequests) {
+        pending.reject(new Error(`Python bridge exited unexpectedly with code ${code}`))
+      }
+      this._pendingRequests.clear()
+
+      this.emit('sessionError', { error: `Bridge exited with code ${code}`, sessionId })
+    })
+
+    // Capture stderr for diagnostics (don't interfere with protocol)
+    child.stderr!.on('data', (chunk: Buffer | string) => {
+      const text = chunk.toString().trim()
+      if (text) {
+        this.emit('sessionError', { error: text, sessionId: this.state.get('sessionId') })
+      }
+    })
+
+    const sessionId = this.container.utils.uuid()
+    this.state.set('sessionActive', true)
+    this.state.set('sessionId', sessionId)
+    this.emit('sessionStarted', { sessionId })
+  }
+
+  /**
+   * Stops the persistent Python session and cleans up the bridge process.
+   *
+   * @example
+   * ```typescript
+   * await python.stopSession()
+   * ```
+   */
+  async stopSession(): Promise<void> {
+    const sessionId = this.state.get('sessionId')
+
+    if (this._bridgeProcess) {
+      this._bridgeProcess.removeAllListeners('exit')
+      this._bridgeProcess.kill('SIGTERM')
+      this._bridgeProcess = null
+    }
+
+    // Reject any pending requests
+    for (const [id, pending] of this._pendingRequests) {
+      pending.reject(new Error('Python session stopped'))
+    }
+    this._pendingRequests.clear()
+    this._stdoutBuffer = ''
+
+    this.state.set('sessionActive', false)
+    this.state.set('sessionId', null)
+
+    if (sessionId) {
+      this.emit('sessionStopped', { sessionId })
+    }
+  }
+
+  /**
+   * Executes Python code in the persistent session. Variables and imports
+   * survive across calls. This is the session equivalent of execute().
+   *
+   * @param code - Python code to execute
+   * @param variables - Variables to inject into the namespace before execution
+   * @returns The execution result including captured stdout and any error info
+   *
+   * @example
+   * ```typescript
+   * await python.startSession()
+   *
+   * // State persists across calls
+   * await python.run('x = 42')
+   * const result = await python.run('print(x * 2)')
+   * console.log(result.stdout) // '84\n'
+   *
+   * // Inject variables from JS
+   * const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
+   * console.log(result2.stdout) // 'Hello World!\n'
+   * ```
+   */
+  async run(code: string, variables: Record<string, any> = {}): Promise<RunResult> {
+    const response = await this._sendRequest('exec', { code, variables })
+    return {
+      ok: response.ok,
+      result: response.result ?? null,
+      stdout: response.stdout ?? '',
+      error: response.error,
+      traceback: response.traceback,
+    }
+  }
+
+  /**
+   * Evaluates a Python expression in the persistent session and returns its value.
+   *
+   * @param expression - Python expression to evaluate
+   * @returns The evaluated result (JSON-serializable, or repr() string for complex types)
+   *
+   * @example
+   * ```typescript
+   * await python.run('x = 42')
+   * const result = await python.eval('x * 2')
+   * console.log(result) // 84
+   * ```
+   */
+  async eval(expression: string): Promise<any> {
+    const response = await this._sendRequest('eval', { expression })
+    if (!response.ok) {
+      throw new Error(response.error || 'eval failed')
+    }
+    return response.result
+  }
+
+  /**
+   * Imports a Python module into the persistent session namespace.
+   *
+   * @param moduleName - Dotted module path (e.g. 'myapp.models')
+   * @param alias - Optional alias for the import (defaults to the last segment)
+   *
+   * @example
+   * ```typescript
+   * await python.importModule('json')
+   * await python.importModule('myapp.models', 'models')
+   * const result = await python.eval('models.User')
+   * ```
+   */
+  async importModule(moduleName: string, alias?: string): Promise<void> {
+    const response = await this._sendRequest('import', { module: moduleName, alias })
+    if (!response.ok) {
+      throw new Error(response.error || `Failed to import ${moduleName}`)
+    }
+  }
+
+  /**
+   * Calls a function by dotted path in the persistent session namespace.
+   *
+   * @param funcPath - Dotted path to the function (e.g. 'json.dumps' or 'my_func')
+   * @param args - Positional arguments
+   * @param kwargs - Keyword arguments
+   * @returns The function's return value
+   *
+   * @example
+   * ```typescript
+   * await python.importModule('json')
+   * const result = await python.call('json.dumps', [{ a: 1 }], { indent: 2 })
+   * ```
+   */
+  async call(funcPath: string, args: any[] = [], kwargs: Record<string, any> = {}): Promise<any> {
+    const response = await this._sendRequest('call', { function: funcPath, args, kwargs })
+    if (!response.ok) {
+      throw new Error(response.error || `Failed to call ${funcPath}`)
+    }
+    return response.result
+  }
+
+  /**
+   * Returns all non-dunder variables from the persistent session namespace.
+   *
+   * @returns A record of variable names to their JSON-serializable values
+   *
+   * @example
+   * ```typescript
+   * await python.run('x = 42\ny = "hello"')
+   * const locals = await python.getLocals()
+   * console.log(locals) // { x: 42, y: 'hello' }
+   * ```
+   */
+  async getLocals(): Promise<Record<string, any>> {
+    const response = await this._sendRequest('get_locals')
+    if (!response.ok) {
+      throw new Error(response.error || 'Failed to get locals')
+    }
+    return response.result
+  }
+
+  /**
+   * Clears all variables and imports from the persistent session namespace.
+   * The session remains active — you can continue calling run() after reset.
+   *
+   * @example
+   * ```typescript
+   * await python.run('x = 42')
+   * await python.resetSession()
+   * // x is now undefined
+   * ```
+   */
+  async resetSession(): Promise<void> {
+    const response = await this._sendRequest('reset')
+    if (!response.ok) {
+      throw new Error(response.error || 'Failed to reset session')
+    }
   }
 }
 
