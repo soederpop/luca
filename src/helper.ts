@@ -265,7 +265,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * If a tool has no explicit handler but this instance has a method with
    * the same name, a handler is auto-generated that delegates to that method.
    */
-  toTools(): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
+  toTools(options?: { only?: string[], except?: string[] }): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
     // Walk the prototype chain collecting static tools (parent-first, child overwrites)
     const merged: Record<string, { schema: z.ZodType, description?: string, handler?: Function }> = {}
     const chain: Function[] = []
@@ -285,10 +285,16 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     // Instance tools win over static
     Object.assign(merged, this._instanceTools)
 
+    // Filter tools by only/except before building schemas and handlers
+    let names = Object.keys(merged)
+    if (options?.only) names = names.filter(n => options.only!.includes(n))
+    if (options?.except) names = names.filter(n => !options.except!.includes(n))
+
     const schemas: Record<string, z.ZodType> = {}
     const handlers: Record<string, Function> = {}
 
-    for (const [name, entry] of Object.entries(merged)) {
+    for (const name of names) {
+      const entry = merged[name]!
       // If the tool entry has a description but the schema doesn't, attach it
       // so addTool() picks it up from jsonSchema.description.
       schemas[name] = entry.description && !entry.schema.description

@@ -64,6 +64,7 @@ import "./features/helpers";
 import "./features/container-link";
 import "./features/semantic-search";
 import "./features/dns";
+import "./features/redis";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -108,6 +109,7 @@ import type { Helpers } from './features/helpers';
 import type { ContainerLink } from './features/container-link';
 import type { SemanticSearch } from './features/semantic-search';
 import type { Dns } from './features/dns';
+import type { Redis } from './features/redis';
 export { State };
 
 export {
@@ -147,6 +149,7 @@ export {
   type ContainerLink,
   type SemanticSearch,
   type Dns,
+  type Redis,
 };
 
 export type { FeatureOptions };
@@ -212,6 +215,7 @@ export interface NodeFeatures extends AvailableFeatures {
   containerLink: typeof ContainerLink;
   semanticSearch: typeof SemanticSearch;
   dns: typeof Dns;
+  redis: typeof Redis;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;
@@ -295,6 +299,7 @@ export class NodeContainer<
   tts?: TTS;
   helpers!: Helpers;
   containerLink?: ContainerLink;
+  redis?: Redis;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
