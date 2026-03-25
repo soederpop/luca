@@ -60,6 +60,16 @@ console.log(`${allFeatureDocs.length} features documented`)
 console.log(allFeatureDocs[0].slice(0, 200) + '...')
 ```
 
+## Helper Introspection — Quick Discovery
+
+Every helper instance exposes `$methods` and `$getters` for a quick look at what's available:
+
+```ts
+const git = container.feature('git')
+console.log('methods:', git.$methods)
+console.log('getters:', git.$getters)
+```
+
 ## Helper Introspection — Structured Data
 
 Every helper instance (feature, client, server, etc.) can introspect itself. The result is a typed object you can traverse programmatically.

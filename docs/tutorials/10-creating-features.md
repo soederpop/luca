@@ -187,6 +187,11 @@ Then anyone (human or AI) can discover your feature:
 ```typescript
 container.features.describe('sessionManager')
 // Returns the full markdown documentation extracted from your JSDoc
+
+// Quick discovery — list available methods and getters
+const session = container.feature('sessionManager')
+session.$methods  // => ['createSession', ...]
+session.$getters  // => ['activeCount', ...]
 ```
 
 ## Best Practices

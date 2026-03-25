@@ -73,6 +73,16 @@ const info = fs.introspect()
 const docs = fs.introspectAsText()
 ```
 
+### Quick Discovery with $getters and $methods
+
+Every helper exposes `$getters` and `$methods` — string arrays listing what's available on the instance. Useful for quick exploration without parsing the full introspection object:
+
+```typescript
+const fs = container.feature('fs')
+fs.$methods  // => ['readFile', 'writeFile', 'walk', 'readdir', ...]
+fs.$getters  // => ['cwd', 'sep', ...]
+```
+
 ### What's in the Introspection Data?
 
 - **Class name** and description (from JSDoc)

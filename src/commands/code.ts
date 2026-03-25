@@ -29,13 +29,9 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 	const fs = container.feature('fs')
 
 	// ── Resolve system prompt ──────────────────────────────────────────────
-	let systemPrompt = [
-		'You are an autonomous coding assistant with access to file system and shell tools.',
-		'You can read, write, search, and edit files, and run shell commands via the bash tool.',
-		'Always search and read code before making changes. Use editFile for surgical modifications.',
-		'Use the bash tool for running builds, tests, git commands, and any shell operations.',
-		'Explain what you plan to do before doing it.',
-	].join('\n')
+	// The lucaCoder feature has a solid default system prompt. Only override
+	// if the user explicitly provides one via --prompt.
+	let systemPrompt: string | undefined
 
 	if (options.prompt) {
 		const resolved = container.paths.resolve(options.prompt)
@@ -53,8 +49,12 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 	const readTools = ['readFile', 'searchFiles', 'findFiles', 'listDirectory', 'fileInfo']
 	const writeTools = ['writeFile', 'editFile', 'createDirectory', 'moveFile', 'copyFile', 'bash']
 	const dangerTools = ['deleteFile']
+	const skillTools = ['searchAvailableSkills', 'loadSkill', 'askSkillBasedQuestion']
 
 	const permissions: Record<string, 'allow' | 'ask' | 'deny'> = {}
+
+	// Skill tools are always allowed — they're read-only discovery operations
+	for (const t of skillTools) permissions[t] = 'allow'
 
 	if (options.allowAll) {
 		for (const t of [...readTools, ...writeTools, ...dangerTools]) permissions[t] = 'allow'
@@ -198,6 +198,26 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 		})
 	}
 
+	// ── Piped stdin mode ──────────────────────────────────────────────────
+	// When stdin is piped (e.g. `cat prompt.md | luca code`), read all of
+	// stdin as the initial prompt, run it, print the result, and exit.
+	if (!process.stdin.isTTY) {
+		const chunks: Buffer[] = []
+		for await (const chunk of process.stdin) {
+			chunks.push(chunk as Buffer)
+		}
+		const pipedInput = Buffer.concat(chunks).toString('utf-8').trim()
+
+		if (!pipedInput) {
+			console.error(colors.red('  No input received from stdin'))
+			process.exit(1)
+		}
+
+		console.log(colors.dim(`  Piped input: ${pipedInput.length} chars`))
+		await coder.ask(pipedInput)
+		process.exit(0)
+	}
+
 	// ── Banner ─────────────────────────────────────────────────────────────
 	console.log()
 	console.log(ui.banner('CODE', { font: 'Small', colors: ['cyan', 'blue'] }))
@@ -218,7 +238,7 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 		console.log(colors.dim(`  Skills: ${loadedSkills.join(', ')}`))
 	}
 	console.log()
-	console.log(colors.dim('  Commands: .exit  .perms  .allow <tool>  .deny <tool>  .gate <tool>  .allow-all  /console'))
+	console.log(colors.dim('  Commands: .exit  .perms  .skills  .allow <tool>  .deny <tool>  .gate <tool>  .allow-all  /console'))
 	console.log()
 
 	// ── Main loop ──────────────────────────────────────────────────────────
@@ -237,6 +257,27 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 			for (const [name, level] of Object.entries(perms).sort()) {
 				const color = level === 'allow' ? colors.green : level === 'deny' ? colors.red : colors.yellow
 				console.log(`  ${color(level.padEnd(5))} ${name}`)
+			}
+			console.log()
+			continue
+		}
+
+		if (input === '.skills') {
+			const skillsLib = container.feature('skillsLibrary')
+			if (!skillsLib.isStarted) await skillsLib.start()
+			const available = skillsLib.list()
+			const loaded = coder.state.get('loadedSkills') as string[]
+			console.log()
+			if (available.length === 0) {
+				console.log(colors.dim('  No skills found'))
+			} else {
+				for (const skill of available) {
+					const isLoaded = loaded.includes(skill.name)
+					const marker = isLoaded ? colors.green('●') : colors.dim('○')
+					console.log(`  ${marker} ${colors.bold(skill.name)} ${colors.dim('—')} ${colors.dim(skill.description || '')}`)
+				}
+				console.log()
+				console.log(colors.dim(`  ${loaded.length} loaded into context, ${available.length} total available`))
 			}
 			console.log()
 			continue

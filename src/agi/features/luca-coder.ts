@@ -76,7 +76,7 @@ export const LucaCoderOptionsSchema = FeatureOptionsSchema.extend({
 			only: z.array(z.string()).optional(),
 			except: z.array(z.string()).optional(),
 		}),
-	])).default([]).describe('Tool bundles to register on the inner assistant'),
+	])).default(['fileTools']).describe('Tool bundles to register on the inner assistant'),
 
 	/** Per-tool permission overrides. */
 	permissions: z.record(z.string(), z.enum(['allow', 'ask', 'deny'])).default({}).describe('Permission level per tool name'),
@@ -89,6 +89,9 @@ export const LucaCoderOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** Model to use. */
 	model: z.string().optional().describe('OpenAI model override'),
+
+	/** Maximum output tokens per completion. */
+	maxTokens: z.number().default(2048).describe('Maximum number of output tokens per completion'),
 
 	/** Whether to use a local API server. */
 	local: z.boolean().default(false).describe('Use a local API server for the inner assistant'),
@@ -151,6 +154,47 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 	static override eventsSchema = LucaCoderEventsSchema
 
 	static { Feature.register(this, 'lucaCoder') }
+
+	/**
+	 * Default system prompt that establishes baseline coding assistant identity
+	 * and luca framework knowledge. Project-specific CLAUDE.md and loaded skills
+	 * are appended below this — the skill will reinforce and expand on these
+	 * fundamentals without conflicting.
+	 */
+	static defaultSystemPrompt = [
+		'You are an autonomous coding assistant operating inside a luca framework project.',
+		'You have access to file system tools and a bash shell. Use them to explore, understand, and modify code.',
+		'',
+		'## Working Style',
+		'- Always read and understand code before modifying it. Use searchFiles and readFile first.',
+		'- Use editFile for surgical changes to existing files — prefer it over writeFile for modifications.',
+		'- Explain what you plan to do before doing it.',
+		'- Deliver incrementally — each change should leave the project in a working state.',
+		'',
+		'## The Luca Framework',
+		'This project uses luca — a dependency injection container for bun. The `luca` CLI is available in your shell.',
+		'',
+		'### Essential CLI Commands',
+		'- `luca` — list all available commands',
+		'- `luca describe features` / `luca describe clients` / `luca describe servers` — see what the container provides',
+		'- `luca describe <name>` — full docs for any feature, client, or server (e.g. `luca describe fs`, `luca describe git`)',
+		'- `luca describe <name>.<member>` — docs for a specific method or getter',
+		'- `luca eval "expression"` — run JS/TS with the container in scope (great for testing ideas)',
+		'- `luca scaffold <type> <name>` — generate boilerplate for new helpers',
+		'- `luca scaffold <type> --tutorial` — read the full guide for building that helper type',
+		'',
+		'### Container Rules',
+		'- NEVER import from `fs`, `path`, or other Node builtins. Use `container.feature(\'fs\')` and `container.paths`.',
+		'- The container provides everything you need: YAML, SQLite, REST client, grep, chalk, lodash, uuid, and more.',
+		'- Use `luca describe` liberally — it is faster and more reliable than searching source files.',
+		'- Use `luca eval` to test container code before wiring up full handlers.',
+		'',
+		'### Project Structure',
+		'- `commands/` — CLI commands run via `luca <name>`',
+		'- `endpoints/` — HTTP routes served via `luca serve`',
+		'- `features/` — custom container features',
+		'- Auto-discovered modules: commands, endpoints, features, clients, servers',
+	].join('\n')
 
 	/** The inner assistant instance. Created during start(). */
 	private _assistant: Assistant | null = null
@@ -427,8 +471,9 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		const projectInstructions = this._loadProjectInstructions()
 		const skillContext = await this._loadSkillsIntoContext()
 
-		// Build the system prompt: base prompt + project instructions + skills
-		const parts: string[] = []
+		// Build the system prompt: default baseline is always present,
+		// user-provided systemPrompt is additive on top of it
+		const parts: string[] = [LucaCoder.defaultSystemPrompt]
 		if (this.options.systemPrompt) parts.push(this.options.systemPrompt)
 		if (projectInstructions) parts.push(projectInstructions)
 		if (skillContext) parts.push(skillContext)
@@ -438,6 +483,7 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		const assistantOpts: Record<string, any> = {}
 		if (systemPrompt) assistantOpts.systemPrompt = systemPrompt
 		if (this.options.model) assistantOpts.model = this.options.model
+		if (this.options.maxTokens) assistantOpts.maxTokens = this.options.maxTokens
 		if (this.options.local) assistantOpts.local = this.options.local
 		if (this.options.historyMode) assistantOpts.historyMode = this.options.historyMode
 		if (this.options.folder) assistantOpts.folder = this.options.folder
@@ -461,6 +507,12 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		for (const spec of this.options.tools) {
 			this._stackToolBundle(spec)
 		}
+
+		// Always register skillsLibrary tools so the assistant can discover
+		// and load additional skills dynamically during a conversation
+		const skillsLib = this.container.feature('skillsLibrary')
+		if (!skillsLib.isStarted) await skillsLib.start()
+		this._assistant.use(skillsLib as any)
 
 		// Wire the permission interceptor
 		this._assistant.intercept('beforeToolCall', async (ctx: ToolCallCtx, next: () => Promise<void>) => {
@@ -532,14 +584,22 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		if (!this._assistant) throw new Error('Cannot stack tools before start()')
 
 		const featureName = typeof spec === 'string' ? spec : spec.feature
-		const filterOpts = typeof spec === 'string' ? undefined : {
-			only: spec.only,
-			except: spec.except,
-		}
-
 		const feature = this.container.feature(featureName as any)
-		const tools = (feature as any).toTools(filterOpts)
-		this._assistant.use(tools)
+
+		if (typeof spec === 'string') {
+			// No filtering — pass the feature directly so assistant.use() calls
+			// both _registerTools AND setupToolsConsumer (for system prompt extensions)
+			this._assistant.use(feature as any)
+		} else {
+			// Filtering with only/except — must call toTools with filter opts,
+			// then manually trigger setupToolsConsumer
+			const filterOpts = { only: spec.only, except: spec.except }
+			const tools = (feature as any).toTools(filterOpts)
+			this._assistant.use(tools)
+			if (typeof (feature as any).setupToolsConsumer === 'function') {
+				(feature as any).setupToolsConsumer(this._assistant)
+			}
+		}
 	}
 
 	/** Create a pending approval, emit the event, and return a promise that resolves with the decision. */

@@ -3,7 +3,6 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials } from '../bootstrap/generated.js'
-import { apiDocs } from './save-api-docs.js'
 import { generateScaffold } from '../scaffolds/template.js'
 
 declare module '../command.js' {
@@ -59,10 +58,6 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	const skillDir = mkPath('.claude', 'skills', 'luca-framework')
 	await fs.ensureFolder(skillDir)
 	await writeFile(fs, ui, container.paths.resolve(skillDir, 'SKILL.md'), bootstrapFiles['SKILL'] || '', '.claude/skills/luca-framework/SKILL.md')
-
-	ui.print.cyan('  Generating API docs...')
-	const apiDocsPath = container.paths.resolve(skillDir, 'references', 'api-docs')
-	await apiDocs({ _: [], outputPath: apiDocsPath }, context)
 
 	// ── 3b. examples and tutorials ─────────────────────────────────
 	const examplesDir = container.paths.resolve(skillDir, 'references', 'examples')
