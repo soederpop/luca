@@ -1,5 +1,5 @@
 // Auto-generated bootstrap content
-// Generated at: 2026-03-25T06:10:27.321Z
+// Generated at: 2026-03-26T03:30:22.249Z
 // Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md
 //
 // Do not edit manually. Run: luca build-bootstrap
@@ -25,7 +25,7 @@ There are three things to learn, in this order:
 
 ## Phase 1: Discover with \`luca describe\`
 
-This is your primary tool. Before reading source files, searching for APIs, or writing any code — ask describe. It outputs full documentation for any part of the container: methods, options, events, state, examples.
+This is your primary tool. The \`luca\` binary is a compiled artifact that bundles all introspection data — it is the authority on what the container provides. Run \`luca describe\` first — it outputs full documentation for any part of the container: methods, options, events, state, examples. Reading source can be helpful for additional context if it exists in the project, but the source for built-in helpers may not be present — the binary is always the ground truth.
 
 ### See what's available
 
@@ -77,6 +77,18 @@ luca describe fs git --examples     # just examples for both
 luca describe fs --usage --methods  # combine sections
 \`\`\`
 
+### Get approximate TypeScript types
+
+Need to know the shape of a helper for type-safe code? Use \`--ts\`:
+
+\`\`\`shell
+luca describe fs --ts              # approximate TS interface for fs
+luca describe conversation --ts    # see the conversation feature's type surface
+luca describe rest --ts            # client type shape
+\`\`\`
+
+This outputs a ~95% accurate TypeScript representation based on runtime introspection. If a type looks wrong or a method signature seems off, verify with \`luca eval\` against the live instance.
+
 ### Describe the container itself
 
 \`\`\`shell
@@ -92,7 +104,9 @@ luca describe --help       # full flag reference for describe
 luca help scaffold         # help for any command
 \`\`\`
 
-**Use \`luca describe\` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (\`ui.banner\`, \`fs.readFile\`) when you need docs on just one method or getter.
+**Use \`luca describe\` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (\`ui.banner\`, \`fs.readFile\`) when you need docs on just one method or getter. Use \`--ts\` when you need type information for writing code.
+
+> **NOTE:** The \`luca\` binary is compiled and bundles all introspection data. \`luca describe\` reflects what actually ships in the binary — source files for built-in helpers may not exist in your project. Reading source can add context when it's available, but \`luca describe\` and \`luca eval\` are always the authority.
 
 ---
 
@@ -239,7 +253,7 @@ Everything \`luca describe\` outputs is also available at runtime in code:
 \`\`\`js
 container.features.describe('fs')   // markdown docs (same as the CLI)
 feature.introspect()                // structured object: { methods, events, state, options }
-container.inspectAsText()           // full container overview as markdown
+container.introspectAsText()           // full container overview as markdown
 \`\`\`
 
 This is useful inside commands and scripts where you need introspection data programmatically.
@@ -255,11 +269,83 @@ This is useful inside commands and scripts where you need introspection data pro
 - \`luca serve --any-port\` will open on any port
 
 
-## Reference
+## Framework Index
 
-- \`references/api-docs/\` — full pre-generated API reference for every built-in feature, client, and server
-- \`references/examples/\` — runnable example docs for each feature (e.g. \`fs.md\`, \`git.md\`, \`proc.md\`)
-- \`references/tutorials/\` — step-by-step tutorials covering the container, helpers, commands, endpoints, and more
+A table of contents for the container. **Run \`luca describe <name>\` for full docs on any item.** Use \`luca describe <name> --ts\` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
+
+### Features by Category
+
+| Category | Features | What they do |
+|----------|----------|--------------|
+| **File System & Code** | \`fs\`, \`grep\`, \`fileManager\` | Read/write files, search code, watch for changes |
+| **Process & Shell** | \`proc\`, \`processManager\`, \`secureShell\` | Run commands, manage long-running processes, SSH |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`conversation\`, \`conversationHistory\`, \`fileTools\` | Build AI assistants, manage conversations, tool calling. \`fileTools\` composes lower-level features (\`fs\`, \`grep\`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see \`references/examples/feature-as-tool-provider.md\`). |
+| **AI Agent Wrappers** | \`claudeCode\`, \`openaiCodex\`, \`lucaCoder\` | Spawn and manage external AI agent CLIs as subprocesses |
+| **Data & Storage** | \`sqlite\`, \`postgres\`, \`diskCache\`, \`contentDb\`, \`redis\` | Databases, caching, document management |
+| **Networking** | \`networking\`, \`dns\`, \`portExposer\` | Network utilities, DNS, tunneling |
+| **Google Workspace** | \`googleAuth\`, \`googleDrive\`, \`googleDocs\`, \`googleSheets\`, \`googleCalendar\`, \`googleMail\` | OAuth and Google service wrappers |
+| **Dev Tools** | \`git\`, \`docker\`, \`esbuild\`, \`vm\`, \`python\`, \`packageFinder\` | Version control, containers, bundling, sandboxed execution |
+| **Content & NLP** | \`docsReader\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`jsonTree\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, skills, structured file ingestion |
+| **UI & Output** | \`ui\`, \`ink\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
+| **Media & Browser** | \`browserUse\`, \`tts\`, \`downloader\`, \`opener\`, \`telegram\` | Browser automation, text-to-speech, downloads, messaging |
+| **System** | \`os\`, \`vault\`, \`helpers\`, \`introspectionScanner\`, \`containerLink\`, \`repl\`, \`runpod\` | OS info, secrets, runtime introspection, remote container linking |
+
+### Clients
+
+| Client | Purpose |
+|--------|---------|
+| \`openai\` | Chat completions, embeddings, image generation |
+| \`rest\` | Generic HTTP client (GET/POST/PUT/PATCH/DELETE) |
+| \`websocket\` | WebSocket connections |
+| \`elevenlabs\` | Text-to-speech synthesis |
+| \`graph\` | GraphQL queries and mutations |
+
+### Servers
+
+| Server | Purpose |
+|--------|---------|
+| \`express\` | HTTP server with file-based endpoint routing |
+| \`mcp\` | Model Context Protocol server for AI tool exposure |
+| \`websocket\` | WebSocket server with JSON framing |
+| \`ipcSocket\` | Local IPC socket server for inter-process communication |
+
+### Type Discovery
+
+\`luca describe <name> --ts\` outputs an approximate TypeScript representation of any helper as it exists at runtime — ~95% accurate. This is your go-to for writing type-safe code against the container. The binary compiles in the introspection data, so \`--ts\` reflects what actually exists at runtime even when source isn't available. Reading source can provide additional context when it's there.
+
+\`\`\`shell
+luca describe fs --ts              # approximate TS interface for the fs feature
+luca describe conversation --ts    # conversation feature type surface
+luca describe express --ts         # express server type shape
+\`\`\`
+
+If a method signature or return type looks wrong, verify with \`luca eval\`:
+
+\`\`\`shell
+luca eval "typeof container.feature('fs').readFile"
+luca eval "container.feature('fs').readFile('package.json')"
+\`\`\`
+
+### Bundled Examples and Tutorials
+
+The skill directory includes reference material:
+
+- **\`references/examples/\`** — short, focused example docs for individual features (e.g. \`fs.md\`, \`git.md\`, \`proc.md\`)
+- **\`references/tutorials/\`** — longer-form guides covering the container, helpers, commands, endpoints, state/events, assistants, and more
+
+These complement \`luca describe\` — describe gives you the API surface, examples show you patterns in action, and tutorials walk through building things end to end.
+
+**Tip:** Runnable markdown is a great artifact to produce when building with luca. \`luca run doc.md\` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
+
+### Container Primitives
+
+| Primitive | Access | Purpose |
+|-----------|--------|---------|
+| State | \`container.state\`, \`helper.state\` | Observable key-value state on every object |
+| Events | \`container.on()\`, \`helper.on()\` | Event bus on every object |
+| Paths | \`container.paths\` | \`resolve()\`, \`join()\`, \`cwd\` |
+| Utils | \`container.utils\` | \`uuid()\`, \`lodash\`, \`stringUtils\`, \`hashObject()\` |
+| Registries | \`container.features\`, \`.clients\`, \`.servers\` | Discovery and metadata for all helpers |
 `,
   "CLAUDE": `# Luca Project
 
@@ -295,7 +381,7 @@ The \`luca\` binary is available in the path. Key commands:
 1. **Discover** — Run \`luca describe features\`, \`luca describe clients\`, \`luca describe servers\` to see what's available. Then \`luca describe <name>\` for full docs on any helper, or \`luca describe <name>.<member>\` to drill into a specific method or getter. This is your first move, always. (See \`.claude/skills/luca-framework/SKILL.md\` for the full mental model.)
 2. **Build** — Run \`luca scaffold <type> --tutorial\` before creating a new helper. It covers the full guide for that type.
 3. **Prototype** — Use \`luca eval "expression"\` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access.
-4. **Reference** — Browse \`.claude/skills/luca-framework/references/\` for pre-generated API docs, runnable examples, and tutorials
+4. **Reference** — The skill file (\`.claude/skills/luca-framework/SKILL.md\`) includes a full Framework Index with every feature, client, and server organized by category
 
 ## Project Structure
 
@@ -2044,6 +2130,150 @@ Supports pagination via \`pageToken\`, ordering by \`startTime\` or \`updated\`,
 ## Summary
 
 The \`googleCalendar\` feature provides read access to Google Calendar events. Use the convenience methods \`getToday()\` and \`getUpcoming()\` for quick lookups, \`searchEvents()\` for text search, or \`listEvents()\` for full query control. Authentication is handled by \`googleAuth\`. Key methods: \`listCalendars()\`, \`getToday()\`, \`getUpcoming()\`, \`searchEvents()\`, \`listEvents()\`.
+`,
+  "feature-as-tool-provider.md": `---
+title: "Features as Tool Providers for Assistants"
+tags: [feature, tools, assistant, composition, use, setupToolsConsumer]
+lastTested: null
+lastTestPassed: null
+---
+
+# Features as Tool Providers for Assistants
+
+Any feature can expose tools that assistants pick up via \`assistant.use(feature)\`. This is how you compose lower-level container capabilities into an assistant-ready tool surface. The built-in \`fileTools\` feature is the canonical example — it wraps \`fs\` and \`grep\` into a focused set of tools modeled on what coding assistants need.
+
+## The Pattern
+
+A feature becomes a tool provider by defining three things:
+
+1. **\`static tools\`** — a record mapping tool names to Zod schemas with descriptions
+2. **Matching methods** — instance methods whose names match the keys in \`static tools\`
+3. **\`setupToolsConsumer()\`** (optional) — a hook that runs when an assistant calls \`use()\`, perfect for injecting system prompt guidance
+
+When an assistant calls \`assistant.use(feature)\`, the framework:
+- Reads \`static tools\` to register each tool with its schema
+- Routes tool calls to the matching instance methods
+- Calls \`setupToolsConsumer()\` so the feature can configure the assistant (e.g. add system prompt extensions)
+
+## Anatomy of fileTools
+
+Here's the structure of the built-in \`fileTools\` feature (simplified for clarity):
+
+\`\`\`ts
+import { z } from 'zod'
+import { Feature } from '@soederpop/luca/feature'
+
+export class FileTools extends Feature {
+  static { Feature.register(this, 'fileTools') }
+
+  // ── 1. Declare tools with Zod schemas ──────────────────────────
+  static tools = {
+    readFile: {
+      description: 'Read the contents of a file.',
+      schema: z.object({
+        path: z.string().describe('File path relative to the project root'),
+        offset: z.number().optional().describe('Line number to start reading from'),
+        limit: z.number().optional().describe('Maximum number of lines to read'),
+      }),
+    },
+    searchFiles: {
+      description: 'Search file contents for a pattern using ripgrep.',
+      schema: z.object({
+        pattern: z.string().describe('Search pattern (regex supported)'),
+        path: z.string().optional().describe('Directory to search in'),
+        include: z.string().optional().describe('Glob pattern to filter files'),
+      }),
+    },
+    editFile: {
+      description: 'Replace an exact string match in a file.',
+      schema: z.object({
+        path: z.string().describe('File path relative to the project root'),
+        oldString: z.string().describe('The exact text to find and replace'),
+        newString: z.string().describe('The replacement text'),
+      }),
+    },
+    // ... more tools
+  }
+
+  // ── 2. Implement each tool as an instance method ───────────────
+  // Method names must match the keys in static tools exactly.
+  // Each receives the parsed args object and returns a string.
+
+  async readFile(args: { path: string; offset?: number; limit?: number }) {
+    const fs = this.container.feature('fs')
+    const content = await fs.readFileAsync(args.path)
+    // ... handle offset/limit
+    return content
+  }
+
+  async searchFiles(args: { pattern: string; path?: string; include?: string }) {
+    const grep = this.container.feature('grep')
+    const results = await grep.search({ pattern: args.pattern, path: args.path, include: args.include })
+    return JSON.stringify(results.map(r => ({ file: r.file, line: r.line, content: r.content })))
+  }
+
+  async editFile(args: { path: string; oldString: string; newString: string }) {
+    const fs = this.container.feature('fs')
+    const content = await fs.readFileAsync(args.path)
+    const updated = content.replace(args.oldString, args.newString)
+    await fs.writeFileAsync(args.path, updated)
+    return \`Edited \${args.path}\`
+  }
+
+  // ── 3. Configure the assistant when it calls use() ─────────────
+  override setupToolsConsumer(consumer) {
+    // If the consumer is an assistant, inject guidance into its system prompt
+    if (typeof consumer.addSystemPromptExtension === 'function') {
+      consumer.addSystemPromptExtension('fileTools', [
+        '## File Tools',
+        '- All file paths are relative to the project root unless they start with /',
+        '- Use searchFiles to understand code before modifying it',
+        '- Use editFile for surgical changes — prefer it over writeFile',
+      ].join('\\n'))
+    }
+  }
+}
+\`\`\`
+
+## Using It
+
+\`\`\`ts
+const assistant = container.feature('assistant', {
+  systemPrompt: 'You are a coding assistant.',
+  model: 'gpt-4.1-mini',
+})
+
+const fileTools = container.feature('fileTools')
+assistant.use(fileTools)
+await assistant.start()
+
+// The assistant now has readFile, searchFiles, editFile, etc.
+// and its system prompt includes the fileTools guidance.
+console.log(Object.keys(assistant.tools))
+\`\`\`
+
+### Selective tool registration
+
+You can expose only a subset of tools:
+
+\`\`\`ts
+assistant.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] }))
+\`\`\`
+
+## Why This Pattern Matters
+
+This is how features compose for AI. Instead of the assistant importing \`fs\` and \`grep\` directly:
+
+- The **feature** owns the tool surface — schemas, descriptions, and implementations in one place
+- The **assistant** gets a curated interface, not raw container access
+- **\`setupToolsConsumer()\`** lets the feature teach the assistant how to use the tools well
+- **\`toTools({ only })\`** lets you scope down what the assistant can do
+
+Any feature you build can follow this same pattern. Define \`static tools\`, implement matching methods, optionally override \`setupToolsConsumer()\`, and assistants can \`use()\` it.
+
+## Summary
+
+Features are the natural place to package tools for assistants. The \`static tools\` record declares the schema, instance methods implement the logic, and \`setupToolsConsumer()\` wires up assistant-specific configuration like system prompt extensions. This keeps tool definitions, implementations, and assistant guidance co-located in a single feature class.
 `,
   "content-db.md": `---
 title: "Content Database"
@@ -5216,6 +5446,11 @@ Then anyone (human or AI) can discover your feature:
 \`\`\`typescript
 container.features.describe('sessionManager')
 // Returns the full markdown documentation extracted from your JSDoc
+
+// Quick discovery — list available methods and getters
+const session = container.feature('sessionManager')
+session.$methods  // => ['createSession', ...]
+session.$getters  // => ['activeCount', ...]
 \`\`\`
 
 ## Best Practices
@@ -5246,11 +5481,11 @@ Introspection serves two audiences:
 
 \`\`\`typescript
 // Structured data about the entire container
-const info = container.inspect()
+const info = container.introspect()
 // Returns: registries, enabled features, state schema, available helpers
 
 // Human-readable markdown
-const docs = container.inspectAsText()
+const docs = container.introspectAsText()
 \`\`\`
 
 ## Registry-Level Discovery
@@ -5299,6 +5534,16 @@ const info = fs.introspect()
 
 // Human-readable markdown
 const docs = fs.introspectAsText()
+\`\`\`
+
+### Quick Discovery with $getters and $methods
+
+Every helper exposes \`$getters\` and \`$methods\` — string arrays listing what's available on the instance. Useful for quick exploration without parsing the full introspection object:
+
+\`\`\`typescript
+const fs = container.feature('fs')
+fs.$methods  // => ['readFile', 'writeFile', 'walk', 'readdir', ...]
+fs.$getters  // => ['cwd', 'sep', ...]
 \`\`\`
 
 ### What's in the Introspection Data?
@@ -6875,8 +7120,8 @@ fs.introspectAsText()
 The container itself is introspectable:
 
 \`\`\`js
-container.inspect()          // structured object with all registries, state, events
-container.inspectAsText()    // full markdown overview
+container.introspect()          // structured object with all registries, state, events
+container.introspectAsText()    // full markdown overview
 \`\`\`
 
 ## The REPL
@@ -6911,7 +7156,7 @@ luca eval "grep.search('.', 'TODO')"
 | Structured introspection?      | \`feature.introspect()\`                 |
 | What state does it have?       | \`feature.state.current\`               |
 | What events does it emit?      | \`feature.introspect().events\`          |
-| Full container overview?       | \`container.inspectAsText()\`            |
+| Full container overview?       | \`container.introspectAsText()\`            |
 | CLI docs for a helper?         | \`luca describe <name>\`                 |
 
 ## Gotchas
@@ -7570,10 +7815,10 @@ Discover everything about the container at runtime:
 
 \`\`\`typescript
 // Structured introspection data
-const info = container.inspect()
+const info = container.introspect()
 
 // Human-readable markdown
-const docs = container.inspectAsText()
+const docs = container.introspectAsText()
 \`\`\`
 
 This is what makes Luca especially powerful for AI agents -- they can discover the entire API surface at runtime without reading documentation.

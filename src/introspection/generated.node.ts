@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-25T06:10:25.425Z
+// Generated at: 2026-03-26T03:30:20.464Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -11918,202 +11918,6 @@ setBuildTimeData('clients.websocket', {
   "envVars": []
 });
 
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
-});
-
 setBuildTimeData('clients.openai', {
   "id": "clients.openai",
   "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
@@ -12378,6 +12182,202 @@ setBuildTimeData('clients.openai', {
     {
       "language": "ts",
       "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
+    }
+  ]
+});
+
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
+  "methods": {
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
+      "parameters": {
+        "table": {
+          "type": "string",
+          "description": "The table or view name to query"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "returns": "void"
+    },
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
+      "parameters": {
+        "fn": {
+          "type": "string",
+          "description": "The function name"
+        },
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
+        },
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signOut": {
+      "description": "Sign the current user out.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
+    },
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
     }
   ]
 });
@@ -13675,7 +13675,7 @@ setContainerBuildTimeData('Container', {
         }
       ]
     },
-    "inspect": {
+    "introspect": {
       "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
       "parameters": {},
       "required": [],
@@ -13683,11 +13683,11 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+          "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
         }
       ]
     },
-    "inspectAsText": {
+    "introspectAsText": {
       "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
       "parameters": {
         "sectionOrDepth": {
@@ -13704,32 +13704,17 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+          "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
         }
       ]
     },
-    "introspectAsText": {
-      "description": "Alias for inspectAsText.",
-      "parameters": {
-        "sectionOrDepth": {
-          "type": "IntrospectionSection | number",
-          "description": "Parameter sectionOrDepth"
-        },
-        "startHeadingDepth": {
-          "type": "number",
-          "description": "Parameter startHeadingDepth"
-        }
-      },
-      "required": [],
-      "returns": "string"
-    },
     "introspectAsJSON": {
-      "description": "Alias for inspect, returns JSON introspection data.",
+      "description": "Returns JSON introspection data.",
       "parameters": {},
       "required": [],
       "returns": "ContainerIntrospection"
     },
-    "inspectAsType": {
+    "introspectAsType": {
       "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
       "parameters": {},
       "required": [],
@@ -13737,15 +13722,9 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+          "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
         }
       ]
-    },
-    "introspectAsType": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "string"
     },
     "sleep": {
       "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
@@ -25767,201 +25746,6 @@ export const introspectionData = [
     "envVars": []
   },
   {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
-  },
-  {
     "id": "clients.openai",
     "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
     "shortcut": "clients.openai",
@@ -26225,6 +26009,201 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
+      }
+    ]
+  },
+  {
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
+    "methods": {
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
+        "parameters": {
+          "table": {
+            "type": "string",
+            "description": "The table or view name to query"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "returns": "void"
+      },
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
+        "parameters": {
+          "fn": {
+            "type": "string",
+            "description": "The function name"
+          },
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
+          },
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signOut": {
+        "description": "Sign the current user out.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
+      },
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
       }
     ]
   },
@@ -27518,7 +27497,7 @@ export const containerIntrospectionData = [
           }
         ]
       },
-      "inspect": {
+      "introspect": {
         "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
         "parameters": {},
         "required": [],
@@ -27526,11 +27505,11 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+            "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
           }
         ]
       },
-      "inspectAsText": {
+      "introspectAsText": {
         "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
         "parameters": {
           "sectionOrDepth": {
@@ -27547,32 +27526,17 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+            "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
           }
         ]
       },
-      "introspectAsText": {
-        "description": "Alias for inspectAsText.",
-        "parameters": {
-          "sectionOrDepth": {
-            "type": "IntrospectionSection | number",
-            "description": "Parameter sectionOrDepth"
-          },
-          "startHeadingDepth": {
-            "type": "number",
-            "description": "Parameter startHeadingDepth"
-          }
-        },
-        "required": [],
-        "returns": "string"
-      },
       "introspectAsJSON": {
-        "description": "Alias for inspect, returns JSON introspection data.",
+        "description": "Returns JSON introspection data.",
         "parameters": {},
         "required": [],
         "returns": "ContainerIntrospection"
       },
-      "inspectAsType": {
+      "introspectAsType": {
         "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
         "parameters": {},
         "required": [],
@@ -27580,15 +27544,9 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+            "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
           }
         ]
-      },
-      "introspectAsType": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "string"
       },
       "sleep": {
         "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",

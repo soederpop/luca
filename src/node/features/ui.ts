@@ -3,13 +3,7 @@ import { FeatureStateSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import colors from "chalk";
 import type { Fonts } from "figlet";
-
-let figlet: typeof import("figlet").default | null = null;
-try {
-  figlet = require("figlet");
-} catch {
-  // figlet not installed — asciiArt/banner will fall back to plain text
-}
+import { figlet, fontNames } from "./figlet-fonts.js";
 import inquirer from "inquirer";
 import { marked } from 'marked';
 import { markedTerminal } from 'marked-terminal';
@@ -257,8 +251,8 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   get fonts(): string[] {
     const fonts = this.state.get("fonts")! || [];
 
-    if (!fonts.length && figlet) {
-      this.state.set("fonts", figlet.fontsSync());
+    if (!fonts.length) {
+      this.state.set("fonts", fontNames);
     }
 
     return this.state.get("fonts")!;
@@ -430,8 +424,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * ```
    */
   asciiArt(text: string, font: Fonts): string {
-    if (!figlet) return text;
-    return figlet.textSync(text, font);
+    return figlet.textSync(text, font as any);
   }
 
   /**

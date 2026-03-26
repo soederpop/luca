@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-25T06:10:25.538Z
+// Generated at: 2026-03-26T03:30:20.574Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -11918,6 +11918,470 @@ setBuildTimeData('clients.websocket', {
   "envVars": []
 });
 
+setBuildTimeData('clients.openai', {
+  "id": "clients.openai",
+  "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
+  "shortcut": "clients.openai",
+  "className": "OpenAIClient",
+  "methods": {
+    "connect": {
+      "description": "Test the API connection by listing models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await openai.connect()"
+        }
+      ]
+    },
+    "createChatCompletion": {
+      "description": "Create a chat completion using the Chat Completions API.",
+      "parameters": {
+        "messages": {
+          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
+          "description": "Array of chat messages"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+          "description": "Additional parameters for the completion"
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const response = await openai.createChatCompletion([\n { role: 'system', content: 'You are a helpful assistant.' },\n { role: 'user', content: 'Hello!' }\n])\nconsole.log(response.choices[0]?.message?.content)"
+        }
+      ]
+    },
+    "createResponse": {
+      "description": "Create a response using the Responses API.",
+      "parameters": {
+        "input": {
+          "type": "OpenAI.Responses.ResponseInput | string",
+          "description": "The input prompt or message array"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming>",
+          "description": "Additional parameters for the response"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<OpenAI.Responses.Response>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const response = await openai.createResponse('Explain quantum computing')"
+        }
+      ]
+    },
+    "streamResponse": {
+      "description": "Stream a response using the Responses API.",
+      "parameters": {
+        "input": {
+          "type": "OpenAI.Responses.ResponseInput | string",
+          "description": "The input prompt or message array"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Responses.ResponseCreateParamsStreaming>",
+          "description": "Additional parameters for the streaming response"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<AsyncIterable<OpenAI.Responses.ResponseStreamEvent>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stream = await openai.streamResponse('Write a poem')\nfor await (const event of stream) {\n if (event.type === 'response.output_text.delta') {\n   process.stdout.write(event.delta)\n }\n}"
+        }
+      ]
+    },
+    "createCompletion": {
+      "description": "Create a legacy text completion.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "The text prompt to complete"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
+          "description": "Additional parameters for the completion"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<OpenAI.Completions.Completion>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const response = await openai.createCompletion('Once upon a time')"
+        }
+      ]
+    },
+    "createEmbedding": {
+      "description": "Create text embeddings for semantic search or similarity comparisons.",
+      "parameters": {
+        "input": {
+          "type": "string | string[]",
+          "description": "A string or array of strings to embed"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
+          "description": "Additional parameters (model, etc.)"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const response = await openai.createEmbedding('Hello world')\nconsole.log(response.data[0].embedding.length)"
+        }
+      ]
+    },
+    "createImage": {
+      "description": "Generate an image from a text prompt using DALL-E.",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "Description of the image to generate"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Images.ImageGenerateParams>",
+          "description": "Additional parameters (size, n, etc.)"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<OpenAI.Images.ImagesResponse>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const response = await openai.createImage('A sunset over mountains')\nconsole.log(response.data[0].url)"
+        }
+      ]
+    },
+    "listModels": {
+      "description": "List all available models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<OpenAI.Models.ModelsPage>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const models = await openai.listModels()"
+        }
+      ]
+    },
+    "ask": {
+      "description": "Ask a single question and get a text response. Convenience wrapper around `createChatCompletion` for simple Q&A.",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "The question to ask"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+          "description": "Additional completion parameters"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const answer = await openai.ask('What is 2 + 2?')\nconsole.log(answer) // '4'"
+        }
+      ]
+    },
+    "chat": {
+      "description": "Send a multi-turn conversation and get a text response. Convenience wrapper around `createChatCompletion` that returns just the text.",
+      "parameters": {
+        "messages": {
+          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
+          "description": "Array of chat messages"
+        },
+        "options": {
+          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+          "description": "Additional completion parameters"
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const reply = await openai.chat([\n { role: 'system', content: 'You are a pirate.' },\n { role: 'user', content: 'Hello!' }\n])"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "defaultModel": {
+      "description": "The default model used for completions, from options or 'gpt-4o'.",
+      "returns": "string"
+    },
+    "raw": {
+      "description": "The underlying OpenAI SDK instance for advanced use cases.",
+      "returns": "OpenAI"
+    }
+  },
+  "events": {
+    "connected": {
+      "name": "connected",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    },
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    },
+    "completion": {
+      "name": "completion",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    },
+    "embedding": {
+      "name": "embedding",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    },
+    "image": {
+      "name": "image",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    },
+    "models": {
+      "name": "models",
+      "description": "Event emitted by OpenAIClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
+    }
+  ]
+});
+
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
+  "methods": {
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
+      "parameters": {
+        "table": {
+          "type": "string",
+          "description": "The table or view name to query"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "returns": "void"
+    },
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
+      "parameters": {
+        "fn": {
+          "type": "string",
+          "description": "The function name"
+        },
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
+        },
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signOut": {
+      "description": "Sign the current user out.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
+    },
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+    }
+  ]
+});
+
 setBuildTimeData('clients.elevenlabs', {
   "id": "clients.elevenlabs",
   "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
@@ -12477,470 +12941,6 @@ setBuildTimeData('clients.comfyui', {
       }
     }
   }
-});
-
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
-});
-
-setBuildTimeData('clients.openai', {
-  "id": "clients.openai",
-  "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
-  "shortcut": "clients.openai",
-  "className": "OpenAIClient",
-  "methods": {
-    "connect": {
-      "description": "Test the API connection by listing models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await openai.connect()"
-        }
-      ]
-    },
-    "createChatCompletion": {
-      "description": "Create a chat completion using the Chat Completions API.",
-      "parameters": {
-        "messages": {
-          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-          "description": "Array of chat messages"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Additional parameters for the completion"
-        }
-      },
-      "required": [
-        "messages"
-      ],
-      "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const response = await openai.createChatCompletion([\n { role: 'system', content: 'You are a helpful assistant.' },\n { role: 'user', content: 'Hello!' }\n])\nconsole.log(response.choices[0]?.message?.content)"
-        }
-      ]
-    },
-    "createResponse": {
-      "description": "Create a response using the Responses API.",
-      "parameters": {
-        "input": {
-          "type": "OpenAI.Responses.ResponseInput | string",
-          "description": "The input prompt or message array"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming>",
-          "description": "Additional parameters for the response"
-        }
-      },
-      "required": [
-        "input"
-      ],
-      "returns": "Promise<OpenAI.Responses.Response>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const response = await openai.createResponse('Explain quantum computing')"
-        }
-      ]
-    },
-    "streamResponse": {
-      "description": "Stream a response using the Responses API.",
-      "parameters": {
-        "input": {
-          "type": "OpenAI.Responses.ResponseInput | string",
-          "description": "The input prompt or message array"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Responses.ResponseCreateParamsStreaming>",
-          "description": "Additional parameters for the streaming response"
-        }
-      },
-      "required": [
-        "input"
-      ],
-      "returns": "Promise<AsyncIterable<OpenAI.Responses.ResponseStreamEvent>>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const stream = await openai.streamResponse('Write a poem')\nfor await (const event of stream) {\n if (event.type === 'response.output_text.delta') {\n   process.stdout.write(event.delta)\n }\n}"
-        }
-      ]
-    },
-    "createCompletion": {
-      "description": "Create a legacy text completion.",
-      "parameters": {
-        "prompt": {
-          "type": "string",
-          "description": "The text prompt to complete"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
-          "description": "Additional parameters for the completion"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<OpenAI.Completions.Completion>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const response = await openai.createCompletion('Once upon a time')"
-        }
-      ]
-    },
-    "createEmbedding": {
-      "description": "Create text embeddings for semantic search or similarity comparisons.",
-      "parameters": {
-        "input": {
-          "type": "string | string[]",
-          "description": "A string or array of strings to embed"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
-          "description": "Additional parameters (model, etc.)"
-        }
-      },
-      "required": [
-        "input"
-      ],
-      "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const response = await openai.createEmbedding('Hello world')\nconsole.log(response.data[0].embedding.length)"
-        }
-      ]
-    },
-    "createImage": {
-      "description": "Generate an image from a text prompt using DALL-E.",
-      "parameters": {
-        "prompt": {
-          "type": "string",
-          "description": "Description of the image to generate"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Images.ImageGenerateParams>",
-          "description": "Additional parameters (size, n, etc.)"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<OpenAI.Images.ImagesResponse>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const response = await openai.createImage('A sunset over mountains')\nconsole.log(response.data[0].url)"
-        }
-      ]
-    },
-    "listModels": {
-      "description": "List all available models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<OpenAI.Models.ModelsPage>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const models = await openai.listModels()"
-        }
-      ]
-    },
-    "ask": {
-      "description": "Ask a single question and get a text response. Convenience wrapper around `createChatCompletion` for simple Q&A.",
-      "parameters": {
-        "question": {
-          "type": "string",
-          "description": "The question to ask"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Additional completion parameters"
-        }
-      },
-      "required": [
-        "question"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const answer = await openai.ask('What is 2 + 2?')\nconsole.log(answer) // '4'"
-        }
-      ]
-    },
-    "chat": {
-      "description": "Send a multi-turn conversation and get a text response. Convenience wrapper around `createChatCompletion` that returns just the text.",
-      "parameters": {
-        "messages": {
-          "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-          "description": "Array of chat messages"
-        },
-        "options": {
-          "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-          "description": "Additional completion parameters"
-        }
-      },
-      "required": [
-        "messages"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const reply = await openai.chat([\n { role: 'system', content: 'You are a pirate.' },\n { role: 'user', content: 'Hello!' }\n])"
-        }
-      ]
-    }
-  },
-  "getters": {
-    "defaultModel": {
-      "description": "The default model used for completions, from options or 'gpt-4o'.",
-      "returns": "string"
-    },
-    "raw": {
-      "description": "The underlying OpenAI SDK instance for advanced use cases.",
-      "returns": "OpenAI"
-    }
-  },
-  "events": {
-    "connected": {
-      "name": "connected",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "completion": {
-      "name": "completion",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "embedding": {
-      "name": "embedding",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "image": {
-      "name": "image",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    },
-    "models": {
-      "name": "models",
-      "description": "Event emitted by OpenAIClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
-    }
-  ]
 });
 
 setBuildTimeData('servers.mcp', {
@@ -17033,6 +17033,303 @@ setBuildTimeData('features.openaiCodex', {
   }
 });
 
+setBuildTimeData('features.lucaCoder', {
+  "id": "features.lucaCoder",
+  "description": "A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in .claude/skills paths. Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
+  "shortcut": "features.lucaCoder",
+  "className": "LucaCoder",
+  "methods": {
+    "getPermission": {
+      "description": "Get the effective permission level for a tool.",
+      "parameters": {
+        "toolName": {
+          "type": "string",
+          "description": "Parameter toolName"
+        }
+      },
+      "required": [
+        "toolName"
+      ],
+      "returns": "PermissionLevel"
+    },
+    "setPermission": {
+      "description": "Set permission level for one or more tools.",
+      "parameters": {
+        "toolName": {
+          "type": "string | string[]",
+          "description": "Parameter toolName"
+        },
+        "level": {
+          "type": "PermissionLevel",
+          "description": "Parameter level"
+        }
+      },
+      "required": [
+        "toolName",
+        "level"
+      ],
+      "returns": "this"
+    },
+    "setDefaultPermission": {
+      "description": "Set the default permission level for unconfigured tools.",
+      "parameters": {
+        "level": {
+          "type": "PermissionLevel",
+          "description": "Parameter level"
+        }
+      },
+      "required": [
+        "level"
+      ],
+      "returns": "this"
+    },
+    "permitTool": {
+      "description": "Allow a tool (or tools) to run without approval.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "gateTool": {
+      "description": "Require approval before a tool (or tools) can run.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "blockTool": {
+      "description": "Block a tool (or tools) from ever running.",
+      "parameters": {
+        "toolNames": {
+          "type": "string[]",
+          "description": "Parameter toolNames"
+        }
+      },
+      "required": [
+        "toolNames"
+      ],
+      "returns": "this"
+    },
+    "approve": {
+      "description": "Approve a pending tool call by ID. The tool will execute.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "this"
+    },
+    "deny": {
+      "description": "Deny a pending tool call by ID. The tool call will be skipped.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "this"
+    },
+    "approveAll": {
+      "description": "Approve all pending tool calls.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
+    "denyAll": {
+      "description": "Deny all pending tool calls.",
+      "parameters": {},
+      "required": [],
+      "returns": "this"
+    },
+    "bash": {
+      "description": "Execute a shell command string and return its output. Uses proc.execAndCapture under the hood — runs `sh -c <command>`.",
+      "parameters": {
+        "{ command, cwd, timeout }": {
+          "type": "{ command: string; cwd?: string; timeout?: number }",
+          "description": "Parameter { command, cwd, timeout }"
+        }
+      },
+      "required": [
+        "{ command, cwd, timeout }"
+      ],
+      "returns": "Promise<{\n\t\texitCode: number\n\t\tstdout: string\n\t\tstderr: string\n\t\tsuccess: boolean\n\t}>"
+    },
+    "start": {
+      "description": "Initialize the inner assistant, register the bash tool, stack tool bundles, auto-load skills, and wire up the permission interceptor.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "ask": {
+      "description": "Ask the coder a question. Auto-starts if needed. Tool calls will be gated by the permission system.",
+      "parameters": {
+        "question": {
+          "type": "string",
+          "description": "Parameter question"
+        },
+        "options": {
+          "type": "Record<string, any>",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "returns": "Promise<string>"
+    },
+    "use": {
+      "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
+      "parameters": {
+        "spec": {
+          "type": "ToolBundleSpec",
+          "description": "Parameter spec"
+        }
+      },
+      "required": [
+        "spec"
+      ],
+      "returns": "this"
+    }
+  },
+  "getters": {
+    "assistant": {
+      "description": "The inner assistant. Throws if not started.",
+      "returns": "Assistant"
+    },
+    "permissions": {
+      "description": "Current permission map from state.",
+      "returns": "Record<string, PermissionLevel>"
+    },
+    "pendingApprovals": {
+      "description": "Current pending approvals.",
+      "returns": "PendingApproval[]"
+    },
+    "isStarted": {
+      "description": "Whether the assistant is started and ready.",
+      "returns": "boolean"
+    },
+    "tools": {
+      "description": "The tools registered on the inner assistant.",
+      "returns": "Record<string, any>"
+    },
+    "conversation": {
+      "description": "The conversation on the inner assistant (if started).",
+      "returns": "any"
+    },
+    "messages": {
+      "description": "Messages from the inner assistant's conversation.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "permissionGranted": {
+      "name": "permissionGranted",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "permissionDenied": {
+      "name": "permissionDenied",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "toolBlocked": {
+      "name": "toolBlocked",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "chunk": {
+      "name": "chunk",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "response": {
+      "name": "response",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "toolResult": {
+      "name": "toolResult",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "started": {
+      "name": "started",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    },
+    "permissionRequest": {
+      "name": "permissionRequest",
+      "description": "Event emitted by LucaCoder",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const coder = container.feature('lucaCoder', {\n tools: ['fileTools'],\n permissions: {\n   readFile: 'allow',\n   searchFiles: 'allow',\n   writeFile: 'ask',\n   bash: 'ask',\n },\n defaultPermission: 'ask',\n systemPrompt: 'You are a coding assistant.',\n})\n\ncoder.on('permissionRequest', ({ id, toolName, args }) => {\n console.log(`Tool \"${toolName}\" wants to run with`, args)\n coder.approve(id)  // or coder.deny(id)\n})\n\nawait coder.ask('Refactor the auth module to use async/await')"
+    }
+  ],
+  "types": {
+    "PendingApproval": {
+      "description": "A pending approval awaiting user decision.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "toolName": {
+          "type": "string",
+          "description": ""
+        },
+        "args": {
+          "type": "Record<string, any>",
+          "description": ""
+        },
+        "timestamp": {
+          "type": "number",
+          "description": ""
+        },
+        "resolve": {
+          "type": "(decision: 'approve' | 'deny') => void",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.conversationHistory', {
   "id": "features.conversationHistory",
   "description": "Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.",
@@ -18198,7 +18495,7 @@ setContainerBuildTimeData('Container', {
         }
       ]
     },
-    "inspect": {
+    "introspect": {
       "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
       "parameters": {},
       "required": [],
@@ -18206,11 +18503,11 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+          "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
         }
       ]
     },
-    "inspectAsText": {
+    "introspectAsText": {
       "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
       "parameters": {
         "sectionOrDepth": {
@@ -18227,32 +18524,17 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+          "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
         }
       ]
     },
-    "introspectAsText": {
-      "description": "Alias for inspectAsText.",
-      "parameters": {
-        "sectionOrDepth": {
-          "type": "IntrospectionSection | number",
-          "description": "Parameter sectionOrDepth"
-        },
-        "startHeadingDepth": {
-          "type": "number",
-          "description": "Parameter startHeadingDepth"
-        }
-      },
-      "required": [],
-      "returns": "string"
-    },
     "introspectAsJSON": {
-      "description": "Alias for inspect, returns JSON introspection data.",
+      "description": "Returns JSON introspection data.",
       "parameters": {},
       "required": [],
       "returns": "ContainerIntrospection"
     },
-    "inspectAsType": {
+    "introspectAsType": {
       "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
       "parameters": {},
       "required": [],
@@ -18260,15 +18542,9 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+          "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
         }
       ]
-    },
-    "introspectAsType": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "string"
     },
     "sleep": {
       "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
@@ -30344,6 +30620,468 @@ export const introspectionData = [
     "envVars": []
   },
   {
+    "id": "clients.openai",
+    "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
+    "shortcut": "clients.openai",
+    "className": "OpenAIClient",
+    "methods": {
+      "connect": {
+        "description": "Test the API connection by listing models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await openai.connect()"
+          }
+        ]
+      },
+      "createChatCompletion": {
+        "description": "Create a chat completion using the Chat Completions API.",
+        "parameters": {
+          "messages": {
+            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
+            "description": "Array of chat messages"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+            "description": "Additional parameters for the completion"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const response = await openai.createChatCompletion([\n { role: 'system', content: 'You are a helpful assistant.' },\n { role: 'user', content: 'Hello!' }\n])\nconsole.log(response.choices[0]?.message?.content)"
+          }
+        ]
+      },
+      "createResponse": {
+        "description": "Create a response using the Responses API.",
+        "parameters": {
+          "input": {
+            "type": "OpenAI.Responses.ResponseInput | string",
+            "description": "The input prompt or message array"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming>",
+            "description": "Additional parameters for the response"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<OpenAI.Responses.Response>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const response = await openai.createResponse('Explain quantum computing')"
+          }
+        ]
+      },
+      "streamResponse": {
+        "description": "Stream a response using the Responses API.",
+        "parameters": {
+          "input": {
+            "type": "OpenAI.Responses.ResponseInput | string",
+            "description": "The input prompt or message array"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Responses.ResponseCreateParamsStreaming>",
+            "description": "Additional parameters for the streaming response"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<AsyncIterable<OpenAI.Responses.ResponseStreamEvent>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stream = await openai.streamResponse('Write a poem')\nfor await (const event of stream) {\n if (event.type === 'response.output_text.delta') {\n   process.stdout.write(event.delta)\n }\n}"
+          }
+        ]
+      },
+      "createCompletion": {
+        "description": "Create a legacy text completion.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "The text prompt to complete"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
+            "description": "Additional parameters for the completion"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<OpenAI.Completions.Completion>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const response = await openai.createCompletion('Once upon a time')"
+          }
+        ]
+      },
+      "createEmbedding": {
+        "description": "Create text embeddings for semantic search or similarity comparisons.",
+        "parameters": {
+          "input": {
+            "type": "string | string[]",
+            "description": "A string or array of strings to embed"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
+            "description": "Additional parameters (model, etc.)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const response = await openai.createEmbedding('Hello world')\nconsole.log(response.data[0].embedding.length)"
+          }
+        ]
+      },
+      "createImage": {
+        "description": "Generate an image from a text prompt using DALL-E.",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "Description of the image to generate"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Images.ImageGenerateParams>",
+            "description": "Additional parameters (size, n, etc.)"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<OpenAI.Images.ImagesResponse>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const response = await openai.createImage('A sunset over mountains')\nconsole.log(response.data[0].url)"
+          }
+        ]
+      },
+      "listModels": {
+        "description": "List all available models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<OpenAI.Models.ModelsPage>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const models = await openai.listModels()"
+          }
+        ]
+      },
+      "ask": {
+        "description": "Ask a single question and get a text response. Convenience wrapper around `createChatCompletion` for simple Q&A.",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "The question to ask"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+            "description": "Additional completion parameters"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const answer = await openai.ask('What is 2 + 2?')\nconsole.log(answer) // '4'"
+          }
+        ]
+      },
+      "chat": {
+        "description": "Send a multi-turn conversation and get a text response. Convenience wrapper around `createChatCompletion` that returns just the text.",
+        "parameters": {
+          "messages": {
+            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
+            "description": "Array of chat messages"
+          },
+          "options": {
+            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
+            "description": "Additional completion parameters"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const reply = await openai.chat([\n { role: 'system', content: 'You are a pirate.' },\n { role: 'user', content: 'Hello!' }\n])"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "defaultModel": {
+        "description": "The default model used for completions, from options or 'gpt-4o'.",
+        "returns": "string"
+      },
+      "raw": {
+        "description": "The underlying OpenAI SDK instance for advanced use cases.",
+        "returns": "OpenAI"
+      }
+    },
+    "events": {
+      "connected": {
+        "name": "connected",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      },
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      },
+      "completion": {
+        "name": "completion",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      },
+      "embedding": {
+        "name": "embedding",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      },
+      "image": {
+        "name": "image",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      },
+      "models": {
+        "name": "models",
+        "description": "Event emitted by OpenAIClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
+      }
+    ]
+  },
+  {
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
+    "methods": {
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
+        "parameters": {
+          "table": {
+            "type": "string",
+            "description": "The table or view name to query"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "returns": "void"
+      },
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
+        "parameters": {
+          "fn": {
+            "type": "string",
+            "description": "The function name"
+          },
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
+          },
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signOut": {
+        "description": "Sign the current user out.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
+      },
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+      }
+    ]
+  },
+  {
     "id": "clients.elevenlabs",
     "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
     "shortcut": "clients.elevenlabs",
@@ -30901,468 +31639,6 @@ export const introspectionData = [
         }
       }
     }
-  },
-  {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
-  },
-  {
-    "id": "clients.openai",
-    "description": "OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.",
-    "shortcut": "clients.openai",
-    "className": "OpenAIClient",
-    "methods": {
-      "connect": {
-        "description": "Test the API connection by listing models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await openai.connect()"
-          }
-        ]
-      },
-      "createChatCompletion": {
-        "description": "Create a chat completion using the Chat Completions API.",
-        "parameters": {
-          "messages": {
-            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-            "description": "Array of chat messages"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Additional parameters for the completion"
-          }
-        },
-        "required": [
-          "messages"
-        ],
-        "returns": "Promise<OpenAI.Chat.Completions.ChatCompletion>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const response = await openai.createChatCompletion([\n { role: 'system', content: 'You are a helpful assistant.' },\n { role: 'user', content: 'Hello!' }\n])\nconsole.log(response.choices[0]?.message?.content)"
-          }
-        ]
-      },
-      "createResponse": {
-        "description": "Create a response using the Responses API.",
-        "parameters": {
-          "input": {
-            "type": "OpenAI.Responses.ResponseInput | string",
-            "description": "The input prompt or message array"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Responses.ResponseCreateParamsNonStreaming>",
-            "description": "Additional parameters for the response"
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "returns": "Promise<OpenAI.Responses.Response>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const response = await openai.createResponse('Explain quantum computing')"
-          }
-        ]
-      },
-      "streamResponse": {
-        "description": "Stream a response using the Responses API.",
-        "parameters": {
-          "input": {
-            "type": "OpenAI.Responses.ResponseInput | string",
-            "description": "The input prompt or message array"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Responses.ResponseCreateParamsStreaming>",
-            "description": "Additional parameters for the streaming response"
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "returns": "Promise<AsyncIterable<OpenAI.Responses.ResponseStreamEvent>>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const stream = await openai.streamResponse('Write a poem')\nfor await (const event of stream) {\n if (event.type === 'response.output_text.delta') {\n   process.stdout.write(event.delta)\n }\n}"
-          }
-        ]
-      },
-      "createCompletion": {
-        "description": "Create a legacy text completion.",
-        "parameters": {
-          "prompt": {
-            "type": "string",
-            "description": "The text prompt to complete"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Completions.CompletionCreateParams>",
-            "description": "Additional parameters for the completion"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<OpenAI.Completions.Completion>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const response = await openai.createCompletion('Once upon a time')"
-          }
-        ]
-      },
-      "createEmbedding": {
-        "description": "Create text embeddings for semantic search or similarity comparisons.",
-        "parameters": {
-          "input": {
-            "type": "string | string[]",
-            "description": "A string or array of strings to embed"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Embeddings.EmbeddingCreateParams>",
-            "description": "Additional parameters (model, etc.)"
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "returns": "Promise<OpenAI.Embeddings.CreateEmbeddingResponse>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const response = await openai.createEmbedding('Hello world')\nconsole.log(response.data[0].embedding.length)"
-          }
-        ]
-      },
-      "createImage": {
-        "description": "Generate an image from a text prompt using DALL-E.",
-        "parameters": {
-          "prompt": {
-            "type": "string",
-            "description": "Description of the image to generate"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Images.ImageGenerateParams>",
-            "description": "Additional parameters (size, n, etc.)"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<OpenAI.Images.ImagesResponse>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const response = await openai.createImage('A sunset over mountains')\nconsole.log(response.data[0].url)"
-          }
-        ]
-      },
-      "listModels": {
-        "description": "List all available models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<OpenAI.Models.ModelsPage>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const models = await openai.listModels()"
-          }
-        ]
-      },
-      "ask": {
-        "description": "Ask a single question and get a text response. Convenience wrapper around `createChatCompletion` for simple Q&A.",
-        "parameters": {
-          "question": {
-            "type": "string",
-            "description": "The question to ask"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Additional completion parameters"
-          }
-        },
-        "required": [
-          "question"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const answer = await openai.ask('What is 2 + 2?')\nconsole.log(answer) // '4'"
-          }
-        ]
-      },
-      "chat": {
-        "description": "Send a multi-turn conversation and get a text response. Convenience wrapper around `createChatCompletion` that returns just the text.",
-        "parameters": {
-          "messages": {
-            "type": "OpenAI.Chat.Completions.ChatCompletionMessageParam[]",
-            "description": "Array of chat messages"
-          },
-          "options": {
-            "type": "Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>",
-            "description": "Additional completion parameters"
-          }
-        },
-        "required": [
-          "messages"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const reply = await openai.chat([\n { role: 'system', content: 'You are a pirate.' },\n { role: 'user', content: 'Hello!' }\n])"
-          }
-        ]
-      }
-    },
-    "getters": {
-      "defaultModel": {
-        "description": "The default model used for completions, from options or 'gpt-4o'.",
-        "returns": "string"
-      },
-      "raw": {
-        "description": "The underlying OpenAI SDK instance for advanced use cases.",
-        "returns": "OpenAI"
-      }
-    },
-    "events": {
-      "connected": {
-        "name": "connected",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "completion": {
-        "name": "completion",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "embedding": {
-        "name": "embedding",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "image": {
-        "name": "image",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      },
-      "models": {
-        "name": "models",
-        "description": "Event emitted by OpenAIClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
-      }
-    ]
   },
   {
     "id": "servers.mcp",
@@ -35443,6 +35719,302 @@ export const introspectionData = [
     }
   },
   {
+    "id": "features.lucaCoder",
+    "description": "A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in .claude/skills paths. Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
+    "shortcut": "features.lucaCoder",
+    "className": "LucaCoder",
+    "methods": {
+      "getPermission": {
+        "description": "Get the effective permission level for a tool.",
+        "parameters": {
+          "toolName": {
+            "type": "string",
+            "description": "Parameter toolName"
+          }
+        },
+        "required": [
+          "toolName"
+        ],
+        "returns": "PermissionLevel"
+      },
+      "setPermission": {
+        "description": "Set permission level for one or more tools.",
+        "parameters": {
+          "toolName": {
+            "type": "string | string[]",
+            "description": "Parameter toolName"
+          },
+          "level": {
+            "type": "PermissionLevel",
+            "description": "Parameter level"
+          }
+        },
+        "required": [
+          "toolName",
+          "level"
+        ],
+        "returns": "this"
+      },
+      "setDefaultPermission": {
+        "description": "Set the default permission level for unconfigured tools.",
+        "parameters": {
+          "level": {
+            "type": "PermissionLevel",
+            "description": "Parameter level"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "returns": "this"
+      },
+      "permitTool": {
+        "description": "Allow a tool (or tools) to run without approval.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "gateTool": {
+        "description": "Require approval before a tool (or tools) can run.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "blockTool": {
+        "description": "Block a tool (or tools) from ever running.",
+        "parameters": {
+          "toolNames": {
+            "type": "string[]",
+            "description": "Parameter toolNames"
+          }
+        },
+        "required": [
+          "toolNames"
+        ],
+        "returns": "this"
+      },
+      "approve": {
+        "description": "Approve a pending tool call by ID. The tool will execute.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "this"
+      },
+      "deny": {
+        "description": "Deny a pending tool call by ID. The tool call will be skipped.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "this"
+      },
+      "approveAll": {
+        "description": "Approve all pending tool calls.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
+      "denyAll": {
+        "description": "Deny all pending tool calls.",
+        "parameters": {},
+        "required": [],
+        "returns": "this"
+      },
+      "bash": {
+        "description": "Execute a shell command string and return its output. Uses proc.execAndCapture under the hood — runs `sh -c <command>`.",
+        "parameters": {
+          "{ command, cwd, timeout }": {
+            "type": "{ command: string; cwd?: string; timeout?: number }",
+            "description": "Parameter { command, cwd, timeout }"
+          }
+        },
+        "required": [
+          "{ command, cwd, timeout }"
+        ],
+        "returns": "Promise<{\n\t\texitCode: number\n\t\tstdout: string\n\t\tstderr: string\n\t\tsuccess: boolean\n\t}>"
+      },
+      "start": {
+        "description": "Initialize the inner assistant, register the bash tool, stack tool bundles, auto-load skills, and wire up the permission interceptor.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "ask": {
+        "description": "Ask the coder a question. Auto-starts if needed. Tool calls will be gated by the permission system.",
+        "parameters": {
+          "question": {
+            "type": "string",
+            "description": "Parameter question"
+          },
+          "options": {
+            "type": "Record<string, any>",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "returns": "Promise<string>"
+      },
+      "use": {
+        "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
+        "parameters": {
+          "spec": {
+            "type": "ToolBundleSpec",
+            "description": "Parameter spec"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "returns": "this"
+      }
+    },
+    "getters": {
+      "assistant": {
+        "description": "The inner assistant. Throws if not started.",
+        "returns": "Assistant"
+      },
+      "permissions": {
+        "description": "Current permission map from state.",
+        "returns": "Record<string, PermissionLevel>"
+      },
+      "pendingApprovals": {
+        "description": "Current pending approvals.",
+        "returns": "PendingApproval[]"
+      },
+      "isStarted": {
+        "description": "Whether the assistant is started and ready.",
+        "returns": "boolean"
+      },
+      "tools": {
+        "description": "The tools registered on the inner assistant.",
+        "returns": "Record<string, any>"
+      },
+      "conversation": {
+        "description": "The conversation on the inner assistant (if started).",
+        "returns": "any"
+      },
+      "messages": {
+        "description": "Messages from the inner assistant's conversation.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "permissionGranted": {
+        "name": "permissionGranted",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "permissionDenied": {
+        "name": "permissionDenied",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "toolBlocked": {
+        "name": "toolBlocked",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "chunk": {
+        "name": "chunk",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "response": {
+        "name": "response",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "toolResult": {
+        "name": "toolResult",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "started": {
+        "name": "started",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      },
+      "permissionRequest": {
+        "name": "permissionRequest",
+        "description": "Event emitted by LucaCoder",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const coder = container.feature('lucaCoder', {\n tools: ['fileTools'],\n permissions: {\n   readFile: 'allow',\n   searchFiles: 'allow',\n   writeFile: 'ask',\n   bash: 'ask',\n },\n defaultPermission: 'ask',\n systemPrompt: 'You are a coding assistant.',\n})\n\ncoder.on('permissionRequest', ({ id, toolName, args }) => {\n console.log(`Tool \"${toolName}\" wants to run with`, args)\n coder.approve(id)  // or coder.deny(id)\n})\n\nawait coder.ask('Refactor the auth module to use async/await')"
+      }
+    ],
+    "types": {
+      "PendingApproval": {
+        "description": "A pending approval awaiting user decision.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "toolName": {
+            "type": "string",
+            "description": ""
+          },
+          "args": {
+            "type": "Record<string, any>",
+            "description": ""
+          },
+          "timestamp": {
+            "type": "number",
+            "description": ""
+          },
+          "resolve": {
+            "type": "(decision: 'approve' | 'deny') => void",
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.conversationHistory",
     "description": "Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.",
     "shortcut": "features.conversationHistory",
@@ -36606,7 +37178,7 @@ export const containerIntrospectionData = [
           }
         ]
       },
-      "inspect": {
+      "introspect": {
         "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
         "parameters": {},
         "required": [],
@@ -36614,11 +37186,11 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+            "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
           }
         ]
       },
-      "inspectAsText": {
+      "introspectAsText": {
         "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
         "parameters": {
           "sectionOrDepth": {
@@ -36635,32 +37207,17 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+            "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
           }
         ]
       },
-      "introspectAsText": {
-        "description": "Alias for inspectAsText.",
-        "parameters": {
-          "sectionOrDepth": {
-            "type": "IntrospectionSection | number",
-            "description": "Parameter sectionOrDepth"
-          },
-          "startHeadingDepth": {
-            "type": "number",
-            "description": "Parameter startHeadingDepth"
-          }
-        },
-        "required": [],
-        "returns": "string"
-      },
       "introspectAsJSON": {
-        "description": "Alias for inspect, returns JSON introspection data.",
+        "description": "Returns JSON introspection data.",
         "parameters": {},
         "required": [],
         "returns": "ContainerIntrospection"
       },
-      "inspectAsType": {
+      "introspectAsType": {
         "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
         "parameters": {},
         "required": [],
@@ -36668,15 +37225,9 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+            "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
           }
         ]
-      },
-      "introspectAsType": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "string"
       },
       "sleep": {
         "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",

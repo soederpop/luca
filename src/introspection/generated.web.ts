@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-03-25T06:10:25.440Z
+// Generated at: 2026-03-26T03:30:20.477Z
 
 setBuildTimeData('features.containerLink', {
   "id": "features.containerLink",
@@ -890,7 +890,7 @@ setContainerBuildTimeData('Container', {
         }
       ]
     },
-    "inspect": {
+    "introspect": {
       "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
       "parameters": {},
       "required": [],
@@ -898,11 +898,11 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+          "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
         }
       ]
     },
-    "inspectAsText": {
+    "introspectAsText": {
       "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
       "parameters": {
         "sectionOrDepth": {
@@ -919,32 +919,17 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+          "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
         }
       ]
     },
-    "introspectAsText": {
-      "description": "Alias for inspectAsText.",
-      "parameters": {
-        "sectionOrDepth": {
-          "type": "IntrospectionSection | number",
-          "description": "Parameter sectionOrDepth"
-        },
-        "startHeadingDepth": {
-          "type": "number",
-          "description": "Parameter startHeadingDepth"
-        }
-      },
-      "required": [],
-      "returns": "string"
-    },
     "introspectAsJSON": {
-      "description": "Alias for inspect, returns JSON introspection data.",
+      "description": "Returns JSON introspection data.",
       "parameters": {},
       "required": [],
       "returns": "ContainerIntrospection"
     },
-    "inspectAsType": {
+    "introspectAsType": {
       "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
       "parameters": {},
       "required": [],
@@ -952,15 +937,9 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+          "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
         }
       ]
-    },
-    "introspectAsType": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "string"
     },
     "sleep": {
       "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
@@ -1985,7 +1964,7 @@ export const containerIntrospectionData = [
           }
         ]
       },
-      "inspect": {
+      "introspect": {
         "description": "Returns a full introspection object for this container, merging build-time AST data (JSDoc descriptions, methods, getters) with runtime data (registries, factories, state, environment).",
         "parameters": {},
         "required": [],
@@ -1993,11 +1972,11 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const info = container.inspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
+            "code": "const info = container.introspect()\nconsole.log(info.methods)   // all public methods with descriptions\nconsole.log(info.getters)   // all getters with return types\nconsole.log(info.registries) // features, clients, servers, etc."
           }
         ]
       },
-      "inspectAsText": {
+      "introspectAsText": {
         "description": "Returns a human-readable markdown representation of this container's introspection data. Useful in REPLs, AI agent contexts, or documentation generation. Pass a section name to render only that section (e.g. 'methods', 'getters', 'events', 'state').",
         "parameters": {
           "sectionOrDepth": {
@@ -2014,32 +1993,17 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsText())           // full description\nconsole.log(container.inspectAsText('methods'))   // just methods"
+            "code": "console.log(container.introspectAsText())           // full description\nconsole.log(container.introspectAsText('methods'))   // just methods"
           }
         ]
       },
-      "introspectAsText": {
-        "description": "Alias for inspectAsText.",
-        "parameters": {
-          "sectionOrDepth": {
-            "type": "IntrospectionSection | number",
-            "description": "Parameter sectionOrDepth"
-          },
-          "startHeadingDepth": {
-            "type": "number",
-            "description": "Parameter startHeadingDepth"
-          }
-        },
-        "required": [],
-        "returns": "string"
-      },
       "introspectAsJSON": {
-        "description": "Alias for inspect, returns JSON introspection data.",
+        "description": "Returns JSON introspection data.",
         "parameters": {},
         "required": [],
         "returns": "ContainerIntrospection"
       },
-      "inspectAsType": {
+      "introspectAsType": {
         "description": "Returns the container's introspection data formatted as a TypeScript interface declaration. Includes the container's own methods, getters, factories, and registered helper types.",
         "parameters": {},
         "required": [],
@@ -2047,15 +2011,9 @@ export const containerIntrospectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "console.log(container.inspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
+            "code": "console.log(container.introspectAsType())\n// interface NodeContainer {\n//   feature<T>(id: string, options?: object): T;\n//   readonly uuid: string;\n//   ...\n// }"
           }
         ]
-      },
-      "introspectAsType": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "string"
       },
       "sleep": {
         "description": "Sleep for the specified number of milliseconds. Useful for scripting and sequencing.",
