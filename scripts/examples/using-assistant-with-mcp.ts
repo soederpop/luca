@@ -129,19 +129,16 @@ async function main() {
     }
   }
 
-  // ── Phase 1b: Expose MCP Servers via ngrok ─────────────────────────────
+  // ── Phase 1b: Build local MCP Server URLs ──────────────────────────────
 
   const publicUrls: Record<string, string> = {}
-  const exposers: Array<{ close(): Promise<void> }> = []
 
   for (const def of MCP_SERVERS) {
     const entry = serverMap[def.tag]!
     if (entry.status === 'running' || entry.status === 'external') {
-      const exposer = container.feature('portExposer', { port: def.port, enable: true })
-      const url = await exposer.expose()
+      const url = `http://localhost:${def.port}`
       publicUrls[def.tag] = `${url}/mcp`
       entry.publicUrl = url
-      exposers.push(exposer)
     }
   }
 
@@ -496,7 +493,6 @@ async function main() {
     useInput(
       (input, key) => {
         if (key.ctrl && input === 'c') {
-          for (const e of exposers) e.close().catch(() => {})
           pm.killAll()
           exit()
         }
@@ -553,7 +549,6 @@ async function main() {
   await ink.render(h(App))
   await ink.waitUntilExit()
 
-  for (const e of exposers) await e.close().catch(() => {})
   pm.killAll()
 }
 

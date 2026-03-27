@@ -43,7 +43,6 @@
 - [Opener](./examples/opener.md)
 - [os](./examples/os.md)
 - [Package Finder](./examples/package-finder.md)
-- [Port Exposer](./examples/port-exposer.md)
 - [PostgreSQL](./examples/postgres.md)
 - [proc](./examples/proc.md)
 - [Process Manager](./examples/process-manager.md)

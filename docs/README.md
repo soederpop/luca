@@ -25,7 +25,7 @@ Items: 169
     Sections: (none)
     Relationships: (none)
     Documents: 43
-    IDs: examples/postgres, examples/yaml-tree, examples/grep, examples/ink, examples/git, examples/ink-renderer, examples/esbuild, examples/window-manager, examples/process-manager, examples/runpod, examples/google-auth, examples/port-exposer, examples/downloader, examples/secure-shell, examples/vault, examples/window-manager-layouts, examples/ipc-socket, examples/google-sheets, examples/fs, examples/networking, examples/ink-blocks, examples/ui, examples/opener, examples/nlp, examples/disk-cache, examples/assistant/CORE, examples/vm, examples/google-docs, examples/google-calendar, examples/content-db, examples/yaml, examples/package-finder, examples/os, examples/json-tree, examples/google-drive, examples/telegram, examples/file-manager, examples/repl, examples/python, examples/sqlite, examples/tts, examples/docker, examples/proc
+    IDs: examples/postgres, examples/yaml-tree, examples/grep, examples/ink, examples/git, examples/ink-renderer, examples/esbuild, examples/window-manager, examples/process-manager, examples/runpod, examples/google-auth, examples/downloader, examples/secure-shell, examples/vault, examples/window-manager-layouts, examples/ipc-socket, examples/google-sheets, examples/fs, examples/networking, examples/ink-blocks, examples/ui, examples/opener, examples/nlp, examples/disk-cache, examples/assistant/CORE, examples/vm, examples/google-docs, examples/google-calendar, examples/content-db, examples/yaml, examples/package-finder, examples/os, examples/json-tree, examples/google-drive, examples/telegram, examples/file-manager, examples/repl, examples/python, examples/sqlite, examples/tts, examples/docker, examples/proc
 
   Model: Idea
     Prefix: ideas

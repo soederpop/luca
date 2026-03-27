@@ -34,7 +34,6 @@ import "./features/json-tree";
 import "./features/networking";
 import "./features/os";
 import "./features/package-finder";
-import "./features/port-exposer";
 import "./features/python";
 import "./features/proc";
 import "./features/repl";
@@ -87,7 +86,6 @@ import type { Vault } from "./features/vault";
 import type { VM } from "./features/vm";
 import type { YAML } from "./features/yaml";
 import type { YamlTree } from "./features/yaml-tree";
-import type { PortExposer } from "./features/port-exposer";
 import type { Docker } from './features/docker';
 import type { Runpod } from './features/runpod';
 import type { SecureShell } from './features/secure-shell';
@@ -127,7 +125,6 @@ export {
   type DiskCache,
   type Vault,
   type Downloader,
-  type PortExposer,
   type Docker,
   type Runpod,
   type SecureShell,
@@ -193,7 +190,6 @@ export interface NodeFeatures extends AvailableFeatures {
   jsonTree: typeof JsonTree;
   downloader: typeof Downloader;
   python: typeof Python;
-  portExposer: typeof PortExposer;
   runpod: typeof Runpod;
   secureShell: typeof SecureShell;
   ink: typeof Ink;
@@ -282,7 +278,6 @@ export class NodeContainer<
   diskCache?: DiskCache;
   vault?: Vault;
   python?: Python;
-  portExposer?: PortExposer;
   ink?: Ink;
   telegram?: Telegram;
   opener?: Opener;

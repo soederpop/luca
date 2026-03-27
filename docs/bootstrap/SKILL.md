@@ -275,7 +275,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 | **AI Assistants** | `assistant`, `assistantsManager`, `conversation`, `conversationHistory`, `fileTools` | Build AI assistants, manage conversations, tool calling. `fileTools` composes lower-level features (`fs`, `grep`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see `references/examples/feature-as-tool-provider.md`). |
 | **AI Agent Wrappers** | `claudeCode`, `openaiCodex`, `lucaCoder` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | `sqlite`, `postgres`, `diskCache`, `contentDb`, `redis` | Databases, caching, document management |
-| **Networking** | `networking`, `dns`, `portExposer` | Network utilities, DNS, tunneling |
+| **Networking** | `networking`, `dns` | Network utilities, DNS |
 | **Google Workspace** | `googleAuth`, `googleDrive`, `googleDocs`, `googleSheets`, `googleCalendar`, `googleMail` | OAuth and Google service wrappers |
 | **Dev Tools** | `git`, `docker`, `esbuild`, `vm`, `python`, `packageFinder` | Version control, containers, bundling, sandboxed execution |
 | **Content & NLP** | `docsReader`, `nlp`, `semanticSearch`, `skillsLibrary`, `jsonTree`, `yamlTree` | Document Q&A, text analysis, semantic search, skills, structured file ingestion |
