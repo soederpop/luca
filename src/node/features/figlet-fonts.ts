@@ -294,7 +294,10 @@ import f292 from "figlet/importable-fonts/Whimsy.js";
 import f293 from "figlet/importable-fonts/Wow.js";
 import f294 from "figlet/importable-fonts/miniwi.js";
 
-import figlet from "figlet/lib/figlet.js";
+// Use the browser (core) subpath — filesystem-free, works in compiled binaries.
+// figlet 1.11.0 replaced lib/ with dist/ and added an exports map; "./browser" is the stable subpath.
+// @ts-ignore — figlet/browser exists at runtime via the package exports map
+import figlet from "figlet/browser";
 
 // Register all fonts with figlet (filesystem-free, works in compiled binaries)
 figlet.parseFont("1Row", f0);
