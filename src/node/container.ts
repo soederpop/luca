@@ -24,7 +24,7 @@ import { basename, parse, relative, resolve, join } from "path";
 import "./features/disk-cache";
 import "./features/content-db";
 import "./features/downloader";
-import "./features/esbuild";
+import "./features/transpiler";
 import "./features/file-manager";
 import "./features/fs";
 import "./features/git";
@@ -69,7 +69,7 @@ import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
 import type { ContentDb } from "./features/content-db";
 import type { Downloader } from "./features/downloader";
-import type { ESBuild } from "./features/esbuild";
+import type { Transpiler } from "./features/transpiler";
 import type { FileManager } from "./features/file-manager";
 import type { FS } from "./features/fs";
 import type { Git } from "./features/git";
@@ -147,6 +147,7 @@ export {
   type SemanticSearch,
   type Dns,
   type Redis,
+  type Transpiler,
 };
 
 export type { FeatureOptions };
@@ -184,7 +185,7 @@ export interface NodeFeatures extends AvailableFeatures {
   packageFinder: typeof PackageFinder;
   repl: typeof Repl;
   yaml: typeof YAML;
-  esbuild: typeof ESBuild;
+  transpiler: typeof Transpiler;
   diskCache: typeof DiskCache;
   vault: typeof Vault;
   jsonTree: typeof JsonTree;
@@ -233,7 +234,7 @@ export interface NodeContainerState extends ContainerState {
  * Server-side container for Node.js and Bun environments. Extends the base Container with
  * file system access, process management, git integration, and other server-side capabilities.
  *
- * Auto-enables core features on construction: fs, proc, git, grep, os, networking, ui, vm, esbuild, helpers.
+ * Auto-enables core features on construction: fs, proc, git, grep, os, networking, ui, vm, transpiler, helpers.
  * Also attaches Client, Server, Command, Endpoint, and Selector helper types, providing
  * `container.client()`, `container.server()`, `container.command()`, etc. factory methods.
  *
@@ -274,7 +275,7 @@ export class NodeContainer<
   yamlTree?: YamlTree;
   packageFinder?: PackageFinder;
   repl?: Repl;
-  esbuild?: ESBuild;
+  transpiler?: Transpiler;
   diskCache?: DiskCache;
   vault?: Vault;
   python?: Python;
@@ -309,7 +310,7 @@ export class NodeContainer<
     this.feature("networking", { enable: true });
     this.feature("ui", { enable: true });
     this.feature("vm", { enable: true, context: {} });
-    this.feature("esbuild", { enable: true });
+    this.feature("transpiler", { enable: true });
     this.feature("helpers", { enable: true });
 
     const enable = castArray(this.options.enable)

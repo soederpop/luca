@@ -390,7 +390,7 @@ export class VM<
     if (!fs.exists(filePath)) return {}
 
     const raw = fs.readFile(filePath)
-    const { code } = this.container.feature('esbuild').transformSync(raw, { format: 'cjs' })
+    const { code } = this.container.feature('transpiler').transformSync(raw, { format: 'cjs' })
 
     const { context } = this.performSync(code, {
       require: this.createRequireFor(filePath),

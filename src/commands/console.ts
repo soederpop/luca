@@ -38,7 +38,7 @@ async function evalBeforeRepl(evalArg: string, container: any, featureContext: R
 	if (target.type === 'markdown') {
 		await container.docs.load()
 		const doc = await container.docs.parseMarkdownAtPath(target.value)
-		const esbuild = container.feature('esbuild')
+		const transpiler = container.feature('transpiler')
 		const shared = vm.createContext({
 			console, fetch, URL, URLSearchParams,
 			setTimeout, clearTimeout, setInterval, clearInterval,
@@ -59,7 +59,7 @@ async function evalBeforeRepl(evalArg: string, container: any, featureContext: R
 				const needsTransform = lang === 'tsx' || lang === 'jsx'
 				let code = value
 				if (needsTransform) {
-					const { code: transformed } = esbuild.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
+					const { code: transformed } = transpiler.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
 					code = transformed
 				}
 

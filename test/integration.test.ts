@@ -618,27 +618,27 @@ describe('Integration: Proc + FS for script execution', () => {
   })
 })
 
-describe('Integration: ESBuild + FS for code transformation', () => {
+describe('Integration: Transpiler + FS for code transformation', () => {
   it('transforms typescript to javascript', async () => {
     const c = new NodeContainer({ cwd: testDir })
-    const esbuild = c.feature('esbuild', { enable: true })
+    const transpiler = c.feature('transpiler', { enable: true })
 
     const tsCode = `
       const greet = (name: string): string => 'Hello, ' + name + '!'
       export default greet
     `
 
-    const result = await esbuild.transform(tsCode, { loader: 'ts' })
+    const result = await transpiler.transform(tsCode, { loader: 'ts' })
     expect(result.code).toContain('greet')
     expect(result.code).not.toContain(': string')
   })
 
   it('reads ts file from disk, transforms it, writes js output', async () => {
     const c = new NodeContainer({ cwd: testDir })
-    const esbuild = c.feature('esbuild', { enable: true })
+    const transpiler = c.feature('transpiler', { enable: true })
 
     const tsSource = c.fs.readFile(join(testDir, 'src', 'utils.ts'))
-    const result = await esbuild.transform(tsSource, { loader: 'ts' })
+    const result = await transpiler.transform(tsSource, { loader: 'ts' })
 
     const outPath = join(testDir, 'src', 'utils.js')
     await c.fs.writeFileAsync(outPath, result.code)

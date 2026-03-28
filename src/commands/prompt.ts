@@ -722,8 +722,8 @@ async function executePromptFile(resolvedPath: string, container: any, inputs?: 
 			capturedLines.length = 0
 			let code = value
 			if (lang === 'tsx' || lang === 'jsx') {
-				const esbuild = container.feature('esbuild')
-				const { code: transformed } = esbuild.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
+				const transpiler = container.feature('transpiler')
+				const { code: transformed } = transpiler.transformSync(value, { loader: lang as 'tsx' | 'jsx', format: 'cjs' })
 				code = transformed
 			}
 
