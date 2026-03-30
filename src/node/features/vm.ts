@@ -392,10 +392,11 @@ export class VM<
     const raw = fs.readFile(filePath)
     const { code } = this.container.feature('transpiler').transformSync(raw, { format: 'cjs' })
 
+    const sharedExports = {}
     const { context } = this.performSync(code, {
       require: this.createRequireFor(filePath),
-      exports: {},
-      module: { exports: {} },
+      exports: sharedExports,
+      module: { exports: sharedExports },
       console,
       setTimeout,
       setInterval,

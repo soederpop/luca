@@ -3,6 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
 import { parse } from 'contentbase'
 import type { DocsReader } from './docs-reader.js'
+import type Assistant from './assistant.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -99,6 +100,12 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			skillCount: 0,
 			skills: {},
 		}
+	}
+	
+	override setupToolsConsumer(assistant: Assistant) {
+		console.log('setting up tools consumer', assistant.uuid)
+		assistant.state.set('toolsSetup', true)
+		return assistant
 	}
 
 	/** Discovered skills keyed by name. */

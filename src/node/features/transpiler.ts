@@ -18,7 +18,9 @@ export interface TransformResult {
  * so the code can run in a vm context that provides `require`.
  */
 function esmToCjs(code: string): string {
-  return code
+  const exportedNames: string[] = []
+
+  let result = code
     // import Foo, { bar, baz } from 'x' → const Foo = require('x').default ?? require('x'); const { bar, baz } = require('x')
     .replace(/^import\s+(\w+)\s*,\s*\{([^}]+)\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
       'const $1 = require($3).default ?? require($3); const {$2} = require($3);')
@@ -39,14 +41,37 @@ function esmToCjs(code: string): string {
     // export { a, b } from 'x' → Object.assign(module.exports, require('x'))  (re-exports)
     .replace(/^export\s+\{[^}]*\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
       'Object.assign(module.exports, require($1));')
-    // export { ... } → strip (vars already in scope)
-    .replace(/^export\s+\{[^}]*\}\s*;?$/gm, '')
-    // export const/let/var → const/let/var
-    .replace(/^export\s+(const|let|var)\s+/gm, '$1 ')
-    // export function → function (keep declaration, strip export keyword)
-    .replace(/^export\s+(function|class)\s+/gm, '$1 ')
-    // export async function → async function
-    .replace(/^export\s+(async\s+function)\s+/gm, '$1 ')
+    // export { a, b as c } → exports.a = a; exports.c = b;
+    .replace(/^export\s+\{([^}]*)\}\s*;?$/gm, (_match, body: string) => {
+      return body.split(',').map(s => {
+        const parts = s.trim().split(/\s+as\s+/)
+        const local = parts[0].trim()
+        const exported = (parts[1] || parts[0]).trim()
+        return local ? `exports['${exported}'] = ${local};` : ''
+      }).filter(Boolean).join(' ')
+    })
+    // export const/let/var NAME → const/let/var NAME (track for deferred export)
+    .replace(/^export\s+(const|let|var)\s+(\w+)/gm, (_match, decl: string, name: string) => {
+      exportedNames.push(name)
+      return `${decl} ${name}`
+    })
+    // export function NAME / export class NAME → function/class NAME (track for deferred export)
+    .replace(/^export\s+(function|class)\s+(\w+)/gm, (_match, type: string, name: string) => {
+      exportedNames.push(name)
+      return `${type} ${name}`
+    })
+    // export async function NAME → async function NAME (track for deferred export)
+    .replace(/^export\s+(async\s+function)\s+(\w+)/gm, (_match, type: string, name: string) => {
+      exportedNames.push(name)
+      return `${type} ${name}`
+    })
+
+  // Append exports for all tracked named exports
+  if (exportedNames.length > 0) {
+    result += '\n' + exportedNames.map(n => `exports['${n}'] = ${n};`).join('\n')
+  }
+
+  return result
 }
 
 /**
