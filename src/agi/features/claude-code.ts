@@ -1350,6 +1350,170 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }
 
   /**
+   * List all Claude Code processes currently registered in ~/.claude/sessions/.
+   * Returns each session's metadata along with whether the process is still alive.
+   *
+   * @returns {Promise<Array<{ pid: number; sessionId: string; cwd: string; startedAt: number; kind: string; entrypoint: string; alive: boolean }>>}
+   *
+   * @example
+   * const sessions = await cc.listProcessSessions()
+   * for (const s of sessions) {
+   *   console.log(`[${s.alive ? 'LIVE' : 'dead'}] PID ${s.pid} in ${s.cwd}`)
+   * }
+   */
+  async listProcessSessions(): Promise<Array<{
+    pid: number
+    sessionId: string
+    cwd: string
+    startedAt: number
+    kind: string
+    entrypoint: string
+    alive: boolean
+  }>> {
+    const fs = this.container.feature('fs')
+    const proc = this.container.feature('proc')
+    const home = process.env.HOME ?? '/tmp'
+    const sessionsDir = `${home}/.claude/sessions`
+
+    let files: string[]
+    try {
+      files = await fs.readdir(sessionsDir)
+    } catch {
+      return []
+    }
+
+    const jsonFiles = files.filter((f: string) => f.endsWith('.json'))
+
+    const results = await Promise.all(jsonFiles.map(async (file: string) => {
+      try {
+        const raw = await fs.readFile(`${sessionsDir}/${file}`, 'utf8')
+        const data = JSON.parse(raw)
+        let alive = false
+        try {
+          await proc.exec(`kill -0 ${data.pid}`)
+          alive = true
+        } catch {
+          alive = false
+        }
+        return { ...data, alive }
+      } catch {
+        return null
+      }
+    }))
+
+    return results.filter(Boolean)
+  }
+
+  /**
+   * Read a single process session by PID from ~/.claude/sessions/<pid>.json.
+   *
+   * @param {number} pid - The process ID
+   * @returns {Promise<{ pid: number; sessionId: string; cwd: string; startedAt: number; kind: string; entrypoint: string } | null>}
+   *
+   * @example
+   * const session = await cc.getProcessSession(12345)
+   * console.log(session?.cwd)
+   */
+  async getProcessSession(pid: number): Promise<{
+    pid: number
+    sessionId: string
+    cwd: string
+    startedAt: number
+    kind: string
+    entrypoint: string
+  } | null> {
+    const fs = this.container.feature('fs')
+    const home = process.env.HOME ?? '/tmp'
+    try {
+      const raw = await fs.readFile(`${home}/.claude/sessions/${pid}.json`, 'utf8')
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Read the conversation history for a Claude Code session from its JSONL file in
+   * ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl.
+   *
+   * Returns an array of parsed message objects (user, assistant, tool_use, tool_result).
+   *
+   * @param {string} sessionId - The Claude CLI session ID (from listProcessSessions or getProcessSession)
+   * @param {string} cwd - The working directory of the session (used to locate the project folder)
+   * @returns {Promise<any[]>} Array of parsed JSONL records
+   *
+   * @example
+   * const sessions = await cc.listProcessSessions()
+   * const s = sessions[0]
+   * const history = await cc.getConversationHistory(s.sessionId, s.cwd)
+   * console.log(history.length, 'turns')
+   */
+  async getConversationHistory(sessionId: string, cwd?: string): Promise<any[]> {
+    const fs = this.container.feature('fs')
+    const home = process.env.HOME ?? '/tmp'
+    const resolvedCwd = cwd ?? this.options.cwd ?? (this.container as any).cwd
+    const encodedCwd = resolvedCwd.replace(/\//g, '-').replace(/@/g, '-')
+    const filePath = `${home}/.claude/projects/${encodedCwd}/${sessionId}.jsonl`
+    try {
+      const raw = await fs.readFile(filePath, 'utf8')
+      return raw
+        .split('\n')
+        .filter((line: string) => line.trim())
+        .map((line: string) => JSON.parse(line))
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * List all conversation sessions stored for a given working directory.
+   * Reads ~/.claude/projects/<encoded-cwd>/ and returns metadata for each .jsonl file.
+   *
+   * @param {string} cwd - The working directory path to look up
+   * @returns {Promise<Array<{ sessionId: string; filePath: string; messageCount: number }>>}
+   *
+   * @example
+   * const sessions = await cc.listSessionsForCwd('/Users/me/my-project')
+   * for (const s of sessions) {
+   *   console.log(s.sessionId, s.messageCount, 'messages')
+   * }
+   */
+  async listSessionsForCwd(cwd?: string): Promise<Array<{
+    sessionId: string
+    filePath: string
+    messageCount: number
+  }>> {
+    const fs = this.container.feature('fs')
+    const home = process.env.HOME ?? '/tmp'
+    const resolvedCwd = cwd ?? this.options.cwd ?? (this.container as any).cwd
+    const encodedCwd = resolvedCwd.replace(/\//g, '-').replace(/@/g, '-')
+    const projectDir = `${home}/.claude/projects/${encodedCwd}`
+
+    let files: string[]
+    try {
+      files = await fs.readdir(projectDir)
+    } catch {
+      return []
+    }
+
+    const jsonlFiles = files.filter((f: string) => f.endsWith('.jsonl'))
+
+    const results = await Promise.all(jsonlFiles.map(async (file: string) => {
+      const sessionId = file.replace(/\.jsonl$/, '')
+      const filePath = `${projectDir}/${file}`
+      try {
+        const raw = await fs.readFile(filePath, 'utf8')
+        const messageCount = raw.split('\n').filter((l: string) => l.trim()).length
+        return { sessionId, filePath, messageCount }
+      } catch {
+        return { sessionId, filePath, messageCount: 0 }
+      }
+    }))
+
+    return results
+  }
+
+  /**
    * Clean up any temp MCP config files created during sessions.
    */
   async cleanupMcpTempFiles(): Promise<void> {
