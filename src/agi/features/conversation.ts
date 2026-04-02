@@ -215,9 +215,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
 	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
 
-	/** Resolved max tokens: per-call override > options-level > default 512. */
+	/** Resolved max tokens: per-call override > options-level. Undefined means no limit (model default). */
 	private get maxTokens(): number | undefined {
-		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? 512
+		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? undefined
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
