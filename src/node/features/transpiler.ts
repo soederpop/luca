@@ -45,8 +45,8 @@ function esmToCjs(code: string): string {
     .replace(/^export\s+\{([^}]*)\}\s*;?$/gm, (_match, body: string) => {
       return body.split(',').map(s => {
         const parts = s.trim().split(/\s+as\s+/)
-        const local = parts[0].trim()
-        const exported = (parts[1] || parts[0]).trim()
+        const local = (parts[0] ?? '').trim()
+        const exported = (parts[1] ?? parts[0] ?? '').trim()
         return local ? `exports['${exported}'] = ${local};` : ''
       }).filter(Boolean).join(' ')
     })

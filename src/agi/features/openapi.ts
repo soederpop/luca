@@ -95,7 +95,7 @@ export interface OpenAIToolDef {
  * api.endpoint('getPetById')
  *
  * // Convert to OpenAI tool definitions
- * api.toTools()
+ * api.toOpenAITools()
  *
  * // Convert a single endpoint to a function definition
  * api.toFunction('getPetById')
@@ -205,7 +205,7 @@ export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
    * @param {Function} [filter] - Optional predicate to select which endpoints to include
    * @returns {OpenAIToolDef[]} Array of tool definitions ready for the OpenAI tools parameter
    */
-  toTools(filter?: (ep: EndpointInfo) => boolean): OpenAIToolDef[] {
+  toOpenAITools(filter?: (ep: EndpointInfo) => boolean): OpenAIToolDef[] {
     const eps = filter ? this.endpoints.filter(filter) : this.endpoints
     return eps.map((ep) => ({
       type: 'function' as const,

@@ -59,7 +59,7 @@ export const PythonEventsSchema = FeatureEventsSchema.extend({
   }).describe('Install result')]).describe('When dependency installation fails'),
   codeExecuted: z.tuple([z.object({
     code: z.string().describe('The Python code that was executed'),
-    variables: z.record(z.any()).describe('Variables passed to the execution'),
+    variables: z.record(z.string(), z.any()).describe('Variables passed to the execution'),
     result: z.object({
       stdout: z.string().describe('Standard output'),
       stderr: z.string().describe('Standard error'),
@@ -68,7 +68,7 @@ export const PythonEventsSchema = FeatureEventsSchema.extend({
   }).describe('Code execution details')]).describe('When Python code finishes executing'),
   fileExecuted: z.tuple([z.object({
     filePath: z.string().describe('Path to the executed Python file'),
-    variables: z.record(z.any()).describe('Variables passed as arguments'),
+    variables: z.record(z.string(), z.any()).describe('Variables passed as arguments'),
     result: z.object({
       stdout: z.string().describe('Standard output'),
       stderr: z.string().describe('Standard error'),
@@ -532,7 +532,7 @@ export class Python<
    */
   private _parsePythonCommand(extraArgs: string[]): { command: string, args: string[] } {
     const parts = this.pythonPath.split(/\s+/)
-    return { command: parts[0], args: [...parts.slice(1), ...extraArgs] }
+    return { command: parts[0] ?? 'python', args: [...parts.slice(1), ...extraArgs] }
   }
 
   /**

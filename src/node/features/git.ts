@@ -155,7 +155,7 @@ export class Git extends Feature {
      */
     get branch(): string | null {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec(`${this.gitPath} branch`).split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop()
+        return this.container.feature('proc').exec(`${this.gitPath} branch`).split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
     }
     
     /**
@@ -230,7 +230,7 @@ export class Git extends Feature {
      */
     get repoRoot(): string | null {
         if (this.state.has('repoRoot')) {
-            return this.state.get('repoRoot')
+            return this.state.get('repoRoot') ?? null
         }
 
         const repoRoot = this.container.fs.findUp('.git')
@@ -507,12 +507,12 @@ export class Git extends Feature {
         if (str.startsWith('github.com/')) str = str.replace('github.com/', '')
         if (str.includes('#')) {
             const parts = str.split('#')
-            str = parts[0]
-            ref = parts[1]
+            str = parts[0] ?? str
+            ref = parts[1] ?? ref
         }
 
         const parts = str.split('/')
-        return { user: parts[0], repo: parts[1], ref, subdir: parts.slice(2).join('/') }
+        return { user: parts[0] ?? '', repo: parts[1] ?? '', ref, subdir: parts.slice(2).join('/') }
     }
 
     /**

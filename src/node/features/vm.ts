@@ -219,9 +219,9 @@ export class VM<
 
     // Find the last non-empty line
     let lastIdx = lines.length - 1
-    while (lastIdx > 0 && !lines[lastIdx].trim()) lastIdx--
+    while (lastIdx > 0 && !(lines[lastIdx] ?? '').trim()) lastIdx--
 
-    let lastLine = lines[lastIdx]!
+    let lastLine = lines[lastIdx] ?? ''
 
     // For single-line code with semicolons (e.g. CLI eval), split the last line
     // into statements and only try to return the final statement.
@@ -390,7 +390,7 @@ export class VM<
     if (!fs.exists(filePath)) return {}
 
     const raw = fs.readFile(filePath)
-    const { code } = this.container.feature('transpiler').transformSync(raw, { format: 'cjs' })
+    const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
 
     const sharedExports = {}
     const { context } = this.performSync(code, {

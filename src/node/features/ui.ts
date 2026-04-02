@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import colors from "chalk";
-import type { Fonts } from "figlet";
+import type { FontName as Fonts } from "figlet";
 import { figlet, fontNames } from "./figlet-fonts.js";
 import inquirer from "inquirer";
 import { marked } from 'marked';

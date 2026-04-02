@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
+import type { NodeContainer } from '../node/container.js'
 import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials } from '../bootstrap/generated.js'
 import { generateScaffold } from '../scaffolds/template.js'
 
@@ -17,7 +18,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 })
 
 async function bootstrap(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-	const { container } = context
+	const container = context.container as unknown as NodeContainer
 	const args = container.argv._ as string[]
 	const fs = container.feature('fs')
 	const ui = container.feature('ui')

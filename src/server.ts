@@ -30,7 +30,7 @@ export class Server<T extends ServerState = ServerState, K extends ServerOptions
     static override eventsSchema = ServerEventsSchema
 
     /** Self-register a Server subclass from a static initialization block. */
-    static register: (SubClass: typeof Server, id?: string) => typeof Server
+    static register: (SubClass: abstract new (options: any, context: any) => Server, id?: string) => abstract new (options: any, context: any) => Server
 
     override get initialState() : T {
       return ({
@@ -203,7 +203,7 @@ export const helperCache = new Map()
  * ```
  */
 Server.register = function registerServer(
-  SubClass: typeof Server,
+  SubClass: abstract new (options: any, context: any) => Server,
   id?: string,
 ) {
   const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)

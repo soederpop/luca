@@ -257,16 +257,16 @@ async function runParallel(
 
 	function pushLines(idx: number, text: string) {
 		const newLines = text.split('\n')
-		promptStates[idx].lines.push(...newLines)
-		if (promptStates[idx].lines.length > MAX_LINES) {
-			promptStates[idx].lines = promptStates[idx].lines.slice(-MAX_LINES)
+		promptStates[idx]!.lines.push(...newLines)
+		if (promptStates[idx]!.lines.length > MAX_LINES) {
+			promptStates[idx]!.lines = promptStates[idx]!.lines.slice(-MAX_LINES)
 		}
 	}
 
 	function pushToolLine(idx: number, text: string) {
-		promptStates[idx].lines.push(text)
-		if (promptStates[idx].lines.length > MAX_LINES) {
-			promptStates[idx].lines.splice(0, 1)
+		promptStates[idx]!.lines.push(text)
+		if (promptStates[idx]!.lines.length > MAX_LINES) {
+			promptStates[idx]!.lines.splice(0, 1)
 		}
 	}
 
@@ -304,7 +304,7 @@ async function runParallel(
 			if (!Array.isArray(content)) return
 
 			const usage = message?.message?.usage ?? message?.usage
-			if (usage?.output_tokens) promptStates[idx].outputTokens += usage.output_tokens
+			if (usage?.output_tokens) promptStates[idx]!.outputTokens += usage.output_tokens
 
 			for (const block of content) {
 				if (block.type === 'text' && block.text) {
@@ -321,33 +321,33 @@ async function runParallel(
 				const idx = sessionMap.get(sessionId)
 				if (idx === undefined) return
 				if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
-					promptStates[idx].collectedEvents.push(event)
+					promptStates[idx]!.collectedEvents.push(event)
 				}
 			})
 		}
 
 		// Start all sessions — merge per-prompt agentOptions with shared runOptions
 		for (let i = 0; i < prepared.length; i++) {
-			const perPromptOptions = { ...prepared[i].agentOptions, ...runOptions }
+			const perPromptOptions = { ...prepared[i]!.agentOptions, ...runOptions }
 			if (options.model) perPromptOptions.model = options.model
-			const id = await feature.start(prepared[i].promptContent, perPromptOptions)
+			const id = await feature.start(prepared[i]!.promptContent, perPromptOptions)
 			sessionMap.set(id, i)
 		}
 
 		const ids = [...sessionMap.keys()]
 		sessionPromise = Promise.allSettled(ids.map((id) => feature.waitForSession(id))).then((results) => {
 			results.forEach((r, ri) => {
-				const id = ids[ri]
+				const id = ids[ri]!
 				const idx = sessionMap.get(id)!
-				promptStates[idx].durationMs = Date.now() - promptStates[idx].startTime
+				promptStates[idx]!.durationMs = Date.now() - promptStates[idx]!.startTime
 				if (r.status === 'fulfilled' && r.value?.status === 'error') {
-					promptStates[idx].status = 'error'
-					promptStates[idx].error = r.value?.error || 'Session failed'
+					promptStates[idx]!.status = 'error'
+					promptStates[idx]!.error = r.value?.error || 'Session failed'
 				} else if (r.status === 'rejected') {
-					promptStates[idx].status = 'error'
-					promptStates[idx].error = String(r.reason)
+					promptStates[idx]!.status = 'error'
+					promptStates[idx]!.error = String(r.reason)
 				} else {
-					promptStates[idx].status = 'done'
+					promptStates[idx]!.status = 'done'
 				}
 			})
 			allDone = true
@@ -375,16 +375,16 @@ async function runParallel(
 
 			assistant.on('chunk', (text: string) => {
 				lineBuffers[i] += text
-				const parts = lineBuffers[i].split('\n')
+				const parts = lineBuffers[i]!.split('\n')
 				lineBuffers[i] = parts.pop() || ''
 				if (parts.length) {
-					promptStates[i].lines.push(...parts)
-					if (promptStates[i].lines.length > MAX_LINES) {
-						promptStates[i].lines = promptStates[i].lines.slice(-MAX_LINES)
+					promptStates[i]!.lines.push(...parts)
+					if (promptStates[i]!.lines.length > MAX_LINES) {
+						promptStates[i]!.lines = promptStates[i]!.lines.slice(-MAX_LINES)
 					}
 				}
 				if (options['out-file']) {
-					promptStates[i].collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
+					promptStates[i]!.collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
 				}
 			})
 
@@ -392,7 +392,7 @@ async function runParallel(
 				const argsStr = JSON.stringify(args).slice(0, 80)
 				pushToolLine(i, `  > ${toolName}(${argsStr})`)
 				if (options['out-file']) {
-					promptStates[i].collectedEvents.push({
+					promptStates[i]!.collectedEvents.push({
 						type: 'assistant',
 						message: { content: [{ type: 'tool_use', name: toolName, input: args }] },
 					})
@@ -403,7 +403,7 @@ async function runParallel(
 				const preview = typeof result === 'string' ? result.slice(0, 60) : JSON.stringify(result).slice(0, 60)
 				pushToolLine(i, `  ✓ ${toolName} → ${preview}`)
 				if (options['out-file']) {
-					promptStates[i].collectedEvents.push({
+					promptStates[i]!.collectedEvents.push({
 						type: 'tool_result',
 						content: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
 					})
@@ -418,20 +418,20 @@ async function runParallel(
 			return assistant
 		})
 
-		sessionPromise = Promise.allSettled(assistants.map((a, i) => a.ask(prepared[i].promptContent))).then(
+		sessionPromise = Promise.allSettled(assistants.map((a, i) => a.ask(prepared[i]!.promptContent))).then(
 			(results) => {
 				results.forEach((r, i) => {
-					promptStates[i].durationMs = Date.now() - promptStates[i].startTime
+					promptStates[i]!.durationMs = Date.now() - promptStates[i]!.startTime
 					// Flush remaining line buffer
 					if (lineBuffers[i]) {
-						promptStates[i].lines.push(lineBuffers[i])
+						promptStates[i]!.lines.push(lineBuffers[i]!)
 						lineBuffers[i] = ''
 					}
 					if (r.status === 'rejected') {
-						promptStates[i].status = 'error'
-						promptStates[i].error = String(r.reason)
+						promptStates[i]!.status = 'error'
+						promptStates[i]!.error = String(r.reason)
 					} else {
-						promptStates[i].status = 'done'
+						promptStates[i]!.status = 'done'
 					}
 				})
 				allDone = true
@@ -551,9 +551,9 @@ async function runParallel(
 		const stem = dotIdx > 0 ? base.slice(0, dotIdx) : base
 
 		for (let i = 0; i < promptStates.length; i++) {
-			const ps = promptStates[i]
+			const ps = promptStates[i]!
 			if (!ps.collectedEvents.length) continue
-			const promptBasename = paths.basename(prepared[i].resolvedPath)
+			const promptBasename = paths.basename(prepared[i]!.resolvedPath)
 			const promptStem = promptBasename.lastIndexOf('.') > 0 ? promptBasename.slice(0, promptBasename.lastIndexOf('.')) : promptBasename
 			const outPath = paths.resolve(`${stem}-${promptStem}${ext}`)
 			const markdown = formatSessionMarkdown(ps.collectedEvents, options['include-output'])
@@ -655,7 +655,7 @@ async function resolveInputs(
 
 	// Build wizard questions for missing inputs
 	const questions = missing.map((key) => {
-		const def = inputDefs[key]
+		const def = inputDefs[key]!
 		const q: Record<string, any> = {
 			name: key,
 			message: def.description || key,
@@ -920,7 +920,7 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	}
 
 	// --- Single prompt mode ---
-	const promptPath = allPaths[0]
+	const promptPath = allPaths[0]!
 	const p = await preparePrompt(promptPath, options, container)
 
 	if (!p) {

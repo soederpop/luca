@@ -395,7 +395,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		const result: Record<string, ConversationTool> = {}
 		for (const n of names) {
-			result[n] = tools[n]
+			const tool = tools[n]
+			if (tool) result[n] = tool
 		}
 		return result
 	}
@@ -612,7 +613,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * constructor options take precedence. Prefer this over `this.options`
 	 * anywhere model parameters or runtime config is consumed.
 	 */
-	get effectiveOptions(): AssistantsManagerOptions & Record<string, any> {
+	get effectiveOptions(): AssistantOptions & Record<string, any> {
 		return { ...this.meta, ...this.options }
 	}
 
@@ -840,8 +841,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			return `${stamp} ${content}`
 		}
 
-		if (content.length > 0 && content[0].type === 'text') {
-			return [{ type: 'text' as const, text: `${stamp} ${content[0].text}` }, ...content.slice(1)]
+		const firstPart = content[0]
+		if (firstPart && firstPart.type === 'text') {
+			return [{ type: 'text' as const, text: `${stamp} ${firstPart.text}` }, ...content.slice(1)]
 		}
 
 		return [{ type: 'text' as const, text: stamp }, ...content]

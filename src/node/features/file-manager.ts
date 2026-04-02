@@ -147,7 +147,7 @@ export class FileManager<
 
   /** Returns the list of directories currently being watched. */
   get watchedPaths(): string[] {
-    return this.state.get("watchedPaths") || [];
+    return (this.state.get("watchedPaths") as string[] | undefined) || [];
   }
 
   /** 
@@ -199,7 +199,7 @@ export class FileManager<
       const { git } = this.container;
       if (!git.isRepo) return null;
 
-      const gitDir = pathJoin(git.repoRoot, '.git');
+      const gitDir = pathJoin(git.repoRoot!, '.git');
       const head = readFileSync(pathJoin(gitDir, 'HEAD'), 'utf8').trim();
 
       // Detached HEAD — already a sha
@@ -217,7 +217,7 @@ export class FileManager<
         const ref = head.slice(5);
         const packed = readFileSync(packedRefsPath, 'utf8');
         const match = packed.match(new RegExp(`^([0-9a-f]{40}) ${ref}`, 'm'));
-        if (match) return match[1];
+        if (match) return match[1] ?? null;
       }
 
       return null;
@@ -334,8 +334,8 @@ export class FileManager<
       if (cwdRelative) {
         const prefix = cwdRelative + '/';
         for (let i = 0; i < fileIds.length; i++) {
-          if (fileIds[i].startsWith(prefix)) {
-            fileIds[i] = fileIds[i].slice(prefix.length);
+          if (fileIds[i]!.startsWith(prefix)) {
+            fileIds[i] = fileIds[i]!.slice(prefix.length);
           }
         }
       }
@@ -422,12 +422,12 @@ export class FileManager<
 
     // If already watching, just add the new paths
     if (this.isWatching && this.watcher) {
-      const currentPaths: string[] = this.state.get("watchedPaths") || [];
+      const currentPaths: string[] = (this.state.get("watchedPaths") as string[] | undefined) || [];
       const newPaths = pathsToWatch.filter(p => !currentPaths.includes(p));
 
       if (newPaths.length) {
         this.watcher.add(newPaths);
-        this.state.set("watchedPaths", [...currentPaths, ...newPaths]);
+        this.state.set("watchedPaths", [...currentPaths, ...newPaths] as any);
       }
 
       return;
@@ -481,7 +481,7 @@ export class FileManager<
 
     watcher.on("ready", () => {
       this.state.set("watching", true);
-      this.state.set("watchedPaths", pathsToWatch);
+      this.state.set("watchedPaths", pathsToWatch as any);
     });
 
     this.watcher = watcher;
@@ -495,7 +495,7 @@ export class FileManager<
     if (this.watcher) {
       this.watcher.close();
       this.state.set("watching", false);
-      this.state.set("watchedPaths", []);
+      this.state.set("watchedPaths", [] as any);
       this.watcher = null;
     }
   }
@@ -508,6 +508,7 @@ export class FileManager<
       const stats = statSync(absolutePath);
       this.files.set(path, {
         dirname: dir,
+        relativeDirname: this.container.paths.relative(dir),
         absolutePath,
         relativePath: path,
         name,

@@ -46,7 +46,7 @@ export class Client<
   static override eventsSchema = ClientEventsSchema
 
   /** Self-register a Client subclass from a static initialization block. */
-  static register: (SubClass: typeof Client, id?: string) => typeof Client
+  static register: (SubClass: abstract new (options: any, context: any) => Client, id?: string) => abstract new (options: any, context: any) => Client
 
   static attach(container: Container & ClientsInterface): any {
     Object.assign(container, {
@@ -141,7 +141,7 @@ export const helperCache = new Map();
  * ```
  */
 Client.register = function registerClient(
-  SubClass: typeof Client,
+  SubClass: abstract new (options: any, context: any) => Client,
   id?: string,
 ) {
   const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)

@@ -207,12 +207,12 @@ export class OS extends Feature {
           displays.push({
             name: d._name ?? 'Unknown',
             resolution: {
-              width: resMatch ? parseInt(resMatch[1], 10) : 0,
-              height: resMatch ? parseInt(resMatch[2], 10) : 0,
+              width: resMatch ? parseInt(resMatch[1] ?? '0', 10) : 0,
+              height: resMatch ? parseInt(resMatch[2] ?? '0', 10) : 0,
             },
             retina: /retina/i.test(d._spdisplays_resolution ?? '') || /retina/i.test(d.spdisplays_display_type ?? ''),
             main: d.spdisplays_main === 'spdisplays_yes' || /yes/i.test(d.spdisplays_main ?? ''),
-            refreshRate: hzMatch ? parseFloat(hzMatch[1]) : undefined,
+            refreshRate: hzMatch ? parseFloat(hzMatch[1] ?? '0') : undefined,
             connectionType: d.spdisplays_connection_type ?? undefined,
           })
         }

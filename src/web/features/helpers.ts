@@ -136,7 +136,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
         return {}
       }
 
-      const manifest: Manifest = await response.json()
+      const manifest = await response.json() as Manifest
       this._manifest = manifest
       this.state.set('manifestLoaded', true)
       this.emit('manifestLoaded' as any, manifest)

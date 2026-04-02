@@ -366,7 +366,7 @@ export class NodeContainer<
   }
 
   /** Returns URL utility functions for parsing URIs. */
-  get urlUtils(): { parse: (uri: string) => url.URL | null } {
+  get urlUtils(): { parse: (uri: string) => url.UrlWithStringQuery } {
     return {
       parse: (uri: string) => url.parse(uri)
     }

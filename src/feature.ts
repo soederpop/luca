@@ -23,9 +23,9 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
     static override eventsSchema = FeatureEventsSchema
 
     /** Self-register a Feature subclass from a static initialization block. */
-    static register: (SubClass: abstract new (options: any, context: any) => Feature, id?: string) => typeof Feature
+    static register: (SubClass: abstract new (options: any, context: any) => Feature, id?: string) => abstract new (options: any, context: any) => Feature
 
-    get shortcut() {
+    override get shortcut() {
         return (this.constructor as any).shortcut as string
     }
 
@@ -92,7 +92,7 @@ export const features = new FeaturesRegistry()
  * ```
  */
 Feature.register = function registerFeature(
-  SubClass: typeof Feature,
+  SubClass: abstract new (options: any, context: any) => Feature,
   id?: string,
 ) {
   const registryId = id ?? SubClass.name[0]!.toLowerCase() + SubClass.name.slice(1)

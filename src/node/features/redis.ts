@@ -400,7 +400,7 @@ export class RedisFeature extends Feature<RedisState, RedisOptions> {
     )
 
     if (existing) {
-      if (existing.state !== 'running') {
+      if (existing.status !== 'running') {
         await docker.startContainer(name)
       }
       return existing.id

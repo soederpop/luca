@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
+import type { NodeContainer } from '../node/container.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -14,7 +15,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 })
 
 export async function apiDocs(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-	const { container } = context
+	const container = context.container as unknown as NodeContainer
 	await container.helpers.discoverAll()
 	const outputFolder = options.outputPath ? container.paths.resolve(options.outputPath) : container.paths.resolve('docs','luca')
 
@@ -22,19 +23,20 @@ export async function apiDocs(options: z.infer<typeof argsSchema>, context: Cont
 		outputFolder
 	)
 
-	const mkPath = (...args) => container.paths.resolve(outputFolder, ...args)
+	const mkPath = (...args: string[]) => container.paths.resolve(outputFolder, ...args)
 
-	const result = await container.fs.writeFileAsync(mkPath('agi-container.md'), container.introspectAsText())
+	await container.fs.writeFileAsync(mkPath('agi-container.md'), (container as any).introspectAsText())
 
-	for(let reg of ['features','clients','servers']) {
-		const helperIds = container[reg].available
-		const folder = mkPath(reg) 
+	for(const reg of ['features','clients','servers']) {
+		const registry = (container as any)[reg]
+		const helperIds: string[] = registry.available
+		const folder = mkPath(reg)
 		await container.fs.ensureFolder(folder)
 
 		await Promise.all(
-			helperIds.map((helperId) => container.fs.writeFileAsync(
+			helperIds.map((helperId: string) => container.fs.writeFileAsync(
 				container.paths.resolve(folder, `${helperId}.md`),
-				container[reg].describe(helperId)
+				registry.describe(helperId)
 			))
 		)
 	}

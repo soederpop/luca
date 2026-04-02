@@ -46,7 +46,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static { Feature.register(this, 'contentDb') }
 
   /** Tools that any assistant can use to progressively explore this collection. */
-  static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+  static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
     getCollectionOverview: {
       schema: z.object({}).describe(
         'Get a high-level overview of the document collection: models, document counts, directory tree, and search index status. Call this first to understand what is available.'
@@ -460,7 +460,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     // Dynamically import and attach SemanticSearch if not already registered
     const { SemanticSearch } = await import('./semantic-search.js')
     if (!this.container.features.available.includes('semanticSearch')) {
-      SemanticSearch.attach(this.container as any)
+      ;(SemanticSearch as any).attach(this.container as any)
     }
 
     // Store search index in ~/.luca/contentbase/{hash}/ keyed by the real (symlink-resolved) collection path
@@ -660,7 +660,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   get queries(): Record<string, ReturnType<typeof this.query>> {
     const queryChains: [string, ReturnType<typeof this.query>][] = []
     for (const modelName of this.modelNames) {
-      const queryChain = this.query(this.models[modelName])
+      const queryChain = this.query(this.models[modelName]!)
       const pluralized = this.container.utils.stringUtils.pluralize(modelName).toLowerCase()
       queryChains.push([modelName.toLowerCase(), queryChain])
       queryChains.push([pluralized, queryChain])

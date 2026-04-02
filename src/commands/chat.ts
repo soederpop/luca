@@ -186,6 +186,7 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 		const items = Array.isArray(options.use) ? options.use : [options.use]
 		for (const item of items) {
 			const [namepart, optStr] = item.split(':')
+			if (!namepart) continue
 			const featureOpts: Record<string, any> = { enable: true }
 			if (optStr) {
 				for (const pair of optStr.split(';')) {

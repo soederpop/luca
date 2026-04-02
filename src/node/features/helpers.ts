@@ -201,7 +201,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     }
 
     // Schemas
-    const schemasModule = { CommandOptionsSchema: commands.baseClass?.optionsSchema || z.object({}) }
+    const schemasModule: Record<string, any> = { CommandOptionsSchema: commands.baseClass?.optionsSchema || z.object({}) }
     try {
       // Pull all base schemas from the already-loaded schemas/base module
       const baseSchemas = require('../../schemas/base.js')

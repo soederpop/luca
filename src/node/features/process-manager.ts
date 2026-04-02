@@ -436,7 +436,7 @@ export class ProcessManager extends Feature {
   static { Feature.register(this, 'processManager') }
 
   /** Tools that an assistant can use to spawn and manage processes. */
-  static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+  static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
     spawnProcess: {
       schema: z.object({
         command: z.string().describe('The command to execute (e.g. "node", "bun", "python")'),

@@ -23,7 +23,24 @@ export type { AvailableFeatures }
 // I want the InstanceType of each value of AvailableFeatures, AvailableClients, whatever
 export type AvailableInstanceTypes<T> = {
   [K in keyof T]: T[K] extends new (...args: any) => any ? InstanceType<T[K]> : never
-} 
+}
+
+/**
+ * Maps a feature registry to the INPUT type of each feature's optionsSchema.
+ * This allows feature() to accept partial/optional options (e.g. omitting fields
+ * that have .default() on them) rather than requiring the fully-parsed OUTPUT type.
+ *
+ * For any feature class that exposes a static `optionsSchema`, we use `z.input<S>` so
+ * that callers can omit fields that have `.default(...)` — Zod's output type marks
+ * defaulted fields as required, but the input type correctly makes them optional.
+ */
+export type FeatureInputOptions<Features> = {
+  [K in keyof Features]: Features[K] extends { optionsSchema: infer S extends z.ZodType }
+    ? z.input<S>
+    : Features[K] extends new (options: infer O, ...args: any[]) => any
+      ? O
+      : Record<string, unknown>
+}
 
 /**
  * You'll want to use module augmentation to add your own options to the ContainerArgv interface
@@ -53,6 +70,7 @@ export interface ContainerUtils {
 
 export interface ContainerContext<T extends AvailableFeatures = any> {
   container: Container<T>
+  [key: string]: unknown
 }
 
 /**
@@ -445,7 +463,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   */
   feature<T extends keyof Features>(
     id: T,
-    options?: ConstructorParameters<Features[T]>[0]
+    options?: FeatureInputOptions<Features>[T] | Record<string, unknown>
   ): InstanceType<Features[T]> {
     const BaseClass = this.features.lookup(id as string) as Features[T]
 

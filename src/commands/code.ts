@@ -36,7 +36,7 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 	if (options.prompt) {
 		const resolved = container.paths.resolve(options.prompt)
 		if (fs.exists(resolved)) {
-			systemPrompt = fs.readFile(resolved)
+			systemPrompt = String(fs.readFile(resolved))
 		} else if (!options.prompt.endsWith('.md')) {
 			systemPrompt = options.prompt
 		} else {
@@ -81,6 +81,8 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 		model: options.model,
 		local: options.local,
 		skills: extraSkills,
+		maxTokens: 2048,
+		autoLoadLucaSkill: true,
 	})
 
 	// ── UI setup ───────────────────────────────────────────────────────────
@@ -319,7 +321,7 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 
 			const featureContext: Record<string, any> = {}
 			for (const fname of container.features.available) {
-				try { featureContext[fname] = container.feature(fname) } catch {}
+				try { featureContext[fname] = (container as any).feature(fname) } catch {}
 			}
 
 			const replPrompt = ui.colors.magenta('console') + ui.colors.dim(' > ')

@@ -82,7 +82,7 @@ class RateLimiter {
     }
 
     // Prune timestamps outside the window
-    while (timestamps.length > 0 && timestamps[0] <= now - windowMs) {
+    while (timestamps.length > 0 && (timestamps[0] ?? 0) <= now - windowMs) {
       timestamps.shift()
     }
 

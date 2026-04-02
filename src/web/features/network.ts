@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";

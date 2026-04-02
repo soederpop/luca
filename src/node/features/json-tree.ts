@@ -121,7 +121,7 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
     for (const file of jsonFiles.filter(Boolean)) {
       if (file?.relativePath) {
         const fileContent = fileSystem.readFile(file.relativePath);
-        const fileData = JSON.parse(fileContent);
+        const fileData = JSON.parse(String(fileContent));
         const path = file.relativePath
           .replace(/\.json$/, "")
           .replace(basePath + "/", "")

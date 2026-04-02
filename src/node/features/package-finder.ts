@@ -296,7 +296,7 @@ export class PackageFinder<
    */
   get scopes(): string[] {
     return Array.from(
-      new Set(this.packageNames.filter(p => p.startsWith('@')).map(p => p.split('/')[0]))
+      new Set(this.packageNames.filter(p => p.startsWith('@')).map(p => p.split('/')[0]).filter((s): s is string => s !== undefined))
     )
   }
  

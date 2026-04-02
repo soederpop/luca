@@ -61,7 +61,7 @@ export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
   static override optionsSchema = BrowserUseOptionsSchema
   static override eventsSchema = BrowserUseEventsSchema
 
-  static tools = {
+  static override tools = {
     browserOpen: {
       description: 'Navigate the browser to a URL. Call this first to open a page before any interaction.',
       schema: z.object({

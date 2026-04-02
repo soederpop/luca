@@ -113,7 +113,7 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
     for (const file of yamlFiles.filter(Boolean)) {
       if(file?.relativePath) {
         const fileContent = fileSystem.readFile(file.relativePath);
-        const fileData = yamlFeature.parse(fileContent);
+        const fileData = yamlFeature.parse(String(fileContent));
         const path = file.relativePath.replace(/\.ya?ml$/, "").replace(basePath + "/", "").split("/").filter(v => v?.length).map(p => camelCase(p));
         set(tree, path, fileData)
       }

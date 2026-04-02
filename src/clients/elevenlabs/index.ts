@@ -3,6 +3,7 @@ import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soe
 import { Client } from "@soederpop/luca/client";
 import { RestClient } from "../rest";
 import type { ContainerContext } from "@soederpop/luca/container";
+import type { NodeContainer } from "../../node/container.js";
 import type { AxiosRequestConfig } from 'axios'
 
 declare module "@soederpop/luca/client" {
@@ -90,6 +91,10 @@ export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLa
       baseURL: 'https://api.elevenlabs.io',
     }
     super(options, context)
+  }
+
+  override get container(): NodeContainer {
+    return super.container as unknown as NodeContainer
   }
 
   /** The resolved API key from options or environment. */

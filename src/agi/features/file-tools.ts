@@ -38,7 +38,7 @@ export class FileTools extends Feature {
 
 	static { Feature.register(this, 'fileTools') }
 
-	static tools: Record<string, { schema: z.ZodType; description?: string }> = {
+	static override tools: Record<string, { schema: z.ZodType; description?: string }> = {
 		readFile: {
 			description: 'Read the contents of a file. Returns the text content. Use offset/limit to read portions of large files.',
 			schema: z.object({

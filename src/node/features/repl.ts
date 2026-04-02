@@ -101,7 +101,7 @@ export class Repl<
 
     // Load existing history
     try {
-      const content = fs.readFile(this._historyPath, 'utf-8')
+      const content = this.container.fs.readFile(this._historyPath, 'utf-8') as string
       this._history = content.split('\n').filter(Boolean).reverse()
     } catch {}
 
@@ -204,7 +204,7 @@ export class Repl<
   private _saveHistory(line: string) {
     if (!this._historyPath || !line.trim()) return
     try {
-      fs.appendFileSync(this._historyPath, line + '\n')
+      this.container.fs.appendFile(this._historyPath, line + '\n')
     } catch {}
   }
 }

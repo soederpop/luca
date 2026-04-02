@@ -33,9 +33,9 @@ export type MCPContext = {
 export interface RegisteredTool {
   name: string
   description?: string
-  schema?: z.ZodObject<any>
+  schema?: z.ZodType
   jsonSchema?: Record<string, any>
-  handler: (args: any, ctx: MCPContext) => any
+  handler: Function
 }
 
 /** A registered MCP resource with its URI, metadata, and handler. */
@@ -61,9 +61,9 @@ export type PromptMessage = {
 }
 
 type ToolRegistrationOptions = {
-  schema?: z.ZodObject<any>
+  schema?: z.ZodType
   description?: string
-  handler: (args: any, ctx: MCPContext) => any
+  handler?: Function | ((args: any, ctx: any) => any)
 }
 
 type ResourceRegistrationOptions = {
@@ -340,7 +340,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
    * @param name - Unique tool name
    * @param options - Tool schema, description, and handler
    */
-  tool(name: string, options: ToolRegistrationOptions): this {
+  override tool(name: string, options: ToolRegistrationOptions): this {
     let jsonSchema: Record<string, any> | undefined
 
     if (options.schema) {
@@ -357,7 +357,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       description: options.description,
       schema: options.schema,
       jsonSchema,
-      handler: options.handler,
+      handler: options.handler ?? (() => {}),
     }
 
     this._tools.set(name, registered)

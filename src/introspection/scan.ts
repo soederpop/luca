@@ -587,7 +587,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
         if (!commentText.startsWith('/**')) continue;
 
         const match = commentText.match(/@returns?\s*\{([^}]+)\}/);
-        if (match) return match[1].trim();
+        if (match && match[1]) return match[1].trim();
       }
     }
 

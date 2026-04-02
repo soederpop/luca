@@ -135,17 +135,17 @@ export class Selector<
 		}
 
 		// Run the selector
-		this.state.set('running' as any, true)
+		this.state.set('running' as any, true as any)
 		this.emit('started' as any)
 
 		let data: any
 		try {
 			data = await this.run(parsed, this.context)
-			this.state.set('running' as any, false)
-			this.state.set('lastRanAt' as any, Date.now())
+			this.state.set('running' as any, false as any)
+			this.state.set('lastRanAt' as any, Date.now() as any)
 			this.emit('completed' as any, data)
 		} catch (err: any) {
-			this.state.set('running' as any, false)
+			this.state.set('running' as any, false as any)
 			this.emit('failed' as any, err)
 			throw err
 		}

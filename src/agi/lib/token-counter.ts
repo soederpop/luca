@@ -39,7 +39,7 @@ export function getContextWindow(model: string): number {
 		}
 	}
 
-	return best ? MODEL_CONTEXT_WINDOWS[best] : DEFAULT_CONTEXT_WINDOW
+	return best ? MODEL_CONTEXT_WINDOWS[best] ?? DEFAULT_CONTEXT_WINDOW : DEFAULT_CONTEXT_WINDOW
 }
 
 /** Get a cached tiktoken encoder for a model (falls back to o200k_base). */
