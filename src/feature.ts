@@ -23,7 +23,7 @@ export abstract class Feature<T extends FeatureState = FeatureState, K extends F
     static override eventsSchema = FeatureEventsSchema
 
     /** Self-register a Feature subclass from a static initialization block. */
-    static register: (SubClass: typeof Feature, id?: string) => typeof Feature
+    static register: (SubClass: abstract new (options: any, context: any) => Feature, id?: string) => typeof Feature
 
     get shortcut() {
         return (this.constructor as any).shortcut as string

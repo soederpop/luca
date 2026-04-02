@@ -73,7 +73,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	static { Feature.register(this, 'skillsLibrary') }
 
 	/** Tools for assistant integration via assistant.use(skillsLibrary). */
-	static tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+	static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
 		searchAvailableSkills: {
 			schema: z.object({
 				query: z.string().optional().describe('Optional search term to filter skills by name or description'),
@@ -103,7 +103,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 	}
 	
-	override setupToolsConsumer(assistant: Assistant) {
+	override setupToolsConsumer(assistant: Feature) {
 		if (!(assistant instanceof Assistant)) {
 			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
 		}
