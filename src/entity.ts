@@ -2,6 +2,7 @@ import { Bus, type EventMap } from './bus.js'
 import { State, type SetStateValue } from './state.js'
 import type { Container } from './container.js'
 import uuid from 'node-uuid'
+import { z } from 'zod'
 
 /**
  * An Entity is a lightweight, composable object with observable state, a typed event bus,
@@ -56,6 +57,27 @@ export type Entity<
   extend<Ext extends Record<string, any>>(
     extensions: Ext & ThisType<Entity<TState, TOptions, TEvents> & Ext>
   ): Entity<TState, TOptions, TEvents> & Ext
+
+  /**
+   * Register a method on this entity as an AI tool with the given Zod schema.
+   * Chainable — returns `this` so you can stack multiple `.expose()` calls.
+   *
+   * @example
+   * ```ts
+   * const agent = container.entity('agent', {})
+   *   .extend({ search({ query }: { query: string }) { ... } })
+   *   .expose('search', z.object({ query: z.string() }))
+   *
+   * assistant.addTools(agent)
+   * ```
+   */
+  expose(functionName: string, schema: z.ZodType): this
+
+  /**
+   * Returns `{ schemas, handlers }` for all tools registered via `.expose()`.
+   * Compatible with `assistant.addTools()` and the standard `toTools` contract.
+   */
+  toTools(): { schemas: Record<string, z.ZodType>; handlers: Record<string, Function> }
 }
 
 /** @internal */
@@ -71,6 +93,8 @@ export function createEntityObject<
   const _events = new Bus<TEvents>()
   const _state = new State<TState>()
 
+  const _exposed = new Map<string, z.ZodType>()
+
   const entity: Entity<TState, TOptions, TEvents> = {
     id,
     uuid: (uuid as any).v4(),
@@ -84,7 +108,37 @@ export function createEntityObject<
     waitFor(event: any) { return _events.waitFor(event) },
     setState(value: any) { _state.setState(value) },
     extend(extensions: any) { return applyExtensions(this as any, extensions) },
+    expose(functionName: string, schema: z.ZodType) {
+      // Each prototype layer gets its own _exposed map (lazy-created on write)
+      if (!Object.prototype.hasOwnProperty.call(this, '_exposed')) {
+        ;(this as any)._exposed = new Map<string, z.ZodType>()
+      }
+      ;(this as any)._exposed.set(functionName, schema)
+      return this
+    },
+    toTools() {
+      const schemas: Record<string, z.ZodType> = {}
+      const handlers: Record<string, Function> = {}
+
+      // Walk the prototype chain collecting _exposed maps; shallower layers win
+      let obj: any = this
+      while (obj !== null) {
+        if (Object.prototype.hasOwnProperty.call(obj, '_exposed')) {
+          for (const [name, schema] of (obj._exposed as Map<string, z.ZodType>)) {
+            if (!(name in schemas)) {
+              schemas[name] = schema
+              handlers[name] = (args: any) => (this as any)[name](args)
+            }
+          }
+        }
+        obj = Object.getPrototypeOf(obj)
+      }
+
+      return { schemas, handlers }
+    },
   }
+
+  ;(entity as any)._exposed = _exposed
 
   return entity
 }
