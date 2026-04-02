@@ -96,9 +96,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		}
 	}
 
-	override get container(): AGIContainer {
-		return super.container as AGIContainer
-	}
 
 	/** Discovered assistant entries keyed by name. */
 	get entries(): Record<string, AssistantEntry> {

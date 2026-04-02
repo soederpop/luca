@@ -157,9 +157,6 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 		}
 	}
 
-	override get container(): AGIContainer {
-		return super.container as AGIContainer
-	}
 
 	/** The inner assistant. Throws if not started. */
 	get assistant(): Assistant {

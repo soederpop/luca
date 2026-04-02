@@ -175,9 +175,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 	}
 
-	override get container(): AGIContainer {
-		return super.container as AGIContainer
-	}
 
 	get name() {
 		return this.resolvedFolder.split('/').pop()

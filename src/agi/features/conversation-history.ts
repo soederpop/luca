@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '../feature.js'
-import { NodeContainer, type DiskCache, type NodeFeatures } from '@soederpop/luca/node/container'
+import type { DiskCache } from '@soederpop/luca/node/container'
 import type { Message } from './conversation'
 
 declare module '@soederpop/luca/feature' {
@@ -95,10 +95,6 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		}
 	}
 
-	/** @returns The parent NodeContainer, narrowed from the base Container type. */
-	override get container() {
-		return super.container as NodeContainer<NodeFeatures, any>
-	}
 
 	/** @returns The diskCache feature instance used for persistence, configured with the optional cachePath. */
 	get diskCache(): DiskCache {

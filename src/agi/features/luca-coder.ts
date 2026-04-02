@@ -213,9 +213,6 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		}
 	}
 
-	override get container(): AGIContainer {
-		return super.container as AGIContainer
-	}
 
 	/** The inner assistant. Throws if not started. */
 	get assistant(): Assistant {
