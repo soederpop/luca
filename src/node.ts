@@ -65,6 +65,7 @@ export type { AvailableFeatures, FeatureOptions, FeatureState } from './feature'
 export type { NodeContainer, NodeFeatures } from './node/container'
 export type { AvailableServers, StartOptions, ServersInterface } from './server'
 export type { HelperState, HelperOptions } from './helper'
+export type { Entity } from './entity'
 export type { EventMap } from './bus'
 export type { SetStateValue, StateChangeType } from './state'
 

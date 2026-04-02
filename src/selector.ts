@@ -198,6 +198,76 @@ export class SelectorsRegistry extends Registry<Selector<any>> {
 	override baseClass = Selector as any
 
 	/**
+	 * Convert all registered selectors into a `{ schemas, handlers }` object
+	 * compatible with `assistant.use()`.
+	 *
+	 * Each selector becomes a tool whose parameters come from the selector's
+	 * `argsSchema` (with internal fields stripped) and whose handler dispatches
+	 * the selector and returns the data directly (cache metadata is not exposed).
+	 *
+	 * @param container - The container used to instantiate and run selectors
+	 * @param options - Optional filter/transform options
+	 * @param options.include - Only include these selector names (default: all)
+	 * @param options.exclude - Exclude these selector names (default: none)
+	 * @param options.prefix - Prefix tool names (e.g. 'sel_' → 'sel_packageInfo')
+	 */
+	toTools(
+		container: Container<any> & SelectorsInterface,
+		options?: { include?: string[], exclude?: string[], prefix?: string },
+	): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
+		const schemas: Record<string, z.ZodType> = {}
+		const handlers: Record<string, Function> = {}
+		const prefix = options?.prefix ?? ''
+		const includeSet = options?.include ? new Set(options.include) : null
+		const excludeSet = new Set(options?.exclude ?? [])
+
+		// Internal fields from HelperOptionsSchema and SelectorOptionsSchema
+		const internalFields = ['name', '_cacheKey', 'dispatchSource']
+
+		for (const name of this.available) {
+			if (excludeSet.has(name)) continue
+			if (includeSet && !includeSet.has(name)) continue
+
+			const Sel = this.lookup(name) as typeof Selector
+			const rawSchema = Sel.argsSchema
+			const description = Sel.selectorDescription || Sel.description || name
+
+			let toolSchema: z.ZodType
+			try {
+				const shape = typeof (rawSchema as any)?._def?.shape === 'function'
+					? (rawSchema as any)._def.shape()
+					: (rawSchema as any)?._def?.shape
+
+				if (shape) {
+					const cleanShape: Record<string, z.ZodType> = {}
+					for (const [key, val] of Object.entries(shape)) {
+						if (internalFields.includes(key)) continue
+						cleanShape[key] = val as z.ZodType
+					}
+
+					toolSchema = Object.keys(cleanShape).length > 0
+						? z.object(cleanShape).describe(description)
+						: z.object({}).describe(description)
+				} else {
+					toolSchema = z.object({}).describe(description)
+				}
+			} catch {
+				toolSchema = z.object({}).describe(description)
+			}
+
+			const toolName = `${prefix}${name}`
+			schemas[toolName] = toolSchema
+			handlers[toolName] = async (args: Record<string, any>) => {
+				const sel = (container.select as any)(name)
+				const result = await sel.select(args ?? {})
+				return result.data
+			}
+		}
+
+		return { schemas, handlers }
+	}
+
+	/**
 	 * Discover and register selectors from a directory.
 	 * Detection order:
 	 *   1. Default export is a class extending Selector -> register directly

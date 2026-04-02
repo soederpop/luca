@@ -108,6 +108,15 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
 		}
 		
+		const skillsLibrary = this
+	
+		assistant.intercept('beforeAsk', async function beforeAskCheckIfWeNeedSkills(ctx, next) {
+			const { question } = ctx
+			console.log('Before Ask Hook Running', question)
+			const skills = await skillsLibrary.findRelevantSkillsForAssistant(assistant, question as string)
+			console.log('Response', skills)
+			await next()	
+		})
 		
 		return assistant
 	}
@@ -378,6 +387,48 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const reader = this.createSkillReader(skillName)
 		const answer = await reader.ask(question)
 		return answer
+	}
+
+	/**
+	 * Fork the given assistant and ask it which skills (if any) are relevant
+	 * to the user's query. Returns an array of skill names that should be loaded
+	 * before the real question is answered.
+	 *
+	 * The fork is ephemeral (historyMode: 'none') and uses structured output so
+	 * the result is always a clean string array — never free text.
+	 *
+	 * @param assistant - The assistant instance to fork
+	 * @param userQuery - The user's original question
+	 * @returns Array of skill names relevant to the query (may be empty)
+	 */
+	async findRelevantSkillsForAssistant(assistant: Assistant, userQuery: string): Promise<string[]> {
+		if (!this.isStarted) await this.start()
+
+		const skills = this.list()
+		if (skills.length === 0) return []
+
+		const skillIndex = skills
+			.map(s => `- ${s.name}: ${s.description || '(no description)'}`)
+			.join('\n')
+
+		const fork = assistant.fork()
+
+		const responseSchema = z.object({
+			skills: z.array(z.string()).describe('Names of skills relevant to the query. Empty array if none apply.'),
+		})
+
+		const prompt = `You are a routing assistant. Given a user query and a list of available skills, determine which skills (if any) should be loaded to help answer the query.
+
+Available skills:
+${skillIndex}
+
+User query: ${userQuery}
+
+Return only the skill names that are directly relevant. Return an empty array if none apply. Do not load skills speculatively — only include ones that would materially help answer this specific query.`
+
+		const result = await fork.ask(prompt, { schema: responseSchema }) as unknown as { skills: string[] }
+
+		return result.skills.filter(name => this.find(name) !== undefined)
 	}
 }
 

@@ -26,6 +26,16 @@ export class InterceptorChain<T> {
 		return this.fns.length
 	}
 
+	clear(): void {
+		this.fns = []
+	}
+
+	clone(): InterceptorChain<T> {
+		const copy = new InterceptorChain<T>()
+		for (const fn of this.fns) copy.add(fn)
+		return copy
+	}
+
 	async run(ctx: T, final: () => Promise<void>): Promise<void> {
 		let index = 0
 		const fns = this.fns

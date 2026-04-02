@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { ContainerStateSchema, describeZodShape } from './schemas/base'
 import { getContainerBuildTimeData, type ContainerIntrospection, type RegistryIntrospection, type IntrospectionSection } from './introspection/index'
 import { ContainerDescriber } from './container-describer'
+import { createEntityObject, type Entity, type EventMap as EntityEventMap } from './entity'
 
 export { z }
 
@@ -447,6 +448,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
     const instance = new (BaseClass as any)(helperOptions, context || this.context)
     cache.set(cacheKey, instance)
+    uuidCache.set(instance.uuid, instance)
     return instance
   }
 
@@ -477,7 +479,75 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       context: { container: this },
     }) as InstanceType<Features[T]>
   }
-  
+
+  /**
+   * Creates a lightweight entity object with observable state, a typed event bus, and
+   * access to the container. Same id + options always returns the same cached base instance.
+   *
+   * An optional third argument auto-extends the entity with functions and getters.
+   * All extended methods and getters can access the entity (state, options, container,
+   * on/off/emit, etc.) via `this`.
+   *
+   * @param id         - Stable identifier for this entity (included in cache key)
+   * @param options    - Arbitrary options stored on `entity.options` (included in cache key)
+   * @param extensions - Optional object of functions/getters to graft onto the entity
+   *
+   * @example
+   * ```ts
+   * // Basic entity with typed state and events
+   * const counter = container.entity<{ count: number }>('counter')
+   * counter.setState({ count: 0 })
+   * counter.on('tick', () => counter.setState(s => ({ count: s.count + 1 })))
+   *
+   * // With options and auto-extension
+   * const user = container.entity('user:42', { name: 'Alice' }, {
+   *   greet() { return `Hello ${this.options.name}` },
+   *   get label() { return `User: ${this.options.name}` },
+   * })
+   * user.greet() // "Hello Alice"
+   * ```
+   */
+  entity<
+    TState extends Record<string, any> = Record<string, any>,
+    TOptions extends Record<string, any> = Record<string, any>,
+    TEvents extends EntityEventMap = EntityEventMap,
+    Ext extends Record<string, any> = {},
+  >(
+    id: string,
+    options?: TOptions,
+    extensions?: Ext & ThisType<Entity<TState, TOptions, TEvents> & Ext>
+  ): Entity<TState, TOptions, TEvents> & Ext {
+    const normalizedOptions = (options || {}) as TOptions
+    const cacheKey = this.buildHelperCacheKey('entity', id, normalizedOptions)
+
+    let base = entityCache.get(cacheKey)
+    if (!base) {
+      base = createEntityObject<TState, TOptions, TEvents>(id, this, normalizedOptions)
+      entityCache.set(cacheKey, base)
+    }
+
+    return extensions ? base.extend(extensions) : base
+  }
+
+  /**
+   * Look up any helper instance (feature, client, server) by its UUID.
+   * Returns undefined if the UUID is unknown or the instance was never created.
+   *
+   * @param uuid - The `instance.uuid` value assigned at construction time
+   * @returns The helper instance, or undefined
+   *
+   * @example
+   * ```ts
+   * const assistant = container.feature('assistant')
+   * const { uuid } = assistant
+   * // ... later ...
+   * const same = container.getHelperByUUID(uuid) // === assistant
+   * ```
+   */
+  getHelperByUUID(uuid: string): Helper | undefined {
+    return uuidCache.get(uuid)
+  }
+
   /**
    * Start the container. Emits the 'started' event and sets `state.started` to true.
    * Plugins and features can listen for this event to perform initialization.
@@ -840,6 +910,8 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 }
 
 const helperCache = new Map()
+const entityCache = new Map()
+const uuidCache = new Map<string, Helper>()
 const featureIdToHelperCacheKeyMap= new Map()
 const contextMap = new WeakMap()
 
