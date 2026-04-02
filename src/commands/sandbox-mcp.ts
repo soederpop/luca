@@ -3,8 +3,7 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import type { MCPServer } from '../servers/mcp.js'
-import { scaffolds, mcpReadme } from '../scaffolds/generated.js'
-import { generateScaffold } from '../scaffolds/template.js'
+import { mcpReadme } from '../scaffolds/generated.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -21,8 +20,18 @@ export const argsSchema = CommandOptionsSchema.extend({
 		.describe('Stdio framing compatibility profile. Defaults to standard. Can also be set via MCP_STDIO_COMPAT.'),
 })
 
+/**
+ * Run a luca CLI command as a subprocess and return its output.
+ * Always spawns fresh so callers see the latest project code.
+ */
+async function lucaCLI(proc: any, command: string, args: string[] = []): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+	const result = await proc.spawnAndCapture('luca', [command, ...args])
+	return { stdout: result.stdout.trim(), stderr: result.stderr.trim(), exitCode: result.exitCode ?? 0 }
+}
+
 export default async function mcpSandbox(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
+	const proc = container.feature('proc')
 	const envCompat = process.env.MCP_HTTP_COMPAT?.toLowerCase()
 	const resolvedCompat = options.mcpCompat || (envCompat === 'codex' ? 'codex' : 'standard')
 	const envStdioCompat = process.env.MCP_STDIO_COMPAT?.toLowerCase()
@@ -37,26 +46,6 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		mcpCompat: options.mcpCompat,
 		stdioCompat: options.stdioCompat,
 	}) as MCPServer
-
-	// Persistent VM context shared across eval calls so variables survive between invocations
-	const vmFeature = container.feature('vm')
-	const sandboxContext = vmFeature.createContext({
-		container,
-		console,
-		setTimeout,
-		setInterval,
-		clearTimeout,
-		clearInterval,
-		fetch,
-		Bun,
-	})
-
-	// Pre-populate sandbox with all enabled features
-	for (const name of container.features.available) {
-		try {
-			vmFeature.runSync(`var ${name} = container.feature('${name}')`, sandboxContext)
-		} catch {}
-	}
 
 	// --- Tool: read_me ---
 	mcpServer.tool('read_me', {
@@ -78,22 +67,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'Prefer this over installing npm packages — the container likely already has what you need.',
 		].join('\n'),
 		schema: z.object({}),
-		handler: () => {
-			const sections: string[] = []
-
-			try {
-				sections.push(container.features.describeAll())
-			} catch {}
-
-			try {
-				sections.push(container.clients.describeAll())
-			} catch {}
-
-			try {
-				sections.push(container.servers.describeAll())
-			} catch {}
-
-			return sections.join('\n\n---\n\n')
+		handler: async () => {
+			const { stdout, stderr } = await lucaCLI(proc, 'eval', [
+				'[container.features.describeAll(), container.clients.describeAll(), container.servers.describeAll()].join("\\n\\n---\\n\\n")',
+			])
+			return stdout || stderr
 		},
 	})
 
@@ -113,9 +91,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			description: z.string().optional()
 				.describe('Brief description of what this helper does'),
 		}),
-		handler: (args) => {
-			const result = generateScaffold(args.type, args.name, args.description)
-			return result || `No scaffold template available for type: ${args.type}`
+		handler: async (args) => {
+			const cliArgs = [args.type, args.name]
+			if (args.description) cliArgs.push('--description', args.description)
+			const { stdout, stderr } = await lucaCLI(proc, 'scaffold', cliArgs)
+			return stdout || stderr
 		},
 	})
 
@@ -124,12 +104,10 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		description: [
 			'Evaluate JavaScript/TypeScript code in a Luca container sandbox.',
 			'Use this to prototype and test container API calls before writing them into files.',
-			'The sandbox has all features available as top-level variables.',
+			'Each call runs in a fresh luca process — always reflects the latest project code.',
 			'',
 			'The sandbox has a live `container` object and all enabled features as top-level variables',
 			'(e.g. `fs`, `git`, `ui`, `vm`, `proc`, `networking`, etc).',
-			'',
-			'Variables you define persist across calls, so you can build up state incrementally.',
 			'',
 			'The result of the last expression is returned. For async code, use `await`.',
 			'',
@@ -149,46 +127,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			code: z.string().describe('JavaScript code to evaluate in the Luca container sandbox'),
 		}),
 		handler: async (args) => {
-			try {
-				const { result, console: calls } = await vmFeature.runCaptured(args.code, sandboxContext)
-
-				const content: Array<{ type: 'text', text: string }> = []
-
-				// Include captured console output if any
-				if (calls.length > 0) {
-					const consoleLines = calls.map(c => {
-						const prefix = c.method === 'log' ? '' : `[${c.method}] `
-						return prefix + c.args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' ')
-					})
-					content.push({ type: 'text' as const, text: consoleLines.join('\n') })
-				}
-
-				// Include the result
-				let text: string
-				if (result === undefined) {
-					text = 'undefined'
-				} else if (result === null) {
-					text = 'null'
-				} else if (typeof result === 'string') {
-					text = result
-				} else if (typeof result === 'object') {
-					try {
-						text = JSON.stringify(result, null, 2)
-					} catch {
-						text = String(result)
-					}
-				} else {
-					text = String(result)
-				}
-
-				content.push({ type: 'text' as const, text })
-
-				return { content }
-			} catch (error: any) {
-				return {
-					content: [{ type: 'text' as const, text: `Error: ${error.message}\n\n${error.stack || ''}` }],
-					isError: true,
-				}
+			const { stdout, stderr, exitCode } = await lucaCLI(proc, 'eval', [args.code])
+			const text = stdout || stderr || 'undefined'
+			return {
+				content: [{ type: 'text' as const, text }],
+				isError: exitCode !== 0,
 			}
 		},
 	})
@@ -207,8 +150,12 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full overview.'),
 		}),
-		handler: (args) => {
-			return container.introspectAsText(args.section)
+		handler: async (args) => {
+			const code = args.section
+				? `container.introspectAsText("${args.section}")`
+				: 'container.introspectAsText()'
+			const { stdout, stderr } = await lucaCLI(proc, 'eval', [code])
+			return stdout || stderr
 		},
 	})
 
@@ -224,22 +171,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
 				.describe('Which registry to list'),
 		}),
-		handler: (args) => {
-			const registry = (container as any)[args.registry]
-			if (!registry) return `Unknown registry: ${args.registry}`
-			const names: string[] = registry.available
-			if (names.length === 0) return `No ${args.registry} registered.`
-			const lines = [`# Available ${args.registry}\n`]
-			for (const name of names) {
-				try {
-					const Ctor = registry.lookup(name) as any
-					const desc = Ctor.description || ''
-					lines.push(`- **${name}**${desc ? `: ${desc}` : ''}`)
-				} catch {
-					lines.push(`- **${name}**`)
-				}
-			}
-			return lines.join('\n')
+		handler: async (args) => {
+			const { stdout, stderr } = await lucaCLI(proc, 'eval', [
+				`container.${args.registry}.available.map(n => { try { const C = container.${args.registry}.lookup(n); return "- **" + n + "**" + (C.description ? ": " + C.description : "") } catch { return "- **" + n + "**" } }).join("\\n")`,
+			])
+			return stdout || stderr
 		},
 	})
 
@@ -254,24 +190,15 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'Use list_registry or find_capability first to see what is available.',
 		].join('\n'),
 		schema: z.object({
-			registry: z.enum(['features', 'clients', 'servers', 'commands', 'endpoints'])
-				.describe('Which registry the helper belongs to'),
-			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express")'),
+			name: z.string().describe('Name of the helper (e.g. "fs", "rest", "express", "serve")'),
 			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full documentation.'),
 		}),
-		handler: (args) => {
-			const registry = (container as any)[args.registry]
-			if (!registry) return `Unknown registry: ${args.registry}`
-			if (!registry.has(args.name)) {
-				return `"${args.name}" not found in ${args.registry}. Available: ${registry.available.join(', ')}`
-			}
-			try {
-				const Ctor = registry.lookup(args.name) as any
-				return Ctor.introspectAsText(args.section)
-			} catch (e: any) {
-				return `Error describing ${args.name}: ${e.message}`
-			}
+		handler: async (args) => {
+			const describeArgs = [args.name]
+			if (args.section) describeArgs.push(args.section)
+			const { stdout, stderr } = await lucaCLI(proc, 'describe', describeArgs)
+			return stdout || stderr
 		},
 	})
 
@@ -282,8 +209,7 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			'Use this to inspect a live, running instance — see its current state,',
 			'check method signatures, and understand runtime behavior.',
 			'',
-			'Creates or retrieves the helper and returns introspectAsText() — the same',
-			'rich markdown documentation available on any Helper instance at runtime.',
+			'Runs in a fresh process so you always see the latest code.',
 			'Optionally filter to a specific section.',
 		].join('\n'),
 		schema: z.object({
@@ -293,20 +219,17 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			section: z.enum(['methods', 'getters', 'events', 'state', 'options', 'envVars']).optional()
 				.describe('Optional section to filter to. Omit for full introspection.'),
 		}),
-		handler: (args) => {
-			try {
-				let instance: any
-				if (args.type === 'feature') {
-					instance = container.feature(args.name as any)
-				} else if (args.type === 'client') {
-					instance = container.client(args.name as any)
-				} else if (args.type === 'server') {
-					instance = container.server(args.name as any)
-				}
-				return instance.introspectAsText(args.section)
-			} catch (e: any) {
-				return `Error inspecting ${args.type} "${args.name}": ${e.message}`
-			}
+		handler: async (args) => {
+			const accessor = args.type === 'feature'
+				? `container.feature('${args.name}')`
+				: args.type === 'client'
+					? `container.client('${args.name}')`
+					: `container.server('${args.name}')`
+			const code = args.section
+				? `${accessor}.introspectAsText("${args.section}")`
+				: `${accessor}.introspectAsText()`
+			const { stdout, stderr } = await lucaCLI(proc, 'eval', [code])
+			return stdout || stderr
 		},
 	})
 
@@ -318,7 +241,8 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 			content: [
 				'# Luca Container Sandbox',
 				'',
-				'You have access to a live Luca container through the `eval` tool. The sandbox is a persistent JavaScript environment with a `container` global and all enabled features available as top-level variables.',
+				'You have access to a live Luca container through the `eval` tool. Each call runs in a fresh process,',
+				'so you always see the latest project code. Use the `eval` tool to prototype and explore.',
 				'',
 				'## Discovering what is available',
 				'',
@@ -353,20 +277,6 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 				'git.log({ max: 5 })                    // Recent git commits',
 				'proc.exec("ls -la")                    // Run a shell command',
 				'```',
-				'',
-				'### Persistent state',
-				'Variables you define in one eval call persist to the next:',
-				'```',
-				'// Call 1',
-				'const data = fs.readFile("package.json")',
-				'// Call 2',
-				'JSON.parse(data).name  // still has `data` from previous call',
-				'```',
-				'',
-				'## Recommended first steps',
-				'1. `container.features.available` — see what features exist',
-				'2. Pick an interesting feature and `container.features.describe("name")` it',
-				'3. Try using the feature directly',
 			].join('\n'),
 		}],
 	})
@@ -375,10 +285,10 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 	mcpServer.prompt('introspect', {
 		description: 'Get full introspection of the Luca container — all registries, state, methods, events, and environment info.',
 		handler: async () => {
-			const text = container.introspectAsText()
+			const { stdout } = await lucaCLI(proc, 'eval', ['container.introspectAsText()'])
 			return [{
 				role: 'user' as const,
-				content: `Here is the full container introspection:\n\n${text}`,
+				content: `Here is the full container introspection:\n\n${stdout}`,
 			}]
 		},
 	})
@@ -388,7 +298,10 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		name: 'Container Info',
 		description: 'Full introspection of the running Luca container',
 		mimeType: 'text/markdown',
-		handler: () => container.introspectAsText(),
+		handler: async () => {
+			const { stdout } = await lucaCLI(proc, 'eval', ['container.introspectAsText()'])
+			return stdout
+		},
 	})
 
 	// --- Resource: feature list ---
@@ -396,18 +309,11 @@ export default async function mcpSandbox(options: z.infer<typeof argsSchema>, co
 		name: 'Available Features',
 		description: 'List of all registered features with descriptions',
 		mimeType: 'text/markdown',
-		handler: () => {
-			const lines = ['# Available Features\n']
-			for (const name of container.features.available) {
-				try {
-					const Ctor = container.features.lookup(name) as any
-					const desc = Ctor.description || ''
-					lines.push(`- **${name}**: ${desc}`)
-				} catch {
-					lines.push(`- **${name}**`)
-				}
-			}
-			return lines.join('\n')
+		handler: async () => {
+			const { stdout } = await lucaCLI(proc, 'eval', [
+				'"# Available Features\\n" + container.features.available.map(n => { try { const C = container.features.lookup(n); return "- **" + n + "**: " + (C.description || "") } catch { return "- **" + n + "**" } }).join("\\n")',
+			])
+			return stdout
 		},
 	})
 
