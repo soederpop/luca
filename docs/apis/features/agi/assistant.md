@@ -369,6 +369,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `effectiveSystemPrompt` | `string` | The system prompt with all extensions appended. This is the value passed to the conversation. |
 | `tools` | `Record<string, ConversationTool>` | The tools registered with this assistant. |
 | `meta` | `Record<string, any>` | Parsed YAML frontmatter from CORE.md, or empty object if none. |
+| `effectiveOptions` | `AssistantOptions & Record<string, any>` | Merged options where CORE.md frontmatter provides defaults and constructor options take precedence. Prefer this over `this.options` anywhere model parameters or runtime config is consumed. |
 | `paths` | `any` | Provides a helper for creating paths off of the assistant's base folder |
 | `assistantName` | `string` | The assistant name derived from the folder basename. |
 | `cwdHash` | `string` | An 8-char hash of the container cwd for per-project thread isolation. |

@@ -10,9 +10,48 @@ container.feature('assistantsManager')
 
 ## Methods
 
-### discover
+### intercept
 
-Discovers assistants by listing subdirectories in ~/.luca/assistants/ and cwd/assistants/. Each subdirectory containing a CORE.md is an assistant.
+Registers a pipeline interceptor that is applied to every assistant created by this manager. Interceptors are applied at the given interception point on each assistant at creation time. This mirrors the per-assistant `assistant.intercept(point, fn)` API, but scopes it globally across all assistants managed here — useful for cross-cutting concerns like logging, tracing, or policy enforcement.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `point` | `K` | ✓ | The interception point (beforeAsk, beforeTurn, beforeToolCall, afterToolCall, beforeResponse) |
+| `fn` | `InterceptorFn<InterceptorPoints[K]>` | ✓ | Middleware function receiving (ctx, next) |
+
+**Returns:** `this`
+
+```ts
+manager.intercept('beforeAsk', async (ctx, next) => {
+ console.log(`[${ctx.assistant.name}] asking: ${ctx.message}`)
+ await next()
+})
+```
+
+
+
+### addDiscoveryFolder
+
+Registers an additional folder to scan during assistant discovery and immediately triggers a new discovery pass.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `folderPath` | `string` | ✓ | Absolute path to a folder containing assistant subdirectories |
+
+**Returns:** `Promise<this>`
+
+```ts
+await manager.addDiscoveryFolder('/path/to/more/assistants')
+console.log(manager.available) // includes assistants from the new folder
+```
+
+
+
+### discover
 
 **Returns:** `Promise<this>`
 
@@ -174,6 +213,7 @@ Emitted when a new assistant instance is created
 | `entries` | `object` | Discovered assistant entries keyed by name |
 | `instances` | `object` | Active assistant instances keyed by name |
 | `factories` | `object` | Registered factory functions keyed by name |
+| `extraFolders` | `array` | Additional folders to scan during discovery |
 
 ## Examples
 
@@ -185,6 +225,26 @@ manager.discover()
 console.log(manager.list()) // [{ name: 'chief-of-staff', folder: '...', ... }]
 const assistant = manager.create('chief-of-staff')
 const answer = await assistant.ask('Hello!')
+```
+
+
+
+**intercept**
+
+```ts
+manager.intercept('beforeAsk', async (ctx, next) => {
+ console.log(`[${ctx.assistant.name}] asking: ${ctx.message}`)
+ await next()
+})
+```
+
+
+
+**addDiscoveryFolder**
+
+```ts
+await manager.addDiscoveryFolder('/path/to/more/assistants')
+console.log(manager.available) // includes assistants from the new folder
 ```
 
 

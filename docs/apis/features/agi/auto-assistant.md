@@ -5,35 +5,8 @@ An autonomous assistant that owns a lower-level Assistant instance and gates all
 ## Usage
 
 ```ts
-container.feature('autoAssistant', {
-  // Tool bundles to register on the inner assistant
-  tools,
-  // Permission level per tool name
-  permissions,
-  // Default permission level for unconfigured tools
-  defaultPermission,
-  // System prompt for the inner assistant
-  systemPrompt,
-  // OpenAI model override
-  model,
-  // Conversation history persistence mode
-  historyMode,
-  // Assistant folder for disk-based definitions
-  folder,
-})
+container.feature('autoAssistant')
 ```
-
-## Options (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `tools` | `array` | Tool bundles to register on the inner assistant |
-| `permissions` | `object` | Permission level per tool name |
-| `defaultPermission` | `string` | Default permission level for unconfigured tools |
-| `systemPrompt` | `string` | System prompt for the inner assistant |
-| `model` | `string` | OpenAI model override |
-| `historyMode` | `string` | Conversation history persistence mode |
-| `folder` | `string` | Assistant folder for disk-based definitions |
 
 ## Methods
 
@@ -219,134 +192,63 @@ Add a tool bundle after initialization. Useful for dynamically extending the ass
 
 ### permissionGranted
 
-Emitted when a pending tool call is approved
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Approval ID |
+Event emitted by AutonomousAssistant
 
 
 
 ### permissionDenied
 
-Emitted when a pending tool call is denied
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Approval ID |
+Event emitted by AutonomousAssistant
 
 
 
 ### toolBlocked
 
-Emitted when a tool call is blocked by deny policy
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `string` | Reason |
+Event emitted by AutonomousAssistant
 
 
 
 ### chunk
 
-Forwarded: streamed token chunk from the inner assistant
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | A chunk of streamed text |
+Event emitted by AutonomousAssistant
 
 
 
 ### response
 
-Forwarded: complete response from the inner assistant
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | The final response text |
+Event emitted by AutonomousAssistant
 
 
 
 ### toolCall
 
-Forwarded: a tool was called
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `any` | Tool arguments |
+Event emitted by AutonomousAssistant
 
 
 
 ### toolResult
 
-Forwarded: a tool returned a result
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `any` | Result value |
+Event emitted by AutonomousAssistant
 
 
 
 ### toolError
 
-Forwarded: a tool call failed
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Tool name |
-| `arg1` | `any` | Error |
+Event emitted by AutonomousAssistant
 
 
 
 ### started
 
-Emitted when the autonomous assistant has been initialized
+Event emitted by AutonomousAssistant
 
 
 
 ### permissionRequest
 
-Emitted when a tool call requires user approval
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `id` | `string` | Unique approval ID |
-| `toolName` | `string` | The tool requesting permission |
-| `args` | `object` | The arguments the tool was called with |
+Event emitted by AutonomousAssistant
 
 
-
-## State (Zod v4 schema)
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `enabled` | `boolean` | Whether this feature is currently enabled |
-| `started` | `boolean` | Whether the assistant has been initialized |
-| `permissions` | `object` | Permission level per tool name |
-| `defaultPermission` | `string` | Permission level for tools not explicitly configured |
-| `pendingApprovals` | `array` | Tool calls currently awaiting user approval |
-| `approvalHistory` | `array` | Recent approval decisions |
 
 ## Examples
 

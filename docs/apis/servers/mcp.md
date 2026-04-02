@@ -52,9 +52,9 @@ Register an MCP tool. The tool's Zod schema is converted to JSON Schema for the 
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `schema` | `z.ZodObject<any>` |  |
+| `schema` | `z.ZodType` |  |
 | `description` | `string` |  |
-| `handler` | `(args: any, ctx: MCPContext) => any` |  |
+| `handler` | `Function | ((args: any, ctx: any) => any)` |  |
 
 **Returns:** `this`
 

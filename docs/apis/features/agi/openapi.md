@@ -32,7 +32,7 @@ Get a single endpoint by its friendly name or operationId.
 
 
 
-### toTools
+### toOpenAITools
 
 Convert all endpoints into OpenAI-compatible tool definitions.
 
@@ -130,7 +130,7 @@ api.endpoints
 api.endpoint('getPetById')
 
 // Convert to OpenAI tool definitions
-api.toTools()
+api.toOpenAITools()
 
 // Convert a single endpoint to a function definition
 api.toFunction('getPetById')

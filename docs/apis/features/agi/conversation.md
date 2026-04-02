@@ -136,6 +136,26 @@ Merge new tools into the conversation, replacing any with the same name. Accepts
 
 
 
+### stub
+
+Register a hardcoded stub response that bypasses the API when the user's message matches. Streaming is still simulated — chunk/preview events fire word-by-word.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `matcher` | `string | RegExp` | ✓ | Exact string match, substring, or RegExp tested against user input |
+| `response` | `string | (() => string)` | ✓ | The text to stream back, or a zero-arg function that returns it |
+
+**Returns:** `this`
+
+```ts
+conversation.stub('hello', 'Hi there!')
+conversation.stub(/weather/i, () => 'Sunny and 72°F.')
+```
+
+
+
 ### estimateTokens
 
 Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.
@@ -367,30 +387,6 @@ Fired at the start of each completion turn
 
 
 
-### rawEvent
-
-Fired for every raw event from the Responses API stream
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `any` | Raw stream event from the API |
-
-
-
-### mcpEvent
-
-Fired for MCP-related events from the Responses API
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `any` | MCP-related stream event |
-
-
-
 ### chunk
 
 Fired for each streaming text delta
@@ -412,6 +408,55 @@ Fired after each chunk with the full accumulated text
 | Name | Type | Description |
 |------|------|-------------|
 | `arg0` | `string` | Accumulated text so far |
+
+
+
+### turnEnd
+
+Fired at the end of each completion turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `turn` | `number` |  |
+| `hasToolCalls` | `boolean` |  |
+
+
+
+### response
+
+Fired when the final text response is produced
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Final accumulated response text |
+
+
+
+### rawEvent
+
+Fired for every raw event from the Responses API stream
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Raw stream event from the API |
+
+
+
+### mcpEvent
+
+Fired for MCP-related events from the Responses API
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | MCP-related stream event |
 
 
 
@@ -442,31 +487,6 @@ Fired when the model begins a batch of tool calls
 ### toolCallsEnd
 
 Fired after all tool calls in a turn have been executed
-
-
-
-### turnEnd
-
-Fired at the end of each completion turn
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `turn` | `number` |  |
-| `hasToolCalls` | `boolean` |  |
-
-
-
-### response
-
-Fired when the final text response is produced
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Final accumulated response text |
 
 
 
@@ -502,6 +522,15 @@ const conversation = container.feature('conversation', {
  history: [{ role: 'system', content: 'You are a helpful assistant.' }]
 })
 const reply = await conversation.ask('What is the meaning of life?')
+```
+
+
+
+**stub**
+
+```ts
+conversation.stub('hello', 'Hi there!')
+conversation.stub(/weather/i, () => 'Sunny and 72°F.')
 ```
 
 

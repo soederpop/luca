@@ -389,6 +389,102 @@ const md = await cc.sessionHistoryToMarkdown(localSessionId)
 
 
 
+### listProcessSessions
+
+List all Claude Code processes currently registered in ~/.claude/sessions/. Returns each session's metadata along with whether the process is still alive.
+
+**Returns:** `Promise<Array<{
+    pid: number
+    sessionId: string
+    cwd: string
+    startedAt: number
+    kind: string
+    entrypoint: string
+    alive: boolean
+  }>>`
+
+```ts
+const sessions = await cc.listProcessSessions()
+for (const s of sessions) {
+ console.log(`[${s.alive ? 'LIVE' : 'dead'}] PID ${s.pid} in ${s.cwd}`)
+}
+```
+
+
+
+### getProcessSession
+
+Read a single process session by PID from ~/.claude/sessions/<pid>.json.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `pid` | `number` | ✓ | The process ID |
+
+**Returns:** `Promise<{
+    pid: number
+    sessionId: string
+    cwd: string
+    startedAt: number
+    kind: string
+    entrypoint: string
+  } | null>`
+
+```ts
+const session = await cc.getProcessSession(12345)
+console.log(session?.cwd)
+```
+
+
+
+### getConversationHistory
+
+Read the conversation history for a Claude Code session from its JSONL file in ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl. Returns an array of parsed message objects (user, assistant, tool_use, tool_result).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `sessionId` | `string` | ✓ | The Claude CLI session ID (from listProcessSessions or getProcessSession) |
+| `cwd` | `string` |  | The working directory of the session (used to locate the project folder) |
+
+**Returns:** `Promise<any[]>`
+
+```ts
+const sessions = await cc.listProcessSessions()
+const s = sessions[0]
+const history = await cc.getConversationHistory(s.sessionId, s.cwd)
+console.log(history.length, 'turns')
+```
+
+
+
+### listSessionsForCwd
+
+List all conversation sessions stored for a given working directory. Reads ~/.claude/projects/<encoded-cwd>/ and returns metadata for each .jsonl file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `cwd` | `string` |  | The working directory path to look up |
+
+**Returns:** `Promise<Array<{
+    sessionId: string
+    filePath: string
+    messageCount: number
+  }>>`
+
+```ts
+const sessions = await cc.listSessionsForCwd('/Users/me/my-project')
+for (const s of sessions) {
+ console.log(s.sessionId, s.messageCount, 'messages')
+}
+```
+
+
+
 ### cleanupMcpTempFiles
 
 Clean up any temp MCP config files created during sessions.
@@ -732,6 +828,48 @@ const md = await cc.sessionHistoryToMarkdown()
 
 // From a specific local session ID
 const md = await cc.sessionHistoryToMarkdown(localSessionId)
+```
+
+
+
+**listProcessSessions**
+
+```ts
+const sessions = await cc.listProcessSessions()
+for (const s of sessions) {
+ console.log(`[${s.alive ? 'LIVE' : 'dead'}] PID ${s.pid} in ${s.cwd}`)
+}
+```
+
+
+
+**getProcessSession**
+
+```ts
+const session = await cc.getProcessSession(12345)
+console.log(session?.cwd)
+```
+
+
+
+**getConversationHistory**
+
+```ts
+const sessions = await cc.listProcessSessions()
+const s = sessions[0]
+const history = await cc.getConversationHistory(s.sessionId, s.cwd)
+console.log(history.length, 'turns')
+```
+
+
+
+**listSessionsForCwd**
+
+```ts
+const sessions = await cc.listSessionsForCwd('/Users/me/my-project')
+for (const s of sessions) {
+ console.log(s.sessionId, s.messageCount, 'messages')
+}
 ```
 
 

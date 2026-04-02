@@ -19,6 +19,18 @@ container.feature('skillsLibrary', {
 
 ## Methods
 
+### setupToolsConsumer
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `assistant` | `Feature` | ✓ | Parameter assistant |
+
+**Returns:** `void`
+
+
+
 ### start
 
 Start the skills library: read config, scan all locations.

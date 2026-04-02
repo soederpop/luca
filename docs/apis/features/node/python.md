@@ -296,67 +296,137 @@ await python.resetSession()
 
 ### ready
 
-Event emitted by Python
+When the Python environment is ready for execution
 
 
 
 ### environmentDetected
 
-Event emitted by Python
+When the Python environment type is detected
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `pythonPath` | `any` | Path to the detected Python executable |
+| `environmentType` | `any` | Detected environment type |
 
 
 
 ### installingDependencies
 
-Event emitted by Python
+When dependency installation begins
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `command` | `string` | The install command being run |
 
 
 
 ### dependenciesInstalled
 
-Event emitted by Python
+When dependencies are successfully installed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `stdout` | `string` | Standard output from install |
+| `stderr` | `string` | Standard error from install |
+| `exitCode` | `number` | Process exit code |
 
 
 
 ### dependencyInstallFailed
 
-Event emitted by Python
+When dependency installation fails
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `stdout` | `string` | Standard output from install |
+| `stderr` | `string` | Standard error from install |
+| `exitCode` | `number` | Process exit code |
 
 
 
 ### localsParseError
 
-Event emitted by Python
+When captured locals fail to parse as JSON
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The parse error |
 
 
 
 ### codeExecuted
 
-Event emitted by Python
+When Python code finishes executing
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `code` | `string` | The Python code that was executed |
+| `variables` | `object` | Variables passed to the execution |
+| `result` | `object` | Execution result |
 
 
 
 ### fileExecuted
 
-Event emitted by Python
+When a Python file finishes executing
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `filePath` | `string` | Path to the executed Python file |
+| `variables` | `object` | Variables passed as arguments |
+| `result` | `object` | Execution result |
 
 
 
 ### sessionError
 
-Event emitted by Python
+When a session-level error occurs
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `error` | `string` | Error message |
+| `sessionId` | `any` | Session identifier, if available |
 
 
 
 ### sessionStarted
 
-Event emitted by Python
+When a persistent Python session starts
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` | Unique session identifier |
 
 
 
 ### sessionStopped
 
-Event emitted by Python
+When a persistent Python session stops
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sessionId` | `string` | Session identifier that stopped |
 
 
 
