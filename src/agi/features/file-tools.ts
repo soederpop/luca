@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature } from '@soederpop/luca/feature'
+import { Feature } from '../feature.js'
 import type { FS } from '../../node/features/fs.js'
 import type { Grep, GrepMatch } from '../../node/features/grep.js'
 import type { Helper } from '../../helper.js'

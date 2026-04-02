@@ -1,6 +1,7 @@
 export type EventMap = Record<string, any[]>;
 
 type Listener<Args extends any[] = any[]> = (...args: Args) => void;
+type WildcardListener = (event: string, ...args: any[]) => void;
 
 export interface EventStats {
     event: string;
@@ -12,10 +13,12 @@ export interface EventStats {
 
 export class Bus<T extends EventMap = EventMap> {
     private events: Map<string, Listener[]>;
+    private wildcardListeners: WildcardListener[];
     private stats: Map<string, { fireCount: number; lastFiredAt: number | null; timestamps: number[] }>;
 
     constructor() {
         this.events = new Map();
+        this.wildcardListeners = [];
         this.stats = new Map();
     }
 
@@ -64,12 +67,19 @@ export class Bus<T extends EventMap = EventMap> {
     emit<E extends string & keyof T>(event: E, ...args: T[E]): void {
         this.recordEmit(event);
         const listeners = this.events.get(event);
-        if (!listeners) return;
-
-        listeners.forEach(listener => listener(...args));
+        if (listeners) {
+            listeners.forEach(listener => listener(...args));
+        }
+        this.wildcardListeners.forEach(listener => listener(event, ...args));
     }
 
-    on<E extends string & keyof T>(event: E, listener: (...args: T[E]) => void): void {
+    on(event: '*', listener: WildcardListener): void
+    on<E extends string & keyof T>(event: E, listener: (...args: T[E]) => void): void
+    on<E extends string & keyof T>(event: E | '*', listener: any): void {
+        if (event === '*') {
+            this.wildcardListeners.push(listener);
+            return;
+        }
         const listeners = this.events.get(event) || [];
         listeners.push(listener as Listener);
         this.events.set(event, listeners);
@@ -83,7 +93,19 @@ export class Bus<T extends EventMap = EventMap> {
         this.on(event, onceListener as any);
     }
 
-    off<E extends string & keyof T>(event: E, listener?: (...args: T[E]) => void): void {
+    off(event: '*', listener?: WildcardListener): void
+    off<E extends string & keyof T>(event: E, listener?: (...args: T[E]) => void): void
+    off<E extends string & keyof T>(event: E | '*', listener?: any): void {
+        if (event === '*') {
+            if (!listener) {
+                this.wildcardListeners = [];
+                return;
+            }
+            const index = this.wildcardListeners.indexOf(listener);
+            if (index !== -1) this.wildcardListeners.splice(index, 1);
+            return;
+        }
+
         const listeners = this.events.get(event);
         if (!listeners) return;
 

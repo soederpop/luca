@@ -1,4 +1,4 @@
-import { Feature } from '../../feature.js'
+import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { z } from 'zod'
 import { camelCase } from 'lodash-es'

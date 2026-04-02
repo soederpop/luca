@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { Feature } from '@soederpop/luca/feature'
-import type { AGIContainer } from '../container.server.js'
+import { Feature } from '../feature.js'
 import type { Assistant } from './assistant.js'
+import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -47,6 +47,7 @@ export const AssistantsManagerStateSchema = FeatureStateSchema.extend({
 	entries: z.record(z.string(), z.any()).describe('Discovered assistant entries keyed by name'),
 	instances: z.record(z.string(), z.any()).describe('Active assistant instances keyed by name'),
 	factories: z.record(z.string(), z.any()).describe('Registered factory functions keyed by name'),
+	extraFolders: z.array(z.string()).describe('Additional folders to scan during discovery'),
 })
 
 export const AssistantsManagerOptionsSchema = FeatureOptionsSchema.extend({})
@@ -91,6 +92,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			entries: {},
 			instances: {},
 			factories: {},
+			extraFolders: [],
 		}
 	}
 
@@ -113,12 +115,60 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		return (this.state.get('factories') || {}) as Record<string, (options: Record<string, any>) => Assistant>
 	}
 
+	/** Interceptor registrations to be applied to every assistant this manager creates. */
+	private _interceptors: Array<{ point: InterceptorPoint; fn: InterceptorFn<any> }> = []
+
+	/**
+	 * Registers a pipeline interceptor that is applied to every assistant created by this manager.
+	 * Interceptors are applied at the given interception point on each assistant at creation time.
+	 * This mirrors the per-assistant `assistant.intercept(point, fn)` API, but scopes it globally
+	 * across all assistants managed here — useful for cross-cutting concerns like logging, tracing,
+	 * or policy enforcement.
+	 *
+	 * @param {InterceptorPoint} point - The interception point (beforeAsk, beforeTurn, beforeToolCall, afterToolCall, beforeResponse)
+	 * @param {InterceptorFn<InterceptorPoints[K]>} fn - Middleware function receiving (ctx, next)
+	 * @returns {this} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.intercept('beforeAsk', async (ctx, next) => {
+	 *   console.log(`[${ctx.assistant.name}] asking: ${ctx.message}`)
+	 *   await next()
+	 * })
+	 * ```
+	 */
+	intercept<K extends InterceptorPoint>(point: K, fn: InterceptorFn<InterceptorPoints[K]>): this {
+		this._interceptors.push({ point, fn })
+		return this
+	}
+
 	/**
 	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/
 	 * and cwd/assistants/. Each subdirectory containing a CORE.md is an assistant.
 	 *
 	 * @returns {Promise<this>} This instance, for chaining
 	 */
+	/**
+	 * Registers an additional folder to scan during assistant discovery and
+	 * immediately triggers a new discovery pass.
+	 *
+	 * @param {string} folderPath - Absolute path to a folder containing assistant subdirectories
+	 * @returns {Promise<this>} This instance, for chaining
+	 *
+	 * @example
+	 * ```typescript
+	 * await manager.addDiscoveryFolder('/path/to/more/assistants')
+	 * console.log(manager.available) // includes assistants from the new folder
+	 * ```
+	 */
+	async addDiscoveryFolder(folderPath: string): Promise<this> {
+		const current = this.state.get('extraFolders') as string[]
+		if (!current.includes(folderPath)) {
+			this.state.set('extraFolders', [...current, folderPath])
+		}
+		return this.discover()
+	}
+
 	async discover(): Promise<this> {
 		const { fs, paths, os } = this.container
 
@@ -127,6 +177,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const locations = [
 			`${os.homedir}/.luca/assistants`,
 			paths.resolve('assistants'),
+			...(this.state.get('extraFolders') as string[]),
 		]
 
 		for (const location of locations) {
@@ -262,6 +313,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		const factory = this.factories[name]
 		if (factory) {
 			const instance = factory(options)
+			this._bindAssistant(instance)
 			const updated = { ...this.instances, [name]: instance }
 			this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
 			this.emit('assistantCreated', name, instance)
@@ -281,11 +333,27 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 			...options,
 		})
 
+		this._bindAssistant(instance)
 		const updated = { ...this.instances, [name]: instance }
 		this.state.setState({ instances: updated, activeCount: Object.keys(updated).length })
 		this.emit('assistantCreated', name, instance)
 
 		return instance
+	}
+
+	/**
+	 * Wires an assistant into the manager: bridges all assistant events up to the manager
+	 * as `assistantEvent:<eventName>` with (assistant, ...originalArgs), and applies any
+	 * globally registered interceptors.
+	 */
+	private _bindAssistant(instance: Assistant): void {
+		instance.on('*', (event: string, ...args: any[]) => {
+			this.emit(`assistantEvent:${event}` as any, instance, ...args)
+		})
+
+		for (const { point, fn } of this._interceptors) {
+			instance.intercept(point, fn)
+		}
 	}
 
 	/**

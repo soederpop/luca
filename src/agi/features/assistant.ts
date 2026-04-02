@@ -1,9 +1,8 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { Feature } from '@soederpop/luca/feature'
+import { Feature } from '../feature.js'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, Message } from './conversation'
-import type { AGIContainer } from '../container.server.js'
 import type { ContentDb } from '@soederpop/luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -217,7 +216,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	}
 
 	get resolvedDocsFolder() {
-		const { docsFolder = this.options.docsFolder || 'docs' } = this.state.current
+		const { docsFolder = this.effectiveOptions.docsFolder || 'docs' } = this.state.current
 
 		if (this.container.fs.exists(docsFolder)) {
 			return this.container.paths.resolve(docsFolder)
@@ -268,17 +267,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		let conv = this.state.get('conversation') as Conversation | null
 		if (!conv) {
 			conv = this.container.feature('conversation', {
-				model: this.options.model || 'gpt-5.4',
-				local: !!this.options.local,
+				model: this.effectiveOptions.model || 'gpt-5.4',
+				local: !!this.effectiveOptions.local,
 				tools: this.tools,
 				api: 'chat',
-				...(this.options.maxTokens ? { maxTokens: this.options.maxTokens } : {}),
-				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
-				...(this.options.topP != null ? { topP: this.options.topP } : {}),
-				...(this.options.topK != null ? { topK: this.options.topK } : {}),
-				...(this.options.frequencyPenalty != null ? { frequencyPenalty: this.options.frequencyPenalty } : {}),
-				...(this.options.presencePenalty != null ? { presencePenalty: this.options.presencePenalty } : {}),
-				...(this.options.stop ? { stop: this.options.stop } : {}),
+				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+				...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
+				...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
+				...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),
+				...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
+				...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
+				...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
 				history: [
 					{ role: 'system', content: this.effectiveSystemPrompt },
 				],
@@ -372,7 +371,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * allowTools is applied first (strict allowlist), then forbidTools removes from whatever remains.
 	 */
 	private applyToolFilters(tools: Record<string, ConversationTool>): Record<string, ConversationTool> {
-		const { allowTools, forbidTools, toolNames } = this.options
+		const { allowTools, forbidTools, toolNames } = this.effectiveOptions
 		if (!allowTools && !forbidTools && !toolNames) return tools
 
 		let names = Object.keys(tools)
@@ -605,6 +604,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	get meta(): Record<string, any> {
 		return (this.state.get('meta') || {}) as Record<string, any>
+	}
+
+	/**
+	 * Merged options where CORE.md frontmatter provides defaults and
+	 * constructor options take precedence. Prefer this over `this.options`
+	 * anywhere model parameters or runtime config is consumed.
+	 */
+	get effectiveOptions(): AssistantsManagerOptions & Record<string, any> {
+		return { ...this.meta, ...this.options }
 	}
 
 	/**
@@ -919,7 +927,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * Called from start() for non-lifecycle modes.
 	 */
 	private async loadConversationHistory(): Promise<void> {
-		const mode = this.options.historyMode || 'lifecycle'
+		const mode = this.effectiveOptions.historyMode || 'lifecycle'
 		if (mode === 'lifecycle') return
 
 		const threadId = (this.state.get('resumeThreadId') as string | undefined) || this.buildThreadId(mode)
@@ -1104,7 +1112,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		await this.loadConversationHistory()
 
 		// Enable autoCompact for modes that accumulate history
-		const mode = this.options.historyMode || 'lifecycle'
+		const mode = this.effectiveOptions.historyMode || 'lifecycle'
 		if (mode === 'daily' || mode === 'persistent') {
 			(this.conversation.options as any).autoCompact = true
 		}
@@ -1146,7 +1154,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const count = (this.state.get('conversationCount') || 0) + 1
 		this.state.set('conversationCount', count)
 
-		if (this.options.injectTimestamps) {
+		if (this.effectiveOptions.injectTimestamps) {
 			question = this.prependTimestamp(question)
 		}
 
@@ -1169,7 +1177,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 
 		// Auto-save for non-lifecycle modes
-		if (this.options.historyMode !== 'lifecycle' && this.state.get('threadId')) {
+		if (this.effectiveOptions.historyMode !== 'lifecycle' && this.state.get('threadId')) {
 			await this.conversation.save({ thread: this.state.get('threadId') })
 		}
 

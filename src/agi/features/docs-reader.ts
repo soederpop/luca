@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { Feature } from '../feature.js'
 import type { ContentDb } from '@/node.js'
 import type Assistant from './assistant.js'
 

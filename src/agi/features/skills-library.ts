@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures, Feature } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { Feature } from '../feature.js'
 import { parse } from 'contentbase'
 import type { DocsReader } from './docs-reader.js'
-import type Assistant from './assistant.js'
+import Assistant from './assistant.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -103,8 +104,11 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	}
 	
 	override setupToolsConsumer(assistant: Assistant) {
-		console.log('setting up tools consumer', assistant.uuid)
-		assistant.state.set('toolsSetup', true)
+		if (!(assistant instanceof Assistant)) {
+			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
+		}
+		
+		
 		return assistant
 	}
 

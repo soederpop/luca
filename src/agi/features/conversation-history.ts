@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
-import { Feature } from '@soederpop/luca/feature'
+import { Feature } from '../feature.js'
 import { NodeContainer, type DiskCache, type NodeFeatures } from '@soederpop/luca/node/container'
 import type { Message } from './conversation'
 

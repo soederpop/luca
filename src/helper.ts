@@ -322,13 +322,17 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return this
   }
 
-  on<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void) {
-    this._events.on(event, listener)
+  on(event: '*', listener: (event: string, ...args: any[]) => void): this
+  on<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void): this
+  on<Ev extends string & keyof E>(event: Ev | '*', listener: any) {
+    this._events.on(event as any, listener)
     return this
   }
 
-  off<Ev extends string & keyof E>(event: Ev, listener?: (...args: E[Ev]) => void) {
-    this._events.off(event, listener)
+  off(event: '*', listener?: (event: string, ...args: any[]) => void): this
+  off<Ev extends string & keyof E>(event: Ev, listener?: (...args: E[Ev]) => void): this
+  off<Ev extends string & keyof E>(event: Ev | '*', listener?: any) {
+    this._events.off(event as any, listener)
     return this
   }
 

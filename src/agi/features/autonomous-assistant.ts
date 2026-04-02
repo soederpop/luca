@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { Feature } from '@soederpop/luca/feature'
-import type { AGIContainer } from '../container.server.js'
+import { Feature } from '../feature.js'
 import type { Assistant } from './assistant.js'
 import type { ToolCallCtx } from '../lib/interceptor-chain.js'
 
