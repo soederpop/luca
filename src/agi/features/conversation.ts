@@ -212,6 +212,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** The active structured output schema for the current ask() call, if any. */
 	private _activeSchema: z.ZodType | null = null
 
+	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
+	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
+
 	/** Resolved max tokens: per-call override > options-level > default 512. */
 	private get maxTokens(): number | undefined {
 		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? 512
@@ -273,6 +276,22 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 */
 	updateTools(tools: Record<string, ConversationTool>): this {
 		this.state.set('tools', { ...this.tools, ...tools })
+		return this
+	}
+
+	/**
+	 * Register a hardcoded stub response that bypasses the API when the user's message matches.
+	 * Streaming is still simulated — chunk/preview events fire word-by-word.
+	 *
+	 * @param matcher - Exact string match, substring, or RegExp tested against user input
+	 * @param response - The text to stream back, or a zero-arg function that returns it
+	 *
+	 * @example
+	 * conversation.stub('hello', 'Hi there!')
+	 * conversation.stub(/weather/i, () => 'Sunny and 72°F.')
+	 */
+	stub(matcher: string | RegExp, response: string | (() => string)): this {
+		this._stubs.push({ matcher, response })
 		return this
 	}
 
@@ -518,6 +537,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('userMessage', content)
 
 		try {
+			const stubText = this._matchStub(typeof content === 'string' ? content : '')
+			if (stubText !== null) {
+				return await this._streamStub(stubText)
+			}
+
 			let raw: string
 
 			if (this.apiMode === 'responses') {
@@ -762,6 +786,50 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('toolError', toolName, err)
 			return result
 		}
+	}
+
+	/** Check registered stubs against user input. Returns the response text, or null if no match. */
+	private _matchStub(input: string): string | null {
+		for (const { matcher, response } of this._stubs) {
+			const matched = typeof matcher === 'string'
+				? input === matcher || input.includes(matcher)
+				: matcher.test(input)
+			if (matched) {
+				return typeof response === 'function' ? response() : response
+			}
+		}
+		return null
+	}
+
+	/**
+	 * Simulate a streaming response for a hardcoded stub text.
+	 * Emits chunk/preview events word-by-word, yielding between each to keep the event loop alive.
+	 */
+	private async _streamStub(text: string): Promise<string> {
+		this.state.set('streaming', true)
+		this.emit('turnStart', { turn: 1, isFollowUp: false })
+
+		let accumulated = ''
+		const chunks = text.match(/\S+\s*/g) ?? [text]
+
+		try {
+			for (const chunk of chunks) {
+				accumulated += chunk
+				this.emit('chunk', chunk)
+				this.emit('preview', accumulated)
+				await Promise.resolve()
+			}
+		} finally {
+			this.state.set('streaming', false)
+		}
+
+		const trimmed = text
+		this.pushMessage({ role: 'assistant', content: trimmed })
+		this.state.set('lastResponse', trimmed)
+		this.emit('turnEnd', { turn: 1, hasToolCalls: false })
+		this.emit('response', trimmed)
+
+		return trimmed
 	}
 
 	/**

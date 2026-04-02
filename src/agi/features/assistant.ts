@@ -151,6 +151,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	intercept<K extends InterceptorPoint>(point: K, fn: InterceptorFn<InterceptorPoints[K]>): this {
+		if (!(point in this.interceptors)) {
+			const available = Object.keys(this.interceptors).join(', ')
+			throw new Error(`Unknown intercept point "${point}". Available points: ${available}`)
+		}
 		this.interceptors[point].add(fn as any)
 		return this
 	}
@@ -177,7 +181,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 
 	get name() {
-		return this.resolvedFolder.split('/').pop()
+		return this.options.name || this.resolvedFolder.split('/').pop()
 	}
 
 	/** The absolute resolved path to the assistant folder. */
@@ -209,7 +213,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	get voiceConfig(): Record<string, any> | undefined {
 		if (!this.hasVoice) return undefined
 		const yaml = this.container.feature('yaml')
-		return yaml.parse(this.container.fs.readFile(this.paths.resolve('voice.yaml')))
+		return yaml.parse(String(this.container.fs.readFile(this.paths.resolve('voice.yaml'))))
 	}
 
 	get resolvedDocsFolder() {
