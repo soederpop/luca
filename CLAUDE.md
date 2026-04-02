@@ -111,3 +111,5 @@ This means **JSDoc blocks on helpers (features, clients, servers) must be valid 
 ## Git Strategy
 
 - We generally roll all on main.  Commit your changes after you're done, only your changes.  Leave a good message, tell me why don't just tell me what.  Don't gimme that coauthored by whoever bullshit.  The streets know we're one.
+
+- Always commit your work
