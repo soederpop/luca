@@ -112,9 +112,9 @@ jobs:
       - name: Sign macOS binaries
         run: |
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
-            --options runtime --timestamp dist/release/luca-darwin-x64
+            --force --options runtime --timestamp dist/release/luca-darwin-x64
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
-            --options runtime --timestamp dist/release/luca-darwin-arm64
+            --force --options runtime --timestamp dist/release/luca-darwin-arm64
 
       - name: Notarize macOS binaries
         env:
