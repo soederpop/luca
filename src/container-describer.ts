@@ -1,5 +1,6 @@
 import type { IntrospectionSection, MethodIntrospection, GetterIntrospection, HelperIntrospection } from './introspection/index.js'
 import { presentIntrospectionAsMarkdown } from './helper.js'
+import { z } from 'zod'
 
 type Platform = 'browser' | 'server' | 'node' | 'all'
 
@@ -189,93 +190,78 @@ export class ContainerDescriber {
 	 * Generate tool definitions suitable for use with AI assistant tool-calling interfaces.
 	 * Registry names in the enum are populated dynamically from the container.
 	 */
-	toTools(): Array<{ name: string; description: string; parameters: Record<string, any>; execute: (args: any) => Promise<string> }> {
-		const registryEnum = this.registryNames
+	toTools(): { schemas: Record<string, z.ZodType>; handlers: Record<string, Function> } {
+		const registryEnum = this.registryNames as [string, ...string[]]
+		const sectionEnum = ['description', 'usage', 'methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples'] as const
+		const platformEnum = ['browser', 'server', 'all'] as const
 
-		return [
-			{
-				name: 'describe_container',
-				description: 'Describe the container itself — its class, registries, and configuration.',
-				parameters: {
-					type: 'object',
-					properties: {
-						sections: {
-							type: 'array',
-							items: { type: 'string', enum: ['description', 'usage', 'methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples'] },
-							description: 'Which sections to include. Omit for all.',
-						},
-					},
-					required: [],
-				},
-				execute: async (args: any) => {
-					const result = await this.describeContainer({ sections: args.sections })
-					return result.text
-				},
+		const schemas: Record<string, z.ZodType> = {
+			describe_container: z.object({
+				sections: z.array(z.enum(sectionEnum)).optional().describe('Which sections to include. Omit for all.'),
+			}).describe('Describe the container itself — its class, registries, and configuration.'),
+
+			describe_registry: z.object({
+				registry: z.enum(registryEnum).describe(`Which registry to describe. Available: ${registryEnum.join(', ')}`),
+				platform: z.enum(platformEnum).optional().describe('Filter by platform. Defaults to all.'),
+				sections: z.array(z.enum(sectionEnum)).optional().describe('Which sections to include per helper. Omit for concise index.'),
+			}).describe(`List all helpers in a registry with concise summaries. Available registries: ${registryEnum.join(', ')}`),
+
+			describe_helper: z.object({
+				target: z.string().describe('The helper to describe. Examples: "fs", "features.fs", "fs.readFile", "ui.banner"'),
+				platform: z.enum(platformEnum).optional().describe('Filter by platform. Defaults to all.'),
+				sections: z.array(z.enum(sectionEnum)).optional().describe('Which sections to include. Omit for all.'),
+			}).describe('Describe a specific helper by name. Supports qualified names like "features.fs" or unqualified like "fs". Also supports member access like "fs.readFile" or "ui.banner".'),
+		}
+
+		const handlers: Record<string, Function> = {
+			describe_container: async (args: any) => {
+				const result = await this.describeContainer({ sections: args.sections })
+				return result.text
 			},
-			{
-				name: 'describe_registry',
-				description: `List all helpers in a registry with concise summaries. Available registries: ${registryEnum.join(', ')}`,
-				parameters: {
-					type: 'object',
-					properties: {
-						registry: {
-							type: 'string',
-							enum: registryEnum,
-							description: 'Which registry to describe.',
-						},
-						platform: {
-							type: 'string',
-							enum: ['browser', 'server', 'all'],
-							description: 'Filter by platform. Defaults to all.',
-						},
-						sections: {
-							type: 'array',
-							items: { type: 'string', enum: ['description', 'usage', 'methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples'] },
-							description: 'Which sections to include per helper. Omit for concise index.',
-						},
-					},
-					required: ['registry'],
-				},
-				execute: async (args: any) => {
-					const result = await this.describeRegistry(args.registry, {
-						sections: args.sections,
-						platform: args.platform,
-					})
-					return result.text
-				},
+			describe_registry: async (args: any) => {
+				const result = await this.describeRegistry(args.registry, {
+					sections: args.sections,
+					platform: args.platform,
+				})
+				return result.text
 			},
-			{
-				name: 'describe_helper',
-				description: 'Describe a specific helper by name. Supports qualified names like "features.fs" or unqualified like "fs". Also supports member access like "fs.readFile" or "ui.banner".',
-				parameters: {
-					type: 'object',
-					properties: {
-						target: {
-							type: 'string',
-							description: 'The helper to describe. Examples: "fs", "features.fs", "fs.readFile", "ui.banner"',
-						},
-						platform: {
-							type: 'string',
-							enum: ['browser', 'server', 'all'],
-							description: 'Filter by platform. Defaults to all.',
-						},
-						sections: {
-							type: 'array',
-							items: { type: 'string', enum: ['description', 'usage', 'methods', 'getters', 'events', 'state', 'options', 'envVars', 'examples'] },
-							description: 'Which sections to include. Omit for all.',
-						},
-					},
-					required: ['target'],
-				},
-				execute: async (args: any) => {
-					const result = await this.describeHelper(args.target, {
-						sections: args.sections,
-						platform: args.platform,
-					})
-					return result.text
-				},
+			describe_helper: async (args: any) => {
+				const result = await this.describeHelper(args.target, {
+					sections: args.sections,
+					platform: args.platform,
+				})
+				return result.text
 			},
-		]
+		}
+
+		return { schemas, handlers }
+	}
+
+	/**
+	 * Register the describer tools on an assistant and append a system prompt
+	 * extension explaining how and when to use them.
+	 *
+	 * @param assistant - Any assistant instance that exposes `use()` and `addSystemPromptExtension()`
+	 */
+	setupToolsConsumer(assistant: {
+		use: (tools: { schemas: Record<string, z.ZodType>; handlers: Record<string, Function> }) => void
+		addSystemPromptExtension: (key: string, value: string) => void
+	}): void {
+		assistant.use(this.toTools())
+
+		const registries = this.registryNames.join(', ')
+
+		assistant.addSystemPromptExtension('container_describer', `
+## Container Introspection Tools
+
+You have access to three tools for exploring the runtime container and its helpers:
+
+- **describe_container** — Overview of the container itself: its registries, configuration, and what it provides.
+- **describe_registry** — List all helpers in a registry with concise summaries. Available registries: ${registries}.
+- **describe_helper** — Full docs for a specific helper. Accepts unqualified names ("fs"), registry-qualified names ("features.fs"), or member access ("fs.readFile", "ui.banner").
+
+Use these tools whenever you are unsure what helpers are available, what a helper does, or how to call one of its methods. Always prefer introspecting the container over guessing at method signatures.
+`.trim())
 	}
 
 	// --- Resolution ---

@@ -13,7 +13,7 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	json: z.boolean().default(false).describe('Output result as raw JSON (data only, no metadata)'),
 	noCache: z.boolean().default(false).describe('Skip cache lookup and force a fresh run'),
-})
+}).passthrough()
 
 export default async function selectCommand(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
@@ -42,13 +42,18 @@ export default async function selectCommand(options: z.infer<typeof argsSchema>,
 
 	const instance = container.select(name)
 
-	// Pass remaining args (after command name and selector name) as input
-	const selectorArgs: Record<string, any> = { ...options }
+	// Pass remaining args (after command name and selector name) as input.
+	// Pull from container.argv directly — the select command's own argsSchema
+	// would otherwise strip selector-specific keys during Zod parse.
+	const rawArgv = { ...(container as any).argv }
+	const selectorArgs: Record<string, any> = { ...rawArgv }
 	delete selectorArgs._
 	delete selectorArgs.json
 	delete selectorArgs.noCache
 	delete selectorArgs.cache
 	delete selectorArgs.dispatchSource
+	delete selectorArgs.help
+	delete selectorArgs.name
 
 	// minimist turns --no-cache into { cache: false }
 	const skipCache = options.noCache || (container.argv.cache === false)

@@ -108,15 +108,40 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
 		}
 		
+		const a : Assistant = assistant as Assistant
+		
+		const { container } = a
+		
 		const skillsLibrary = this
-	
-		assistant.intercept('beforeAsk', async function beforeAskCheckIfWeNeedSkills(ctx, next) {
-			const { question } = ctx
-			console.log('Before Ask Hook Running', question)
-			const skills = await skillsLibrary.findRelevantSkillsForAssistant(assistant, question as string)
-			console.log('Response', skills)
-			await next()	
-		})
+		
+		const preloadSkills : string[] = []
+		if (a.meta.skills) {
+			if (Array.isArray(a.meta.skills)) {
+				preloadSkills.push(...a.meta.skills)
+			} else {
+				preloadSkills.push(a.meta.skills)
+			}
+		}
+
+		async function beforeAskCheckIfWeNeedSkills(ctx: any, next: any) {
+				const { question } = ctx
+				const skills = await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
+				
+				const allSkillsToLoad : string[] = container.utils.lodash.uniq([
+					...skills,
+					...preloadSkills,
+				])
+				
+				if (allSkillsToLoad.length) {
+					ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${skills.join(', ')}`
+				}
+				
+				a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
+
+				await next()	
+		}
+
+		assistant.intercept('beforeAsk', beforeAskCheckIfWeNeedSkills as any)
 		
 		return assistant
 	}
@@ -407,28 +432,29 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const skills = this.list()
 		if (skills.length === 0) return []
 
-		const skillIndex = skills
-			.map(s => `- ${s.name}: ${s.description || '(no description)'}`)
-			.join('\n')
-
-		const fork = assistant.fork()
-
 		const responseSchema = z.object({
 			skills: z.array(z.string()).describe('Names of skills relevant to the query. Empty array if none apply.'),
 		})
+	
+		const skillsDescription = Object.entries(this.skillsTable)
+			.map(([title,description]) => `- **${title}**: ${description}`)
+			.join("\n")
 
-		const prompt = `You are a routing assistant. Given a user query and a list of available skills, determine which skills (if any) should be loaded to help answer the query.
-
+		const prompt = this.container.ui.endent(`You are a routing assistant. Given a user query and a list of available skills, determine which skills (if any) should be loaded to help answer the query.
 Available skills:
-${skillIndex}
+-------
+${skillsDescription}
 
 User query: ${userQuery}
 
-Return only the skill names that are directly relevant. Return an empty array if none apply. Do not load skills speculatively — only include ones that would materially help answer this specific query.`
+Return only the skill names that are directly relevant. Return an empty array if none apply. Do not load skills speculatively — only include ones that would materially help answer this specific query.`)
+			
+			const fork = assistant.conversation.fork()
+			const result = await fork.ask(prompt, { schema: responseSchema }) as unknown as { skills: string[] }
+			
+			console.log('Got a result', result)
 
-		const result = await fork.ask(prompt, { schema: responseSchema }) as unknown as { skills: string[] }
-
-		return result.skills.filter(name => this.find(name) !== undefined)
+			return result.skills.filter(name => this.find(name) !== undefined)
 	}
 }
 

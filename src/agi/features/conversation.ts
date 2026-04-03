@@ -305,6 +305,30 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return this.state.get('messages') || []
 	}
 
+	/**
+	 * Fork the conversation into a new independent instance.
+	 * The fork inherits the same system prompt, tools, and full message history,
+	 * but has its own identity and state — changes in either direction do not affect the other.
+	 *
+	 * @param overrides - Optional option overrides for the forked conversation (e.g. different model or title)
+	 *
+	 * @example
+	 * ```typescript
+	 * const fork = conversation.fork()
+	 * await fork.ask('What if we took a different approach?')
+	 * // original conversation is unchanged
+	 * ```
+	 */
+	fork(overrides: Partial<ConversationOptions> = {}): Conversation {
+		return this.container.feature('conversation', {
+			...this.options,
+			id: undefined,
+			history: JSON.parse(JSON.stringify(this.messages)),
+			tools: { ...this.tools },
+			...overrides,
+		})
+	}
+
 	/** Returns the OpenAI model name being used for completions. */
 	get model(): string {
 		return this.state.get('model')!
