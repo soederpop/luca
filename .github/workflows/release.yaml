@@ -17,10 +17,17 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Pre-build steps
+        run: |
+          bash scripts/stamp-build.sh
+          bun run build:introspection
+          bun run build:scaffolds
+          bun run build:bootstrap
+          bun run build:python-bridge
+
       - name: Build Linux binaries
         run: |
           mkdir -p dist/release
-          bash scripts/stamp-build.sh
           bun build ./src/cli/cli.ts --compile --target=bun-linux-x64 --outfile dist/release/luca-linux-x64 --external node-llama-cpp
           bun build ./src/cli/cli.ts --compile --target=bun-linux-arm64 --outfile dist/release/luca-linux-arm64 --external node-llama-cpp
 
@@ -41,10 +48,19 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Pre-build steps
+        shell: bash
+        run: |
+          bash scripts/stamp-build.sh
+          bun run build:introspection
+          bun run build:scaffolds
+          bun run build:bootstrap
+          bun run build:python-bridge
+
       - name: Build Windows binary
+        shell: bash
         run: |
           mkdir -p dist/release
-          bash scripts/stamp-build.sh
           bun build ./src/cli/cli.ts --compile --target=bun-windows-x64 --outfile dist/release/luca-windows-x64.exe --external node-llama-cpp
 
       - name: Upload Windows artifact
@@ -64,10 +80,17 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Pre-build steps
+        run: |
+          bash scripts/stamp-build.sh
+          bun run build:introspection
+          bun run build:scaffolds
+          bun run build:bootstrap
+          bun run build:python-bridge
+
       - name: Build macOS binaries
         run: |
           mkdir -p dist/release
-          bash scripts/stamp-build.sh
           bun build ./src/cli/cli.ts --compile --target=bun-darwin-x64 --outfile dist/release/luca-darwin-x64 --external node-llama-cpp
           bun build ./src/cli/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/release/luca-darwin-arm64 --external node-llama-cpp
 
