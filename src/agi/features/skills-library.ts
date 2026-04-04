@@ -451,10 +451,12 @@ Return only the skill names that are directly relevant. Return an empty array if
 			
 			const fork = assistant.conversation.fork()
 			const result = await fork.ask(prompt, { schema: responseSchema }) as unknown as { skills: string[] }
-			
-			console.log('Got a result', result)
 
-			return result.skills.filter(name => this.find(name) !== undefined)
+			const found = result.skills.filter(name => this.find(name) !== undefined)
+			
+			this.emit('foundSkills', found, assistant, userQuery)
+			
+			return found
 	}
 }
 
