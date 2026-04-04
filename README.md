@@ -229,7 +229,10 @@ The CLI works great alongside Claude Code, Codex, and other coding assistants:
 git clone https://github.com/soederpop/luca.git
 cd luca
 bun install
+bun run setup
 ```
+
+`bun run setup` applies `git update-index --skip-worktree` to the build artifact stubs so local changes to generated files (from running `build:introspection`, `build:scaffolds`, etc.) are never accidentally committed.
 
 ### Running in dev
 

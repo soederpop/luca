@@ -3,10 +3,6 @@ import type { ContainerContext } from "@soederpop/luca";
 import { CommandOptionsSchema } from "@soederpop/luca/schemas";
 
 export const argsSchema = CommandOptionsSchema.extend({
-  skipBuild: z
-    .boolean()
-    .optional()
-    .describe("Skip pre-build steps (introspection, scaffolds, bootstrap)"),
   skipTests: z
     .boolean()
     .optional()
@@ -28,7 +24,7 @@ async function release(
 
   ui.banner(`Luca Release ${tag}`);
 
-  // 0. Check if tag already exists
+  // Check if tag already exists
   const tagCheck = await proc.execAndCapture(`git tag -l "${tag}"`, {
     silent: true,
   });
@@ -39,7 +35,7 @@ async function release(
     return;
   }
 
-  // 1. Run tests
+  // Run tests
   if (!options.skipTests) {
     console.log("\n→ Running tests...");
     const testResult = await proc.execAndCapture("bun test test/*.test.ts", {
@@ -51,41 +47,7 @@ async function release(
     }
   }
 
-  // 2. Pre-build steps
-  if (!options.skipBuild) {
-    console.log("\n→ Running pre-build steps...");
-    const steps = [
-      ["build:introspection", "bun run build:introspection"],
-      ["build:scaffolds", "bun run build:scaffolds"],
-      ["build:bootstrap", "bun run build:bootstrap"],
-    ];
-    for (const [label, cmd] of steps) {
-      console.log(`  ${label}...`);
-      const r = await proc.execAndCapture(cmd, { silent: true });
-      if (r.exitCode !== 0) {
-        console.error(`${label} failed:\n${r.stderr}`);
-        return;
-      }
-    }
-  }
-
-  // 3. Check for clean working tree (allow untracked)
-  const statusCheck = await proc.execAndCapture("git status --porcelain", {
-    silent: true,
-  });
-  const dirtyFiles = statusCheck.stdout
-    .trim()
-    .split("\n")
-    .filter((l: string) => l && !l.startsWith("??"));
-  if (dirtyFiles.length > 0) {
-    console.error(
-      "\nWorking tree has uncommitted changes. Commit or stash them first.",
-    );
-    console.error(dirtyFiles.join("\n"));
-    return;
-  }
-
-  // 4. Create and push git tag — this triggers the GitHub Actions release workflow
+  // Create and push git tag — triggers the GitHub Actions release workflow
   console.log(`\n→ Creating tag ${tag}...`);
   const tagResult = await proc.execAndCapture(
     `git tag -a "${tag}" -m "Release ${tag}"`,
@@ -112,8 +74,7 @@ async function release(
 }
 
 export default {
-  description:
-    "Run pre-build steps and trigger a GitHub Actions release via git tag",
+  description: "Run tests and trigger a GitHub Actions release via git tag",
   argsSchema,
   handler: release,
 };

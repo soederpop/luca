@@ -1,6 +1,6 @@
 {
   "name": "@soederpop/luca",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "website": "https://luca.soederpop.com",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
@@ -109,7 +109,8 @@
     "build:python-bridge": "bun run src/cli/cli.ts build-python-bridge",
     "test": "bun test test/*.test.ts",
     "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge",
-    "precommit": "bun run typecheck && bun run update-all-docs && git add docs/apis/ src/introspection/generated.*.ts src/scaffolds/generated.ts src/bootstrap/generated.ts src/python/generated.ts && bun compile",
+    "setup": "git update-index --skip-worktree src/introspection/generated.node.ts src/introspection/generated.web.ts src/introspection/generated.agi.ts src/scaffolds/generated.ts src/bootstrap/generated.ts src/python/generated.ts",
+    "precommit": "bun run typecheck && bun run update-all-docs && git add docs/apis/ && bun compile",
     "test:integration": "bun test ./test-integration/"
   },
   "devDependencies": {
