@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { realpathSync } from 'node:fs'
 import type { GrepOptions } from './grep.js'
+import type { Helper } from '../../helper.js'
 
 export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
@@ -49,65 +50,91 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
     getCollectionOverview: {
       schema: z.object({}).describe(
-        'Get a high-level overview of the document collection: models, document counts, directory tree, and search index status. Call this first to understand what is available.'
+        'Get a high-level overview of the document collection: what models exist, how many documents each has, the directory tree, and search index status. Call this FIRST to understand the collection before exploring individual documents.'
       ),
     },
     listDocuments: {
       schema: z.object({
-        model: z.string().optional().describe('Filter to documents belonging to this model name'),
-        glob: z.string().optional().describe('Glob pattern to filter document path IDs (e.g. "guides/*", "apis/**")'),
+        model: z.string().optional().describe('Filter to documents of this model type (e.g. "Plan", "Task"). Get model names from getCollectionOverview.'),
+        glob: z.string().optional().describe('Glob pattern to filter by document path (e.g. "guides/*", "apis/**/*.md")'),
       }).describe(
-        'List available document IDs in the collection, optionally filtered by model or glob pattern.'
+        'List document IDs in the collection. Use this to browse what\'s available before reading. Filter by model or glob to narrow results.'
       ),
     },
     readDocument: {
       schema: z.object({
-        id: z.string().describe('The document path ID to read (e.g. "guides/intro")'),
-        include: z.array(z.string()).optional().describe('Only return these section headings'),
-        exclude: z.array(z.string()).optional().describe('Remove these section headings from the output'),
-        meta: z.boolean().optional().describe('Include YAML frontmatter in the output'),
+        id: z.string().describe('The document path ID (e.g. "guides/intro", "apis/auth"). Get valid IDs from listDocuments.'),
+        include: z.array(z.string()).optional().describe('Only return sections with these headings. Use to read specific parts of long documents without loading everything.'),
+        exclude: z.array(z.string()).optional().describe('Skip sections with these headings. Use to filter out irrelevant parts.'),
+        meta: z.boolean().optional().describe('Include the YAML frontmatter (title, status, tags, etc.) in the output. Useful for understanding document metadata.'),
       }).describe(
-        'Read a single document by its path ID. Use include/exclude to read only specific sections and avoid loading unnecessary content.'
+        'Read a document by its path ID. Use include/exclude to request only the sections you need — don\'t load an entire document when you only need one section.'
       ),
     },
     readMultipleDocuments: {
       schema: z.object({
-        ids: z.array(z.string()).describe('Array of document path IDs to read'),
-        include: z.array(z.string()).optional().describe('Only return these section headings from each document'),
-        exclude: z.array(z.string()).optional().describe('Remove these section headings from each document'),
-        meta: z.boolean().optional().describe('Include YAML frontmatter in the output'),
+        ids: z.array(z.string()).describe('Array of document path IDs to read. Get valid IDs from listDocuments.'),
+        include: z.array(z.string()).optional().describe('Only return sections with these headings from each document.'),
+        exclude: z.array(z.string()).optional().describe('Skip sections with these headings from each document.'),
+        meta: z.boolean().optional().describe('Include YAML frontmatter for each document.'),
       }).describe(
-        'Read multiple documents at once, concatenated with dividers. Use include/exclude to focus on relevant sections.'
+        'Read multiple documents in one call. More efficient than calling readDocument in a loop. Returns documents concatenated with dividers.'
       ),
     },
     queryDocuments: {
       schema: z.object({
-        model: z.string().describe('The model name to query (e.g. "Plan", "Task")'),
-        where: z.string().optional().describe('Filter conditions as JSON string, e.g. \'{ "meta.status": "approved" }\' or \'{ "meta.priority": { "$gt": 3 } }\''),
-        sort: z.string().optional().describe('Sort specification as JSON string, e.g. \'{ "meta.priority": "desc" }\''),
-        limit: z.number().optional().describe('Maximum number of results to return'),
-        offset: z.number().optional().describe('Number of results to skip'),
-        select: z.array(z.string()).optional().describe('Fields to include in output (e.g. ["id", "title", "meta.status"])'),
+        model: z.string().describe('The model name to query (e.g. "Plan", "Task", "Guide"). Must match a model defined in the collection — check getCollectionOverview.'),
+        where: z.string().optional().describe('MongoDB-style filter as a JSON string. Dot notation for nested fields. Examples: \'{"meta.status": "approved"}\', \'{"meta.priority": {"$gt": 3}}\', \'{"meta.tags": {"$in": ["urgent"]}}\''),
+        sort: z.string().optional().describe('Sort as a JSON string. Example: \'{"meta.priority": "desc"}\', \'{"meta.createdAt": "asc"}\''),
+        limit: z.number().optional().describe('Maximum number of results. Default: all matching documents.'),
+        offset: z.number().optional().describe('Skip this many results (for pagination).'),
+        select: z.array(z.string()).optional().describe('Only include these fields in output (e.g. ["id", "title", "meta.status"]). Reduces noise when you only need specific metadata.'),
       }).describe(
-        'Query documents by model with MongoDB-style filtering, sorting, and pagination. Returns serialized model instances.'
+        'Query documents by model with filtering, sorting, and pagination. Use this when you need to find documents matching specific criteria (status, priority, tags, dates) rather than browsing by name.'
       ),
     },
     searchContent: {
       schema: z.object({
-        pattern: z.string().describe('Regex pattern to search for across all documents'),
-        caseSensitive: z.boolean().optional().describe('Whether the search is case-sensitive (default: false)'),
+        pattern: z.string().describe('Regex pattern to search for across all document content. Examples: "TODO|FIXME", "authentication", "def.*handler"'),
+        caseSensitive: z.boolean().optional().describe('Case-sensitive search. Default: false (case insensitive).'),
       }).describe(
-        'Text/regex search (grep) across all documents in the collection. Returns matching lines with file context.'
+        'Text/regex search (grep) across all documents. Use for exact pattern matching, code references, or finding specific terms. Returns matching lines with file context. For natural language questions, use semanticSearch instead.'
       ),
     },
     semanticSearch: {
       schema: z.object({
-        query: z.string().describe('Natural language search query'),
-        limit: z.number().optional().describe('Maximum number of results (default: 10)'),
+        query: z.string().describe('A natural language question or topic description. Example: "how does the authentication flow work?" or "deployment configuration options"'),
+        limit: z.number().optional().describe('Maximum results to return. Default: 10.'),
       }).describe(
-        'Semantic search across documents using keyword + vector similarity. Falls back to text search if no search index exists.'
+        'Search documents using natural language — combines keyword matching with semantic similarity. Best for questions and topic exploration. Falls back to text search if no vector index exists. For exact pattern matching, use searchContent instead.'
       ),
     },
+  }
+
+  /**
+   * When an assistant uses contentDb, inject system prompt guidance
+   * about progressive document exploration.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('contentDb', [
+        '## Document Collection',
+        '',
+        'You have access to a structured document collection (markdown files with frontmatter, organized by model/type).',
+        '',
+        '**Progressive exploration — go broad to narrow:**',
+        '1. `getCollectionOverview` — start here. Shows models, document counts, and directory structure.',
+        '2. `listDocuments` — browse document IDs, optionally filtered by model or glob.',
+        '3. `readDocument` — read a specific document. Use `include`/`exclude` to skip irrelevant sections.',
+        '4. `queryDocuments` — filter documents by metadata (status, priority, tags, etc.) with MongoDB-style queries.',
+        '',
+        '**Searching:**',
+        '- `semanticSearch` — best for natural language questions ("how does authentication work?")',
+        '- `searchContent` — best for exact patterns, code references, or regex across all documents',
+        '',
+        '**Efficiency:** Don\'t read entire documents when you only need one section. Use `include` to request specific headings. Use `readMultipleDocuments` to batch reads instead of calling `readDocument` in a loop.',
+      ].join('\n'))
+    }
   }
 
   override get initialState(): ContentDbState {

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
+import type { Helper } from '../../helper.js'
 
 declare module '@soederpop/luca/feature' {
   interface AvailableFeatures {
@@ -222,6 +223,35 @@ export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
   }
 
   static { Feature.register(this, 'browserUse') }
+
+  /**
+   * When an assistant uses browserUse, inject system prompt guidance
+   * about the browser interaction loop.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('browserUse', [
+        '## Browser Automation',
+        '',
+        '**The core loop:** `browserOpen` → `browserGetState` → interact → `browserGetState` again.',
+        '',
+        '`browserGetState` is your eyes. It returns all interactive elements with index numbers. You MUST call it:',
+        '- After every `browserOpen` or navigation',
+        '- After any action that changes the page (click, submit, scroll)',
+        '- Before any interaction — to get fresh element indices',
+        '',
+        'Element indices change whenever the page updates. Never reuse indices from a previous `browserGetState` call after the page has changed.',
+        '',
+        '**Interacting with elements:** Use `browserInput` (click + type) for form fields. Use `browserClick` for buttons and links. Use `browserSelect` for dropdowns. All require an element index from `browserGetState`.',
+        '',
+        '**When things load asynchronously:** Use `browserWaitForSelector` or `browserWaitForText` after actions that trigger page updates (form submissions, AJAX). Then call `browserGetState` to see the updated page.',
+        '',
+        '**Debugging:** If an interaction doesn\'t work, take a `browserScreenshot` to see the actual page state. Check `browserGetState` to see what elements are available.',
+        '',
+        '**Cleanup:** Call `browserClose` when you\'re done to free resources.',
+      ].join('\n'))
+    }
+  }
 
   override async afterInitialize() {
     if (this.options.session) this.state.set('session', this.options.session)

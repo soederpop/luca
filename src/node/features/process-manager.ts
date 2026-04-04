@@ -4,6 +4,7 @@ import { Feature } from '../feature.js'
 import { State } from '../../state.js'
 import { Bus, type EventMap } from '../../bus.js'
 import type { ChildProcess } from './proc.js'
+import type { Helper } from '../../helper.js'
 
 // ─── Output Buffer ─────────────────────────────────────────────────────────
 
@@ -439,43 +440,43 @@ export class ProcessManager extends Feature {
   static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
     spawnProcess: {
       schema: z.object({
-        command: z.string().describe('The command to execute (e.g. "node", "bun", "python")'),
-        args: z.string().optional().describe('Space-separated arguments to pass to the command'),
-        tag: z.string().optional().describe('A label for this process so you can find it later'),
-        cwd: z.string().optional().describe('Working directory for the process'),
+        command: z.string().describe('The executable to run (e.g. "node", "bun", "python"). NOT a shell command — use runCommand for shell syntax like pipes or &&.'),
+        args: z.string().optional().describe('Arguments as a single space-separated string. WARNING: spaces are used to split args, so paths with spaces will break. For complex argument quoting, prefer runCommand instead.'),
+        tag: z.string().optional().describe('A short, descriptive label for this process (e.g. "api-server", "file-watcher"). Always set a tag — it makes the process easy to find later with getProcessOutput and killProcess.'),
+        cwd: z.string().optional().describe('Working directory for the process. Defaults to the project root.'),
       }).describe(
-        'Spawn a long-running process (server, watcher, daemon) that runs in the background. Returns immediately with a process ID you can use to check status or kill it later.'
+        'Start a long-running background process (server, watcher, daemon). Returns immediately with a process ID — the process keeps running. Use this for anything that runs indefinitely. After spawning, call getProcessOutput to check if it started successfully. Always set a tag.'
       ),
     },
     runCommand: {
       schema: z.object({
-        command: z.string().describe('The command to execute (e.g. "npm install", "bun test")'),
-        cwd: z.string().optional().describe('Working directory for the command'),
+        command: z.string().describe('A full shell command string (executed via sh -c). Supports pipes, &&, redirects, env vars, globs — anything you can type in a terminal. Examples: "bun test", "npm install && npm run build", "cat logs/*.txt | grep ERROR"'),
+        cwd: z.string().optional().describe('Working directory for the command. Defaults to the project root.'),
       }).describe(
-        'Run a command and wait for it to complete. Returns the full stdout/stderr output and exit code. Use this for commands you expect to finish (builds, installs, tests).'
+        'Run a shell command and wait for it to complete. Returns stdout, stderr, and exit code. Use this for commands that finish on their own — builds, installs, tests, one-off scripts. For anything that runs forever (servers, watchers), use spawnProcess instead.'
       ),
     },
     listProcesses: {
       schema: z.object({}).describe(
-        'List all tracked processes with their status, PID, command, uptime, and a preview of recent output.'
+        'List all tracked background processes with their status, PID, command, uptime, and the last few lines of output. Call this to get an overview before deciding which process to inspect or kill.'
       ),
     },
     getProcessOutput: {
       schema: z.object({
-        id: z.string().optional().describe('The process ID to get output for'),
-        tag: z.string().optional().describe('The tag of the process to get output for'),
-        stream: z.string().optional().describe('Which stream to read: "stdout" (default) or "stderr"'),
+        id: z.string().optional().describe('The process ID (returned by spawnProcess). Provide either id or tag, not both.'),
+        tag: z.string().optional().describe('The tag you assigned when spawning the process. Provide either id or tag, not both.'),
+        stream: z.string().optional().describe('"stdout" (default) or "stderr". Check stderr when a process crashes or behaves unexpectedly.'),
       }).describe(
-        'Peek at a process\'s buffered output — shows the first 20 lines and last 50 lines of stdout or stderr.'
+        'Read a background process\'s buffered output — the first 20 lines (startup) and last 50 lines (recent activity). Call this after spawning to verify the process started correctly, and periodically to monitor its health.'
       ),
     },
     killProcess: {
       schema: z.object({
-        id: z.string().optional().describe('The process ID to kill'),
-        tag: z.string().optional().describe('The tag of the process to kill'),
-        signal: z.string().optional().describe('Signal to send: "SIGTERM" (default, graceful) or "SIGKILL" (force)'),
+        id: z.string().optional().describe('The process ID to kill. Provide either id or tag, not both.'),
+        tag: z.string().optional().describe('The tag of the process to kill. Provide either id or tag, not both.'),
+        signal: z.string().optional().describe('"SIGTERM" (default) for graceful shutdown, "SIGKILL" to force-kill a stuck process. Try SIGTERM first.'),
       }).describe(
-        'Kill a running process by ID or tag.'
+        'Stop a running background process. Use SIGTERM (default) for graceful shutdown. If a process doesn\'t respond, follow up with SIGKILL. Always clean up processes you spawned when they\'re no longer needed.'
       ),
     },
   }
@@ -591,6 +592,38 @@ export class ProcessManager extends Feature {
     handler.kill(signal)
 
     return { id: handler.id, status: handler.status, signal, message: 'Process killed.' }
+  }
+
+  /**
+   * When an assistant uses processManager, inject system prompt guidance
+   * about how to manage processes safely and effectively.
+   */
+  override setupToolsConsumer(consumer: Helper) {
+    if (typeof (consumer as any).addSystemPromptExtension === 'function') {
+      (consumer as any).addSystemPromptExtension('processManager', [
+        '## Process Management',
+        '',
+        '**Choosing the right tool:**',
+        '- `runCommand` — for anything that finishes on its own (builds, tests, installs, queries). Blocks until done.',
+        '- `spawnProcess` — for anything that runs indefinitely (servers, watchers, tails). Returns immediately.',
+        '- When in doubt: if you\'d press Ctrl-C to stop it, use `spawnProcess`. If you\'d wait for it, use `runCommand`.',
+        '',
+        '**After spawning a process:**',
+        '1. Always assign a descriptive `tag` so you can reference it later',
+        '2. Call `getProcessOutput` within a few seconds to verify it started correctly',
+        '3. Check `stderr` if the process crashes or output looks wrong',
+        '',
+        '**Monitoring:**',
+        '- Call `listProcesses` to see all running and finished processes at a glance',
+        '- Call `getProcessOutput` to read recent output — it keeps the first 20 and last 50 lines',
+        '- A process with status "crashed" exited with a non-zero code — check its stderr for the error',
+        '',
+        '**Cleanup:**',
+        '- Always `killProcess` background processes when they\'re no longer needed',
+        '- Use SIGTERM (default) first for graceful shutdown. Only use SIGKILL if SIGTERM doesn\'t work.',
+        '- If you spawned it, you\'re responsible for killing it',
+      ].join('\n'))
+    }
   }
 
   // ─── Core API ───────────────────────────────────────────────────────────

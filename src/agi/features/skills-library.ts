@@ -76,19 +76,19 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
 		searchAvailableSkills: {
 			schema: z.object({
-				query: z.string().optional().describe('Optional search term to filter skills by name or description'),
-			}).describe('Search for available skills in the library. Returns matching skill names and descriptions.'),
+				query: z.string().optional().describe('A keyword or phrase to filter skills by name or description. Omit to list all available skills.'),
+			}).describe('Discover what skills are available. Call this first when you need specialized knowledge — skills are curated guides and reference material for specific domains (frameworks, tools, patterns). Returns skill names and descriptions so you can decide which to load.'),
 		},
 		loadSkill: {
 			schema: z.object({
-				skillName: z.string().describe('The name of the skill to load'),
-			}).describe('Load a skill by name and return its full SKILL.md content and metadata.'),
+				skillName: z.string().describe('The exact skill name as returned by searchAvailableSkills'),
+			}).describe('Load a skill\'s full reference content (SKILL.md). This gives you detailed guidance, examples, and best practices for that domain. Load a skill before attempting work in an unfamiliar area — the content is curated to prevent common mistakes.'),
 		},
 		askSkillBasedQuestion: {
 			schema: z.object({
-				skillName: z.string().describe('The name of the skill to query'),
-				question: z.string().describe('The question to ask about the skill'),
-			}).describe('Ask a question about a specific skill using AI-assisted document reading.'),
+				skillName: z.string().describe('The exact skill name to query'),
+				question: z.string().describe('A specific question about the skill\'s domain. Be precise — "how do I add a new feature to the container?" is better than "tell me about features".'),
+			}).describe('Ask a focused question about a skill\'s domain using AI-assisted document reading. Use this when you need a specific answer from a skill rather than reading the whole thing. More efficient than loadSkill for targeted lookups.'),
 		},
 	}
 
@@ -107,8 +107,23 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		if (!(assistant instanceof Assistant)) {
 			throw new Error('Skills library tools require an Assistant instance (including subclasses).')
 		}
-		
+
 		const a : Assistant = assistant as Assistant
+
+		a.addSystemPromptExtension('skillsLibrary', [
+			'## Skills Library',
+			'',
+			'You have access to a library of curated skills — domain-specific reference guides with examples, patterns, and best practices.',
+			'',
+			'**When to use skills:**',
+			'- When working in an unfamiliar domain or framework — load the skill before writing code',
+			'- When the user asks about a topic that might have a matching skill — search first',
+			'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
+			'',
+			'**Workflow:** `searchAvailableSkills` → find relevant skill → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
+			'',
+			'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
+		].join('\n'))
 		
 		const { container } = a
 		

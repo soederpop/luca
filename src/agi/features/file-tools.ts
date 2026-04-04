@@ -48,20 +48,20 @@ export class FileTools extends Feature {
 			}).describe('Read the contents of a file. Returns the text content. Use offset/limit to read portions of large files.'),
 		},
 		writeFile: {
-			description: 'Create a new file or overwrite an existing file with the given content. Prefer editFile for modifying existing files.',
+			description: 'Create a new file or completely overwrite an existing file. WARNING: this replaces the entire file — use editFile instead for modifying existing files. Use writeFile only for creating new files or intentional full rewrites.',
 			schema: z.object({
-				path: z.string().describe('File path relative to the project root'),
-				content: z.string().describe('The full content to write'),
-			}).describe('Create a new file or overwrite an existing file with the given content. Prefer editFile for modifying existing files.'),
+				path: z.string().describe('File path relative to the project root. Parent directories are created automatically.'),
+				content: z.string().describe('The complete file content. This replaces everything in the file — there is no merge or append.'),
+			}).describe('Create a new file or completely overwrite an existing file. WARNING: this replaces the entire file — use editFile instead for modifying existing files. Use writeFile only for creating new files or intentional full rewrites.'),
 		},
 		editFile: {
-			description: 'Make a surgical edit to a file by replacing an exact string match. The oldString must appear exactly once in the file (unless replaceAll is true). This is the preferred way to modify existing files.',
+			description: 'Make a surgical edit to a file by replacing an exact string match. The preferred way to modify existing files — always use this over writeFile for changes to existing code.',
 			schema: z.object({
 				path: z.string().describe('File path relative to the project root'),
-				oldString: z.string().describe('The exact text to find and replace'),
-				newString: z.string().describe('The replacement text'),
-				replaceAll: z.boolean().optional().describe('Replace all occurrences instead of requiring uniqueness (default: false)'),
-			}).describe('Make a surgical edit to a file by replacing an exact string match. The oldString must appear exactly once in the file (unless replaceAll is true).'),
+				oldString: z.string().describe('The EXACT text to find, copied verbatim from the file — including whitespace and indentation. Must appear exactly once in the file (unless replaceAll is true). If the match fails, read the file again and copy the exact text.'),
+				newString: z.string().describe('The replacement text. Preserve the same indentation style as the surrounding code.'),
+				replaceAll: z.boolean().optional().describe('Replace all occurrences instead of requiring uniqueness. Use for renaming a variable across a file. Default: false.'),
+			}).describe('Make a surgical edit to a file by replacing an exact string match. The preferred way to modify existing files — always use this over writeFile for changes to existing code.'),
 		},
 		listDirectory: {
 			description: 'List files and directories at a path. Returns arrays of file and directory names.',
@@ -73,23 +73,23 @@ export class FileTools extends Feature {
 			}).describe('List files and directories at a path. Returns arrays of file and directory names.'),
 		},
 		searchFiles: {
-			description: 'Search file contents for a pattern using ripgrep. Returns structured matches with file, line number, and content.',
+			description: 'Search inside file contents for a pattern (like grep/ripgrep). Returns matching lines with file path and line number. Use this to find where code is defined, where a function is called, or any text pattern across the codebase.',
 			schema: z.object({
-				pattern: z.string().describe('Search pattern (regex supported)'),
-				path: z.string().optional().describe('Directory to search in (defaults to project root)'),
-				include: z.string().optional().describe('Glob pattern to filter files (e.g. "*.ts")'),
-				exclude: z.string().optional().describe('Glob pattern to exclude (e.g. "node_modules")'),
-				ignoreCase: z.boolean().optional().describe('Case insensitive search'),
-				maxResults: z.number().optional().describe('Maximum number of results to return'),
-			}).describe('Search file contents for a pattern using ripgrep. Returns structured matches with file, line number, and content.'),
+				pattern: z.string().describe('Search pattern — supports regex. Examples: "function handleAuth", "TODO|FIXME", "import.*from.*react"'),
+				path: z.string().optional().describe('Directory to search in (defaults to project root). Narrow this to avoid searching node_modules or irrelevant directories.'),
+				include: z.string().optional().describe('Glob to filter which files to search (e.g. "*.ts", "*.tsx"). Use this to scope to specific file types.'),
+				exclude: z.string().optional().describe('Glob to exclude files (e.g. "node_modules", "dist"). node_modules is excluded by default.'),
+				ignoreCase: z.boolean().optional().describe('Case insensitive search. Default: false.'),
+				maxResults: z.number().optional().describe('Maximum results to return. Default: 50. Use a smaller number for broad patterns.'),
+			}).describe('Search inside file contents for a pattern (like grep/ripgrep). Returns matching lines with file path and line number. Use this to find where code is defined, where a function is called, or any text pattern across the codebase.'),
 		},
 		findFiles: {
-			description: 'Find files by name/glob pattern. Returns matching file paths.',
+			description: 'Find files by name or glob pattern. Returns file paths, not contents. Use this to locate files ("where is the config?"), not to search inside them (use searchFiles for that).',
 			schema: z.object({
-				pattern: z.string().describe('Glob pattern to match (e.g. "**/*.test.ts", "src/**/*.tsx")'),
+				pattern: z.string().describe('Glob pattern to match file names. Examples: "**/*.test.ts", "src/**/*.tsx", "**/config.*"'),
 				path: z.string().optional().describe('Directory to search from (defaults to project root)'),
-				exclude: z.string().optional().describe('Glob pattern to exclude'),
-			}).describe('Find files by name/glob pattern. Returns matching file paths.'),
+				exclude: z.string().optional().describe('Glob pattern to exclude. node_modules and .git are excluded by default.'),
+			}).describe('Find files by name or glob pattern. Returns file paths, not contents. Use this to locate files ("where is the config?"), not to search inside them (use searchFiles for that).'),
 		},
 		fileInfo: {
 			description: 'Get information about a file or directory: whether it exists, its type (file/directory), size, and modification time.',
@@ -273,11 +273,18 @@ export class FileTools extends Feature {
 		if (typeof (consumer as any).addSystemPromptExtension === 'function') {
 			(consumer as any).addSystemPromptExtension('fileTools', [
 				'## File Tools',
-				'- All file paths are relative to the project root unless they start with /',
-				'- Use `searchFiles` to understand code before modifying it',
-				'- Use `editFile` for surgical changes to existing files — prefer it over `writeFile`',
-				'- Use `listDirectory` to explore before assuming paths exist',
-				'- Use `readFile` with offset/limit for large files instead of reading the entire file',
+				'',
+				'All paths are relative to the project root unless they start with /.',
+				'',
+				'**Before modifying code:** Always read the file first. Use `searchFiles` to find where something is defined before making changes. Use `listDirectory` to verify paths exist before assuming.',
+				'',
+				'**Editing files:** Prefer `editFile` over `writeFile` for existing files — it makes surgical replacements. The `oldString` must appear exactly once in the file (unless using `replaceAll`). If your match isn\'t unique, include more surrounding context to make it unique. Never guess at file contents — read first, then edit.',
+				'',
+				'**Finding things:** Use `findFiles` to locate files by name or glob pattern (e.g. "**/*.test.ts"). Use `searchFiles` to find specific content inside files (grep). These are different tools for different questions: "where is the file?" vs "where is this code?".',
+				'',
+				'**Large files:** Use `readFile` with `offset` and `limit` to read portions. Don\'t load a 5000-line file when you only need lines 100-150.',
+				'',
+				'**`writeFile` is destructive** — it overwrites the entire file. Only use it for creating new files or when you intend a complete rewrite.',
 			].join('\n'))
 		}
 	}
