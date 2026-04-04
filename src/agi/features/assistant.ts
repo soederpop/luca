@@ -261,7 +261,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Bind hooks to events BEFORE emitting created so the created hook fires
 		this.bindHooksToEvents()
 
-		this.emit('created')
+		setTimeout(() => this.emit('created'), 1)
 	}
 
 	get conversation(): Conversation {

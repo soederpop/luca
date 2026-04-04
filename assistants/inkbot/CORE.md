@@ -1,5 +1,7 @@
 ---
 maxTokens: 4096
+local: true
+model: mlx-qwopus3.5-27b-v3-vision 
 skills:
   - luca-framework
 ---
