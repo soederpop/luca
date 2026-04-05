@@ -17,6 +17,7 @@ import { ContentDb } from '@soederpop/luca/node/features/content-db'
 import { FileTools } from './features/file-tools'
 import { LucaCoder } from './features/luca-coder'
 import { Memory } from './features/agent-memory'
+import { CodingTools } from './features/coding-tools'
 
 import type { ConversationTool } from './features/conversation'
 import type { ZodType } from 'zod'
@@ -34,6 +35,7 @@ export {
 	FileTools,
 	LucaCoder,
 	Memory,
+	CodingTools,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -61,6 +63,7 @@ export interface AGIFeatures extends NodeFeatures {
 	fileTools: typeof FileTools
 	lucaCoder: typeof LucaCoder
 	memory: typeof Memory
+	codingTools: typeof CodingTools
 }
 
 export interface ConversationFactoryOptions {
@@ -137,6 +140,7 @@ const container = new AGIContainer()
 	.use(FileTools)
 	.use(LucaCoder)
 	.use(Memory)
+	.use(CodingTools)
 	.use(SemanticSearch)
 
 container.docs = container.feature('contentDb', {
