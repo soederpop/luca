@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-04-04T07:45:06.766Z
+// Generated at: 2026-04-05T06:58:06.158Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -12132,270 +12132,6 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
-setBuildTimeData('clients.elevenlabs', {
-  "id": "clients.elevenlabs",
-  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-  "shortcut": "clients.elevenlabs",
-  "className": "ElevenLabsClient",
-  "methods": {
-    "beforeRequest": {
-      "description": "Inject the xi-api-key header before each request.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Validate the API key by listing available models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await el.connect()"
-        }
-      ]
-    },
-    "listVoices": {
-      "description": "List available voices with optional search and filtering.",
-      "parameters": {
-        "options": {
-          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-          "description": "Query parameters for filtering voices"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-        }
-      ]
-    },
-    "getVoice": {
-      "description": "Get details for a single voice.",
-      "parameters": {
-        "voiceId": {
-          "type": "string",
-          "description": "The voice ID to look up"
-        }
-      },
-      "required": [
-        "voiceId"
-      ],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-        }
-      ]
-    },
-    "listModels": {
-      "description": "List available TTS models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any[]>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-        }
-      ]
-    },
-    "synthesize": {
-      "description": "Synthesize speech from text, returning audio as a Buffer.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<Buffer>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-        }
-      ]
-    },
-    "say": {
-      "description": "Synthesize speech and write the audio to a file.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "outputPath": {
-          "type": "string",
-          "description": "File path to write the audio to"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text",
-        "outputPath"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-        }
-      ]
-    }
-  },
-  "getters": {
-    "apiKey": {
-      "description": "The resolved API key from options or environment.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "voices": {
-      "name": "voices",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "speech": {
-      "name": "speech",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-    }
-  ],
-  "types": {
-    "SynthesizeOptions": {
-      "description": "",
-      "properties": {
-        "voiceId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "modelId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "outputFormat": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "voiceSettings": {
-          "type": "ElevenLabsVoiceSettings",
-          "description": "",
-          "optional": true
-        },
-        "disableCache": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    },
-    "ElevenLabsVoiceSettings": {
-      "description": "",
-      "properties": {
-        "stability": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "similarityBoost": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "style": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "speed": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "useSpeakerBoost": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
 setBuildTimeData('clients.supabase', {
   "id": "clients.supabase",
   "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
@@ -12881,6 +12617,270 @@ setBuildTimeData('clients.comfyui', {
         },
         "images": {
           "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('clients.elevenlabs', {
+  "id": "clients.elevenlabs",
+  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+  "shortcut": "clients.elevenlabs",
+  "className": "ElevenLabsClient",
+  "methods": {
+    "beforeRequest": {
+      "description": "Inject the xi-api-key header before each request.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Validate the API key by listing available models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await el.connect()"
+        }
+      ]
+    },
+    "listVoices": {
+      "description": "List available voices with optional search and filtering.",
+      "parameters": {
+        "options": {
+          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+          "description": "Query parameters for filtering voices"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+        }
+      ]
+    },
+    "getVoice": {
+      "description": "Get details for a single voice.",
+      "parameters": {
+        "voiceId": {
+          "type": "string",
+          "description": "The voice ID to look up"
+        }
+      },
+      "required": [
+        "voiceId"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+        }
+      ]
+    },
+    "listModels": {
+      "description": "List available TTS models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+        }
+      ]
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text, returning audio as a Buffer.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+        }
+      ]
+    },
+    "say": {
+      "description": "Synthesize speech and write the audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "File path to write the audio to"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "apiKey": {
+      "description": "The resolved API key from options or environment.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "voices": {
+      "name": "voices",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "voiceId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "outputFormat": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "voiceSettings": {
+          "type": "ElevenLabsVoiceSettings",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "ElevenLabsVoiceSettings": {
+      "description": "",
+      "properties": {
+        "stability": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "similarityBoost": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "style": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "speed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "useSpeakerBoost": {
+          "type": "boolean",
           "description": "",
           "optional": true
         }
@@ -25953,269 +25953,6 @@ export const introspectionData = [
     ]
   },
   {
-    "id": "clients.elevenlabs",
-    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-    "shortcut": "clients.elevenlabs",
-    "className": "ElevenLabsClient",
-    "methods": {
-      "beforeRequest": {
-        "description": "Inject the xi-api-key header before each request.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Validate the API key by listing available models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await el.connect()"
-          }
-        ]
-      },
-      "listVoices": {
-        "description": "List available voices with optional search and filtering.",
-        "parameters": {
-          "options": {
-            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-            "description": "Query parameters for filtering voices"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-          }
-        ]
-      },
-      "getVoice": {
-        "description": "Get details for a single voice.",
-        "parameters": {
-          "voiceId": {
-            "type": "string",
-            "description": "The voice ID to look up"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-          }
-        ]
-      },
-      "listModels": {
-        "description": "List available TTS models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any[]>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-          }
-        ]
-      },
-      "synthesize": {
-        "description": "Synthesize speech from text, returning audio as a Buffer.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<Buffer>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-          }
-        ]
-      },
-      "say": {
-        "description": "Synthesize speech and write the audio to a file.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "outputPath": {
-            "type": "string",
-            "description": "File path to write the audio to"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text",
-          "outputPath"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-          }
-        ]
-      }
-    },
-    "getters": {
-      "apiKey": {
-        "description": "The resolved API key from options or environment.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "voices": {
-        "name": "voices",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "speech": {
-        "name": "speech",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-      }
-    ],
-    "types": {
-      "SynthesizeOptions": {
-        "description": "",
-        "properties": {
-          "voiceId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "modelId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "outputFormat": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "voiceSettings": {
-            "type": "ElevenLabsVoiceSettings",
-            "description": "",
-            "optional": true
-          },
-          "disableCache": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      },
-      "ElevenLabsVoiceSettings": {
-        "description": "",
-        "properties": {
-          "stability": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "similarityBoost": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "style": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "speed": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "useSpeakerBoost": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
     "id": "clients.supabase",
     "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
     "shortcut": "clients.supabase",
@@ -26699,6 +26436,269 @@ export const introspectionData = [
           },
           "images": {
             "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "clients.elevenlabs",
+    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+    "shortcut": "clients.elevenlabs",
+    "className": "ElevenLabsClient",
+    "methods": {
+      "beforeRequest": {
+        "description": "Inject the xi-api-key header before each request.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Validate the API key by listing available models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await el.connect()"
+          }
+        ]
+      },
+      "listVoices": {
+        "description": "List available voices with optional search and filtering.",
+        "parameters": {
+          "options": {
+            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+            "description": "Query parameters for filtering voices"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+          }
+        ]
+      },
+      "getVoice": {
+        "description": "Get details for a single voice.",
+        "parameters": {
+          "voiceId": {
+            "type": "string",
+            "description": "The voice ID to look up"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+          }
+        ]
+      },
+      "listModels": {
+        "description": "List available TTS models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+          }
+        ]
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text, returning audio as a Buffer.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+          }
+        ]
+      },
+      "say": {
+        "description": "Synthesize speech and write the audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "File path to write the audio to"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "apiKey": {
+        "description": "The resolved API key from options or environment.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "voices": {
+        "name": "voices",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "voiceId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "outputFormat": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "voiceSettings": {
+            "type": "ElevenLabsVoiceSettings",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "ElevenLabsVoiceSettings": {
+        "description": "",
+        "properties": {
+          "stability": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "similarityBoost": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "style": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "speed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "useSpeakerBoost": {
+            "type": "boolean",
             "description": "",
             "optional": true
           }

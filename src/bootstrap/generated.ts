@@ -1,5 +1,5 @@
 // Auto-generated bootstrap content
-// Generated at: 2026-04-04T07:45:08.638Z
+// Generated at: 2026-04-05T06:58:07.990Z
 // Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md
 //
 // Do not edit manually. Run: luca build-bootstrap
