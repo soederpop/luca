@@ -3,6 +3,7 @@ import { type NodeFeatures, NodeContainer } from '../node/container'
 import '@/introspection/generated.agi.js'
 import { OpenAIClient } from '../clients/openai'
 import { ElevenLabsClient } from '../clients/elevenlabs'
+import { VoiceBoxClient } from '../clients/voicebox'
 import { ClaudeCode } from './features/claude-code'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
@@ -128,6 +129,7 @@ export class AGIContainer<
 const container = new AGIContainer()
 	.use(OpenAIClient)
 	.use(ElevenLabsClient)
+	.use(VoiceBoxClient)
 	.use(ClaudeCode)
 	.use(OpenAICodex)
 	.use(Conversation)

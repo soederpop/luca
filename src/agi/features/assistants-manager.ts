@@ -27,6 +27,10 @@ export interface AssistantEntry {
 	hasHooks: boolean
 	/** Whether a voice.yaml configuration file exists. */
 	hasVoice: boolean
+	/** Contents of ABOUT.md if present, undefined otherwise. */
+	about?: string
+	/** Frontmatter metadata parsed from CORE.md. */
+	meta?: Record<string, any>
 }
 
 export const AssistantsManagerEventsSchema = FeatureEventsSchema.extend({
@@ -191,6 +195,25 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 
 				// Don't overwrite earlier entries (home takes precedence for same name)
 				if (!discovered[entry]) {
+					const hasAbout = fs.exists(`${folder}/ABOUT.md`)
+					let about: string | undefined
+					let meta: Record<string, any> | undefined
+
+					if (hasAbout) {
+						about = fs.readFileSync(`${folder}/ABOUT.md`, 'utf8')
+					}
+
+					try {
+						const coreContent = fs.readFileSync(`${folder}/CORE.md`, 'utf8')
+						const fmMatch = coreContent.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+						if (fmMatch) {
+							const yaml = this.container.feature('yaml')
+							meta = yaml.parse(fmMatch[1])
+						}
+					} catch {
+						// CORE.md exists but couldn't be parsed — skip meta
+					}
+
 					discovered[entry] = {
 						name: entry,
 						folder,
@@ -198,6 +221,8 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 						hasTools: fs.exists(`${folder}/tools.ts`),
 						hasHooks: fs.exists(`${folder}/hooks.ts`),
 						hasVoice: fs.exists(`${folder}/voice.yaml`),
+						...(about != null && { about }),
+						...(meta != null && { meta }),
 					}
 				}
 			}
