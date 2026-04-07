@@ -50,6 +50,7 @@ export const AssistantStateSchema = FeatureStateSchema.extend({
 	pendingPlugins: z.array(z.any()).describe('Pending async plugin promises'),
 	conversation: z.any().nullable().describe('The active Conversation feature instance'),
 	subagents: z.record(z.string(), z.any()).describe('Cached subagent instances'),
+	forkDepth: z.number().describe('How many times this assistant has been forked from an ancestor. 0 = original.'),
 })
 
 export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
@@ -113,6 +114,16 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 export type AssistantState = z.infer<typeof AssistantStateSchema>
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
 
+/** Fork options extended with assistant-specific tool filtering. */
+export type AssistantForkOptions = ForkOptions & {
+	/** Denylist of tool name patterns to exclude from the fork. Supports "*" glob matching. */
+	forbidTools?: string[]
+	/** Strict allowlist of tool name patterns for the fork. Supports "*" glob matching. */
+	allowTools?: string[]
+	/** Explicit list of tool names to include in the fork (exact match). */
+	toolNames?: string[]
+}
+
 export interface ResearchJobState {
 	status: 'running' | 'completed' | 'failed'
 	prompt: string
@@ -126,7 +137,7 @@ export interface ResearchJobState {
 export interface ResearchJobOptions {
 	prompt: string
 	questions: string[]
-	forkOptions: ForkOptions
+	forkOptions: AssistantForkOptions
 }
 
 export type ResearchJobEvents = {
@@ -346,6 +357,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	/** Whether the assistant has been started and is ready to receive questions. */
 	get isStarted(): boolean {
 		return !!this.state.get('started')
+	}
+
+	/** Whether this assistant was created via fork(). */
+	get isFork(): boolean {
+		return (this.state.get('forkDepth') ?? 0) > 0
+	}
+
+	/** How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc. */
+	get forkDepth(): number {
+		return (this.state.get('forkDepth') as number) ?? 0
 	}
 
 	/** The current system prompt text. */
@@ -1294,9 +1315,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * ])
 	 * ```
 	 */
-	async fork(options?: ForkOptions): Promise<Assistant>
-	async fork(options?: ForkOptions[]): Promise<Assistant[]>
-	async fork(options: ForkOptions | ForkOptions[] = {}): Promise<Assistant | Assistant[]> {
+	async fork(options?: AssistantForkOptions): Promise<Assistant>
+	async fork(options?: AssistantForkOptions[]): Promise<Assistant[]>
+	async fork(options: AssistantForkOptions | AssistantForkOptions[] = {}): Promise<Assistant | Assistant[]> {
 		if (Array.isArray(options)) {
 			return Promise.all(options.map(o => this.fork(o)))
 		}
@@ -1305,7 +1326,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await this.start()
 		}
 
-		const { history: historyMode, ...convOverrides } = options
+		// Separate assistant-level options from conversation-level options
+		const { history: historyMode, forbidTools, allowTools, toolNames, ...convOverrides } = options
 
 		// Fork the conversation with history truncation
 		const forkedConv = this.conversation.fork({ history: historyMode ?? 'full', ...convOverrides })
@@ -1322,10 +1344,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			...(convOverrides.frequencyPenalty != null ? { frequencyPenalty: convOverrides.frequencyPenalty } : {}),
 			...(convOverrides.presencePenalty != null ? { presencePenalty: convOverrides.presencePenalty } : {}),
 			...(convOverrides.stop ? { stop: convOverrides.stop } : {}),
+			// Pass through tool filtering options
+			...(forbidTools ? { forbidTools } : {}),
+			...(allowTools ? { allowTools } : {}),
+			...(toolNames ? { toolNames } : {}),
 		}) as Assistant
 
 		// Inject the forked conversation directly, bypassing the lazy getter
 		forkedAssistant.state.set('conversation', forkedConv)
+
+		// Track fork depth so forks know they are forks
+		forkedAssistant.state.set('forkDepth', this.forkDepth + 1)
 
 		// Clone interceptors so the fork behaves like the original
 		forkedAssistant.interceptors.beforeAsk = this.interceptors.beforeAsk.clone()
@@ -1379,8 +1408,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 */
 	async createResearchJob(
 		prompt: string,
-		questions: (string | { question: string; forkOptions?: ForkOptions })[],
-		defaults: ForkOptions = {}
+		questions: (string | { question: string; forkOptions?: AssistantForkOptions })[],
+		defaults: AssistantForkOptions = {}
 	): Promise<ResearchJob> {
 		if (!this.isStarted) {
 			await this.start()
@@ -1484,8 +1513,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * ```
 	 */
 	async research(
-		questions: (string | { question: string; forkOptions?: ForkOptions })[],
-		defaults: ForkOptions & { prompt?: string } = {}
+		questions: (string | { question: string; forkOptions?: AssistantForkOptions })[],
+		defaults: AssistantForkOptions & { prompt?: string } = {}
 	): Promise<(string | null)[]> {
 		const { prompt = '', ...forkDefaults } = defaults
 		const job = await this.createResearchJob(prompt, questions, forkDefaults)
