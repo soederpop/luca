@@ -58,7 +58,7 @@ describe('Assistant', () => {
 				model: 'qwen/qwen3-8b',
 			})
 
-			// bindHooksToEvents emits 'hookFired' with the event name each time a hook runs
+			// triggerHook emits 'hookFired' with the hook name each time a hook runs
 			const fired: string[] = []
 			assistant.on('hookFired', (eventName: string) => { fired.push(eventName) })
 

@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-04-05T06:58:06.158Z
+// Generated at: 2026-04-06T20:39:08.561Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -12130,6 +12130,390 @@ setBuildTimeData('clients.openai', {
       "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
     }
   ]
+});
+
+setBuildTimeData('clients.voicebox', {
+  "id": "clients.voicebox",
+  "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
+  "shortcut": "clients.voicebox",
+  "className": "VoiceBoxClient",
+  "methods": {
+    "connect": {
+      "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "listProfiles": {
+      "description": "List all voice profiles.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
+        }
+      ]
+    },
+    "getProfile": {
+      "description": "Get a single voice profile by ID.",
+      "parameters": {
+        "profileId": {
+          "type": "string",
+          "description": "Parameter profileId"
+        }
+      },
+      "required": [
+        "profileId"
+      ],
+      "returns": "Promise<any>"
+    },
+    "createProfile": {
+      "description": "Create a new voice profile.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "options": {
+          "type": "{ description?: string; language?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<any>"
+    },
+    "listEffects": {
+      "description": "List available audio effects and their parameter definitions.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Profile, engine, model, and other synthesis options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
+        }
+      ]
+    },
+    "generate": {
+      "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Parameter options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<any>"
+    },
+    "getAudio": {
+      "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
+      "parameters": {
+        "generationId": {
+          "type": "string",
+          "description": "Parameter generationId"
+        }
+      },
+      "required": [
+        "generationId"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "say": {
+      "description": "Synthesize and write audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "Parameter outputPath"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Parameter options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "getters": {},
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    },
+    "profiles": {
+      "name": "profiles",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "engine": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelSize": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "language": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "instruct": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "seed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "maxChunkChars": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "crossfadeMs": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "normalize": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "effectsChain": {
+          "type": "EffectConfig[]",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "EffectConfig": {
+      "description": "",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": ""
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "params": {
+          "type": "Record<string, any>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('clients.supabase', {
@@ -25951,6 +26335,389 @@ export const introspectionData = [
         "code": "const openai = container.client('openai', { defaultModel: 'gpt-4o' })\nconst answer = await openai.ask('What is the meaning of life?')\nconsole.log(answer)"
       }
     ]
+  },
+  {
+    "id": "clients.voicebox",
+    "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
+    "shortcut": "clients.voicebox",
+    "className": "VoiceBoxClient",
+    "methods": {
+      "connect": {
+        "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "listProfiles": {
+        "description": "List all voice profiles.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
+          }
+        ]
+      },
+      "getProfile": {
+        "description": "Get a single voice profile by ID.",
+        "parameters": {
+          "profileId": {
+            "type": "string",
+            "description": "Parameter profileId"
+          }
+        },
+        "required": [
+          "profileId"
+        ],
+        "returns": "Promise<any>"
+      },
+      "createProfile": {
+        "description": "Create a new voice profile.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "options": {
+            "type": "{ description?: string; language?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<any>"
+      },
+      "listEffects": {
+        "description": "List available audio effects and their parameter definitions.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Profile, engine, model, and other synthesis options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
+          }
+        ]
+      },
+      "generate": {
+        "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Parameter options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<any>"
+      },
+      "getAudio": {
+        "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
+        "parameters": {
+          "generationId": {
+            "type": "string",
+            "description": "Parameter generationId"
+          }
+        },
+        "required": [
+          "generationId"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "say": {
+        "description": "Synthesize and write audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "Parameter outputPath"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Parameter options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "getters": {},
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      },
+      "profiles": {
+        "name": "profiles",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "engine": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelSize": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "language": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "instruct": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "seed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "maxChunkChars": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "crossfadeMs": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "normalize": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "effectsChain": {
+            "type": "EffectConfig[]",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "EffectConfig": {
+        "description": "",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "params": {
+            "type": "Record<string, any>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "clients.supabase",

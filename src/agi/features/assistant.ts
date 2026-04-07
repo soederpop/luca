@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '../feature.js'
-import type { Conversation, ConversationTool, ContentPart, AskOptions, Message } from './conversation'
+import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message } from './conversation'
 import type { ContentDb } from '@soederpop/luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js'
+import type { Entity } from '../../entity.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -112,6 +113,31 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 export type AssistantState = z.infer<typeof AssistantStateSchema>
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
 
+export interface ResearchJobState {
+	status: 'running' | 'completed' | 'failed'
+	prompt: string
+	questions: string[]
+	results: (string | null)[]
+	errors: (string | null)[]
+	completed: number
+	total: number
+}
+
+export interface ResearchJobOptions {
+	prompt: string
+	questions: string[]
+	forkOptions: ForkOptions
+}
+
+export type ResearchJobEvents = {
+	forkCompleted: [number, string]
+	forkError: [number, string]
+	completed: [string[]]
+	failed: [(string | null)[]]
+}
+
+export type ResearchJob = Entity<ResearchJobState, ResearchJobOptions, ResearchJobEvents>
+
 /**
  * An Assistant is a combination of a system prompt and tool calls that has a
  * conversation with an LLM. You define an assistant by creating a folder with
@@ -157,6 +183,26 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 		this.interceptors[point].add(fn as any)
 		return this
+	}
+
+	/**
+	 * Trigger a named hook and await its completion. The hook function receives
+	 * `(assistant, ...args)` and its return value is passed back to the caller.
+	 * This ensures hooks run to completion BEFORE any subsequent logic executes,
+	 * unlike the old bus-based approach where async hooks were fire-and-forget.
+	 *
+	 * Hooks that don't exist are silently skipped (returns undefined).
+	 *
+	 * @param hookName - The hook to trigger (matches an export name from hooks.ts)
+	 * @param args - Arguments passed to the hook after the assistant instance
+	 * @returns The hook's return value, or undefined if no hook exists
+	 */
+	async triggerHook(hookName: string, ...args: any[]): Promise<any> {
+		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
+		const hookFn = hooks[hookName]
+		if (!hookFn) return undefined
+		this.emit('hookFired', hookName)
+		return await hookFn(this, ...args)
 	}
 
 	/** @returns Default state with the assistant not started, zero conversations, and the resolved folder path. */
@@ -245,8 +291,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 	/**
 	 * Called immediately after the assistant is constructed. Synchronously loads
-	 * the system prompt, tools, and hooks, then binds hooks as event listeners
-	 * so every emitted event automatically invokes its corresponding hook.
+	 * the system prompt, tools, and hooks. Hooks are invoked via triggerHook()
+	 * at each emit site, ensuring async hooks are properly awaited.
 	 */
 	override afterInitialize() {
 		this.state.set('pendingPlugins', [])
@@ -258,10 +304,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.state.set('tools', this.loadTools())
 		this.state.set('hooks', this.loadHooks())
 
-		// Bind hooks to events BEFORE emitting created so the created hook fires
-		this.bindHooksToEvents()
-
-		setTimeout(() => this.emit('created'), 1)
+		// Defer created hook+event so external listeners can register first
+		setTimeout(async () => {
+			await this.triggerHook('created')
+			this.emit('created')
+		}, 1)
 	}
 
 	get conversation(): Conversation {
@@ -963,40 +1010,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 	}
 
-	/**
-	 * Bind all loaded hook functions as event listeners. Each hook whose
-	 * name matches an event gets wired up so it fires automatically when
-	 * that event is emitted. Must be called before any events are emitted.
-	 */
-	/** Hook names that are called directly during lifecycle, not bound as event listeners. */
-	private static lifecycleHooks = new Set(['formatSystemPrompt'])
-	/** Stored references to bound hook listeners so they can be unbound on reload. Lazily initialized because afterInitialize runs before field initializers. */
-	private _boundHookListeners!: Array<{ event: string; listener: (...args: any[]) => void }>
 	/** Tool names added at runtime via addTool()/use(), so reload() can preserve them. */
 	private _runtimeToolNames!: Set<string>
-
-	private bindHooksToEvents() {
-		if (!this._boundHookListeners) this._boundHookListeners = []
-		const assistant = this
-		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
-		for (const [eventName, hookFn] of Object.entries(hooks)) {
-			if (Assistant.lifecycleHooks.has(eventName)) continue
-			const listener = (...args: any[]) => {
-				this.emit('hookFired', eventName)
-				hookFn(assistant, ...args)
-			}
-			this._boundHookListeners.push({ event: eventName, listener })
-			this.on(eventName as any, listener)
-		}
-	}
-
-	private unbindHooksFromEvents() {
-		if (!this._boundHookListeners) return
-		for (const { event, listener } of this._boundHookListeners) {
-			this.off(event as any, listener)
-		}
-		this._boundHookListeners = []
-	}
 
 	/**
 	 * Reload tools, hooks, and system prompt from disk. Useful during development
@@ -1006,9 +1021,6 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * @returns this, for chaining
 	 */
 	reload(): this {
-		// Unbind existing hook listeners
-		this.unbindHooksFromEvents()
-
 		// Snapshot runtime-added tools before reloading from disk
 		const runtimeTools: Record<string, ConversationTool> = {}
 		if (this._runtimeToolNames?.size) {
@@ -1026,9 +1038,8 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		this.state.set('tools', { ...diskTools, ...runtimeTools })
 		this.emit('toolsChanged')
 
-		// Reload hooks from disk and rebind
+		// Reload hooks from disk — triggerHook reads from state so new hooks are active immediately
 		this.state.set('hooks', this.loadHooks())
-		this.bindHooksToEvents()
 
 		this.emit('reloaded')
 
@@ -1046,6 +1057,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Prevent duplicate listener registration if already started
 		if (this.isStarted) return this
 
+		// Allow hooks to run before the assistant starts (blocks until complete)
+		await this.triggerHook('beforeStart')
+
 		// Wait for any async .use() plugins to finish before starting
 		const pending = this.state.get('pendingPlugins') as Promise<void>[]
 		if (pending.length) {
@@ -1055,43 +1069,72 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		// Allow hooks.ts to export a formatSystemPrompt(assistant, prompt) => string
 		// that transforms the system prompt before the conversation is created.
-		const hooks = (this.state.get('hooks') || {}) as Record<string, (...args: any[]) => any>
-		if (hooks.formatSystemPrompt) {
-			const result = await hooks.formatSystemPrompt(this, this.systemPrompt)
-			if (typeof result === 'string') {
-				this.state.set('systemPrompt', result)
-			}
+		const formatted = await this.triggerHook('formatSystemPrompt', this.systemPrompt)
+		if (typeof formatted === 'string') {
+			this.state.set('systemPrompt', formatted)
 		}
 
 		// Wire up event forwarding from conversation to assistant.
-		// Hooks fire automatically because they're bound as event listeners.
-		this.conversation.on('turnStart', (info: any) => this.emit('turnStart', info))
-		this.conversation.on('turnEnd', (info: any) => this.emit('turnEnd', info))
-		this.conversation.on('chunk', (chunk: string) => this.emit('chunk', chunk))
-		this.conversation.on('preview', (text: string) => this.emit('preview', text))
-		this.conversation.on('response', (text: string) => {
+		// Each forwarded event triggers its hook (awaited) before emitting on the assistant bus.
+		this.conversation.on('turnStart', async (info: any) => {
+			await this.triggerHook('turnStart', info)
+			this.emit('turnStart', info)
+		})
+		this.conversation.on('turnEnd', async (info: any) => {
+			await this.triggerHook('turnEnd', info)
+			this.emit('turnEnd', info)
+		})
+		this.conversation.on('chunk', async (chunk: string) => {
+			await this.triggerHook('chunk', chunk)
+			this.emit('chunk', chunk)
+		})
+		this.conversation.on('preview', async (text: string) => {
+			await this.triggerHook('preview', text)
+			this.emit('preview', text)
+		})
+		this.conversation.on('response', async (text: string) => {
+			await this.triggerHook('response', text)
 			this.emit('response', text)
 			this.state.set('lastResponse', text)
 		})
-		this.conversation.on('rawEvent', (event: any) => this.emit('rawEvent', event))
-		this.conversation.on('mcpEvent', (event: any) => this.emit('mcpEvent', event))
-		this.conversation.on('toolCall', (name: string, args: any) => this.emit('toolCall', name, args))
-		this.conversation.on('toolResult', (name: string, result: any) => this.emit('toolResult', name, result))
-		this.conversation.on('toolError', (name: string, error: any) => this.emit('toolError', name, error))
+		this.conversation.on('rawEvent', async (event: any) => {
+			await this.triggerHook('rawEvent', event)
+			this.emit('rawEvent', event)
+		})
+		this.conversation.on('mcpEvent', async (event: any) => {
+			await this.triggerHook('mcpEvent', event)
+			this.emit('mcpEvent', event)
+		})
+		this.conversation.on('toolCall', async (name: string, args: any) => {
+			await this.triggerHook('toolCall', name, args)
+			this.emit('toolCall', name, args)
+		})
+		this.conversation.on('toolResult', async (name: string, result: any) => {
+			await this.triggerHook('toolResult', name, result)
+			this.emit('toolResult', name, result)
+		})
+		this.conversation.on('toolError', async (name: string, error: any) => {
+			await this.triggerHook('toolError', name, error)
+			this.emit('toolError', name, error)
+		})
 
 		// Install interceptor-aware tool executor on the conversation
 		this.conversation.toolExecutor = async (name: string, args: Record<string, any>, handler: (...a: any[]) => Promise<any>) => {
 			const ctx = { name, args, result: undefined as string | undefined, error: undefined, skip: false }
 
+			// Hook runs first (awaited), then interceptor chain
+			await this.triggerHook('beforeToolCall', ctx)
 			await this.interceptors.beforeToolCall.run(ctx, async () => {})
 
 			if (ctx.skip) {
 				const result = ctx.result ?? JSON.stringify({ skipped: true })
+				await this.triggerHook('toolResult', ctx.name, result)
 				this.emit('toolResult', ctx.name, result)
 				return result
 			}
 
 			try {
+				await this.triggerHook('toolCall', ctx.name, ctx.args)
 				this.emit('toolCall', ctx.name, ctx.args)
 				const output = await handler(ctx.args)
 				ctx.result = typeof output === 'string' ? output : JSON.stringify(output)
@@ -1100,11 +1143,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				ctx.result = JSON.stringify({ error: err.message || String(err) })
 			}
 
+			// Hook runs first (awaited), then interceptor chain
+			await this.triggerHook('afterToolCall', ctx)
 			await this.interceptors.afterToolCall.run(ctx, async () => {})
 
 			if (ctx.error && !ctx.result?.includes('"error"')) {
+				await this.triggerHook('toolError', ctx.name, ctx.error)
 				this.emit('toolError', ctx.name, ctx.error)
 			} else {
+				await this.triggerHook('toolResult', ctx.name, ctx.result!)
 				this.emit('toolResult', ctx.name, ctx.result!)
 			}
 
@@ -1128,7 +1175,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		})
 
 		this.state.set('started', true)
+		await this.triggerHook('started')
 		this.emit('started')
+
+		// afterStart blocks until complete — use for setup that needs the full assistant ready
+		await this.triggerHook('afterStart')
 
 		return this
 	}
@@ -1161,6 +1212,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			question = this.prependTimestamp(question)
 		}
 
+		// Trigger beforeInitialAsk only on the first ask() call
+		if (count === 1) {
+			await this.triggerHook('beforeInitialAsk', question, options)
+		}
+
+		// Trigger beforeAsk hook on every ask() call — can modify question via return value
+		const hookResult = await this.triggerHook('beforeAsk', question, options)
+		if (typeof hookResult === 'string') {
+			question = hookResult
+		}
+
 		// Run beforeAsk interceptors — they can rewrite the question or short-circuit
 		if (this.interceptors.beforeAsk.hasInterceptors) {
 			const ctx = { question, options } as InterceptorPoints['beforeAsk']
@@ -1184,6 +1246,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			await this.conversation.save({ thread: this.state.get('threadId') })
 		}
 
+		await this.triggerHook('answered', result)
 		this.emit('answered', result)
 
 		return result
@@ -1201,6 +1264,233 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 
 		return this.conversation.save(opts)
+	}
+
+	// -- Fork & Research API --
+
+	/**
+	 * Fork the assistant into a new independent instance. The fork gets its own
+	 * conversation (with configurable history truncation) but preserves the
+	 * assistant's full identity: interceptors, tools, hooks, system prompt extensions.
+	 *
+	 * @param options - Fork options including history truncation and conversation overrides
+	 *   - `history: 'full'` (default) — deep copy all messages
+	 *   - `history: 'none'` — system prompt only
+	 *   - `history: number` — keep last N exchanges + system prompt
+	 *   - Plus any conversation creation overrides (model, maxTokens, temperature, etc.)
+	 *
+	 * When called with an array, creates multiple independent forks.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Single fork with no history, cheap model
+	 * const fork = await assistant.fork({ history: 'none', model: 'gpt-4o-mini' })
+	 * const answer = await fork.ask('Quick factual question')
+	 *
+	 * // Multiple forks
+	 * const [a, b] = await assistant.fork([
+	 *   { history: 'none' },
+	 *   { history: 3 },
+	 * ])
+	 * ```
+	 */
+	async fork(options?: ForkOptions): Promise<Assistant>
+	async fork(options?: ForkOptions[]): Promise<Assistant[]>
+	async fork(options: ForkOptions | ForkOptions[] = {}): Promise<Assistant | Assistant[]> {
+		if (Array.isArray(options)) {
+			return Promise.all(options.map(o => this.fork(o)))
+		}
+
+		if (!this.isStarted) {
+			await this.start()
+		}
+
+		const { history: historyMode, ...convOverrides } = options
+
+		// Fork the conversation with history truncation
+		const forkedConv = this.conversation.fork({ history: historyMode ?? 'full', ...convOverrides })
+
+		// Create a new assistant that reuses the forked conversation
+		const forkedAssistant = this.container.feature('assistant', {
+			...this.options,
+			// Pass through conversation overrides that map to assistant options
+			...(convOverrides.model ? { model: convOverrides.model } : {}),
+			...(convOverrides.maxTokens ? { maxTokens: convOverrides.maxTokens } : {}),
+			...(convOverrides.temperature != null ? { temperature: convOverrides.temperature } : {}),
+			...(convOverrides.topP != null ? { topP: convOverrides.topP } : {}),
+			...(convOverrides.topK != null ? { topK: convOverrides.topK } : {}),
+			...(convOverrides.frequencyPenalty != null ? { frequencyPenalty: convOverrides.frequencyPenalty } : {}),
+			...(convOverrides.presencePenalty != null ? { presencePenalty: convOverrides.presencePenalty } : {}),
+			...(convOverrides.stop ? { stop: convOverrides.stop } : {}),
+		}) as Assistant
+
+		// Inject the forked conversation directly, bypassing the lazy getter
+		forkedAssistant.state.set('conversation', forkedConv)
+
+		// Clone interceptors so the fork behaves like the original
+		forkedAssistant.interceptors.beforeAsk = this.interceptors.beforeAsk.clone()
+		forkedAssistant.interceptors.beforeTurn = this.interceptors.beforeTurn.clone()
+		forkedAssistant.interceptors.beforeToolCall = this.interceptors.beforeToolCall.clone()
+		forkedAssistant.interceptors.afterToolCall = this.interceptors.afterToolCall.clone()
+		forkedAssistant.interceptors.beforeResponse = this.interceptors.beforeResponse.clone()
+
+		// Copy system prompt extensions
+		forkedAssistant.state.set('systemPromptExtensions', { ...this.systemPromptExtensions })
+
+		// Start wires up event forwarding and the interceptor-aware tool executor
+		await forkedAssistant.start()
+
+		return forkedAssistant
+	}
+
+	/** Active and completed research jobs, keyed by job entity ID. */
+	readonly researchJobs = new Map<string, ResearchJob>()
+
+	/**
+	 * Create a non-blocking research job that fans out questions across forked assistants.
+	 * The forks fire immediately and the returned entity tracks progress via observable
+	 * state and events. Each fork preserves the full assistant identity (interceptors,
+	 * tools, hooks).
+	 *
+	 * @param prompt - Shared context/framing prompt prepended to each fork's system prompt
+	 * @param questions - Array of questions (strings) or objects with question + per-fork overrides
+	 * @param defaults - Default fork options applied to all forks
+	 * @returns A research job entity with observable state and events
+	 *
+	 * @example
+	 * ```typescript
+	 * // Fire and forget — check later
+	 * const job = await assistant.createResearchJob(
+	 *   "Analyze this codebase for security issues",
+	 *   ["Look for SQL injection", "Look for XSS", "Look for auth bypass"],
+	 *   { history: 'none', model: 'gpt-4o-mini' }
+	 * )
+	 *
+	 * // Check progress
+	 * job.state.get('completed') // 2 of 3
+	 * job.state.get('results')   // [answer1, answer2, null]
+	 *
+	 * // React to events
+	 * job.on('forkCompleted', (index, result) => console.log(`Fork ${index} done`))
+	 *
+	 * // Or just wait
+	 * await job.waitFor('completed')
+	 * ```
+	 */
+	async createResearchJob(
+		prompt: string,
+		questions: (string | { question: string; forkOptions?: ForkOptions })[],
+		defaults: ForkOptions = {}
+	): Promise<ResearchJob> {
+		if (!this.isStarted) {
+			await this.start()
+		}
+
+		const jobId = `research:${this.container.utils.uuid()}`
+		const total = questions.length
+
+		const job = this.container.entity<ResearchJobState, ResearchJobOptions, ResearchJobEvents>(
+			jobId,
+			{ prompt, questions: questions.map(q => typeof q === 'string' ? q : q.question), forkOptions: defaults },
+		) as ResearchJob
+
+		job.setState({
+			status: 'running',
+			prompt,
+			questions: questions.map(q => typeof q === 'string' ? q : q.question),
+			results: new Array(total).fill(null),
+			errors: new Array(total).fill(null),
+			completed: 0,
+			total,
+		})
+
+		this.researchJobs.set(jobId, job)
+
+		// Build fork configs and create forks
+		const forkConfigs = questions.map(q => ({
+			...defaults,
+			...(typeof q === 'string' ? {} : q.forkOptions),
+		}))
+
+		const forks = await this.fork(forkConfigs)
+
+		// Apply shared prompt as a system prompt extension on each fork
+		if (prompt) {
+			for (const fork of forks) {
+				fork.addSystemPromptExtension('researchPrompt', prompt)
+			}
+		}
+
+		// Fire all forks — don't await the batch, let them resolve individually
+		for (let i = 0; i < forks.length; i++) {
+			const fork = forks[i]!
+			const q = questions[i]!
+			const question = typeof q === 'string' ? q : q.question
+
+			fork.ask(question).then(
+				(result) => {
+					const results = [...job.state.get('results')!]
+					results[i] = result
+					const completed = job.state.get('completed')! + 1
+
+					job.setState({ results, completed })
+					job.emit('forkCompleted', i, result)
+
+					if (completed === total) {
+						job.setState({ status: 'completed' })
+						job.emit('completed', results as string[])
+					}
+				},
+				(err) => {
+					const errors = [...job.state.get('errors')!]
+					errors[i] = err?.message || String(err)
+					const completed = job.state.get('completed')! + 1
+
+					job.setState({ errors, completed })
+					job.emit('forkError', i, errors[i]!)
+
+					if (completed === total) {
+						const results = job.state.get('results')!
+						const hasAnyResult = results.some(r => r !== null)
+						job.setState({ status: hasAnyResult ? 'completed' : 'failed' })
+
+						if (hasAnyResult) {
+							job.emit('completed', results as string[])
+						} else {
+							job.emit('failed', errors)
+						}
+					}
+				}
+			)
+		}
+
+		return job
+	}
+
+	/**
+	 * Fan out N questions in parallel using forked assistants, return the results.
+	 * Sugar over createResearchJob — blocks until all forks complete.
+	 *
+	 * @param questions - Array of questions (strings) or objects with question + per-fork overrides
+	 * @param defaults - Default fork options applied to all forks
+	 * @returns Array of response strings, one per question
+	 *
+	 * @example
+	 * ```typescript
+	 * const results = await assistant.research([
+	 *   "What are best practices for X?",
+	 *   "What are common pitfalls of X?",
+	 * ], { history: 'none', model: 'gpt-4o-mini' })
+	 * ```
+	 */
+	async research(
+		questions: (string | { question: string; forkOptions?: ForkOptions })[],
+		defaults: ForkOptions & { prompt?: string } = {}
+	): Promise<(string | null)[]> {
+		const { prompt = '', ...forkDefaults } = defaults
+		const job = await this.createResearchJob(prompt, questions, forkDefaults)
+		await job.waitFor('completed')
+		return job.state.get('results')!
 	}
 
 	// -- Subagent API --
