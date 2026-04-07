@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luca: AI-Native Architecture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ===========================================
+           THEME: Same system as intro deck
+           Slightly more neon/electric vibe for AI topic
+           =========================================== */
+        :root {
+            --bg-primary: #07070d;
+            --bg-secondary: #0e0e18;
+            --bg-card: #151520;
+            --text-primary: #f0ede6;
+            --text-secondary: #7a7a8a;
+            --text-muted: #4a4a5a;
+            --accent: #e8a634;
+            --accent-glow: rgba(232, 166, 52, 0.25);
+            --accent-dim: rgba(232, 166, 52, 0.08);
+            --blue: #5b8def;
+            --blue-glow: rgba(91, 141, 239, 0.2);
+            --cyan: #22d3ee;
+            --cyan-glow: rgba(34, 211, 238, 0.15);
+            --green: #4ade80;
+            --orange: #f59e0b;
+            --purple: #c4b5fd;
+            --code-bg: #0a0a12;
+            --border: rgba(255, 255, 255, 0.06);
+
+            --font-display: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --title-size: clamp(2rem, 5.5vw, 4.5rem);
+            --h2-size: clamp(1.5rem, 4vw, 3rem);
+            --h3-size: clamp(1rem, 2vw, 1.5rem);
+            --body-size: clamp(0.8rem, 1.3vw, 1.1rem);
+            --small-size: clamp(0.65rem, 1vw, 0.85rem);
+            --code-size: clamp(0.65rem, 1.1vw, 0.9rem);
+
+            --slide-padding: clamp(1.5rem, 5vw, 5rem);
+            --content-gap: clamp(0.75rem, 2vw, 2rem);
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+        body { font-family: var(--font-display); background: var(--bg-primary); color: var(--text-primary); }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            padding: var(--slide-padding);
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            gap: var(--content-gap);
+        }
+
+        h1 { font-size: var(--title-size); font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
+        h2 { font-size: var(--h2-size); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+        h3 { font-size: var(--h3-size); font-weight: 700; line-height: 1.2; }
+        p, li { font-size: var(--body-size); line-height: 1.5; color: var(--text-secondary); }
+
+        .accent { color: var(--accent); }
+        .blue { color: var(--blue); }
+        .cyan { color: var(--cyan); }
+        .muted { color: var(--text-muted); }
+        .purple { color: var(--purple); }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan-glow), transparent);
+        }
+
+        .code-block pre {
+            font-family: var(--font-mono);
+            font-size: var(--code-size);
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre;
+            overflow: hidden;
+        }
+
+        .code-block .comment { color: var(--text-muted); }
+        .code-block .keyword { color: var(--blue); }
+        .code-block .string { color: var(--green); }
+        .code-block .property { color: var(--accent); }
+        .code-block .method { color: var(--purple); }
+        .code-block .type { color: var(--cyan); }
+        .code-block .number { color: var(--orange); }
+
+        .tagline {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--cyan);
+            padding-top: clamp(0.5rem, 1.5vw, 1.25rem);
+            border-top: 1px solid var(--border);
+            letter-spacing: 0.02em;
+            margin-top: auto;
+        }
+
+        /* Animations */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.7s var(--ease-out-expo), transform 0.7s var(--ease-out-expo);
+        }
+        .slide.visible .reveal { opacity: 1; transform: translateY(0); }
+        .reveal-delay-1 { transition-delay: 0.08s; }
+        .reveal-delay-2 { transition-delay: 0.16s; }
+        .reveal-delay-3 { transition-delay: 0.24s; }
+        .reveal-delay-4 { transition-delay: 0.32s; }
+        .reveal-delay-5 { transition-delay: 0.40s; }
+
+        .reveal-scale {
+            opacity: 0; transform: scale(0.92);
+            transition: opacity 0.7s var(--ease-out-expo), transform 0.7s var(--ease-out-expo);
+        }
+        .slide.visible .reveal-scale { opacity: 1; transform: scale(1); }
+
+        /* Progress + nav */
+        .progress-bar {
+            position: fixed; top: 0; left: 0; height: 2px;
+            background: var(--cyan); z-index: 100;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--cyan-glow);
+        }
+
+        .nav-dots {
+            position: fixed; right: clamp(0.75rem, 2vw, 1.5rem);
+            top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 8px; z-index: 100;
+        }
+
+        .nav-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--text-muted); cursor: pointer;
+            transition: all 0.3s ease; border: none; padding: 0;
+        }
+        .nav-dot.active { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-glow); transform: scale(1.4); }
+        .nav-dot:hover { background: var(--text-secondary); transform: scale(1.3); }
+
+        .slide-num {
+            position: absolute;
+            bottom: clamp(0.75rem, 2vw, 1.5rem);
+            right: clamp(0.75rem, 2vw, 1.5rem);
+            font-family: var(--font-mono);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-muted);
+        }
+
+        .grid-bg {
+            position: absolute; inset: 0; pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        /* Title slide */
+        .title-slide { text-align: center; align-items: center; }
+        .title-slide .slide-content { align-items: center; max-width: 950px; }
+
+        .title-sub {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .title-bottom {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-top: auto;
+            padding-top: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        /* Bullet list */
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.5rem, 1.2vh, 1rem);
+        }
+
+        .bullet-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(0.5rem, 1vw, 1rem);
+        }
+
+        .bullet-icon {
+            flex-shrink: 0;
+            width: clamp(1.25rem, 2vw, 1.75rem);
+            height: clamp(1.25rem, 2vw, 1.75rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.75rem, 1.1vw, 1rem);
+            margin-top: 0.15em;
+        }
+
+        /* Two column layout */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(0.75rem, 2vw, 1.5rem);
+            align-items: start;
+        }
+
+        .col-label {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: clamp(0.25rem, 0.5vh, 0.5rem);
+        }
+
+        /* Flow diagram */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.3rem, 0.8vw, 0.6rem);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .flow-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: clamp(0.3rem, 0.7vw, 0.5rem) clamp(0.5rem, 1vw, 0.8rem);
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        .flow-step.highlight {
+            border-color: rgba(34, 211, 238, 0.3);
+            color: var(--cyan);
+            box-shadow: 0 0 12px rgba(34, 211, 238, 0.08);
+        }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: var(--small-size);
+        }
+
+        /* Feature cards for tool surface */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: clamp(0.4rem, 1vw, 0.75rem);
+        }
+
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: clamp(0.5rem, 1.2vw, 1rem);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.15rem, 0.4vh, 0.3rem);
+        }
+
+        .tool-card h3 {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--cyan);
+        }
+
+        .tool-card p {
+            font-size: clamp(0.6rem, 0.9vw, 0.8rem);
+            color: var(--text-muted);
+        }
+
+        /* Trust visual */
+        .trust-row {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.75rem, 2vw, 1.5rem);
+        }
+
+        .trust-bar {
+            flex: 1;
+            height: clamp(2rem, 4vh, 3rem);
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .trust-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding-left: clamp(0.5rem, 1vw, 1rem);
+            font-family: var(--font-mono);
+            font-size: clamp(0.6rem, 0.9vw, 0.75rem);
+            font-weight: 600;
+        }
+
+        .trust-label {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            min-width: clamp(4rem, 8vw, 7rem);
+        }
+
+        /* Closing */
+        .closing-slide { text-align: center; align-items: center; }
+        .closing-slide .slide-content { align-items: center; }
+
+        .closing-install {
+            font-family: var(--font-mono);
+            font-size: var(--h3-size);
+            color: var(--cyan);
+            background: rgba(34, 211, 238, 0.06);
+            padding: 0.4em 1.2em;
+            border-radius: 8px;
+            border: 1px solid rgba(34, 211, 238, 0.15);
+        }
+
+        .closing-link {
+            font-family: var(--font-mono);
+            font-size: var(--body-size);
+            color: var(--blue);
+        }
+
+        /* Conversation diagram */
+        .convo {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.8vh, 0.5rem);
+            max-width: 650px;
+        }
+
+        .convo-msg {
+            display: flex;
+            gap: clamp(0.4rem, 0.8vw, 0.6rem);
+            align-items: flex-start;
+        }
+
+        .convo-who {
+            font-family: var(--font-mono);
+            font-size: clamp(0.55rem, 0.85vw, 0.7rem);
+            font-weight: 700;
+            padding: 0.2em 0.6em;
+            border-radius: 4px;
+            white-space: nowrap;
+            margin-top: 0.15em;
+            flex-shrink: 0;
+        }
+
+        .convo-who.ai {
+            background: rgba(34, 211, 238, 0.1);
+            color: var(--cyan);
+            border: 1px solid rgba(34, 211, 238, 0.2);
+        }
+
+        .convo-who.human {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(232, 166, 52, 0.2);
+        }
+
+        .convo-text {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .convo-text code {
+            color: var(--green);
+            font-size: inherit;
+        }
+
+        /* Shared map visual */
+        .shared-map {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: clamp(0.5rem, 1.2vw, 1rem);
+            align-items: center;
+        }
+
+        .map-side {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.6vh, 0.4rem);
+        }
+
+        .map-side-label {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: clamp(0.15rem, 0.4vh, 0.3rem);
+        }
+
+        .map-item {
+            font-size: clamp(0.6rem, 0.9vw, 0.8rem);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.4em;
+        }
+
+        .map-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(0.25rem, 0.5vh, 0.4rem);
+        }
+
+        .map-container-box {
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            padding: clamp(0.6rem, 1.2vw, 1rem) clamp(0.8rem, 1.5vw, 1.25rem);
+            text-align: center;
+            box-shadow: 0 0 20px var(--accent-dim);
+        }
+
+        .map-container-title {
+            font-family: var(--font-mono);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .map-container-desc {
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-muted);
+            margin-top: 0.2em;
+        }
+
+        .map-arrow {
+            color: var(--text-muted);
+            font-size: clamp(1rem, 1.5vw, 1.25rem);
+        }
+
+        /* Responsive */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(1rem, 3vw, 2.5rem);
+                --content-gap: clamp(0.5rem, 1.5vw, 1rem);
+                --title-size: clamp(1.5rem, 5vw, 3rem);
+                --h2-size: clamp(1.25rem, 3.5vw, 2rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.4rem, 1vw, 0.75rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots { display: none; }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.75rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .two-col, .tool-grid, .shared-map { grid-template-columns: 1fr; }
+            .map-arrow { transform: rotate(90deg); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ============================================
+     SLIDE 1: TITLE
+     ============================================ -->
+<section class="slide title-slide" data-slide="0">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <p class="title-sub reveal">Part 2 &mdash; The AI-Native Architecture</p>
+        <h1 class="reveal reveal-delay-1">The Container<br>That <span class="cyan">Teaches Itself</span></h1>
+        <p class="title-bottom reveal reveal-delay-2">when your codebase is the prompt</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 2: THE PROBLEM WITH AI + CODE
+     ============================================ -->
+<section class="slide" data-slide="1">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">AI Writes Code.<br><span class="muted">But Whose Architecture?</span></h2>
+        <ul class="bullet-list">
+            <li class="reveal reveal-delay-1">
+                <span class="bullet-icon">&#x1f4a5;</span>
+                <span>AI generates sprawling, unstructured code every time you ask</span>
+            </li>
+            <li class="reveal reveal-delay-2">
+                <span class="bullet-icon">&#x1f50d;</span>
+                <span>You spend more time reviewing AI output than you saved writing it</span>
+            </li>
+            <li class="reveal reveal-delay-3">
+                <span class="bullet-icon">&#x1f3ad;</span>
+                <span>The more AI writes, the less you trust what's in there</span>
+            </li>
+        </ul>
+        <div class="tagline reveal reveal-delay-4">The problem isn't AI's code. It's that AI has no map.</div>
+    </div>
+    <span class="slide-num">02</span>
+</section>
+
+<!-- ============================================
+     SLIDE 3: INTROSPECTION
+     ============================================ -->
+<section class="slide" data-slide="2">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Everything Describes Itself</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="comment">// Any helper can explain itself at runtime</span>
+<span class="keyword">const</span> fs = <span class="property">container</span>.<span class="method">feature</span>(<span class="string">'fs'</span>)
+
+fs.<span class="method">introspect</span>()        <span class="comment">// full API: methods, state shape, events</span>
+fs.<span class="method">introspectAsText</span>()  <span class="comment">// human-readable docs</span>
+fs.<span class="method">introspectAsType</span>()  <span class="comment">// TypeScript interface</span>
+
+<span class="comment">// Discover everything available</span>
+<span class="property">container</span>.<span class="method">features</span>.<span class="property">available</span>  <span class="comment">// what exists</span>
+<span class="property">container</span>.<span class="method">features</span>.<span class="method">describe</span>() <span class="comment">// what each one does</span></pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Know the philosophy. The container teaches you the rest.</div>
+    </div>
+    <span class="slide-num">03</span>
+</section>
+
+<!-- ============================================
+     SLIDE 4: AI AGENT DISCOVERS THE CONTAINER
+     ============================================ -->
+<section class="slide" data-slide="3">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">An Agent Walks Into a Container</h2>
+        <div class="convo">
+            <div class="convo-msg reveal reveal-delay-1">
+                <span class="convo-who ai">AGENT</span>
+                <span class="convo-text"><code>container.features.available</code></span>
+            </div>
+            <div class="convo-msg reveal reveal-delay-2">
+                <span class="convo-who human">LUCA</span>
+                <span class="convo-text">['fs', 'git', 'proc', 'ui', 'networking', 'grep', ...]</span>
+            </div>
+            <div class="convo-msg reveal reveal-delay-3">
+                <span class="convo-who ai">AGENT</span>
+                <span class="convo-text"><code>container.feature('git').introspect()</code></span>
+            </div>
+            <div class="convo-msg reveal reveal-delay-4">
+                <span class="convo-who human">LUCA</span>
+                <span class="convo-text">{ methods: [branch, sha, lsFiles, ...], state: { branch, sha, isRepo }, events: [...] }</span>
+            </div>
+            <div class="convo-msg reveal reveal-delay-5">
+                <span class="convo-who ai">AGENT</span>
+                <span class="convo-text"><code>container.git.branch</code> &rarr; writes code against it</span>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-5">No docs needed. No training data. The runtime IS the documentation.</div>
+    </div>
+    <span class="slide-num">04</span>
+</section>
+
+<!-- ============================================
+     SLIDE 5: EVERY HELPER IS A TOOL
+     ============================================ -->
+<section class="slide" data-slide="4">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Every Helper Is a Tool Surface</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="comment">// Any feature can expose itself to an AI assistant</span>
+<span class="keyword">const</span> git = <span class="property">container</span>.<span class="method">feature</span>(<span class="string">'git'</span>)
+<span class="keyword">const</span> { <span class="property">schemas</span>, <span class="property">handlers</span> } = git.<span class="method">toTools</span>()
+
+<span class="comment">// schemas  → OpenAI-compatible function definitions</span>
+<span class="comment">// handlers → the actual implementations</span>
+
+<span class="comment">// Give an assistant access to any feature</span>
+assistant.<span class="method">use</span>(<span class="property">container</span>.<span class="method">feature</span>(<span class="string">'fs'</span>))
+assistant.<span class="method">use</span>(<span class="property">container</span>.<span class="method">feature</span>(<span class="string">'git'</span>))
+assistant.<span class="method">use</span>(<span class="property">container</span>.<span class="method">feature</span>(<span class="string">'proc'</span>))</pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Build the feature once. Expose it to AI with one line.</div>
+    </div>
+    <span class="slide-num">05</span>
+</section>
+
+<!-- ============================================
+     SLIDE 6: THE ASSISTANT SYSTEM
+     ============================================ -->
+<section class="slide" data-slide="5">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Assistants Are Just Folders</h2>
+        <div class="two-col">
+            <div class="reveal reveal-delay-1">
+                <div class="col-label accent">Structure</div>
+                <div class="code-block">
+                    <pre class="dir-tree" style="font-size:var(--small-size)"><span style="color:var(--blue);font-weight:600">assistants/researcher/</span>
+├── <span style="color:var(--accent)">CORE.md</span>      <span style="color:var(--text-muted)">system prompt</span>
+├── <span style="color:var(--accent)">tools.ts</span>     <span style="color:var(--text-muted)">Zod-schema tools</span>
+├── <span style="color:var(--accent)">hooks.ts</span>     <span style="color:var(--text-muted)">lifecycle hooks</span>
+└── <span style="color:var(--blue);font-weight:600">docs/</span>        <span style="color:var(--text-muted)">auto-injected context</span></pre>
+                </div>
+            </div>
+            <div class="reveal reveal-delay-2">
+                <div class="col-label cyan">Usage</div>
+                <div class="code-block">
+                    <pre><span class="keyword">const</span> asst = <span class="property">container</span>
+  .<span class="method">feature</span>(<span class="string">'assistant'</span>)
+
+<span class="comment">// Give it any feature as tools</span>
+asst.<span class="method">use</span>(<span class="property">container</span>.<span class="method">feature</span>(<span class="string">'fs'</span>))
+asst.<span class="method">use</span>(<span class="property">container</span>.<span class="method">feature</span>(<span class="string">'git'</span>))
+
+<span class="keyword">const</span> reply = <span class="keyword">await</span> asst.<span class="method">ask</span>(
+  <span class="string">'What changed this week?'</span>
+)</pre>
+                </div>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-3">assistant.use(anyFeature) &mdash; that's the whole integration story.</div>
+    </div>
+    <span class="slide-num">06</span>
+</section>
+
+<!-- ============================================
+     SLIDE 7: THE SHARED MENTAL MODEL
+     ============================================ -->
+<section class="slide" data-slide="6">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">One Map. Two Navigators.</h2>
+        <div class="shared-map reveal reveal-delay-1">
+            <div class="map-side">
+                <div class="map-side-label accent">Human Defines</div>
+                <div class="map-item">&#x1f3d7; The architecture</div>
+                <div class="map-item">&#x1f4cb; Helper interfaces</div>
+                <div class="map-item">&#x1f4c1; Where things live</div>
+                <div class="map-item">&#x1f3f7; What categories exist</div>
+            </div>
+            <div class="map-center">
+                <span class="map-arrow">&larr;</span>
+                <div class="map-container-box">
+                    <div class="map-container-title">container</div>
+                    <div class="map-container-desc">shared mental model</div>
+                </div>
+                <span class="map-arrow">&rarr;</span>
+            </div>
+            <div class="map-side">
+                <div class="map-side-label cyan">AI Implements</div>
+                <div class="map-item">&#x2699; Helper internals</div>
+                <div class="map-item">&#x1f9ea; Tests and validation</div>
+                <div class="map-item">&#x1f504; Composition logic</div>
+                <div class="map-item">&#x1f528; The boring stuff</div>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-2">You design the map. AI respects it. The codebase stays yours.</div>
+    </div>
+    <span class="slide-num">07</span>
+</section>
+
+<!-- ============================================
+     SLIDE 8: TRUST THROUGH COMPOSITION
+     ============================================ -->
+<section class="slide" data-slide="7">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">More AI Code = <span class="cyan">More Trust</span></h2>
+        <p class="reveal reveal-delay-1" style="max-width:600px">Normally, the more AI writes, the less confident you feel. With Luca, AI composes with helpers you've already reviewed. New code gets captured into new helpers. The codebase grows <em>more</em> trustworthy.</p>
+        <div style="display:flex;flex-direction:column;gap:clamp(0.4rem,1vh,0.75rem)">
+            <div class="trust-row reveal reveal-delay-2">
+                <span class="trust-label">Week 1</span>
+                <div class="trust-bar" style="background:var(--bg-card);border:1px solid var(--border)">
+                    <div class="trust-bar-fill" style="width:30%;background:linear-gradient(90deg,rgba(34,211,238,0.3),rgba(34,211,238,0.15));color:var(--cyan)">reviewed</div>
+                </div>
+            </div>
+            <div class="trust-row reveal reveal-delay-3">
+                <span class="trust-label">Month 1</span>
+                <div class="trust-bar" style="background:var(--bg-card);border:1px solid var(--border)">
+                    <div class="trust-bar-fill" style="width:65%;background:linear-gradient(90deg,rgba(34,211,238,0.3),rgba(34,211,238,0.15));color:var(--cyan)">reviewed</div>
+                </div>
+            </div>
+            <div class="trust-row reveal reveal-delay-4">
+                <span class="trust-label">Month 6</span>
+                <div class="trust-bar" style="background:var(--bg-card);border:1px solid var(--border)">
+                    <div class="trust-bar-fill" style="width:90%;background:linear-gradient(90deg,rgba(34,211,238,0.3),rgba(34,211,238,0.15));color:var(--cyan)">reviewed</div>
+                </div>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-5">The surface area of unreviewed code shrinks because AI reaches for existing helpers.</div>
+    </div>
+    <span class="slide-num">08</span>
+</section>
+
+<!-- ============================================
+     SLIDE 9: OBSERVABLE BY DEFAULT
+     ============================================ -->
+<section class="slide" data-slide="8">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Agents Can Watch Everything</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="comment">// An agent monitors the system in real-time</span>
+<span class="property">container</span>.<span class="method">on</span>(<span class="string">'featureEnabled'</span>, (<span class="property">id</span>) => {
+  agent.<span class="method">log</span>(<span class="string">`Feature ${id} came online`</span>)
+})
+
+server.<span class="method">state</span>.<span class="method">observe</span>((<span class="property">type</span>, <span class="property">key</span>, <span class="property">val</span>) => {
+  <span class="keyword">if</span> (key === <span class="string">'requestCount'</span> && val > <span class="number">1000</span>)
+    agent.<span class="method">alert</span>(<span class="string">'Traffic spike detected'</span>)
+})
+
+<span class="comment">// Same primitives that power the UI, power the agent</span></pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Observable state + events = AI can monitor, react, and intervene.</div>
+    </div>
+    <span class="slide-num">09</span>
+</section>
+
+<!-- ============================================
+     SLIDE 10: THE REPL-TO-AGENT PIPELINE
+     ============================================ -->
+<section class="slide" data-slide="9">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">REPL-Friendly = Agent-Friendly</h2>
+        <div class="tool-grid">
+            <div class="tool-card reveal reveal-delay-1">
+                <h3>Discoverability</h3>
+                <p>What's available? What can it do? Ask and the container answers.</p>
+            </div>
+            <div class="tool-card reveal reveal-delay-2">
+                <h3>Introspection</h3>
+                <p>Every method, every event, every state shape &mdash; queryable at runtime.</p>
+            </div>
+            <div class="tool-card reveal reveal-delay-3">
+                <h3>Observable State</h3>
+                <p>Watch anything change. React without polling. Same as React, but headless.</p>
+            </div>
+            <div class="tool-card reveal reveal-delay-4">
+                <h3>Immediate Feedback</h3>
+                <p>Run code, see results, iterate. The agent loop IS the REPL loop.</p>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-5">What makes something nice for a REPL is exactly what makes it nice for an agent.</div>
+    </div>
+    <span class="slide-num">10</span>
+</section>
+
+<!-- ============================================
+     SLIDE 11: CLOSING
+     ============================================ -->
+<section class="slide closing-slide" data-slide="10">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h1 class="reveal">Your Codebase<br>Is the <span class="cyan">Prompt.</span></h1>
+        <div class="closing-install reveal reveal-delay-1">bun add @soederpop/luca</div>
+        <p class="closing-link reveal reveal-delay-2">github.com/soederpop/luca</p>
+    </div>
+</section>
+
+<script>
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.currentSlide = 0;
+            this.totalSlides = this.slides.length;
+            this.progressBar = document.getElementById('progress');
+            this.navContainer = document.getElementById('navDots');
+
+            this.createNavDots();
+            this.setupIntersectionObserver();
+            this.setupKeyboardNav();
+            this.updateProgress();
+        }
+
+        createNavDots() {
+            this.slides.forEach((_, i) => {
+                const dot = document.createElement('button');
+                dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+                dot.addEventListener('click', () => this.goToSlide(i));
+                this.navContainer.appendChild(dot);
+            });
+            this.dots = this.navContainer.querySelectorAll('.nav-dot');
+        }
+
+        setupIntersectionObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        const index = parseInt(entry.target.dataset.slide);
+                        if (!isNaN(index)) {
+                            this.currentSlide = index;
+                            this.updateProgress();
+                            this.updateDots();
+                        }
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            this.slides.forEach(slide => observer.observe(slide));
+        }
+
+        setupKeyboardNav() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+                    e.preventDefault();
+                    this.goToSlide(Math.min(this.currentSlide + 1, this.totalSlides - 1));
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.goToSlide(Math.max(this.currentSlide - 1, 0));
+                }
+            });
+        }
+
+        goToSlide(index) {
+            this.slides[index].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        updateProgress() {
+            const progress = ((this.currentSlide + 1) / this.totalSlides) * 100;
+            this.progressBar.style.width = progress + '%';
+        }
+
+        updateDots() {
+            this.dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === this.currentSlide);
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        new SlidePresentation();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luca: One Container to Rule Them All</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ===========================================
+           THEME: Dark developer tool aesthetic
+           Amber/gold primary, cool blue secondary
+           =========================================== */
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --text-primary: #f0ede6;
+            --text-secondary: #7a7a8a;
+            --text-muted: #4a4a5a;
+            --accent: #e8a634;
+            --accent-glow: rgba(232, 166, 52, 0.25);
+            --accent-dim: rgba(232, 166, 52, 0.08);
+            --blue: #5b8def;
+            --blue-glow: rgba(91, 141, 239, 0.2);
+            --green: #4ade80;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --code-bg: #0d0d14;
+            --border: rgba(255, 255, 255, 0.06);
+
+            --font-display: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --title-size: clamp(2rem, 5.5vw, 4.5rem);
+            --h2-size: clamp(1.5rem, 4vw, 3rem);
+            --h3-size: clamp(1rem, 2vw, 1.5rem);
+            --body-size: clamp(0.8rem, 1.3vw, 1.1rem);
+            --small-size: clamp(0.65rem, 1vw, 0.85rem);
+            --code-size: clamp(0.65rem, 1.1vw, 0.9rem);
+
+            --slide-padding: clamp(1.5rem, 5vw, 5rem);
+            --content-gap: clamp(0.75rem, 2vw, 2rem);
+            --element-gap: clamp(0.3rem, 1vw, 0.75rem);
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* ===========================================
+           BASE + VIEWPORT FITTING
+           =========================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            padding: var(--slide-padding);
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            gap: var(--content-gap);
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           =========================================== */
+        h1 {
+            font-size: var(--title-size);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+        }
+
+        h2 {
+            font-size: var(--h2-size);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        h3 {
+            font-size: var(--h3-size);
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        p, li {
+            font-size: var(--body-size);
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .accent { color: var(--accent); }
+        .blue { color: var(--blue); }
+        .muted { color: var(--text-muted); }
+
+        code, .code {
+            font-family: var(--font-mono);
+            font-size: var(--code-size);
+        }
+
+        /* ===========================================
+           CODE BLOCKS
+           =========================================== */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+        }
+
+        .code-block pre {
+            font-family: var(--font-mono);
+            font-size: var(--code-size);
+            line-height: 1.6;
+            color: var(--text-secondary);
+            white-space: pre;
+            overflow: hidden;
+        }
+
+        .code-block .comment { color: var(--text-muted); }
+        .code-block .keyword { color: var(--blue); }
+        .code-block .string { color: var(--green); }
+        .code-block .property { color: var(--accent); }
+        .code-block .method { color: #c4b5fd; }
+        .code-block .punctuation { color: var(--text-muted); }
+        .code-block .type { color: var(--accent); }
+        .code-block .number { color: var(--orange); }
+
+        /* ===========================================
+           TAGLINE BAR
+           =========================================== */
+        .tagline {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--accent);
+            padding-top: clamp(0.5rem, 1.5vw, 1.25rem);
+            border-top: 1px solid var(--border);
+            letter-spacing: 0.02em;
+            margin-top: auto;
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.7s var(--ease-out-expo),
+                        transform 0.7s var(--ease-out-expo);
+        }
+
+        .slide.visible .reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.08s; }
+        .reveal-delay-2 { transition-delay: 0.16s; }
+        .reveal-delay-3 { transition-delay: 0.24s; }
+        .reveal-delay-4 { transition-delay: 0.32s; }
+        .reveal-delay-5 { transition-delay: 0.40s; }
+        .reveal-delay-6 { transition-delay: 0.48s; }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity 0.7s var(--ease-out-expo),
+                        transform 0.7s var(--ease-out-expo);
+        }
+
+        .slide.visible .reveal-scale {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ===========================================
+           PROGRESS BAR
+           =========================================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background: var(--accent);
+            z-index: 100;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* ===========================================
+           NAV DOTS
+           =========================================== */
+        .nav-dots {
+            position: fixed;
+            right: clamp(0.75rem, 2vw, 1.5rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            padding: 0;
+        }
+
+        .nav-dot.active {
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            transform: scale(1.4);
+        }
+
+        .nav-dot:hover {
+            background: var(--text-secondary);
+            transform: scale(1.3);
+        }
+
+        /* ===========================================
+           SLIDE-SPECIFIC STYLES
+           =========================================== */
+
+        /* Title slide */
+        .title-slide {
+            text-align: center;
+            align-items: center;
+        }
+
+        .title-slide .slide-content {
+            align-items: center;
+            max-width: 900px;
+        }
+
+        .title-sub {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .title-bottom {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-top: auto;
+            padding-top: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        /* Bullet list */
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.6rem, 1.5vh, 1.25rem);
+        }
+
+        .bullet-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(0.5rem, 1vw, 1rem);
+            font-size: var(--body-size);
+            line-height: 1.5;
+        }
+
+        .bullet-icon {
+            flex-shrink: 0;
+            width: clamp(1.5rem, 2.5vw, 2rem);
+            height: clamp(1.5rem, 2.5vw, 2rem);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.8rem, 1.2vw, 1.1rem);
+            margin-top: 0.1em;
+        }
+
+        /* Layer diagram */
+        .layer-stack {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.8vh, 0.6rem);
+            max-width: 700px;
+        }
+
+        .layer {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.75rem, 1.5vw, 1.25rem);
+            padding: clamp(0.6rem, 1.5vw, 1.25rem) clamp(0.75rem, 2vw, 1.5rem);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .layer::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.06;
+        }
+
+        .layer-3 { border-color: rgba(245, 158, 11, 0.2); }
+        .layer-3::before { background: var(--orange); }
+        .layer-2 { border-color: rgba(91, 141, 239, 0.2); }
+        .layer-2::before { background: var(--blue); }
+        .layer-1 { border-color: rgba(74, 222, 128, 0.2); }
+        .layer-1::before { background: var(--green); }
+
+        .layer-label {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .layer-3 .layer-label { color: var(--orange); }
+        .layer-2 .layer-label { color: var(--blue); }
+        .layer-1 .layer-label { color: var(--green); }
+
+        .layer-desc {
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+
+        .layer-freq {
+            margin-left: auto;
+            font-family: var(--font-mono);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Helper diagram */
+        .helper-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(0.5rem, 1.5vh, 1.25rem);
+        }
+
+        .helper-base {
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            padding: clamp(0.5rem, 1.2vw, 1rem) clamp(1rem, 3vw, 2.5rem);
+            text-align: center;
+            box-shadow: 0 0 20px var(--accent-dim);
+        }
+
+        .helper-base-title {
+            font-family: var(--font-mono);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .helper-base-desc {
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-top: 0.25em;
+        }
+
+        .helper-connector {
+            width: 1px;
+            height: clamp(12px, 2vh, 24px);
+            background: var(--text-muted);
+            position: relative;
+        }
+
+        .helper-connector::after {
+            content: '';
+            position: absolute;
+            bottom: -3px;
+            left: -3px;
+            width: 7px;
+            height: 7px;
+            border-left: 1px solid var(--text-muted);
+            border-bottom: 1px solid var(--text-muted);
+            transform: rotate(-45deg);
+        }
+
+        .helper-children {
+            display: flex;
+            gap: clamp(0.3rem, 0.8vw, 0.6rem);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .helper-child {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: clamp(0.35rem, 0.8vw, 0.6rem) clamp(0.6rem, 1.2vw, 1rem);
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .helper-child:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        .helper-traits {
+            display: flex;
+            gap: clamp(0.4rem, 1vw, 0.75rem);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .helper-trait {
+            font-family: var(--font-mono);
+            font-size: clamp(0.55rem, 0.9vw, 0.75rem);
+            color: var(--text-muted);
+            background: var(--accent-dim);
+            border: 1px solid rgba(232, 166, 52, 0.15);
+            border-radius: 20px;
+            padding: 0.2em 0.75em;
+        }
+
+        /* Directory tree */
+        .dir-tree {
+            font-family: var(--font-mono);
+            font-size: var(--code-size);
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .dir-tree .folder { color: var(--blue); font-weight: 600; }
+        .dir-tree .arrow { color: var(--text-muted); }
+        .dir-tree .desc { color: var(--text-muted); font-size: clamp(0.55rem, 0.9vw, 0.75rem); }
+        .dir-tree .file { color: var(--accent); }
+
+        /* Three columns */
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.5rem, 1.5vw, 1.25rem);
+        }
+
+        .col-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: clamp(0.75rem, 1.5vw, 1.5rem);
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.75vh, 0.5rem);
+        }
+
+        .col-card h3 {
+            font-family: var(--font-mono);
+            color: var(--accent);
+        }
+
+        .col-card p {
+            font-size: var(--small-size);
+        }
+
+        .col-icon {
+            font-size: clamp(1.25rem, 2.5vw, 2rem);
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.4rem);
+        }
+
+        /* Closing slide */
+        .closing-slide {
+            text-align: center;
+            align-items: center;
+        }
+
+        .closing-slide .slide-content {
+            align-items: center;
+        }
+
+        .closing-install {
+            font-family: var(--font-mono);
+            font-size: var(--h3-size);
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 0.4em 1.2em;
+            border-radius: 8px;
+            border: 1px solid rgba(232, 166, 52, 0.15);
+        }
+
+        .closing-link {
+            font-family: var(--font-mono);
+            font-size: var(--body-size);
+            color: var(--blue);
+        }
+
+        /* Background grid pattern */
+        .grid-bg {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        /* Slide number */
+        .slide-num {
+            position: absolute;
+            bottom: clamp(0.75rem, 2vw, 1.5rem);
+            right: clamp(0.75rem, 2vw, 1.5rem);
+            font-family: var(--font-mono);
+            font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+            color: var(--text-muted);
+        }
+
+        /* ===========================================
+           RESPONSIVE BREAKPOINTS
+           =========================================== */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(1rem, 3vw, 2.5rem);
+                --content-gap: clamp(0.5rem, 1.5vw, 1rem);
+                --title-size: clamp(1.5rem, 5vw, 3rem);
+                --h2-size: clamp(1.25rem, 3.5vw, 2rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.4rem, 1vw, 0.75rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots { display: none; }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.75rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .three-col {
+                grid-template-columns: 1fr;
+            }
+            .helper-children {
+                gap: 0.25rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ============================================
+     SLIDE 1: TITLE
+     ============================================ -->
+<section class="slide title-slide" data-slide="0">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <p class="title-sub reveal">Lightweight Universal Conversational Architecture</p>
+        <h1 class="reveal reveal-delay-1">Luca<span class="muted">:</span> One Container<br>to Rule Them All</h1>
+        <p class="title-bottom reveal reveal-delay-2">stop rebuilding the same shit</p>
+    </div>
+</section>
+
+<!-- ============================================
+     SLIDE 2: THE PROBLEM
+     ============================================ -->
+<section class="slide" data-slide="1">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">You've Built This Before</h2>
+        <ul class="bullet-list">
+            <li class="reveal reveal-delay-1">
+                <span class="bullet-icon">&#x1f504;</span>
+                <span>Auth middleware &rarr; state management &rarr; event handling &rarr; caching &rarr; <em class="accent">repeat for every project</em></span>
+            </li>
+            <li class="reveal reveal-delay-2">
+                <span class="bullet-icon">&#x1f3d7;</span>
+                <span>New project? Cool, let's reinstall the OS to change an HTML file</span>
+            </li>
+            <li class="reveal reveal-delay-3">
+                <span class="bullet-icon">&#x1f4c2;</span>
+                <span>Your "reusable" code lives in 47 repos with 47 different patterns</span>
+            </li>
+        </ul>
+        <div class="tagline reveal reveal-delay-4">Every developer has built the same plumbing. Nobody caches it.</div>
+    </div>
+    <span class="slide-num">02</span>
+</section>
+
+<!-- ============================================
+     SLIDE 3: THE DOCKERFILE ANALOGY
+     ============================================ -->
+<section class="slide" data-slide="2">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Think Docker Layers</h2>
+        <div class="layer-stack">
+            <div class="layer layer-3 reveal reveal-delay-3">
+                <span class="layer-label">Layer 3: Your App</span>
+                <span class="layer-desc">The actual thing you're building</span>
+                <span class="layer-freq">changes daily</span>
+            </div>
+            <div class="layer layer-2 reveal reveal-delay-2">
+                <span class="layer-label">Layer 2: Domain</span>
+                <span class="layer-desc">AI clients, GitHub, Stripe, your industry</span>
+                <span class="layer-freq">changes rarely</span>
+            </div>
+            <div class="layer layer-1 reveal reveal-delay-1">
+                <span class="layer-label">Layer 1: Platform</span>
+                <span class="layer-desc">fs, networking, processes, state, events</span>
+                <span class="layer-freq">solve once</span>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-4">Fix Layer 1 once. Every project benefits. Spend ALL your energy on Layer 3.</div>
+    </div>
+    <span class="slide-num">03</span>
+</section>
+
+<!-- ============================================
+     SLIDE 4: THE CONTAINER
+     ============================================ -->
+<section class="slide" data-slide="3">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">One Object. Everything You Need.</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="keyword">import</span> <span class="property">container</span> <span class="keyword">from</span> <span class="string">'@soederpop/luca/node'</span>
+
+<span class="property">container</span>.<span class="method">fs</span>          <span class="comment">// file system</span>
+<span class="property">container</span>.<span class="method">git</span>         <span class="comment">// git operations</span>
+<span class="property">container</span>.<span class="method">ui</span>          <span class="comment">// terminal UI</span>
+<span class="property">container</span>.<span class="method">proc</span>        <span class="comment">// process execution</span>
+<span class="property">container</span>.<span class="method">networking</span>  <span class="comment">// port utilities</span>
+
+<span class="comment">// Need something specific? Ask for it</span>
+<span class="keyword">const</span> cache  = <span class="property">container</span>.<span class="method">feature</span>(<span class="string">'diskCache'</span>)
+<span class="keyword">const</span> rest   = <span class="property">container</span>.<span class="method">client</span>(<span class="string">'rest'</span>, { <span class="property">baseURL</span>: <span class="string">'https://api.stripe.com'</span> })
+<span class="keyword">const</span> server = <span class="property">container</span>.<span class="method">server</span>(<span class="string">'express'</span>, { <span class="property">port</span>: <span class="number">3000</span> })</pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Like window + document, but for your entire stack</div>
+    </div>
+    <span class="slide-num">04</span>
+</section>
+
+<!-- ============================================
+     SLIDE 5: HELPERS
+     ============================================ -->
+<section class="slide" data-slide="4">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Everything Is a Helper</h2>
+        <div class="helper-diagram">
+            <div class="helper-base reveal reveal-delay-1">
+                <div class="helper-base-title">Helper</div>
+                <div class="helper-base-desc">The universal base class</div>
+            </div>
+            <div class="helper-connector reveal reveal-delay-2"></div>
+            <div class="helper-children reveal reveal-delay-2">
+                <div class="helper-child">Feature</div>
+                <div class="helper-child">Client</div>
+                <div class="helper-child">Server</div>
+                <div class="helper-child">Command</div>
+                <div class="helper-child">Endpoint</div>
+            </div>
+            <div class="helper-traits reveal reveal-delay-3">
+                <span class="helper-trait">Observable State</span>
+                <span class="helper-trait">Event Bus</span>
+                <span class="helper-trait">Introspection</span>
+                <span class="helper-trait">Tool Interface</span>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-4">Same API. Same patterns. Whether it's a file system or a Stripe client.</div>
+    </div>
+    <span class="slide-num">05</span>
+</section>
+
+<!-- ============================================
+     SLIDE 6: OBSERVABLE STATE
+     ============================================ -->
+<section class="slide" data-slide="5">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Everything Is Watchable</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="keyword">const</span> cart = <span class="property">container</span>.<span class="method">feature</span>(<span class="string">'cart'</span>)
+
+<span class="comment">// State is typed, versioned, observable</span>
+cart.<span class="method">state</span>.<span class="method">set</span>(<span class="string">'items'</span>, [...items, newItem])
+cart.<span class="method">state</span>.<span class="method">get</span>(<span class="string">'total'</span>)       <span class="comment">// always current</span>
+cart.<span class="method">state</span>.<span class="property">version</span>             <span class="comment">// increments on every change</span>
+
+<span class="comment">// React to changes</span>
+cart.<span class="method">state</span>.<span class="method">observe</span>((<span class="property">type</span>, <span class="property">key</span>, <span class="property">value</span>) => {
+  <span class="keyword">if</span> (key === <span class="string">'items'</span>) <span class="method">renderBadge</span>(value.length)
+})</pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Debugging, analytics, reactive UI, AI monitoring &mdash; all fall out for free</div>
+    </div>
+    <span class="slide-num">06</span>
+</section>
+
+<!-- ============================================
+     SLIDE 7: EVENTS
+     ============================================ -->
+<section class="slide" data-slide="6">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Components Talk.<br><span class="muted">They Don't Import Each Other.</span></h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="comment">// Auth announces things</span>
+auth.<span class="method">emit</span>(<span class="string">'userLoggedIn'</span>, user)
+
+<span class="comment">// Analytics listens &mdash; doesn't need to import auth</span>
+auth.<span class="method">on</span>(<span class="string">'userLoggedIn'</span>, (<span class="property">user</span>) => {
+  analytics.<span class="method">track</span>(<span class="string">'login'</span>, { <span class="property">userId</span>: user.id })
+})
+
+<span class="comment">// Wait for anything, anywhere</span>
+<span class="keyword">await</span> server.<span class="method">waitFor</span>(<span class="string">'started'</span>)
+<span class="keyword">await</span> db.<span class="method">waitFor</span>(<span class="string">'connected'</span>)
+console.<span class="method">log</span>(<span class="string">'All systems go'</span>)</pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Typed contracts. Build-time autocomplete. No magic strings.</div>
+    </div>
+    <span class="slide-num">07</span>
+</section>
+
+<!-- ============================================
+     SLIDE 8: REGISTRIES & FACTORIES
+     ============================================ -->
+<section class="slide" data-slide="7">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Discover. Create. Cache.</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre><span class="comment">// What's available?</span>
+<span class="property">container</span>.<span class="method">features</span>.<span class="property">available</span>  <span class="comment">// ['fs', 'git', 'ui', 'proc', ...]</span>
+<span class="property">container</span>.<span class="method">clients</span>.<span class="property">available</span>   <span class="comment">// ['rest', 'websocket', 'openai', ...]</span>
+
+<span class="comment">// Factory creates instances &mdash; same args = same instance</span>
+<span class="keyword">const</span> api  = <span class="property">container</span>.<span class="method">client</span>(<span class="string">'rest'</span>, { <span class="property">baseURL</span>: <span class="string">'https://api.github.com'</span> })
+<span class="keyword">const</span> api2 = <span class="property">container</span>.<span class="method">client</span>(<span class="string">'rest'</span>, { <span class="property">baseURL</span>: <span class="string">'https://api.github.com'</span> })
+
+api === api2 <span class="comment">// true &mdash; identity guarantee</span></pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Self-registration at import time. No central manifest to maintain.</div>
+    </div>
+    <span class="slide-num">08</span>
+</section>
+
+<!-- ============================================
+     SLIDE 9: PROJECT STRUCTURE
+     ============================================ -->
+<section class="slide" data-slide="8">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Convention Over Configuration</h2>
+        <div class="code-block reveal-scale reveal-delay-1">
+            <pre class="dir-tree"><span class="folder">my-app/</span>
+├── <span class="folder">commands/</span>      <span class="arrow">&rarr;</span> <span class="desc">luca seed --count 10</span>
+├── <span class="folder">endpoints/</span>     <span class="arrow">&rarr;</span> <span class="desc">luca serve (auto-discovered routes)</span>
+├── <span class="folder">features/</span>      <span class="arrow">&rarr;</span> <span class="desc">container.feature('myThing')</span>
+├── <span class="folder">assistants/</span>    <span class="arrow">&rarr;</span> <span class="desc">AI assistants with tool access</span>
+├── <span class="folder">scripts/</span>       <span class="arrow">&rarr;</span> <span class="desc">luca run migrate.ts</span>
+└── <span class="file">luca.cli.ts</span>    <span class="arrow">&rarr;</span> <span class="desc">project-level hooks</span></pre>
+        </div>
+        <div class="tagline reveal reveal-delay-2">Drop a file in the right folder. It just works.</div>
+    </div>
+    <span class="slide-num">09</span>
+</section>
+
+<!-- ============================================
+     SLIDE 10: WHY LUCA
+     ============================================ -->
+<section class="slide" data-slide="9">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h2 class="reveal">Solve It Once. Use It Forever.</h2>
+        <div class="three-col">
+            <div class="col-card reveal reveal-delay-1">
+                <div class="col-icon">&#x1f4dc;</div>
+                <h3>Scripts</h3>
+                <p>One import. Full runtime. File system, git, processes, UI &mdash; all there.</p>
+            </div>
+            <div class="col-card reveal reveal-delay-2">
+                <div class="col-icon">&#x1f310;</div>
+                <h3>Servers</h3>
+                <p>Drop files in endpoints/. Get a REST API with OpenAPI docs. Done.</p>
+            </div>
+            <div class="col-card reveal reveal-delay-3">
+                <div class="col-icon">&#x269b;&#xfe0f;</div>
+                <h3>React</h3>
+                <p>Observable state = built-in data layer. No extra state library needed.</p>
+            </div>
+        </div>
+        <div class="tagline reveal reveal-delay-4">Same container. Same patterns. Every environment.</div>
+    </div>
+    <span class="slide-num">10</span>
+</section>
+
+<!-- ============================================
+     SLIDE 11: CLOSING
+     ============================================ -->
+<section class="slide closing-slide" data-slide="10">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+        <h1 class="reveal">Stop Rebuilding.<br><span class="accent">Start Composing.</span></h1>
+        <div class="closing-install reveal reveal-delay-1">bun add @soederpop/luca</div>
+        <p class="closing-link reveal reveal-delay-2">github.com/soederpop/luca</p>
+    </div>
+</section>
+
+<script>
+    /* ===========================================
+       SLIDE PRESENTATION CONTROLLER
+       Handles navigation, scroll-triggered animations,
+       progress bar, and navigation dots.
+       =========================================== */
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.currentSlide = 0;
+            this.totalSlides = this.slides.length;
+            this.progressBar = document.getElementById('progress');
+            this.navContainer = document.getElementById('navDots');
+            this.isTransitioning = false;
+
+            this.createNavDots();
+            this.setupIntersectionObserver();
+            this.setupKeyboardNav();
+            this.updateProgress();
+        }
+
+        createNavDots() {
+            this.slides.forEach((_, i) => {
+                const dot = document.createElement('button');
+                dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+                dot.addEventListener('click', () => this.goToSlide(i));
+                this.navContainer.appendChild(dot);
+            });
+            this.dots = this.navContainer.querySelectorAll('.nav-dot');
+        }
+
+        setupIntersectionObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        const index = parseInt(entry.target.dataset.slide);
+                        if (!isNaN(index)) {
+                            this.currentSlide = index;
+                            this.updateProgress();
+                            this.updateDots();
+                        }
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            this.slides.forEach(slide => observer.observe(slide));
+        }
+
+        setupKeyboardNav() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+                    e.preventDefault();
+                    this.goToSlide(Math.min(this.currentSlide + 1, this.totalSlides - 1));
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.goToSlide(Math.max(this.currentSlide - 1, 0));
+                }
+            });
+        }
+
+        goToSlide(index) {
+            this.slides[index].scrollIntoView({ behavior: 'smooth' });
+        }
+
+        updateProgress() {
+            const progress = ((this.currentSlide + 1) / this.totalSlides) * 100;
+            this.progressBar.style.width = progress + '%';
+        }
+
+        updateDots() {
+            this.dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === this.currentSlide);
+            });
+        }
+    }
+
+    /* Initialize on DOM ready */
+    document.addEventListener('DOMContentLoaded', () => {
+        new SlidePresentation();
+    });
+</script>
+
+</body>
+</html>

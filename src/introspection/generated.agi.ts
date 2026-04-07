@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-04-06T20:39:08.676Z
+// Generated at: 2026-04-07T05:00:12.645Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -12132,6 +12132,202 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
+  "methods": {
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
+      "parameters": {
+        "table": {
+          "type": "string",
+          "description": "The table or view name to query"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "returns": "void"
+    },
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
+      "parameters": {
+        "fn": {
+          "type": "string",
+          "description": "The function name"
+        },
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
+        },
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signOut": {
+      "description": "Sign the current user out.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
+    },
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+    }
+  ]
+});
+
 setBuildTimeData('clients.voicebox', {
   "id": "clients.voicebox",
   "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
@@ -12516,466 +12712,6 @@ setBuildTimeData('clients.voicebox', {
   }
 });
 
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
-});
-
-setBuildTimeData('clients.elevenlabs', {
-  "id": "clients.elevenlabs",
-  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-  "shortcut": "clients.elevenlabs",
-  "className": "ElevenLabsClient",
-  "methods": {
-    "beforeRequest": {
-      "description": "Inject the xi-api-key header before each request.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Validate the API key by listing available models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await el.connect()"
-        }
-      ]
-    },
-    "listVoices": {
-      "description": "List available voices with optional search and filtering.",
-      "parameters": {
-        "options": {
-          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-          "description": "Query parameters for filtering voices"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-        }
-      ]
-    },
-    "getVoice": {
-      "description": "Get details for a single voice.",
-      "parameters": {
-        "voiceId": {
-          "type": "string",
-          "description": "The voice ID to look up"
-        }
-      },
-      "required": [
-        "voiceId"
-      ],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-        }
-      ]
-    },
-    "listModels": {
-      "description": "List available TTS models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any[]>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-        }
-      ]
-    },
-    "synthesize": {
-      "description": "Synthesize speech from text, returning audio as a Buffer.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<Buffer>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-        }
-      ]
-    },
-    "say": {
-      "description": "Synthesize speech and write the audio to a file.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "outputPath": {
-          "type": "string",
-          "description": "File path to write the audio to"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text",
-        "outputPath"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-        }
-      ]
-    }
-  },
-  "getters": {
-    "apiKey": {
-      "description": "The resolved API key from options or environment.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "voices": {
-      "name": "voices",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "speech": {
-      "name": "speech",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-    }
-  ],
-  "types": {
-    "SynthesizeOptions": {
-      "description": "",
-      "properties": {
-        "voiceId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "modelId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "outputFormat": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "voiceSettings": {
-          "type": "ElevenLabsVoiceSettings",
-          "description": "",
-          "optional": true
-        },
-        "disableCache": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    },
-    "ElevenLabsVoiceSettings": {
-      "description": "",
-      "properties": {
-        "stability": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "similarityBoost": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "style": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "speed": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "useSpeakerBoost": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
 setBuildTimeData('clients.comfyui', {
   "id": "clients.comfyui",
   "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
@@ -13265,6 +13001,270 @@ setBuildTimeData('clients.comfyui', {
         },
         "images": {
           "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('clients.elevenlabs', {
+  "id": "clients.elevenlabs",
+  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+  "shortcut": "clients.elevenlabs",
+  "className": "ElevenLabsClient",
+  "methods": {
+    "beforeRequest": {
+      "description": "Inject the xi-api-key header before each request.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Validate the API key by listing available models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await el.connect()"
+        }
+      ]
+    },
+    "listVoices": {
+      "description": "List available voices with optional search and filtering.",
+      "parameters": {
+        "options": {
+          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+          "description": "Query parameters for filtering voices"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+        }
+      ]
+    },
+    "getVoice": {
+      "description": "Get details for a single voice.",
+      "parameters": {
+        "voiceId": {
+          "type": "string",
+          "description": "The voice ID to look up"
+        }
+      },
+      "required": [
+        "voiceId"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+        }
+      ]
+    },
+    "listModels": {
+      "description": "List available TTS models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+        }
+      ]
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text, returning audio as a Buffer.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+        }
+      ]
+    },
+    "say": {
+      "description": "Synthesize speech and write the audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "File path to write the audio to"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "apiKey": {
+      "description": "The resolved API key from options or environment.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "voices": {
+      "name": "voices",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "voiceId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "outputFormat": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "voiceSettings": {
+          "type": "ElevenLabsVoiceSettings",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "ElevenLabsVoiceSettings": {
+      "description": "",
+      "properties": {
+        "stability": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "similarityBoost": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "style": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "speed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "useSpeakerBoost": {
+          "type": "boolean",
           "description": "",
           "optional": true
         }
@@ -14104,21 +14104,44 @@ setBuildTimeData('features.conversation', {
       ]
     },
     "fork": {
-      "description": "Fork the conversation into a new independent instance. The fork inherits the same system prompt, tools, and full message history, but has its own identity and state — changes in either direction do not affect the other.",
+      "description": "",
       "parameters": {
         "overrides": {
-          "type": "Partial<ConversationOptions>",
-          "description": "Optional option overrides for the forked conversation (e.g. different model or title)"
+          "type": "ForkOptions | ForkOptions[]",
+          "description": "Parameter overrides"
         }
       },
       "required": [],
-      "returns": "Conversation",
+      "returns": "Conversation | Conversation[]"
+    },
+    "research": {
+      "description": "Fan out N questions in parallel using forked conversations, return the results. Each fork is independent and ephemeral — no history is saved.",
+      "parameters": {
+        "questions": {
+          "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+          "description": "Array of questions (strings) or objects with question + per-fork overrides"
+        },
+        "defaults": {
+          "type": "ForkOptions",
+          "description": "Default fork options applied to all forks (individual overrides take precedence)"
+        }
+      },
+      "required": [
+        "questions"
+      ],
+      "returns": "Promise<string[]>",
       "examples": [
         {
           "language": "ts",
-          "code": "const fork = conversation.fork()\nawait fork.ask('What if we took a different approach?')\n// original conversation is unchanged"
+          "code": "const results = await conversation.research([\n \"What are the pros of approach A?\",\n \"What are the pros of approach B?\",\n], { history: 'none', model: 'gpt-4o-mini' })\n\n// Per-fork overrides\nconst results = await conversation.research([\n \"Quick factual question\",\n { question: \"Needs recent context\", forkOptions: { history: 5 } },\n], { history: 'none' })"
         }
       ]
+    },
+    "abort": {
+      "description": "Abort the current ask() call. Cancels the in-flight network request and any pending tool executions. The ask() promise will reject with a ConversationAbortError whose `partial` property contains any text accumulated before the abort.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
     },
     "estimateTokens": {
       "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
@@ -14275,6 +14298,11 @@ setBuildTimeData('features.conversation', {
     },
     "userMessage": {
       "name": "userMessage",
+      "description": "Event emitted by Conversation",
+      "arguments": {}
+    },
+    "aborted": {
+      "name": "aborted",
       "description": "Event emitted by Conversation",
       "arguments": {}
     },
@@ -15742,8 +15770,26 @@ setBuildTimeData('features.assistant', {
       ],
       "returns": "this"
     },
+    "triggerHook": {
+      "description": "Trigger a named hook and await its completion. The hook function receives `(assistant, ...args)` and its return value is passed back to the caller. This ensures hooks run to completion BEFORE any subsequent logic executes, unlike the old bus-based approach where async hooks were fire-and-forget. Hooks that don't exist are silently skipped (returns undefined).",
+      "parameters": {
+        "hookName": {
+          "type": "string",
+          "description": "The hook to trigger (matches an export name from hooks.ts)"
+        },
+        "args": {
+          "type": "any[]",
+          "description": "Arguments passed to the hook after the assistant instance"
+        }
+      },
+      "required": [
+        "hookName",
+        "args"
+      ],
+      "returns": "Promise<any>"
+    },
     "afterInitialize": {
-      "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.",
+      "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks. Hooks are invoked via triggerHook() at each emit site, ensuring async hooks are properly awaited.",
       "parameters": {},
       "required": [],
       "returns": "void"
@@ -15974,6 +16020,68 @@ setBuildTimeData('features.assistant', {
       "required": [],
       "returns": "void"
     },
+    "fork": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "ForkOptions | ForkOptions[]",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<Assistant | Assistant[]>"
+    },
+    "createResearchJob": {
+      "description": "Create a non-blocking research job that fans out questions across forked assistants. The forks fire immediately and the returned entity tracks progress via observable state and events. Each fork preserves the full assistant identity (interceptors, tools, hooks).",
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "description": "Shared context/framing prompt prepended to each fork's system prompt"
+        },
+        "questions": {
+          "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+          "description": "Array of questions (strings) or objects with question + per-fork overrides"
+        },
+        "defaults": {
+          "type": "ForkOptions",
+          "description": "Default fork options applied to all forks"
+        }
+      },
+      "required": [
+        "prompt",
+        "questions"
+      ],
+      "returns": "Promise<ResearchJob>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Fire and forget — check later\nconst job = await assistant.createResearchJob(\n \"Analyze this codebase for security issues\",\n [\"Look for SQL injection\", \"Look for XSS\", \"Look for auth bypass\"],\n { history: 'none', model: 'gpt-4o-mini' }\n)\n\n// Check progress\njob.state.get('completed') // 2 of 3\njob.state.get('results')   // [answer1, answer2, null]\n\n// React to events\njob.on('forkCompleted', (index, result) => console.log(`Fork ${index} done`))\n\n// Or just wait\nawait job.waitFor('completed')"
+        }
+      ]
+    },
+    "research": {
+      "description": "Fan out N questions in parallel using forked assistants, return the results. Sugar over createResearchJob — blocks until all forks complete.",
+      "parameters": {
+        "questions": {
+          "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+          "description": "Array of questions (strings) or objects with question + per-fork overrides"
+        },
+        "defaults": {
+          "type": "ForkOptions & { prompt?: string }",
+          "description": "Default fork options applied to all forks"
+        }
+      },
+      "required": [
+        "questions"
+      ],
+      "returns": "Promise<(string | null)[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const results = await assistant.research([\n \"What are best practices for X?\",\n \"What are common pitfalls of X?\",\n], { history: 'none', model: 'gpt-4o-mini' })"
+        }
+      ]
+    },
     "subagent": {
       "description": "Get or create a subagent assistant. Uses the assistantsManager to discover and create the assistant, then caches the instance for reuse across tool calls.",
       "parameters": {
@@ -16105,6 +16213,11 @@ setBuildTimeData('features.assistant', {
     }
   },
   "events": {
+    "hookFired": {
+      "name": "hookFired",
+      "description": "Event emitted by Assistant",
+      "arguments": {}
+    },
     "created": {
       "name": "created",
       "description": "Event emitted by Assistant",
@@ -16117,11 +16230,6 @@ setBuildTimeData('features.assistant', {
     },
     "toolsChanged": {
       "name": "toolsChanged",
-      "description": "Event emitted by Assistant",
-      "arguments": {}
-    },
-    "hookFired": {
-      "name": "hookFired",
       "description": "Event emitted by Assistant",
       "arguments": {}
     },
@@ -31990,6 +32098,201 @@ export const introspectionData = [
     ]
   },
   {
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
+    "methods": {
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
+        "parameters": {
+          "table": {
+            "type": "string",
+            "description": "The table or view name to query"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "returns": "void"
+      },
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
+        "parameters": {
+          "fn": {
+            "type": "string",
+            "description": "The function name"
+          },
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
+          },
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signOut": {
+        "description": "Sign the current user out.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
+      },
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+      }
+    ]
+  },
+  {
     "id": "clients.voicebox",
     "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
     "shortcut": "clients.voicebox",
@@ -32373,464 +32676,6 @@ export const introspectionData = [
     }
   },
   {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
-  },
-  {
-    "id": "clients.elevenlabs",
-    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-    "shortcut": "clients.elevenlabs",
-    "className": "ElevenLabsClient",
-    "methods": {
-      "beforeRequest": {
-        "description": "Inject the xi-api-key header before each request.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Validate the API key by listing available models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await el.connect()"
-          }
-        ]
-      },
-      "listVoices": {
-        "description": "List available voices with optional search and filtering.",
-        "parameters": {
-          "options": {
-            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-            "description": "Query parameters for filtering voices"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-          }
-        ]
-      },
-      "getVoice": {
-        "description": "Get details for a single voice.",
-        "parameters": {
-          "voiceId": {
-            "type": "string",
-            "description": "The voice ID to look up"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-          }
-        ]
-      },
-      "listModels": {
-        "description": "List available TTS models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any[]>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-          }
-        ]
-      },
-      "synthesize": {
-        "description": "Synthesize speech from text, returning audio as a Buffer.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<Buffer>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-          }
-        ]
-      },
-      "say": {
-        "description": "Synthesize speech and write the audio to a file.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "outputPath": {
-            "type": "string",
-            "description": "File path to write the audio to"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text",
-          "outputPath"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-          }
-        ]
-      }
-    },
-    "getters": {
-      "apiKey": {
-        "description": "The resolved API key from options or environment.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "voices": {
-        "name": "voices",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "speech": {
-        "name": "speech",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-      }
-    ],
-    "types": {
-      "SynthesizeOptions": {
-        "description": "",
-        "properties": {
-          "voiceId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "modelId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "outputFormat": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "voiceSettings": {
-            "type": "ElevenLabsVoiceSettings",
-            "description": "",
-            "optional": true
-          },
-          "disableCache": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      },
-      "ElevenLabsVoiceSettings": {
-        "description": "",
-        "properties": {
-          "stability": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "similarityBoost": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "style": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "speed": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "useSpeakerBoost": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
     "id": "clients.comfyui",
     "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
     "shortcut": "clients.comfyui",
@@ -33119,6 +32964,269 @@ export const introspectionData = [
           },
           "images": {
             "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "clients.elevenlabs",
+    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+    "shortcut": "clients.elevenlabs",
+    "className": "ElevenLabsClient",
+    "methods": {
+      "beforeRequest": {
+        "description": "Inject the xi-api-key header before each request.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Validate the API key by listing available models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await el.connect()"
+          }
+        ]
+      },
+      "listVoices": {
+        "description": "List available voices with optional search and filtering.",
+        "parameters": {
+          "options": {
+            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+            "description": "Query parameters for filtering voices"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+          }
+        ]
+      },
+      "getVoice": {
+        "description": "Get details for a single voice.",
+        "parameters": {
+          "voiceId": {
+            "type": "string",
+            "description": "The voice ID to look up"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+          }
+        ]
+      },
+      "listModels": {
+        "description": "List available TTS models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+          }
+        ]
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text, returning audio as a Buffer.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+          }
+        ]
+      },
+      "say": {
+        "description": "Synthesize speech and write the audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "File path to write the audio to"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "apiKey": {
+        "description": "The resolved API key from options or environment.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "voices": {
+        "name": "voices",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "voiceId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "outputFormat": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "voiceSettings": {
+            "type": "ElevenLabsVoiceSettings",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "ElevenLabsVoiceSettings": {
+        "description": "",
+        "properties": {
+          "stability": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "similarityBoost": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "style": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "speed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "useSpeakerBoost": {
+            "type": "boolean",
             "description": "",
             "optional": true
           }
@@ -33953,21 +34061,44 @@ export const introspectionData = [
         ]
       },
       "fork": {
-        "description": "Fork the conversation into a new independent instance. The fork inherits the same system prompt, tools, and full message history, but has its own identity and state — changes in either direction do not affect the other.",
+        "description": "",
         "parameters": {
           "overrides": {
-            "type": "Partial<ConversationOptions>",
-            "description": "Optional option overrides for the forked conversation (e.g. different model or title)"
+            "type": "ForkOptions | ForkOptions[]",
+            "description": "Parameter overrides"
           }
         },
         "required": [],
-        "returns": "Conversation",
+        "returns": "Conversation | Conversation[]"
+      },
+      "research": {
+        "description": "Fan out N questions in parallel using forked conversations, return the results. Each fork is independent and ephemeral — no history is saved.",
+        "parameters": {
+          "questions": {
+            "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+            "description": "Array of questions (strings) or objects with question + per-fork overrides"
+          },
+          "defaults": {
+            "type": "ForkOptions",
+            "description": "Default fork options applied to all forks (individual overrides take precedence)"
+          }
+        },
+        "required": [
+          "questions"
+        ],
+        "returns": "Promise<string[]>",
         "examples": [
           {
             "language": "ts",
-            "code": "const fork = conversation.fork()\nawait fork.ask('What if we took a different approach?')\n// original conversation is unchanged"
+            "code": "const results = await conversation.research([\n \"What are the pros of approach A?\",\n \"What are the pros of approach B?\",\n], { history: 'none', model: 'gpt-4o-mini' })\n\n// Per-fork overrides\nconst results = await conversation.research([\n \"Quick factual question\",\n { question: \"Needs recent context\", forkOptions: { history: 5 } },\n], { history: 'none' })"
           }
         ]
+      },
+      "abort": {
+        "description": "Abort the current ask() call. Cancels the in-flight network request and any pending tool executions. The ask() promise will reject with a ConversationAbortError whose `partial` property contains any text accumulated before the abort.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       },
       "estimateTokens": {
         "description": "Estimate the input token count for the current messages array using the js-tiktoken tokenizer. Updates state.",
@@ -34124,6 +34255,11 @@ export const introspectionData = [
       },
       "userMessage": {
         "name": "userMessage",
+        "description": "Event emitted by Conversation",
+        "arguments": {}
+      },
+      "aborted": {
+        "name": "aborted",
         "description": "Event emitted by Conversation",
         "arguments": {}
       },
@@ -35586,8 +35722,26 @@ export const introspectionData = [
         ],
         "returns": "this"
       },
+      "triggerHook": {
+        "description": "Trigger a named hook and await its completion. The hook function receives `(assistant, ...args)` and its return value is passed back to the caller. This ensures hooks run to completion BEFORE any subsequent logic executes, unlike the old bus-based approach where async hooks were fire-and-forget. Hooks that don't exist are silently skipped (returns undefined).",
+        "parameters": {
+          "hookName": {
+            "type": "string",
+            "description": "The hook to trigger (matches an export name from hooks.ts)"
+          },
+          "args": {
+            "type": "any[]",
+            "description": "Arguments passed to the hook after the assistant instance"
+          }
+        },
+        "required": [
+          "hookName",
+          "args"
+        ],
+        "returns": "Promise<any>"
+      },
       "afterInitialize": {
-        "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.",
+        "description": "Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks. Hooks are invoked via triggerHook() at each emit site, ensuring async hooks are properly awaited.",
         "parameters": {},
         "required": [],
         "returns": "void"
@@ -35818,6 +35972,68 @@ export const introspectionData = [
         "required": [],
         "returns": "void"
       },
+      "fork": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "ForkOptions | ForkOptions[]",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<Assistant | Assistant[]>"
+      },
+      "createResearchJob": {
+        "description": "Create a non-blocking research job that fans out questions across forked assistants. The forks fire immediately and the returned entity tracks progress via observable state and events. Each fork preserves the full assistant identity (interceptors, tools, hooks).",
+        "parameters": {
+          "prompt": {
+            "type": "string",
+            "description": "Shared context/framing prompt prepended to each fork's system prompt"
+          },
+          "questions": {
+            "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+            "description": "Array of questions (strings) or objects with question + per-fork overrides"
+          },
+          "defaults": {
+            "type": "ForkOptions",
+            "description": "Default fork options applied to all forks"
+          }
+        },
+        "required": [
+          "prompt",
+          "questions"
+        ],
+        "returns": "Promise<ResearchJob>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Fire and forget — check later\nconst job = await assistant.createResearchJob(\n \"Analyze this codebase for security issues\",\n [\"Look for SQL injection\", \"Look for XSS\", \"Look for auth bypass\"],\n { history: 'none', model: 'gpt-4o-mini' }\n)\n\n// Check progress\njob.state.get('completed') // 2 of 3\njob.state.get('results')   // [answer1, answer2, null]\n\n// React to events\njob.on('forkCompleted', (index, result) => console.log(`Fork ${index} done`))\n\n// Or just wait\nawait job.waitFor('completed')"
+          }
+        ]
+      },
+      "research": {
+        "description": "Fan out N questions in parallel using forked assistants, return the results. Sugar over createResearchJob — blocks until all forks complete.",
+        "parameters": {
+          "questions": {
+            "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+            "description": "Array of questions (strings) or objects with question + per-fork overrides"
+          },
+          "defaults": {
+            "type": "ForkOptions & { prompt?: string }",
+            "description": "Default fork options applied to all forks"
+          }
+        },
+        "required": [
+          "questions"
+        ],
+        "returns": "Promise<(string | null)[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const results = await assistant.research([\n \"What are best practices for X?\",\n \"What are common pitfalls of X?\",\n], { history: 'none', model: 'gpt-4o-mini' })"
+          }
+        ]
+      },
       "subagent": {
         "description": "Get or create a subagent assistant. Uses the assistantsManager to discover and create the assistant, then caches the instance for reuse across tool calls.",
         "parameters": {
@@ -35949,6 +36165,11 @@ export const introspectionData = [
       }
     },
     "events": {
+      "hookFired": {
+        "name": "hookFired",
+        "description": "Event emitted by Assistant",
+        "arguments": {}
+      },
       "created": {
         "name": "created",
         "description": "Event emitted by Assistant",
@@ -35961,11 +36182,6 @@ export const introspectionData = [
       },
       "toolsChanged": {
         "name": "toolsChanged",
-        "description": "Event emitted by Assistant",
-        "arguments": {}
-      },
-      "hookFired": {
-        "name": "hookFired",
         "description": "Event emitted by Assistant",
         "arguments": {}
       },

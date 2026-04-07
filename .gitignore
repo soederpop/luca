@@ -38,12 +38,12 @@ secrets/
 vendor/
 
 # public static files (served by express)
-public/*
+#public/*
 !public/.gitkeep
 
 # output
 output/
-public/
+#public/
 playground/
 
 # semantic-search embeddings
