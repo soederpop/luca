@@ -111,8 +111,20 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	callMaxTokens: z.number().nullable().describe('Per-call max tokens override, cleared after each ask()'),
 })
 
+export class ConversationAbortError extends Error {
+	/** The partial text accumulated before the abort. */
+	readonly partial: string
+
+	constructor(partial: string) {
+		super('Conversation aborted')
+		this.name = 'ConversationAbortError'
+		this.partial = partial
+	}
+}
+
 export const ConversationEventsSchema = FeatureEventsSchema.extend({
 	userMessage: z.tuple([z.any().describe('The user message content (string or ContentPart[])')]).describe('Fired when a user message is added to the conversation'),
+	aborted: z.tuple([z.string().describe('Partial text accumulated before the abort')]).describe('Fired when the conversation is aborted mid-response'),
 	turnStart: z.tuple([z.object({ turn: z.number(), isFollowUp: z.boolean() })]).describe('Fired at the start of each completion turn'),
 	turnEnd: z.tuple([z.object({ turn: z.number(), hasToolCalls: z.boolean() })]).describe('Fired at the end of each completion turn'),
 	toolCallsStart: z.tuple([z.any().describe('Array of tool call objects from the model')]).describe('Fired when the model begins a batch of tool calls'),
@@ -144,6 +156,16 @@ export type AskOptions = {
 	 * the parsed object instead of a raw string.
 	 */
 	schema?: z.ZodType
+}
+
+export type ForkOptions = Omit<Partial<ConversationOptions>, 'history'> & {
+	/**
+	 * Controls how much message history carries over to the fork.
+	 * - `'full'` (default) — deep copy all messages
+	 * - `'none'` — system prompt only, no chat history
+	 * - `number` — keep system prompt + last N user/assistant exchanges
+	 */
+	history?: 'full' | 'none' | number
 }
 
 /**
@@ -211,6 +233,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** The active structured output schema for the current ask() call, if any. */
 	private _activeSchema: z.ZodType | null = null
+
+	/** AbortController for the current ask() call, if any. */
+	private _abortController: AbortController | null = null
 
 	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
 	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
@@ -307,26 +332,129 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/**
 	 * Fork the conversation into a new independent instance.
-	 * The fork inherits the same system prompt, tools, and full message history,
+	 * The fork inherits the same system prompt, tools, and message history,
 	 * but has its own identity and state — changes in either direction do not affect the other.
 	 *
-	 * @param overrides - Optional option overrides for the forked conversation (e.g. different model or title)
+	 * @param overrides - Option overrides for the forked conversation. Supports a `history` field
+	 *   that controls how much context carries over:
+	 *   - `'full'` (default) — deep copy all messages
+	 *   - `'none'` — system prompt only, no chat history
+	 *   - `number` — keep the system prompt plus the last N user/assistant exchanges
+	 *
+	 * When called with an array, creates multiple independent forks in one call.
 	 *
 	 * @example
 	 * ```typescript
+	 * // Full context fork
 	 * const fork = conversation.fork()
-	 * await fork.ask('What if we took a different approach?')
-	 * // original conversation is unchanged
+	 *
+	 * // System prompt only — cheapest
+	 * const lean = conversation.fork({ history: 'none', model: 'gpt-4o-mini' })
+	 *
+	 * // Last 3 exchanges + system prompt
+	 * const recent = conversation.fork({ history: 3 })
+	 *
+	 * // Multiple forks at once
+	 * const [a, b, c] = conversation.fork([
+	 *   { history: 'none' },
+	 *   { history: 'none' },
+	 *   { history: 5 },
+	 * ])
 	 * ```
 	 */
-	fork(overrides: Partial<ConversationOptions> = {}): Conversation {
-		return this.container.feature('conversation', {
+	fork(overrides?: ForkOptions): Conversation
+	fork(overrides?: ForkOptions[]): Conversation[]
+	fork(overrides: ForkOptions | ForkOptions[] = {}): Conversation | Conversation[] {
+		if (Array.isArray(overrides)) {
+			return overrides.map(o => this.fork(o))
+		}
+
+		const { history: historyMode = 'full', ...convOverrides } = overrides
+		const allMessages = JSON.parse(JSON.stringify(this.messages)) as Message[]
+
+		let history: Message[]
+		if (historyMode === 'none') {
+			// System prompt only
+			const systemMsg = allMessages.find(m => m.role === 'system' || m.role === 'developer')
+			history = systemMsg ? [systemMsg] : []
+		} else if (historyMode === 'full') {
+			history = allMessages
+		} else {
+			// Keep last N exchanges (user + assistant pairs) plus system prompt
+			const systemMsg = allMessages.find(m => m.role === 'system' || m.role === 'developer')
+			const nonSystem = allMessages.filter(m => m.role !== 'system' && m.role !== 'developer')
+
+			// Walk backwards counting user messages as exchange boundaries.
+			// An exchange starts at a user message and includes everything after it
+			// until the next user message (assistant replies, tool calls, etc.).
+			let exchangeCount = 0
+			let cutoff = 0
+			for (let i = nonSystem.length - 1; i >= 0; i--) {
+				if (nonSystem[i]!.role === 'user') {
+					exchangeCount++
+					if (exchangeCount > historyMode) break
+					cutoff = i
+				}
+			}
+
+			const kept = nonSystem.slice(cutoff)
+			history = systemMsg ? [systemMsg, ...kept] : kept
+		}
+
+		const forked = this.container.feature('conversation', {
 			...this.options,
 			id: undefined,
-			history: JSON.parse(JSON.stringify(this.messages)),
+			history,
 			tools: { ...this.tools },
-			...overrides,
+			...convOverrides,
 		})
+
+		// Copy stubs so forked conversations match the same patterns
+		;(forked as any)._stubs = [...this._stubs]
+
+		return forked
+	}
+
+	/**
+	 * Fan out N questions in parallel using forked conversations, return the results.
+	 * Each fork is independent and ephemeral — no history is saved.
+	 *
+	 * @param questions - Array of questions (strings) or objects with question + per-fork overrides
+	 * @param defaults - Default fork options applied to all forks (individual overrides take precedence)
+	 * @returns Array of response strings, one per question
+	 *
+	 * @example
+	 * ```typescript
+	 * const results = await conversation.research([
+	 *   "What are the pros of approach A?",
+	 *   "What are the pros of approach B?",
+	 * ], { history: 'none', model: 'gpt-4o-mini' })
+	 *
+	 * // Per-fork overrides
+	 * const results = await conversation.research([
+	 *   "Quick factual question",
+	 *   { question: "Needs recent context", forkOptions: { history: 5 } },
+	 * ], { history: 'none' })
+	 * ```
+	 */
+	async research(
+		questions: (string | { question: string; forkOptions?: ForkOptions })[],
+		defaults: ForkOptions = {}
+	): Promise<string[]> {
+		const forkConfigs = questions.map(q => ({
+			...defaults,
+			...(typeof q === 'string' ? {} : q.forkOptions),
+		}))
+
+		const forks = this.fork(forkConfigs)
+
+		return Promise.all(
+			forks.map((fork, i) => {
+				const q = questions[i]!
+				const question = typeof q === 'string' ? q : q.question
+				return fork.ask(question)
+			})
+		)
 	}
 
 	/** Returns the OpenAI model name being used for completions. */
@@ -344,6 +472,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Whether a streaming response is currently in progress. */
 	get isStreaming(): boolean {
 		return !!this.state.get('streaming')
+	}
+
+	/**
+	 * Abort the current ask() call. Cancels the in-flight network request and
+	 * any pending tool executions. The ask() promise will reject with a
+	 * ConversationAbortError whose `partial` property contains any text
+	 * accumulated before the abort.
+	 */
+	abort(): void {
+		this._abortController?.abort()
 	}
 
 	/**
@@ -544,6 +682,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	async ask(content: string | ContentPart[], options?: AskOptions): Promise<string> {
 		this.state.set('callMaxTokens', options?.maxTokens ?? null)
 		this._activeSchema = options?.schema ?? null
+		this._abortController = new AbortController()
 
 		// Auto-compact before adding the new message
 		if (this.options.autoCompact) {
@@ -603,9 +742,22 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			}
 
 			return raw
+		} catch (err: any) {
+			if (err instanceof ConversationAbortError) {
+				this.emit('aborted', err.partial)
+				throw err
+			}
+			// Re-throw abort errors from the OpenAI SDK / DOM AbortController
+			if (err.name === 'AbortError' || this._abortController?.signal.aborted) {
+				const partial = this.state.get('lastResponse') || ''
+				this.emit('aborted', partial)
+				throw new ConversationAbortError(partial)
+			}
+			throw err
 		} finally {
 			this.state.set('callMaxTokens', null)
 			this._activeSchema = null
+			this._abortController = null
 		}
 	}
 
@@ -898,7 +1050,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
 				...(this.options.stop ? { stop: this.options.stop } : {}),
 				...textFormat,
-			})
+			}, { signal: this._abortController?.signal })
 
 			for await (const event of stream) {
 				this.emit('rawEvent', event)
@@ -914,6 +1066,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					const delta = event.delta || ''
 					turnContent += delta
 					accumulated += delta
+					this.state.set('lastResponse', accumulated)
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
 				}
@@ -954,6 +1107,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			const functionOutputs: OpenAI.Responses.ResponseInputItem.FunctionCallOutput[] = []
 			for (const call of functionCalls) {
+				if (this._abortController?.signal.aborted) {
+					throw new ConversationAbortError(accumulated)
+				}
 				const result = await this.executeTool(call.name, call.arguments || '{}')
 
 				this.pushMessage({
@@ -1047,7 +1203,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
 				...(this.options.stop ? { stop: this.options.stop } : {}),
 				...responseFormat,
-			})
+			}, { signal: this._abortController?.signal })
 
 			for await (const chunk of stream) {
 				const delta = chunk.choices[0]?.delta
@@ -1055,6 +1211,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				if (delta?.content) {
 					turnContent += delta.content
 					accumulated += delta.content
+					this.state.set('lastResponse', accumulated)
 					this.emit('chunk', delta.content)
 					this.emit('preview', accumulated)
 				}
@@ -1105,6 +1262,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			this.emit('toolCallsStart', toolCalls)
 
 			for (const tc of toolCalls) {
+				if (this._abortController?.signal.aborted) {
+					throw new ConversationAbortError(accumulated)
+				}
 				const result = await this.executeTool(tc.function.name, tc.function.arguments)
 
 				const toolMessage: OpenAI.Chat.Completions.ChatCompletionToolMessageParam = {
