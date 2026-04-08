@@ -8,6 +8,7 @@ import type { ConversationHistory, ConversationMeta } from './conversation-histo
 import hashObject from '../../hash-object.js'
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js'
 import type { Entity } from '../../entity.js'
+import { State } from '../../state.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -114,7 +115,7 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 export type AssistantState = z.infer<typeof AssistantStateSchema>
 export type AssistantOptions = z.infer<typeof AssistantOptionsSchema>
 
-/** Fork options extended with assistant-specific tool filtering. */
+/** Fork options extended with assistant-specific tool filtering and lifecycle hooks. */
 export type AssistantForkOptions = ForkOptions & {
 	/** Denylist of tool name patterns to exclude from the fork. Supports "*" glob matching. */
 	forbidTools?: string[]
@@ -122,6 +123,12 @@ export type AssistantForkOptions = ForkOptions & {
 	allowTools?: string[]
 	/** Explicit list of tool names to include in the fork (exact match). */
 	toolNames?: string[]
+	/**
+	 * Called with the forked assistant after it has been fully initialized (started, interceptors cloned,
+	 * system prompt extensions copied, forkDepth set). Use this to add/remove tools, tweak state,
+	 * inject system prompt extensions, or anything else before the fork is used.
+	 */
+	onFork?: (fork: Assistant, parent: Assistant) => void | Promise<void>
 }
 
 export interface ResearchJobState {
@@ -179,6 +186,22 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		afterToolCall: new InterceptorChain<InterceptorPoints['afterToolCall']>(),
 		beforeResponse: new InterceptorChain<InterceptorPoints['beforeResponse']>(),
 	}
+
+	/**
+	 * Extension point for plugins, setupToolsConsumer, and hooks to attach
+	 * arbitrary methods to the assistant instance (e.g. voice-mode adding
+	 * mute/unmute). Access via `assistant.ext.myMethod()`.
+	 */
+	readonly ext: Record<string, (...args: any[]) => any> = {}
+
+	/**
+	 * Observable runtime state that the assistant can manipulate freely via
+	 * tool calls, hooks, or extensions. Unlike the feature's own `state`
+	 * (which tracks internal lifecycle), mentalState is a blank slate for
+	 * the assistant's own use — tracking mood, goals, context, preferences,
+	 * or anything else. Fully observable so UI or other systems can react.
+	 */
+	readonly mentalState = new State<Record<string, any>>()
 
 	/**
 	 * Register an interceptor at a given point in the pipeline.
@@ -1327,7 +1350,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}
 
 		// Separate assistant-level options from conversation-level options
-		const { history: historyMode, forbidTools, allowTools, toolNames, ...convOverrides } = options
+		const { history: historyMode, forbidTools, allowTools, toolNames, onFork, ...convOverrides } = options
 
 		// Fork the conversation with history truncation
 		const forkedConv = this.conversation.fork({ history: historyMode ?? 'full', ...convOverrides })
@@ -1368,6 +1391,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		// Start wires up event forwarding and the interceptor-aware tool executor
 		await forkedAssistant.start()
+
+		// Call the onFork hook if provided — lets callers customize the fork before use
+		if (onFork) {
+			await onFork(forkedAssistant, this)
+		}
 
 		return forkedAssistant
 	}
