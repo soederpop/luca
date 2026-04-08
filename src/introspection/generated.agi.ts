@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-04-07T05:00:12.645Z
+// Generated at: 2026-04-08T06:20:29.551Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -16024,7 +16024,7 @@ setBuildTimeData('features.assistant', {
       "description": "",
       "parameters": {
         "options": {
-          "type": "ForkOptions | ForkOptions[]",
+          "type": "AssistantForkOptions | AssistantForkOptions[]",
           "description": "Parameter options"
         }
       },
@@ -16039,11 +16039,11 @@ setBuildTimeData('features.assistant', {
           "description": "Shared context/framing prompt prepended to each fork's system prompt"
         },
         "questions": {
-          "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+          "type": "(string | { question: string; forkOptions?: AssistantForkOptions })[]",
           "description": "Array of questions (strings) or objects with question + per-fork overrides"
         },
         "defaults": {
-          "type": "ForkOptions",
+          "type": "AssistantForkOptions",
           "description": "Default fork options applied to all forks"
         }
       },
@@ -16063,11 +16063,11 @@ setBuildTimeData('features.assistant', {
       "description": "Fan out N questions in parallel using forked assistants, return the results. Sugar over createResearchJob — blocks until all forks complete.",
       "parameters": {
         "questions": {
-          "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+          "type": "(string | { question: string; forkOptions?: AssistantForkOptions })[]",
           "description": "Array of questions (strings) or objects with question + per-fork overrides"
         },
         "defaults": {
-          "type": "ForkOptions & { prompt?: string }",
+          "type": "AssistantForkOptions & { prompt?: string }",
           "description": "Default fork options applied to all forks"
         }
       },
@@ -16158,6 +16158,14 @@ setBuildTimeData('features.assistant', {
     "isStarted": {
       "description": "Whether the assistant has been started and is ready to receive questions.",
       "returns": "boolean"
+    },
+    "isFork": {
+      "description": "Whether this assistant was created via fork().",
+      "returns": "boolean"
+    },
+    "forkDepth": {
+      "description": "How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc.",
+      "returns": "number"
     },
     "systemPrompt": {
       "description": "The current system prompt text.",
@@ -35976,7 +35984,7 @@ export const introspectionData = [
         "description": "",
         "parameters": {
           "options": {
-            "type": "ForkOptions | ForkOptions[]",
+            "type": "AssistantForkOptions | AssistantForkOptions[]",
             "description": "Parameter options"
           }
         },
@@ -35991,11 +35999,11 @@ export const introspectionData = [
             "description": "Shared context/framing prompt prepended to each fork's system prompt"
           },
           "questions": {
-            "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+            "type": "(string | { question: string; forkOptions?: AssistantForkOptions })[]",
             "description": "Array of questions (strings) or objects with question + per-fork overrides"
           },
           "defaults": {
-            "type": "ForkOptions",
+            "type": "AssistantForkOptions",
             "description": "Default fork options applied to all forks"
           }
         },
@@ -36015,11 +36023,11 @@ export const introspectionData = [
         "description": "Fan out N questions in parallel using forked assistants, return the results. Sugar over createResearchJob — blocks until all forks complete.",
         "parameters": {
           "questions": {
-            "type": "(string | { question: string; forkOptions?: ForkOptions })[]",
+            "type": "(string | { question: string; forkOptions?: AssistantForkOptions })[]",
             "description": "Array of questions (strings) or objects with question + per-fork overrides"
           },
           "defaults": {
-            "type": "ForkOptions & { prompt?: string }",
+            "type": "AssistantForkOptions & { prompt?: string }",
             "description": "Default fork options applied to all forks"
           }
         },
@@ -36110,6 +36118,14 @@ export const introspectionData = [
       "isStarted": {
         "description": "Whether the assistant has been started and is ready to receive questions.",
         "returns": "boolean"
+      },
+      "isFork": {
+        "description": "Whether this assistant was created via fork().",
+        "returns": "boolean"
+      },
+      "forkDepth": {
+        "description": "How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc.",
+        "returns": "number"
       },
       "systemPrompt": {
         "description": "The current system prompt text.",

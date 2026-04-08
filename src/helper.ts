@@ -250,7 +250,7 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * If a tool has no explicit handler but this instance has a method with
    * the same name, a handler is auto-generated that delegates to that method.
    */
-  toTools(options?: { only?: string[], except?: string[] }): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> } {
+  toTools(options?: { only?: string[], except?: string[] }): { schemas: Record<string, z.ZodType>, handlers: Record<string, Function>, setup?: (consumer: Helper) => void } {
     // Walk the prototype chain collecting static tools (parent-first, child overwrites)
     const merged: Record<string, { schema: z.ZodType, description?: string, handler?: Function }> = {}
     const chain: Function[] = []
@@ -292,10 +292,19 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
       }
     }
 
-    return { schemas, handlers }
+    const result: { schemas: Record<string, z.ZodType>, handlers: Record<string, Function>, setup?: (consumer: Helper) => void } = { schemas, handlers }
+
+    // If this helper has a setupToolsConsumer override, package it as a setup
+    // function so consumers of toTools() can call it without needing the helper ref
+    const proto = Object.getPrototypeOf(this)
+    if (proto && proto.constructor !== Helper && typeof this.setupToolsConsumer === 'function' && this.setupToolsConsumer !== Helper.prototype.setupToolsConsumer) {
+      result.setup = (consumer: Helper) => this.setupToolsConsumer(consumer)
+    }
+
+    return result
   }
 
-  /** 
+  /**
    * The options passed to the helper when it was created.
   */
   get options() {

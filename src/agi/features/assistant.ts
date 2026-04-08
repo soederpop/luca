@@ -542,6 +542,9 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			}
 		} else if (fnOrHelper && 'schemas' in fnOrHelper && 'handlers' in fnOrHelper) {
 			this._registerTools(fnOrHelper as { schemas: Record<string, z.ZodType>, handlers: Record<string, Function> })
+			if (typeof (fnOrHelper as any).setup === 'function') {
+				(fnOrHelper as any).setup(this)
+			}
 		}
 		return this
 	}
@@ -795,11 +798,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			return this.mergeOptionTools(tools)
 		}
 
+		// Stash `export const use = [...]` for deferred processing during start(),
+		// since the assistant isn't fully constructed yet when loadTools() runs
+		if (Array.isArray(moduleExports.use)) {
+			this.state.set('deferredUse', moduleExports.use)
+		}
+
 		if (Object.keys(moduleExports).length) {
 			const schemas: Record<string, z.ZodType> = moduleExports.schemas || {}
 
 			for (const [name, fn] of Object.entries(moduleExports)) {
-				if (name === 'schemas' || name === 'default' || typeof fn !== 'function') continue
+				if (name === 'schemas' || name === 'default' || name === 'use' || typeof fn !== 'function') continue
 
 				const schema = schemas[name]
 				if (schema) {
@@ -1100,6 +1109,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	async start(): Promise<this> {
 		// Prevent duplicate listener registration if already started
 		if (this.isStarted) return this
+
+		// Process deferred `use` entries from tools.ts (stashed during loadTools
+		// because the assistant isn't fully constructed at that point)
+		const deferredUse = this.state.get('deferredUse') as any[] | undefined
+		if (deferredUse?.length) {
+			for (const entry of deferredUse) {
+				this.use(entry)
+			}
+			this.state.set('deferredUse', undefined)
+		}
 
 		// Allow hooks to run before the assistant starts (blocks until complete)
 		await this.triggerHook('beforeStart')

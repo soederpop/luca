@@ -1,6 +1,11 @@
 import container from '@soederpop/luca/agi'
 import { z } from 'zod'
 
+export const use = [
+	container.describer,
+	container.feature('skillsLibrary'),
+]
+
 export const schemas = {
 	README: z.object({}).describe('Call this tool first to learn how your canvas tools work.')
 }
