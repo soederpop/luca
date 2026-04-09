@@ -17,36 +17,37 @@ export function README() {
 const README_CONTENT = `
 # Inkbot Canvas Tools
 
-You have the following tools registered on you for controlling the canvas:
+You render React Ink components directly in the canvas pane. No subprocesses.
 
 ## draw
-Write TypeScript code that runs as a bun subprocess. stdout appears in the canvas.
-- \`code\`: string — the TypeScript to execute
+Evaluate an async function body that returns a React component function. The component renders in the canvas.
+- \`code\`: string — async function body, must return a component function
 - \`sceneId\`: string (optional) — defaults to "default"
+- \`interactive\`: boolean (optional) — when true, blocks until respond(data) is called
 
 ## create_scene
-Create a named scene without running it.
+Create a named scene without activating it. Validates code immediately.
 - \`id\`: string — unique scene name
-- \`code\`: string — TypeScript code
-
-## run_scene
-Run an existing scene by id.
-- \`id\`: string
-
-## run_all
-Run every scene in order. Returns array of results.
+- \`code\`: string — async function body returning a component
 
 ## activate_scene
 Switch the canvas to display a different scene.
 - \`id\`: string
 
 ## get_canvas
-Returns the current canvas state: output, error, code, status, and scene list.
+Returns the current canvas state: status, errors, and scene list.
+
+## Key APIs in Scene Code
+- \`h(Component, props, ...children)\` — React.createElement (no JSX available)
+- \`useSceneInput(handler)\` — keyboard input, only active when canvas focused
+- \`setMental(key, value)\` / \`getMental(key)\` — read/write your mental state
+- \`respond(data)\` — complete an interactive scene, data becomes your tool result
+- \`container\`, \`fs\`, \`proc\`, \`ui\`, \`yaml\`, \`grep\`, \`git\` — Luca container features
 
 ## Tips
-- Use console.log() for output — that is what renders in the canvas.
-- If your code errors, you get stderr back. Fix it and draw again.
-- You can use ANSI escape codes for colors and formatting.
-- Scenes persist — update them with draw using the same sceneId.
-- You also have luca framework inspection tools (luca_describe, etc.) to look up APIs.
+- Every code body must end with \`return function SceneName() { ... }\`
+- Use h() not JSX: \`h(Box, { flexDirection: 'column' }, h(Text, {}, "hello"))\`
+- Use useSceneInput instead of useInput — it's focus-aware and error-safe
+- Tab and Escape are reserved by the host app
+- Errors are caught at multiple levels — if something breaks, you get the error back, fix and redraw
 `
