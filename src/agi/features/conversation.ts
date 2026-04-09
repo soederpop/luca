@@ -109,6 +109,15 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	contextWindow: z.number().describe('The context window size for the current model'),
 	tools: z.record(z.string(), z.any()).describe('Active tools map including any runtime overrides'),
 	callMaxTokens: z.number().nullable().describe('Per-call max tokens override, cleared after each ask()'),
+
+	/** Sampling parameters — state is the runtime source of truth, seeded from options at construction. */
+	temperature: z.number().nullable().describe('Sampling temperature (0-2). Null means use model default'),
+	topP: z.number().nullable().describe('Nucleus sampling cutoff (0-1). Null means use model default'),
+	topK: z.number().nullable().describe('Top-K sampling. Null means use model default'),
+	frequencyPenalty: z.number().nullable().describe('Frequency penalty (-2 to 2). Null means use model default'),
+	presencePenalty: z.number().nullable().describe('Presence penalty (-2 to 2). Null means use model default'),
+	stop: z.array(z.string()).nullable().describe('Stop sequences. Null means none'),
+	maxTokens: z.number().nullable().describe('Maximum output tokens per completion. Null means use model default'),
 })
 
 export class ConversationAbortError extends Error {
@@ -240,9 +249,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	/** Registered stubs: matched against user input to short-circuit the API with a canned response. */
 	private _stubs: Array<{ matcher: string | RegExp; response: string | (() => string) }> = []
 
-	/** Resolved max tokens: per-call override > options-level. Undefined means no limit (model default). */
+	/** Resolved max tokens: per-call override > state-level. Undefined means no limit (model default). */
 	private get maxTokens(): number | undefined {
-		return (this.state.get('callMaxTokens') as number | null) ?? this.options.maxTokens ?? undefined
+		return (this.state.get('callMaxTokens') as number | null) ?? (this.state.get('maxTokens') as number | null) ?? undefined
 	}
 
 	/** @returns Default state seeded from options: id, thread, model, initial history, and zero token usage. */
@@ -264,6 +273,13 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5'),
 			tools: (this.options.tools || {}) as Record<string, ConversationTool>,
 			callMaxTokens: null,
+			temperature: this.options.temperature ?? null,
+			topP: this.options.topP ?? null,
+			topK: this.options.topK ?? null,
+			frequencyPenalty: this.options.frequencyPenalty ?? null,
+			presencePenalty: this.options.presencePenalty ?? null,
+			stop: this.options.stop ?? null,
+			maxTokens: this.options.maxTokens ?? null,
 		}
 	}
 
@@ -870,11 +886,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
 
 		if (this.options.local) {
-			baseURL = "http://localhost:1234/v1" 
+			baseURL = "http://localhost:1234/v1"
 		}
 
 		return (this.container as any).client('openai', {
-			defaultModel: this.options.model || (this.options.local ? this.options.model || "qwen/qwen3-coder-30b" : "gpt-5"),
+			defaultModel: this.model || (this.options.local ? this.model || "qwen/qwen3-coder-30b" : "gpt-5"),
 			...this.options.clientOptions,
 			...(baseURL ? { baseURL } : {}),
 		}) as OpenAIClient
@@ -1043,12 +1059,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
 				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
 				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
-				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
-				...(this.options.topP != null ? { top_p: this.options.topP } : {}),
-				...(this.options.topK != null ? { top_k: this.options.topK } : {}),
-				...(this.options.frequencyPenalty != null ? { frequency_penalty: this.options.frequencyPenalty } : {}),
-				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
-				...(this.options.stop ? { stop: this.options.stop } : {}),
+				...(this.state.get('temperature') != null ? { temperature: this.state.get('temperature') } : {}),
+				...(this.state.get('topP') != null ? { top_p: this.state.get('topP') } : {}),
+				...(this.state.get('topK') != null ? { top_k: this.state.get('topK') } : {}),
+				...(this.state.get('frequencyPenalty') != null ? { frequency_penalty: this.state.get('frequencyPenalty') } : {}),
+				...(this.state.get('presencePenalty') != null ? { presence_penalty: this.state.get('presencePenalty') } : {}),
+				...(this.state.get('stop') ? { stop: this.state.get('stop') } : {}),
 				...textFormat,
 			}, { signal: this._abortController?.signal })
 
@@ -1196,12 +1212,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
 				...(this.maxTokens ? { [this.maxTokensParam]: this.maxTokens } : {}),
-				...(this.options.temperature != null ? { temperature: this.options.temperature } : {}),
-				...(this.options.topP != null ? { top_p: this.options.topP } : {}),
-				...(this.options.topK != null ? { top_k: this.options.topK } : {}),
-				...(this.options.frequencyPenalty != null ? { frequency_penalty: this.options.frequencyPenalty } : {}),
-				...(this.options.presencePenalty != null ? { presence_penalty: this.options.presencePenalty } : {}),
-				...(this.options.stop ? { stop: this.options.stop } : {}),
+				...(this.state.get('temperature') != null ? { temperature: this.state.get('temperature') } : {}),
+				...(this.state.get('topP') != null ? { top_p: this.state.get('topP') } : {}),
+				...(this.state.get('topK') != null ? { top_k: this.state.get('topK') } : {}),
+				...(this.state.get('frequencyPenalty') != null ? { frequency_penalty: this.state.get('frequencyPenalty') } : {}),
+				...(this.state.get('presencePenalty') != null ? { presence_penalty: this.state.get('presencePenalty') } : {}),
+				...(this.state.get('stop') ? { stop: this.state.get('stop') } : {}),
 				...responseFormat,
 			}, { signal: this._abortController?.signal })
 
