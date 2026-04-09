@@ -110,6 +110,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** Convenience alias for allowTools — an explicit list of tool names (exact matches only). */
 	toolNames: z.array(z.string()).optional().describe('Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.'),
+
+	/** Options passed through to the underlying OpenAI client (e.g. baseURL, apiKey). */
+	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client, passed through to the conversation'),
 })
 
 export type AssistantState = z.infer<typeof AssistantStateSchema>
@@ -360,6 +363,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 				...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
 				...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
 				...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
+				...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
 				history: [
 					{ role: 'system', content: this.effectiveSystemPrompt },
 				],
