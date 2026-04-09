@@ -451,6 +451,7 @@ export class VM<
       Buffer,
       URL,
       URLSearchParams,
+      fetch,
       ...ctx,
     })
 
