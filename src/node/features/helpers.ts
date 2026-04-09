@@ -115,20 +115,11 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     const hasNodeModules = existsSync(resolve(this.rootDir, 'node_modules'))
     const hasLuca = hasNodeModules && existsSync(resolve(this.rootDir, 'node_modules', '@soederpop', 'luca'))
 
-    if (hasNodeModules && !hasLuca && !this._warnedNativeImport) {
-      this._warnedNativeImport = true
-      console.warn(
-        `Helpers: node_modules exists but @soederpop/luca wasn't found. ` +
-        `Did you forget to \`bun install\` or add @soederpop/luca as a dependency? ` +
-        `Using the VM virtual module system instead until this is resolved.`
-      )
-    }
+    // VM bundling handles missing @soederpop/luca gracefully — no warning needed
 
     return hasLuca
   }
 
-  /** Prevent repeated warnings about missing @soederpop/luca */
-  private _warnedNativeImport = false
 
   /** Track whether we've seeded the VM with virtual modules */
   private _vmSeeded = false

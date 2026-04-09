@@ -131,6 +131,31 @@ export class Transpiler extends Feature {
 
     return { code: result, map: '', warnings: [] }
   }
+
+  /**
+   * Bundle a file using Bun.build, inlining all imports except those marked external.
+   * Returns CJS code ready for VM execution.
+   *
+   * @param filePath - Absolute path to the entrypoint file
+   * @param external - Module IDs to leave as require() calls (e.g. virtual modules)
+   * @returns The bundled CJS code string
+   */
+  async bundle(filePath: string, external: string[] = []): Promise<string> {
+    const result = await Bun.build({
+      entrypoints: [filePath],
+      target: 'bun',
+      format: 'cjs',
+      bundle: true,
+      external,
+    })
+
+    if (!result.success) {
+      const msgs = result.logs.map((l: any) => l.message || String(l)).join('\n')
+      throw new Error(`Bundle failed for ${filePath}:\n${msgs}`)
+    }
+
+    return await result.outputs[0].text()
+  }
 }
 
 export default Transpiler

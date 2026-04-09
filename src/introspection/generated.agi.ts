@@ -1,7 +1,7 @@
 import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
-// Generated at: 2026-04-09T05:21:42.461Z
+// Generated at: 2026-04-09T22:44:38.291Z
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
@@ -4990,6 +4990,23 @@ setBuildTimeData('features.transpiler', {
         "code"
       ],
       "returns": "Promise<TransformResult>"
+    },
+    "bundle": {
+      "description": "Bundle a file using Bun.build, inlining all imports except those marked external. Returns CJS code ready for VM execution.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Absolute path to the entrypoint file"
+        },
+        "external": {
+          "type": "string[]",
+          "description": "Module IDs to leave as require() calls (e.g. virtual modules)"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "Promise<string>"
     }
   },
   "getters": {},
@@ -12132,301 +12149,200 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
-setBuildTimeData('clients.comfyui', {
-  "id": "clients.comfyui",
-  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-  "shortcut": "clients.comfyui",
-  "className": "ComfyUIClient",
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
   "methods": {
-    "queuePrompt": {
-      "description": "Queue a prompt (API-format workflow) for execution.",
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
       "parameters": {
-        "prompt": {
-          "type": "Record<string, any>",
-          "description": "The API-format workflow object"
-        },
-        "clientId": {
+        "table": {
           "type": "string",
-          "description": "Override the client ID for this request"
+          "description": "The table or view name to query"
         }
       },
       "required": [
-        "prompt"
+        "table"
       ],
-      "returns": "Promise<{ prompt_id: string; number: number }>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-        }
-      ]
+      "returns": "void"
     },
-    "getQueue": {
-      "description": "Get the current prompt queue status.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-    },
-    "getHistory": {
-      "description": "Get execution history, optionally for a specific prompt.",
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
       "parameters": {
-        "promptId": {
+        "fn": {
           "type": "string",
-          "description": "If provided, returns history for this prompt only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<Record<string, any>>"
-    },
-    "getSystemStats": {
-      "description": "Get system stats including GPU memory and queue info.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "getObjectInfo": {
-      "description": "Get node type info with input/output schemas.",
-      "parameters": {
-        "nodeClass": {
-          "type": "string",
-          "description": "If provided, returns info for this node type only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "interrupt": {
-      "description": "Interrupt the currently executing prompt.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "getModels": {
-      "description": "List available models, optionally filtered by type.",
-      "parameters": {
-        "type": {
-          "type": "string",
-          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-        }
-      },
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "getEmbeddings": {
-      "description": "List available embedding models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "uploadImage": {
-      "description": "Upload an image to ComfyUI's input directory.",
-      "parameters": {
-        "file": {
-          "type": "Buffer | Blob",
-          "description": "The image data as Buffer or Blob"
+          "description": "The function name"
         },
-        "filename": {
-          "type": "string",
-          "description": "File name for the upload"
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
         },
-        "opts": {
-          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-          "description": "Upload options (subfolder, type, overwrite)"
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
         }
       },
       "required": [
-        "file",
-        "filename"
+        "fn"
       ],
-      "returns": "Promise<any>"
+      "returns": "void"
     },
-    "viewImage": {
-      "description": "Download a generated image from ComfyUI as a Buffer.",
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
       "parameters": {
-        "filename": {
+        "email": {
           "type": "string",
-          "description": "The image filename"
+          "description": "Parameter email"
         },
-        "subfolder": {
-          "type": "any",
-          "description": "Subfolder within the output directory"
-        },
-        "type": {
-          "type": "any",
-          "description": "Image type ('output', 'input', 'temp')"
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
         }
       },
       "required": [
-        "filename"
+        "email",
+        "password"
       ],
-      "returns": "Promise<Buffer>"
+      "returns": "void"
     },
-    "connectWs": {
-      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
     },
-    "disconnectWs": {
-      "description": "Close the WebSocket connection.",
+    "signOut": {
+      "description": "Sign the current user out.",
       "parameters": {},
       "required": [],
       "returns": "void"
     },
-    "toApiFormat": {
-      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-      "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
-        }
-      },
-      "required": [
-        "workflow"
-      ],
-      "returns": "Promise<Record<string, any>>"
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
     },
-    "runWorkflow": {
-      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
       "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
         },
-        "inputs": {
-          "type": "Record<string, any>",
-          "description": "Parameter inputs"
-        },
-        "options": {
-          "type": "WorkflowRunOptions",
-          "description": "Parameter options",
-          "properties": {
-            "poll": {
-              "type": "boolean",
-              "description": "Use polling instead of WebSocket for tracking execution"
-            },
-            "pollInterval": {
-              "type": "number",
-              "description": "Polling interval in ms (default 1000)"
-            },
-            "inputMap": {
-              "type": "InputMapping",
-              "description": "Named input mapping: semantic name -> { nodeId, field }"
-            },
-            "outputDir": {
-              "type": "string",
-              "description": "If provided, output images are downloaded to this directory"
-            }
-          }
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
         }
       },
       "required": [
-        "workflow"
+        "name"
       ],
-      "returns": "Promise<WorkflowResult>"
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
     }
   },
   "getters": {
-    "clientId": {
-      "description": "The unique client ID used for WebSocket session tracking.",
-      "returns": "string"
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
     },
-    "wsURL": {
-      "description": "The WebSocket URL derived from baseURL or overridden via options.",
-      "returns": "string"
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
     }
   },
-  "events": {
-    "execution_start": {
-      "name": "execution_start",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_complete": {
-      "name": "execution_complete",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executing": {
-      "name": "executing",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "progress": {
-      "name": "progress",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executed": {
-      "name": "executed",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_cached": {
-      "name": "execution_cached",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_error": {
-      "name": "execution_error",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    }
-  },
+  "events": {},
   "state": {},
   "options": {},
   "envVars": [],
   "examples": [
     {
       "language": "ts",
-      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
     }
-  ],
-  "types": {
-    "WorkflowRunOptions": {
-      "description": "",
-      "properties": {
-        "poll": {
-          "type": "boolean",
-          "description": "Use polling instead of WebSocket for tracking execution",
-          "optional": true
-        },
-        "pollInterval": {
-          "type": "number",
-          "description": "Polling interval in ms (default 1000)",
-          "optional": true
-        },
-        "inputMap": {
-          "type": "InputMapping",
-          "description": "Named input mapping: semantic name -> { nodeId, field }",
-          "optional": true
-        },
-        "outputDir": {
-          "type": "string",
-          "description": "If provided, output images are downloaded to this directory",
-          "optional": true
-        }
-      }
-    },
-    "WorkflowResult": {
-      "description": "",
-      "properties": {
-        "promptId": {
-          "type": "string",
-          "description": ""
-        },
-        "outputs": {
-          "type": "Record<string, any>",
-          "description": ""
-        },
-        "images": {
-          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
+  ]
 });
 
 setBuildTimeData('clients.voicebox', {
@@ -12813,6 +12729,303 @@ setBuildTimeData('clients.voicebox', {
   }
 });
 
+setBuildTimeData('clients.comfyui', {
+  "id": "clients.comfyui",
+  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+  "shortcut": "clients.comfyui",
+  "className": "ComfyUIClient",
+  "methods": {
+    "queuePrompt": {
+      "description": "Queue a prompt (API-format workflow) for execution.",
+      "parameters": {
+        "prompt": {
+          "type": "Record<string, any>",
+          "description": "The API-format workflow object"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Override the client ID for this request"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<{ prompt_id: string; number: number }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+        }
+      ]
+    },
+    "getQueue": {
+      "description": "Get the current prompt queue status.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+    },
+    "getHistory": {
+      "description": "Get execution history, optionally for a specific prompt.",
+      "parameters": {
+        "promptId": {
+          "type": "string",
+          "description": "If provided, returns history for this prompt only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "getSystemStats": {
+      "description": "Get system stats including GPU memory and queue info.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "getObjectInfo": {
+      "description": "Get node type info with input/output schemas.",
+      "parameters": {
+        "nodeClass": {
+          "type": "string",
+          "description": "If provided, returns info for this node type only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "interrupt": {
+      "description": "Interrupt the currently executing prompt.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "getModels": {
+      "description": "List available models, optionally filtered by type.",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "getEmbeddings": {
+      "description": "List available embedding models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "uploadImage": {
+      "description": "Upload an image to ComfyUI's input directory.",
+      "parameters": {
+        "file": {
+          "type": "Buffer | Blob",
+          "description": "The image data as Buffer or Blob"
+        },
+        "filename": {
+          "type": "string",
+          "description": "File name for the upload"
+        },
+        "opts": {
+          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+          "description": "Upload options (subfolder, type, overwrite)"
+        }
+      },
+      "required": [
+        "file",
+        "filename"
+      ],
+      "returns": "Promise<any>"
+    },
+    "viewImage": {
+      "description": "Download a generated image from ComfyUI as a Buffer.",
+      "parameters": {
+        "filename": {
+          "type": "string",
+          "description": "The image filename"
+        },
+        "subfolder": {
+          "type": "any",
+          "description": "Subfolder within the output directory"
+        },
+        "type": {
+          "type": "any",
+          "description": "Image type ('output', 'input', 'temp')"
+        }
+      },
+      "required": [
+        "filename"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "connectWs": {
+      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disconnectWs": {
+      "description": "Close the WebSocket connection.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "toApiFormat": {
+      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "runWorkflow": {
+      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        },
+        "inputs": {
+          "type": "Record<string, any>",
+          "description": "Parameter inputs"
+        },
+        "options": {
+          "type": "WorkflowRunOptions",
+          "description": "Parameter options",
+          "properties": {
+            "poll": {
+              "type": "boolean",
+              "description": "Use polling instead of WebSocket for tracking execution"
+            },
+            "pollInterval": {
+              "type": "number",
+              "description": "Polling interval in ms (default 1000)"
+            },
+            "inputMap": {
+              "type": "InputMapping",
+              "description": "Named input mapping: semantic name -> { nodeId, field }"
+            },
+            "outputDir": {
+              "type": "string",
+              "description": "If provided, output images are downloaded to this directory"
+            }
+          }
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<WorkflowResult>"
+    }
+  },
+  "getters": {
+    "clientId": {
+      "description": "The unique client ID used for WebSocket session tracking.",
+      "returns": "string"
+    },
+    "wsURL": {
+      "description": "The WebSocket URL derived from baseURL or overridden via options.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "execution_start": {
+      "name": "execution_start",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_complete": {
+      "name": "execution_complete",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executing": {
+      "name": "executing",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "progress": {
+      "name": "progress",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executed": {
+      "name": "executed",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_cached": {
+      "name": "execution_cached",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_error": {
+      "name": "execution_error",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+    }
+  ],
+  "types": {
+    "WorkflowRunOptions": {
+      "description": "",
+      "properties": {
+        "poll": {
+          "type": "boolean",
+          "description": "Use polling instead of WebSocket for tracking execution",
+          "optional": true
+        },
+        "pollInterval": {
+          "type": "number",
+          "description": "Polling interval in ms (default 1000)",
+          "optional": true
+        },
+        "inputMap": {
+          "type": "InputMapping",
+          "description": "Named input mapping: semantic name -> { nodeId, field }",
+          "optional": true
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "If provided, output images are downloaded to this directory",
+          "optional": true
+        }
+      }
+    },
+    "WorkflowResult": {
+      "description": "",
+      "properties": {
+        "promptId": {
+          "type": "string",
+          "description": ""
+        },
+        "outputs": {
+          "type": "Record<string, any>",
+          "description": ""
+        },
+        "images": {
+          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('clients.elevenlabs', {
   "id": "clients.elevenlabs",
   "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
@@ -13075,202 +13288,6 @@ setBuildTimeData('clients.elevenlabs', {
       }
     }
   }
-});
-
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
 });
 
 setBuildTimeData('servers.mcp', {
@@ -24989,6 +25006,23 @@ export const introspectionData = [
           "code"
         ],
         "returns": "Promise<TransformResult>"
+      },
+      "bundle": {
+        "description": "Bundle a file using Bun.build, inlining all imports except those marked external. Returns CJS code ready for VM execution.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Absolute path to the entrypoint file"
+          },
+          "external": {
+            "type": "string[]",
+            "description": "Module IDs to leave as require() calls (e.g. virtual modules)"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "Promise<string>"
       }
     },
     "getters": {},
@@ -32106,300 +32140,199 @@ export const introspectionData = [
     ]
   },
   {
-    "id": "clients.comfyui",
-    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-    "shortcut": "clients.comfyui",
-    "className": "ComfyUIClient",
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
     "methods": {
-      "queuePrompt": {
-        "description": "Queue a prompt (API-format workflow) for execution.",
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
         "parameters": {
-          "prompt": {
-            "type": "Record<string, any>",
-            "description": "The API-format workflow object"
-          },
-          "clientId": {
+          "table": {
             "type": "string",
-            "description": "Override the client ID for this request"
+            "description": "The table or view name to query"
           }
         },
         "required": [
-          "prompt"
+          "table"
         ],
-        "returns": "Promise<{ prompt_id: string; number: number }>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-          }
-        ]
+        "returns": "void"
       },
-      "getQueue": {
-        "description": "Get the current prompt queue status.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-      },
-      "getHistory": {
-        "description": "Get execution history, optionally for a specific prompt.",
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
         "parameters": {
-          "promptId": {
+          "fn": {
             "type": "string",
-            "description": "If provided, returns history for this prompt only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<Record<string, any>>"
-      },
-      "getSystemStats": {
-        "description": "Get system stats including GPU memory and queue info.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "getObjectInfo": {
-        "description": "Get node type info with input/output schemas.",
-        "parameters": {
-          "nodeClass": {
-            "type": "string",
-            "description": "If provided, returns info for this node type only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "interrupt": {
-        "description": "Interrupt the currently executing prompt.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "getModels": {
-        "description": "List available models, optionally filtered by type.",
-        "parameters": {
-          "type": {
-            "type": "string",
-            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-          }
-        },
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "getEmbeddings": {
-        "description": "List available embedding models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "uploadImage": {
-        "description": "Upload an image to ComfyUI's input directory.",
-        "parameters": {
-          "file": {
-            "type": "Buffer | Blob",
-            "description": "The image data as Buffer or Blob"
+            "description": "The function name"
           },
-          "filename": {
-            "type": "string",
-            "description": "File name for the upload"
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
           },
-          "opts": {
-            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-            "description": "Upload options (subfolder, type, overwrite)"
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
           }
         },
         "required": [
-          "file",
-          "filename"
+          "fn"
         ],
-        "returns": "Promise<any>"
+        "returns": "void"
       },
-      "viewImage": {
-        "description": "Download a generated image from ComfyUI as a Buffer.",
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
         "parameters": {
-          "filename": {
+          "email": {
             "type": "string",
-            "description": "The image filename"
+            "description": "Parameter email"
           },
-          "subfolder": {
-            "type": "any",
-            "description": "Subfolder within the output directory"
-          },
-          "type": {
-            "type": "any",
-            "description": "Image type ('output', 'input', 'temp')"
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
           }
         },
         "required": [
-          "filename"
+          "email",
+          "password"
         ],
-        "returns": "Promise<Buffer>"
+        "returns": "void"
       },
-      "connectWs": {
-        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
       },
-      "disconnectWs": {
-        "description": "Close the WebSocket connection.",
+      "signOut": {
+        "description": "Sign the current user out.",
         "parameters": {},
         "required": [],
         "returns": "void"
       },
-      "toApiFormat": {
-        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-        "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "returns": "Promise<Record<string, any>>"
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       },
-      "runWorkflow": {
-        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
         "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
           },
-          "inputs": {
-            "type": "Record<string, any>",
-            "description": "Parameter inputs"
-          },
-          "options": {
-            "type": "WorkflowRunOptions",
-            "description": "Parameter options",
-            "properties": {
-              "poll": {
-                "type": "boolean",
-                "description": "Use polling instead of WebSocket for tracking execution"
-              },
-              "pollInterval": {
-                "type": "number",
-                "description": "Polling interval in ms (default 1000)"
-              },
-              "inputMap": {
-                "type": "InputMapping",
-                "description": "Named input mapping: semantic name -> { nodeId, field }"
-              },
-              "outputDir": {
-                "type": "string",
-                "description": "If provided, output images are downloaded to this directory"
-              }
-            }
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
           }
         },
         "required": [
-          "workflow"
+          "name"
         ],
-        "returns": "Promise<WorkflowResult>"
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
       }
     },
     "getters": {
-      "clientId": {
-        "description": "The unique client ID used for WebSocket session tracking.",
-        "returns": "string"
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
       },
-      "wsURL": {
-        "description": "The WebSocket URL derived from baseURL or overridden via options.",
-        "returns": "string"
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
       }
     },
-    "events": {
-      "execution_start": {
-        "name": "execution_start",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_complete": {
-        "name": "execution_complete",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executing": {
-        "name": "executing",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "progress": {
-        "name": "progress",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executed": {
-        "name": "executed",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_cached": {
-        "name": "execution_cached",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_error": {
-        "name": "execution_error",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      }
-    },
+    "events": {},
     "state": {},
     "options": {},
     "envVars": [],
     "examples": [
       {
         "language": "ts",
-        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
       }
-    ],
-    "types": {
-      "WorkflowRunOptions": {
-        "description": "",
-        "properties": {
-          "poll": {
-            "type": "boolean",
-            "description": "Use polling instead of WebSocket for tracking execution",
-            "optional": true
-          },
-          "pollInterval": {
-            "type": "number",
-            "description": "Polling interval in ms (default 1000)",
-            "optional": true
-          },
-          "inputMap": {
-            "type": "InputMapping",
-            "description": "Named input mapping: semantic name -> { nodeId, field }",
-            "optional": true
-          },
-          "outputDir": {
-            "type": "string",
-            "description": "If provided, output images are downloaded to this directory",
-            "optional": true
-          }
-        }
-      },
-      "WorkflowResult": {
-        "description": "",
-        "properties": {
-          "promptId": {
-            "type": "string",
-            "description": ""
-          },
-          "outputs": {
-            "type": "Record<string, any>",
-            "description": ""
-          },
-          "images": {
-            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
+    ]
   },
   {
     "id": "clients.voicebox",
@@ -32785,6 +32718,302 @@ export const introspectionData = [
     }
   },
   {
+    "id": "clients.comfyui",
+    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+    "shortcut": "clients.comfyui",
+    "className": "ComfyUIClient",
+    "methods": {
+      "queuePrompt": {
+        "description": "Queue a prompt (API-format workflow) for execution.",
+        "parameters": {
+          "prompt": {
+            "type": "Record<string, any>",
+            "description": "The API-format workflow object"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "Override the client ID for this request"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<{ prompt_id: string; number: number }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+          }
+        ]
+      },
+      "getQueue": {
+        "description": "Get the current prompt queue status.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+      },
+      "getHistory": {
+        "description": "Get execution history, optionally for a specific prompt.",
+        "parameters": {
+          "promptId": {
+            "type": "string",
+            "description": "If provided, returns history for this prompt only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "getSystemStats": {
+        "description": "Get system stats including GPU memory and queue info.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "getObjectInfo": {
+        "description": "Get node type info with input/output schemas.",
+        "parameters": {
+          "nodeClass": {
+            "type": "string",
+            "description": "If provided, returns info for this node type only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "interrupt": {
+        "description": "Interrupt the currently executing prompt.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "getModels": {
+        "description": "List available models, optionally filtered by type.",
+        "parameters": {
+          "type": {
+            "type": "string",
+            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "getEmbeddings": {
+        "description": "List available embedding models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "uploadImage": {
+        "description": "Upload an image to ComfyUI's input directory.",
+        "parameters": {
+          "file": {
+            "type": "Buffer | Blob",
+            "description": "The image data as Buffer or Blob"
+          },
+          "filename": {
+            "type": "string",
+            "description": "File name for the upload"
+          },
+          "opts": {
+            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+            "description": "Upload options (subfolder, type, overwrite)"
+          }
+        },
+        "required": [
+          "file",
+          "filename"
+        ],
+        "returns": "Promise<any>"
+      },
+      "viewImage": {
+        "description": "Download a generated image from ComfyUI as a Buffer.",
+        "parameters": {
+          "filename": {
+            "type": "string",
+            "description": "The image filename"
+          },
+          "subfolder": {
+            "type": "any",
+            "description": "Subfolder within the output directory"
+          },
+          "type": {
+            "type": "any",
+            "description": "Image type ('output', 'input', 'temp')"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "connectWs": {
+        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disconnectWs": {
+        "description": "Close the WebSocket connection.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "toApiFormat": {
+        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "runWorkflow": {
+        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          },
+          "inputs": {
+            "type": "Record<string, any>",
+            "description": "Parameter inputs"
+          },
+          "options": {
+            "type": "WorkflowRunOptions",
+            "description": "Parameter options",
+            "properties": {
+              "poll": {
+                "type": "boolean",
+                "description": "Use polling instead of WebSocket for tracking execution"
+              },
+              "pollInterval": {
+                "type": "number",
+                "description": "Polling interval in ms (default 1000)"
+              },
+              "inputMap": {
+                "type": "InputMapping",
+                "description": "Named input mapping: semantic name -> { nodeId, field }"
+              },
+              "outputDir": {
+                "type": "string",
+                "description": "If provided, output images are downloaded to this directory"
+              }
+            }
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<WorkflowResult>"
+      }
+    },
+    "getters": {
+      "clientId": {
+        "description": "The unique client ID used for WebSocket session tracking.",
+        "returns": "string"
+      },
+      "wsURL": {
+        "description": "The WebSocket URL derived from baseURL or overridden via options.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "execution_start": {
+        "name": "execution_start",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_complete": {
+        "name": "execution_complete",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executing": {
+        "name": "executing",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "progress": {
+        "name": "progress",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executed": {
+        "name": "executed",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_cached": {
+        "name": "execution_cached",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_error": {
+        "name": "execution_error",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+      }
+    ],
+    "types": {
+      "WorkflowRunOptions": {
+        "description": "",
+        "properties": {
+          "poll": {
+            "type": "boolean",
+            "description": "Use polling instead of WebSocket for tracking execution",
+            "optional": true
+          },
+          "pollInterval": {
+            "type": "number",
+            "description": "Polling interval in ms (default 1000)",
+            "optional": true
+          },
+          "inputMap": {
+            "type": "InputMapping",
+            "description": "Named input mapping: semantic name -> { nodeId, field }",
+            "optional": true
+          },
+          "outputDir": {
+            "type": "string",
+            "description": "If provided, output images are downloaded to this directory",
+            "optional": true
+          }
+        }
+      },
+      "WorkflowResult": {
+        "description": "",
+        "properties": {
+          "promptId": {
+            "type": "string",
+            "description": ""
+          },
+          "outputs": {
+            "type": "Record<string, any>",
+            "description": ""
+          },
+          "images": {
+            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "clients.elevenlabs",
     "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
     "shortcut": "clients.elevenlabs",
@@ -33046,201 +33275,6 @@ export const introspectionData = [
         }
       }
     }
-  },
-  {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
   },
   {
     "id": "servers.mcp",

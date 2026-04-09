@@ -1,6 +1,6 @@
 {
   "name": "@soederpop/luca",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "website": "https://luca.soederpop.com",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
@@ -207,6 +207,9 @@
   },
   "optionalDependencies": {
     "node-llama-cpp": "3.17.1"
+  },
+  "overrides": {
+    "@soederpop/luca": "."
   },
   "luca": {
     "aliases": [

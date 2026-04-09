@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { createRequire } from 'module'
+import { dirname } from 'path'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
 import { Feature } from "../feature.js";
@@ -389,14 +390,58 @@ export class VM<
 
     if (!fs.exists(filePath)) return {}
 
+    // If we have virtual modules defined, use bundling to inline all other imports.
+    // Virtual module IDs are marked external so they resolve via our custom require.
+    if (this.modules.size > 0) {
+      return this._loadModuleBundled(filePath, ctx)
+    }
+
     const raw = fs.readFile(filePath)
     const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
 
+    return this._execModule(code, filePath, ctx)
+  }
+
+  /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
+  private _loadModuleBundled(filePath: string, ctx: any): Record<string, any> {
+    const external = [...this.modules.keys()]
+
+    const result = Bun.spawnSync({
+      cmd: ['bun', 'build', filePath, '--target=bun', '--format=cjs', ...external.flatMap(e => ['--external', e])],
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+
+    if (result.exitCode !== 0) {
+      // Fall back to simple transpile if bundling fails
+      const raw = this.container.fs.readFile(filePath)
+      const { code } = this.container.feature('transpiler').transformSync(String(raw), { format: 'cjs' })
+      return this._execModule(code, filePath, ctx)
+    }
+
+    let code = result.stdout.toString()
+
+    // Bun's CJS output wraps everything in (function(exports, require, module, __filename, __dirname) { ... })
+    // Strip the wrapper so the inner code runs directly in our VM context which already provides these globals.
+    const wrapperStart = '(function(exports, require, module, __filename, __dirname) {'
+    if (code.includes(wrapperStart)) {
+      const startIdx = code.indexOf(wrapperStart) + wrapperStart.length
+      const endIdx = code.lastIndexOf('})')
+      code = code.substring(startIdx, endIdx)
+    }
+
+    return this._execModule(code, filePath, ctx)
+  }
+
+  /** @internal Execute CJS code in a VM context and return its exports. */
+  private _execModule(code: string, filePath: string, ctx: any): Record<string, any> {
     const sharedExports = {}
     const { context } = this.performSync(code, {
       require: this.createRequireFor(filePath),
       exports: sharedExports,
       module: { exports: sharedExports },
+      __filename: filePath,
+      __dirname: dirname(filePath),
       console,
       setTimeout,
       setInterval,
