@@ -470,6 +470,7 @@ Inkbot's question: `
     const { exit } = useApp()
     const { stdout } = useStdout()
     const rows = stdout?.rows ?? 24
+    const cols = stdout?.columns ?? 80
 
     // --- assistant events ---
     useEffect(() => {
@@ -583,7 +584,6 @@ Inkbot's question: `
     })
 
     // --- render building blocks ---
-    const visible = messages.slice(-30)
     const scenes = (assistant.mentalState.get('scenes') as Record<string, SceneState>) || {}
     const sceneIds = Object.keys(scenes)
     const activeId = (assistant.mentalState.get('activeSceneId') || '') as string
@@ -591,12 +591,35 @@ Inkbot's question: `
     const canvasFocused = focus === 'canvas'
     const layoutHint = `Ctrl+L: layout`
 
-    // Chat message list
+    // Estimate available chat lines: total rows minus header, input bar, borders, padding
+    const chatOverhead = 6 // header + input + borders
+    const availLines = Math.max(4, rows - chatOverhead)
+    // In split layout chat is half-width; estimate wrap width accordingly
+    const chatCols = layout === 'split' ? Math.floor(cols / 2) - 4 : cols - 4
+
+    // Walk messages newest-first, estimating wrapped line count, until we fill the viewport
+    const visible: Msg[] = []
+    let usedLines = 0
+    // Cap individual message display height so one huge response doesn't eat the whole pane
+    const maxMsgLines = Math.max(6, Math.floor(availLines * 0.6))
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      const textLen = m.content.length + 2 // prefix chars
+      const estimatedLines = Math.min(Math.max(1, Math.ceil(textLen / Math.max(1, chatCols))), maxMsgLines)
+      if (usedLines + estimatedLines > availLines && visible.length > 0) break
+      usedLines += estimatedLines
+      visible.unshift(m)
+    }
+
+    // Chat message list — truncate long messages to fit
     const chatChildren: any[] = []
     visible.forEach((m, i) => {
       const color = m.role === 'user' ? 'green' : m.role === 'system' ? 'red' : 'white'
       const prefix = m.role === 'user' ? '> ' : '  '
-      chatChildren.push(h(Text, { key: `msg-${i}`, wrap: 'wrap', color }, `${prefix}${m.content}`))
+      // Truncate display text if it would exceed maxMsgLines worth of characters
+      const maxChars = maxMsgLines * Math.max(1, chatCols)
+      const display = m.content.length > maxChars ? m.content.slice(0, maxChars - 1) + '…' : m.content
+      chatChildren.push(h(Text, { key: `msg-${i}`, wrap: 'wrap', color }, `${prefix}${display}`))
     })
     if (streaming) chatChildren.push(h(Text, { key: 'chat-stream', wrap: 'wrap', dimColor: true }, `  ${streaming}`))
     if (thinking && !streaming) chatChildren.push(h(Text, { key: 'chat-think', color: 'yellow' }, '  thinking...'))
