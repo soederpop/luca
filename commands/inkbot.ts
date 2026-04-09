@@ -17,10 +17,14 @@ interface SceneState {
   interactive: boolean
 }
 
+type Layout = 'split' | 'canvas' | 'chat'
+const LAYOUT_CYCLE: Layout[] = ['split', 'canvas', 'chat']
+
 function seedMentalState(ms: any) {
   ms.set('activeSceneId', null)
   ms.set('scenes', {} as Record<string, SceneState>)
   ms.set('focus', 'chat' as 'chat' | 'canvas')
+  ms.set('layout', 'split' as Layout)
   ms.set('thoughts', [] as Array<{ at: string; text: string }>)
   ms.set('observations', {} as Record<string, string>)
   ms.set('plan', '')
@@ -83,8 +87,9 @@ export async function inkbot(options: z.infer<typeof argsSchema>, context: Conta
       const focused = React.useContext(SceneFocusContext)
       useInput(
         (ch: string, key: any) => {
-          // Reserve Tab and Escape for the host app
+          // Reserve Tab, Escape, and Ctrl+L (layout toggle) for the host app
           if (key.tab || key.escape) return
+          if (key.ctrl && ch === 'l') return
           try {
             handler(ch, key)
           } catch (err: any) {
@@ -316,9 +321,10 @@ export async function inkbot(options: z.infer<typeof argsSchema>, context: Conta
     async () => {
       const activeId = assistant.mentalState.get('activeSceneId') as string | null
       const scenes = getScenes()
-      if (!activeId || !scenes[activeId]) return { status: 'empty', allScenes: [] }
+      const currentLayout = assistant.mentalState.get('layout') || 'split'
+      if (!activeId || !scenes[activeId]) return { status: 'empty', layout: currentLayout, allScenes: [] }
       const s = scenes[activeId]
-      return { sceneId: activeId, status: s.status, error: s.error, interactive: s.interactive, allScenes: Object.keys(scenes) }
+      return { sceneId: activeId, status: s.status, error: s.error, interactive: s.interactive, layout: currentLayout, allScenes: Object.keys(scenes) }
     },
     z.object({}).describe('Inspect the current canvas state: active scene, status, errors, scene list.'),
   )
@@ -376,11 +382,28 @@ export async function inkbot(options: z.infer<typeof argsSchema>, context: Conta
   )
 
   assistant.addTool(
+    'set_layout',
+    async (args: { layout: string }) => {
+      const valid: Layout[] = ['split', 'canvas', 'chat']
+      const l = args.layout as Layout
+      if (!valid.includes(l)) return { error: `Invalid layout "${args.layout}". Must be: ${valid.join(', ')}` }
+      assistant.mentalState.set('layout', l)
+      return { updated: true, layout: l }
+    },
+    z.object({
+      layout: z.enum(['split', 'canvas', 'chat']).describe(
+        'split = 50/50 side by side. canvas = full-width canvas with minimized chat strip. chat = full-width chat with minimized canvas strip.',
+      ),
+    }).describe('Change the UI layout. Use "canvas" when you need more screen real estate for your component. Use "chat" for conversation-heavy work. Use "split" for balanced interaction. The user can also cycle layouts with Ctrl+L.'),
+  )
+
+  assistant.addTool(
     'reflect',
     async () => {
       return {
         mood: assistant.mentalState.get('mood'),
         plan: assistant.mentalState.get('plan'),
+        layout: assistant.mentalState.get('layout'),
         thoughts: assistant.mentalState.get('thoughts'),
         observations: assistant.mentalState.get('observations'),
         scenes: Object.keys(getScenes()),
@@ -441,6 +464,7 @@ Inkbot's question: `
     const [canvasStatus, setCanvasStatus] = useState('empty')
     const [mood, setMood] = useState('ready')
     const [focus, setFocus] = useState<'chat' | 'canvas'>('chat')
+    const [layout, setLayout] = useState<Layout>('split')
     const [activeComponent, setActiveComponent] = useState<((...args: any[]) => any) | null>(null)
     const [errorBoundaryKey, setErrorBoundaryKey] = useState(0)
     const { exit } = useApp()
@@ -488,6 +512,9 @@ Inkbot's question: `
         if (key === 'focus') {
           setFocus((assistant.mentalState.get('focus') || 'chat') as 'chat' | 'canvas')
         }
+        if (key === 'layout') {
+          setLayout((assistant.mentalState.get('layout') || 'split') as Layout)
+        }
       })
       return unsub
     }, [])
@@ -496,6 +523,15 @@ Inkbot's question: `
     useInput((ch, key) => {
       if (key.escape) {
         exit()
+        return
+      }
+
+      // Ctrl+L cycles layout: split → canvas → chat → split
+      if (key.ctrl && ch === 'l') {
+        const idx = LAYOUT_CYCLE.indexOf(layout)
+        const next = LAYOUT_CYCLE[(idx + 1) % LAYOUT_CYCLE.length]
+        setLayout(next)
+        assistant.mentalState.set('layout', next)
         return
       }
 
@@ -546,14 +582,16 @@ Inkbot's question: `
       }
     })
 
-    // --- render ---
+    // --- render building blocks ---
     const visible = messages.slice(-30)
     const scenes = (assistant.mentalState.get('scenes') as Record<string, SceneState>) || {}
     const sceneIds = Object.keys(scenes)
     const activeId = (assistant.mentalState.get('activeSceneId') || '') as string
     const chatFocused = focus === 'chat'
     const canvasFocused = focus === 'canvas'
+    const layoutHint = `Ctrl+L: layout`
 
+    // Chat message list
     const chatChildren: any[] = []
     visible.forEach((m, i) => {
       const color = m.role === 'user' ? 'green' : m.role === 'system' ? 'red' : 'white'
@@ -564,7 +602,7 @@ Inkbot's question: `
     if (thinking && !streaming) chatChildren.push(h(Text, { key: 'chat-think', color: 'yellow' }, '  thinking...'))
     if (activity) chatChildren.push(h(Text, { key: 'chat-act', color: 'blue' }, `  [${activity}]`))
 
-    // Canvas content — either the active scene component or placeholders
+    // Canvas rendered content
     let canvasContent: any
     if (activeComponent) {
       canvasContent = h(
@@ -590,49 +628,196 @@ Inkbot's question: `
       canvasContent = h(Text, { dimColor: true, key: 'cvs-empty' }, '  ask inkbot to draw something')
     }
 
+    // Reusable input bar
+    const inputBar = (active: boolean, borderColor?: string) =>
+      h(
+        Box,
+        {
+          borderStyle: 'single' as const,
+          borderColor: borderColor || (active ? 'gray' : 'blackBright'),
+          paddingX: 1,
+        },
+        h(Text, { color: active ? 'green' : 'blackBright' }, '> '),
+        h(Text, { dimColor: !active }, input),
+        active ? h(Text, { dimColor: true }, '\u2588') : null,
+      )
+
+    // Canvas status bar
+    const canvasStatusBar = h(
+      Box,
+      null,
+      h(Text, { dimColor: true }, ` ${canvasStatus}`),
+      sceneIds.length > 1
+        ? h(Text, { dimColor: true }, `  scenes: ${sceneIds.join(', ')}  active: ${activeId}`)
+        : null,
+    )
+
+    // ─── Layout: split (50/50 side by side) ─────────────────────────
+    if (layout === 'split') {
+      return h(
+        Box,
+        { flexDirection: 'row', width: '100%', height: rows },
+        // Chat Pane
+        h(
+          Box,
+          {
+            key: 'chat',
+            flexDirection: 'column',
+            width: '50%',
+            height: rows,
+            borderStyle: 'round',
+            borderColor: chatFocused ? 'cyan' : 'gray',
+            paddingX: 1,
+          },
+          h(
+            Text,
+            { bold: true, color: chatFocused ? 'cyan' : 'gray' },
+            ' inkbot ',
+            h(Text, { dimColor: true }, `[${mood}]`),
+            !chatFocused ? h(Text, { dimColor: true }, '  (tab)') : null,
+          ),
+          h(Box, { flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }, ...chatChildren),
+          inputBar(chatFocused),
+        ),
+        // Canvas Pane
+        h(
+          Box,
+          {
+            key: 'canvas',
+            flexDirection: 'column',
+            width: '50%',
+            height: rows,
+            borderStyle: 'round',
+            borderColor: canvasFocused ? 'magenta' : 'gray',
+            paddingX: 1,
+          },
+          h(
+            Text,
+            { bold: true, color: canvasFocused ? 'magenta' : 'gray' },
+            ' canvas ',
+            canvasStatus === 'interactive' ? h(Text, { color: 'yellow' }, '[interactive]') : null,
+            !canvasFocused && canvasStatus === 'interactive'
+              ? h(Text, { dimColor: true }, '  (tab)')
+              : null,
+          ),
+          h(Box, { flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }, canvasContent),
+          canvasStatusBar,
+        ),
+      )
+    }
+
+    // ─── Layout: canvas (full-width canvas, chat minimized) ─────────
+    if (layout === 'canvas') {
+      // Last message for the minimized chat strip
+      const lastMsg = visible.length > 0 ? visible[visible.length - 1] : null
+      const lastMsgColor = lastMsg ? (lastMsg.role === 'user' ? 'green' : lastMsg.role === 'system' ? 'red' : 'white') : 'gray'
+      const statusText = thinking
+        ? (streaming ? streaming.slice(0, 60) + (streaming.length > 60 ? '...' : '') : 'thinking...')
+        : activity
+          ? `[${activity}]`
+          : lastMsg
+            ? `${lastMsg.role === 'user' ? '> ' : '  '}${lastMsg.content}`
+            : ''
+
+      return h(
+        Box,
+        { flexDirection: 'column', width: '100%', height: rows },
+        // Canvas — full width, takes most of the space
+        h(
+          Box,
+          {
+            key: 'canvas',
+            flexDirection: 'column',
+            width: '100%',
+            flexGrow: 1,
+            borderStyle: 'round',
+            borderColor: canvasFocused ? 'magenta' : 'gray',
+            paddingX: 1,
+          },
+          h(
+            Box,
+            null,
+            h(
+              Text,
+              { bold: true, color: canvasFocused ? 'magenta' : 'gray' },
+              ' canvas ',
+              canvasStatus === 'interactive' ? h(Text, { color: 'yellow' }, '[interactive] ') : null,
+            ),
+            h(Spacer),
+            h(Text, { dimColor: true }, layoutHint),
+          ),
+          h(Box, { flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }, canvasContent),
+          canvasStatusBar,
+        ),
+        // Chat strip — minimized at the bottom
+        h(
+          Box,
+          {
+            key: 'chat',
+            flexDirection: 'column',
+            width: '100%',
+            borderStyle: 'round',
+            borderColor: chatFocused ? 'cyan' : 'gray',
+            paddingX: 1,
+          },
+          h(
+            Box,
+            null,
+            h(
+              Text,
+              { bold: true, color: chatFocused ? 'cyan' : 'gray' },
+              ' inkbot ',
+              h(Text, { dimColor: true }, `[${mood}] `),
+            ),
+            h(Text, {
+              wrap: 'truncate-end',
+              dimColor: !thinking,
+              color: thinking ? 'yellow' : lastMsgColor,
+            }, statusText),
+          ),
+          inputBar(chatFocused),
+        ),
+      )
+    }
+
+    // ─── Layout: chat (full-width chat, canvas minimized) ───────────
     return h(
       Box,
-      { flexDirection: 'row', width: '100%', height: rows },
-      // ── Chat Pane ──
+      { flexDirection: 'column', width: '100%', height: rows },
+      // Chat — full width, takes most of the space
       h(
         Box,
         {
           key: 'chat',
           flexDirection: 'column',
-          width: '50%',
-          height: rows,
+          width: '100%',
+          flexGrow: 1,
           borderStyle: 'round',
           borderColor: chatFocused ? 'cyan' : 'gray',
           paddingX: 1,
         },
         h(
-          Text,
-          { bold: true, color: chatFocused ? 'cyan' : 'gray' },
-          ' inkbot ',
-          h(Text, { dimColor: true }, `[${mood}]`),
-          !chatFocused ? h(Text, { dimColor: true }, '  (tab to focus)') : null,
+          Box,
+          null,
+          h(
+            Text,
+            { bold: true, color: chatFocused ? 'cyan' : 'gray' },
+            ' inkbot ',
+            h(Text, { dimColor: true }, `[${mood}]`),
+          ),
+          h(Spacer),
+          h(Text, { dimColor: true }, layoutHint),
         ),
         h(Box, { flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }, ...chatChildren),
-        h(
-          Box,
-          {
-            borderStyle: 'single',
-            borderColor: chatFocused ? 'gray' : 'blackBright',
-            paddingX: 1,
-          },
-          h(Text, { color: chatFocused ? 'green' : 'blackBright' }, '> '),
-          h(Text, { dimColor: !chatFocused }, input),
-          chatFocused ? h(Text, { dimColor: true }, '\u2588') : null,
-        ),
+        inputBar(chatFocused),
       ),
-      // ── Canvas Pane ──
+      // Canvas strip — minimized at the bottom
       h(
         Box,
         {
           key: 'canvas',
-          flexDirection: 'column',
-          width: '50%',
-          height: rows,
+          flexDirection: 'row',
+          width: '100%',
           borderStyle: 'round',
           borderColor: canvasFocused ? 'magenta' : 'gray',
           paddingX: 1,
@@ -641,26 +826,16 @@ Inkbot's question: `
           Text,
           { bold: true, color: canvasFocused ? 'magenta' : 'gray' },
           ' canvas ',
-          canvasStatus === 'interactive'
-            ? h(Text, { color: 'yellow' }, '[interactive]')
-            : null,
-          !canvasFocused && canvasStatus === 'interactive'
-            ? h(Text, { dimColor: true }, '  (tab to focus)')
-            : null,
         ),
-        h(
-          Box,
-          { flexDirection: 'column', flexGrow: 1, overflow: 'hidden' },
-          canvasContent,
-        ),
-        h(
-          Box,
-          null,
-          h(Text, { dimColor: true }, ` ${canvasStatus}`),
-          sceneIds.length > 1
-            ? h(Text, { dimColor: true }, `  scenes: ${sceneIds.join(', ')}  active: ${activeId}`)
-            : null,
-        ),
+        h(Text, { dimColor: true }, `${canvasStatus}`),
+        sceneIds.length > 0
+          ? h(Text, { dimColor: true }, `  [${activeId || 'none'}]`)
+          : null,
+        canvasStatus === 'interactive'
+          ? h(Text, { color: 'yellow' }, '  (tab to interact)')
+          : null,
+        h(Spacer),
+        h(Text, { dimColor: true }, layoutHint),
       ),
     )
   }
