@@ -10,7 +10,15 @@ The `AGIContainer` extends the node stack with features, clients, and servers fo
 
 ## Installation
 
-### Download the binary
+### Quick install (macOS/Linux)
+
+```sh
+curl -fsSL https://luca-js.soederpop.com/install.sh | bash
+```
+
+This detects your platform, downloads the right binary, and puts `luca` in your path. Done.
+
+### Manual download
 
 Grab the latest release for your platform from [GitHub Releases](https://github.com/soederpop/luca/releases/latest):
 
@@ -21,33 +29,6 @@ Grab the latest release for your platform from [GitHub Releases](https://github.
 | Linux x64 | `luca-linux-x64` |
 | Linux ARM64 | `luca-linux-arm64` |
 | Windows x64 | `luca-windows-x64.exe` |
-
-**Quick install (macOS/Linux):**
-
-```sh
-# Download (replace PLATFORM with your arch, e.g. darwin-arm64)
-curl -L -o luca https://github.com/soederpop/luca/releases/latest/download/luca-PLATFORM
-chmod +x luca
-sudo mv luca /usr/local/bin/
-```
-
-### macOS Gatekeeper warning
-
-The binary is not yet code-signed (code signing is in progress). On first run macOS will block it with *"luca can't be opened because Apple cannot check it for malicious software."*
-
-To allow it:
-
-1. **System Settings** > **Privacy & Security** > scroll down to the Security section
-2. You'll see a message about `luca` being blocked — click **Allow Anyway**
-3. Run `luca` again and click **Open** in the confirmation dialog
-
-Or from the terminal:
-
-```sh
-xattr -d com.apple.quarantine /usr/local/bin/luca
-```
-
-After that it runs without interruption.
 
 ### Verify
 
