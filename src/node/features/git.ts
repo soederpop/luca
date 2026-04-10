@@ -133,9 +133,9 @@ export class Git extends Feature {
         return this.container.feature('proc').exec(`${this.gitPath} ls-files ${baseDir} ${flags.join(' ')}`, { 
             cwd: this.repoRoot,
             maxBuffer: 1024 * 1024 * 100,
-        }).trim().split("\n")
+        }).trim().split(/\r?\n/)
     }
-    
+
     /**
      * Gets the current Git branch name.
      * 
@@ -151,7 +151,7 @@ export class Git extends Feature {
      */
     get branch(): string | null {
         if(!this.isRepo) { return null }
-        return this.container.feature('proc').exec(`${this.gitPath} branch`).split("\n").filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
+        return this.container.feature('proc').exec(`${this.gitPath} branch`).split(/\r?\n/).filter(line => line.startsWith('*')).map(line => line.replace('*', '').trim()).pop() ?? null
     }
     
     /**
@@ -396,7 +396,7 @@ export class Git extends Feature {
 
         const { colors } = this.container.feature('ui')
 
-        const lines = raw.split('\n')
+        const lines = raw.split(/\r?\n/)
         const colored = lines.map(line => {
             if (line.startsWith('diff --git') || line.startsWith('index ')) {
                 return colors.bold(line)
@@ -571,7 +571,7 @@ export class Git extends Feature {
             const changedFiles = proc.exec(
                 `${this.gitPath} diff-tree --no-commit-id --name-only -r ${commit.sha}`,
                 { cwd: root }
-            ).trim().split('\n').filter(Boolean)
+            ).trim().split(/\r?\n/).filter(Boolean)
 
             const changedAbsolute = changedFiles.map(f => resolve(root, f))
 

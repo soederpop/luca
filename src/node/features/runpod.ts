@@ -522,7 +522,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'pod', '-a'])
 		const pods = output
 			.trim()
-			.split("\n")
+			.split(/\r?\n/)
 			.slice(1)
 			.map(line => line.trim().split("\t"))
 			.map((fields) => fields.map(f => f.trim()))
@@ -563,7 +563,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 
 		return output
 			.trim()
-			.split("\n")
+			.split(/\r?\n/)
 			.slice(1)	
 			.map(line => line.trim().split("\t"))
 			.map((fields) => fields.map(f => f.trim()))
@@ -600,7 +600,7 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		const { stdout: output } = await this.proc.spawnAndCapture(this.runpodctlPath, ['get', 'cloud', '--secure'])
 
 		return output
-			.split("\n")
+			.split(/\r?\n/)
 			.filter((line) => !line.includes("Reserved"))
 			.map(line => line.trim().split("\t"))
 			.filter(list => list.length > 3)

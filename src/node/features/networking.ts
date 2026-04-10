@@ -679,7 +679,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
 
   private parseNmapGrepable(output: string): NmapHost[] {
     const hostMap = new Map<string, NmapHost>()
-    const lines = output.split('\n').map(line => line.trim()).filter(Boolean)
+    const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
 
     for (const line of lines) {
       if (!line.startsWith('Host: ')) {
@@ -740,7 +740,7 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
 
   private parseArpOutput(output: string): ArpEntry[] {
     const entries = new Map<string, ArpEntry>()
-    const lines = output.split('\n').map(line => line.trim()).filter(Boolean)
+    const lines = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
     let currentInterface: string | undefined
 
     for (const line of lines) {

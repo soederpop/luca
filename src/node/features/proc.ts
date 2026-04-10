@@ -427,7 +427,7 @@ export class ChildProcess extends Feature {
       }
 
       return [...new Set(
-        output.split('\n').map((line) => parseInt(line.trim(), 10)).filter((pid) => !isNaN(pid))
+        output.split(/\r?\n/).map((line) => parseInt(line.trim(), 10)).filter((pid) => !isNaN(pid))
       )]
     } catch {
       return []

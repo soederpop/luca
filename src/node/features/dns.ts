@@ -630,7 +630,7 @@ export class Dns extends Feature<DnsState, DnsOptions> {
   /** Parses dig's answer section into structured records. */
   private parseDigAnswer(output: string): DnsRecord[] {
     const records: DnsRecord[] = []
-    const lines = output.split('\n')
+    const lines = output.split(/\r?\n/)
 
     for (const line of lines) {
       const trimmed = line.trim()

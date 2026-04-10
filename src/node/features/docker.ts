@@ -198,8 +198,8 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     
     if (result.exitCode === 0) {
       const containers: DockerContainer[] = []
-      const lines = result.stdout.trim().split('\n').filter(line => line.trim())
-      
+      const lines = result.stdout.trim().split(/\r?\n/).filter(line => line.trim())
+
       for (const line of lines) {
         try {
           const containerData = JSON.parse(line)
@@ -242,8 +242,8 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     
     if (result.exitCode === 0) {
       const images: DockerImage[] = []
-      const lines = result.stdout.trim().split('\n').filter(line => line.trim())
-      
+      const lines = result.stdout.trim().split(/\r?\n/).filter(line => line.trim())
+
       for (const line of lines) {
         try {
           const imageData = JSON.parse(line)

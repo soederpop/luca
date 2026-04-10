@@ -102,7 +102,7 @@ export class Repl<
     // Load existing history
     try {
       const content = this.container.fs.readFile(this._historyPath, 'utf-8') as string
-      this._history = content.split('\n').filter(Boolean).reverse()
+      this._history = content.split(/\r?\n/).filter(Boolean).reverse()
     } catch {}
 
     // Build VM context

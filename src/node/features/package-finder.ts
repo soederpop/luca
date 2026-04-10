@@ -492,7 +492,7 @@ export class PackageFinder<
   async findLocalPackageFolders(): Promise<string[]> {
 	  const cmd = "find . -name package.json"
 	  const result = this.container.proc.exec(cmd)
-	  const all = result.split("\n").filter(Boolean).map((path: string) => this.container.paths.dirname(path))
+	  const all = result.split(/\r?\n/).filter(Boolean).map((path: string) => this.container.paths.dirname(path))
 	  return all.filter((i: string) => !i.match(/node_modules/))
   }
    

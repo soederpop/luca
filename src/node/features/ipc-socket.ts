@@ -602,7 +602,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
   private _handleChunk(socket: Socket, chunk: Buffer): void {
     let buffer = (this._buffers.get(socket) || '') + chunk.toString()
-    const lines = buffer.split('\n')
+    const lines = buffer.split(/\r?\n/)
     this._buffers.set(socket, lines.pop() || '')
 
     for (const line of lines) {
