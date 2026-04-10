@@ -113,6 +113,7 @@ jobs:
         run: |
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
             --force --options runtime --timestamp dist/release/luca-darwin-x64
+          codesign --remove-signature dist/release/luca-darwin-arm64
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
             --force --options runtime --timestamp dist/release/luca-darwin-arm64
 

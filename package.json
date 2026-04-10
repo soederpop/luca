@@ -1,7 +1,7 @@
 {
   "name": "luca",
-  "version": "3.0.0",
   "website": "https://luca-js.soederpop.com",
+  "version": "3.0.0",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
   "type": "module",
