@@ -95,16 +95,20 @@ async function main() {
 			const cmd = container.command('run' as any)
 			await cmd.dispatch()
 		} else {
+			const phrase = container.argv._.join(' ')
 
+			// easter egg
+			if (phrase === 'get loopy') {
+				await getLoopy(container)
 			// @ts-ignore TODO come up with a typesafe way to do this
-			if (container.state.get('missingCommandHandler')) {
+			} else if (container.state.get('missingCommandHandler')) {
 				// @ts-ignore TODO come up with a typesafe way to do this
 				const missingCommandHandler = container.state.get('missingCommandHandler') as any
 
 				if (typeof missingCommandHandler === 'function') {
 					await missingCommandHandler({
 						words: container.argv._,
-						phrase: container.argv._.join(' ')
+						phrase,
 					}).catch((err: any) => {
 						console.error(`Missing command handler error: ${err.message}`, err)
 					})
@@ -198,6 +202,154 @@ async function discoverUserHelpers() {
 			await helpers.discover(type, { directory: dir })
 		}
 	}
+}
+
+async function getLoopy(container: any) {
+	const fs = container.feature('fs')
+	const ui = container.feature('ui')
+	const os = container.feature('os')
+	const proc = container.feature('proc')
+
+	const repoUrl = 'https://github.com/soederpop/agentic-loop.git'
+	const appDir = container.paths.resolve(os.homedir, '.luca', 'apps', 'agentic-loop')
+
+	console.log(ui.colors.cyan('Getting loopy...'))
+
+	// Clone (or pull) the agentic-loop repo into ~/.luca/apps/agentic-loop
+	fs.ensureFolder(container.paths.resolve(os.homedir, '.luca', 'apps'))
+
+	if (fs.existsSync(container.paths.resolve(appDir, '.git'))) {
+		console.log(ui.colors.cyan('  Updating agentic-loop repo...'))
+		await proc.exec('git pull', { cwd: appDir })
+	} else {
+		// Clean out any stale non-git copy
+		if (fs.existsSync(appDir)) {
+			await proc.exec(`rm -rf ${appDir}`)
+		}
+		console.log(ui.colors.cyan('  Cloning agentic-loop repo...'))
+		await proc.exec(`git clone ${repoUrl} ${appDir}`)
+	}
+
+	// Install dependencies
+	console.log(ui.colors.cyan('  Installing dependencies...'))
+	await proc.exec('bun install', { cwd: appDir })
+
+	// Copy assistants into the local project
+	console.log(ui.colors.cyan('  Setting up assistants...'))
+	const assistantsDir = container.paths.resolve('assistants')
+	fs.ensureFolder(assistantsDir)
+	for (const assistant of ['lucaCoder', 'chiefOfStaff', 'rocket', 'researcher']) {
+		const src = container.paths.resolve(appDir, 'assistants', assistant)
+		const dest = container.paths.resolve(assistantsDir, assistant)
+		if (fs.existsSync(src) && !fs.existsSync(dest)) {
+			fs.copy(src, dest)
+		}
+	}
+
+	// Copy scripts into the local project
+	console.log(ui.colors.cyan('  Setting up scripts...'))
+	const scriptsSrc = container.paths.resolve(appDir, 'scripts')
+	const scriptsDest = container.paths.resolve('scripts')
+	if (fs.existsSync(scriptsSrc)) {
+		fs.copy(scriptsSrc, scriptsDest)
+	}
+
+	// Copy apps (native swift app) into the local project
+	console.log(ui.colors.cyan('  Setting up apps...'))
+	const appsSrc = container.paths.resolve(appDir, 'apps')
+	const appsDest = container.paths.resolve('apps')
+	if (fs.existsSync(appsSrc) && !fs.existsSync(appsDest)) {
+		fs.copy(appsSrc, appsDest)
+	}
+
+	// Copy config.example.yml as config.yml
+	const configSrc = container.paths.resolve(appDir, 'config.example.yml')
+	const configDest = container.paths.resolve('config.yml')
+	if (fs.existsSync(configSrc) && !fs.existsSync(configDest)) {
+		console.log(ui.colors.cyan('  Setting up config.yml...'))
+		fs.copy(configSrc, configDest)
+	}
+
+	// Set up the docs folder structure
+	console.log(ui.colors.cyan('  Setting up docs...'))
+	const docsDir = container.paths.resolve('docs')
+	fs.ensureFolder(docsDir)
+
+	for (const sub of ['goals', 'ideas', 'projects', 'plans', 'plays', 'prompts', 'tasks', 'reports']) {
+		fs.ensureFolder(container.paths.resolve(docsDir, sub))
+	}
+
+	// Copy docs/models.ts
+	const modelsSrc = container.paths.resolve(appDir, 'docs', 'models.ts')
+	if (fs.existsSync(modelsSrc)) {
+		fs.copy(modelsSrc, container.paths.resolve(docsDir, 'models.ts'))
+	}
+
+	// Copy docs/templates
+	const templatesSrc = container.paths.resolve(appDir, 'docs', 'templates')
+	const templatesDest = container.paths.resolve(docsDir, 'templates')
+	if (fs.existsSync(templatesSrc)) {
+		fs.copy(templatesSrc, templatesDest)
+	}
+
+	// Copy starter docs (VISION.md, memories/)
+	const visionSrc = container.paths.resolve(appDir, 'docs', 'templates', 'starter-docs', 'VISION.md')
+	const visionDest = container.paths.resolve(docsDir, 'VISION.md')
+	if (fs.existsSync(visionSrc) && !fs.existsSync(visionDest)) {
+		fs.copy(visionSrc, visionDest)
+	}
+
+	const memoriesSrc = container.paths.resolve(appDir, 'docs', 'templates', 'starter-docs', 'memories')
+	const memoriesDest = container.paths.resolve(docsDir, 'memories')
+	if (fs.existsSync(memoriesSrc) && !fs.existsSync(memoriesDest)) {
+		fs.copy(memoriesSrc, memoriesDest)
+	}
+
+	// Replace the project's luca.cli.ts with the agentic-loop version
+	const loopyCli = [
+		'/**',
+		' * luca.cli.ts — Agentic Loop project customization',
+		' *',
+		' * Automatically loaded by the luca CLI before any command runs.',
+		' * Discovers local helpers and loads agentic-loop shared resources.',
+		' */',
+		'',
+		'export async function main(container: any) {',
+		'  // Discover project-level helpers (commands/, features/, endpoints/)',
+		'  await container.helpers.discoverAll()',
+		'',
+		'  await loadAgenticLoop(container)',
+		'',
+		'  // Handle unknown commands gracefully instead of silently failing',
+		'  container.onMissingCommand(async ({ phrase }: { phrase: string }) => {',
+		"    container.command('help').dispatch()",
+		'  })',
+		'}',
+		'',
+		'async function loadAgenticLoop(container) {',
+		'  try {',
+		"    const agenticLoopRoot = container.paths.resolve(container.os.homedir, '.luca', 'apps', 'agentic-loop')",
+		'',
+		'    // use the agentic loop commands, etc',
+		"    await container.feature('helpers', { rootDir: agenticLoopRoot }).discoverAll()",
+		'',
+		"    if (container.features.has('workflowLibrary')) {",
+		"      const workflowLibrary = container.feature('workflowLibrary')",
+		"      workflowLibrary.addWorkflowsDir(container.paths.resolve(agenticLoopRoot, 'workflows'))",
+		'    }',
+		'',
+		'  } catch(error) {',
+		'    console.error("Error loading the agentic loop helpers", error.message)',
+		'  }',
+		'}',
+		'',
+	].join('\n')
+
+	fs.writeFile(container.paths.resolve('luca.cli.ts'), loopyCli)
+
+	console.log(ui.colors.green('Loopy installed! You now have agentic-loop commands, features, workflows, and assistants.'))
+	console.log('')
+	console.log(ui.colors.cyan('  Next step: run scripts/install.sh to finish setup'))
 }
 
 main()
