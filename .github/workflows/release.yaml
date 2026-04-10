@@ -69,74 +69,7 @@ jobs:
           name: windows-binaries
           path: dist/release/luca-windows-x64.exe
 
-  build-macos-x64:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Pre-build steps
-        run: |
-          bash scripts/stamp-build.sh
-          bun run build:introspection
-          bun run build:scaffolds
-          bun run build:bootstrap
-          bun run build:python-bridge
-
-      - name: Build macOS x64 binary
-        run: |
-          mkdir -p dist/release
-          bun build ./src/cli/cli.ts --compile --target=bun-darwin-x64 --outfile dist/release/luca-darwin-x64 --external node-llama-cpp
-
-      - name: Import Developer ID Certificate
-        env:
-          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
-          security create-keychain -p "" build.keychain
-          security import certificate.p12 -k build.keychain \
-            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security list-keychains -s build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security set-key-partition-list -S apple-tool:,apple: \
-            -s -k "" build.keychain
-
-      - name: Sign macOS x64 binary
-        run: |
-          codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
-            --force --options runtime --timestamp dist/release/luca-darwin-x64
-
-      - name: Notarize macOS x64 binary
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          zip dist/release/luca-darwin-x64.zip dist/release/luca-darwin-x64
-          xcrun notarytool submit dist/release/luca-darwin-x64.zip \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait
-
-      - name: Staple notarization
-        run: |
-          xcrun stapler staple dist/release/luca-darwin-x64 || true
-
-      - name: Upload macOS x64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-x64-binary
-          path: dist/release/luca-darwin-x64
-
-  build-macos-arm64:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,10 +88,17 @@ jobs:
           bun run build:bootstrap
           bun run build:python-bridge
 
-      - name: Build macOS arm64 binary
+      - name: Build macOS binaries
         run: |
           mkdir -p dist/release
+          bun build ./src/cli/cli.ts --compile --target=bun-darwin-x64 --outfile dist/release/luca-darwin-x64 --external node-llama-cpp
           bun build ./src/cli/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/release/luca-darwin-arm64 --external node-llama-cpp
+
+      - name: Verify binaries
+        run: |
+          file dist/release/luca-darwin-x64
+          file dist/release/luca-darwin-arm64
+          ls -lh dist/release/luca-darwin-*
 
       - name: Import Developer ID Certificate
         env:
@@ -175,17 +115,26 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: \
             -s -k "" build.keychain
 
-      - name: Sign macOS arm64 binary
+      - name: Sign macOS binaries
         run: |
+          codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
+            --force --options runtime --timestamp dist/release/luca-darwin-x64
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
             --force --options runtime --timestamp dist/release/luca-darwin-arm64
 
-      - name: Notarize macOS arm64 binary
+      - name: Notarize macOS binaries
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          zip dist/release/luca-darwin-x64.zip dist/release/luca-darwin-x64
+          xcrun notarytool submit dist/release/luca-darwin-x64.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
           zip dist/release/luca-darwin-arm64.zip dist/release/luca-darwin-arm64
           xcrun notarytool submit dist/release/luca-darwin-arm64.zip \
             --apple-id "$APPLE_ID" \
@@ -195,16 +144,19 @@ jobs:
 
       - name: Staple notarization
         run: |
+          xcrun stapler staple dist/release/luca-darwin-x64 || true
           xcrun stapler staple dist/release/luca-darwin-arm64 || true
 
-      - name: Upload macOS arm64 artifact
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64-binary
-          path: dist/release/luca-darwin-arm64
+          name: macos-binaries
+          path: dist/release/luca-darwin-*
+          exclude: |
+            dist/release/*.zip
 
   create-release:
-    needs: [build-linux, build-windows, build-macos-x64, build-macos-arm64]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
