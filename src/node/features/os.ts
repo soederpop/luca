@@ -1,6 +1,7 @@
 import { Feature } from '../feature.js'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import os from 'os'
+import { join } from 'path'
 
 /** Information about a connected display. */
 export interface DisplayInfo {
@@ -162,6 +163,174 @@ export class OS extends Feature {
    */
   get macAddresses() : string[] {
     return Object.values(this.networkInterfaces).flat().filter(v => typeof v !== 'undefined' && v.internal === false && v.family === 'IPv4').map(v => v?.mac!).filter(Boolean)
+  }
+
+  // ── Cross-platform helpers ───────────────────────────────────────────
+
+  /**
+   * Whether the current platform is Windows.
+   *
+   * @returns {boolean}
+   *
+   * @example
+   * ```typescript
+   * if (os.isWindows) {
+   *   console.log('Running on Windows')
+   * }
+   * ```
+   */
+  get isWindows(): boolean {
+    return os.platform() === 'win32'
+  }
+
+  /**
+   * Whether the current platform is macOS.
+   *
+   * @returns {boolean}
+   *
+   * @example
+   * ```typescript
+   * if (os.isMac) {
+   *   console.log('Running on macOS')
+   * }
+   * ```
+   */
+  get isMac(): boolean {
+    return os.platform() === 'darwin'
+  }
+
+  /**
+   * Whether the current platform is Linux.
+   *
+   * @returns {boolean}
+   *
+   * @example
+   * ```typescript
+   * if (os.isLinux) {
+   *   console.log('Running on Linux')
+   * }
+   * ```
+   */
+  get isLinux(): boolean {
+    return os.platform() === 'linux'
+  }
+
+  /**
+   * The platform's default shell for executing command strings.
+   * Returns `cmd.exe` on Windows, `sh` on Unix.
+   *
+   * @returns {string}
+   *
+   * @example
+   * ```typescript
+   * // spawn a shell command cross-platform
+   * await proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])
+   * ```
+   */
+  get shell(): string {
+    return this.isWindows ? 'cmd.exe' : 'sh'
+  }
+
+  /**
+   * The flag used to pass a command string to the platform shell.
+   * Returns `/c` on Windows, `-c` on Unix.
+   *
+   * @returns {string}
+   *
+   * @example
+   * ```typescript
+   * await proc.spawnAndCapture(os.shell, [os.shellFlag, command])
+   * ```
+   */
+  get shellFlag(): string {
+    return this.isWindows ? '/c' : '-c'
+  }
+
+  /**
+   * The separator used in the PATH environment variable.
+   * Returns `;` on Windows, `:` on Unix.
+   *
+   * @returns {string}
+   *
+   * @example
+   * ```typescript
+   * const dirs = process.env.PATH?.split(os.pathSeparator) ?? []
+   * ```
+   */
+  get pathSeparator(): string {
+    return this.isWindows ? ';' : ':'
+  }
+
+  /**
+   * Platform-appropriate cache directory for luca.
+   * - Windows: `%LOCALAPPDATA%\luca`
+   * - macOS/Linux: `~/.cache/luca` (respects `XDG_CACHE_HOME`)
+   *
+   * @returns {string}
+   *
+   * @example
+   * ```typescript
+   * const cachePath = os.cacheDir
+   * // '/home/user/.cache/luca' on Linux
+   * // 'C:\Users\user\AppData\Local\luca' on Windows
+   * ```
+   */
+  get cacheDir(): string {
+    if (this.isWindows) {
+      return join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'luca')
+    }
+    const xdg = process.env.XDG_CACHE_HOME || join(os.homedir(), '.cache')
+    return join(xdg, 'luca')
+  }
+
+  /**
+   * Platform-appropriate config directory for luca.
+   * - Windows: `%APPDATA%\luca`
+   * - macOS: `~/.luca`
+   * - Linux: `~/.config/luca` (respects `XDG_CONFIG_HOME`)
+   *
+   * @returns {string}
+   *
+   * @example
+   * ```typescript
+   * const configPath = os.configDir
+   * ```
+   */
+  get configDir(): string {
+    if (this.isWindows) {
+      return join(process.env.APPDATA || join(os.homedir(), 'AppData', 'Roaming'), 'luca')
+    }
+    if (this.isMac) {
+      return join(os.homedir(), '.luca')
+    }
+    const xdg = process.env.XDG_CONFIG_HOME || join(os.homedir(), '.config')
+    return join(xdg, 'luca')
+  }
+
+  /**
+   * Resolve the absolute path to a binary using the platform's lookup command.
+   * Uses `where` on Windows, `which` on Unix. Returns the binary name as-is
+   * if resolution fails (so downstream code can still try the bare name).
+   *
+   * @param {string} bin - The binary name to look up (e.g. 'git', 'docker', 'ssh')
+   * @returns {string} The resolved absolute path, or the bare binary name on failure
+   *
+   * @example
+   * ```typescript
+   * const gitPath = os.whichCommand('git')
+   * // '/usr/bin/git' on macOS, 'C:\Program Files\Git\cmd\git.exe' on Windows
+   * ```
+   */
+  whichCommand(bin: string): string {
+    const proc = this.container.feature('proc')
+    const cmd = this.isWindows ? `where ${bin}` : `which ${bin}`
+    try {
+      const result = proc.exec(cmd).trim()
+      // `where` on Windows can return multiple lines; take the first
+      return result.split(/\r?\n/)[0]!.trim()
+    } catch {
+      return bin
+    }
   }
 
   /**

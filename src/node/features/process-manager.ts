@@ -511,7 +511,8 @@ export class ProcessManager extends Feature {
    */
   async runCommand(args: { command: string; cwd?: string }) {
     const proc = this.container.feature('proc') as ChildProcess
-    const result = await proc.spawnAndCapture('sh', ['-c', args.command], {
+    const osFeature = this.container.feature('os')
+    const result = await proc.spawnAndCapture(osFeature.shell, [osFeature.shellFlag, args.command], {
       cwd: args.cwd ?? this.container.cwd,
     })
 

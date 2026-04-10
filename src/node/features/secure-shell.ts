@@ -71,22 +71,14 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	/** Resolved path to the ssh binary */
 	get sshPath(): string {
 		if (this._resolvedSshPath) return this._resolvedSshPath
-		try {
-			this._resolvedSshPath = this.proc.exec('which ssh').trim()
-		} catch {
-			this._resolvedSshPath = 'ssh'
-		}
+		this._resolvedSshPath = this.container.feature('os').whichCommand('ssh')
 		return this._resolvedSshPath
 	}
 
 	/** Resolved path to the scp binary */
 	get scpPath(): string {
 		if (this._resolvedScpPath) return this._resolvedScpPath
-		try {
-			this._resolvedScpPath = this.proc.exec('which scp').trim()
-		} catch {
-			this._resolvedScpPath = 'scp'
-		}
+		this._resolvedScpPath = this.container.feature('os').whichCommand('scp')
 		return this._resolvedScpPath
 	}
 
@@ -193,8 +185,9 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 		const sshCmd = `${this.buildSSHConnectionString()} "${command}"`
 
 		try {
-			// Use bash -c to avoid execAndCapture splitting the command on spaces
-			const result = await this.proc.spawnAndCapture('bash', ['-c', sshCmd])
+			// Use the platform shell to avoid execAndCapture splitting the command on spaces
+			const osFeature = this.container.feature('os')
+			const result = await this.proc.spawnAndCapture(osFeature.shell, [osFeature.shellFlag, sshCmd])
 
 			if (result.exitCode !== 0) {
 				throw new Error(`SSH command failed with exit code ${result.exitCode}: ${result.stderr}`)

@@ -107,15 +107,11 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     return this.container.feature('proc')
   }
 
-  /** Resolve the docker binary path via `which`, caching the result. Options take precedence. */
+  /** Resolve the docker binary path, caching the result. Options take precedence. */
   get dockerPath(): string {
     if (this.options.dockerPath) return this.options.dockerPath
     if (this._resolvedDockerPath) return this._resolvedDockerPath
-    try {
-      this._resolvedDockerPath = this.proc.exec('which docker').trim()
-    } catch {
-      this._resolvedDockerPath = 'docker'
-    }
+    this._resolvedDockerPath = this.container.feature('os').whichCommand('docker')
     return this._resolvedDockerPath
   }
 

@@ -340,7 +340,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
   create(path?: string) {
     if (!path && !this.options.path) {
       const cwdHash = this.container.utils.hashObject(this.container.cwd)
-      path = this.container.paths.resolve(process.env.HOME!, '.cache', 'luca', `disk-cache-${cwdHash}`)
+      path = this.container.paths.resolve(this.container.feature('os').cacheDir, `disk-cache-${cwdHash}`)
     } else {
       path = path || this.options.path!
     }

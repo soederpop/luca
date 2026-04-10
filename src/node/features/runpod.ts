@@ -44,14 +44,10 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 		return this.container.feature('proc')
 	}
 
-	/** Resolve the runpodctl binary path via `which`, caching the result. */
+	/** Resolve the runpodctl binary path, caching the result. */
 	get runpodctlPath(): string {
 		if (this._resolvedRunpodctlPath) return this._resolvedRunpodctlPath
-		try {
-			this._resolvedRunpodctlPath = this.proc.exec('which runpodctl').trim()
-		} catch {
-			this._resolvedRunpodctlPath = 'runpodctl'
-		}
+		this._resolvedRunpodctlPath = this.container.feature('os').whichCommand('runpodctl')
 		return this._resolvedRunpodctlPath
 	}
 

@@ -94,7 +94,7 @@ export class Repl<
       this._historyPath = this.container.paths.resolve(userHistoryPath)
     } else {
       const cwdHash = this.container.utils.hashObject(this.container.cwd)
-      this._historyPath = this.container.paths.resolve(process.env.HOME!, '.cache', 'luca', `repl-${cwdHash}.history`)
+      this._historyPath = this.container.paths.resolve(this.container.feature('os').cacheDir, `repl-${cwdHash}.history`)
     }
 
     this.container.fs.ensureFolder(this.container.paths.dirname(this._historyPath))

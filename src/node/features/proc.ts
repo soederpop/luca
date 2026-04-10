@@ -406,11 +406,25 @@ export class ChildProcess extends Feature {
    */
   findPidsByPort(port: number): number[] {
     try {
-      const output = execSync(`lsof -ti :${port}`, { stdio: ['pipe', 'pipe', 'pipe'] })
+      const isWindows = process.platform === 'win32'
+      const cmd = isWindows
+        ? `netstat -ano | findstr :${port} | findstr LISTENING`
+        : `lsof -ti :${port}`
+      const output = execSync(cmd, { stdio: ['pipe', 'pipe', 'pipe'] })
         .toString()
         .trim()
 
       if (!output) return []
+
+      if (isWindows) {
+        // netstat lines end with the PID: "  TCP  0.0.0.0:3000  0.0.0.0:0  LISTENING  1234"
+        return [...new Set(
+          output.split(/\r?\n/).map((line) => {
+            const parts = line.trim().split(/\s+/)
+            return parseInt(parts[parts.length - 1]!, 10)
+          }).filter((pid) => !isNaN(pid))
+        )]
+      }
 
       return [...new Set(
         output.split('\n').map((line) => parseInt(line.trim(), 10)).filter((pid) => !isNaN(pid))
@@ -461,9 +475,19 @@ export class ChildProcess extends Feature {
    */
   isProcessRunning(name: string): boolean {
     try {
-      const output = execSync(`pgrep -x ${name}`, { stdio: ['pipe', 'pipe', 'pipe'] })
+      const isWindows = process.platform === 'win32'
+      const cmd = isWindows
+        ? `tasklist /FI "IMAGENAME eq ${name}" /NH`
+        : `pgrep -x ${name}`
+      const output = execSync(cmd, { stdio: ['pipe', 'pipe', 'pipe'] })
         .toString()
         .trim()
+
+      if (isWindows) {
+        // tasklist returns "INFO: No tasks are running..." when not found
+        return !output.toLowerCase().includes('no tasks') && output.length > 0
+      }
+
       return output.length > 0
     } catch {
       return false

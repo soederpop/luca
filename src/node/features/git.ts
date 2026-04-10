@@ -53,14 +53,10 @@ export class Git extends Feature {
 
     private _resolvedGitPath: string | null = null
 
-    /** Resolve the git binary path via `which`, caching the result. */
+    /** Resolve the git binary path, caching the result. */
     get gitPath(): string {
         if (this._resolvedGitPath) return this._resolvedGitPath
-        try {
-            this._resolvedGitPath = this.container.feature('proc').exec('which git').trim()
-        } catch {
-            this._resolvedGitPath = 'git'
-        }
+        this._resolvedGitPath = this.container.feature('os').whichCommand('git')
         return this._resolvedGitPath
     }
 

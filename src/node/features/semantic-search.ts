@@ -6,6 +6,7 @@ import { Database } from 'bun:sqlite'
 import { createHash } from 'node:crypto'
 import { mkdirSync, existsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { homedir } from 'node:os'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -121,9 +122,10 @@ const MODEL_FILENAMES: Record<string, string> = {
 
 function resolveModelPath(modelName: string): string {
 	const filename = MODEL_FILENAMES[modelName] ?? `${modelName}.gguf`
-	const lucaCache = join(process.env.HOME!, '.cache/luca/models', filename)
+	const cacheBase = process.env.XDG_CACHE_HOME || join(homedir(), '.cache')
+	const lucaCache = join(cacheBase, 'luca', 'models', filename)
 	if (existsSync(lucaCache)) return lucaCache
-	const qmdCache = join(process.env.HOME!, '.cache/qmd/models', filename)
+	const qmdCache = join(cacheBase, 'qmd', 'models', filename)
 	if (existsSync(qmdCache)) return qmdCache
 	return lucaCache
 }

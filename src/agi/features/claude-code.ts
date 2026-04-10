@@ -1372,7 +1372,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   }>> {
     const fs = this.container.feature('fs')
     const proc = this.container.feature('proc')
-    const home = process.env.HOME ?? '/tmp'
+    const home = this.container.feature('os').homedir
     const sessionsDir = `${home}/.claude/sessions`
 
     let files: string[]
@@ -1423,7 +1423,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     entrypoint: string
   } | null> {
     const fs = this.container.feature('fs')
-    const home = process.env.HOME ?? '/tmp'
+    const home = this.container.feature('os').homedir
     try {
       const raw = await fs.readFile(`${home}/.claude/sessions/${pid}.json`, 'utf8')
       return JSON.parse(raw)
@@ -1450,9 +1450,9 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    */
   async getConversationHistory(sessionId: string, cwd?: string): Promise<any[]> {
     const fs = this.container.feature('fs')
-    const home = process.env.HOME ?? '/tmp'
+    const home = this.container.feature('os').homedir
     const resolvedCwd = cwd ?? this.options.cwd ?? (this.container as any).cwd
-    const encodedCwd = resolvedCwd.replace(/\//g, '-').replace(/@/g, '-')
+    const encodedCwd = resolvedCwd.replace(/[\\/]/g, '-').replace(/@/g, '-')
     const filePath = `${home}/.claude/projects/${encodedCwd}/${sessionId}.jsonl`
     try {
       const raw = await fs.readFile(filePath, 'utf8')
@@ -1484,9 +1484,9 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     messageCount: number
   }>> {
     const fs = this.container.feature('fs')
-    const home = process.env.HOME ?? '/tmp'
+    const home = this.container.feature('os').homedir
     const resolvedCwd = cwd ?? this.options.cwd ?? (this.container as any).cwd
-    const encodedCwd = resolvedCwd.replace(/\//g, '-').replace(/@/g, '-')
+    const encodedCwd = resolvedCwd.replace(/[\\/]/g, '-').replace(/@/g, '-')
     const projectDir = `${home}/.claude/projects/${encodedCwd}`
 
     let files: string[]
