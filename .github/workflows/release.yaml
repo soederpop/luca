@@ -94,12 +94,6 @@ jobs:
           bun build ./src/cli/cli.ts --compile --target=bun-darwin-x64 --outfile dist/release/luca-darwin-x64 --external node-llama-cpp
           bun build ./src/cli/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/release/luca-darwin-arm64 --external node-llama-cpp
 
-      - name: Verify binaries
-        run: |
-          file dist/release/luca-darwin-x64
-          file dist/release/luca-darwin-arm64
-          ls -lh dist/release/luca-darwin-*
-
       - name: Import Developer ID Certificate
         env:
           CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
@@ -119,6 +113,7 @@ jobs:
         run: |
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
             --force --options runtime --timestamp dist/release/luca-darwin-x64
+          codesign --remove-signature dist/release/luca-darwin-arm64
           codesign --sign "Developer ID Application: Demitra Del Fiacco (77WL45HR8M)" \
             --force --options runtime --timestamp dist/release/luca-darwin-arm64
 
