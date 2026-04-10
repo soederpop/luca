@@ -4,9 +4,13 @@
 
 A single binary CLI that ships 40+ self-documenting features, clients, and servers. No `npm install`, no setup — download it and start building.
 
-Luca gives you a `container` object — think of it like a Docker container for your application runtime. It's a per-process singleton, event bus, state machine, and dependency injector all in one. Layer your own features, clients, servers, commands, and endpoints on top of the base `NodeContainer` (server) or `WebContainer` (browser), then bundle it into your own single-file executable or browser build.
+Build beautiful terminal UI's, rest, websocket, ipc servers, clients.  Everything you need for secure, production grade software without ever exposing yourself to the supply chain.
 
-The `AGIContainer` extends the node stack with features, clients, and servers for building AI assistants — wrappers around major coding models, tool orchestration, and UIs to visualize them working.
+Luca makes it very easy to build full process, task-specific Agentic harnesses that work on the server, or in the browser.
+
+Luca provides an Assistant class that combines prompts and tool calls, an assistant can `assistant.use(anyFeatureClientOrServer)` in the framework's container.
+
+The `luca` CLI ships with all of the documentation you, or your AI assistant, could possibly need to build with the framework.
 
 ## Installation
 
