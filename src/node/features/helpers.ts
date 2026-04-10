@@ -473,7 +473,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     for (const absPath of files) {
       const { name: fileName } = parse(absPath)
 
-      if (fileName.includes('.test.') || fileName.includes('.spec.')) {
+      if (fileName.includes('.test.') || fileName.includes('.spec.') || fileName.includes('.generated')) {
         continue
       }
       try {
