@@ -1,5 +1,5 @@
 // Auto-generated Python bridge script
-// Generated at: 2026-04-11T06:50:03.641Z
+// Generated at: 2026-04-11T06:51:51.289Z
 // Source: src/python/bridge.py
 //
 // Do not edit manually. Run: luca build-python-bridge
