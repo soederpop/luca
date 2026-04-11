@@ -274,7 +274,14 @@ Use these tools whenever you are unsure what helpers are available, what a helpe
 		const includeNode = this.shouldIncludeNode(platform)
 		const includeBrowser = this.shouldIncludeBrowser(platform)
 
-		if (lower === 'container' || lower === 'self') {
+		if (
+			lower === 'container' ||
+			lower === 'self' ||
+			lower === 'luca' ||
+			lower === 'lucaframework' ||
+			lower === 'luca-framework' ||
+			lower === 'framework'
+		) {
 			return [{ kind: 'container' }]
 		}
 
