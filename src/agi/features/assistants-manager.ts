@@ -3,7 +3,9 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '../feature.js'
 import type { Assistant } from './assistant.js'
+import type { ConversationHistory, ConversationMeta, ConversationRecord } from './conversation-history.js'
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js'
+import hashObject from '../../hash-object.js'
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -376,6 +378,105 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		for (const { point, fn } of this._interceptors) {
 			instance.intercept(point, fn)
 		}
+	}
+
+	/**
+	 * Reload tools, hooks, and system prompt from disk for active assistants.
+	 * When called with a name, reloads only that assistant. When called without
+	 * arguments, reloads all active instances.
+	 *
+	 * @param {string} [name] - Optional assistant name to reload. Omit to reload all.
+	 * @returns {{ reloaded: string[] }} Names of assistants that were reloaded
+	 * @throws {Error} If a specific name is given but no active instance exists for it
+	 *
+	 * @example
+	 * ```typescript
+	 * manager.reload('researcher')       // reload one
+	 * manager.reload()                    // reload all active
+	 * ```
+	 */
+	reload(name?: string): { reloaded: string[] } {
+		const reloaded: string[] = []
+
+		if (name) {
+			const instance = this.instances[name]
+			if (!instance) {
+				throw new Error(
+					`No active assistant "${name}" to reload. Active: ${Object.keys(this.instances).join(', ') || '(none)'}`
+				)
+			}
+			instance.reload()
+			reloaded.push(name)
+		} else {
+			for (const [key, instance] of Object.entries(this.instances)) {
+				instance.reload()
+				reloaded.push(key)
+			}
+		}
+
+		return { reloaded }
+	}
+
+	/**
+	 * Build the thread prefix for a given assistant name, matching the
+	 * convention used by the Assistant class: `name:cwdHash:`.
+	 * This allows history lookups without an active instance.
+	 *
+	 * @param {string} assistantId - The assistant name
+	 * @returns {string} The thread prefix
+	 */
+	threadPrefixFor(assistantId: string): string {
+		const cwdHash = hashObject(this.container.cwd).slice(0, 8)
+		return `${assistantId}:${cwdHash}:`
+	}
+
+	/**
+	 * Load conversation history for an assistant. Works whether or not the
+	 * assistant is currently instantiated — uses the thread prefix convention
+	 * to query the conversationHistory feature directly.
+	 *
+	 * @param {string} assistantId - The assistant name (e.g. 'researcher')
+	 * @param {object} [options] - Query options
+	 * @param {number} [options.limit] - Maximum number of records to return
+	 * @param {boolean} [options.includeMessages] - Load full records with messages (default: false, returns metadata only)
+	 * @param {string} [options.thread] - Load a specific thread ID instead of all threads for this assistant
+	 * @returns {Promise<ConversationMeta[] | ConversationRecord[]>} Metadata or full records, newest first
+	 *
+	 * @example
+	 * ```typescript
+	 * // List recent sessions (metadata only)
+	 * const sessions = await manager.loadAssistantHistory('researcher', { limit: 5 })
+	 *
+	 * // Load full records with messages
+	 * const full = await manager.loadAssistantHistory('researcher', { includeMessages: true, limit: 3 })
+	 *
+	 * // Load a specific thread
+	 * const thread = await manager.loadAssistantHistory('researcher', { thread: 'researcher:abc12345:2026-04-12' })
+	 * ```
+	 */
+	async loadAssistantHistory(
+		assistantId: string,
+		options?: { limit?: number; includeMessages?: boolean; thread?: string },
+	): Promise<ConversationMeta[] | ConversationRecord[]> {
+		const history = this.container.feature('conversationHistory') as ConversationHistory
+
+		if (options?.thread) {
+			const record = await history.findByThread(options.thread)
+			return record ? [record] : []
+		}
+
+		const prefix = this.threadPrefixFor(assistantId)
+		const metas = await history.findByThreadPrefix(prefix)
+		const limited = options?.limit ? metas.slice(0, options.limit) : metas
+
+		if (!options?.includeMessages) return limited
+
+		const records: ConversationRecord[] = []
+		for (const meta of limited) {
+			const record = await history.load(meta.id)
+			if (record) records.push(record)
+		}
+		return records
 	}
 
 	/**

@@ -930,7 +930,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		return this.history.create({
 			id,
-			title: opts?.title || this.options.title || 'Untitled',
+			title: opts?.title || this.options.title,
 			model: this.model,
 			messages: this.messages,
 			tags: opts?.tags || this.options.tags || [],

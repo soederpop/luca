@@ -1093,6 +1093,17 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		// Reload tools from disk (merges with option tools), then restore runtime tools
 		const diskTools = this.loadTools()
 		this.state.set('tools', { ...diskTools, ...runtimeTools })
+
+		// Re-process deferred `use` entries (export const use = [...] in tools.ts).
+		// These replace tools from the same features, which is a no-op when unchanged.
+		const deferredUse = this.state.get('deferredUse') as any[] | undefined
+		if (deferredUse?.length) {
+			for (const entry of deferredUse) {
+				this.use(entry)
+			}
+			this.state.set('deferredUse', undefined)
+		}
+
 		this.emit('toolsChanged')
 
 		// Reload hooks from disk — triggerHook reads from state so new hooks are active immediately

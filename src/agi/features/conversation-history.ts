@@ -3,6 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { type AvailableFeatures } from '@soederpop/luca/feature'
 import { Feature } from '../feature.js'
 import type { DiskCache } from '@soederpop/luca/node/container'
+import type { OpenAIClient } from '../../clients/openai'
 import type { Message } from './conversation'
 
 declare module '@soederpop/luca/feature' {
@@ -163,9 +164,10 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		metadata?: Record<string, any>
 	}): Promise<ConversationRecord> {
 		const now = new Date().toISOString()
+		const title = opts.title || await this.autoTitle(opts.messages)
 		const record: ConversationRecord = {
 			id: opts.id || crypto.randomUUID(),
-			title: opts.title || 'Untitled',
+			title,
 			model: opts.model || 'unknown',
 			messages: opts.messages,
 			tags: opts.tags || [],
@@ -406,6 +408,161 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 			if (await this.delete(meta.id)) count++
 		}
 		return count
+	}
+
+	/** @returns An OpenAI client from the container for LLM calls. */
+	private get openai(): OpenAIClient {
+		return (this.container as any).client('openai') as OpenAIClient
+	}
+
+	/**
+	 * Generate a short title from conversation messages. Uses the first user
+	 * message (and optionally the first assistant reply) to produce a concise
+	 * title via a cheap LLM call. Falls back to a truncated first message
+	 * if the LLM call fails.
+	 */
+	private async autoTitle(messages: Message[]): Promise<string> {
+		const userMsg = messages.find(m => m.role === 'user')
+		if (!userMsg) return `Conversation ${new Date().toISOString().slice(0, 16)}`
+
+		const userContent = typeof userMsg.content === 'string'
+			? userMsg.content
+			: Array.isArray(userMsg.content)
+				? (userMsg.content as any[]).filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ')
+				: ''
+
+		if (!userContent.trim()) return `Conversation ${new Date().toISOString().slice(0, 16)}`
+
+		// Build a small context snippet: first user message + first assistant reply if available
+		const assistantMsg = messages.find(m => m.role === 'assistant')
+		let context = `User: ${userContent}`
+		if (assistantMsg) {
+			const assistantContent = typeof assistantMsg.content === 'string'
+				? assistantMsg.content
+				: Array.isArray(assistantMsg.content)
+					? (assistantMsg.content as any[]).filter((p: any) => p.type === 'text').map((p: any) => p.text).join(' ')
+					: ''
+			if (assistantContent.trim()) {
+				context += `\nAssistant: ${assistantContent.slice(0, 300)}`
+			}
+		}
+
+		try {
+			const response = await this.openai.raw.chat.completions.create({
+				model: 'gpt-4o-mini',
+				messages: [
+					{
+						role: 'system',
+						content: 'Generate a short title (max 8 words) for this conversation. Output only the title, no quotes or punctuation wrapping.',
+					},
+					{ role: 'user', content: context.slice(0, 1000) },
+				],
+				max_tokens: 30,
+				temperature: 0.3,
+				stream: false,
+			})
+
+			const title = (response as any).choices?.[0]?.message?.content?.trim()
+			if (title) return title
+		} catch {
+			// LLM unavailable — fall back to truncation
+		}
+
+		// Fallback: truncate the first user message
+		return userContent.length > 60 ? userContent.slice(0, 57) + '...' : userContent
+	}
+
+	/**
+	 * Build a plain-text transcript from a messages array,
+	 * suitable for feeding to a summarizer or title generator.
+	 */
+	private buildTranscript(messages: Message[]): string {
+		return messages
+			.map(m => {
+				const role = m.role
+				const content = typeof m.content === 'string'
+					? m.content
+					: Array.isArray(m.content)
+						? (m.content as any[]).filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n')
+						: (m.content != null ? JSON.stringify(m.content) : '(no content)')
+				return `[${role}]: ${content || '(no text content)'}`
+			})
+			.join('\n\n')
+	}
+
+	/**
+	 * Generate a concise summary of a stored conversation using the LLM.
+	 * The summary is stored in `metadata.summary` and returned.
+	 * No tool calls are made — this is a single completion request.
+	 *
+	 * @param {string} id - The conversation ID to summarize
+	 * @param {object} [options] - Optional settings
+	 * @param {string} [options.model] - Override the model used for summarization
+	 * @returns {Promise<string | null>} The generated summary, or null if conversation not found
+	 */
+	async summarize(id: string, options?: { model?: string }): Promise<string | null> {
+		const record = await this.load(id)
+		if (!record) return null
+
+		const transcript = this.buildTranscript(record.messages)
+		const model = options?.model || record.model || 'gpt-5'
+
+		const response = await this.openai.raw.chat.completions.create({
+			model,
+			messages: [
+				{
+					role: 'system',
+					content: 'You are a conversation summarizer. Produce a concise but comprehensive summary of the following conversation. Preserve all key facts, decisions, context, user preferences, and any important details needed to understand what was discussed. Output only the summary.',
+				},
+				{ role: 'user', content: transcript },
+			],
+			stream: false,
+		})
+
+		const summary = (response as any).choices?.[0]?.message?.content || ''
+
+		record.metadata = { ...record.metadata, summary }
+		await this.save(record)
+
+		return summary
+	}
+
+	/**
+	 * Generate a short, descriptive title for a stored conversation using the LLM.
+	 * The title is stored both as the record's `title` field and in `metadata.generatedTitle`,
+	 * then returned. No tool calls are made.
+	 *
+	 * @param {string} id - The conversation ID to generate a title for
+	 * @param {object} [options] - Optional settings
+	 * @param {string} [options.model] - Override the model used for title generation
+	 * @returns {Promise<string | null>} The generated title, or null if conversation not found
+	 */
+	async generateTitle(id: string, options?: { model?: string }): Promise<string | null> {
+		const record = await this.load(id)
+		if (!record) return null
+
+		const transcript = this.buildTranscript(record.messages)
+		const model = options?.model || record.model || 'gpt-5'
+
+		const response = await this.openai.raw.chat.completions.create({
+			model,
+			messages: [
+				{
+					role: 'system',
+					content: 'Generate a short, descriptive title (under 60 characters) for the following conversation. The title should capture the main topic or purpose. Output only the title text, with no quotes or punctuation wrapping it.',
+				},
+				{ role: 'user', content: transcript },
+			],
+			stream: false,
+		})
+
+		const title = ((response as any).choices?.[0]?.message?.content || '').trim()
+
+		record.title = title
+		record.metadata = { ...record.metadata, generatedTitle: title }
+		await this.save(record)
+
+		return title
 	}
 
 	// -- index management --
