@@ -202,15 +202,15 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 					let meta: Record<string, any> | undefined
 
 					if (hasAbout) {
-						about = fs.readFileSync(`${folder}/ABOUT.md`, 'utf8')
+						about = fs.readFileSync(`${folder}/ABOUT.md`, 'utf8') as string
 					}
 
 					try {
-						const coreContent = fs.readFileSync(`${folder}/CORE.md`, 'utf8')
+						const coreContent = fs.readFileSync(`${folder}/CORE.md`, 'utf8') as string
 						const fmMatch = coreContent.match(/^---\r?\n([\s\S]*?)\r?\n---/)
 						if (fmMatch) {
 							const yaml = this.container.feature('yaml')
-							meta = yaml.parse(fmMatch[1])
+							meta = yaml.parse(fmMatch[1]!)
 						}
 					} catch {
 						// CORE.md exists but couldn't be parsed — skip meta

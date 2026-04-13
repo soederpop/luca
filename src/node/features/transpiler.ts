@@ -145,16 +145,15 @@ export class Transpiler extends Feature {
       entrypoints: [filePath],
       target: 'bun',
       format: 'cjs',
-      bundle: true,
       external,
-    })
+    } as any)
 
     if (!result.success) {
       const msgs = result.logs.map((l: any) => l.message || String(l)).join('\n')
       throw new Error(`Bundle failed for ${filePath}:\n${msgs}`)
     }
 
-    return await result.outputs[0].text()
+    return await result.outputs[0]!.text()
   }
 }
 

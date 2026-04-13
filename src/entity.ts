@@ -71,7 +71,7 @@ export type Entity<
    * assistant.addTools(agent)
    * ```
    */
-  expose(functionName: string, schema: z.ZodType): this
+  expose(this: Entity<TState, TOptions, TEvents>, functionName: string, schema: z.ZodType): Entity<TState, TOptions, TEvents>
 
   /**
    * Returns `{ schemas, handlers }` for all tools registered via `.expose()`.
@@ -104,7 +104,7 @@ export function createEntityObject<
     on(event: any, listener: any) { _events.on(event, listener) },
     off(event: any, listener?: any) { _events.off(event, listener) },
     once(event: any, listener: any) { _events.once(event, listener) },
-    emit(event: any, ...args: any[]) { _events.emit(event, ...args) },
+    emit(event: any, ...args: any[]) { _events.emit(event, ...args as any) },
     waitFor(event: any) { return _events.waitFor(event) },
     setState(value: any) { _state.setState(value) },
     extend(extensions: any) { return applyExtensions(this as any, extensions) },

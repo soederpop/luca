@@ -118,7 +118,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 		if (!isSmallSet && !this.options.only) {
 			if (!process.env.LUCA_SKILLS_NO_WARN) {
-				container.feature('ui').warn(`SkillsLibrary: ${skillCount} skills loaded with no \`only\` filter. Use container.feature('skillsLibrary', { only: ['pattern*'] }) to limit, or set LUCA_SKILLS_NO_WARN=1 to silence.`)
+				container.feature('ui').print.yellow(`SkillsLibrary: ${skillCount} skills loaded with no \`only\` filter. Use container.feature('skillsLibrary', { only: ['pattern*'] }) to limit, or set LUCA_SKILLS_NO_WARN=1 to silence.`)
 			}
 		}
 

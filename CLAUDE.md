@@ -14,6 +14,12 @@ The `container` and its helpers are perfect for scripts and long running service
 
 On the frontend the browser container is perfect for highly reactive, stateful web applications, especially works well with React.
 
+## Developer Standards
+
+- Please try not to have broken tests committed to the build and let them slide.  Encourage me to fix them so they dont grow out of control.
+- When working on features, clients, servers, or other helpers, the introspection system relies on good zod descriptions, and good jsdoc descriptions
+
+
 ## The `luca` CLI
 
 - in dev, `bun run src/cli/cli.ts` is the same as `luca`

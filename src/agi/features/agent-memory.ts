@@ -169,13 +169,13 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
       )
     `)
 
-    const rows = await this.db.query<{ value: number }>(
+    const rows = await this.db.query(
       'SELECT value FROM epochs WHERE namespace = ?',
       [this.options.namespace]
-    )
+    ) as { value: number }[]
 
     if (rows.length) {
-      this.state.set('epoch', rows[0].value)
+      this.state.set('epoch', rows[0]!.value)
     } else {
       await this.db.execute('INSERT INTO epochs (namespace, value) VALUES (?, 1)', [this.options.namespace])
     }
@@ -299,7 +299,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     await this.ensureDb()
 
     const results = await this.search(category, text, 1)
-    if (results.length > 0 && (1 - results[0].distance) >= similarityThreshold) {
+    if (results.length > 0 && (1 - results[0]!.distance) >= similarityThreshold) {
       return null
     }
 
@@ -316,10 +316,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   async get(category: string, id: number): Promise<MemoryRecord | null> {
     await this.ensureDb()
 
-    const rows = await this.db.query<any>(
+    const rows = await this.db.query(
       'SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? AND id = ?',
       [this.options.namespace, category, id]
-    )
+    ) as any[]
 
     if (!rows.length) return null
     return this.rowToMemory(rows[0])
@@ -340,10 +340,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     const { limit = 20, sortOrder = 'desc', filterMetadata } = options
 
-    let rows = await this.db.query<any>(
+    let rows = await this.db.query(
       `SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? ORDER BY created_at ${sortOrder === 'asc' ? 'ASC' : 'DESC'} LIMIT ?`,
       [this.options.namespace, category, limit]
-    )
+    ) as any[]
 
     if (filterMetadata) {
       rows = rows.filter((row: any) => {
@@ -462,18 +462,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
     await this.ensureDb()
 
     if (category) {
-      const rows = await this.db.query<{ cnt: number }>(
+      const rows = await this.db.query(
         'SELECT COUNT(*) as cnt FROM memories WHERE namespace = ? AND category = ?',
         [this.options.namespace, category]
-      )
-      return rows[0].cnt
+      ) as { cnt: number }[]
+      return rows[0]!.cnt
     }
 
-    const rows = await this.db.query<{ cnt: number }>(
+    const rows = await this.db.query(
       'SELECT COUNT(*) as cnt FROM memories WHERE namespace = ?',
       [this.options.namespace]
-    )
-    return rows[0].cnt
+    ) as { cnt: number }[]
+    return rows[0]!.cnt
   }
 
   /**
@@ -484,10 +484,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   async categories(): Promise<string[]> {
     await this.ensureDb()
 
-    const rows = await this.db.query<{ category: string }>(
+    const rows = await this.db.query(
       'SELECT DISTINCT category FROM memories WHERE namespace = ?',
       [this.options.namespace]
-    )
+    ) as { category: string }[]
 
     return rows.map((r: { category: string }) => r.category)
   }
@@ -510,10 +510,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
 
     const queryEmbedding = await this.embed(query)
 
-    const rows = await this.db.query<any>(
+    const rows = await this.db.query(
       'SELECT id, category, document, metadata, embedding, created_at, updated_at FROM memories WHERE namespace = ? AND category = ? AND embedding IS NOT NULL',
       [this.options.namespace, category]
-    )
+    ) as any[]
 
     let scored = rows.map((row: any) => {
       const stored = this.blobToFloat64(row.embedding)
@@ -600,10 +600,10 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   async exportToJson(): Promise<{ namespace: string; epoch: number; memories: MemoryRecord[] }> {
     await this.ensureDb()
 
-    const rows = await this.db.query<any>(
+    const rows = await this.db.query(
       'SELECT id, category, document, metadata, created_at, updated_at FROM memories WHERE namespace = ? ORDER BY category, id',
       [this.options.namespace]
-    )
+    ) as any[]
 
     return {
       namespace: this.options.namespace,
@@ -651,7 +651,7 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   private float64ToBlob(arr: number[]): Buffer {
     const buf = Buffer.alloc(arr.length * 8)
     for (let i = 0; i < arr.length; i++) {
-      buf.writeDoubleLE(arr[i], i * 8)
+      buf.writeDoubleLE(arr[i]!, i * 8)
     }
     return buf
   }
@@ -670,9 +670,9 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   private cosineDistance(a: number[], b: number[]): number {
     let dot = 0, magA = 0, magB = 0
     for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i]
-      magA += a[i] * a[i]
-      magB += b[i] * b[i]
+      dot += a[i]! * b[i]!
+      magA += a[i]! * a[i]!
+      magB += b[i]! * b[i]!
     }
     const similarity = dot / (Math.sqrt(magA) * Math.sqrt(magB))
     return 1 - similarity
