@@ -181,7 +181,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 					])
 
 					if (allSkillsToLoad.length) {
-						ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${skills.join(', ')}`
+						ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${allSkillsToLoad.join(', ')}`
 					}
 
 					a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)

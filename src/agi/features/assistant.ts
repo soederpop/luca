@@ -577,7 +577,25 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	 * }, z.object({ city: z.string() }).describe('Get weather for a city'))
 	 * ```
 	 */
-	addTool(name: string, handler: (...args: any[]) => any, schema?: z.ZodType): this {
+	addTool(name: string, handler: (...args: any[]) => any, schema?: z.ZodType): this
+	addTool(handler: (...args: any[]) => any, schema?: z.ZodType): this
+	addTool(nameOrHandler: string | ((...args: any[]) => any), handlerOrSchema?: ((...args: any[]) => any) | z.ZodType, maybeSchema?: z.ZodType): this {
+		let name: string
+		let handler: (...args: any[]) => any
+		let schema: z.ZodType | undefined
+
+		if (typeof nameOrHandler === 'function') {
+			// addTool(handler, schema?) — extract name from function
+			handler = nameOrHandler
+			name = handler.name
+			schema = handlerOrSchema as z.ZodType | undefined
+		} else {
+			// addTool(name, handler, schema?)
+			name = nameOrHandler
+			handler = handlerOrSchema as (...args: any[]) => any
+			schema = maybeSchema
+		}
+
 		if (!name) throw new Error('addTool handler must be a named function')
 		if (!this._runtimeToolNames) this._runtimeToolNames = new Set()
 		this._runtimeToolNames.add(name)
