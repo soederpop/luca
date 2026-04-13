@@ -598,7 +598,15 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			? messages[0]
 			: null
 
-		const recentMessages = messages.slice(-keepRecent)
+		let sliceStart = messages.length - keepRecent
+		// Walk back to avoid splitting a tool call group — if we'd start on a tool message,
+		// include the preceding assistant message (and its full tool response block)
+		if (sliceStart > 0) {
+			while (sliceStart > 0 && messages[sliceStart]?.role === 'tool') {
+				sliceStart--
+			}
+		}
+		const recentMessages = messages.slice(sliceStart)
 
 		const newMessages: Message[] = []
 		if (systemMessage) newMessages.push(systemMessage)
@@ -1208,7 +1216,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		try {
 			const stream = await this.openai.raw.chat.completions.create({
 				model: this.model,
-				messages: this.messages,
+				messages: this.sanitizeMessages(this.messages),
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
 				...(this.maxTokens ? { [this.maxTokensParam]: this.maxTokens } : {}),
@@ -1308,6 +1316,50 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('response', accumulated)
 
 		return accumulated
+	}
+
+	/**
+	 * Ensure every assistant message with tool_calls has matching tool response messages.
+	 * Orphaned tool_calls (from aborted/failed tool executions or history truncation)
+	 * get stub tool responses so OpenAI doesn't reject the conversation.
+	 */
+	private sanitizeMessages(messages: Message[]): Message[] {
+		const result: Message[] = []
+
+		for (let i = 0; i < messages.length; i++) {
+			const msg = messages[i]!
+			result.push(msg)
+
+			// Check if this is an assistant message with tool_calls
+			if (msg.role === 'assistant' && (msg as any).tool_calls?.length) {
+				const toolCalls: Array<{ id: string }> = (msg as any).tool_calls
+				const expectedIds = new Set(toolCalls.map(tc => tc.id))
+
+				// Scan forward for matching tool responses
+				const foundIds = new Set<string>()
+				for (let j = i + 1; j < messages.length; j++) {
+					const next = messages[j]!
+					if (next.role === 'tool' && expectedIds.has((next as any).tool_call_id)) {
+						foundIds.add((next as any).tool_call_id)
+					} else if (next.role !== 'tool') {
+						break
+					}
+				}
+
+				// Add stub responses for any missing tool_call_ids
+				for (const id of expectedIds) {
+					if (!foundIds.has(id)) {
+						result.push({
+							role: 'tool',
+							tool_call_id: id,
+							content: '[tool execution was interrupted]',
+						} as any)
+					}
+				}
+			}
+		}
+
+		return result
 	}
 
 	/**

@@ -220,6 +220,12 @@ export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
       description: 'List all active browser sessions.',
       schema: z.object({}).describe('List all currently active browser sessions with their names and status.'),
     },
+    browserSetHeaded: {
+      description: 'Toggle browser visibility. Use headed mode to show the browser window, or headless mode to hide it.',
+      schema: z.object({
+        headed: z.boolean().describe('true to show the browser window (headed), false to hide it (headless)'),
+      }).describe('Toggle the browser between headed (visible window) and headless mode. When the user asks to see the browser or hide it, use this tool.'),
+    },
   }
 
   static { Feature.register(this, 'browserUse') }
@@ -491,6 +497,15 @@ export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
   }
 
   /**
+   * Toggle headed/headless mode
+   * @param headed - true for visible browser window, false for headless
+   */
+  setHeaded(headed: boolean): { success: boolean; headed: boolean } {
+    this.state.set('headed', headed)
+    return { success: true, headed }
+  }
+
+  /**
    * Hover over an element
    * @param index - Element index
    */
@@ -647,6 +662,10 @@ export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
 
   async browserGetAttributes(options: { index: string }) {
     return this.getAttributes(options.index)
+  }
+
+  async browserSetHeaded(options: { headed: boolean }) {
+    return this.setHeaded(options.headed)
   }
 }
 
