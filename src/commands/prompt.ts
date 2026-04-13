@@ -97,7 +97,12 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 
 	let outputTokens = 0
 
-	// Render complete messages — text gets markdown formatting, tool_use gets a summary line
+	// Stream text via deltas for real-time output
+	feature.on('session:delta', ({ text }: { text: string }) => {
+		process.stdout.write(text)
+	})
+
+	// Render complete messages — only tool_use blocks and final text (markdown formatted)
 	feature.on('session:message', ({ message }: { message: any }) => {
 		const role = message?.message?.role ?? message?.role
 		if (role && role !== 'assistant') return
@@ -108,10 +113,12 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		const usage = message?.message?.usage ?? message?.usage
 		if (usage?.output_tokens) outputTokens += usage.output_tokens
 
+		// Skip partial messages — text is already rendered via session:delta
+		const stopReason = message?.message?.stop_reason ?? message?.stop_reason
+		if (!stopReason) return
+
 		for (const block of content) {
-			if (block.type === 'text' && block.text) {
-				process.stdout.write(ui.markdown(block.text))
-			} else if (block.type === 'tool_use') {
+			if (block.type === 'tool_use') {
 				const argsStr = JSON.stringify(block.input).slice(0, 120)
 				process.stdout.write(ui.colors.dim(`\n  ⟳ ${block.name}`) + ui.colors.dim(`(${argsStr})\n`))
 			}
@@ -122,7 +129,12 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	const collectedEvents: any[] = []
 	if (options['out-file']) {
 		feature.on('session:event', ({ event }: { event: any }) => {
-			if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output' || event.type === 'item.completed' || event.type === 'turn.completed') {
+			// Skip partial assistant messages (streaming tokens) — only collect complete messages with stop_reason
+			if (event.type === 'assistant') {
+				if (event.message?.stop_reason) collectedEvents.push(event)
+				return
+			}
+			if (event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output' || event.type === 'item.completed' || event.type === 'turn.completed') {
 				collectedEvents.push(event)
 			}
 		})
@@ -179,6 +191,7 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 
 	// Collect structured events for --out-file
 	const collectedEvents: any[] = []
+	let textBuffer = ''
 
 	assistant.on('chunk', (text: string) => {
 		if (isFirstChunk) {
@@ -187,7 +200,7 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 		}
 		process.stdout.write(text)
 		if (options['out-file']) {
-			collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
+			textBuffer += text
 		}
 	})
 
@@ -215,6 +228,12 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	const startTime = Date.now()
 	await assistant.ask(promptContent)
 	process.stdout.write('\n')
+
+	// Flush accumulated text buffer as a single event
+	if (textBuffer) {
+		collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text: textBuffer }] } })
+		textBuffer = ''
+	}
 
 	return { collectedEvents, durationMs: Date.now() - startTime, outputTokens: 0 }
 }
@@ -320,7 +339,12 @@ async function runParallel(
 			feature.on('session:event', ({ sessionId, event }: { sessionId: string; event: any }) => {
 				const idx = sessionMap.get(sessionId)
 				if (idx === undefined) return
-				if (event.type === 'assistant' || event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
+				// Skip partial assistant messages (streaming tokens) — only collect complete messages
+				if (event.type === 'assistant') {
+					if (event.message?.stop_reason) promptStates[idx]!.collectedEvents.push(event)
+					return
+				}
+				if (event.type === 'tool_result' || event.type === 'message' || event.type === 'function_call_output') {
 					promptStates[idx]!.collectedEvents.push(event)
 				}
 			})
@@ -366,6 +390,7 @@ async function runParallel(
 		}
 
 		const lineBuffers: string[] = prepared.map(() => '')
+		const textBuffers: string[] = prepared.map(() => '')
 
 		const assistants = prepared.map((p, i) => {
 			const createOptions: Record<string, any> = { ...p.agentOptions }
@@ -384,7 +409,7 @@ async function runParallel(
 					}
 				}
 				if (options['out-file']) {
-					promptStates[i]!.collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text }] } })
+					textBuffers[i] += text
 				}
 			})
 
@@ -426,6 +451,11 @@ async function runParallel(
 					if (lineBuffers[i]) {
 						promptStates[i]!.lines.push(lineBuffers[i]!)
 						lineBuffers[i] = ''
+					}
+					// Flush accumulated text as a single event for out-file
+					if (textBuffers[i]) {
+						promptStates[i]!.collectedEvents.push({ type: 'assistant', message: { content: [{ type: 'text', text: textBuffers[i] }] } })
+						textBuffers[i] = ''
 					}
 					if (r.status === 'rejected') {
 						promptStates[i]!.status = 'error'
