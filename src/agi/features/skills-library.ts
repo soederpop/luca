@@ -36,6 +36,8 @@ export const SkillsLibraryStateSchema = FeatureStateSchema.extend({
 
 export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
 	configPath: z.string().optional().describe('Override path for skills.json (defaults to ~/.luca/skills.json)'),
+	only: z.array(z.string()).optional().describe('Glob patterns to filter which skills are exposed. When set, only matching skills are available. Supports * wildcards (e.g. "luca-*", "react-ink").'),
+	locations: z.array(z.string()).optional().describe('Additional skill location directories to scan for this instance only. Not persisted to skills.json — other consumers will not see these.'),
 })
 
 export const SkillsLibraryEventsSchema = FeatureEventsSchema.extend({
@@ -109,26 +111,55 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 
 		const a : Assistant = assistant as Assistant
-
-		a.addSystemPromptExtension('skillsLibrary', [
-			'## Skills Library',
-			'',
-			'You have access to a library of curated skills — domain-specific reference guides with examples, patterns, and best practices.',
-			'',
-			'**When to use skills:**',
-			'- When working in an unfamiliar domain or framework — load the skill before writing code',
-			'- When the user asks about a topic that might have a matching skill — search first',
-			'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
-			'',
-			'**Workflow:** `searchAvailableSkills` → find relevant skill → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
-			'',
-			'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
-		].join('\n'))
-		
 		const { container } = a
-		
 		const skillsLibrary = this
-		
+		const skillCount = Object.keys(this.filteredSkills).length
+		const isSmallSet = skillCount <= 10
+
+		if (!isSmallSet && !this.options.only) {
+			if (!process.env.LUCA_SKILLS_NO_WARN) {
+				container.feature('ui').warn(`SkillsLibrary: ${skillCount} skills loaded with no \`only\` filter. Use container.feature('skillsLibrary', { only: ['pattern*'] }) to limit, or set LUCA_SKILLS_NO_WARN=1 to silence.`)
+			}
+		}
+
+		if (isSmallSet) {
+			const table = Object.entries(this.skillsTable)
+				.map(([name, desc]) => `- **${name}**: ${desc}`)
+				.join('\n')
+
+			a.addSystemPromptExtension('skillsLibrary', [
+				'## Skills Library',
+				'',
+				'You have access to the following curated skills — domain-specific reference guides with examples, patterns, and best practices.',
+				'',
+				'**Available skills:**',
+				table,
+				'',
+				'**When to use skills:**',
+				'- When working in an unfamiliar domain or framework — load the skill before writing code',
+				'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
+				'',
+				'**Workflow:** Choose a skill from the list above → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
+				'',
+				'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
+			].join('\n'))
+		} else {
+			a.addSystemPromptExtension('skillsLibrary', [
+				'## Skills Library',
+				'',
+				`You have access to a large library of ${skillCount} curated skills — domain-specific reference guides with examples, patterns, and best practices.`,
+				'',
+				'**When to use skills:**',
+				'- When working in an unfamiliar domain or framework — search for a skill before writing code',
+				'- When the user asks about a topic that might have a matching skill — search first',
+				'- When you see "Required Skills" in a message — load those skills immediately with `loadSkill` before answering',
+				'',
+				'**Workflow:** `searchAvailableSkills` → find relevant skill → `loadSkill` to get the full guide → follow its patterns. Use `askSkillBasedQuestion` for targeted lookups when you don\'t need the whole guide.',
+				'',
+				'**Skills are authoritative.** When a loaded skill contradicts your general knowledge, follow the skill — it reflects project-specific conventions and decisions.',
+			].join('\n'))
+		}
+
 		const preloadSkills : string[] = []
 		if (a.meta.skills) {
 			if (Array.isArray(a.meta.skills)) {
@@ -138,44 +169,70 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			}
 		}
 
-		async function beforeAskCheckIfWeNeedSkills(ctx: any, next: any) {
-				const { question } = ctx
-				const skills = await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
-				
-				const allSkillsToLoad : string[] = container.utils.lodash.uniq([
-					...skills,
-					...preloadSkills,
-				])
-				
-				if (allSkillsToLoad.length) {
-					ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${skills.join(', ')}`
-				}
-				
-				a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
+		// Only use the fork-based auto-detection for small skill sets
+		if (isSmallSet) {
+			async function beforeAskCheckIfWeNeedSkills(ctx: any, next: any) {
+					const { question } = ctx
+					const skills = await skillsLibrary.findRelevantSkillsForAssistant(a, question as string)
 
-				await next()	
+					const allSkillsToLoad : string[] = container.utils.lodash.uniq([
+						...skills,
+						...preloadSkills,
+					])
+
+					if (allSkillsToLoad.length) {
+						ctx.question = `${ctx.question} \n\n## Required Skills\nYou will need to load the following skills to answer this question: ${skills.join(', ')}`
+					}
+
+					a.interceptors.beforeAsk.remove(beforeAskCheckIfWeNeedSkills)
+
+					await next()
+			}
+
+			assistant.intercept('beforeAsk', beforeAskCheckIfWeNeedSkills as any)
 		}
 
-		assistant.intercept('beforeAsk', beforeAskCheckIfWeNeedSkills as any)
-		
 		return assistant
 	}
 
-	/** Discovered skills keyed by name. */
+	/** Discovered skills keyed by name (unfiltered). */
 	get skills(): Record<string, SkillInfo> {
 		return (this.state.get('skills') || {}) as Record<string, SkillInfo>
 	}
-	
-	get availableSkills() {
-		return Object.keys(this.skills)
+
+	/** Skills filtered by the `only` option when set. */
+	get filteredSkills(): Record<string, SkillInfo> {
+		const all = this.skills
+		const only = this.options.only
+		if (!only || only.length === 0) return all
+
+		const result: Record<string, SkillInfo> = {}
+		for (const [name, info] of Object.entries(all)) {
+			if (only.some(pattern => this.matchPattern(pattern, name))) {
+				result[name] = info
+			}
+		}
+		return result
 	}
-	
+
+	get availableSkills() {
+		return Object.keys(this.filteredSkills)
+	}
+
 	get skillsTable() : Record<string, string> {
-		const skills = this.skills
+		const skills = this.filteredSkills
 
 		return Object.fromEntries(
-			Object.keys(skills).map((name) => [name, this.skills[name]!.description])
+			Object.keys(skills).map((name) => [name, skills[name]!.description])
 		)
+	}
+
+	/** Match a name against a glob pattern (* wildcards). */
+	private matchPattern(pattern: string, name: string): boolean {
+		if (pattern === '*') return true
+		if (!pattern.includes('*')) return pattern === name
+		const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+		return new RegExp(`^${escaped}$`).test(name)
 	}
 
 	/** Resolved path to the skills.json config file. */
@@ -226,8 +283,10 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	  const { uniq } = this.container.utils.lodash
 		const config = this.readConfig()
 		const configLocations = config.locations.map(l => this.expandHome(l))
+		const instanceLocations = (this.options.locations || []).map(l => this.expandHome(l))
 		const allLocations = uniq([
 			...configLocations,
+			...instanceLocations,
 			(this.container as any).paths.resolve((this.container as any).os.homedir, '.claude', 'skills'),
 			(this.container as any).paths.resolve((this.container as any).cwd, '.claude', 'skills')
 		]).filter(Boolean).filter(l => (this.container as any).fs.exists(l))
@@ -335,9 +394,9 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		}
 	}
 
-	/** Return all discovered skills. */
+	/** Return all discovered skills (respects the `only` filter). */
 	list(): SkillInfo[] {
-		return Object.values(this.skills)
+		return Object.values(this.filteredSkills)
 	}
 
 	/** Find a skill by name. */
@@ -389,11 +448,11 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 
 	// --- Tool handlers for assistant.use(skillsLibrary) ---
 
-	/** Search available skills, optionally filtered by a query string. */
+	/** Search available skills, optionally filtered by a query string. Respects the `only` filter. */
 	async searchAvailableSkills({ query }: { query?: string } = {}): Promise<string> {
 		if (!this.isStarted) await this.start()
 
-		let skills = this.list()
+		let skills = Object.values(this.filteredSkills)
 
 		if (query) {
 			const q = query.toLowerCase()
