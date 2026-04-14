@@ -104,8 +104,8 @@ export const LucaCoderOptionsSchema = FeatureOptionsSchema.extend({
 	/** Skills to auto-load into the system prompt context. If not specified, auto-detects luca-framework. */
 	skills: z.array(z.string()).optional().describe('Skill names to auto-load into the system prompt'),
 
-	/** Whether to auto-detect and load the luca-framework skill. Defaults to true. */
-	autoLoadLucaSkill: z.boolean().default(true).describe('Auto-load luca-framework skill if found in .claude/skills path'),
+	/** Whether to auto-detect and load the luca-framework skill from conventional agent skill folders. Defaults to true. */
+	autoLoadLucaSkill: z.boolean().default(true).describe('Auto-load luca-framework skill if found in agent skill folders (.claude/skills or .agents/skills)'),
 })
 
 export type LucaCoderState = z.infer<typeof LucaCoderStateSchema>
@@ -116,7 +116,7 @@ export type LucaCoderOptions = z.infer<typeof LucaCoderOptionsSchema>
  * gates all tool calls through a permission system.
  *
  * Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads
- * the luca-framework skill when found in .claude/skills paths.
+ * the luca-framework skill when found in conventional agent skill folders (.claude/skills or .agents/skills).
  *
  * Tools are stacked from feature bundles (fileTools, etc.)
  * and each tool can be set to 'allow' (runs immediately), 'ask' (blocks
@@ -415,11 +415,13 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		const skillContent: string[] = []
 		const loadedSkills: string[] = []
 
-		// Check for luca-framework skill in known locations
+		// Check for luca-framework skill in conventional agent skill folders
 		if (this.options.autoLoadLucaSkill !== false) {
 			const skillLocations = [
 				paths.resolve(this.container.cwd, '.claude', 'skills', 'luca-framework', 'SKILL.md'),
+				paths.resolve(this.container.cwd, '.agents', 'skills', 'luca-framework', 'SKILL.md'),
 				paths.resolve(os.homedir, '.claude', 'skills', 'luca-framework', 'SKILL.md'),
+				paths.resolve(os.homedir, '.agents', 'skills', 'luca-framework', 'SKILL.md'),
 			]
 
 			for (const skillPath of skillLocations) {

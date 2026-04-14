@@ -38,6 +38,7 @@ export const SkillsLibraryOptionsSchema = FeatureOptionsSchema.extend({
 	configPath: z.string().optional().describe('Override path for skills.json (defaults to ~/.luca/skills.json)'),
 	only: z.array(z.string()).optional().describe('Glob patterns to filter which skills are exposed. When set, only matching skills are available. Supports * wildcards (e.g. "luca-*", "react-ink").'),
 	locations: z.array(z.string()).optional().describe('Additional skill location directories to scan for this instance only. Not persisted to skills.json — other consumers will not see these.'),
+	useAgentsFolders: z.boolean().optional().default(false).describe('When true, automatically scan conventional agent skill folders: .claude/skills and .agents/skills in both the home directory and project cwd.'),
 })
 
 export const SkillsLibraryEventsSchema = FeatureEventsSchema.extend({
@@ -56,14 +57,21 @@ export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>
  * Each skill folder can be opened as a DocsReader for AI-assisted Q&A.
  * Exposes tools for assistant integration via assistant.use(skillsLibrary).
  *
+ * No paths are scanned by default — callers must explicitly provide locations
+ * via the `locations` option or `addLocation()`. Set `useAgentsFolders: true`
+ * to automatically scan conventional agent skill folders (.claude/skills and
+ * .agents/skills in both $HOME and cwd).
+ *
  * @extends Feature
  * @example
  * ```typescript
- * const lib = container.feature('skillsLibrary')
+ * const lib = container.feature('skillsLibrary', { locations: ['./my-skills'] })
  * await lib.start()
- * await lib.addLocation('~/.claude/skills')
  * lib.list() // => SkillInfo[]
- * const reader = lib.createSkillReader('my-skill')
+ *
+ * // Or opt in to conventional agent folders:
+ * const lib2 = container.feature('skillsLibrary', { useAgentsFolders: true })
+ * await lib2.start()
  * ```
  */
 export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOptions> {
@@ -284,11 +292,23 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		const config = this.readConfig()
 		const configLocations = config.locations.map(l => this.expandHome(l))
 		const instanceLocations = (this.options.locations || []).map(l => this.expandHome(l))
+		const agentsFolders: string[] = []
+		if (this.options.useAgentsFolders) {
+			const { paths, os, cwd } = this.container as any
+			// Check conventional agent skill locations (home + project cwd)
+			const candidates = [
+				paths.resolve(os.homedir, '.claude', 'skills'),
+				paths.resolve(os.homedir, '.agents', 'skills'),
+				paths.resolve(cwd, '.claude', 'skills'),
+				paths.resolve(cwd, '.agents', 'skills'),
+			]
+			agentsFolders.push(...candidates)
+		}
+
 		const allLocations = uniq([
 			...configLocations,
 			...instanceLocations,
-			(this.container as any).paths.resolve((this.container as any).os.homedir, '.claude', 'skills'),
-			(this.container as any).paths.resolve((this.container as any).cwd, '.claude', 'skills')
+			...agentsFolders,
 		]).filter(Boolean).filter(l => (this.container as any).fs.exists(l))
 		this.state.set('locations', allLocations)
 
