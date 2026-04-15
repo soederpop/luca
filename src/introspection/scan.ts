@@ -1115,7 +1115,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;
     const containerExport = hasContainers ? `\nexport const containerIntrospectionData = ${JSON.stringify(containerResults, null, 2)};\n` : '';
 
-    return `${imports}// Auto-generated introspection registry data\n// Generated at: ${new Date().toISOString()}\n\n${registrations}${containerRegistrations}${exportStatement}${containerExport}`;
+    return `${imports}// Auto-generated introspection registry data\n\n${registrations}${containerRegistrations}${exportStatement}${containerExport}`;
   }
 }
 

@@ -84,7 +84,6 @@ async function buildBootstrap(options: z.infer<typeof argsSchema>, context: Cont
 	).join(',\n')
 
 	const output = `// Auto-generated bootstrap content
-// Generated at: ${new Date().toISOString()}
 // Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md
 //
 // Do not edit manually. Run: luca build-bootstrap

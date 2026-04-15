@@ -23,7 +23,6 @@ async function buildPythonBridge(options: z.infer<typeof argsSchema>, context: C
 		s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${')
 
 	const output = `// Auto-generated Python bridge script
-// Generated at: ${new Date().toISOString()}
 // Source: src/python/bridge.py
 //
 // Do not edit manually. Run: luca build-python-bridge

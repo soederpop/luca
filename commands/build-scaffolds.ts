@@ -137,7 +137,6 @@ ${sectionsStr}
 	).join(',\n')
 
 	const output = `// Auto-generated scaffold and MCP readme content
-// Generated at: ${new Date().toISOString()}
 // Source: docs/scaffolds/*.md, docs/examples/assistant/, and docs/mcp/readme.md
 //
 // Do not edit manually. Run: luca build-scaffolds
