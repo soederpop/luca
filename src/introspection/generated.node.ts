@@ -12247,687 +12247,6 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
-setBuildTimeData('clients.voicebox', {
-  "id": "clients.voicebox",
-  "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
-  "shortcut": "clients.voicebox",
-  "className": "VoiceBoxClient",
-  "methods": {
-    "connect": {
-      "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>"
-    },
-    "listProfiles": {
-      "description": "List all voice profiles.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any[]>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
-        }
-      ]
-    },
-    "getProfile": {
-      "description": "Get a single voice profile by ID.",
-      "parameters": {
-        "profileId": {
-          "type": "string",
-          "description": "Parameter profileId"
-        }
-      },
-      "required": [
-        "profileId"
-      ],
-      "returns": "Promise<any>"
-    },
-    "createProfile": {
-      "description": "Create a new voice profile.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "options": {
-          "type": "{ description?: string; language?: string }",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "Promise<any>"
-    },
-    "listEffects": {
-      "description": "List available audio effects and their parameter definitions.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "synthesize": {
-      "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Profile, engine, model, and other synthesis options",
-          "properties": {
-            "profileId": {
-              "type": "string",
-              "description": ""
-            },
-            "engine": {
-              "type": "string",
-              "description": ""
-            },
-            "modelSize": {
-              "type": "string",
-              "description": ""
-            },
-            "language": {
-              "type": "string",
-              "description": ""
-            },
-            "instruct": {
-              "type": "string",
-              "description": ""
-            },
-            "seed": {
-              "type": "number",
-              "description": ""
-            },
-            "maxChunkChars": {
-              "type": "number",
-              "description": ""
-            },
-            "crossfadeMs": {
-              "type": "number",
-              "description": ""
-            },
-            "normalize": {
-              "type": "boolean",
-              "description": ""
-            },
-            "effectsChain": {
-              "type": "EffectConfig[]",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<Buffer>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
-        }
-      ]
-    },
-    "generate": {
-      "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "Parameter text"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Parameter options",
-          "properties": {
-            "profileId": {
-              "type": "string",
-              "description": ""
-            },
-            "engine": {
-              "type": "string",
-              "description": ""
-            },
-            "modelSize": {
-              "type": "string",
-              "description": ""
-            },
-            "language": {
-              "type": "string",
-              "description": ""
-            },
-            "instruct": {
-              "type": "string",
-              "description": ""
-            },
-            "seed": {
-              "type": "number",
-              "description": ""
-            },
-            "maxChunkChars": {
-              "type": "number",
-              "description": ""
-            },
-            "crossfadeMs": {
-              "type": "number",
-              "description": ""
-            },
-            "normalize": {
-              "type": "boolean",
-              "description": ""
-            },
-            "effectsChain": {
-              "type": "EffectConfig[]",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<any>"
-    },
-    "getAudio": {
-      "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
-      "parameters": {
-        "generationId": {
-          "type": "string",
-          "description": "Parameter generationId"
-        }
-      },
-      "required": [
-        "generationId"
-      ],
-      "returns": "Promise<Buffer>"
-    },
-    "say": {
-      "description": "Synthesize and write audio to a file.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "Parameter text"
-        },
-        "outputPath": {
-          "type": "string",
-          "description": "Parameter outputPath"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Parameter options",
-          "properties": {
-            "profileId": {
-              "type": "string",
-              "description": ""
-            },
-            "engine": {
-              "type": "string",
-              "description": ""
-            },
-            "modelSize": {
-              "type": "string",
-              "description": ""
-            },
-            "language": {
-              "type": "string",
-              "description": ""
-            },
-            "instruct": {
-              "type": "string",
-              "description": ""
-            },
-            "seed": {
-              "type": "number",
-              "description": ""
-            },
-            "maxChunkChars": {
-              "type": "number",
-              "description": ""
-            },
-            "crossfadeMs": {
-              "type": "number",
-              "description": ""
-            },
-            "normalize": {
-              "type": "boolean",
-              "description": ""
-            },
-            "effectsChain": {
-              "type": "EffectConfig[]",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text",
-        "outputPath"
-      ],
-      "returns": "Promise<string>"
-    }
-  },
-  "getters": {},
-  "events": {
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by VoiceBoxClient",
-      "arguments": {}
-    },
-    "profiles": {
-      "name": "profiles",
-      "description": "Event emitted by VoiceBoxClient",
-      "arguments": {}
-    },
-    "speech": {
-      "name": "speech",
-      "description": "Event emitted by VoiceBoxClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
-    }
-  ],
-  "types": {
-    "SynthesizeOptions": {
-      "description": "",
-      "properties": {
-        "profileId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "engine": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "modelSize": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "language": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "instruct": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "seed": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "maxChunkChars": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "crossfadeMs": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "normalize": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        },
-        "effectsChain": {
-          "type": "EffectConfig[]",
-          "description": "",
-          "optional": true
-        },
-        "disableCache": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    },
-    "EffectConfig": {
-      "description": "",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": ""
-        },
-        "enabled": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        },
-        "params": {
-          "type": "Record<string, any>",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
-setBuildTimeData('clients.comfyui', {
-  "id": "clients.comfyui",
-  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-  "shortcut": "clients.comfyui",
-  "className": "ComfyUIClient",
-  "methods": {
-    "queuePrompt": {
-      "description": "Queue a prompt (API-format workflow) for execution.",
-      "parameters": {
-        "prompt": {
-          "type": "Record<string, any>",
-          "description": "The API-format workflow object"
-        },
-        "clientId": {
-          "type": "string",
-          "description": "Override the client ID for this request"
-        }
-      },
-      "required": [
-        "prompt"
-      ],
-      "returns": "Promise<{ prompt_id: string; number: number }>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-        }
-      ]
-    },
-    "getQueue": {
-      "description": "Get the current prompt queue status.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-    },
-    "getHistory": {
-      "description": "Get execution history, optionally for a specific prompt.",
-      "parameters": {
-        "promptId": {
-          "type": "string",
-          "description": "If provided, returns history for this prompt only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<Record<string, any>>"
-    },
-    "getSystemStats": {
-      "description": "Get system stats including GPU memory and queue info.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "getObjectInfo": {
-      "description": "Get node type info with input/output schemas.",
-      "parameters": {
-        "nodeClass": {
-          "type": "string",
-          "description": "If provided, returns info for this node type only"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>"
-    },
-    "interrupt": {
-      "description": "Interrupt the currently executing prompt.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "getModels": {
-      "description": "List available models, optionally filtered by type.",
-      "parameters": {
-        "type": {
-          "type": "string",
-          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-        }
-      },
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "getEmbeddings": {
-      "description": "List available embedding models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "uploadImage": {
-      "description": "Upload an image to ComfyUI's input directory.",
-      "parameters": {
-        "file": {
-          "type": "Buffer | Blob",
-          "description": "The image data as Buffer or Blob"
-        },
-        "filename": {
-          "type": "string",
-          "description": "File name for the upload"
-        },
-        "opts": {
-          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-          "description": "Upload options (subfolder, type, overwrite)"
-        }
-      },
-      "required": [
-        "file",
-        "filename"
-      ],
-      "returns": "Promise<any>"
-    },
-    "viewImage": {
-      "description": "Download a generated image from ComfyUI as a Buffer.",
-      "parameters": {
-        "filename": {
-          "type": "string",
-          "description": "The image filename"
-        },
-        "subfolder": {
-          "type": "any",
-          "description": "Subfolder within the output directory"
-        },
-        "type": {
-          "type": "any",
-          "description": "Image type ('output', 'input', 'temp')"
-        }
-      },
-      "required": [
-        "filename"
-      ],
-      "returns": "Promise<Buffer>"
-    },
-    "connectWs": {
-      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<void>"
-    },
-    "disconnectWs": {
-      "description": "Close the WebSocket connection.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "toApiFormat": {
-      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-      "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
-        }
-      },
-      "required": [
-        "workflow"
-      ],
-      "returns": "Promise<Record<string, any>>"
-    },
-    "runWorkflow": {
-      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
-      "parameters": {
-        "workflow": {
-          "type": "Record<string, any>",
-          "description": "Parameter workflow"
-        },
-        "inputs": {
-          "type": "Record<string, any>",
-          "description": "Parameter inputs"
-        },
-        "options": {
-          "type": "WorkflowRunOptions",
-          "description": "Parameter options",
-          "properties": {
-            "poll": {
-              "type": "boolean",
-              "description": "Use polling instead of WebSocket for tracking execution"
-            },
-            "pollInterval": {
-              "type": "number",
-              "description": "Polling interval in ms (default 1000)"
-            },
-            "inputMap": {
-              "type": "InputMapping",
-              "description": "Named input mapping: semantic name -> { nodeId, field }"
-            },
-            "outputDir": {
-              "type": "string",
-              "description": "If provided, output images are downloaded to this directory"
-            }
-          }
-        }
-      },
-      "required": [
-        "workflow"
-      ],
-      "returns": "Promise<WorkflowResult>"
-    }
-  },
-  "getters": {
-    "clientId": {
-      "description": "The unique client ID used for WebSocket session tracking.",
-      "returns": "string"
-    },
-    "wsURL": {
-      "description": "The WebSocket URL derived from baseURL or overridden via options.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "execution_start": {
-      "name": "execution_start",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_complete": {
-      "name": "execution_complete",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executing": {
-      "name": "executing",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "progress": {
-      "name": "progress",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "executed": {
-      "name": "executed",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_cached": {
-      "name": "execution_cached",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    },
-    "execution_error": {
-      "name": "execution_error",
-      "description": "Event emitted by ComfyUIClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
-    }
-  ],
-  "types": {
-    "WorkflowRunOptions": {
-      "description": "",
-      "properties": {
-        "poll": {
-          "type": "boolean",
-          "description": "Use polling instead of WebSocket for tracking execution",
-          "optional": true
-        },
-        "pollInterval": {
-          "type": "number",
-          "description": "Polling interval in ms (default 1000)",
-          "optional": true
-        },
-        "inputMap": {
-          "type": "InputMapping",
-          "description": "Named input mapping: semantic name -> { nodeId, field }",
-          "optional": true
-        },
-        "outputDir": {
-          "type": "string",
-          "description": "If provided, output images are downloaded to this directory",
-          "optional": true
-        }
-      }
-    },
-    "WorkflowResult": {
-      "description": "",
-      "properties": {
-        "promptId": {
-          "type": "string",
-          "description": ""
-        },
-        "outputs": {
-          "type": "Record<string, any>",
-          "description": ""
-        },
-        "images": {
-          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
 setBuildTimeData('clients.supabase', {
   "id": "clients.supabase",
   "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
@@ -13380,6 +12699,687 @@ setBuildTimeData('clients.elevenlabs', {
         },
         "useSpeakerBoost": {
           "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('clients.comfyui', {
+  "id": "clients.comfyui",
+  "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+  "shortcut": "clients.comfyui",
+  "className": "ComfyUIClient",
+  "methods": {
+    "queuePrompt": {
+      "description": "Queue a prompt (API-format workflow) for execution.",
+      "parameters": {
+        "prompt": {
+          "type": "Record<string, any>",
+          "description": "The API-format workflow object"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Override the client ID for this request"
+        }
+      },
+      "required": [
+        "prompt"
+      ],
+      "returns": "Promise<{ prompt_id: string; number: number }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+        }
+      ]
+    },
+    "getQueue": {
+      "description": "Get the current prompt queue status.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+    },
+    "getHistory": {
+      "description": "Get execution history, optionally for a specific prompt.",
+      "parameters": {
+        "promptId": {
+          "type": "string",
+          "description": "If provided, returns history for this prompt only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "getSystemStats": {
+      "description": "Get system stats including GPU memory and queue info.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "getObjectInfo": {
+      "description": "Get node type info with input/output schemas.",
+      "parameters": {
+        "nodeClass": {
+          "type": "string",
+          "description": "If provided, returns info for this node type only"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "interrupt": {
+      "description": "Interrupt the currently executing prompt.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "getModels": {
+      "description": "List available models, optionally filtered by type.",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "getEmbeddings": {
+      "description": "List available embedding models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "uploadImage": {
+      "description": "Upload an image to ComfyUI's input directory.",
+      "parameters": {
+        "file": {
+          "type": "Buffer | Blob",
+          "description": "The image data as Buffer or Blob"
+        },
+        "filename": {
+          "type": "string",
+          "description": "File name for the upload"
+        },
+        "opts": {
+          "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+          "description": "Upload options (subfolder, type, overwrite)"
+        }
+      },
+      "required": [
+        "file",
+        "filename"
+      ],
+      "returns": "Promise<any>"
+    },
+    "viewImage": {
+      "description": "Download a generated image from ComfyUI as a Buffer.",
+      "parameters": {
+        "filename": {
+          "type": "string",
+          "description": "The image filename"
+        },
+        "subfolder": {
+          "type": "any",
+          "description": "Subfolder within the output directory"
+        },
+        "type": {
+          "type": "any",
+          "description": "Image type ('output', 'input', 'temp')"
+        }
+      },
+      "required": [
+        "filename"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "connectWs": {
+      "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disconnectWs": {
+      "description": "Close the WebSocket connection.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "toApiFormat": {
+      "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<Record<string, any>>"
+    },
+    "runWorkflow": {
+      "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+      "parameters": {
+        "workflow": {
+          "type": "Record<string, any>",
+          "description": "Parameter workflow"
+        },
+        "inputs": {
+          "type": "Record<string, any>",
+          "description": "Parameter inputs"
+        },
+        "options": {
+          "type": "WorkflowRunOptions",
+          "description": "Parameter options",
+          "properties": {
+            "poll": {
+              "type": "boolean",
+              "description": "Use polling instead of WebSocket for tracking execution"
+            },
+            "pollInterval": {
+              "type": "number",
+              "description": "Polling interval in ms (default 1000)"
+            },
+            "inputMap": {
+              "type": "InputMapping",
+              "description": "Named input mapping: semantic name -> { nodeId, field }"
+            },
+            "outputDir": {
+              "type": "string",
+              "description": "If provided, output images are downloaded to this directory"
+            }
+          }
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "returns": "Promise<WorkflowResult>"
+    }
+  },
+  "getters": {
+    "clientId": {
+      "description": "The unique client ID used for WebSocket session tracking.",
+      "returns": "string"
+    },
+    "wsURL": {
+      "description": "The WebSocket URL derived from baseURL or overridden via options.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "execution_start": {
+      "name": "execution_start",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_complete": {
+      "name": "execution_complete",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executing": {
+      "name": "executing",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "progress": {
+      "name": "progress",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "executed": {
+      "name": "executed",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_cached": {
+      "name": "execution_cached",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    },
+    "execution_error": {
+      "name": "execution_error",
+      "description": "Event emitted by ComfyUIClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+    }
+  ],
+  "types": {
+    "WorkflowRunOptions": {
+      "description": "",
+      "properties": {
+        "poll": {
+          "type": "boolean",
+          "description": "Use polling instead of WebSocket for tracking execution",
+          "optional": true
+        },
+        "pollInterval": {
+          "type": "number",
+          "description": "Polling interval in ms (default 1000)",
+          "optional": true
+        },
+        "inputMap": {
+          "type": "InputMapping",
+          "description": "Named input mapping: semantic name -> { nodeId, field }",
+          "optional": true
+        },
+        "outputDir": {
+          "type": "string",
+          "description": "If provided, output images are downloaded to this directory",
+          "optional": true
+        }
+      }
+    },
+    "WorkflowResult": {
+      "description": "",
+      "properties": {
+        "promptId": {
+          "type": "string",
+          "description": ""
+        },
+        "outputs": {
+          "type": "Record<string, any>",
+          "description": ""
+        },
+        "images": {
+          "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('clients.voicebox', {
+  "id": "clients.voicebox",
+  "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
+  "shortcut": "clients.voicebox",
+  "className": "VoiceBoxClient",
+  "methods": {
+    "connect": {
+      "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "listProfiles": {
+      "description": "List all voice profiles.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
+        }
+      ]
+    },
+    "getProfile": {
+      "description": "Get a single voice profile by ID.",
+      "parameters": {
+        "profileId": {
+          "type": "string",
+          "description": "Parameter profileId"
+        }
+      },
+      "required": [
+        "profileId"
+      ],
+      "returns": "Promise<any>"
+    },
+    "createProfile": {
+      "description": "Create a new voice profile.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "options": {
+          "type": "{ description?: string; language?: string }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<any>"
+    },
+    "listEffects": {
+      "description": "List available audio effects and their parameter definitions.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any>"
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Profile, engine, model, and other synthesis options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
+        }
+      ]
+    },
+    "generate": {
+      "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Parameter options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<any>"
+    },
+    "getAudio": {
+      "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
+      "parameters": {
+        "generationId": {
+          "type": "string",
+          "description": "Parameter generationId"
+        }
+      },
+      "required": [
+        "generationId"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "say": {
+      "description": "Synthesize and write audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "Parameter outputPath"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Parameter options",
+          "properties": {
+            "profileId": {
+              "type": "string",
+              "description": ""
+            },
+            "engine": {
+              "type": "string",
+              "description": ""
+            },
+            "modelSize": {
+              "type": "string",
+              "description": ""
+            },
+            "language": {
+              "type": "string",
+              "description": ""
+            },
+            "instruct": {
+              "type": "string",
+              "description": ""
+            },
+            "seed": {
+              "type": "number",
+              "description": ""
+            },
+            "maxChunkChars": {
+              "type": "number",
+              "description": ""
+            },
+            "crossfadeMs": {
+              "type": "number",
+              "description": ""
+            },
+            "normalize": {
+              "type": "boolean",
+              "description": ""
+            },
+            "effectsChain": {
+              "type": "EffectConfig[]",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "getters": {},
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    },
+    "profiles": {
+      "name": "profiles",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by VoiceBoxClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "engine": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelSize": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "language": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "instruct": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "seed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "maxChunkChars": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "crossfadeMs": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "normalize": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "effectsChain": {
+          "type": "EffectConfig[]",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "EffectConfig": {
+      "description": "",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": ""
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        },
+        "params": {
+          "type": "Record<string, any>",
           "description": "",
           "optional": true
         }
@@ -26568,685 +26568,6 @@ export const introspectionData = [
     ]
   },
   {
-    "id": "clients.voicebox",
-    "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
-    "shortcut": "clients.voicebox",
-    "className": "VoiceBoxClient",
-    "methods": {
-      "connect": {
-        "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>"
-      },
-      "listProfiles": {
-        "description": "List all voice profiles.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any[]>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
-          }
-        ]
-      },
-      "getProfile": {
-        "description": "Get a single voice profile by ID.",
-        "parameters": {
-          "profileId": {
-            "type": "string",
-            "description": "Parameter profileId"
-          }
-        },
-        "required": [
-          "profileId"
-        ],
-        "returns": "Promise<any>"
-      },
-      "createProfile": {
-        "description": "Create a new voice profile.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "options": {
-            "type": "{ description?: string; language?: string }",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "Promise<any>"
-      },
-      "listEffects": {
-        "description": "List available audio effects and their parameter definitions.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "synthesize": {
-        "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Profile, engine, model, and other synthesis options",
-            "properties": {
-              "profileId": {
-                "type": "string",
-                "description": ""
-              },
-              "engine": {
-                "type": "string",
-                "description": ""
-              },
-              "modelSize": {
-                "type": "string",
-                "description": ""
-              },
-              "language": {
-                "type": "string",
-                "description": ""
-              },
-              "instruct": {
-                "type": "string",
-                "description": ""
-              },
-              "seed": {
-                "type": "number",
-                "description": ""
-              },
-              "maxChunkChars": {
-                "type": "number",
-                "description": ""
-              },
-              "crossfadeMs": {
-                "type": "number",
-                "description": ""
-              },
-              "normalize": {
-                "type": "boolean",
-                "description": ""
-              },
-              "effectsChain": {
-                "type": "EffectConfig[]",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<Buffer>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
-          }
-        ]
-      },
-      "generate": {
-        "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "Parameter text"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Parameter options",
-            "properties": {
-              "profileId": {
-                "type": "string",
-                "description": ""
-              },
-              "engine": {
-                "type": "string",
-                "description": ""
-              },
-              "modelSize": {
-                "type": "string",
-                "description": ""
-              },
-              "language": {
-                "type": "string",
-                "description": ""
-              },
-              "instruct": {
-                "type": "string",
-                "description": ""
-              },
-              "seed": {
-                "type": "number",
-                "description": ""
-              },
-              "maxChunkChars": {
-                "type": "number",
-                "description": ""
-              },
-              "crossfadeMs": {
-                "type": "number",
-                "description": ""
-              },
-              "normalize": {
-                "type": "boolean",
-                "description": ""
-              },
-              "effectsChain": {
-                "type": "EffectConfig[]",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<any>"
-      },
-      "getAudio": {
-        "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
-        "parameters": {
-          "generationId": {
-            "type": "string",
-            "description": "Parameter generationId"
-          }
-        },
-        "required": [
-          "generationId"
-        ],
-        "returns": "Promise<Buffer>"
-      },
-      "say": {
-        "description": "Synthesize and write audio to a file.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "Parameter text"
-          },
-          "outputPath": {
-            "type": "string",
-            "description": "Parameter outputPath"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Parameter options",
-            "properties": {
-              "profileId": {
-                "type": "string",
-                "description": ""
-              },
-              "engine": {
-                "type": "string",
-                "description": ""
-              },
-              "modelSize": {
-                "type": "string",
-                "description": ""
-              },
-              "language": {
-                "type": "string",
-                "description": ""
-              },
-              "instruct": {
-                "type": "string",
-                "description": ""
-              },
-              "seed": {
-                "type": "number",
-                "description": ""
-              },
-              "maxChunkChars": {
-                "type": "number",
-                "description": ""
-              },
-              "crossfadeMs": {
-                "type": "number",
-                "description": ""
-              },
-              "normalize": {
-                "type": "boolean",
-                "description": ""
-              },
-              "effectsChain": {
-                "type": "EffectConfig[]",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text",
-          "outputPath"
-        ],
-        "returns": "Promise<string>"
-      }
-    },
-    "getters": {},
-    "events": {
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by VoiceBoxClient",
-        "arguments": {}
-      },
-      "profiles": {
-        "name": "profiles",
-        "description": "Event emitted by VoiceBoxClient",
-        "arguments": {}
-      },
-      "speech": {
-        "name": "speech",
-        "description": "Event emitted by VoiceBoxClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
-      }
-    ],
-    "types": {
-      "SynthesizeOptions": {
-        "description": "",
-        "properties": {
-          "profileId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "engine": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "modelSize": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "language": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "instruct": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "seed": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "maxChunkChars": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "crossfadeMs": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "normalize": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          },
-          "effectsChain": {
-            "type": "EffectConfig[]",
-            "description": "",
-            "optional": true
-          },
-          "disableCache": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      },
-      "EffectConfig": {
-        "description": "",
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": ""
-          },
-          "enabled": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          },
-          "params": {
-            "type": "Record<string, any>",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "clients.comfyui",
-    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
-    "shortcut": "clients.comfyui",
-    "className": "ComfyUIClient",
-    "methods": {
-      "queuePrompt": {
-        "description": "Queue a prompt (API-format workflow) for execution.",
-        "parameters": {
-          "prompt": {
-            "type": "Record<string, any>",
-            "description": "The API-format workflow object"
-          },
-          "clientId": {
-            "type": "string",
-            "description": "Override the client ID for this request"
-          }
-        },
-        "required": [
-          "prompt"
-        ],
-        "returns": "Promise<{ prompt_id: string; number: number }>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
-          }
-        ]
-      },
-      "getQueue": {
-        "description": "Get the current prompt queue status.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
-      },
-      "getHistory": {
-        "description": "Get execution history, optionally for a specific prompt.",
-        "parameters": {
-          "promptId": {
-            "type": "string",
-            "description": "If provided, returns history for this prompt only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<Record<string, any>>"
-      },
-      "getSystemStats": {
-        "description": "Get system stats including GPU memory and queue info.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "getObjectInfo": {
-        "description": "Get node type info with input/output schemas.",
-        "parameters": {
-          "nodeClass": {
-            "type": "string",
-            "description": "If provided, returns info for this node type only"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>"
-      },
-      "interrupt": {
-        "description": "Interrupt the currently executing prompt.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "getModels": {
-        "description": "List available models, optionally filtered by type.",
-        "parameters": {
-          "type": {
-            "type": "string",
-            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
-          }
-        },
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "getEmbeddings": {
-        "description": "List available embedding models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "uploadImage": {
-        "description": "Upload an image to ComfyUI's input directory.",
-        "parameters": {
-          "file": {
-            "type": "Buffer | Blob",
-            "description": "The image data as Buffer or Blob"
-          },
-          "filename": {
-            "type": "string",
-            "description": "File name for the upload"
-          },
-          "opts": {
-            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
-            "description": "Upload options (subfolder, type, overwrite)"
-          }
-        },
-        "required": [
-          "file",
-          "filename"
-        ],
-        "returns": "Promise<any>"
-      },
-      "viewImage": {
-        "description": "Download a generated image from ComfyUI as a Buffer.",
-        "parameters": {
-          "filename": {
-            "type": "string",
-            "description": "The image filename"
-          },
-          "subfolder": {
-            "type": "any",
-            "description": "Subfolder within the output directory"
-          },
-          "type": {
-            "type": "any",
-            "description": "Image type ('output', 'input', 'temp')"
-          }
-        },
-        "required": [
-          "filename"
-        ],
-        "returns": "Promise<Buffer>"
-      },
-      "connectWs": {
-        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<void>"
-      },
-      "disconnectWs": {
-        "description": "Close the WebSocket connection.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "toApiFormat": {
-        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
-        "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "returns": "Promise<Record<string, any>>"
-      },
-      "runWorkflow": {
-        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
-        "parameters": {
-          "workflow": {
-            "type": "Record<string, any>",
-            "description": "Parameter workflow"
-          },
-          "inputs": {
-            "type": "Record<string, any>",
-            "description": "Parameter inputs"
-          },
-          "options": {
-            "type": "WorkflowRunOptions",
-            "description": "Parameter options",
-            "properties": {
-              "poll": {
-                "type": "boolean",
-                "description": "Use polling instead of WebSocket for tracking execution"
-              },
-              "pollInterval": {
-                "type": "number",
-                "description": "Polling interval in ms (default 1000)"
-              },
-              "inputMap": {
-                "type": "InputMapping",
-                "description": "Named input mapping: semantic name -> { nodeId, field }"
-              },
-              "outputDir": {
-                "type": "string",
-                "description": "If provided, output images are downloaded to this directory"
-              }
-            }
-          }
-        },
-        "required": [
-          "workflow"
-        ],
-        "returns": "Promise<WorkflowResult>"
-      }
-    },
-    "getters": {
-      "clientId": {
-        "description": "The unique client ID used for WebSocket session tracking.",
-        "returns": "string"
-      },
-      "wsURL": {
-        "description": "The WebSocket URL derived from baseURL or overridden via options.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "execution_start": {
-        "name": "execution_start",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_complete": {
-        "name": "execution_complete",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executing": {
-        "name": "executing",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "progress": {
-        "name": "progress",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "executed": {
-        "name": "executed",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_cached": {
-        "name": "execution_cached",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      },
-      "execution_error": {
-        "name": "execution_error",
-        "description": "Event emitted by ComfyUIClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
-      }
-    ],
-    "types": {
-      "WorkflowRunOptions": {
-        "description": "",
-        "properties": {
-          "poll": {
-            "type": "boolean",
-            "description": "Use polling instead of WebSocket for tracking execution",
-            "optional": true
-          },
-          "pollInterval": {
-            "type": "number",
-            "description": "Polling interval in ms (default 1000)",
-            "optional": true
-          },
-          "inputMap": {
-            "type": "InputMapping",
-            "description": "Named input mapping: semantic name -> { nodeId, field }",
-            "optional": true
-          },
-          "outputDir": {
-            "type": "string",
-            "description": "If provided, output images are downloaded to this directory",
-            "optional": true
-          }
-        }
-      },
-      "WorkflowResult": {
-        "description": "",
-        "properties": {
-          "promptId": {
-            "type": "string",
-            "description": ""
-          },
-          "outputs": {
-            "type": "Record<string, any>",
-            "description": ""
-          },
-          "images": {
-            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
     "id": "clients.supabase",
     "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
     "shortcut": "clients.supabase",
@@ -27697,6 +27018,685 @@ export const introspectionData = [
           },
           "useSpeakerBoost": {
             "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "clients.comfyui",
+    "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
+    "shortcut": "clients.comfyui",
+    "className": "ComfyUIClient",
+    "methods": {
+      "queuePrompt": {
+        "description": "Queue a prompt (API-format workflow) for execution.",
+        "parameters": {
+          "prompt": {
+            "type": "Record<string, any>",
+            "description": "The API-format workflow object"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "Override the client ID for this request"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "returns": "Promise<{ prompt_id: string; number: number }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const { prompt_id } = await comfy.queuePrompt(apiWorkflow)"
+          }
+        ]
+      },
+      "getQueue": {
+        "description": "Get the current prompt queue status.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ queue_running: any[]; queue_pending: any[] }>"
+      },
+      "getHistory": {
+        "description": "Get execution history, optionally for a specific prompt.",
+        "parameters": {
+          "promptId": {
+            "type": "string",
+            "description": "If provided, returns history for this prompt only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "getSystemStats": {
+        "description": "Get system stats including GPU memory and queue info.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "getObjectInfo": {
+        "description": "Get node type info with input/output schemas.",
+        "parameters": {
+          "nodeClass": {
+            "type": "string",
+            "description": "If provided, returns info for this node type only"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "interrupt": {
+        "description": "Interrupt the currently executing prompt.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "getModels": {
+        "description": "List available models, optionally filtered by type.",
+        "parameters": {
+          "type": {
+            "type": "string",
+            "description": "Model type filter (e.g., 'checkpoints', 'loras')"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "getEmbeddings": {
+        "description": "List available embedding models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "uploadImage": {
+        "description": "Upload an image to ComfyUI's input directory.",
+        "parameters": {
+          "file": {
+            "type": "Buffer | Blob",
+            "description": "The image data as Buffer or Blob"
+          },
+          "filename": {
+            "type": "string",
+            "description": "File name for the upload"
+          },
+          "opts": {
+            "type": "{ subfolder?: string; type?: string; overwrite?: boolean }",
+            "description": "Upload options (subfolder, type, overwrite)"
+          }
+        },
+        "required": [
+          "file",
+          "filename"
+        ],
+        "returns": "Promise<any>"
+      },
+      "viewImage": {
+        "description": "Download a generated image from ComfyUI as a Buffer.",
+        "parameters": {
+          "filename": {
+            "type": "string",
+            "description": "The image filename"
+          },
+          "subfolder": {
+            "type": "any",
+            "description": "Subfolder within the output directory"
+          },
+          "type": {
+            "type": "any",
+            "description": "Image type ('output', 'input', 'temp')"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "connectWs": {
+        "description": "Open a WebSocket connection to ComfyUI for real-time execution tracking. Events emitted: `execution_start`, `executing`, `progress`, `executed`, `execution_cached`, `execution_error`, `execution_complete`.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disconnectWs": {
+        "description": "Close the WebSocket connection.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "toApiFormat": {
+        "description": "Convert a UI-format workflow to the API format that /prompt expects. Requires a running ComfyUI instance to fetch `object_info` so we can map positional `widgets_values` to their named input fields. If the workflow is already in API format, it's returned as-is.",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<Record<string, any>>"
+      },
+      "runWorkflow": {
+        "description": "Run a ComfyUI workflow with optional runtime input overrides. Inputs can be provided in two forms: **Direct node mapping** (when no `inputMap` in options): ``` { '3': { seed: 42 }, '6': { text: 'a cat' } } ``` **Named inputs** (when `inputMap` is provided in options): ``` inputs: { positive_prompt: 'a cat', seed: 42 } options.inputMap: { positive_prompt: { nodeId: '6', field: 'text' }, seed: { nodeId: '3', field: 'seed' } } ```",
+        "parameters": {
+          "workflow": {
+            "type": "Record<string, any>",
+            "description": "Parameter workflow"
+          },
+          "inputs": {
+            "type": "Record<string, any>",
+            "description": "Parameter inputs"
+          },
+          "options": {
+            "type": "WorkflowRunOptions",
+            "description": "Parameter options",
+            "properties": {
+              "poll": {
+                "type": "boolean",
+                "description": "Use polling instead of WebSocket for tracking execution"
+              },
+              "pollInterval": {
+                "type": "number",
+                "description": "Polling interval in ms (default 1000)"
+              },
+              "inputMap": {
+                "type": "InputMapping",
+                "description": "Named input mapping: semantic name -> { nodeId, field }"
+              },
+              "outputDir": {
+                "type": "string",
+                "description": "If provided, output images are downloaded to this directory"
+              }
+            }
+          }
+        },
+        "required": [
+          "workflow"
+        ],
+        "returns": "Promise<WorkflowResult>"
+      }
+    },
+    "getters": {
+      "clientId": {
+        "description": "The unique client ID used for WebSocket session tracking.",
+        "returns": "string"
+      },
+      "wsURL": {
+        "description": "The WebSocket URL derived from baseURL or overridden via options.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "execution_start": {
+        "name": "execution_start",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_complete": {
+        "name": "execution_complete",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executing": {
+        "name": "executing",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "progress": {
+        "name": "progress",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "executed": {
+        "name": "executed",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_cached": {
+        "name": "execution_cached",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      },
+      "execution_error": {
+        "name": "execution_error",
+        "description": "Event emitted by ComfyUIClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const comfy = container.client('comfyui', { baseURL: 'http://localhost:8188' })\nconst result = await comfy.runWorkflow(workflow, {\n '6': { text: 'a beautiful sunset' }\n})\nconsole.log(result.images)"
+      }
+    ],
+    "types": {
+      "WorkflowRunOptions": {
+        "description": "",
+        "properties": {
+          "poll": {
+            "type": "boolean",
+            "description": "Use polling instead of WebSocket for tracking execution",
+            "optional": true
+          },
+          "pollInterval": {
+            "type": "number",
+            "description": "Polling interval in ms (default 1000)",
+            "optional": true
+          },
+          "inputMap": {
+            "type": "InputMapping",
+            "description": "Named input mapping: semantic name -> { nodeId, field }",
+            "optional": true
+          },
+          "outputDir": {
+            "type": "string",
+            "description": "If provided, output images are downloaded to this directory",
+            "optional": true
+          }
+        }
+      },
+      "WorkflowResult": {
+        "description": "",
+        "properties": {
+          "promptId": {
+            "type": "string",
+            "description": ""
+          },
+          "outputs": {
+            "type": "Record<string, any>",
+            "description": ""
+          },
+          "images": {
+            "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "clients.voicebox",
+    "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
+    "shortcut": "clients.voicebox",
+    "className": "VoiceBoxClient",
+    "methods": {
+      "connect": {
+        "description": "Validate the VoiceBox server is reachable by hitting the health endpoint.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "listProfiles": {
+        "description": "List all voice profiles.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const profiles = await vb.listProfiles()\nconsole.log(profiles.map(p => `${p.name} (${p.sample_count} samples)`))"
+          }
+        ]
+      },
+      "getProfile": {
+        "description": "Get a single voice profile by ID.",
+        "parameters": {
+          "profileId": {
+            "type": "string",
+            "description": "Parameter profileId"
+          }
+        },
+        "required": [
+          "profileId"
+        ],
+        "returns": "Promise<any>"
+      },
+      "createProfile": {
+        "description": "Create a new voice profile.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "options": {
+            "type": "{ description?: string; language?: string }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<any>"
+      },
+      "listEffects": {
+        "description": "List available audio effects and their parameter definitions.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any>"
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text using the streaming endpoint. Returns audio as a WAV Buffer (synchronous — blocks until audio is ready).",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Profile, engine, model, and other synthesis options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await vb.synthesize('Hello world', { profileId: 'abc-123' })\n// audio is a Buffer of WAV data"
+          }
+        ]
+      },
+      "generate": {
+        "description": "Generate speech asynchronously (returns metadata, not audio). Use getAudio() to fetch the audio after generation completes.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Parameter options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<any>"
+      },
+      "getAudio": {
+        "description": "Fetch generated audio by generation ID. Returns WAV Buffer.",
+        "parameters": {
+          "generationId": {
+            "type": "string",
+            "description": "Parameter generationId"
+          }
+        },
+        "required": [
+          "generationId"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "say": {
+        "description": "Synthesize and write audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "Parameter outputPath"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Parameter options",
+            "properties": {
+              "profileId": {
+                "type": "string",
+                "description": ""
+              },
+              "engine": {
+                "type": "string",
+                "description": ""
+              },
+              "modelSize": {
+                "type": "string",
+                "description": ""
+              },
+              "language": {
+                "type": "string",
+                "description": ""
+              },
+              "instruct": {
+                "type": "string",
+                "description": ""
+              },
+              "seed": {
+                "type": "number",
+                "description": ""
+              },
+              "maxChunkChars": {
+                "type": "number",
+                "description": ""
+              },
+              "crossfadeMs": {
+                "type": "number",
+                "description": ""
+              },
+              "normalize": {
+                "type": "boolean",
+                "description": ""
+              },
+              "effectsChain": {
+                "type": "EffectConfig[]",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "getters": {},
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      },
+      "profiles": {
+        "name": "profiles",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by VoiceBoxClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vb = container.client('voicebox')\nawait vb.connect()\nconst profiles = await vb.listProfiles()\nconst audio = await vb.synthesize('Hello world', { profileId: profiles[0].id })\n// audio is a Buffer of WAV data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "engine": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelSize": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "language": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "instruct": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "seed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "maxChunkChars": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "crossfadeMs": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "normalize": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "effectsChain": {
+            "type": "EffectConfig[]",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "EffectConfig": {
+        "description": "",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": ""
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          },
+          "params": {
+            "type": "Record<string, any>",
             "description": "",
             "optional": true
           }
