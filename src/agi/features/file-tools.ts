@@ -12,7 +12,10 @@ declare module '@soederpop/luca/feature' {
 }
 
 export const FileToolsStateSchema = FeatureStateSchema.extend({})
-export const FileToolsOptionsSchema = FeatureOptionsSchema.extend({})
+export const FileToolsOptionsSchema = FeatureOptionsSchema.extend({
+	lockToFolder: z.string().optional().describe('When set, all file operations are restricted to this folder. Paths outside it are rejected.'),
+	forbid: z.array(z.union([z.string(), z.instanceof(RegExp)])).optional().describe('Patterns (strings or RegExps) that block access to any matching path.'),
+})
 
 /**
  * Curated file-system and code-search tools for AI assistants.
@@ -133,11 +136,43 @@ export class FileTools extends Feature {
 		return this.container.feature('grep') as unknown as Grep
 	}
 
+	/**
+	 * Resolve a user-supplied path to an absolute path and validate it against
+	 * `lockToFolder` and `forbid` constraints. Throws if the path is blocked.
+	 */
+	private validatePath(inputPath: string): string {
+		const resolved = this.container.paths.resolve(inputPath)
+
+		const { lockToFolder, forbid } = this.options as { lockToFolder?: string; forbid?: (string | RegExp)[] }
+
+		if (lockToFolder) {
+			const folder = this.container.paths.resolve(lockToFolder)
+			// The resolved path must be inside the locked folder (or be the folder itself)
+			if (resolved !== folder && !resolved.startsWith(folder + '/')) {
+				throw new Error(`Access denied: "${inputPath}" is outside the allowed folder "${lockToFolder}"`)
+			}
+		}
+
+		if (forbid && forbid.length) {
+			for (const pattern of forbid) {
+				const matches = pattern instanceof RegExp
+					? pattern.test(resolved)
+					: resolved.includes(pattern)
+				if (matches) {
+					throw new Error(`Access denied: "${inputPath}" matches forbidden pattern "${pattern}"`)
+				}
+			}
+		}
+
+		return resolved
+	}
+
 	// -------------------------------------------------------------------------
 	// Tool implementations — each matches a static tools key by name
 	// -------------------------------------------------------------------------
 
 	async readFile(args: { path: string; offset?: number; limit?: number }): Promise<string> {
+		this.validatePath(args.path)
 		const content = await this.fs.readFileAsync(args.path) as string
 
 		if (args.offset || args.limit) {
@@ -151,12 +186,14 @@ export class FileTools extends Feature {
 	}
 
 	async writeFile(args: { path: string; content: string }): Promise<string> {
+		this.validatePath(args.path)
 		await this.fs.ensureFolderAsync(args.path.includes('/') ? args.path.split('/').slice(0, -1).join('/') : '.')
 		await this.fs.writeFileAsync(args.path, args.content)
 		return `Wrote ${args.content.length} bytes to ${args.path}`
 	}
 
 	async editFile(args: { path: string; oldString: string; newString: string; replaceAll?: boolean }): Promise<string> {
+		this.validatePath(args.path)
 		const content = await this.fs.readFileAsync(args.path) as string
 
 		if (args.replaceAll) {
@@ -183,6 +220,7 @@ export class FileTools extends Feature {
 
 	async listDirectory(args: { path?: string; recursive?: boolean; include?: string; exclude?: string }): Promise<string> {
 		const dir = args.path || '.'
+		this.validatePath(dir)
 		const result = await this.fs.walkAsync(dir, {
 			files: true,
 			directories: true,
@@ -201,6 +239,7 @@ export class FileTools extends Feature {
 	}
 
 	async searchFiles(args: { pattern: string; path?: string; include?: string; exclude?: string; ignoreCase?: boolean; maxResults?: number }): Promise<string> {
+		if (args.path) this.validatePath(args.path)
 		const results: GrepMatch[] = await this.grep.search({
 			pattern: args.pattern,
 			path: args.path,
@@ -219,6 +258,7 @@ export class FileTools extends Feature {
 
 	async findFiles(args: { pattern: string; path?: string; exclude?: string }): Promise<string> {
 		const dir = args.path || '.'
+		this.validatePath(dir)
 		const result = await this.fs.walkAsync(dir, {
 			files: true,
 			directories: false,
@@ -230,6 +270,7 @@ export class FileTools extends Feature {
 	}
 
 	async fileInfo(args: { path: string }): Promise<string> {
+		this.validatePath(args.path)
 		const exists = await this.fs.existsAsync(args.path)
 		if (!exists) return JSON.stringify({ exists: false })
 
@@ -244,21 +285,27 @@ export class FileTools extends Feature {
 	}
 
 	async createDirectory(args: { path: string }): Promise<string> {
+		this.validatePath(args.path)
 		await this.fs.ensureFolderAsync(args.path)
 		return `Created ${args.path}`
 	}
 
 	async moveFile(args: { source: string; destination: string }): Promise<string> {
+		this.validatePath(args.source)
+		this.validatePath(args.destination)
 		await this.fs.moveAsync(args.source, args.destination)
 		return `Moved ${args.source} → ${args.destination}`
 	}
 
 	async copyFile(args: { source: string; destination: string }): Promise<string> {
+		this.validatePath(args.source)
+		this.validatePath(args.destination)
 		await this.fs.copyAsync(args.source, args.destination)
 		return `Copied ${args.source} → ${args.destination}`
 	}
 
 	async deleteFile(args: { path: string }): Promise<string> {
+		this.validatePath(args.path)
 		const isDir = await this.fs.isDirectoryAsync(args.path)
 		if (isDir) return `Error: "${args.path}" is a directory. Use deleteFile only for files.`
 		await this.fs.rm(args.path)

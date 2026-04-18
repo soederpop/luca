@@ -277,7 +277,22 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	 * @returns {AssistantEntry[]} All discovered entries
 	 */
 	list(): AssistantEntry[] {
-		return Object.values(this.entries)
+		const discovered = Object.values(this.entries)
+		const discoveredNames = new Set(discovered.map((e) => e.name))
+
+		// Include registered factories that weren't discovered on disk
+		const registeredOnly = Object.keys(this.factories)
+			.filter((name) => !discoveredNames.has(name))
+			.map((name): AssistantEntry => ({
+				name,
+				folder: '',
+				hasCorePrompt: false,
+				hasTools: false,
+				hasHooks: false,
+				hasVoice: false,
+			}))
+
+		return [...discovered, ...registeredOnly]
 	}
 
 	/**
