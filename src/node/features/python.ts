@@ -1,8 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
-import { existsSync } from 'fs';
-import { join, resolve } from 'path';
 import { tmpdir } from 'os';
 import { bridgeScript } from '../../python/generated.js';
 import type { ChildProcess } from 'child_process';
@@ -161,7 +159,7 @@ export class Python<
     
     // Setup project directory
     if (this.options.dir) {
-      this.state.set('projectDir', resolve(this.options.dir))
+      this.state.set('projectDir', this.container.paths.resolve(this.options.dir))
     } else {
       this.state.set('projectDir', this.container.cwd)
     }
@@ -170,7 +168,7 @@ export class Python<
     await this.detectEnvironment()
     
     // Execute context script if provided
-    if (this.options.contextScript && existsSync(this.options.contextScript)) {
+    if (this.options.contextScript && this.container.feature('fs').exists(this.options.contextScript)) {
       await this.execute(`exec(open('${this.options.contextScript}').read())`)
     }
 
@@ -217,6 +215,8 @@ export class Python<
     let environmentType: PythonState['environmentType'] = null
 
     const proc = this.container.feature('proc')
+    const fs = this.container.feature('fs')
+    const paths = this.container.paths
 
     /** Resolve a binary to its full path via `which`, falling back to the bare name. */
     const resolveBin = (name: string): string => {
@@ -228,12 +228,14 @@ export class Python<
       pythonPath = this.options.pythonPath
       environmentType = 'system'
     }
-    // Check for uv
-    else if (existsSync(join(projectDir, 'uv.lock')) || existsSync(join(projectDir, 'pyproject.toml'))) {
+
+    // Check for uv — independent so a missing uv binary falls through to conda/venv
+    if (!pythonPath && (fs.exists(paths.resolve(projectDir, 'uv.lock')) || fs.exists(paths.resolve(projectDir, 'pyproject.toml')))) {
       try {
         const uvBin = resolveBin('uv')
         const result = await proc.execAndCapture(`${uvBin} run python --version`)
-        if (result.exitCode === 0) {
+        // execAndCapture returns exitCode 0 on ENOENT — check result.error to confirm the binary actually ran
+        if (result.exitCode === 0 && !result.error) {
           pythonPath = `${uvBin} run python`
           environmentType = 'uv'
         }
@@ -241,12 +243,13 @@ export class Python<
         // Fall through to next detection method
       }
     }
+
     // Check for conda
-    else if (existsSync(join(projectDir, 'environment.yml')) || existsSync(join(projectDir, 'conda.yml'))) {
+    if (!pythonPath && (fs.exists(paths.resolve(projectDir, 'environment.yml')) || fs.exists(paths.resolve(projectDir, 'conda.yml')))) {
       try {
         const condaBin = resolveBin('conda')
         const result = await proc.execAndCapture(`${condaBin} run python --version`)
-        if (result.exitCode === 0) {
+        if (result.exitCode === 0 && !result.error) {
           pythonPath = `${condaBin} run python`
           environmentType = 'conda'
         }
@@ -254,14 +257,15 @@ export class Python<
         // Fall through to next detection method
       }
     }
-    // Check for venv
-    else if (existsSync(join(projectDir, 'venv')) || existsSync(join(projectDir, '.venv'))) {
-      const venvPath = existsSync(join(projectDir, 'venv')) ? 'venv' : '.venv'
-      const venvPython = process.platform === 'win32'
-        ? join(projectDir, venvPath, 'Scripts', 'python.exe')
-        : join(projectDir, venvPath, 'bin', 'python')
 
-      if (existsSync(venvPython)) {
+    // Check for venv
+    if (!pythonPath && (fs.exists(paths.resolve(projectDir, 'venv')) || fs.exists(paths.resolve(projectDir, '.venv')))) {
+      const venvPath = fs.exists(paths.resolve(projectDir, 'venv')) ? 'venv' : '.venv'
+      const venvPython = process.platform === 'win32'
+        ? paths.resolve(projectDir, venvPath, 'Scripts', 'python.exe')
+        : paths.resolve(projectDir, venvPath, 'bin', 'python')
+
+      if (fs.exists(venvPython)) {
         pythonPath = venvPython
         environmentType = 'venv'
       }
@@ -317,6 +321,8 @@ export class Python<
    */
   async installDependencies(): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const proc = this.container.feature('proc')
+    const fs = this.container.feature('fs')
+    const paths = this.container.paths
     const projectDir = this.state.get('projectDir')!
     const environmentType = this.state.get('environmentType')
 
@@ -330,9 +336,9 @@ export class Python<
           installCommand = 'uv sync'
           break
         case 'conda':
-          if (existsSync(join(projectDir, 'environment.yml'))) {
+          if (fs.exists(paths.resolve(projectDir, 'environment.yml'))) {
             installCommand = 'conda env update -f environment.yml'
-          } else if (existsSync(join(projectDir, 'conda.yml'))) {
+          } else if (fs.exists(paths.resolve(projectDir, 'conda.yml'))) {
             installCommand = 'conda env update -f conda.yml'
           } else {
             installCommand = 'conda install --file requirements.txt'
@@ -341,10 +347,10 @@ export class Python<
         case 'venv':
         case 'system':
         default:
-          if (existsSync(join(projectDir, 'requirements.txt'))) {
+          if (fs.exists(paths.resolve(projectDir, 'requirements.txt'))) {
             const pythonPath = this.state.get('pythonPath')!
             installCommand = `${pythonPath} -m pip install -r requirements.txt`
-          } else if (existsSync(join(projectDir, 'pyproject.toml'))) {
+          } else if (fs.exists(paths.resolve(projectDir, 'pyproject.toml'))) {
             const pythonPath = this.state.get('pythonPath')!
             installCommand = `${pythonPath} -m pip install -e .`
           } else {
@@ -406,7 +412,7 @@ export class Python<
     // Create temporary script in system temp dir (not inside the project)
     const tempDir = `${tmpdir()}/luca-python-temp`
     await fs.ensureFolder(tempDir)
-    const scriptPath = join(tempDir, `script-${Date.now()}.py`)
+    const scriptPath = this.container.paths.resolve(tempDir, `script-${Date.now()}.py`)
     
     // Build the Python script
     let script = ''
