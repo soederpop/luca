@@ -3,6 +3,8 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature } from '../feature.js'
 import { Feature as UniversalFeature } from '../../feature.js'
 import { Client, clients } from '../../client.js'
+import { allHelperInstances } from '../../container.js'
+import type { Helper } from '../../helper.js'
 import { RestClient } from '../../clients/rest.js'
 import { GraphClient } from '../../clients/graph.js'
 import { WebSocketClient } from '../../clients/websocket.js'
@@ -222,6 +224,26 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('@soederpop/luca/servers/socket', { WebsocketServer, default: WebsocketServer })
 
     vm.defineModule('zod', { z, default: { z } })
+  }
+
+  /**
+   * Returns all instantiated helper instances across all types, optionally filtered by class.
+   *
+   * @param FilterClass - When provided, only instances of this class are returned.
+   *
+   * @example
+   * ```typescript
+   * // All instances of any type
+   * container.helpers.getInstances()
+   *
+   * // All Assistant instances
+   * const assistants = container.helpers.getInstances(Assistant)
+   * ```
+   */
+  getInstances(): Helper[]
+  getInstances<T extends Helper>(FilterClass: new (...args: any[]) => T): T[]
+  getInstances<T extends Helper>(FilterClass?: new (...args: any[]) => T): Helper[] | T[] {
+    return FilterClass ? allHelperInstances(FilterClass) : allHelperInstances()
   }
 
   /**
@@ -458,7 +480,11 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     try {
       const fm = await this.ensureFileManager()
       const absPatterns = [`${dir}/*.ts`, `${dir}/**/*.ts`]
-      const relPatterns = [`${type}/*.ts`, `${type}/**/*.ts`]
+      // Only use relative patterns when rootDir matches the container cwd,
+      // otherwise the fileManager (rooted in cwd) returns files from the
+      // wrong project which then get resolved against this.rootDir.
+      const useRelative = this.rootDir === this.container.cwd
+      const relPatterns = useRelative ? [`${type}/*.ts`, `${type}/**/*.ts`] : []
       const matched = fm.match([...absPatterns, ...relPatterns])
       files = matched.map((f: string) => f.startsWith('/') ? f : resolve(this.rootDir, f))
     } catch {}

@@ -1,6 +1,6 @@
 import { Feature } from '../feature.js'
 import * as contentbaseExports from 'contentbase'
-import { parse, Collection, extractSections, type ModelDefinition } from 'contentbase'
+import { parse, Collection, Document, extractSections, type ModelDefinition } from 'contentbase'
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { realpathSync } from 'node:fs'
@@ -298,6 +298,43 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    */
   parseMarkdownAtPath(path: string) {
     return parse(path)
+  }
+
+  /**
+   * Get a document object by collection ID, file path, or inline markdown string.
+   * Exactly one of `id`, `path`, or `content` must be provided.
+   *
+   * @param options.id - Collection document ID (e.g. `'guides/intro'`); auto-loads the collection if needed
+   * @param options.path - Absolute or relative path to a markdown file on disk
+   * @param options.content - Raw markdown string; returned as an in-memory Document
+   * @returns The Document instance
+   * @example
+   * ```typescript
+   * // By collection document ID
+   * const doc = await contentDb.document({ id: 'guides/intro' })
+   *
+   * // By file path
+   * const doc = await contentDb.document({ path: '/absolute/path/to/file.md' })
+   *
+   * // In-memory from a markdown string
+   * const doc = contentDb.document({ content: '# Hello\n\nworld' })
+   * ```
+   */
+  async document(options: { id: string; path?: never; content?: never } | { path: string; id?: never; content?: never } | { content: string; id?: never; path?: never }): Promise<Document> {
+    if ('content' in options && options.content != null) {
+      return new Document({ content: options.content, path: '/virtual/document.md' })
+    }
+
+    if ('path' in options && options.path != null) {
+      return parse(options.path) as unknown as Document
+    }
+
+    if ('id' in options && options.id != null) {
+      if (!this.isLoaded) await this.load()
+      return this.collection.document(options.id) as unknown as Document
+    }
+
+    throw new Error('document() requires exactly one of: id, path, or content')
   }
 
   /**

@@ -72,6 +72,11 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   print: ColoredPrintFunction = Object.assign((...args: any[]) => {
     return console.log(...args)
   }, {
+    error: (text: string) => console.log(colors.red(text)),
+    info: (text: string) => console.log(text),
+    success: (text: string) => console.log(colors.green(text)),
+    warn: (text: string) => console.log(colors.yellow(text)),
+    warning: (text: string) => console.log(colors.yellow(text)),
     red: (text: string) => console.log(colors.red(text)),
     green: (text: string) => console.log(colors.green(text)),
     blue: (text: string) => console.log(colors.blue(text)),

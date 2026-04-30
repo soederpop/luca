@@ -19,6 +19,7 @@ import { FileTools } from './features/file-tools'
 import { LucaCoder } from './features/luca-coder'
 import { Memory } from './features/agent-memory'
 import { CodingTools } from './features/coding-tools'
+import { McpBridge } from './features/mcp-bridge'
 
 import type { ConversationTool } from './features/conversation'
 import type { ZodType } from 'zod'
@@ -37,6 +38,7 @@ export {
 	LucaCoder,
 	Memory,
 	CodingTools,
+	McpBridge,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -65,6 +67,7 @@ export interface AGIFeatures extends NodeFeatures {
 	lucaCoder: typeof LucaCoder
 	memory: typeof Memory
 	codingTools: typeof CodingTools
+	mcpBridge: typeof McpBridge
 }
 
 export interface ConversationFactoryOptions {
@@ -143,6 +146,7 @@ const container = new AGIContainer()
 	.use(LucaCoder)
 	.use(Memory)
 	.use(CodingTools)
+	.use(McpBridge)
 	.use(SemanticSearch)
 
 container.docs = container.feature('contentDb', {

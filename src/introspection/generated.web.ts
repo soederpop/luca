@@ -568,6 +568,17 @@ setBuildTimeData('features.helpers', {
       ],
       "returns": "void"
     },
+    "getInstances": {
+      "description": "",
+      "parameters": {
+        "FilterClass": {
+          "type": "new (...args: any[]) => T",
+          "description": "Parameter FilterClass"
+        }
+      },
+      "required": [],
+      "returns": "Helper[] | T[]"
+    },
     "discover": {
       "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
       "parameters": {
@@ -1686,6 +1697,17 @@ export const introspectionData = [
           "url"
         ],
         "returns": "void"
+      },
+      "getInstances": {
+        "description": "",
+        "parameters": {
+          "FilterClass": {
+            "type": "new (...args: any[]) => T",
+            "description": "Parameter FilterClass"
+          }
+        },
+        "required": [],
+        "returns": "Helper[] | T[]"
       },
       "discover": {
         "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",

@@ -915,6 +915,19 @@ const uuidCache = new Map<string, Helper>()
 const featureIdToHelperCacheKeyMap= new Map()
 const contextMap = new WeakMap()
 
+/**
+ * Returns all helper instances that have been created by any container in this process.
+ * Optionally filtered by class.
+ *
+ * @param FilterClass - When provided, only instances of this class are returned.
+ */
+export function allHelperInstances(): Helper[]
+export function allHelperInstances<T extends Helper>(FilterClass: new (...args: any[]) => T): T[]
+export function allHelperInstances<T extends Helper>(FilterClass?: new (...args: any[]) => T): Helper[] | T[] {
+  const all = [...uuidCache.values()]
+  return FilterClass ? all.filter((h): h is T => h instanceof FilterClass) : all
+}
+
 function presentContainerIntrospectionAsMarkdown(data: ContainerIntrospection, startHeadingDepth: number = 1, section?: IntrospectionSection): string {
   const sections: string[] = []
   const heading = (level: number) => '#'.repeat(Math.max(1, startHeadingDepth + level - 1))

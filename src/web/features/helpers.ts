@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
 import { Client } from '../../client.js'
+import { allHelperInstances } from '../../container.js'
+import type { Helper } from '../../helper.js'
 import type { Registry } from '../../registry.js'
 import type { AssetLoader } from './asset-loader.js'
 
@@ -104,6 +106,26 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     this.options.manifestURL = url
     this._manifest = null
     this.state.set('manifestLoaded', false)
+  }
+
+  /**
+   * Returns all instantiated helper instances across all types, optionally filtered by class.
+   *
+   * @param FilterClass - When provided, only instances of this class are returned.
+   *
+   * @example
+   * ```typescript
+   * // All instances of any type
+   * container.helpers.getInstances()
+   *
+   * // All Assistant instances
+   * const assistants = container.helpers.getInstances(Assistant)
+   * ```
+   */
+  getInstances(): Helper[]
+  getInstances<T extends Helper>(FilterClass: new (...args: any[]) => T): T[]
+  getInstances<T extends Helper>(FilterClass?: new (...args: any[]) => T): Helper[] | T[] {
+    return FilterClass ? allHelperInstances(FilterClass) : allHelperInstances()
   }
 
   /**

@@ -10875,6 +10875,17 @@ setBuildTimeData('features.helpers', {
       "required": [],
       "returns": "void"
     },
+    "getInstances": {
+      "description": "",
+      "parameters": {
+        "FilterClass": {
+          "type": "new (...args: any[]) => T",
+          "description": "Parameter FilterClass"
+        }
+      },
+      "required": [],
+      "returns": "Helper[] | T[]"
+    },
     "discover": {
       "description": "Discover and register project-level helpers of the given type. Idempotent: the first caller triggers the actual scan. Subsequent callers receive the cached results. If discovery is in-flight, callers await the same promise — no duplicate work.",
       "parameters": {
@@ -11311,6 +11322,39 @@ setBuildTimeData('features.contentDb', {
         {
           "language": "ts",
           "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+        }
+      ]
+    },
+    "document": {
+      "description": "Get a document object by collection ID, file path, or inline markdown string. Exactly one of `id`, `path`, or `content` must be provided.",
+      "parameters": {
+        "options": {
+          "type": "{ id: string; path?: never; content?: never } | { path: string; id?: never; content?: never } | { content: string; id?: never; path?: never }",
+          "description": "Parameter options",
+          "properties": {
+            "id": {
+              "type": "any",
+              "description": "Collection document ID (e.g. `'guides/intro'`); auto-loads the collection if needed"
+            },
+            "path": {
+              "type": "any",
+              "description": "Absolute or relative path to a markdown file on disk"
+            },
+            "content": {
+              "type": "any",
+              "description": "Raw markdown string; returned as an in-memory Document"
+            }
+          }
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<Document>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// By collection document ID\nconst doc = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst doc = await contentDb.document({ path: '/absolute/path/to/file.md' })\n\n// In-memory from a markdown string\nconst doc = contentDb.document({ content: '# Hello\\n\\nworld' })"
         }
       ]
     },
@@ -12247,6 +12291,202 @@ setBuildTimeData('clients.openai', {
   ]
 });
 
+setBuildTimeData('clients.supabase', {
+  "id": "clients.supabase",
+  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+  "shortcut": "clients.supabase",
+  "className": "SupabaseClient",
+  "methods": {
+    "from": {
+      "description": "Start a query on a Postgres table or view.",
+      "parameters": {
+        "table": {
+          "type": "string",
+          "description": "The table or view name to query"
+        }
+      },
+      "required": [
+        "table"
+      ],
+      "returns": "void"
+    },
+    "rpc": {
+      "description": "Call a Postgres function (RPC).",
+      "parameters": {
+        "fn": {
+          "type": "string",
+          "description": "The function name"
+        },
+        "params": {
+          "type": "Record<string, unknown>",
+          "description": "Arguments to pass to the function"
+        },
+        "options": {
+          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+          "description": "Optional settings (head, get, count)"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "void"
+    },
+    "signInWithPassword": {
+      "description": "Sign in with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signUp": {
+      "description": "Create a new user account with email and password.",
+      "parameters": {
+        "email": {
+          "type": "string",
+          "description": "Parameter email"
+        },
+        "password": {
+          "type": "string",
+          "description": "Parameter password"
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "returns": "void"
+    },
+    "signOut": {
+      "description": "Sign the current user out.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getSession": {
+      "description": "Get the current session, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getUser": {
+      "description": "Get the current user, if any.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "invoke": {
+      "description": "Invoke a Supabase Edge Function by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "body": {
+          "type": "any",
+          "description": "Parameter body"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "void"
+    },
+    "subscribe": {
+      "description": "Subscribe to realtime changes on a Postgres table.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "A name for this subscription channel"
+        },
+        "table": {
+          "type": "string",
+          "description": "The table to listen to"
+        },
+        "callback": {
+          "type": "(payload: any) => void",
+          "description": "Called with the payload on each change"
+        },
+        "event": {
+          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+          "description": "The event type to listen for (default: all changes)"
+        }
+      },
+      "required": [
+        "channelName",
+        "table",
+        "callback"
+      ],
+      "returns": "RealtimeChannel"
+    },
+    "unsubscribe": {
+      "description": "Unsubscribe and remove a realtime channel by name.",
+      "parameters": {
+        "channelName": {
+          "type": "string",
+          "description": "The channel name to remove"
+        }
+      },
+      "required": [
+        "channelName"
+      ],
+      "returns": "void"
+    },
+    "unsubscribeAll": {
+      "description": "Unsubscribe and remove all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disconnect": {
+      "description": "Disconnect by signing out and removing all realtime channels.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "sdk": {
+      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+      "returns": "SupabaseSDKClient<any, any>"
+    },
+    "storage": {
+      "description": "Returns the Supabase Storage client for managing buckets and files.",
+      "returns": "any"
+    },
+    "functions": {
+      "description": "Returns the Supabase Functions client.",
+      "returns": "any"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+    }
+  ]
+});
+
 setBuildTimeData('clients.voicebox', {
   "id": "clients.voicebox",
   "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
@@ -12631,466 +12871,6 @@ setBuildTimeData('clients.voicebox', {
   }
 });
 
-setBuildTimeData('clients.elevenlabs', {
-  "id": "clients.elevenlabs",
-  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-  "shortcut": "clients.elevenlabs",
-  "className": "ElevenLabsClient",
-  "methods": {
-    "beforeRequest": {
-      "description": "Inject the xi-api-key header before each request.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Validate the API key by listing available models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<this>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "await el.connect()"
-        }
-      ]
-    },
-    "listVoices": {
-      "description": "List available voices with optional search and filtering.",
-      "parameters": {
-        "options": {
-          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-          "description": "Query parameters for filtering voices"
-        }
-      },
-      "required": [],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-        }
-      ]
-    },
-    "getVoice": {
-      "description": "Get details for a single voice.",
-      "parameters": {
-        "voiceId": {
-          "type": "string",
-          "description": "The voice ID to look up"
-        }
-      },
-      "required": [
-        "voiceId"
-      ],
-      "returns": "Promise<any>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-        }
-      ]
-    },
-    "listModels": {
-      "description": "List available TTS models.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<any[]>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-        }
-      ]
-    },
-    "synthesize": {
-      "description": "Synthesize speech from text, returning audio as a Buffer.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "returns": "Promise<Buffer>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-        }
-      ]
-    },
-    "say": {
-      "description": "Synthesize speech and write the audio to a file.",
-      "parameters": {
-        "text": {
-          "type": "string",
-          "description": "The text to convert to speech"
-        },
-        "outputPath": {
-          "type": "string",
-          "description": "File path to write the audio to"
-        },
-        "options": {
-          "type": "SynthesizeOptions",
-          "description": "Voice, model, format, and voice settings overrides",
-          "properties": {
-            "voiceId": {
-              "type": "string",
-              "description": ""
-            },
-            "modelId": {
-              "type": "string",
-              "description": ""
-            },
-            "outputFormat": {
-              "type": "string",
-              "description": ""
-            },
-            "voiceSettings": {
-              "type": "ElevenLabsVoiceSettings",
-              "description": ""
-            },
-            "disableCache": {
-              "type": "boolean",
-              "description": ""
-            }
-          }
-        }
-      },
-      "required": [
-        "text",
-        "outputPath"
-      ],
-      "returns": "Promise<string>",
-      "examples": [
-        {
-          "language": "ts",
-          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-        }
-      ]
-    }
-  },
-  "getters": {
-    "apiKey": {
-      "description": "The resolved API key from options or environment.",
-      "returns": "string"
-    }
-  },
-  "events": {
-    "failure": {
-      "name": "failure",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "voices": {
-      "name": "voices",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    },
-    "speech": {
-      "name": "speech",
-      "description": "Event emitted by ElevenLabsClient",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-    }
-  ],
-  "types": {
-    "SynthesizeOptions": {
-      "description": "",
-      "properties": {
-        "voiceId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "modelId": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "outputFormat": {
-          "type": "string",
-          "description": "",
-          "optional": true
-        },
-        "voiceSettings": {
-          "type": "ElevenLabsVoiceSettings",
-          "description": "",
-          "optional": true
-        },
-        "disableCache": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    },
-    "ElevenLabsVoiceSettings": {
-      "description": "",
-      "properties": {
-        "stability": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "similarityBoost": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "style": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "speed": {
-          "type": "number",
-          "description": "",
-          "optional": true
-        },
-        "useSpeakerBoost": {
-          "type": "boolean",
-          "description": "",
-          "optional": true
-        }
-      }
-    }
-  }
-});
-
-setBuildTimeData('clients.supabase', {
-  "id": "clients.supabase",
-  "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-  "shortcut": "clients.supabase",
-  "className": "SupabaseClient",
-  "methods": {
-    "from": {
-      "description": "Start a query on a Postgres table or view.",
-      "parameters": {
-        "table": {
-          "type": "string",
-          "description": "The table or view name to query"
-        }
-      },
-      "required": [
-        "table"
-      ],
-      "returns": "void"
-    },
-    "rpc": {
-      "description": "Call a Postgres function (RPC).",
-      "parameters": {
-        "fn": {
-          "type": "string",
-          "description": "The function name"
-        },
-        "params": {
-          "type": "Record<string, unknown>",
-          "description": "Arguments to pass to the function"
-        },
-        "options": {
-          "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-          "description": "Optional settings (head, get, count)"
-        }
-      },
-      "required": [
-        "fn"
-      ],
-      "returns": "void"
-    },
-    "signInWithPassword": {
-      "description": "Sign in with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signUp": {
-      "description": "Create a new user account with email and password.",
-      "parameters": {
-        "email": {
-          "type": "string",
-          "description": "Parameter email"
-        },
-        "password": {
-          "type": "string",
-          "description": "Parameter password"
-        }
-      },
-      "required": [
-        "email",
-        "password"
-      ],
-      "returns": "void"
-    },
-    "signOut": {
-      "description": "Sign the current user out.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getSession": {
-      "description": "Get the current session, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "getUser": {
-      "description": "Get the current user, if any.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "invoke": {
-      "description": "Invoke a Supabase Edge Function by name.",
-      "parameters": {
-        "name": {
-          "type": "string",
-          "description": "Parameter name"
-        },
-        "body": {
-          "type": "any",
-          "description": "Parameter body"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "returns": "void"
-    },
-    "subscribe": {
-      "description": "Subscribe to realtime changes on a Postgres table.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "A name for this subscription channel"
-        },
-        "table": {
-          "type": "string",
-          "description": "The table to listen to"
-        },
-        "callback": {
-          "type": "(payload: any) => void",
-          "description": "Called with the payload on each change"
-        },
-        "event": {
-          "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-          "description": "The event type to listen for (default: all changes)"
-        }
-      },
-      "required": [
-        "channelName",
-        "table",
-        "callback"
-      ],
-      "returns": "RealtimeChannel"
-    },
-    "unsubscribe": {
-      "description": "Unsubscribe and remove a realtime channel by name.",
-      "parameters": {
-        "channelName": {
-          "type": "string",
-          "description": "The channel name to remove"
-        }
-      },
-      "required": [
-        "channelName"
-      ],
-      "returns": "void"
-    },
-    "unsubscribeAll": {
-      "description": "Unsubscribe and remove all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "connect": {
-      "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "disconnect": {
-      "description": "Disconnect by signing out and removing all realtime channels.",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "sdk": {
-      "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-      "returns": "SupabaseSDKClient<any, any>"
-    },
-    "storage": {
-      "description": "Returns the Supabase Storage client for managing buckets and files.",
-      "returns": "any"
-    },
-    "functions": {
-      "description": "Returns the Supabase Functions client.",
-      "returns": "any"
-    }
-  },
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-    }
-  ]
-});
-
 setBuildTimeData('clients.comfyui', {
   "id": "clients.comfyui",
   "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
@@ -13380,6 +13160,270 @@ setBuildTimeData('clients.comfyui', {
         },
         "images": {
           "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+          "description": "",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('clients.elevenlabs', {
+  "id": "clients.elevenlabs",
+  "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+  "shortcut": "clients.elevenlabs",
+  "className": "ElevenLabsClient",
+  "methods": {
+    "beforeRequest": {
+      "description": "Inject the xi-api-key header before each request.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "connect": {
+      "description": "Validate the API key by listing available models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await el.connect()"
+        }
+      ]
+    },
+    "listVoices": {
+      "description": "List available voices with optional search and filtering.",
+      "parameters": {
+        "options": {
+          "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+          "description": "Query parameters for filtering voices"
+        }
+      },
+      "required": [],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+        }
+      ]
+    },
+    "getVoice": {
+      "description": "Get details for a single voice.",
+      "parameters": {
+        "voiceId": {
+          "type": "string",
+          "description": "The voice ID to look up"
+        }
+      },
+      "required": [
+        "voiceId"
+      ],
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+        }
+      ]
+    },
+    "listModels": {
+      "description": "List available TTS models.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<any[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+        }
+      ]
+    },
+    "synthesize": {
+      "description": "Synthesize speech from text, returning audio as a Buffer.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+        }
+      ]
+    },
+    "say": {
+      "description": "Synthesize speech and write the audio to a file.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "The text to convert to speech"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "File path to write the audio to"
+        },
+        "options": {
+          "type": "SynthesizeOptions",
+          "description": "Voice, model, format, and voice settings overrides",
+          "properties": {
+            "voiceId": {
+              "type": "string",
+              "description": ""
+            },
+            "modelId": {
+              "type": "string",
+              "description": ""
+            },
+            "outputFormat": {
+              "type": "string",
+              "description": ""
+            },
+            "voiceSettings": {
+              "type": "ElevenLabsVoiceSettings",
+              "description": ""
+            },
+            "disableCache": {
+              "type": "boolean",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "text",
+        "outputPath"
+      ],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "apiKey": {
+      "description": "The resolved API key from options or environment.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "failure": {
+      "name": "failure",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "voices": {
+      "name": "voices",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    },
+    "speech": {
+      "name": "speech",
+      "description": "Event emitted by ElevenLabsClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+    }
+  ],
+  "types": {
+    "SynthesizeOptions": {
+      "description": "",
+      "properties": {
+        "voiceId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "modelId": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "outputFormat": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "voiceSettings": {
+          "type": "ElevenLabsVoiceSettings",
+          "description": "",
+          "optional": true
+        },
+        "disableCache": {
+          "type": "boolean",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "ElevenLabsVoiceSettings": {
+      "description": "",
+      "properties": {
+        "stability": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "similarityBoost": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "style": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "speed": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "useSpeakerBoost": {
+          "type": "boolean",
           "description": "",
           "optional": true
         }
@@ -18366,6 +18410,222 @@ setBuildTimeData('features.openaiCodex', {
           "type": "'in_progress' | 'completed' | string",
           "description": "",
           "optional": true
+        }
+      }
+    }
+  }
+});
+
+setBuildTimeData('features.mcpBridge', {
+  "id": "features.mcpBridge",
+  "description": "Bridges local stdio MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools.",
+  "shortcut": "features.mcpBridge",
+  "className": "McpBridge",
+  "methods": {
+    "connectAll": {
+      "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "connectServer": {
+      "description": "Connect to a single MCP server, discover its tools/resources/prompts.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "config": {
+          "type": "McpServerConfig",
+          "description": "Parameter config"
+        }
+      },
+      "required": [
+        "name",
+        "config"
+      ],
+      "returns": "Promise<ConnectedServer>"
+    },
+    "disconnectAll": {
+      "description": "Disconnect from all MCP servers and clean up.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disconnectServer": {
+      "description": "Disconnect a single server.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<void>"
+    },
+    "listMcpCapabilities": {
+      "description": "List capabilities across all connected servers or a specific one.",
+      "parameters": {
+        "args": {
+          "type": "{ server?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "void"
+    },
+    "useMcpTool": {
+      "description": "Call a tool on a specific MCP server.",
+      "parameters": {
+        "args": {
+          "type": "{ server: string; tool: string; arguments?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "void"
+    },
+    "readMcpResource": {
+      "description": "Read a resource from a connected MCP server.",
+      "parameters": {
+        "args": {
+          "type": "{ server: string; uri: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "void"
+    },
+    "getMcpPrompt": {
+      "description": "Get a prompt from a connected MCP server.",
+      "parameters": {
+        "args": {
+          "type": "{ server: string; name: string; arguments?: string }",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "void"
+    },
+    "setupToolsConsumer": {
+      "description": "When an assistant consumes this feature via `assistant.use(bridge)`: 1. Inject system prompt guidance about MCP capabilities. 2. Schedule async connection + tool materialization via the assistant's pending plugins mechanism (awaited during `assistant.start()`).",
+      "parameters": {
+        "consumer": {
+          "type": "Helper",
+          "description": "Parameter consumer"
+        }
+      },
+      "required": [
+        "consumer"
+      ],
+      "returns": "void"
+    },
+    "getServer": {
+      "description": "Get a connected server by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "ConnectedServer | undefined"
+    }
+  },
+  "getters": {
+    "connectedServers": {
+      "description": "List all connected server names.",
+      "returns": "string[]"
+    },
+    "allTools": {
+      "description": "Get all discovered tools across all servers, with their server name prefix.",
+      "returns": "Array<{ server: string; tool: McpToolInfo; materializedName: string }>"
+    }
+  },
+  "events": {
+    "serverError": {
+      "name": "serverError",
+      "description": "Event emitted by McpBridge",
+      "arguments": {}
+    },
+    "serverConnected": {
+      "name": "serverConnected",
+      "description": "Event emitted by McpBridge",
+      "arguments": {}
+    },
+    "serverDisconnected": {
+      "name": "serverDisconnected",
+      "description": "Event emitted by McpBridge",
+      "arguments": {}
+    },
+    "toolCalled": {
+      "name": "toolCalled",
+      "description": "Event emitted by McpBridge",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n },\n})"
+    }
+  ],
+  "types": {
+    "ConnectedServer": {
+      "description": "",
+      "properties": {
+        "client": {
+          "type": "Client",
+          "description": ""
+        },
+        "transport": {
+          "type": "StdioClientTransport",
+          "description": ""
+        },
+        "tools": {
+          "type": "McpToolInfo[]",
+          "description": ""
+        },
+        "resources": {
+          "type": "Array<{ uri: string; name: string; description?: string }>",
+          "description": ""
+        },
+        "prompts": {
+          "type": "Array<{ name: string; description?: string; arguments?: Array<{ name: string; description?: string; required?: boolean }> }>",
+          "description": ""
+        }
+      }
+    },
+    "McpToolInfo": {
+      "description": "── Internal types ───────────────────────────────────────────────────────────",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": ""
+        },
+        "description": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "inputSchema": {
+          "type": "Record<string, any>",
+          "description": ""
         }
       }
     }
@@ -31107,6 +31367,17 @@ export const introspectionData = [
         "required": [],
         "returns": "void"
       },
+      "getInstances": {
+        "description": "",
+        "parameters": {
+          "FilterClass": {
+            "type": "new (...args: any[]) => T",
+            "description": "Parameter FilterClass"
+          }
+        },
+        "required": [],
+        "returns": "Helper[] | T[]"
+      },
       "discover": {
         "description": "Discover and register project-level helpers of the given type. Idempotent: the first caller triggers the actual scan. Subsequent callers receive the cached results. If discovery is in-flight, callers await the same promise — no duplicate work.",
         "parameters": {
@@ -31541,6 +31812,39 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+          }
+        ]
+      },
+      "document": {
+        "description": "Get a document object by collection ID, file path, or inline markdown string. Exactly one of `id`, `path`, or `content` must be provided.",
+        "parameters": {
+          "options": {
+            "type": "{ id: string; path?: never; content?: never } | { path: string; id?: never; content?: never } | { content: string; id?: never; path?: never }",
+            "description": "Parameter options",
+            "properties": {
+              "id": {
+                "type": "any",
+                "description": "Collection document ID (e.g. `'guides/intro'`); auto-loads the collection if needed"
+              },
+              "path": {
+                "type": "any",
+                "description": "Absolute or relative path to a markdown file on disk"
+              },
+              "content": {
+                "type": "any",
+                "description": "Raw markdown string; returned as an in-memory Document"
+              }
+            }
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<Document>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// By collection document ID\nconst doc = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst doc = await contentDb.document({ path: '/absolute/path/to/file.md' })\n\n// In-memory from a markdown string\nconst doc = contentDb.document({ content: '# Hello\\n\\nworld' })"
           }
         ]
       },
@@ -32473,6 +32777,201 @@ export const introspectionData = [
     ]
   },
   {
+    "id": "clients.supabase",
+    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
+    "shortcut": "clients.supabase",
+    "className": "SupabaseClient",
+    "methods": {
+      "from": {
+        "description": "Start a query on a Postgres table or view.",
+        "parameters": {
+          "table": {
+            "type": "string",
+            "description": "The table or view name to query"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "returns": "void"
+      },
+      "rpc": {
+        "description": "Call a Postgres function (RPC).",
+        "parameters": {
+          "fn": {
+            "type": "string",
+            "description": "The function name"
+          },
+          "params": {
+            "type": "Record<string, unknown>",
+            "description": "Arguments to pass to the function"
+          },
+          "options": {
+            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
+            "description": "Optional settings (head, get, count)"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "void"
+      },
+      "signInWithPassword": {
+        "description": "Sign in with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signUp": {
+        "description": "Create a new user account with email and password.",
+        "parameters": {
+          "email": {
+            "type": "string",
+            "description": "Parameter email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Parameter password"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "returns": "void"
+      },
+      "signOut": {
+        "description": "Sign the current user out.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getSession": {
+        "description": "Get the current session, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getUser": {
+        "description": "Get the current user, if any.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "invoke": {
+        "description": "Invoke a Supabase Edge Function by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "body": {
+            "type": "any",
+            "description": "Parameter body"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "void"
+      },
+      "subscribe": {
+        "description": "Subscribe to realtime changes on a Postgres table.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "A name for this subscription channel"
+          },
+          "table": {
+            "type": "string",
+            "description": "The table to listen to"
+          },
+          "callback": {
+            "type": "(payload: any) => void",
+            "description": "Called with the payload on each change"
+          },
+          "event": {
+            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
+            "description": "The event type to listen for (default: all changes)"
+          }
+        },
+        "required": [
+          "channelName",
+          "table",
+          "callback"
+        ],
+        "returns": "RealtimeChannel"
+      },
+      "unsubscribe": {
+        "description": "Unsubscribe and remove a realtime channel by name.",
+        "parameters": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel name to remove"
+          }
+        },
+        "required": [
+          "channelName"
+        ],
+        "returns": "void"
+      },
+      "unsubscribeAll": {
+        "description": "Unsubscribe and remove all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disconnect": {
+        "description": "Disconnect by signing out and removing all realtime channels.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "sdk": {
+        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
+        "returns": "SupabaseSDKClient<any, any>"
+      },
+      "storage": {
+        "description": "Returns the Supabase Storage client for managing buckets and files.",
+        "returns": "any"
+      },
+      "functions": {
+        "description": "Returns the Supabase Functions client.",
+        "returns": "any"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
+      }
+    ]
+  },
+  {
     "id": "clients.voicebox",
     "description": "VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). Provides methods for managing voice profiles and generating speech audio locally. Uses the streaming endpoint for synchronous synthesis (returns WAV buffer).",
     "shortcut": "clients.voicebox",
@@ -32856,464 +33355,6 @@ export const introspectionData = [
     }
   },
   {
-    "id": "clients.elevenlabs",
-    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
-    "shortcut": "clients.elevenlabs",
-    "className": "ElevenLabsClient",
-    "methods": {
-      "beforeRequest": {
-        "description": "Inject the xi-api-key header before each request.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Validate the API key by listing available models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<this>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "await el.connect()"
-          }
-        ]
-      },
-      "listVoices": {
-        "description": "List available voices with optional search and filtering.",
-        "parameters": {
-          "options": {
-            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
-            "description": "Query parameters for filtering voices"
-          }
-        },
-        "required": [],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
-          }
-        ]
-      },
-      "getVoice": {
-        "description": "Get details for a single voice.",
-        "parameters": {
-          "voiceId": {
-            "type": "string",
-            "description": "The voice ID to look up"
-          }
-        },
-        "required": [
-          "voiceId"
-        ],
-        "returns": "Promise<any>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
-          }
-        ]
-      },
-      "listModels": {
-        "description": "List available TTS models.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<any[]>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
-          }
-        ]
-      },
-      "synthesize": {
-        "description": "Synthesize speech from text, returning audio as a Buffer.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text"
-        ],
-        "returns": "Promise<Buffer>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
-          }
-        ]
-      },
-      "say": {
-        "description": "Synthesize speech and write the audio to a file.",
-        "parameters": {
-          "text": {
-            "type": "string",
-            "description": "The text to convert to speech"
-          },
-          "outputPath": {
-            "type": "string",
-            "description": "File path to write the audio to"
-          },
-          "options": {
-            "type": "SynthesizeOptions",
-            "description": "Voice, model, format, and voice settings overrides",
-            "properties": {
-              "voiceId": {
-                "type": "string",
-                "description": ""
-              },
-              "modelId": {
-                "type": "string",
-                "description": ""
-              },
-              "outputFormat": {
-                "type": "string",
-                "description": ""
-              },
-              "voiceSettings": {
-                "type": "ElevenLabsVoiceSettings",
-                "description": ""
-              },
-              "disableCache": {
-                "type": "boolean",
-                "description": ""
-              }
-            }
-          }
-        },
-        "required": [
-          "text",
-          "outputPath"
-        ],
-        "returns": "Promise<string>",
-        "examples": [
-          {
-            "language": "ts",
-            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
-          }
-        ]
-      }
-    },
-    "getters": {
-      "apiKey": {
-        "description": "The resolved API key from options or environment.",
-        "returns": "string"
-      }
-    },
-    "events": {
-      "failure": {
-        "name": "failure",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "voices": {
-        "name": "voices",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      },
-      "speech": {
-        "name": "speech",
-        "description": "Event emitted by ElevenLabsClient",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
-      }
-    ],
-    "types": {
-      "SynthesizeOptions": {
-        "description": "",
-        "properties": {
-          "voiceId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "modelId": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "outputFormat": {
-            "type": "string",
-            "description": "",
-            "optional": true
-          },
-          "voiceSettings": {
-            "type": "ElevenLabsVoiceSettings",
-            "description": "",
-            "optional": true
-          },
-          "disableCache": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      },
-      "ElevenLabsVoiceSettings": {
-        "description": "",
-        "properties": {
-          "stability": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "similarityBoost": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "style": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "speed": {
-            "type": "number",
-            "description": "",
-            "optional": true
-          },
-          "useSpeakerBoost": {
-            "type": "boolean",
-            "description": "",
-            "optional": true
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "clients.supabase",
-    "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
-    "shortcut": "clients.supabase",
-    "className": "SupabaseClient",
-    "methods": {
-      "from": {
-        "description": "Start a query on a Postgres table or view.",
-        "parameters": {
-          "table": {
-            "type": "string",
-            "description": "The table or view name to query"
-          }
-        },
-        "required": [
-          "table"
-        ],
-        "returns": "void"
-      },
-      "rpc": {
-        "description": "Call a Postgres function (RPC).",
-        "parameters": {
-          "fn": {
-            "type": "string",
-            "description": "The function name"
-          },
-          "params": {
-            "type": "Record<string, unknown>",
-            "description": "Arguments to pass to the function"
-          },
-          "options": {
-            "type": "{ head?: boolean; get?: boolean; count?: \"exact\" | \"planned\" | \"estimated\" }",
-            "description": "Optional settings (head, get, count)"
-          }
-        },
-        "required": [
-          "fn"
-        ],
-        "returns": "void"
-      },
-      "signInWithPassword": {
-        "description": "Sign in with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signUp": {
-        "description": "Create a new user account with email and password.",
-        "parameters": {
-          "email": {
-            "type": "string",
-            "description": "Parameter email"
-          },
-          "password": {
-            "type": "string",
-            "description": "Parameter password"
-          }
-        },
-        "required": [
-          "email",
-          "password"
-        ],
-        "returns": "void"
-      },
-      "signOut": {
-        "description": "Sign the current user out.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getSession": {
-        "description": "Get the current session, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "getUser": {
-        "description": "Get the current user, if any.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "invoke": {
-        "description": "Invoke a Supabase Edge Function by name.",
-        "parameters": {
-          "name": {
-            "type": "string",
-            "description": "Parameter name"
-          },
-          "body": {
-            "type": "any",
-            "description": "Parameter body"
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "returns": "void"
-      },
-      "subscribe": {
-        "description": "Subscribe to realtime changes on a Postgres table.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "A name for this subscription channel"
-          },
-          "table": {
-            "type": "string",
-            "description": "The table to listen to"
-          },
-          "callback": {
-            "type": "(payload: any) => void",
-            "description": "Called with the payload on each change"
-          },
-          "event": {
-            "type": "\"INSERT\" | \"UPDATE\" | \"DELETE\" | \"*\"",
-            "description": "The event type to listen for (default: all changes)"
-          }
-        },
-        "required": [
-          "channelName",
-          "table",
-          "callback"
-        ],
-        "returns": "RealtimeChannel"
-      },
-      "unsubscribe": {
-        "description": "Unsubscribe and remove a realtime channel by name.",
-        "parameters": {
-          "channelName": {
-            "type": "string",
-            "description": "The channel name to remove"
-          }
-        },
-        "required": [
-          "channelName"
-        ],
-        "returns": "void"
-      },
-      "unsubscribeAll": {
-        "description": "Unsubscribe and remove all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "connect": {
-        "description": "Connect is a no-op since the Supabase SDK initializes on construction. The client is ready to use immediately after creation.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "disconnect": {
-        "description": "Disconnect by signing out and removing all realtime channels.",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "sdk": {
-        "description": "Returns the raw Supabase SDK client for full access to all SDK methods.",
-        "returns": "SupabaseSDKClient<any, any>"
-      },
-      "storage": {
-        "description": "Returns the Supabase Storage client for managing buckets and files.",
-        "returns": "any"
-      },
-      "functions": {
-        "description": "Returns the Supabase Functions client.",
-        "returns": "any"
-      }
-    },
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const supabase = container.client('supabase', {\n supabaseUrl: 'https://xyz.supabase.co',\n supabaseKey: 'your-anon-key',\n})\n\n// Query data\nconst { data } = await supabase.from('users').select('*')\n\n// Auth\nawait supabase.signInWithPassword('user@example.com', 'password')\n\n// Realtime\nsupabase.subscribe('changes', 'users', (payload) => {\n console.log('Change:', payload)\n})"
-      }
-    ]
-  },
-  {
     "id": "clients.comfyui",
     "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
     "shortcut": "clients.comfyui",
@@ -33602,6 +33643,269 @@ export const introspectionData = [
           },
           "images": {
             "type": "Array<{ filename: string; subfolder: string; type: string; localPath?: string }>",
+            "description": "",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "clients.elevenlabs",
+    "description": "ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.",
+    "shortcut": "clients.elevenlabs",
+    "className": "ElevenLabsClient",
+    "methods": {
+      "beforeRequest": {
+        "description": "Inject the xi-api-key header before each request.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "connect": {
+        "description": "Validate the API key by listing available models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await el.connect()"
+          }
+        ]
+      },
+      "listVoices": {
+        "description": "List available voices with optional search and filtering.",
+        "parameters": {
+          "options": {
+            "type": "{\n    search?: string\n    category?: string\n    voice_type?: string\n    page_size?: number\n    next_page_token?: string\n  }",
+            "description": "Query parameters for filtering voices"
+          }
+        },
+        "required": [],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voices = await el.listVoices()\nconst premade = await el.listVoices({ category: 'premade' })"
+          }
+        ]
+      },
+      "getVoice": {
+        "description": "Get details for a single voice.",
+        "parameters": {
+          "voiceId": {
+            "type": "string",
+            "description": "The voice ID to look up"
+          }
+        },
+        "required": [
+          "voiceId"
+        ],
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const voice = await el.getVoice('21m00Tcm4TlvDq8ikWAM')\nconsole.log(voice.name, voice.settings)"
+          }
+        ]
+      },
+      "listModels": {
+        "description": "List available TTS models.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<any[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const models = await el.listModels()\nconsole.log(models.map(m => m.model_id))"
+          }
+        ]
+      },
+      "synthesize": {
+        "description": "Synthesize speech from text, returning audio as a Buffer.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data\n\nconst custom = await el.synthesize('Hello', {\n voiceId: '21m00Tcm4TlvDq8ikWAM',\n voiceSettings: { stability: 0.5, similarityBoost: 0.8 }\n})"
+          }
+        ]
+      },
+      "say": {
+        "description": "Synthesize speech and write the audio to a file.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "The text to convert to speech"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "File path to write the audio to"
+          },
+          "options": {
+            "type": "SynthesizeOptions",
+            "description": "Voice, model, format, and voice settings overrides",
+            "properties": {
+              "voiceId": {
+                "type": "string",
+                "description": ""
+              },
+              "modelId": {
+                "type": "string",
+                "description": ""
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": ""
+              },
+              "voiceSettings": {
+                "type": "ElevenLabsVoiceSettings",
+                "description": ""
+              },
+              "disableCache": {
+                "type": "boolean",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "text",
+          "outputPath"
+        ],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const path = await el.say('Hello world', './hello.mp3')\nconsole.log(`Audio saved to ${path}`)"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "apiKey": {
+        "description": "The resolved API key from options or environment.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "failure": {
+        "name": "failure",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "voices": {
+        "name": "voices",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      },
+      "speech": {
+        "name": "speech",
+        "description": "Event emitted by ElevenLabsClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const el = container.client('elevenlabs')\nawait el.connect()\nconst voices = await el.listVoices()\nconst audio = await el.synthesize('Hello world')\n// audio is a Buffer of mp3 data"
+      }
+    ],
+    "types": {
+      "SynthesizeOptions": {
+        "description": "",
+        "properties": {
+          "voiceId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "modelId": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "outputFormat": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "voiceSettings": {
+            "type": "ElevenLabsVoiceSettings",
+            "description": "",
+            "optional": true
+          },
+          "disableCache": {
+            "type": "boolean",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "ElevenLabsVoiceSettings": {
+        "description": "",
+        "properties": {
+          "stability": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "similarityBoost": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "style": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "speed": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "useSpeakerBoost": {
+            "type": "boolean",
             "description": "",
             "optional": true
           }
@@ -38575,6 +38879,221 @@ export const introspectionData = [
             "type": "'in_progress' | 'completed' | string",
             "description": "",
             "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.mcpBridge",
+    "description": "Bridges local stdio MCP servers to Luca assistants by connecting to them, discovering their tools/resources/prompts, and exposing them as first-class assistant tool calls. To the model, MCP tools look like ordinary tools.",
+    "shortcut": "features.mcpBridge",
+    "className": "McpBridge",
+    "methods": {
+      "connectAll": {
+        "description": "Connect to all configured MCP servers, discover their capabilities, and cache the results. Safe to call multiple times (no-ops if already connected).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "connectServer": {
+        "description": "Connect to a single MCP server, discover its tools/resources/prompts.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "config": {
+            "type": "McpServerConfig",
+            "description": "Parameter config"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ],
+        "returns": "Promise<ConnectedServer>"
+      },
+      "disconnectAll": {
+        "description": "Disconnect from all MCP servers and clean up.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disconnectServer": {
+        "description": "Disconnect a single server.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<void>"
+      },
+      "listMcpCapabilities": {
+        "description": "List capabilities across all connected servers or a specific one.",
+        "parameters": {
+          "args": {
+            "type": "{ server?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "void"
+      },
+      "useMcpTool": {
+        "description": "Call a tool on a specific MCP server.",
+        "parameters": {
+          "args": {
+            "type": "{ server: string; tool: string; arguments?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "void"
+      },
+      "readMcpResource": {
+        "description": "Read a resource from a connected MCP server.",
+        "parameters": {
+          "args": {
+            "type": "{ server: string; uri: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "void"
+      },
+      "getMcpPrompt": {
+        "description": "Get a prompt from a connected MCP server.",
+        "parameters": {
+          "args": {
+            "type": "{ server: string; name: string; arguments?: string }",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "void"
+      },
+      "setupToolsConsumer": {
+        "description": "When an assistant consumes this feature via `assistant.use(bridge)`: 1. Inject system prompt guidance about MCP capabilities. 2. Schedule async connection + tool materialization via the assistant's pending plugins mechanism (awaited during `assistant.start()`).",
+        "parameters": {
+          "consumer": {
+            "type": "Helper",
+            "description": "Parameter consumer"
+          }
+        },
+        "required": [
+          "consumer"
+        ],
+        "returns": "void"
+      },
+      "getServer": {
+        "description": "Get a connected server by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "ConnectedServer | undefined"
+      }
+    },
+    "getters": {
+      "connectedServers": {
+        "description": "List all connected server names.",
+        "returns": "string[]"
+      },
+      "allTools": {
+        "description": "Get all discovered tools across all servers, with their server name prefix.",
+        "returns": "Array<{ server: string; tool: McpToolInfo; materializedName: string }>"
+      }
+    },
+    "events": {
+      "serverError": {
+        "name": "serverError",
+        "description": "Event emitted by McpBridge",
+        "arguments": {}
+      },
+      "serverConnected": {
+        "name": "serverConnected",
+        "description": "Event emitted by McpBridge",
+        "arguments": {}
+      },
+      "serverDisconnected": {
+        "name": "serverDisconnected",
+        "description": "Event emitted by McpBridge",
+        "arguments": {}
+      },
+      "toolCalled": {
+        "name": "toolCalled",
+        "description": "Event emitted by McpBridge",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const bridge = container.feature('mcpBridge', {\n servers: {\n   github: {\n     command: 'npx',\n     args: ['-y', '@modelcontextprotocol/server-github'],\n     env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN },\n   },\n },\n})"
+      }
+    ],
+    "types": {
+      "ConnectedServer": {
+        "description": "",
+        "properties": {
+          "client": {
+            "type": "Client",
+            "description": ""
+          },
+          "transport": {
+            "type": "StdioClientTransport",
+            "description": ""
+          },
+          "tools": {
+            "type": "McpToolInfo[]",
+            "description": ""
+          },
+          "resources": {
+            "type": "Array<{ uri: string; name: string; description?: string }>",
+            "description": ""
+          },
+          "prompts": {
+            "type": "Array<{ name: string; description?: string; arguments?: Array<{ name: string; description?: string; required?: boolean }> }>",
+            "description": ""
+          }
+        }
+      },
+      "McpToolInfo": {
+        "description": "── Internal types ───────────────────────────────────────────────────────────",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "description": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "inputSchema": {
+            "type": "Record<string, any>",
+            "description": ""
           }
         }
       }
