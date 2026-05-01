@@ -7,11 +7,17 @@ export const positionals = ['name']
 export const argsSchema = CommandOptionsSchema.extend({
   name: z.string().describe('Name of the binary to produce (e.g. loopy)'),
   source: z.string().describe('Path to the source project'),
-  outdir: z.string().optional().describe('Output directory for the binary (default: dist/ within luca)'),
+  outDir: z.string().optional().describe('Output directory (default: dist/<name>/ within luca)'),
+  features:  z.boolean().default(true).describe('Include features/'),
+  clients:   z.boolean().default(true).describe('Include clients/'),
+  servers:   z.boolean().default(true).describe('Include servers/'),
+  commands:  z.boolean().default(true).describe('Include commands/'),
+  endpoints: z.boolean().default(true).describe('Include endpoints/'),
+  selectors: z.boolean().default(true).describe('Include selectors/'),
 })
 
 // Self-registering via static blocks — import alone is enough
-const SELF_REGISTERING_DIRS = ['features', 'clients', 'servers'] as const
+const SELF_REGISTERING_DIRS = ['features', 'clients', 'servers', 'endpoints', 'selectors'] as const
 // Need explicit graftModule registration after import
 const COMMAND_DIRS = ['commands'] as const
 
@@ -31,9 +37,10 @@ async function bundleConsumerProject(
   // All bundle work runs in luca's project root so tsconfig aliases resolve
   const lucaRoot = container.paths.resolve(os.homedir, '@soederpop/projects/luca')
   const bundleDir = container.paths.resolve(lucaRoot, 'src', 'cli', 'bundles', name)
-  const outFile = options.outdir
-    ? container.paths.resolve(options.outdir.replace(/^~/, os.homedir), name)
+  const outDir = options.outDir
+    ? container.paths.resolve(options.outDir.replace(/^~/, os.homedir))
     : container.paths.resolve(lucaRoot, 'dist', name)
+  const outFile = container.paths.resolve(outDir, name)
 
   ui.banner(`Bundling ${name}`)
   console.log(`  source : ${source}`)
@@ -47,9 +54,10 @@ async function bundleConsumerProject(
 
   const SKIP = ['**/*.test.ts', '**/*.spec.ts', '**/*.generated.ts', '**/*.generated.*.ts']
 
-  // Features/clients/servers: static import is enough (self-register via Feature.register)
+  // Features/clients/servers/endpoints/selectors: self-register via static blocks
   const helperFiles: string[] = []
   for (const dir of SELF_REGISTERING_DIRS) {
+    if (!options[dir as keyof typeof options]) continue
     const dirPath = container.paths.resolve(source, dir)
     if (!fs.existsSync(dirPath)) continue
     const { files } = fs.walk(dirPath, { include: ['**/*.ts'], exclude: SKIP })
@@ -62,6 +70,7 @@ async function bundleConsumerProject(
   // Commands: need explicit graftModule registration
   const commandFiles: Array<{ file: string; name: string }> = []
   for (const dir of COMMAND_DIRS) {
+    if (!options[dir as keyof typeof options]) continue
     const dirPath = container.paths.resolve(source, dir)
     if (!fs.existsSync(dirPath)) continue
     // Commands are top-level only (same as discovery)
@@ -116,6 +125,11 @@ async function bundleConsumerProject(
   // ── 3. Set up bundle directory and install deps ───────────────────────────
 
   fs.ensureFolder(bundleDir)
+  // outDir may exist as a plain file from a previous run with the old layout — remove it
+  if (fs.existsSync(outDir) && !fs.isDirectory(outDir)) {
+    await fs.rm(outDir)
+  }
+  fs.ensureFolder(outDir)
   fs.writeFile(
     container.paths.resolve(bundleDir, 'package.json'),
     JSON.stringify({ name: `@soederpop/luca-bundle-${name}`, version: '0.0.1', type: 'module', dependencies: uniqueSourceDeps }, null, 2),
