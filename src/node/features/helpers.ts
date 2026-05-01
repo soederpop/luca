@@ -634,6 +634,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
           const Grafted = graftModule(Command as any, {
             description: commandModule.description,
             argsSchema: commandModule.argsSchema,
+            positionals: commandModule.positionals ?? mod.positionals,
             handler: commandModule.handler,
           }, name, 'commands')
           commands.register(name, Grafted as any)

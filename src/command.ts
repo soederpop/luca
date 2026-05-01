@@ -432,6 +432,7 @@ export class CommandsRegistry extends Registry<Command<any>> {
 				const Grafted = graftModule(Command as any, {
 					description: commandModule.description,
 					argsSchema: commandModule.argsSchema,
+					positionals: commandModule.positionals ?? mod.positionals,
 					handler: commandModule.handler,
 				}, name, 'commands')
 				this.register(name, Grafted as any)
