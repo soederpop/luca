@@ -55,6 +55,9 @@ playground/
 # build-info.ts is stamped at compile time — not committed
 src/cli/build-info.ts
 
+# generated bundle workspaces (bundle-consumer-project output)
+src/cli/bundles/
+
 # luca evaluation output from try-all-challenges
 attempts/
 docs/sessions

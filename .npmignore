@@ -7,6 +7,7 @@ secrets/
 .python-version
 dist/luca
 dist/release
+src/cli/bundles/
 tmp/
 *.log
 .contentbase
