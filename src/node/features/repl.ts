@@ -3,7 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import { Feature } from "../feature.js";
 import vm from 'vm'
 import readline from 'readline'
-import { displayResult } from '../../commands/eval.js'
+import { displayResult } from './display-result.js'
 
 export const ReplStateSchema = FeatureStateSchema.extend({
   started: z.boolean().optional().describe('Whether the REPL server has been started'),
