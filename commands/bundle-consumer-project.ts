@@ -8,6 +8,7 @@ export const argsSchema = CommandOptionsSchema.extend({
   name: z.string().describe('Name of the binary to produce (e.g. loopy)'),
   source: z.string().describe('Path to the source project'),
   outDir: z.string().optional().describe('Output directory (default: dist/<name>/ within luca)'),
+  targets: z.string().default('darwin-arm64,darwin-x64,linux-arm64,linux-x64,windows-x64').describe('Comma-separated bun target platforms to compile for'),
   features:  z.boolean().default(true).describe('Include features/'),
   clients:   z.boolean().default(true).describe('Include clients/'),
   servers:   z.boolean().default(true).describe('Include servers/'),
@@ -145,27 +146,43 @@ async function bundleConsumerProject(
     console.log()
   }
 
-  // ── 4. Generate and compile entry ─────────────────────────────────────────
+  // ── 4. Generate entry ─────────────────────────────────────────────────────
 
   console.log('→ Generating entry...')
   const entryPath = container.paths.resolve(bundleDir, 'entry.ts')
   fs.writeFile(entryPath, generateEntry(name, helperFiles, commandFiles))
 
-  console.log('→ Compiling...')
-  const compileCmd = `bun build ${entryPath} --compile --outfile ${outFile} --external node-llama-cpp`
-  console.log(`  ${compileCmd}`)
+  // ── 5. Compile for each target platform ───────────────────────────────────
+
+  const targets = options.targets.split(',').map(t => t.trim()).filter(Boolean)
+  console.log(`→ Compiling for ${targets.length} target(s)...`)
   console.log()
 
-  const result = await proc.execAndCapture(compileCmd, { cwd: lucaRoot, silent: false })
-  if (result.exitCode !== 0) {
-    console.error('Compilation failed:\n', result.stderr)
-    process.exit(1)
+  const built: string[] = []
+  const failed: string[] = []
+
+  for (const target of targets) {
+    const suffix = target === 'windows-x64' ? '.exe' : ''
+    const targetOutFile = container.paths.resolve(outDir, `${name}-${target}${suffix}`)
+    const compileCmd = `bun build ${entryPath} --compile --target=bun-${target} --outfile ${targetOutFile} --external node-llama-cpp`
+    process.stdout.write(`  ${ui.colors.dim(target.padEnd(18))} `)
+
+    const result = await proc.execAndCapture(compileCmd, { cwd: lucaRoot, silent: true })
+    if (result.exitCode !== 0) {
+      console.log(ui.colors.red('✗'))
+      console.error(result.stderr)
+      failed.push(target)
+    } else {
+      console.log(ui.colors.green('✓') + ui.colors.dim(` → ${targetOutFile}`))
+      built.push(targetOutFile)
+    }
   }
 
   console.log()
-  console.log(ui.colors.green(`✓ Built → ${outFile}`))
+  if (built.length > 0) console.log(ui.colors.green(`✓ ${built.length} binaries in ${outDir}`))
+  if (failed.length > 0) console.log(ui.colors.red(`✗ ${failed.length} failed: ${failed.join(', ')}`))
   console.log()
-  console.log(`  Run from any project — loads its luca.cli.ts and commands/ on top.`)
+  console.log(`  Each binary loads the runtime project's luca.cli.ts and commands/ on top.`)
 }
 
 function generateEntry(
