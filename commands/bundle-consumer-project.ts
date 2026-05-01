@@ -112,10 +112,11 @@ async function bundleConsumerProject(
   }
   const uniqueSourceDeps: Record<string, string> = {}
   for (const [pkg, ver] of Object.entries(sourceDeps)) {
-    if (!lucaAllDeps[pkg]) {
-      uniqueSourceDeps[pkg] = ver as string
-      console.log(`    + ${pkg}@${ver}`)
-    }
+    if (pkg.startsWith('@types/')) continue          // type-only, irrelevant in compiled binary
+    if (pkg === '@soederpop/luca') continue          // already the runtime we're compiling from
+    if (lucaAllDeps[pkg]) continue                   // already bundled by luca
+    uniqueSourceDeps[pkg] = ver as string
+    console.log(`    + ${pkg}@${ver}`)
   }
 
   if (Object.keys(uniqueSourceDeps).length === 0) {
