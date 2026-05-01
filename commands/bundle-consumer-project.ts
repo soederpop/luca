@@ -228,8 +228,144 @@ ${commandRegistrations}
 
 // ─────────────────────────────────────────────────────────────────────────
 
+const LEGO_ROBOT = [
+  ' ┌─○○─┐ ',
+  ' │ ●● │ ',
+  ' ├○──○┤ ',
+  ' └─╨╨─┘ ',
+]
+const BANNER_COLORS = ['cyan', 'blue', 'magenta']
+
+function stripAnsi(s: string): string {
+  return s.replace(/\\x1B\\[[0-9;]*m/g, '')
+}
+
+function printHelp(container: any, bundledCommands: Set<string>, localCommands: Set<string>) {
+  const ui = container.feature('ui') as any
+  const c = ui.colors
+
+  const args = container.argv._ as string[]
+  const target = args[0] as string
+
+  // help <command> — show single command detail
+  if (target && container.commands.has(target)) {
+    const Cmd = container.commands.lookup(target) as any
+    const desc = Cmd.commandDescription || ''
+    const schema = Cmd.argsSchema
+    console.log()
+    console.log(\`  \${c.cyan.bold('${name} ' + target)}  \${desc ? c.dim('— ') + desc : ''}\`)
+    console.log()
+    if (schema?.shape) {
+      const opts = Object.entries(schema.shape)
+        .filter(([k]) => !['_', 'name', '_cacheKey', 'dispatchSource'].includes(k))
+        .map(([k, f]: [string, any]) => {
+          let type = 'string'
+          let cur = f
+          let def: any
+          while (cur) {
+            const t = cur._def?.type || cur.type
+            if (t === 'default') { def = cur._def?.defaultValue; if (typeof def === 'function') def = def() }
+            if (t === 'boolean') { type = 'boolean'; break }
+            if (t === 'string') { type = 'string'; break }
+            if (t === 'number') { type = 'number'; break }
+            if (t === 'enum') { type = cur.options?.join(' | ') || 'enum'; break }
+            cur = cur._def?.innerType
+          }
+          return { flag: k, description: f.description || '', type, defaultValue: def }
+        })
+      const bools = opts.filter(o => o.type === 'boolean')
+      const valued = opts.filter(o => o.type !== 'boolean')
+      console.log(\`  \${c.white('Usage:')} \${c.cyan('${name} ' + target)} \${c.dim('[options]')}\`)
+      if (valued.length) {
+        console.log(); console.log(\`  \${c.white('Options:')}\`); console.log()
+        const maxLen = Math.max(...valued.map(o => \`--\${o.flag} <\${o.type}>\`.length))
+        for (const o of valued) {
+          const flag = \`--\${o.flag} <\${o.type}>\`
+          let line = \`    \${c.green(flag.padEnd(maxLen + 2))} \${o.description}\`
+          if (o.defaultValue !== undefined && o.defaultValue !== false) line += \` \${c.dim(\`(default: \${o.defaultValue})\`)}\`
+          console.log(line)
+        }
+      }
+      if (bools.length) {
+        console.log(); console.log(\`  \${c.white('Flags:')}\`); console.log()
+        const maxLen = Math.max(...bools.map(o => \`--\${o.flag}\`.length))
+        for (const o of bools) {
+          let line = \`    \${c.green((\`--\${o.flag}\`).padEnd(maxLen + 2))} \${o.description}\`
+          if (o.defaultValue === true) line += \` \${c.dim('(default: true)')}\`
+          console.log(line)
+        }
+      }
+    }
+    console.log()
+    return
+  }
+
+  // Main help — banner + command list
+  const banner = ui.banner('${name}', { font: 'Small Slant', colors: BANNER_COLORS })
+  const bannerLines = banner.split('\\n').filter((l: string) => l.trim())
+  const coloredRobot = ui.applyGradient(LEGO_ROBOT.join('\\n'), BANNER_COLORS)
+  const robotLines = coloredRobot.split('\\n') as string[]
+  const robotWidth = Math.max(...LEGO_ROBOT.map(l => l.length))
+
+  const headerLines: string[] = []
+  const maxLines = Math.max(robotLines.length, bannerLines.length)
+  for (let i = 0; i < maxLines; i++) {
+    const rLine = robotLines[i] || ''
+    const rPad = robotWidth - stripAnsi(rLine).length
+    headerLines.push(rLine + ' '.repeat(rPad + 2) + (bannerLines[i] || ''))
+  }
+
+  console.log('\\n')
+  console.log(headerLines.join('\\n'))
+  console.log()
+  console.log(c.white('  Usage: ') + c.cyan('${name}') + c.dim(' <command> [options]'))
+  console.log()
+
+  const allNames = (container.commands.available as string[]).sort()
+  const maxNameLen = Math.max(...allNames.map((n: string) => n.length)) + 2
+
+  const printCommands = (names: string[]) => {
+    for (const n of names.sort()) {
+      const Cmd = container.commands.lookup(n) as any
+      const desc = Cmd?.commandDescription || ''
+      console.log(\`    \${c.cyan(n.padEnd(maxNameLen))} \${c.dim(desc)}\`)
+    }
+  }
+
+  const bundledNames = allNames.filter(n => bundledCommands.has(n))
+  const localNames = allNames.filter(n => localCommands.has(n))
+  const otherNames = allNames.filter(n => !bundledCommands.has(n) && !localCommands.has(n))
+
+  if (bundledNames.length > 0) {
+    console.log(c.white('  Commands:'))
+    console.log()
+    printCommands(bundledNames)
+  }
+
+  if (localNames.length > 0) {
+    console.log()
+    console.log(c.white('  Local Commands') + c.dim(' (./commands/*)'))
+    console.log()
+    printCommands(localNames)
+  }
+
+  if (otherNames.length > 0) {
+    console.log()
+    console.log(c.white('  Other Commands:'))
+    console.log()
+    printCommands(otherNames)
+  }
+
+  console.log()
+  console.log(c.dim('  Run ') + c.cyan('${name} help <command>') + c.dim(' for detailed usage'))
+  console.log()
+}
+
 async function main() {
   const discovery = process.env.LUCA_COMMAND_DISCOVERY || ''
+
+  // Snapshot bundled commands before any local discovery
+  const bundledCommands = new Set(container.commands.available as string[])
 
   // Global user CLI module (~/.luca/luca.cli.ts)
   await loadCliModule(join(homedir(), '.luca', 'luca.cli.ts'))
@@ -241,6 +377,8 @@ async function main() {
   if (discovery !== 'disable' && discovery !== 'no-local') {
     await discoverProjectCommands()
   }
+  const afterLocal = new Set(container.commands.available as string[])
+  const localCommands = new Set([...afterLocal].filter(n => !bundledCommands.has(n)))
 
   // User-level helpers (~/.luca/)
   if (discovery !== 'disable' && discovery !== 'no-home') {
@@ -248,29 +386,28 @@ async function main() {
   }
 
   // Dispatch
-  const commandName = container.argv._[0] as string
+  const args = container.argv._ as string[]
+  const commandName = args[0] as string
 
-  if (commandName && container.commands.has(commandName)) {
+  if (!commandName || commandName === 'help') {
+    // help or no command: show main help, or help <target> for single command detail
+    const target = commandName === 'help' ? args[1] : undefined
+    if (target) container.argv._ = [target]
+    printHelp(container, bundledCommands, localCommands)
+  } else if (container.commands.has(commandName)) {
     await container.command(commandName as any).dispatch()
-  } else if (commandName) {
-    const phrase = container.argv._.join(' ')
+  } else {
+    const phrase = args.join(' ')
     // @ts-ignore
     const missingCommandHandler = container.state.get('missingCommandHandler') as any
     if (typeof missingCommandHandler === 'function') {
-      await missingCommandHandler({ words: container.argv._, phrase }).catch((err: any) => {
+      await missingCommandHandler({ words: args, phrase }).catch((err: any) => {
         console.error(\`Missing command handler error: \${err.message}\`, err)
       })
     } else {
-      printHelp(container)
+      printHelp(container, bundledCommands, localCommands)
     }
-  } else {
-    printHelp(container)
   }
-}
-
-function printHelp(container: any) {
-  const available = (container.commands.available as string[]).sort()
-  console.log(\`\\nAvailable commands: \${available.join(', ')}\\n\`)
 }
 
 async function loadCliModule(modulePath: string) {
