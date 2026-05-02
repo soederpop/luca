@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Luca — One Container, Everything You Need</title>
+<title>Luca — Agent-Native TypeScript Runtime</title>
+<meta name="description" content="An agent-native TypeScript runtime that ships as a single binary — and builds yours too. One self-documenting container for humans and AI agents.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -297,7 +298,7 @@
   .hero-sub {
     font-size: clamp(16px, 2vw, 20px);
     color: var(--text-dim);
-    max-width: 600px;
+    max-width: 640px;
     margin: 0 auto 48px;
     font-weight: 400;
     line-height: 1.6;
@@ -624,6 +625,7 @@
   .at-client .arch-type { color: var(--purple-bright); }
   .at-server .arch-type { color: var(--amber-bright); }
   .at-cmd .arch-type { color: var(--green); }
+  .at-agent .arch-type { color: var(--rose); }
 
   .arch-section-title {
     font-family: var(--font-mono);
@@ -942,6 +944,7 @@
     .hero { padding-top: 120px; }
     .cta-box { padding: 40px 24px; }
     .arch-visual { padding: 32px 20px; }
+    .install-cmd { font-size: 11px; padding: 12px 16px; }
   }
 </style>
 </head>
@@ -955,11 +958,11 @@
       luca
     </div>
     <ul class="nav-links" id="nav">
-      <li><a href="#features">Features</a></li>
+      <li><a href="#why">Why Luca</a></li>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#code">Code</a></li>
       <li><a href="#cli">CLI</a></li>
-      <li><a href="#get-started" class="nav-cta">Get Started</a></li>
+      <li><a href="#get-started" class="nav-cta">Install</a></li>
     </ul>
   </div>
 </nav>
@@ -969,19 +972,19 @@
   <div class="wrap">
     <div class="hero-badge anim" style="--i:0">
       <span class="dot"></span>
-      Built on Bun
+      Single Binary &middot; Agent-Native
     </div>
     <h1 class="anim" style="--i:1">
-      One Container.<br>
-      <span class="gradient-text">Everything You Need.</span>
+      Lightweight Universal<br>
+      <span class="gradient-text">Conversational Architecture</span>
     </h1>
     <p class="hero-sub anim" style="--i:2">
-      Luca is a runtime container framework that gives your server and browser applications
-      every dependency they need &mdash; zero external packages required.
+      A universal TypeScript framework you can talk to.
+      Orchestrate a fleet of self-improving agents across servers, browsers, and GPU instances through one observable bus.
     </p>
     <div class="hero-actions anim" style="--i:3">
-      <a href="#get-started" class="btn btn-primary">Get Started</a>
-      <a href="#features" class="btn btn-secondary">Explore Features</a>
+      <a href="#get-started" class="btn btn-primary">Install Luca</a>
+      <a href="#why" class="btn btn-secondary">See Why</a>
     </div>
 
     <div class="terminal anim" style="--i:4">
@@ -989,19 +992,23 @@
         <div class="terminal-dot"></div>
         <div class="terminal-dot"></div>
         <div class="terminal-dot"></div>
-        <div class="terminal-title">luca &mdash; interactive</div>
+        <div class="terminal-title">luca &mdash; agent-native</div>
       </div>
       <div class="terminal-body">
-        <div class="line"><span class="t-comment">// everything is on the container</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">container</span> = <span class="t-kw">await</span> <span class="t-fn">createContainer</span><span class="t-bracket">()</span></div>
+        <div class="line"><span class="t-comment">// memory lives in a queryable db backed by markdown</span></div>
+        <div class="line"><span class="t-comment">// <a href="https://contentbase.soederpop.com" target="_blank" rel="noopener" style="color:var(--cyan-bright);text-decoration:underline;font-style:normal">contentbase.soederpop.com</a></span></div>
+        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">docs</span> = container.<span class="t-method">feature</span><span class="t-bracket">(</span><span class="t-str">'contentDb'</span>, { <span class="t-key">rootPath</span>: <span class="t-str">'docs'</span> }<span class="t-bracket">)</span></div>
         <div class="line">&nbsp;</div>
-        <div class="line"><span class="t-comment">// features, clients, servers &mdash; all built in</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">fs</span> = container.<span class="t-method">feature</span><span class="t-bracket">(</span><span class="t-str">'fs'</span><span class="t-bracket">)</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">api</span> = container.<span class="t-method">client</span><span class="t-bracket">(</span><span class="t-str">'rest'</span><span class="t-bracket">)</span></div>
-        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">app</span> = container.<span class="t-method">server</span><span class="t-bracket">(</span><span class="t-str">'express'</span><span class="t-bracket">)</span></div>
+        <div class="line"><span class="t-comment">// the central bus for your agent fleet</span></div>
+        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">mgr</span> = container.<span class="t-method">feature</span><span class="t-bracket">(</span><span class="t-str">'assistantManager'</span><span class="t-bracket">)</span></div>
+        <div class="line">mgr.<span class="t-method">add</span><span class="t-bracket">(</span><span class="t-str">'researcher'</span>, { <span class="t-key">use</span>: [<span class="t-str">'browserUse'</span>, docs] }<span class="t-bracket">)</span></div>
+        <div class="line">mgr.<span class="t-method">add</span><span class="t-bracket">(</span><span class="t-str">'coder'</span>, { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'proc'</span>, <span class="t-str">'fs'</span>, docs] }<span class="t-bracket">)</span></div>
         <div class="line">&nbsp;</div>
-        <div class="line"><span class="t-comment">// that's it. start building.</span></div>
-        <div class="line"><span class="t-kw">await</span> app.<span class="t-method">start</span><span class="t-bracket">()</span></div>
+        <div class="line"><span class="t-comment">// query tasks, assign to the right agent</span></div>
+        <div class="line"><span class="t-kw">const</span> <span class="t-cmd">tasks</span> = <span class="t-kw">await</span> docs.<span class="t-method">query</span>(docs.models.<span class="t-key">Task</span>).<span class="t-method">where</span>(<span class="t-str">'status'</span>, <span class="t-str">'todo'</span>)</div>
+        <div class="line">tasks.<span class="t-method">forEach</span>(<span class="t-cmd">task</span> <span class="t-kw">=></span> mgr.<span class="t-method">assign</span>(<span class="t-str">'coder'</span>, task))</div>
+        <div class="line">&nbsp;</div>
+        <div class="line"><span class="t-kw">await</span> mgr.<span class="t-method">startAll</span><span class="t-bracket">()</span>  <span class="t-comment">// a swarm, not a chatbot</span></div>
       </div>
     </div>
   </div>
@@ -1012,55 +1019,85 @@
   <div class="stats-row">
     <div class="stat anim-scale" style="--i:0">
       <div class="stat-value"><span class="accent">0</span></div>
-      <div class="stat-label">External Dependencies</div>
+      <div class="stat-label">npm install required</div>
     </div>
     <div class="stat anim-scale" style="--i:1">
+      <div class="stat-value">1</div>
+      <div class="stat-label">Binary &mdash; In and Out</div>
+    </div>
+    <div class="stat anim-scale" style="--i:2">
       <div class="stat-value">20<span class="accent">+</span></div>
       <div class="stat-label">Built-in Helpers</div>
     </div>
-    <div class="stat anim-scale" style="--i:2">
-      <div class="stat-value">2</div>
-      <div class="stat-label">Runtimes (Node + Browser)</div>
-    </div>
     <div class="stat anim-scale" style="--i:3">
-      <div class="stat-value">1</div>
-      <div class="stat-label">Container for Everything</div>
+      <div class="stat-value"><span class="accent">&infin;</span></div>
+      <div class="stat-label">Agent Toolkits via use()</div>
     </div>
   </div>
 </div>
 
+<!-- ===== WHY LUCA / PHILOSOPHY ===== -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-label anim" style="--i:0">Why Luca</div>
+    <h2 class="sec-title anim" style="--i:1">Three Ideas That<br>Change Everything</h2>
+    <p class="sec-desc anim" style="--i:2">
+      AI agents today either generate ad-hoc code or fight frameworks that weren't designed for them.
+      Luca assistants build applications using the same components they are made from. They don't just write the code &mdash; they live in its runtime.
+    </p>
+
+    <div class="philosophy">
+      <div class="phil-card anim" style="--i:3; --phil-accent: var(--cyan);">
+        <div class="phil-num">01</div>
+        <h3>One Introspectable Container</h3>
+        <p>Every Luca app has a single container &mdash; features, clients, servers, commands, state, events. Every component describes itself. The human reads the same docs the agent reads. There is one way to do things.</p>
+      </div>
+      <div class="phil-card anim" style="--i:4; --phil-accent: var(--purple);">
+        <div class="phil-num">02</div>
+        <h3>Single Binary In, Single Binary Out</h3>
+        <p>Luca ships as a standalone binary. No runtime dependencies, no package manager. Use it to build your project, then compile your project into its own binary with your commands, features, and assistants baked in.</p>
+      </div>
+      <div class="phil-card anim" style="--i:5; --phil-accent: var(--amber);">
+        <div class="phil-num">03</div>
+        <h3>Assistants That Swarm</h3>
+        <p>Each assistant can <code style="font-size:12px; background:var(--cyan-dim); color:var(--cyan-bright); padding:1px 5px; border-radius:3px; font-family:var(--font-mono);">use()</code> any module and inherit its tools. The <code style="font-size:12px; background:var(--cyan-dim); color:var(--cyan-bright); padding:1px 5px; border-radius:3px; font-family:var(--font-mono);">assistantManager</code> orchestrates many &mdash; across servers, browsers, and GPU instances &mdash; through one observable bus.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== FEATURES ===== -->
 <section id="features">
   <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Features</div>
-    <h2 class="sec-title anim" style="--i:1">Batteries Included.<br>All of Them.</h2>
+    <div class="sec-label anim" style="--i:0">Capabilities</div>
+    <h2 class="sec-title anim" style="--i:1">Everything an Agent<br>Needs to Operate</h2>
     <p class="sec-desc anim" style="--i:2">
-      Every feature is a first-class citizen of the container &mdash; observable state, event-driven, introspectable. No glue code, no boilerplate.
+      No imports beyond the container. File I/O, HTTP, databases, git, browser automation, terminal UI, encryption &mdash; all typed, all discoverable at runtime.
     </p>
 
     <div class="features-grid">
-      <div class="feature-card fc-cyan anim" style="--i:3">
-        <div class="feature-icon">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h8"/></svg>
+      <div class="feature-card fc-rose anim" style="--i:3">
+        <div class="feature-icon" style="--icon-bg: var(--rose-dim); --icon-color: var(--rose);">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3c4.97 0 9 3.58 9 8s-4.03 8-9 8c-1.5 0-2.91-.35-4.13-.97L3 19l1.39-4.17C3.5 13.67 3 12.38 3 11c0-4.42 4.03-8 9-8z"/></svg>
         </div>
-        <h3>File System</h3>
-        <p>Read, write, watch, and scan your project files. Intelligent file management with <code>fileManager</code> for full project awareness.</p>
+        <h3>Assistant Manager</h3>
+        <p>The <code>assistantManager</code> is a central observable bus for your agent fleet. Spin up specialized assistants, route messages between them, watch their state &mdash; one coordinator for the whole swarm.</p>
       </div>
 
       <div class="feature-card fc-purple anim" style="--i:4">
         <div class="feature-icon" style="--icon-bg: var(--purple-dim); --icon-color: var(--purple-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="16" height="16" rx="3"/><path d="M7 8h8M7 11h5M7 14h6"/></svg>
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="6" width="18" height="12" rx="2"/><path d="M6 10l4 3-4 3"/><path d="M12 16h4"/></svg>
         </div>
-        <h3>Process &amp; VM</h3>
-        <p>Execute shell commands with <code>proc.exec()</code>. Run isolated code in the VM with full module loading and sandboxing.</p>
+        <h3>Binary Compiler</h3>
+        <p>Compile your project into a standalone executable. No node, no bun, no npm on the target machine. Your users download one file and run it.</p>
       </div>
 
-      <div class="feature-card fc-amber anim" style="--i:5">
-        <div class="feature-icon" style="--icon-bg: var(--amber-dim); --icon-color: var(--amber-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="3"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2M5.6 5.6l1.4 1.4M15 15l1.4 1.4M5.6 16.4l1.4-1.4M15 7l1.4-1.4"/></svg>
+      <div class="feature-card fc-cyan anim" style="--i:5">
+        <div class="feature-icon">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h8"/></svg>
         </div>
-        <h3>Networking</h3>
-        <p>Built-in HTTP fetch, port management, and network utilities. Check availability, find open ports, make requests.</p>
+        <h3>File System &amp; Grep</h3>
+        <p>Read, write, watch, and search your project. <code>fs</code>, <code>fileManager</code>, and <code>grep</code> give your agent full project awareness.</p>
       </div>
 
       <div class="feature-card fc-green anim" style="--i:6">
@@ -1068,76 +1105,47 @@
           <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3v18M6 8h9a3 3 0 010 6H6"/></svg>
         </div>
         <h3>Git Integration</h3>
-        <p>Full git awareness &mdash; branch info, status, diff, log. Your container knows your repo as well as you do.</p>
+        <p>Branch info, status, diff, log. The container knows your repo. The agent knows your repo.</p>
       </div>
 
-      <div class="feature-card fc-rose anim" style="--i:7">
-        <div class="feature-icon" style="--icon-bg: var(--rose-dim); --icon-color: var(--rose);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 4L3 11l7 7M14 4l7 7-7 7"/></svg>
+      <div class="feature-card fc-amber anim" style="--i:7">
+        <div class="feature-icon" style="--icon-bg: var(--amber-dim); --icon-color: var(--amber-bright);">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
         </div>
-        <h3>REST &amp; WebSocket</h3>
-        <p>Full-featured HTTP client and real-time WebSocket support. Build APIs and consume them from the same container.</p>
+        <h3>Servers &amp; Clients</h3>
+        <p>Express, WebSocket, IPC, MCP. REST and WebSocket clients. Build APIs and real-time systems from the same container.</p>
       </div>
 
-      <div class="feature-card fc-cyan anim" style="--i:8">
+      <div class="feature-card fc-purple anim" style="--i:8">
+        <div class="feature-icon" style="--icon-bg: var(--purple-dim); --icon-color: var(--purple-bright);">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="16" height="16" rx="3"/><path d="M7 8h8M7 11h5M7 14h6"/></svg>
+        </div>
+        <h3>Process &amp; VM</h3>
+        <p>Shell commands with <code>proc.exec()</code>. Sandboxed code execution in the VM. Docker, SSH, and RunPod for remote compute.</p>
+      </div>
+
+      <div class="feature-card fc-cyan anim" style="--i:9">
         <div class="feature-icon">
           <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M11 7v4l3 3"/></svg>
         </div>
         <h3>Observable State</h3>
-        <p>Every helper has reactive, observable state. Subscribe to changes, bind UI, react to events across the entire system.</p>
-      </div>
-
-      <div class="feature-card fc-purple anim" style="--i:9">
-        <div class="feature-icon" style="--icon-bg: var(--purple-dim); --icon-color: var(--purple-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h14"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="14" cy="11" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/></svg>
-        </div>
-        <h3>Introspection</h3>
-        <p>Every helper self-documents. Auto-generated docs, usage examples, method signatures. Explore your system at runtime.</p>
+        <p>Every helper has reactive state and an event bus. The assistant can watch for changes and act autonomously across the entire system.</p>
       </div>
 
       <div class="feature-card fc-amber anim" style="--i:10">
         <div class="feature-icon" style="--icon-bg: var(--amber-dim); --icon-color: var(--amber-bright);">
-          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h14M4 11h14M4 16h14"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="14" cy="11" r="1.5" fill="currentColor"/><circle cx="10" cy="16" r="1.5" fill="currentColor"/></svg>
         </div>
-        <h3>Express &amp; Endpoints</h3>
-        <p>File-based endpoint discovery, Express server with OpenAPI generation, static file serving, rate limiting &mdash; out of the box.</p>
+        <h3>Self-Documenting</h3>
+        <p>Every component carries introspection metadata &mdash; method signatures, options, events, state shape. <code>luca describe</code> and agents use the same data.</p>
       </div>
 
       <div class="feature-card fc-green anim" style="--i:11">
         <div class="feature-icon" style="--icon-bg: var(--green-dim); --icon-color: var(--green);">
           <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11 3a8 8 0 018 8 8 8 0 01-8 8 8 8 0 01-8-8 8 8 0 018-8z"/><path d="M3 11h18M11 3c2.5 2.8 4 5.8 4 8s-1.5 5.2-4 8c-2.5-2.8-4-5.8-4-8s1.5-5.2 4-8z"/></svg>
         </div>
-        <h3>Cross-Runtime</h3>
-        <p>Same API on server and browser. Node container for backends, Browser container for frontends. Shared primitives everywhere.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== PHILOSOPHY ===== -->
-<section>
-  <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Philosophy</div>
-    <h2 class="sec-title anim" style="--i:1">Docker for Your Runtime</h2>
-    <p class="sec-desc anim" style="--i:2">
-      Like Docker gives you a complete, reproducible environment for deployment &mdash; Luca gives you a complete, consistent runtime for development.
-    </p>
-
-    <div class="philosophy">
-      <div class="phil-card anim" style="--i:3; --phil-accent: var(--cyan);">
-        <div class="phil-num">01</div>
-        <h3>Zero Dependencies</h3>
-        <p>The container provides everything. File system, networking, git, servers, clients, process execution &mdash; no <code style="font-size:12px; background:var(--cyan-dim); color:var(--cyan-bright); padding:1px 5px; border-radius:3px; font-family:var(--font-mono);">npm install</code> needed.</p>
-      </div>
-      <div class="phil-card anim" style="--i:4; --phil-accent: var(--purple);">
-        <div class="phil-num">02</div>
-        <h3>Compose, Don't Configure</h3>
-        <p>Features, clients, and servers are composable building blocks. Request what you need from the container, wire it together, ship it.</p>
-      </div>
-      <div class="phil-card anim" style="--i:5; --phil-accent: var(--amber);">
-        <div class="phil-num">03</div>
-        <h3>Know Thyself</h3>
-        <p>Every component is introspectable. Auto-generated documentation, observable state, full event system. Your app explains itself.</p>
+        <h3>Distributed &amp; Cross-Runtime</h3>
+        <p>Assistants run anywhere &mdash; server, browser, RunPod GPU. They talk over WebSocket, IPC, or REST. Same container pattern on Node and in the browser via ESM.</p>
       </div>
     </div>
   </div>
@@ -1147,41 +1155,62 @@
 <section id="architecture">
   <div class="wrap">
     <div class="sec-label anim" style="--i:0">Architecture</div>
-    <h2 class="sec-title anim" style="--i:1">Everything Lives<br>in the Container</h2>
+    <h2 class="sec-title anim" style="--i:1">One Bus.<br>Agents Everywhere.</h2>
     <p class="sec-desc anim" style="--i:2">
-      A singleton per process. Event bus, state machine, dependency injector, and registry &mdash; all in one coherent object.
+      The <code style="font-size:14px; background:var(--cyan-dim); color:var(--cyan-bright); padding:2px 8px; border-radius:4px; font-family:var(--font-mono);">assistantManager</code> is the observable hub. Assistants discover their tools from the container, talk to each other across transports, and run on any machine.
     </p>
 
     <div class="arch-visual anim" style="--i:3">
       <div class="arch-container-box">
         <div class="arch-container-label">container</div>
 
-        <div class="arch-section-title">Registries</div>
+        <div class="arch-section-title">Assistant Manager &mdash; Observable Orchestration Bus</div>
+        <div class="arch-row">
+          <div class="arch-item at-agent">
+            <div class="arch-type">Agent</div>
+            <div class="arch-name">researcher</div>
+            <div class="arch-detail">browserUse, fs &middot; local</div>
+          </div>
+          <div class="arch-item at-agent">
+            <div class="arch-type">Agent</div>
+            <div class="arch-name">coder</div>
+            <div class="arch-detail">git, proc, fs &middot; local</div>
+          </div>
+          <div class="arch-item at-agent">
+            <div class="arch-type">Agent</div>
+            <div class="arch-name">ui-agent</div>
+            <div class="arch-detail">dom, state &middot; browser</div>
+          </div>
+          <div class="arch-item at-agent">
+            <div class="arch-type">Agent</div>
+            <div class="arch-name">gpu-worker</div>
+            <div class="arch-detail">runpod, cuda &middot; remote</div>
+          </div>
+        </div>
+
+        <div class="arch-divider">connected via WebSocket &middot; IPC &middot; REST</div>
+
+        <div class="arch-section-title">Container Registries</div>
         <div class="arch-row">
           <div class="arch-item at-feature">
-            <div class="arch-type">Registry</div>
-            <div class="arch-name">features</div>
-            <div class="arch-detail">fs, git, proc, vm, grep...</div>
+            <div class="arch-type">Features</div>
+            <div class="arch-name">helpers</div>
+            <div class="arch-detail">fs, git, proc, vm, grep, sqlite...</div>
           </div>
           <div class="arch-item at-client">
-            <div class="arch-type">Registry</div>
-            <div class="arch-name">clients</div>
+            <div class="arch-type">Clients</div>
+            <div class="arch-name">transports</div>
             <div class="arch-detail">rest, websocket</div>
           </div>
           <div class="arch-item at-server">
-            <div class="arch-type">Registry</div>
-            <div class="arch-name">servers</div>
-            <div class="arch-detail">express, websocket</div>
+            <div class="arch-type">Servers</div>
+            <div class="arch-name">infrastructure</div>
+            <div class="arch-detail">express, websocket, ipc, mcp</div>
           </div>
           <div class="arch-item at-cmd">
-            <div class="arch-type">Registry</div>
-            <div class="arch-name">commands</div>
+            <div class="arch-type">Commands</div>
+            <div class="arch-name">CLI</div>
             <div class="arch-detail">file-based discovery</div>
-          </div>
-          <div class="arch-item at-cmd">
-            <div class="arch-type">Registry</div>
-            <div class="arch-name">endpoints</div>
-            <div class="arch-detail">HTTP handlers</div>
           </div>
         </div>
 
@@ -1195,18 +1224,18 @@
           </div>
           <div class="arch-item">
             <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">State Machine</div>
-            <div class="arch-detail">observable, reactive</div>
-          </div>
-          <div class="arch-item">
-            <div class="arch-type" style="color:var(--text-dim)">Core</div>
-            <div class="arch-name">Paths</div>
-            <div class="arch-detail">resolve, join, cwd</div>
+            <div class="arch-name">Observable State</div>
+            <div class="arch-detail">reactive, watchable</div>
           </div>
           <div class="arch-item">
             <div class="arch-type" style="color:var(--text-dim)">Core</div>
             <div class="arch-name">Introspection</div>
-            <div class="arch-detail">self-documenting</div>
+            <div class="arch-detail">self-documenting metadata</div>
+          </div>
+          <div class="arch-item">
+            <div class="arch-type" style="color:var(--text-dim)">Core</div>
+            <div class="arch-name">Binary Compiler</div>
+            <div class="arch-detail">luca bundle &rarr; standalone exe</div>
           </div>
         </div>
       </div>
@@ -1217,26 +1246,57 @@
 <!-- ===== CODE EXAMPLES ===== -->
 <section id="code">
   <div class="wrap">
-    <div class="sec-label anim" style="--i:0">Developer Experience</div>
-    <h2 class="sec-title anim" style="--i:1">Write Less. Build More.</h2>
+    <div class="sec-label anim" style="--i:0">Code</div>
+    <h2 class="sec-title anim" style="--i:1">From Swarm<br>to Standalone Binary</h2>
     <p class="sec-desc anim" style="--i:2">
-      Clean, expressive APIs that feel natural. Everything you need is one method call away.
+      Orchestrate a fleet of agents, wire up infrastructure, compile it all to a single executable.
     </p>
 
     <div class="anim" style="--i:3">
       <div class="code-tabs">
-        <button class="code-tab active" data-panel="server">Server</button>
-        <button class="code-tab" data-panel="files">Files</button>
-        <button class="code-tab" data-panel="script">Script</button>
-        <button class="code-tab" data-panel="endpoints">Endpoints</button>
+        <button class="code-tab active" data-panel="swarm">Swarm</button>
+        <button class="code-tab" data-panel="assistant">Assistant</button>
+        <button class="code-tab" data-panel="server">Server</button>
+        <button class="code-tab" data-panel="binary">Binary</button>
       </div>
 
       <div class="code-panels">
-        <div class="code-panel active" id="panel-server">
+        <div class="code-panel active" id="panel-swarm">
+<div class="line"><span class="t-kw">const</span> <span class="t-cmd">mgr</span> = container.<span class="t-method">feature</span>(<span class="t-str">'assistantManager'</span>)</div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-comment">// each assistant gets its own tools from the container</span></div>
+<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'researcher'</span>, { <span class="t-key">use</span>: [<span class="t-str">'browserUse'</span>, <span class="t-str">'fs'</span>] })</div>
+<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'coder'</span>,      { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'proc'</span>, <span class="t-str">'fs'</span>] })</div>
+<div class="line">mgr.<span class="t-method">add</span>(<span class="t-str">'reviewer'</span>,   { <span class="t-key">use</span>: [<span class="t-str">'git'</span>, <span class="t-str">'fs'</span>] })</div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-comment">// observe the whole fleet</span></div>
+<div class="line">mgr.<span class="t-method">on</span>(<span class="t-str">'agent:message'</span>, ({ <span class="t-cmd">from</span>, <span class="t-cmd">to</span>, <span class="t-cmd">content</span> }) <span class="t-kw">=></span> { <span class="t-comment">/* ... */</span> })</div>
+<div class="line">mgr.<span class="t-method">on</span>(<span class="t-str">'agent:stateChange'</span>, ({ <span class="t-cmd">agent</span>, <span class="t-cmd">state</span> }) <span class="t-kw">=></span> { <span class="t-comment">/* ... */</span> })</div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-kw">await</span> mgr.<span class="t-method">startAll</span>()  <span class="t-comment">// launch the swarm</span></div>
+        </div>
+
+        <div class="code-panel" id="panel-assistant">
+<div class="line"><span class="t-kw">import</span> <span class="t-cmd">container</span> <span class="t-kw">from</span> <span class="t-str">'@soederpop/luca'</span></div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-kw">const</span> <span class="t-cmd">browser</span> = container.<span class="t-method">feature</span>(<span class="t-str">'browserUse'</span>, { <span class="t-key">headed</span>: <span class="t-val">true</span> })</div>
+<div class="line"><span class="t-kw">const</span> <span class="t-cmd">assistant</span> = container.<span class="t-method">feature</span>(<span class="t-str">'assistant'</span>, {</div>
+<div class="line">  <span class="t-key">systemPrompt</span>: <span class="t-str">'You are a web research assistant.'</span>,</div>
+<div class="line">  <span class="t-key">model</span>: <span class="t-str">'gpt-4.1-mini'</span>,</div>
+<div class="line">})</div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-comment">// browserUse injects its tools automatically</span></div>
+<div class="line">assistant.<span class="t-method">use</span>(browser)</div>
+<div class="line"><span class="t-kw">await</span> assistant.<span class="t-method">start</span>()</div>
+<div class="line">&nbsp;</div>
+<div class="line"><span class="t-kw">await</span> assistant.<span class="t-method">ask</span>(<span class="t-str">'Go to hacker news and tell me the top 3 stories'</span>)</div>
+        </div>
+
+        <div class="code-panel" id="panel-server">
 <div class="line"><span class="t-comment">// spin up an Express server with endpoints</span></div>
 <div class="line"><span class="t-kw">const</span> <span class="t-cmd">app</span> = container.<span class="t-method">server</span>(<span class="t-str">'express'</span>)</div>
 <div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// endpoints are auto-discovered from your files</span></div>
+<div class="line"><span class="t-comment">// endpoints auto-discovered from your files</span></div>
 <div class="line"><span class="t-kw">await</span> app.<span class="t-method">mountEndpoints</span>()</div>
 <div class="line">&nbsp;</div>
 <div class="line"><span class="t-comment">// WebSocket server alongside HTTP</span></div>
@@ -1248,54 +1308,21 @@
 <div class="line"><span class="t-kw">await</span> app.<span class="t-method">start</span>()  <span class="t-comment">// that's it</span></div>
         </div>
 
-        <div class="code-panel" id="panel-files">
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">fs</span> = container.<span class="t-method">feature</span>(<span class="t-str">'fs'</span>)</div>
+        <div class="code-panel" id="panel-binary">
+<div class="line"><span class="t-comment"># bootstrap a project</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca bootstrap my-tool</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">cd my-tool</span></div>
 <div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// read any file</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">data</span> = <span class="t-kw">await</span> fs.<span class="t-method">readFile</span>(<span class="t-str">'config.json'</span>)</div>
+<div class="line"><span class="t-comment"># add your own stuff</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold command</span> <span class="t-str">analyze</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold feature</span> <span class="t-str">myCache</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca scaffold endpoint</span> <span class="t-str">status</span></div>
 <div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// search content across your project</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">grep</span> = container.<span class="t-method">feature</span>(<span class="t-str">'grep'</span>)</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">results</span> = <span class="t-kw">await</span> grep.<span class="t-method">run</span>(<span class="t-str">'TODO'</span>, {</div>
-<div class="line">  <span class="t-key">include</span>: [<span class="t-str">'**/*.ts'</span>]</div>
-<div class="line">})</div>
+<div class="line"><span class="t-comment"># compile to a single binary</span></div>
+<div class="line"><span class="t-prompt">$</span> <span class="t-cmd">luca bundle</span></div>
 <div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// intelligent project-wide file awareness</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">fm</span> = container.<span class="t-method">feature</span>(<span class="t-str">'fileManager'</span>)</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">files</span> = fm.<span class="t-method">fileIds</span>  <span class="t-comment">// every file, indexed</span></div>
-        </div>
-
-        <div class="code-panel" id="panel-script">
-<div class="line"><span class="t-comment">// scripts have the full container at their fingertips</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">git</span> = container.<span class="t-method">feature</span>(<span class="t-str">'git'</span>)</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">proc</span> = container.<span class="t-method">feature</span>(<span class="t-str">'proc'</span>)</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// check git status</span></div>
-<div class="line">console.<span class="t-method">log</span>(git.<span class="t-key">branch</span>)  <span class="t-comment">// "main"</span></div>
-<div class="line">console.<span class="t-method">log</span>(git.<span class="t-key">status</span>)  <span class="t-comment">// { modified: [...] }</span></div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// run shell commands</span></div>
-<div class="line"><span class="t-kw">const</span> { <span class="t-cmd">stdout</span> } = <span class="t-kw">await</span> proc.<span class="t-method">exec</span>(<span class="t-str">'ls -la'</span>)</div>
-<div class="line">&nbsp;</div>
-<div class="line"><span class="t-comment">// isolated VM execution</span></div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">vm</span> = container.<span class="t-method">feature</span>(<span class="t-str">'vm'</span>)</div>
-<div class="line"><span class="t-kw">const</span> <span class="t-cmd">result</span> = <span class="t-kw">await</span> vm.<span class="t-method">run</span>(<span class="t-str">'return 2 + 2'</span>)</div>
-        </div>
-
-        <div class="code-panel" id="panel-endpoints">
-<div class="line"><span class="t-comment">// endpoints/hello.ts &mdash; file-based routing</span></div>
-<div class="line"><span class="t-kw">export default</span> {</div>
-<div class="line">  <span class="t-key">method</span>: <span class="t-str">'GET'</span>,</div>
-<div class="line">  <span class="t-key">path</span>: <span class="t-str">'/hello/:name'</span>,</div>
-<div class="line">&nbsp;</div>
-<div class="line">  <span class="t-kw">async</span> <span class="t-fn">handler</span>(<span class="t-cmd">req</span>, <span class="t-cmd">res</span>, <span class="t-cmd">container</span>) {</div>
-<div class="line">    <span class="t-comment">// full container access in every handler</span></div>
-<div class="line">    <span class="t-kw">const</span> <span class="t-cmd">fs</span> = container.<span class="t-method">feature</span>(<span class="t-str">'fs'</span>)</div>
-<div class="line">    <span class="t-kw">const</span> <span class="t-cmd">template</span> = <span class="t-kw">await</span> fs.<span class="t-method">readFile</span>(<span class="t-str">'greeting.html'</span>)</div>
-<div class="line">&nbsp;</div>
-<div class="line">    res.<span class="t-method">json</span>({ <span class="t-key">hello</span>: req.params.<span class="t-key">name</span> })</div>
-<div class="line">  }</div>
-<div class="line">}</div>
+<div class="line"><span class="t-output">  &rarr; dist/my-tool (standalone, no dependencies)</span></div>
+<div class="line"><span class="t-output">  &rarr; your commands, features, assistants &mdash; baked in</span></div>
         </div>
       </div>
     </div>
@@ -1308,33 +1335,33 @@
     <div class="sec-label anim" style="--i:0">Command Line</div>
     <h2 class="sec-title anim" style="--i:1">A CLI That<br>Understands Your Code</h2>
     <p class="sec-desc anim" style="--i:2">
-      Run code, generate docs, serve apps, explore registries &mdash; all from your terminal.
+      Discover, prototype, serve, and compile &mdash; all from your terminal. Your AI assistant uses the same commands.
     </p>
 
     <div class="cli-grid">
       <div class="cli-card anim" style="--i:3">
-        <div class="cli-cmd">luca eval "container.features.available"</div>
-        <div class="cli-desc">Run arbitrary JavaScript against the live container. Inspect state, test features, explore registries interactively.</div>
+        <div class="cli-cmd">luca bootstrap my-app</div>
+        <div class="cli-desc">Scaffold a complete project with commands, endpoints, features, docs, and AI assistant config &mdash; everything wired up.</div>
       </div>
       <div class="cli-card anim" style="--i:4">
         <div class="cli-cmd">luca describe fs</div>
-        <div class="cli-desc">Auto-generated documentation for any feature, client, or server. Methods, options, state, events &mdash; all introspected.</div>
+        <div class="cli-desc">Auto-generated documentation for any feature, client, or server. Methods, options, state, events &mdash; all introspected at runtime.</div>
       </div>
       <div class="cli-card anim" style="--i:5">
-        <div class="cli-cmd">luca serve</div>
-        <div class="cli-desc">Start an Express server that auto-discovers your endpoints/ folder. OpenAPI docs, static files, and hot reload included.</div>
+        <div class="cli-cmd">luca eval "container.features.available"</div>
+        <div class="cli-desc">Run arbitrary JavaScript against the live container. Inspect state, test features, explore registries interactively.</div>
       </div>
       <div class="cli-card anim" style="--i:6">
-        <div class="cli-cmd">luca describe servers</div>
-        <div class="cli-desc">Explore entire registries at once. See every available server, client, or feature with their full documentation.</div>
+        <div class="cli-cmd">luca serve</div>
+        <div class="cli-desc">Start an Express server that auto-discovers your endpoints/ folder. OpenAPI docs and static files included.</div>
       </div>
       <div class="cli-card anim" style="--i:7">
-        <div class="cli-cmd">luca console</div>
-        <div class="cli-desc">Drop into an interactive REPL with the full container in scope. Every feature, client, and server at your fingertips.</div>
+        <div class="cli-cmd">luca bundle</div>
+        <div class="cli-desc">Compile your project into a standalone binary. Custom commands, features, endpoints, and assistants &mdash; all baked in.</div>
       </div>
       <div class="cli-card anim" style="--i:8">
-        <div class="cli-cmd">luca run scripts/deploy.ts</div>
-        <div class="cli-desc">Execute scripts with the container pre-loaded. No imports needed &mdash; your script gets the full runtime automatically.</div>
+        <div class="cli-cmd">luca console</div>
+        <div class="cli-desc">Drop into a full REPL with the container in scope. Every feature, client, and server at your fingertips.</div>
       </div>
     </div>
   </div>
@@ -1344,12 +1371,12 @@
 <section class="cta" id="get-started">
   <div class="wrap">
     <div class="cta-box anim" style="--i:0">
-      <h2>Start Building with Luca</h2>
-      <p>One container. Every feature. Zero dependencies.</p>
+      <h2>One Download, Unlimited Potential</h2>
+      <p>No dependencies. No node_modules. Agents that talk to each other out of the box.</p>
 
-      <div class="install-cmd" onclick="navigator.clipboard.writeText('bun add luca')">
+      <div class="install-cmd" onclick="navigator.clipboard.writeText('curl -fsSL https://luca-js.soederpop.com/install.sh | bash').then(() => { this.querySelector('.copy-hint').textContent = 'copied!'; setTimeout(() => this.querySelector('.copy-hint').textContent = 'click to copy', 2000) })">
         <span class="t-prompt">$</span>
-        <span>bun add luca</span>
+        <span>curl -fsSL https://luca-js.soederpop.com/install.sh | bash</span>
         <span class="copy-hint">click to copy</span>
       </div>
 
@@ -1358,7 +1385,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
           View on GitHub
         </a>
-        <a href="#features" class="btn btn-secondary">Explore Docs</a>
+        <a href="#code" class="btn btn-secondary">See the Code</a>
       </div>
     </div>
   </div>
@@ -1367,8 +1394,8 @@
 <!-- ===== FOOTER ===== -->
 <footer>
   <div class="wrap">
-    <p>Luca &mdash; Lightweight Universal Conversational Architecture</p>
-    <p style="margin-top:8px">Built with <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a>. Designed for developers who build.</p>
+    <p>Luca &mdash; An agent-native TypeScript runtime that ships as a single binary.</p>
+    <p style="margin-top:8px">Built with <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a>. Designed for humans and agents.</p>
   </div>
 </footer>
 
