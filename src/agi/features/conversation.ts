@@ -87,6 +87,9 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	contextWindow: z.number().optional().describe('Override the inferred context window size for this model'),
 	/** Number of recent messages to preserve after compaction (default 4) */
 	compactKeepRecent: z.number().optional().describe('Number of recent messages to preserve after compaction (default 4)'),
+
+	/** Maximum input tokens to send to the API. When set, older messages are trimmed to stay within this budget, keeping the system prompt and most recent messages. Useful for avoiding long-context pricing tiers. */
+	maxInputTokens: z.number().optional().describe('Maximum input tokens to send to the API. Trims older messages to stay within budget, avoiding long-context pricing'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -732,16 +735,20 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			let raw: string
 
 			if (this.apiMode === 'responses') {
-				const previousResponseId = this.state.get('lastResponseId') || undefined
+				// When maxInputTokens is set, skip previous_response_id continuation
+				// so we control exactly how many tokens the API processes (server-side
+				// context from previous_response_id would accumulate unbounded).
+				const canChain = !this.options.maxInputTokens
+				const previousResponseId = canChain ? (this.state.get('lastResponseId') || undefined) : undefined
 				let input: OpenAI.Responses.ResponseInput
 
 				if (previousResponseId) {
 					// Can chain via previous_response_id — only send the new user message
 					input = [this.toResponsesUserMessage(content)]
 				} else {
-					// No previous response ID (first call or resumed from disk).
-					// Convert full message history to Responses API input so the model has context.
-					input = this.messagesToResponsesInput()
+					// No previous response ID (first call, resumed from disk, or maxInputTokens active).
+					// Convert (possibly trimmed) message history to Responses API input.
+					input = this.messagesToResponsesInput(this.getMessagesWithinBudget())
 				}
 
 				raw = await this.runResponsesLoop({
@@ -824,10 +831,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * Convert the full Chat Completions message history into Responses API input items.
 	 * Used when resuming a conversation without a previous_response_id.
 	 */
-	private messagesToResponsesInput(): OpenAI.Responses.ResponseInput {
+	private messagesToResponsesInput(messages?: Message[]): OpenAI.Responses.ResponseInput {
 		const input: OpenAI.Responses.ResponseInput = []
 
-		for (const msg of this.messages) {
+		for (const msg of (messages || this.messages)) {
 			if (msg.role === 'system' || msg.role === 'developer') {
 				// System/developer messages are handled via the instructions parameter
 				continue
@@ -1216,7 +1223,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		try {
 			const stream = await this.openai.raw.chat.completions.create({
 				model: this.model,
-				messages: this.sanitizeMessages(this.messages),
+				messages: this.sanitizeMessages(this.getMessagesWithinBudget()),
 				stream: true,
 				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
 				...(this.maxTokens ? { [this.maxTokensParam]: this.maxTokens } : {}),
@@ -1319,10 +1326,73 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
-	 * Ensure every assistant message with tool_calls has matching tool response messages.
-	 * Orphaned tool_calls (from aborted/failed tool executions or history truncation)
-	 * get stub tool responses so OpenAI doesn't reject the conversation.
+	 * Returns the messages array trimmed to fit within the maxInputTokens budget.
+	 * Keeps the system/developer message and drops oldest atomic groups first.
+	 *
+	 * Messages are grouped into atomic units so tool call/response pairs are never
+	 * split (which would cause a 400 from OpenAI):
+	 *   - assistant with tool_calls + its subsequent tool response messages = one group
+	 *   - standalone user, assistant (no tools), system = one group each
+	 *
+	 * If no maxInputTokens is set, returns messages as-is.
 	 */
+	private getMessagesWithinBudget(): Message[] {
+		const budget = this.options.maxInputTokens
+		if (!budget) return this.messages
+
+		const messages = this.messages
+		if (messages.length === 0) return messages
+
+		// Check if the full history already fits
+		const fullCount = countMessageTokens(messages, this.model)
+		if (fullCount <= budget) return messages
+
+		// Separate system prompt from the rest
+		const systemMsg = (messages[0]?.role === 'system' || messages[0]?.role === 'developer')
+			? messages[0]
+			: null
+		const nonSystem = systemMsg ? messages.slice(1) : [...messages]
+
+		// Group messages into atomic units.
+		// An assistant message with tool_calls and its subsequent tool responses form one group.
+		type MessageGroup = Message[]
+		const groups: MessageGroup[] = []
+		let i = 0
+		while (i < nonSystem.length) {
+			const msg = nonSystem[i]!
+			if (msg.role === 'assistant' && (msg as any).tool_calls?.length) {
+				// Collect the assistant + all following tool responses that belong to it
+				const expectedIds = new Set(((msg as any).tool_calls as any[]).map((tc: any) => tc.id))
+				const group: Message[] = [msg]
+				let j = i + 1
+				while (j < nonSystem.length && nonSystem[j]!.role === 'tool' && expectedIds.has((nonSystem[j] as any).tool_call_id)) {
+					group.push(nonSystem[j]!)
+					j++
+				}
+				groups.push(group)
+				i = j
+			} else {
+				groups.push([msg])
+				i++
+			}
+		}
+
+		// Walk backwards through groups, accumulating tokens until we exceed the budget
+		const systemTokens = systemMsg ? countMessageTokens([systemMsg], this.model) : 0
+		let running = systemTokens
+		let cutoff = groups.length // start with nothing included
+
+		for (let g = groups.length - 1; g >= 0; g--) {
+			const groupTokens = countMessageTokens(groups[g]!, this.model)
+			if (running + groupTokens > budget) break
+			running += groupTokens
+			cutoff = g
+		}
+
+		const kept = groups.slice(cutoff).flat()
+		return systemMsg ? [systemMsg, ...kept] : kept
+	}
+
 	private sanitizeMessages(messages: Message[]): Message[] {
 		const result: Message[] = []
 

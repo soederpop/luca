@@ -1,30 +1,33 @@
 # Luca
 
 **Lightweight Universal Conversational Architecture**
+*(aka Le Ultimate Component Architecture)*
 
-A single binary CLI that ships 40+ self-documenting features, clients, and servers. No `npm install`, no setup — download it and start building.
+An agent-native TypeScript runtime that ships as a single binary — and builds yours too.
 
-Build beautiful terminal UI's, rest, websocket, ipc servers, clients.  Everything you need for secure, production grade software without ever exposing yourself to the supply chain.
+Luca gives humans and AI agents the same architectural map: one self-documenting `container` object with typed features, clients, servers, commands, state, events, and runtime docs. The agent doesn't guess at architecture — it discovers it. No `npm install`, no `node_modules`, no supply chain exposure, no ceremony.
 
-Luca makes it very easy to build full process, task-specific Agentic harnesses that work on the server, or in the browser.
+## What Makes Luca Different
 
-Luca provides an Assistant class that combines prompts and tool calls, an assistant can `assistant.use(anyFeatureClientOrServer)` in the framework's container.
+AI agents today either generate sprawling ad-hoc code or fight against frameworks that weren't designed for them. They don't know what's available, what conventions to follow, or where to put things. The result is brittle, unreviewable output that drifts further from the codebase with every generation.
 
-The `luca` CLI ships with all of the documentation you, or your AI assistant, could possibly need to build with the framework.
+Luca solves this with three ideas:
+
+**One introspectable container.** Every Luca app has a single `container` — a dependency-injected runtime that carries features, clients, servers, commands, endpoints, observable state, and an event bus. Every component describes itself: constructor options, method signatures, events emitted, state shape. The human reads the same docs the agent reads. There is one way to do things.
+
+**Single binary in, single binary out.** Luca ships as a standalone binary. No runtime dependencies, no package manager, no exposure to the npm supply chain. You use it to build your project, then compile your project into its own standalone binary with your custom commands, features, endpoints, and assistants baked in.
+
+**The assistant is a first-class citizen.** Luca's `Assistant` class can `use()` any feature, client, or server in the container — inheriting its tools automatically. The assistant doesn't need hand-written tool definitions. It discovers capabilities from the runtime it's embedded in.
 
 ## Installation
-
-### Quick install (macOS/Linux)
 
 ```sh
 curl -fsSL https://luca-js.soederpop.com/install.sh | bash
 ```
 
-This detects your platform, downloads the right binary, and puts `luca` in your path. Done.
+Detects your platform, downloads the binary, puts `luca` in your path. Done.
 
-### Manual download
-
-Grab the latest release for your platform from [GitHub Releases](https://github.com/soederpop/luca/releases/latest):
+Or grab a release directly from [GitHub Releases](https://github.com/soederpop/luca/releases/latest):
 
 | Platform | Binary |
 |----------|--------|
@@ -34,51 +37,170 @@ Grab the latest release for your platform from [GitHub Releases](https://github.
 | Linux ARM64 | `luca-linux-arm64` |
 | Windows x64 | `luca-windows-x64.exe` |
 
-### Verify
-
 ```sh
 luca --version
-# luca v0.0.34 (main@325a0ee) built 2026-03-25T06:10:28Z
 ```
 
 ## Quick Start
-
-### Bootstrap a new project
 
 ```sh
 luca bootstrap my-app
 cd my-app
 ```
 
-Or just run `luca bootstrap` and it'll ask you for a project name. This scaffolds a project with `commands/`, `endpoints/`, `features/`, `docs/`, and AI assistant configuration — everything wired up and ready to extend.
+This scaffolds a project with `commands/`, `endpoints/`, `features/`, `docs/`, and AI assistant configuration — everything wired up and ready to extend.
 
-### Explore
+Now explore what the runtime can do:
 
 ```sh
 luca                              # list all commands
-luca describe features            # index of 40+ features
-luca describe fs                  # full docs for any feature
+luca describe features            # see every available feature
+luca describe fs                  # full docs for a specific feature
 luca describe fs.readFile         # drill into a specific method
-luca eval "container.features.available"  # run code with the container in scope
+luca eval "container.features.available"  # run code against the live container
 luca console                      # full REPL
 ```
 
-### Run scripts and markdown
+This is the core loop: discover what's available, evaluate code against it, build on top of it. Your AI assistant does the same thing.
 
-`luca run` executes TypeScript, JavaScript, and markdown files. Markdown files have their code blocks executed in order, with `container` already in scope — no imports needed:
+## The Container
+
+One import. One object. Everything on it.
+
+```ts
+import container from '@soederpop/luca'
+
+container.features.available   // ['fs', 'git', 'proc', 'vault', 'yaml', 'sqlite', ...]
+container.clients.available    // ['rest', 'websocket', ...]
+container.servers.available    // ['express', 'websocket', 'ipc', 'mcp', ...]
+```
+
+The container is a singleton — a per-process global that acts as dependency injector, event bus, and state machine. Features, clients, and servers are lazy-loaded from registries. Every helper carries introspection metadata that powers `luca describe`, the REPL, and agent tool discovery.
+
+```ts
+const fs = container.feature('fs')
+const rest = container.client('rest', { baseURL: 'https://api.example.com' })
+const server = container.server('express')
+```
+
+No imports beyond the container. No `require('fs')`, no `import axios`, no `npm install anything`. The container provides file I/O, HTTP clients, databases, YAML parsing, git operations, browser automation, terminal UI, semantic search, encryption, and more — all typed, all documented, all discoverable at runtime.
+
+### In the browser
+
+```js
+import container from 'https://esm.sh/@soederpop/luca/web'
+```
+
+Same singleton pattern, optimized for browser features. `window.luca` is set automatically.
+
+## Build an Assistant
+
+The assistant is the interface that ties everything together. It can `use()` any module in the container, automatically inheriting that module's tools:
+
+```ts
+import container from '@soederpop/luca'
+
+const browser = container.feature('browserUse', { headed: true })
+const assistant = container.feature('assistant', {
+  systemPrompt: 'You are a web research assistant.',
+  model: 'gpt-4.1-mini',
+})
+
+// browserUse injects its tools — open, click, type, screenshot, extract, etc.
+assistant.use(browser)
+await assistant.start()
+
+await assistant.ask('Go to hacker news and tell me the top 3 stories')
+```
+
+The assistant doesn't need hand-written tool schemas. When it calls `use(browser)`, it gets every tool that `browserUse` exposes — typed, documented, ready to invoke. Swap `browserUse` for `fs` or `git` or `sqlite` and the assistant gets a completely different toolkit from the same pattern.
+
+This is what agent-native means: the runtime teaches the agent what it can do.
+
+### The Assistant as Operator
+
+Most agent frameworks give you a chat loop with tool calls bolted on. Luca gives you an agent that can operate real infrastructure.
+
+The container has servers — REST, WebSocket, IPC. It has clients for all of them. It has process management, a VM, file I/O, databases, git, docker, SSH, even GPU compute over RunPod. The assistant can `use()` any combination of these, which means you can build agents that:
+
+- **Stand up and manage servers** — spin up an Express server, add routes, react to incoming requests
+- **Listen to events across transports** — WebSocket messages, IPC signals, HTTP webhooks, file system changes
+- **Spawn and manage processes** — launch child processes, monitor their output, kill them when done — locally, over SSH, in Docker containers, or on remote GPU instances
+- **Inspect and react to state** — every helper has observable state and an event bus; the assistant can watch for changes and act on them autonomously
+- **Run code in a sandboxed VM** — execute untrusted code safely, evaluate expressions, build REPL-like workflows
+
+The assistant isn't answering questions in a chat window. It's running your infrastructure, reacting to events in real time, and coordinating across multiple systems — all through the same `container` it already knows how to discover.
+
+```ts
+const assistant = container.feature('assistant', {
+  systemPrompt: 'You manage the deployment pipeline. Monitor builds, restart failed services, report status.',
+  model: 'gpt-4.1-mini',
+})
+
+assistant.use(container.feature('proc'))
+assistant.use(container.server('express'))
+assistant.use(container.server('websocket'))
+assistant.use(container.feature('docker'))
+assistant.use(container.feature('fs'))
+
+await assistant.start()
+```
+
+That's an agent harness. Not a chatbot — an operator.
+
+## Build Your Own Binary
+
+Luca isn't just a tool you use — it's a tool that builds tools.
+
+Bootstrap a project, add your own commands, features, endpoints, and assistants, then compile the whole thing into a standalone binary:
+
+```sh
+luca bootstrap my-tool
+cd my-tool
+
+# add your own commands, features, endpoints
+luca scaffold command analyze --description "Run analysis on input data"
+luca scaffold feature myCache --description "Custom caching layer"
+luca scaffold endpoint status --description "Health check endpoint"
+
+# compile to a single binary
+luca bundle
+```
+
+The output is a self-contained executable. No node, no bun, no npm on the target machine. Your users download one file and run it. Your custom commands show up in `my-tool --help`. Your assistant ships inside.
+
+## Project Structure
+
+Convention-based folders are auto-discovered:
+
+```
+commands/       custom CLI commands → luca <name>
+endpoints/      file-based HTTP routes → luca serve
+features/       custom container features → container.feature('<name>')
+assistants/     AI assistants with system prompts and tools
+docs/           content documents queryable via container.docs
+```
+
+Generate boilerplate with `luca scaffold`:
+
+```sh
+luca scaffold command myTask --description "Automate something"
+luca scaffold feature myCache --description "Custom caching layer"
+luca scaffold endpoint users --description "User management API"
+```
+
+## Run Scripts and Markdown
+
+`luca run` executes TypeScript, JavaScript, and markdown files with the container in scope:
 
 ````md
 # my-script.md
-
-Grab some data and print it:
 
 ```ts
 const fs = container.feature('fs')
 const files = await fs.readdir('.')
 console.log(`Found ${files.length} files`)
 ```
-
-Then do something with it:
 
 ```ts
 const yaml = container.feature('yaml')
@@ -90,117 +212,17 @@ console.log(yaml.stringify({ files }))
 luca run my-script.md
 ```
 
-Each block shares state with the previous ones, so variables defined in one block are available in the next. Use `--safe` to require approval before each block, or `--console` to drop into a REPL afterward with all the accumulated context.  **Note:** if your block uses top-level awaits, we can't preserve context.  You can use `container.addContext({ yourVariable })` and it will be available as a global variable in future blocks.
+Blocks share state. Use `--safe` for approval before each block, `--console` to drop into a REPL afterward with accumulated context.
 
-### Serve
+## AI Coding Assistant Integration
 
-```sh
-luca serve   # serves endpoints/ folder as HTTP routes
-```
+Luca is designed to work alongside Claude Code, Codex, and other AI coding assistants:
 
-See [`docs/CLI.md`](./docs/CLI.md) for the full CLI reference.
+- `luca describe` gives the assistant full API docs for any helper — method signatures, options, events, state shape
+- `luca eval` lets the assistant test container expressions before writing code
+- `luca sandbox-mcp` exposes a REPL and doc browser as an MCP server
 
-## Importing the container into your own scripts / modules
-
-```ts
-import container from '@soederpop/luca'
-```
-
-That's it — you get one object with everything on it. No factory function, no setup. It's a singleton.
-
-We do export the framework classes (`WebContainer`, `Feature`, `Client`, `Server`, etc.) if you want to extend them, but for using the system you only ever need the default export.
-
-### In the browser via esm.sh
-
-**Static import:**
-
-```js
-import container from 'https://esm.sh/@soederpop/luca/web'
-
-container.features.available  // ['fetch', 'state', 'ui', ...]
-```
-
-**Dynamic import:**
-
-```js
-const { default: container } = await import('https://esm.sh/@soederpop/luca/web')
-
-container.features.available  // same singleton
-```
-
-With dynamic import you have to pick it off `default` yourself — there's no top-level default binding like the static form gives you. Either way, it's the same singleton container, and `window.luca` is set automatically so you can poke at it from the console.
-
-## How It Works
-
-### Self-documenting at runtime
-
-Every helper (feature, client, server) carries its own introspection metadata — constructor options, observable state shape, events emitted, environment variables used, method signatures. This powers `luca describe`, works in the REPL, and enables metaprogramming.
-
-```ts
-import container from '@soederpop/luca'
-
-container.features.available   // ['fs','git','proc','vault',...]
-container.clients.available    // ['rest','websocket']
-container.servers.available    // ['express','websocket','ipc','mcp']
-
-container.features.describe()  // markdown summary of all features
-container.feature('fs').introspect()          // json
-container.feature('fs').introspectAsText()    // markdown
-```
-
-### Content-aware documentation
-
-The node container includes `container.docs` powered by [Contentbase](https://github.com/soederpop/contentbase) — query your project's markdown documentation like a database:
-
-```ts
-await container.docs.load()
-const { Tutorial } = container.docs.models
-const tutorials = await container.docs.query(Tutorial).fetchAll()
-```
-
-### Project extensions
-
-Drop files into convention-based folders and they're auto-discovered:
-
-- `commands/` — custom CLI commands, run via `luca <name>`
-- `endpoints/` — file-based HTTP routes, served via `luca serve`
-- `features/` — custom container features
-
-Generate boilerplate with `luca scaffold`:
-
-```sh
-luca scaffold command myTask --description "Automate something"
-luca scaffold feature myCache --description "Custom caching layer"
-luca scaffold endpoint users --description "User management API"
-```
-
-### Building an assistant
-
-Features can inject their own tools into an assistant via `assistant.use()`. Here's an assistant that can browse the web:
-
-```ts
-import container from '@soederpop/luca'
-
-const browser = container.feature('browserUse', { headed: true })
-const assistant = container.feature('assistant', {
-  systemPrompt: 'You are a web research assistant. Use your browser tools to find information.',
-  model: 'gpt-4.1-mini',
-})
-
-// browserUse injects its tools — open, click, type, screenshot, extract, etc.
-assistant.use(browser)
-await assistant.start()
-
-await assistant.ask('Go to hacker news and tell me what the top 3 stories are about')
-```
-
-### AI coding assistant integration
-
-The CLI works great alongside Claude Code, Codex, and other coding assistants:
-
-- `luca describe` gives assistants full API docs for any helper
-- `luca eval` lets them test container expressions before committing code
-- `luca sandbox-mcp` provides a REPL and doc browser as an MCP server
+The assistant doesn't need to read source files to understand the framework. It asks the framework directly.
 
 ## Development
 
@@ -217,15 +239,10 @@ bun install
 bun run setup
 ```
 
-`bun run setup` applies `git update-index --skip-worktree` to the build artifact stubs so local changes to generated files (from running `build:introspection`, `build:scaffolds`, etc.) are never accidentally committed.
-
 ### Running in dev
 
 ```sh
-# Run the CLI from source (equivalent to the luca binary)
-bun run src/cli/cli.ts
-
-# Examples
+bun run src/cli/cli.ts                           # same as luca binary
 bun run src/cli/cli.ts describe features
 bun run src/cli/cli.ts eval "container.features.available"
 ```
@@ -233,11 +250,8 @@ bun run src/cli/cli.ts eval "container.features.available"
 ### Testing
 
 ```sh
-# Unit tests
-bun test
-
-# Integration tests (may require API keys / env vars)
-bun run test:integration
+bun test                    # unit tests
+bun run test:integration    # integration tests (may require API keys)
 ```
 
 ### Building the binary
@@ -246,13 +260,13 @@ bun run test:integration
 bun run compile
 ```
 
-This runs the full pipeline: introspection generation, scaffold templates, bootstrap code, python bridge, build stamp, then compiles to `dist/luca` via Bun's native compiler.
+Runs the full pipeline: introspection generation, scaffold templates, build stamp, then compiles to `dist/luca` via Bun's native compiler.
 
 ### Project structure
 
 ```
 src/
-  cli/          CLI entry point and commands
+  cli/          CLI entry point and built-in commands
   node/         NodeContainer and server-side features
   web/          WebContainer and browser features
   agi/          AGIContainer — AI assistant layer
