@@ -2,6 +2,70 @@ import { setBuildTimeData, setContainerBuildTimeData } from './index.js';
 
 // Auto-generated introspection registry data
 
+setBuildTimeData('features.assetLoader', {
+  "id": "features.assetLoader",
+  "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
+  "shortcut": "features.assetLoader",
+  "className": "AssetLoader",
+  "methods": {
+    "removeStylesheet": {
+      "description": "",
+      "parameters": {
+        "href": {
+          "type": "string",
+          "description": "Parameter href"
+        }
+      },
+      "required": [
+        "href"
+      ],
+      "returns": "void"
+    },
+    "loadScript": {
+      "description": "",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Parameter url"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "returns": "Promise<void>"
+    },
+    "unpkg": {
+      "description": "",
+      "parameters": {
+        "packageName": {
+          "type": "string",
+          "description": "Parameter packageName"
+        },
+        "globalName": {
+          "type": "string",
+          "description": "Parameter globalName"
+        }
+      },
+      "required": [
+        "packageName",
+        "globalName"
+      ],
+      "returns": "Promise<any>"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
+    }
+  ]
+});
+
 setBuildTimeData('features.containerLink', {
   "id": "features.containerLink",
   "description": "ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.",
@@ -149,255 +213,114 @@ setBuildTimeData('features.esbuild', {
   ]
 });
 
-setBuildTimeData('features.voice', {
-  "id": "features.voice",
-  "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
-  "shortcut": "features.voice",
-  "className": "VoiceRecognition",
+setBuildTimeData('features.helpers', {
+  "id": "features.helpers",
+  "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+  "shortcut": "features.helpers",
+  "className": "Helpers",
   "methods": {
-    "whenFinished": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "start": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "stop": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "abort": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    },
-    "clearTranscript": {
-      "description": "",
-      "parameters": {},
-      "required": [],
-      "returns": "void"
-    }
-  },
-  "getters": {
-    "listening": {
-      "description": "Whether the speech recognizer is currently listening for audio input.",
-      "returns": "any"
-    },
-    "transcript": {
-      "description": "Returns the accumulated final transcript text from recognition results.",
-      "returns": "any"
-    }
-  },
-  "events": {
-    "start": {
-      "name": "start",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    },
-    "stop": {
-      "name": "stop",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    },
-    "abort": {
-      "name": "abort",
-      "description": "Event emitted by VoiceRecognition",
-      "arguments": {}
-    }
-  },
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
-    }
-  ]
-});
-
-setBuildTimeData('features.vm', {
-  "id": "features.vm",
-  "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
-  "shortcut": "features.vm",
-  "className": "VM",
-  "methods": {
-    "createScript": {
-      "description": "",
-      "parameters": {
-        "code": {
-          "type": "string",
-          "description": "Parameter code"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "returns": "void"
-    },
-    "createContext": {
-      "description": "",
-      "parameters": {
-        "ctx": {
-          "type": "any",
-          "description": "Parameter ctx"
-        }
-      },
-      "required": [],
-      "returns": "void"
-    },
-    "run": {
-      "description": "",
-      "parameters": {
-        "code": {
-          "type": "string",
-          "description": "Parameter code"
-        },
-        "ctx": {
-          "type": "any",
-          "description": "Parameter ctx"
-        },
-        "options": {
-          "type": "any",
-          "description": "Parameter options"
-        }
-      },
-      "required": [
-        "code"
-      ],
-      "returns": "void"
-    }
-  },
-  "getters": {},
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
-    }
-  ]
-});
-
-setBuildTimeData('features.assetLoader', {
-  "id": "features.assetLoader",
-  "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
-  "shortcut": "features.assetLoader",
-  "className": "AssetLoader",
-  "methods": {
-    "removeStylesheet": {
-      "description": "",
-      "parameters": {
-        "href": {
-          "type": "string",
-          "description": "Parameter href"
-        }
-      },
-      "required": [
-        "href"
-      ],
-      "returns": "void"
-    },
-    "loadScript": {
-      "description": "",
+    "setManifestURL": {
+      "description": "Set a new manifest URL. Invalidates any cached manifest.",
       "parameters": {
         "url": {
           "type": "string",
-          "description": "Parameter url"
+          "description": "The new URL to fetch the manifest from"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<void>"
+      "returns": "void"
     },
-    "unpkg": {
+    "getInstances": {
       "description": "",
       "parameters": {
-        "packageName": {
-          "type": "string",
-          "description": "Parameter packageName"
-        },
-        "globalName": {
-          "type": "string",
-          "description": "Parameter globalName"
-        }
-      },
-      "required": [
-        "packageName",
-        "globalName"
-      ],
-      "returns": "Promise<any>"
-    }
-  },
-  "getters": {},
-  "events": {},
-  "state": {},
-  "options": {},
-  "envVars": [],
-  "examples": [
-    {
-      "language": "ts",
-      "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
-    }
-  ]
-});
-
-setBuildTimeData('features.vault', {
-  "id": "features.vault",
-  "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
-  "shortcut": "features.vault",
-  "className": "WebVault",
-  "methods": {
-    "secret": {
-      "description": "",
-      "parameters": {
-        "{ refresh = false, set = true }": {
-          "type": "any",
-          "description": "Parameter { refresh = false, set = true }"
+        "FilterClass": {
+          "type": "new (...args: any[]) => T",
+          "description": "Parameter FilterClass"
         }
       },
       "required": [],
-      "returns": "Promise<ArrayBuffer>"
+      "returns": "Helper[] | T[]"
     },
-    "decrypt": {
-      "description": "",
+    "discover": {
+      "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
       "parameters": {
-        "payload": {
-          "type": "string",
-          "description": "Parameter payload"
+        "type": {
+          "type": "RegistryType",
+          "description": "Which type of helpers to discover ('features' or 'clients')"
         }
       },
       "required": [
-        "payload"
+        "type"
       ],
-      "returns": "void"
+      "returns": "Promise<string[]>"
     },
-    "encrypt": {
-      "description": "",
+    "discoverAll": {
+      "description": "Discover all helper types from the manifest.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<Record<string, string[]>>"
+    },
+    "discoverFeatures": {
+      "description": "Convenience method to discover only features.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "discoverClients": {
+      "description": "Convenience method to discover only clients.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string[]>"
+    },
+    "lookup": {
+      "description": "Look up a helper class by type and name.",
       "parameters": {
-        "payload": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
           "type": "string",
-          "description": "Parameter payload"
+          "description": "The helper name within that registry"
         }
       },
       "required": [
-        "payload"
+        "type",
+        "name"
       ],
-      "returns": "void"
+      "returns": "any"
+    },
+    "describe": {
+      "description": "Get the introspection description for a specific helper.",
+      "parameters": {
+        "type": {
+          "type": "RegistryType",
+          "description": "The registry type"
+        },
+        "name": {
+          "type": "string",
+          "description": "The helper name"
+        }
+      },
+      "required": [
+        "type",
+        "name"
+      ],
+      "returns": "string"
     }
   },
-  "getters": {},
+  "getters": {
+    "manifestURL": {
+      "description": "The URL to fetch the helpers manifest from.",
+      "returns": "string"
+    },
+    "available": {
+      "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+      "returns": "Record<string, string[]>"
+    }
+  },
   "events": {},
   "state": {},
   "options": {},
@@ -405,7 +328,7 @@ setBuildTimeData('features.vault', {
   "examples": [
     {
       "language": "ts",
-      "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+      "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
     }
   ]
 });
@@ -549,114 +472,51 @@ setBuildTimeData('features.speech', {
   }
 });
 
-setBuildTimeData('features.helpers', {
-  "id": "features.helpers",
-  "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
-  "shortcut": "features.helpers",
-  "className": "Helpers",
+setBuildTimeData('features.vault', {
+  "id": "features.vault",
+  "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
+  "shortcut": "features.vault",
+  "className": "WebVault",
   "methods": {
-    "setManifestURL": {
-      "description": "Set a new manifest URL. Invalidates any cached manifest.",
+    "secret": {
+      "description": "",
       "parameters": {
-        "url": {
+        "{ refresh = false, set = true }": {
+          "type": "any",
+          "description": "Parameter { refresh = false, set = true }"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ArrayBuffer>"
+    },
+    "decrypt": {
+      "description": "",
+      "parameters": {
+        "payload": {
           "type": "string",
-          "description": "The new URL to fetch the manifest from"
+          "description": "Parameter payload"
         }
       },
       "required": [
-        "url"
+        "payload"
       ],
       "returns": "void"
     },
-    "getInstances": {
+    "encrypt": {
       "description": "",
       "parameters": {
-        "FilterClass": {
-          "type": "new (...args: any[]) => T",
-          "description": "Parameter FilterClass"
-        }
-      },
-      "required": [],
-      "returns": "Helper[] | T[]"
-    },
-    "discover": {
-      "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
-      "parameters": {
-        "type": {
-          "type": "RegistryType",
-          "description": "Which type of helpers to discover ('features' or 'clients')"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "returns": "Promise<string[]>"
-    },
-    "discoverAll": {
-      "description": "Discover all helper types from the manifest.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<Record<string, string[]>>"
-    },
-    "discoverFeatures": {
-      "description": "Convenience method to discover only features.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "discoverClients": {
-      "description": "Convenience method to discover only clients.",
-      "parameters": {},
-      "required": [],
-      "returns": "Promise<string[]>"
-    },
-    "lookup": {
-      "description": "Look up a helper class by type and name.",
-      "parameters": {
-        "type": {
-          "type": "RegistryType",
-          "description": "The registry type"
-        },
-        "name": {
+        "payload": {
           "type": "string",
-          "description": "The helper name within that registry"
+          "description": "Parameter payload"
         }
       },
       "required": [
-        "type",
-        "name"
+        "payload"
       ],
-      "returns": "any"
-    },
-    "describe": {
-      "description": "Get the introspection description for a specific helper.",
-      "parameters": {
-        "type": {
-          "type": "RegistryType",
-          "description": "The registry type"
-        },
-        "name": {
-          "type": "string",
-          "description": "The helper name"
-        }
-      },
-      "required": [
-        "type",
-        "name"
-      ],
-      "returns": "string"
+      "returns": "void"
     }
   },
-  "getters": {
-    "manifestURL": {
-      "description": "The URL to fetch the helpers manifest from.",
-      "returns": "string"
-    },
-    "available": {
-      "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
-      "returns": "Record<string, string[]>"
-    }
-  },
+  "getters": {},
   "events": {},
   "state": {},
   "options": {},
@@ -664,7 +524,147 @@ setBuildTimeData('features.helpers', {
   "examples": [
     {
       "language": "ts",
-      "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+      "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+    }
+  ]
+});
+
+setBuildTimeData('features.vm', {
+  "id": "features.vm",
+  "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
+  "shortcut": "features.vm",
+  "className": "VM",
+  "methods": {
+    "createScript": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "void"
+    },
+    "createContext": {
+      "description": "",
+      "parameters": {
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "run": {
+      "description": "",
+      "parameters": {
+        "code": {
+          "type": "string",
+          "description": "Parameter code"
+        },
+        "ctx": {
+          "type": "any",
+          "description": "Parameter ctx"
+        },
+        "options": {
+          "type": "any",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "returns": "void"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
+    }
+  ]
+});
+
+setBuildTimeData('features.voice', {
+  "id": "features.voice",
+  "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
+  "shortcut": "features.voice",
+  "className": "VoiceRecognition",
+  "methods": {
+    "whenFinished": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "start": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "stop": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "abort": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "clearTranscript": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "listening": {
+      "description": "Whether the speech recognizer is currently listening for audio input.",
+      "returns": "any"
+    },
+    "transcript": {
+      "description": "Returns the accumulated final transcript text from recognition results.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "start": {
+      "name": "start",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    },
+    "stop": {
+      "name": "stop",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    },
+    "abort": {
+      "name": "abort",
+      "description": "Event emitted by VoiceRecognition",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
     }
   ]
 });
@@ -1141,6 +1141,69 @@ setContainerBuildTimeData('WebContainer', {
 });
 export const introspectionData = [
   {
+    "id": "features.assetLoader",
+    "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
+    "shortcut": "features.assetLoader",
+    "className": "AssetLoader",
+    "methods": {
+      "removeStylesheet": {
+        "description": "",
+        "parameters": {
+          "href": {
+            "type": "string",
+            "description": "Parameter href"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "returns": "void"
+      },
+      "loadScript": {
+        "description": "",
+        "parameters": {
+          "url": {
+            "type": "string",
+            "description": "Parameter url"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "returns": "Promise<void>"
+      },
+      "unpkg": {
+        "description": "",
+        "parameters": {
+          "packageName": {
+            "type": "string",
+            "description": "Parameter packageName"
+          },
+          "globalName": {
+            "type": "string",
+            "description": "Parameter globalName"
+          }
+        },
+        "required": [
+          "packageName",
+          "globalName"
+        ],
+        "returns": "Promise<any>"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
+      }
+    ]
+  },
+  {
     "id": "features.containerLink",
     "description": "ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.",
     "shortcut": "features.containerLink",
@@ -1286,251 +1349,113 @@ export const introspectionData = [
     ]
   },
   {
-    "id": "features.voice",
-    "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
-    "shortcut": "features.voice",
-    "className": "VoiceRecognition",
+    "id": "features.helpers",
+    "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
+    "shortcut": "features.helpers",
+    "className": "Helpers",
     "methods": {
-      "whenFinished": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "start": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "stop": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "abort": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      },
-      "clearTranscript": {
-        "description": "",
-        "parameters": {},
-        "required": [],
-        "returns": "void"
-      }
-    },
-    "getters": {
-      "listening": {
-        "description": "Whether the speech recognizer is currently listening for audio input.",
-        "returns": "any"
-      },
-      "transcript": {
-        "description": "Returns the accumulated final transcript text from recognition results.",
-        "returns": "any"
-      }
-    },
-    "events": {
-      "start": {
-        "name": "start",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      },
-      "stop": {
-        "name": "stop",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      },
-      "abort": {
-        "name": "abort",
-        "description": "Event emitted by VoiceRecognition",
-        "arguments": {}
-      }
-    },
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
-      }
-    ]
-  },
-  {
-    "id": "features.vm",
-    "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
-    "shortcut": "features.vm",
-    "className": "VM",
-    "methods": {
-      "createScript": {
-        "description": "",
-        "parameters": {
-          "code": {
-            "type": "string",
-            "description": "Parameter code"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "returns": "void"
-      },
-      "createContext": {
-        "description": "",
-        "parameters": {
-          "ctx": {
-            "type": "any",
-            "description": "Parameter ctx"
-          }
-        },
-        "required": [],
-        "returns": "void"
-      },
-      "run": {
-        "description": "",
-        "parameters": {
-          "code": {
-            "type": "string",
-            "description": "Parameter code"
-          },
-          "ctx": {
-            "type": "any",
-            "description": "Parameter ctx"
-          },
-          "options": {
-            "type": "any",
-            "description": "Parameter options"
-          }
-        },
-        "required": [
-          "code"
-        ],
-        "returns": "void"
-      }
-    },
-    "getters": {},
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
-      }
-    ]
-  },
-  {
-    "id": "features.assetLoader",
-    "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
-    "shortcut": "features.assetLoader",
-    "className": "AssetLoader",
-    "methods": {
-      "removeStylesheet": {
-        "description": "",
-        "parameters": {
-          "href": {
-            "type": "string",
-            "description": "Parameter href"
-          }
-        },
-        "required": [
-          "href"
-        ],
-        "returns": "void"
-      },
-      "loadScript": {
-        "description": "",
+      "setManifestURL": {
+        "description": "Set a new manifest URL. Invalidates any cached manifest.",
         "parameters": {
           "url": {
             "type": "string",
-            "description": "Parameter url"
+            "description": "The new URL to fetch the manifest from"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<void>"
+        "returns": "void"
       },
-      "unpkg": {
+      "getInstances": {
         "description": "",
         "parameters": {
-          "packageName": {
-            "type": "string",
-            "description": "Parameter packageName"
-          },
-          "globalName": {
-            "type": "string",
-            "description": "Parameter globalName"
-          }
-        },
-        "required": [
-          "packageName",
-          "globalName"
-        ],
-        "returns": "Promise<any>"
-      }
-    },
-    "getters": {},
-    "events": {},
-    "state": {},
-    "options": {},
-    "envVars": [],
-    "examples": [
-      {
-        "language": "ts",
-        "code": "const loader = container.feature('assetLoader')\nawait loader.loadScript('https://unpkg.com/lodash')\nawait AssetLoader.loadStylesheet('https://unpkg.com/normalize.css')"
-      }
-    ]
-  },
-  {
-    "id": "features.vault",
-    "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
-    "shortcut": "features.vault",
-    "className": "WebVault",
-    "methods": {
-      "secret": {
-        "description": "",
-        "parameters": {
-          "{ refresh = false, set = true }": {
-            "type": "any",
-            "description": "Parameter { refresh = false, set = true }"
+          "FilterClass": {
+            "type": "new (...args: any[]) => T",
+            "description": "Parameter FilterClass"
           }
         },
         "required": [],
-        "returns": "Promise<ArrayBuffer>"
+        "returns": "Helper[] | T[]"
       },
-      "decrypt": {
-        "description": "",
+      "discover": {
+        "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
         "parameters": {
-          "payload": {
-            "type": "string",
-            "description": "Parameter payload"
+          "type": {
+            "type": "RegistryType",
+            "description": "Which type of helpers to discover ('features' or 'clients')"
           }
         },
         "required": [
-          "payload"
+          "type"
         ],
-        "returns": "void"
+        "returns": "Promise<string[]>"
       },
-      "encrypt": {
-        "description": "",
+      "discoverAll": {
+        "description": "Discover all helper types from the manifest.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<Record<string, string[]>>"
+      },
+      "discoverFeatures": {
+        "description": "Convenience method to discover only features.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "discoverClients": {
+        "description": "Convenience method to discover only clients.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string[]>"
+      },
+      "lookup": {
+        "description": "Look up a helper class by type and name.",
         "parameters": {
-          "payload": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
             "type": "string",
-            "description": "Parameter payload"
+            "description": "The helper name within that registry"
           }
         },
         "required": [
-          "payload"
+          "type",
+          "name"
         ],
-        "returns": "void"
+        "returns": "any"
+      },
+      "describe": {
+        "description": "Get the introspection description for a specific helper.",
+        "parameters": {
+          "type": {
+            "type": "RegistryType",
+            "description": "The registry type"
+          },
+          "name": {
+            "type": "string",
+            "description": "The helper name"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "returns": "string"
       }
     },
-    "getters": {},
+    "getters": {
+      "manifestURL": {
+        "description": "The URL to fetch the helpers manifest from.",
+        "returns": "string"
+      },
+      "available": {
+        "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
+        "returns": "Record<string, string[]>"
+      }
+    },
     "events": {},
     "state": {},
     "options": {},
@@ -1538,7 +1463,7 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+        "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
       }
     ]
   },
@@ -1680,113 +1605,50 @@ export const introspectionData = [
     }
   },
   {
-    "id": "features.helpers",
-    "description": "The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.",
-    "shortcut": "features.helpers",
-    "className": "Helpers",
+    "id": "features.vault",
+    "description": "AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.",
+    "shortcut": "features.vault",
+    "className": "WebVault",
     "methods": {
-      "setManifestURL": {
-        "description": "Set a new manifest URL. Invalidates any cached manifest.",
+      "secret": {
+        "description": "",
         "parameters": {
-          "url": {
+          "{ refresh = false, set = true }": {
+            "type": "any",
+            "description": "Parameter { refresh = false, set = true }"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ArrayBuffer>"
+      },
+      "decrypt": {
+        "description": "",
+        "parameters": {
+          "payload": {
             "type": "string",
-            "description": "The new URL to fetch the manifest from"
+            "description": "Parameter payload"
           }
         },
         "required": [
-          "url"
+          "payload"
         ],
         "returns": "void"
       },
-      "getInstances": {
+      "encrypt": {
         "description": "",
         "parameters": {
-          "FilterClass": {
-            "type": "new (...args: any[]) => T",
-            "description": "Parameter FilterClass"
-          }
-        },
-        "required": [],
-        "returns": "Helper[] | T[]"
-      },
-      "discover": {
-        "description": "Discover and register helpers of the given type from the manifest. Fetches the manifest, then for each entry of the requested type, loads the script via AssetLoader and checks what got newly registered.",
-        "parameters": {
-          "type": {
-            "type": "RegistryType",
-            "description": "Which type of helpers to discover ('features' or 'clients')"
-          }
-        },
-        "required": [
-          "type"
-        ],
-        "returns": "Promise<string[]>"
-      },
-      "discoverAll": {
-        "description": "Discover all helper types from the manifest.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<Record<string, string[]>>"
-      },
-      "discoverFeatures": {
-        "description": "Convenience method to discover only features.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "discoverClients": {
-        "description": "Convenience method to discover only clients.",
-        "parameters": {},
-        "required": [],
-        "returns": "Promise<string[]>"
-      },
-      "lookup": {
-        "description": "Look up a helper class by type and name.",
-        "parameters": {
-          "type": {
-            "type": "RegistryType",
-            "description": "The registry type"
-          },
-          "name": {
+          "payload": {
             "type": "string",
-            "description": "The helper name within that registry"
+            "description": "Parameter payload"
           }
         },
         "required": [
-          "type",
-          "name"
+          "payload"
         ],
-        "returns": "any"
-      },
-      "describe": {
-        "description": "Get the introspection description for a specific helper.",
-        "parameters": {
-          "type": {
-            "type": "RegistryType",
-            "description": "The registry type"
-          },
-          "name": {
-            "type": "string",
-            "description": "The helper name"
-          }
-        },
-        "required": [
-          "type",
-          "name"
-        ],
-        "returns": "string"
+        "returns": "void"
       }
     },
-    "getters": {
-      "manifestURL": {
-        "description": "The URL to fetch the helpers manifest from.",
-        "returns": "string"
-      },
-      "available": {
-        "description": "Returns a unified view of all available helpers across all registries. Each key is a registry type, each value is the list of helper names in that registry.",
-        "returns": "Record<string, string[]>"
-      }
-    },
+    "getters": {},
     "events": {},
     "state": {},
     "options": {},
@@ -1794,7 +1656,145 @@ export const introspectionData = [
     "examples": [
       {
         "language": "ts",
-        "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types from the manifest\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+        "code": "const vault = container.feature('vault')\nconst encrypted = await vault.encrypt('secret data')\nconst decrypted = await vault.decrypt(encrypted)\nconsole.log(decrypted) // 'secret data'"
+      }
+    ]
+  },
+  {
+    "id": "features.vm",
+    "description": "Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.",
+    "shortcut": "features.vm",
+    "className": "VM",
+    "methods": {
+      "createScript": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "void"
+      },
+      "createContext": {
+        "description": "",
+        "parameters": {
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "run": {
+        "description": "",
+        "parameters": {
+          "code": {
+            "type": "string",
+            "description": "Parameter code"
+          },
+          "ctx": {
+            "type": "any",
+            "description": "Parameter ctx"
+          },
+          "options": {
+            "type": "any",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "returns": "void"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const vm = container.feature('vm')\nconst result = vm.run('1 + 2 + 3') // 6\nconst greeting = vm.run('container.uuid') // accesses container globals"
+      }
+    ]
+  },
+  {
+    "id": "features.voice",
+    "description": "Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.",
+    "shortcut": "features.voice",
+    "className": "VoiceRecognition",
+    "methods": {
+      "whenFinished": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "start": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "stop": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "abort": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "clearTranscript": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "listening": {
+        "description": "Whether the speech recognizer is currently listening for audio input.",
+        "returns": "any"
+      },
+      "transcript": {
+        "description": "Returns the accumulated final transcript text from recognition results.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "start": {
+        "name": "start",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      },
+      "stop": {
+        "name": "stop",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      },
+      "abort": {
+        "name": "abort",
+        "description": "Event emitted by VoiceRecognition",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const voice = container.feature('voice', { continuous: true, autoListen: true })\n\nvoice.on('transcript', ({ text }) => {\n console.log('Heard:', text)\n})\n\n// Or start manually\nvoice.start()"
       }
     ]
   }

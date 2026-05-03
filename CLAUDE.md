@@ -26,14 +26,16 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 
 - in prod, or educational material, `luca` refers to the binary build.  In this mode, it can work in any project, and load `commands/` and `endpoints/` through its VM and therefore allows folders of these modules which don't depend on anything from NPM to extend the CLI and be used in commands like `luca serve` to run a local express server
 
-- The `luca` cli is an extremely helpful tool.  
-	- it runs code `luca eval "container.features.available"` 
+- The `luca` cli is an extremely helpful tool.
+	- it runs code `luca eval "container.features.available"`
 	- it generates docs:
 		- `luca describe diskCache`
 		- `luca describe` describe the container itself
 		- `luca describe servers` describe which servers are available
 		- `luca describe ui.banner` describe a specific method or getter on a helper
 		- the arguments to describe are pretty forgiving and permissive
+	- `luca chat` — start an interactive chat session with an assistant
+	- `luca scaffold assistant <name>` — generate boilerplate for a new assistant
 
 **IMPORTANT NOTE** When trying to investigate features, clients, servers, etc, see if these tools can help you first instead of searching for files and reading them that way.  If youw ant to understand what they do, vs how theyre actually implemented
 

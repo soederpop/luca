@@ -135,9 +135,10 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     }
 
     const pattern = path.join(srcPath, '**/*.ts');
-    return await glob(pattern, {
+    const files = await glob(pattern, {
       ignore: ['**/*.d.ts', '**/node_modules/**']
     });
+    return files.sort();
   }
 
   private async analyzeFile(filePath: string): Promise<{ helpers: HelperIntrospection[], containers: Partial<ContainerIntrospection>[] }> {
@@ -1099,21 +1100,25 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     }
     imports += ` } from '${importSource}';\n\n`;
 
-    const registrations = results.map(result => {
+    // Sort by id/className for deterministic output across runs
+    const sortedResults = [...results].sort((a, b) => a.id.localeCompare(b.id));
+    const sortedContainers = [...containerResults].sort((a, b) => (a.className || '').localeCompare(b.className || ''));
+
+    const registrations = sortedResults.map(result => {
       const data = JSON.stringify(result, null, 2);
       return `setBuildTimeData('${result.id}', ${data});`;
     }).join('\n\n');
 
     let containerRegistrations = '';
     if (hasContainers) {
-      containerRegistrations = '\n\n// Container introspection data\n' + containerResults.map(result => {
+      containerRegistrations = '\n\n// Container introspection data\n' + sortedContainers.map(result => {
         const data = JSON.stringify(result, null, 2);
         return `setContainerBuildTimeData('${result.className}', ${data});`;
       }).join('\n\n');
     }
 
-    const exportStatement = `\nexport const introspectionData = ${JSON.stringify(results, null, 2)};\n`;
-    const containerExport = hasContainers ? `\nexport const containerIntrospectionData = ${JSON.stringify(containerResults, null, 2)};\n` : '';
+    const exportStatement = `\nexport const introspectionData = ${JSON.stringify(sortedResults, null, 2)};\n`;
+    const containerExport = hasContainers ? `\nexport const containerIntrospectionData = ${JSON.stringify(sortedContainers, null, 2)};\n` : '';
 
     return `${imports}// Auto-generated introspection registry data\n\n${registrations}${containerRegistrations}${exportStatement}${containerExport}`;
   }

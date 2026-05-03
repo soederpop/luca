@@ -5,7 +5,7 @@ import { Feature } from '../feature.js'
 import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
-import { countMessageTokens, getContextWindow } from '../lib/token-counter.js';
+import { countMessageTokens, getContextWindow, calculateCost } from '../lib/token-counter.js';
 
 declare module '@soederpop/luca/feature' {
 	interface AvailableFeatures {
@@ -35,6 +35,20 @@ export interface ConversationMCPServer {
 		always?: { tool_names?: string[] }
 		never?: { tool_names?: string[] }
 	}
+}
+
+const INPUT_TOKEN_SIZES: Record<string, number> = {
+	tiny: 8_000,
+	small: 16_000,
+	medium: 32_000,
+	large: 64_000,
+	xlarge: 256_000,
+}
+
+function resolveMaxInputTokens(value: number | string | undefined): number | undefined {
+	if (value == null) return undefined
+	if (typeof value === 'number') return value
+	return INPUT_TOKEN_SIZES[value]
 }
 
 export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
@@ -88,8 +102,11 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Number of recent messages to preserve after compaction (default 4) */
 	compactKeepRecent: z.number().optional().describe('Number of recent messages to preserve after compaction (default 4)'),
 
-	/** Maximum input tokens to send to the API. When set, older messages are trimmed to stay within this budget, keeping the system prompt and most recent messages. Useful for avoiding long-context pricing tiers. */
-	maxInputTokens: z.number().optional().describe('Maximum input tokens to send to the API. Trims older messages to stay within budget, avoiding long-context pricing'),
+	/** Maximum input tokens to send to the API. When set, older messages are trimmed to stay within this budget, keeping the system prompt and most recent messages. Useful for avoiding long-context pricing tiers. Accepts a number or a named size: tiny (8k), small (16k), medium (32k), large (64k), xlarge (256k — max before long-context pricing). */
+	maxInputTokens: z.union([
+		z.number(),
+		z.enum(['tiny', 'small', 'medium', 'large', 'xlarge']),
+	]).default('large').describe('Maximum input tokens. Accepts a number or a named size: tiny (8k), small (16k), medium (32k), large (64k), xlarge (256k). Defaults to large (64k)'),
 })
 
 export const ConversationStateSchema = FeatureStateSchema.extend({
@@ -932,9 +949,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const lastResponseId = this.state.get('lastResponseId')
 		const responseMeta = lastResponseId ? { lastResponseId } : {}
 
+		// Capture current token usage and calculate cost
+		const tokenUsage = this.state.get('tokenUsage')!
+		const costBreakdown = calculateCost(this.model, tokenUsage.prompt, tokenUsage.completion)
+		const cost = { inputCost: costBreakdown.inputCost, outputCost: costBreakdown.outputCost, totalCost: costBreakdown.totalCost }
+
 		if (existing) {
 			existing.messages = this.messages
 			existing.model = this.model
+			existing.tokenUsage = tokenUsage
+			existing.cost = cost
 			if (opts?.title) existing.title = opts.title
 			if (opts?.tags) existing.tags = opts.tags
 			if (opts?.thread) existing.thread = opts.thread
@@ -950,6 +974,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			messages: this.messages,
 			tags: opts?.tags || this.options.tags || [],
 			thread: opts?.thread || this.options.thread || this.state.get('thread'),
+			tokenUsage,
+			cost,
 			metadata: { ...responseMeta, ...(opts?.metadata || this.options.metadata || {}) },
 		})
 	}
@@ -1337,7 +1363,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * If no maxInputTokens is set, returns messages as-is.
 	 */
 	private getMessagesWithinBudget(): Message[] {
-		const budget = this.options.maxInputTokens
+		const budget = resolveMaxInputTokens(this.options.maxInputTokens)
 		if (!budget) return this.messages
 
 		const messages = this.messages

@@ -12,6 +12,18 @@ declare module '@soederpop/luca/feature' {
 	}
 }
 
+export interface TokenUsage {
+	prompt: number
+	completion: number
+	total: number
+}
+
+export interface CostInfo {
+	inputCost: number
+	outputCost: number
+	totalCost: number
+}
+
 export interface ConversationRecord {
 	id: string
 	title: string
@@ -22,6 +34,8 @@ export interface ConversationRecord {
 	createdAt: string
 	updatedAt: string
 	messageCount: number
+	tokenUsage?: TokenUsage
+	cost?: CostInfo
 	metadata: Record<string, any>
 }
 
@@ -161,6 +175,8 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 		messages: Message[]
 		tags?: string[]
 		thread?: string
+		tokenUsage?: TokenUsage
+		cost?: CostInfo
 		metadata?: Record<string, any>
 	}): Promise<ConversationRecord> {
 		const now = new Date().toISOString()
@@ -175,6 +191,8 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 			createdAt: now,
 			updatedAt: now,
 			messageCount: opts.messages.length,
+			tokenUsage: opts.tokenUsage,
+			cost: opts.cost,
 			metadata: opts.metadata || {},
 		}
 

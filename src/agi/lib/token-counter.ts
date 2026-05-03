@@ -25,6 +25,73 @@ const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
 
 const DEFAULT_CONTEXT_WINDOW = 128_000
 
+/**
+ * Model pricing in dollars per 1M tokens: [inputPer1M, outputPer1M].
+ * Prefix-matched for dated variants just like context windows.
+ */
+const MODEL_PRICING: Record<string, [input: number, output: number]> = {
+	'gpt-5.5-pro': [30.00, 180.00],
+	'gpt-5.5': [5.00, 30.00],
+	'gpt-5.4-pro': [30.00, 180.00],
+	'gpt-5.4-nano': [0.20, 1.25],
+	'gpt-5.4-mini': [0.75, 4.50],
+	'gpt-5.4': [2.50, 15.00],
+	'gpt-5': [1.25, 10.00],
+	'gpt-4.1-nano': [0.10, 0.40],
+	'gpt-4.1-mini': [0.40, 1.60],
+	'gpt-4.1': [2.00, 8.00],
+	'gpt-4o-mini': [0.15, 0.60],
+	'gpt-4o': [2.50, 10.00],
+	'gpt-4-turbo': [10.00, 30.00],
+	'gpt-4': [30.00, 60.00],
+	'gpt-3.5-turbo': [0.50, 1.50],
+	'o4-mini': [1.10, 4.40],
+	'o3-mini': [1.10, 4.40],
+	'o3': [2.00, 8.00],
+	'o1-pro': [150.00, 600.00],
+	'o1-mini': [1.10, 4.40],
+	'o1': [15.00, 60.00],
+}
+
+export interface CostBreakdown {
+	inputCost: number
+	outputCost: number
+	totalCost: number
+	model: string
+	inputTokens: number
+	outputTokens: number
+}
+
+/** Look up the per-1M-token pricing for a model (exact then prefix match). Returns [inputPer1M, outputPer1M] or null if unknown. */
+export function getModelPricing(model: string): [input: number, output: number] | null {
+	if (MODEL_PRICING[model]) return MODEL_PRICING[model]
+
+	let best = ''
+	for (const key of Object.keys(MODEL_PRICING)) {
+		if (model.startsWith(key) && key.length > best.length) {
+			best = key
+		}
+	}
+
+	return best ? MODEL_PRICING[best] ?? null : null
+}
+
+/** Calculate cost in dollars from token usage and model name. */
+export function calculateCost(model: string, inputTokens: number, outputTokens: number): CostBreakdown {
+	const pricing = getModelPricing(model)
+	const inputCost = pricing ? (inputTokens / 1_000_000) * pricing[0] : 0
+	const outputCost = pricing ? (outputTokens / 1_000_000) * pricing[1] : 0
+
+	return {
+		inputCost,
+		outputCost,
+		totalCost: inputCost + outputCost,
+		model,
+		inputTokens,
+		outputTokens,
+	}
+}
+
 const encoderCache = new Map<string, Tiktoken>()
 
 /** Look up the context window size for a model name (exact then prefix match). */
