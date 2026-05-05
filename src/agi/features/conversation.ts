@@ -123,7 +123,14 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 		prompt: z.number().describe('Total prompt tokens consumed'),
 		completion: z.number().describe('Total completion tokens consumed'),
 		total: z.number().describe('Total tokens consumed'),
-	}).describe('Cumulative token usage statistics'),
+		cachedTokens: z.number().describe('Input tokens served from cache (billed at reduced rate)'),
+		reasoningTokens: z.number().describe('Output tokens used for reasoning (o-series models)'),
+	}).describe('Cumulative token usage statistics including detail breakdowns from the API'),
+	cost: z.object({
+		inputCost: z.number().describe('Estimated cost in dollars for input tokens'),
+		outputCost: z.number().describe('Estimated cost in dollars for output tokens'),
+		totalCost: z.number().describe('Estimated total cost in dollars'),
+	}).describe('Running cost estimate based on cumulative token usage and model pricing'),
 	estimatedInputTokens: z.number().describe('Estimated input token count for the current messages array'),
 	compactionCount: z.number().describe('Number of times compact() has been called'),
 	contextWindow: z.number().describe('The context window size for the current model'),
@@ -287,7 +294,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			toolCalls: 0,
 			api: this.apiMode,
 			lastResponseId: null,
-			tokenUsage: { prompt: 0, completion: 0, total: 0 },
+			tokenUsage: { prompt: 0, completion: 0, total: 0, cachedTokens: 0, reasoningTokens: 0 },
+			cost: { inputCost: 0, outputCost: 0, totalCost: 0 },
 			estimatedInputTokens: 0,
 			compactionCount: 0,
 			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5'),
@@ -949,10 +957,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const lastResponseId = this.state.get('lastResponseId')
 		const responseMeta = lastResponseId ? { lastResponseId } : {}
 
-		// Capture current token usage and calculate cost
+		// Grab the live token usage and cost from state
 		const tokenUsage = this.state.get('tokenUsage')!
-		const costBreakdown = calculateCost(this.model, tokenUsage.prompt, tokenUsage.completion)
-		const cost = { inputCost: costBreakdown.inputCost, outputCost: costBreakdown.outputCost, totalCost: costBreakdown.totalCost }
+		const cost = this.state.get('cost')!
 
 		if (existing) {
 			existing.messages = this.messages
@@ -1204,6 +1211,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return accumulated || finalText
 	}
 
+	/** Recalculate the running cost estimate from current token usage and update state. */
+	private updateCost() {
+		const tokenUsage = this.state.get('tokenUsage')!
+		const { inputCost, outputCost, totalCost } = calculateCost(this.model, tokenUsage.prompt, tokenUsage.completion, {
+			cachedTokens: tokenUsage.cachedTokens,
+			reasoningTokens: tokenUsage.reasoningTokens,
+		})
+		this.state.set('cost', { inputCost, outputCost, totalCost })
+	}
+
 	/** Apply Responses API usage stats to this conversation's token usage counters. */
 	private applyResponsesUsage(usage?: OpenAI.Responses.ResponseUsage) {
 		if (!usage) return
@@ -1212,7 +1229,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			prompt: prev.prompt + (usage.input_tokens || 0),
 			completion: prev.completion + (usage.output_tokens || 0),
 			total: prev.total + (usage.total_tokens || 0),
+			cachedTokens: prev.cachedTokens + (usage.input_tokens_details?.cached_tokens || 0),
+			reasoningTokens: prev.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens || 0),
 		})
+		this.updateCost()
 	}
 
 	/**
@@ -1299,8 +1319,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 					this.state.set('tokenUsage', {
 						prompt: prev.prompt + (chunk.usage.prompt_tokens || 0),
 						completion: prev.completion + (chunk.usage.completion_tokens || 0),
-						total: prev.total + (chunk.usage.total_tokens || 0)
+						total: prev.total + (chunk.usage.total_tokens || 0),
+						cachedTokens: prev.cachedTokens + (chunk.usage.prompt_tokens_details?.cached_tokens || 0),
+						reasoningTokens: prev.reasoningTokens + (chunk.usage.completion_tokens_details?.reasoning_tokens || 0),
 					})
+					this.updateCost()
 				}
 			}
 		} finally {

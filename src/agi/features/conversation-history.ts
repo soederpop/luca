@@ -16,6 +16,8 @@ export interface TokenUsage {
 	prompt: number
 	completion: number
 	total: number
+	cachedTokens?: number
+	reasoningTokens?: number
 }
 
 export interface CostInfo {

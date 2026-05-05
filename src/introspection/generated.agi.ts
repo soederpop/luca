@@ -6260,6 +6260,16 @@ setBuildTimeData('features.conversationHistory', {
         "total": {
           "type": "number",
           "description": ""
+        },
+        "cachedTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
+        },
+        "reasoningTokens": {
+          "type": "number",
+          "description": "",
+          "optional": true
         }
       }
     },
@@ -26827,6 +26837,16 @@ export const introspectionData = [
           "total": {
             "type": "number",
             "description": ""
+          },
+          "cachedTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
+          },
+          "reasoningTokens": {
+            "type": "number",
+            "description": "",
+            "optional": true
           }
         }
       },

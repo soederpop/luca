@@ -60,6 +60,8 @@ export interface CostBreakdown {
 	model: string
 	inputTokens: number
 	outputTokens: number
+	cachedTokens?: number
+	reasoningTokens?: number
 }
 
 /** Look up the per-1M-token pricing for a model (exact then prefix match). Returns [inputPer1M, outputPer1M] or null if unknown. */
@@ -76,10 +78,19 @@ export function getModelPricing(model: string): [input: number, output: number] 
 	return best ? MODEL_PRICING[best] ?? null : null
 }
 
-/** Calculate cost in dollars from token usage and model name. */
-export function calculateCost(model: string, inputTokens: number, outputTokens: number): CostBreakdown {
+/**
+ * Calculate cost in dollars from token usage and model name.
+ * When cachedTokens is provided, those tokens are billed at 50% of the input rate.
+ */
+export function calculateCost(model: string, inputTokens: number, outputTokens: number, opts?: { cachedTokens?: number; reasoningTokens?: number }): CostBreakdown {
 	const pricing = getModelPricing(model)
-	const inputCost = pricing ? (inputTokens / 1_000_000) * pricing[0] : 0
+	const cachedTokens = opts?.cachedTokens || 0
+
+	let inputCost = 0
+	if (pricing) {
+		const fullPriceInputTokens = inputTokens - cachedTokens
+		inputCost = (fullPriceInputTokens / 1_000_000) * pricing[0] + (cachedTokens / 1_000_000) * pricing[0] * 0.5
+	}
 	const outputCost = pricing ? (outputTokens / 1_000_000) * pricing[1] : 0
 
 	return {
@@ -89,6 +100,8 @@ export function calculateCost(model: string, inputTokens: number, outputTokens: 
 		model,
 		inputTokens,
 		outputTokens,
+		cachedTokens: cachedTokens || undefined,
+		reasoningTokens: opts?.reasoningTokens || undefined,
 	}
 }
 
