@@ -23,7 +23,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
 	'dry-run': z.boolean().default(false).describe('Display the resolved prompt and options without running the assistant'),
-	'local': z.boolean().default(false).describe('Use local models for assistant mode'),
+	'local': z.boolean().default(false).describe('Use local models (sets ANTHROPIC_BASE_URL and model for claudeCode, or local flag for assistants)'),
 })
 
 function normalizeTarget(raw: string): string {
@@ -149,6 +149,7 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	if (target === 'claude') {
 		runOptions.permissionMode = options['permission-mode']
 		if (options.chrome) runOptions.chrome = true
+		if (options.local) runOptions.local = true
 	}
 
 	// CLI flags override agentOptions from frontmatter
@@ -310,6 +311,7 @@ async function runParallel(
 		if (target === 'claude') {
 			runOptions.permissionMode = options['permission-mode']
 			if (options.chrome) runOptions.chrome = true
+			if (options.local) runOptions.local = true
 		}
 
 		feature.on('session:message', ({ sessionId, message }: { sessionId: string; message: any }) => {
