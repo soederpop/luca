@@ -109,8 +109,8 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 			sshCmd += ` -i "${key}"`
 		}
 		
-		// Disable host key checking for automation (optional - you may want to remove this for security)
-		sshCmd += ` -o StrictHostKeyChecking=no`
+		// Batch mode fails immediately instead of hanging on interactive prompts
+		sshCmd += ` -o BatchMode=yes -o StrictHostKeyChecking=no`
 		
 		sshCmd += ` ${username}@${host}`
 		
@@ -129,8 +129,8 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 			scpCmd += ` -i "${key}"`
 		}
 		
-		// Disable host key checking for automation
-		scpCmd += ` -o StrictHostKeyChecking=no`
+		// Batch mode fails immediately instead of hanging on interactive prompts
+		scpCmd += ` -o BatchMode=yes -o StrictHostKeyChecking=no`
 		
 		return scpCmd
 	}
