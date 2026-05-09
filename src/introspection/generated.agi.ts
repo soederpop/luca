@@ -3866,6 +3866,18 @@ setBuildTimeData('features.claudeCode', {
             "chrome": {
               "type": "boolean",
               "description": "Launch Claude Code with a Chrome browser tool."
+            },
+            "baseURL": {
+              "type": "string",
+              "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+            },
+            "authToken": {
+              "type": "string",
+              "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+            },
+            "local": {
+              "type": "boolean",
+              "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
             }
           }
         }
@@ -4019,6 +4031,18 @@ setBuildTimeData('features.claudeCode', {
             "chrome": {
               "type": "boolean",
               "description": "Launch Claude Code with a Chrome browser tool."
+            },
+            "baseURL": {
+              "type": "string",
+              "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+            },
+            "authToken": {
+              "type": "string",
+              "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+            },
+            "local": {
+              "type": "boolean",
+              "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
             }
           }
         }
@@ -4467,6 +4491,21 @@ setBuildTimeData('features.claudeCode', {
         "chrome": {
           "type": "boolean",
           "description": "Launch Claude Code with a Chrome browser tool.",
+          "optional": true
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env.",
+          "optional": true
+        },
+        "authToken": {
+          "type": "string",
+          "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env.",
+          "optional": true
+        },
+        "local": {
+          "type": "boolean",
+          "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b).",
           "optional": true
         }
       }
@@ -24448,6 +24487,18 @@ export const introspectionData = [
               "chrome": {
                 "type": "boolean",
                 "description": "Launch Claude Code with a Chrome browser tool."
+              },
+              "baseURL": {
+                "type": "string",
+                "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+              },
+              "authToken": {
+                "type": "string",
+                "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+              },
+              "local": {
+                "type": "boolean",
+                "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
               }
             }
           }
@@ -24601,6 +24652,18 @@ export const introspectionData = [
               "chrome": {
                 "type": "boolean",
                 "description": "Launch Claude Code with a Chrome browser tool."
+              },
+              "baseURL": {
+                "type": "string",
+                "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env."
+              },
+              "authToken": {
+                "type": "string",
+                "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
+              },
+              "local": {
+                "type": "boolean",
+                "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
               }
             }
           }
@@ -25049,6 +25112,21 @@ export const introspectionData = [
           "chrome": {
             "type": "boolean",
             "description": "Launch Claude Code with a Chrome browser tool.",
+            "optional": true
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env.",
+            "optional": true
+          },
+          "authToken": {
+            "type": "string",
+            "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env.",
+            "optional": true
+          },
+          "local": {
+            "type": "boolean",
+            "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b).",
             "optional": true
           }
         }

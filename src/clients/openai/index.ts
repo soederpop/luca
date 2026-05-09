@@ -21,7 +21,7 @@ export const OpenAIClientOptionsSchema = ClientOptionsSchema.extend({
   organization: z.string().optional().describe('OpenAI organization ID'),
   project: z.string().optional().describe('OpenAI project ID'),
   dangerouslyAllowBrowser: z.boolean().optional().describe('Allow usage in browser environments'),
-  defaultModel: z.string().optional().describe('Default model for completions (default: gpt-4o)'),
+  defaultModel: z.string().optional().describe('Default model for completions (falls back to OPENAI_DEFAULT_MODEL env var, then gpt-5.4-mini)'),
   timeout: z.number().optional().describe('Request timeout in milliseconds'),
   maxRetries: z.number().optional().describe('Maximum number of retries on failure'),
 })
@@ -52,7 +52,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   private openai!: OpenAI;
 
   static override shortcut = "clients.openai" as const
-  static override envVars = ['OPENAI_API_KEY']
+  static override envVars = ['OPENAI_API_KEY', 'OPENAI_DEFAULT_MODEL']
   static override stateSchema = OpenAIClientStateSchema
   static override optionsSchema = OpenAIClientOptionsSchema
   static override eventsSchema = OpenAIClientEventsSchema
@@ -116,7 +116,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
   /** The default model used for completions, from options or 'gpt-4o'. */
   get defaultModel(): string {
-    return this.options.defaultModel || 'gpt-4o';
+    return this.options.defaultModel || process.env.OPENAI_DEFAULT_MODEL || 'gpt-5.4-mini';
   }
 
   private updateTokenUsage(usage?: OpenAI.CompletionUsage | OpenAI.Embeddings.CreateEmbeddingResponse.Usage) {
@@ -287,7 +287,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
     try {
       const response = await this.openai.completions.create({
-        model: options.model || 'gpt-5',
+        model: options.model || this.defaultModel,
         prompt,
         stream: false, // Ensure non-streaming response
         ...options

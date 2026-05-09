@@ -150,18 +150,12 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 * ```
 	 */
 	async testConnection(): Promise<boolean> {
-		try {
-			const testCmd = `${this.buildSSHConnectionString()} "echo 'connection_test'"`
-			const result = await this.proc.execAndCapture(testCmd)
-			
-			if (result.exitCode === 0 && result.stdout.trim() === 'connection_test') {
-				this.setState({ connected: true })
-				return true
-			} else {
-				this.setState({ connected: false })
-				return false
-			}
-		} catch (error) {
+		const result = await this.exec(`echo 'connected'`).catch(e => '')
+
+		if (String(result).trim() === 'connected') {
+			this.setState({ connected: true })
+			return true
+		} else {
 			this.setState({ connected: false })
 			return false
 		}
