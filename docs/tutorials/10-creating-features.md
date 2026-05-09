@@ -20,7 +20,7 @@ A feature has:
 
 ```typescript
 import { z } from 'zod'
-import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
 
 // Define state schema by extending the base FeatureStateSchema
 export const CounterStateSchema = FeatureStateSchema.extend({
@@ -85,7 +85,7 @@ export class Counter extends Feature<CounterState, CounterOptions> {
 features.register('counter', Counter)
 
 // Module augmentation for type safety
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     counter: typeof Counter
   }

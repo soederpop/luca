@@ -118,7 +118,7 @@ container.clients.describe('rest')
 ```typescript
 // endpoints/proxy.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/external-data'
 

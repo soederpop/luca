@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
-import type { DiskCache } from '@soederpop/luca/node/container'
+import type { DiskCache } from 'luca/node/container'
 import type { OpenAIClient } from '../../clients/openai'
 import type { Message } from './conversation'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		conversationHistory: typeof ConversationHistory
 	}

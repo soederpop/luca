@@ -15,7 +15,7 @@ tags: [setup, quickstart, project, init]
 ```bash
 mkdir my-app && cd my-app
 bun init -y
-bun add @soederpop/luca 
+bun add luca 
 ```
 
 ## Project Structure
@@ -49,7 +49,7 @@ Everything in Luca revolves around the **container**. It is a per-process single
 In scripts, you create one directly:
 
 ```typescript
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 
 // Now you have access to all features
 const fs = container.fs           // File system operations

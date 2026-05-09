@@ -4,7 +4,7 @@ import { Feature } from '../feature.js'
 import type { Helper } from '../../helper.js'
 import type { ChildProcess } from '../../node/features/proc.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		codingTools: typeof CodingTools
 	}

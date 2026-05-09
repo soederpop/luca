@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/agi'
+import container from 'luca/agi'
 import * as readline from 'readline'
 
 const { ui } = container

@@ -1,5 +1,5 @@
-import container from '@soederpop/luca/agi'
-import { ContentDb } from '@soederpop/luca/node/features/content-db'
+import container from 'luca/agi'
+import { ContentDb } from 'luca/node/features/content-db'
 import { defineModel, section } from 'contentbase'
 import { toString } from 'mdast-util-to-string'
 import { z } from 'zod'

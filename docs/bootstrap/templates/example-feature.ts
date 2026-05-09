@@ -1,9 +1,9 @@
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
+import type { ContainerContext } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     example: typeof Example
   }

@@ -7,12 +7,12 @@ import { BUILD_SHA, BUILD_BRANCH, BUILD_DATE } from './build-info'
 const args = process.argv.slice(2)
 if (args.includes('--version') || args.includes('-v')) {
 	console.log(`luca v${pkg.version} (${BUILD_BRANCH}@${BUILD_SHA}) built ${BUILD_DATE}`)
-	console.log(`  npm: https://www.npmjs.com/package/@soederpop/luca`)
+	console.log(`  npm: https://www.npmjs.com/package/luca`)
 	console.log(`  git: https://github.com/soederpop/luca`)
 	process.exit(0)
 }
 
-import container from '@soederpop/luca/agi'
+import container from 'luca/agi'
 import '@/commands/index.js'
 import { homedir } from 'os'
 import { join } from 'path'

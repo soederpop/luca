@@ -28,7 +28,7 @@ Define schemas for your handlers. Parameters are validated automatically:
 ```typescript
 // endpoints/users.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/users'
 export const description = 'User management'
@@ -65,7 +65,7 @@ Use `:param` in the path or bracket-based file naming:
 ```typescript
 // endpoints/users/[id].ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/users/:id'
 export const description = 'Get, update, or delete a specific user'
@@ -160,7 +160,7 @@ The server automatically:
 You can also set up the server in a script:
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const server = container.server('express', { port: 3000, cors: true })
 

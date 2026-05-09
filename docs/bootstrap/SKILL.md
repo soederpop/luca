@@ -1,10 +1,10 @@
 ---
 name: Using the luca framework
-description: The @soederpop/luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or @soederpop/luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
+description: The luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
 ---
 # Luca: Learning the Container
 
-The Luca framework `@soederpop/luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in `commands/`, `clients/`, `servers/`, `features/`, and `endpoints/` folders.
+The Luca framework `luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in `commands/`, `clients/`, `servers/`, `features/`, and `endpoints/` folders.
 
 The `luca` cli loads typescript modules in through its VM which injects a `container` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 

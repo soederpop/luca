@@ -110,14 +110,14 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
   /**
    * Whether to use native `import()` for loading project helpers.
-   * True only if `@soederpop/luca` is actually resolvable in `node_modules`.
+   * True only if `luca` is actually resolvable in `node_modules`.
    * Warns when `node_modules` exists but the package is missing.
    */
   get useNativeImport(): boolean {
     const hasNodeModules = existsSync(resolve(this.rootDir, 'node_modules'))
     const hasLuca = hasNodeModules && existsSync(resolve(this.rootDir, 'node_modules', '@soederpop', 'luca'))
 
-    // VM bundling handles missing @soederpop/luca gracefully — no warning needed
+    // VM bundling handles missing luca gracefully — no warning needed
 
     return hasLuca
   }
@@ -128,7 +128,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
   /**
    * Seeds the VM feature with virtual modules so that project-level files
-   * can `import` / `require('@soederpop/luca')`, `zod`, etc. without
+   * can `import` / `require('luca')`, `zod`, etc. without
    * needing them in `node_modules`.
    *
    * Called automatically when `useNativeImport` is false.
@@ -140,7 +140,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     const vm = this.container.feature('vm') as unknown as VM
 
-    // Provide the full @soederpop/luca barrel — everything node.ts exports
+    // Provide the full luca barrel — everything node.ts exports
     // We build the exports object from the already-loaded modules in memory
     const lucaExports: Record<string, any> = {
       // Core classes
@@ -210,18 +210,18 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       schemasModule.FeatureEventsSchema = FeatureEventsSchema
     }
 
-    vm.defineModule('@soederpop/luca', lucaExports)
-    vm.defineModule('@soederpop/luca/schemas', schemasModule)
-    vm.defineModule('@soederpop/luca/node', lucaExports)
+    vm.defineModule('luca', lucaExports)
+    vm.defineModule('luca/schemas', schemasModule)
+    vm.defineModule('luca/node', lucaExports)
 
     // Deep import paths AIs and developers might reach for
-    vm.defineModule('@soederpop/luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
-    vm.defineModule('@soederpop/luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
-    vm.defineModule('@soederpop/luca/clients/rest', { RestClient, default: RestClient })
-    vm.defineModule('@soederpop/luca/clients/graph', { GraphClient, default: GraphClient })
-    vm.defineModule('@soederpop/luca/clients/websocket', { WebSocketClient, default: WebSocketClient })
-    vm.defineModule('@soederpop/luca/servers/express', { ExpressServer, default: ExpressServer })
-    vm.defineModule('@soederpop/luca/servers/socket', { WebsocketServer, default: WebsocketServer })
+    vm.defineModule('luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
+    vm.defineModule('luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
+    vm.defineModule('luca/clients/rest', { RestClient, default: RestClient })
+    vm.defineModule('luca/clients/graph', { GraphClient, default: GraphClient })
+    vm.defineModule('luca/clients/websocket', { WebSocketClient, default: WebSocketClient })
+    vm.defineModule('luca/servers/express', { ExpressServer, default: ExpressServer })
+    vm.defineModule('luca/servers/socket', { WebsocketServer, default: WebsocketServer })
 
     vm.defineModule('zod', { z, default: { z } })
   }

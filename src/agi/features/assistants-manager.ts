@@ -1,13 +1,13 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import type { Assistant } from './assistant.js'
 import type { ConversationHistory, ConversationMeta, ConversationRecord } from './conversation-history.js'
 import type { InterceptorFn, InterceptorPoint, InterceptorPoints } from '../lib/interceptor-chain.js'
 import hashObject from '../../hash-object.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		assistantsManager: typeof AssistantsManager
 	}

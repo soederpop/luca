@@ -183,7 +183,7 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       const glob = new Glob('**/*.ts')
 
       // Use the helpers feature's VM-aware loader so endpoints can resolve
-      // packages like zod and @soederpop/luca even from the compiled binary
+      // packages like zod and luca even from the compiled binary
       const helpers = this.container.feature('helpers') as any
 
       for await (const file of glob.scan({ cwd: dir, absolute: true })) {

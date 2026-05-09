@@ -11,10 +11,10 @@ When to build a server:
 
 ```ts
 import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 ```
 
 ## Schemas
@@ -96,7 +96,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
 ## Module Augmentation
 
 ```ts
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -119,12 +119,12 @@ export default {{PascalName}}
 
 ```ts
 import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }

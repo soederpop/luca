@@ -1,4 +1,4 @@
-import type { AGIContainer } from '@soederpop/luca/agi'
+import type { AGIContainer } from 'luca/agi'
 
 declare global {
 	var container: AGIContainer 

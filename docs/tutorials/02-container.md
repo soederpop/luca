@@ -15,14 +15,14 @@ The container is the heart of every Luca application. It is a per-process single
 ## Getting the Container
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 ```
 
-The import resolves automatically based on environment -- `@soederpop/luca` gives you a `NodeContainer` on the server and a `WebContainer` in browser builds. You can also be explicit:
+The import resolves automatically based on environment -- `luca` gives you a `NodeContainer` on the server and a `WebContainer` in browser builds. You can also be explicit:
 
 ```typescript
-import container from '@soederpop/luca/node'  // Always NodeContainer
-import container from '@soederpop/luca/web'   // Always WebContainer
+import container from 'luca/node'  // Always NodeContainer
+import container from 'luca/web'   // Always WebContainer
 ```
 
 The NodeContainer comes pre-loaded with registries for features, clients, servers, commands, and endpoints. Core features like `fs`, `git`, `proc`, `os`, `networking`, `ui`, and `vm` are auto-enabled.

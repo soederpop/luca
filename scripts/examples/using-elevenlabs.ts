@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 import '../../src/clients/elevenlabs'
 
 async function main() {

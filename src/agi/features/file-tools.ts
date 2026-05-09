@@ -5,7 +5,7 @@ import type { FS } from '../../node/features/fs.js'
 import type { Grep, GrepMatch } from '../../node/features/grep.js'
 import type { Helper } from '../../helper.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		fileTools: typeof FileTools
 	}

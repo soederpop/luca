@@ -6,11 +6,11 @@
 export const bootstrapFiles: Record<string, string> = {
   "SKILL": `---
 name: Using the luca framework
-description: The @soederpop/luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or @soederpop/luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
+description: The luca framework, when you see a project with docs/ commands/ features/ luca.cli.ts endpoints/ folders, or luca is in the package.json, or the user is asking you to develop a new Luca feature, use this skill to learn about the APIs and how to learn the framework at runtime.  The luca cli bundles all of the documentation in a searchable, progressively learnable interface designed for students and AI assistants alike
 ---
 # Luca: Learning the Container
 
-The Luca framework \`@soederpop/luca\` ships a \`luca\` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in \`commands/\`, \`clients/\`, \`servers/\`, \`features/\`, and \`endpoints/\` folders.
+The Luca framework \`luca\` ships a \`luca\` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in \`commands/\`, \`clients/\`, \`servers/\`, \`features/\`, and \`endpoints/\` folders.
 
 The \`luca\` cli loads typescript modules in through its VM which injects a \`container\` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 
@@ -550,11 +550,11 @@ Content goes here.
 - \`luca describe contentDb\` — runtime docs for the contentDb feature
 `,
   "example-feature": `import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
+import type { ContainerContext } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     example: typeof Example
   }
@@ -611,7 +611,7 @@ export default Example
  * For example: \`luca about commands\` → options._[1] === 'commands'
  */
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Display project information and discovered helpers'
 
@@ -2285,7 +2285,7 @@ Here's the structure of the built-in \`fileTools\` feature (simplified for clari
 
 \`\`\`ts
 import { z } from 'zod'
-import { Feature } from '@soederpop/luca/feature'
+import { Feature } from 'luca/feature'
 
 export class FileTools extends Feature {
   static { Feature.register(this, 'fileTools') }
@@ -5313,7 +5313,7 @@ A feature has:
 
 \`\`\`typescript
 import { z } from 'zod'
-import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
 
 // Define state schema by extending the base FeatureStateSchema
 export const CounterStateSchema = FeatureStateSchema.extend({
@@ -5378,7 +5378,7 @@ export class Counter extends Feature<CounterState, CounterOptions> {
 features.register('counter', Counter)
 
 // Module augmentation for type safety
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     counter: typeof Counter
   }
@@ -5670,7 +5670,7 @@ tags: [setup, quickstart, project, init]
 \`\`\`bash
 mkdir my-app && cd my-app
 bun init -y
-bun add @soederpop/luca 
+bun add luca 
 \`\`\`
 
 ## Project Structure
@@ -5704,7 +5704,7 @@ Everything in Luca revolves around the **container**. It is a per-process single
 In scripts, you create one directly:
 
 \`\`\`typescript
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 
 // Now you have access to all features
 const fs = container.fs           // File system operations
@@ -5790,7 +5790,7 @@ Define schemas for your handlers. Parameters are validated automatically:
 \`\`\`typescript
 // endpoints/users.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/users'
 export const description = 'User management'
@@ -5827,7 +5827,7 @@ Use \`:param\` in the path or bracket-based file naming:
 \`\`\`typescript
 // endpoints/users/[id].ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/users/:id'
 export const description = 'Get, update, or delete a specific user'
@@ -5922,7 +5922,7 @@ The server automatically:
 You can also set up the server in a script:
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const server = container.server('express', { port: 3000, cors: true })
 
@@ -6266,8 +6266,8 @@ await python.stopSession()
 \`\`\`ts skip
 // commands/analyze.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
-import { CommandOptionsSchema } from '@soederpop/luca/schemas'
+import type { ContainerContext } from 'luca'
+import { CommandOptionsSchema } from 'luca/schemas'
 
 export const positionals = ['target']
 export const argsSchema = CommandOptionsSchema.extend({
@@ -6375,7 +6375,7 @@ Luca's \`semanticSearch\` feature provides BM25 keyword search, vector similarit
 The fastest way to use semantic search is through the \`contentDb\` feature, which handles indexing and querying automatically:
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const db = container.feature('contentDb', { rootPath: './docs' })
 await db.load()
@@ -6411,8 +6411,8 @@ await db.hybridSearch('authentication flow', { limit: 5 })
 For more control, use the \`semanticSearch\` feature directly:
 
 \`\`\`typescript
-import container from '@soederpop/luca'
-import { SemanticSearch } from '@soederpop/luca/node/features/semantic-search'
+import container from 'luca'
+import { SemanticSearch } from 'luca/node/features/semantic-search'
 
 // Attach the feature to the container
 SemanticSearch.attach(container)
@@ -7232,7 +7232,7 @@ Commands are CLI actions that the \`luca\` command discovers and runs. They are 
 \`\`\`typescript
 // commands/seed.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Seed the database with sample data'
 
@@ -7283,7 +7283,7 @@ The simplest pattern — export a default async function. The function becomes t
 \`\`\`typescript
 // commands/greet.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Greet someone'
 export const argsSchema = z.object({
@@ -7302,7 +7302,7 @@ Useful when you want to co-locate all exports in one object:
 \`\`\`typescript
 // commands/deploy.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const argsSchema = z.object({
   env: z.enum(['staging', 'production']).describe('Target environment'),
@@ -7485,7 +7485,7 @@ Luca's type system ensures that as you add features, clients, servers, and comma
 When you register a new helper, you augment the corresponding interface so TypeScript knows about it:
 
 \`\`\`typescript
-import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
 import { z } from 'zod'
 
 // 1. Define your feature
@@ -7497,7 +7497,7 @@ export class MyCache extends Feature<MyCacheState, MyCacheOptions> {
 features.register('myCache', MyCache)
 
 // 3. Augment the interface
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     myCache: typeof MyCache
   }
@@ -7573,28 +7573,28 @@ The pattern is the same for features, clients, servers, and commands:
 
 \`\`\`typescript
 // Features
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     myFeature: typeof MyFeature
   }
 }
 
 // Clients
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableClients {
     myClient: typeof MyClient
   }
 }
 
 // Servers
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     myServer: typeof MyServer
   }
 }
 
 // Commands
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableCommands {
     myCommand: typeof MyCommand
   }
@@ -7630,7 +7630,7 @@ export class Analytics extends Feature<AnalyticsState, AnalyticsOptions> { ... }
 
 // 2. You register + augment
 features.register('analytics', Analytics)
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures { analytics: typeof Analytics }
 }
 
@@ -7663,14 +7663,14 @@ The container is the heart of every Luca application. It is a per-process single
 ## Getting the Container
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 \`\`\`
 
-The import resolves automatically based on environment -- \`@soederpop/luca\` gives you a \`NodeContainer\` on the server and a \`WebContainer\` in browser builds. You can also be explicit:
+The import resolves automatically based on environment -- \`luca\` gives you a \`NodeContainer\` on the server and a \`WebContainer\` in browser builds. You can also be explicit:
 
 \`\`\`typescript
-import container from '@soederpop/luca/node'  // Always NodeContainer
-import container from '@soederpop/luca/web'   // Always WebContainer
+import container from 'luca/node'  // Always NodeContainer
+import container from 'luca/web'   // Always WebContainer
 \`\`\`
 
 The NodeContainer comes pre-loaded with registries for features, clients, servers, commands, and endpoints. Core features like \`fs\`, \`git\`, \`proc\`, \`os\`, \`networking\`, \`ui\`, and \`vm\` are auto-enabled.
@@ -7874,7 +7874,7 @@ You can use Luca in any browser environment — no bundler, no build step. Impor
 
 \`\`\`html
 <script type="module">
-  import "https://esm.sh/@soederpop/luca/web"
+  import "https://esm.sh/luca/web"
 
   const container = window.luca
   console.log(container.uuid) // unique container ID
@@ -7888,7 +7888,7 @@ If you prefer a named import:
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
   // container === window.luca
 </script>
 \`\`\`
@@ -7899,7 +7899,7 @@ Once you have the container, features work exactly like they do on the server �
 
 \`\`\`html
 <script type="module">
-  import "https://esm.sh/@soederpop/luca/web"
+  import "https://esm.sh/luca/web"
   const { luca: container } = window
 
   // Load a script from a CDN
@@ -7926,7 +7926,7 @@ The container is a state machine and event bus. This works identically to the se
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   // Listen for state changes
   container.on('stateChanged', ({ changes }) => {
@@ -7947,7 +7947,7 @@ Make HTTP requests with the built-in REST client. Methods return parsed JSON dir
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const api = container.client('rest', { baseURL: 'https://jsonplaceholder.typicode.com' })
   const posts = await api.get('/posts')
@@ -7961,7 +7961,7 @@ Connect to a WebSocket server:
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const socket = container.client('socket', { url: 'ws://localhost:3000' })
   socket.on('message', (data) => console.log('Received:', data))
@@ -7975,7 +7975,7 @@ The container exposes the \`Feature\` class directly, so you can create your own
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const { Feature } = container
 
@@ -8007,7 +8007,7 @@ The container's built-in utilities are available in the browser too.
 
 \`\`\`html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   // UUID generation
   const id = container.utils.uuid()
@@ -8036,7 +8036,7 @@ The container's built-in utilities are available in the browser too.
   <pre id="output"></pre>
 
   <script type="module">
-    import container from "https://esm.sh/@soederpop/luca/web"
+    import container from "https://esm.sh/luca/web"
 
     const log = (msg) => {
       document.getElementById('output').textContent += msg + '\\n'
@@ -8081,7 +8081,7 @@ Save this as an HTML file, open it in a browser, and everything works — no npm
 
 ## Gotchas
 
-- **esm.sh caches aggressively.** Pin a version if you need stability: \`https://esm.sh/@soederpop/luca@0.0.29/web\`
+- **esm.sh caches aggressively.** Pin a version if you need stability: \`https://esm.sh/luca@0.0.29/web\`
 - **Browser features only.** The web container doesn't include node-specific features like \`fs\`, \`git\`, \`proc\`, or \`docker\`. If you need server features, run Luca on the server and connect via the REST or WebSocket clients.
 - **\`window.luca\` is the singleton.** Don't call \`createContainer()\` — it just warns and returns the same instance. If you need isolation, use \`container.subcontainer()\`.
 - **CORS applies.** REST client requests from the browser are subject to browser CORS rules. Your API must send the right headers.
@@ -8127,7 +8127,7 @@ my-api/
     "seed": "luca seed"
   },
   "dependencies": {
-    "@soederpop/luca": "latest",
+    "luca": "latest",
     "zod": "^3.24.0"
   }
 }
@@ -8187,7 +8187,7 @@ The endpoint creates the assistant and forwards questions:
 \`\`\`typescript
 // endpoints/ask.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/ask'
 export const postSchema = z.object({
@@ -8231,7 +8231,7 @@ docs-site/
 \`\`\`typescript
 // endpoints/docs.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/docs'
 export const getSchema = z.object({
@@ -8499,7 +8499,7 @@ Contentbase lets you treat folders of markdown files as queryable database colle
 ## Setup
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const db = container.feature('contentDb', { rootPath: './content' })
 const { defineModel, section, hasMany, belongsTo } = db.library
@@ -8643,7 +8643,7 @@ console.log('Hello!')
 ## Full Example: Blog Engine
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 import { z } from 'zod'
 
 const db = container.feature('contentDb', { rootPath: './blog' })
@@ -8824,7 +8824,7 @@ researchInternalDocs tool first to find accurate information before answering.
 ### In a Script
 
 \`\`\`typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const assistant = container.feature('assistant', {
   folder: 'assistants/my-assistant',
@@ -8850,7 +8850,7 @@ Expose the assistant as an API:
 \`\`\`typescript
 // endpoints/ask.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/ask'
 export const description = 'Ask the support assistant a question'
@@ -8912,7 +8912,7 @@ luca run scripts/hello.ts
 
 \`\`\`typescript
 // scripts/hello.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 console.log('Available features:', container.features.available)
 console.log('Git branch:', container.git.branch)
@@ -9014,7 +9014,7 @@ console.log(\`Found \${files.length} files in src/\`)
 
 \`\`\`typescript
 // scripts/process-images.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { fs, proc } = container
 
@@ -9033,7 +9033,7 @@ console.log('Done.')
 
 \`\`\`typescript
 // scripts/migrate-data.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { fs } = container
 
@@ -9061,7 +9061,7 @@ console.log('Migration complete.')
 
 \`\`\`typescript
 // scripts/weekly-report.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { git, fs } = container
 
@@ -9210,7 +9210,7 @@ container.clients.describe('rest')
 \`\`\`typescript
 // endpoints/proxy.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/external-data'
 

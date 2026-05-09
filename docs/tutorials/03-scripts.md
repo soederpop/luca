@@ -15,7 +15,7 @@ luca run scripts/hello.ts
 
 ```typescript
 // scripts/hello.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 console.log('Available features:', container.features.available)
 console.log('Git branch:', container.git.branch)
@@ -117,7 +117,7 @@ console.log(`Found ${files.length} files in src/`)
 
 ```typescript
 // scripts/process-images.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { fs, proc } = container
 
@@ -136,7 +136,7 @@ console.log('Done.')
 
 ```typescript
 // scripts/migrate-data.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { fs } = container
 
@@ -164,7 +164,7 @@ console.log('Migration complete.')
 
 ```typescript
 // scripts/weekly-report.ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const { git, fs } = container
 

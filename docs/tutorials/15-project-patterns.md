@@ -33,7 +33,7 @@ my-api/
     "seed": "luca seed"
   },
   "dependencies": {
-    "@soederpop/luca": "latest",
+    "luca": "latest",
     "zod": "^3.24.0"
   }
 }
@@ -93,7 +93,7 @@ The endpoint creates the assistant and forwards questions:
 ```typescript
 // endpoints/ask.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/ask'
 export const postSchema = z.object({
@@ -137,7 +137,7 @@ docs-site/
 ```typescript
 // endpoints/docs.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/docs'
 export const getSchema = z.object({

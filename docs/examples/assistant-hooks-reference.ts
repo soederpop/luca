@@ -30,7 +30,7 @@
  * The first argument is always the assistant instance.
  * `assistant` and `container` are also available as globals (injected by the VM).
  */
-import type { Assistant, AGIContainer } from '@soederpop/luca/agi'
+import type { Assistant, AGIContainer } from 'luca/agi'
 
 declare global {
   var assistant: Assistant

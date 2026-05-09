@@ -10,7 +10,7 @@ Contentbase lets you treat folders of markdown files as queryable database colle
 ## Setup
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const db = container.feature('contentDb', { rootPath: './content' })
 const { defineModel, section, hasMany, belongsTo } = db.library
@@ -154,7 +154,7 @@ console.log('Hello!')
 ## Full Example: Blog Engine
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 import { z } from 'zod'
 
 const db = container.feature('contentDb', { rootPath: './blog' })

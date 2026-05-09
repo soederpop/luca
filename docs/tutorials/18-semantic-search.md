@@ -12,7 +12,7 @@ Luca's `semanticSearch` feature provides BM25 keyword search, vector similarity 
 The fastest way to use semantic search is through the `contentDb` feature, which handles indexing and querying automatically:
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const db = container.feature('contentDb', { rootPath: './docs' })
 await db.load()
@@ -48,8 +48,8 @@ await db.hybridSearch('authentication flow', { limit: 5 })
 For more control, use the `semanticSearch` feature directly:
 
 ```typescript
-import container from '@soederpop/luca'
-import { SemanticSearch } from '@soederpop/luca/node/features/semantic-search'
+import container from 'luca'
+import { SemanticSearch } from 'luca/node/features/semantic-search'
 
 // Attach the feature to the container
 SemanticSearch.attach(container)

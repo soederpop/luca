@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import { parse } from 'contentbase'
 import type { DocsReader } from './docs-reader.js'
 import Assistant from './assistant.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		skillsLibrary: typeof SkillsLibrary
 	}

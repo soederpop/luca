@@ -11,7 +11,7 @@ When to build a selector:
 
 ```ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 ```
 
 ## Args Schema
@@ -67,7 +67,7 @@ export async function run(args: z.infer<typeof argsSchema>, context: ContainerCo
 
 ```ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 

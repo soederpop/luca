@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 
 async function main() {
 	const tts = container.feature('tts', { enable: true })

@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 import { join } from 'path'
 
 const { ui, fs, argv } = container
@@ -84,15 +84,15 @@ function generateClient(name: string, description: string): string {
 
   return ui.endent`
     import { z } from 'zod'
-    import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca/schemas/base.js'
+    import { ClientStateSchema, ClientOptionsSchema } from 'luca/schemas/base.js'
     import {
       type ClientsInterface,
       clients,
       RestClient,
-    } from '@soederpop/luca/client'
-    import { type ContainerContext } from '@soederpop/luca/container'
+    } from 'luca/client'
+    import { type ContainerContext } from 'luca/container'
 
-    declare module '@soederpop/luca/client' {
+    declare module 'luca/client' {
       interface AvailableClients {
         ${registryKey}: typeof ${className}
       }

@@ -1,12 +1,12 @@
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
-import { Client } from "@soederpop/luca/client";
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca/schemas/base.js'
+import { Client } from "luca/client";
 import { RestClient } from "../rest";
-import type { ContainerContext } from "@soederpop/luca/container";
+import type { ContainerContext } from "luca/container";
 import type { NodeContainer } from "../../node/container.js";
 import type { AxiosRequestConfig } from 'axios'
 
-declare module "@soederpop/luca/client" {
+declare module "luca/client" {
   interface AvailableClients {
     elevenlabs: typeof ElevenLabsClient;
   }

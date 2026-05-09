@@ -28,7 +28,7 @@ Here's the structure of the built-in `fileTools` feature (simplified for clarity
 
 ```ts
 import { z } from 'zod'
-import { Feature } from '@soederpop/luca/feature'
+import { Feature } from 'luca/feature'
 
 export class FileTools extends Feature {
   static { Feature.register(this, 'fileTools') }

@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/node'
+import container from 'luca/node'
 
 const ui = container.feature('ui')
 const tg = container.feature('telegram', {

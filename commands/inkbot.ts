@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { commands, CommandOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { commands, CommandOptionsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 import { AGIContainer } from '../src/agi/container.server.js'
 
 export const argsSchema = CommandOptionsSchema.extend({

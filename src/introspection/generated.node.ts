@@ -7289,7 +7289,7 @@ setBuildTimeData('features.helpers', {
   "className": "Helpers",
   "methods": {
     "seedVirtualModules": {
-      "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('@soederpop/luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
+      "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
       "parameters": {},
       "required": [],
       "returns": "void"
@@ -7418,7 +7418,7 @@ setBuildTimeData('features.helpers', {
       "returns": "string"
     },
     "useNativeImport": {
-      "description": "Whether to use native `import()` for loading project helpers. True only if `@soederpop/luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
+      "description": "Whether to use native `import()` for loading project helpers. True only if `luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
       "returns": "boolean"
     },
     "available": {
@@ -13070,7 +13070,7 @@ setBuildTimeData('features.vm', {
       "parameters": {
         "id": {
           "type": "string",
-          "description": "The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)"
+          "description": "The module specifier (e.g. `'luca'`, `'zod'`)"
         },
         "exports": {
           "type": "any",
@@ -13085,7 +13085,7 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const vm = container.feature('vm')\nvm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from '@soederpop/luca'  → works"
+          "code": "const vm = container.feature('vm')\nvm.defineModule('luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from 'luca'  → works"
         }
       ]
     },
@@ -21676,7 +21676,7 @@ export const introspectionData = [
     "className": "Helpers",
     "methods": {
       "seedVirtualModules": {
-        "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('@soederpop/luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
+        "description": "Seeds the VM feature with virtual modules so that project-level files can `import` / `require('luca')`, `zod`, etc. without needing them in `node_modules`. Called automatically when `useNativeImport` is false. Can also be called externally (e.g. from the CLI) to pre-seed before discovery.",
         "parameters": {},
         "required": [],
         "returns": "void"
@@ -21805,7 +21805,7 @@ export const introspectionData = [
         "returns": "string"
       },
       "useNativeImport": {
-        "description": "Whether to use native `import()` for loading project helpers. True only if `@soederpop/luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
+        "description": "Whether to use native `import()` for loading project helpers. True only if `luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
         "returns": "boolean"
       },
       "available": {
@@ -27433,7 +27433,7 @@ export const introspectionData = [
         "parameters": {
           "id": {
             "type": "string",
-            "description": "The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)"
+            "description": "The module specifier (e.g. `'luca'`, `'zod'`)"
           },
           "exports": {
             "type": "any",
@@ -27448,7 +27448,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const vm = container.feature('vm')\nvm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from '@soederpop/luca'  → works"
+            "code": "const vm = container.feature('vm')\nvm.defineModule('luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from 'luca'  → works"
           }
         ]
       },

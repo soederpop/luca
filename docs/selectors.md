@@ -98,7 +98,7 @@ Proposed skateboard:
 - `selectors/` folder discovery via `Helpers` feature
 - Caching integration with `diskCache`
 - Module-based pattern support (export `select` + optional `cacheKey`)
-- `Selector` + `selectors` exported from `@soederpop/luca` barrel + seeded in VM virtual modules
+- `Selector` + `selectors` exported from `luca` barrel + seeded in VM virtual modules
 
 ## Codebase Exploration Notes
 

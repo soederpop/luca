@@ -18,7 +18,7 @@ export default container
 export function createContainer() {
   console.warn(
     '[luca] createContainer() is unnecessary — import the default export instead.\n' +
-    '       `import container from "@soederpop/luca"`\n' +
+    '       `import container from "luca"`\n' +
     '       For a separate instance, use container.subcontainer().'
   )
   return container

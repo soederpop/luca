@@ -1,13 +1,13 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
 import { countMessageTokens, getContextWindow, calculateCost } from '../lib/token-counter.js';
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		conversation: typeof Conversation
 	}

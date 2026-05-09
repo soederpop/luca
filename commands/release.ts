@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { ContainerContext } from "@soederpop/luca";
-import { CommandOptionsSchema } from "@soederpop/luca/schemas";
+import type { ContainerContext } from "luca";
+import { CommandOptionsSchema } from "luca/schemas";
 
 export const argsSchema = CommandOptionsSchema.extend({
   skipTests: z

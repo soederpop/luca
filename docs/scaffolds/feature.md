@@ -11,8 +11,8 @@ When to build a feature:
 
 ```ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+import { Feature } from 'luca'
 ```
 
 These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
@@ -84,7 +84,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
 This is what gives `container.feature('yourName')` TypeScript autocomplete. Without it, the feature works but TypeScript won't know about it.
 
 ```ts
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -109,10 +109,10 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 
 ```ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }

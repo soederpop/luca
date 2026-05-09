@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/agi'
+import container from 'luca/agi'
 
 const fs = container.feature('fs')
 

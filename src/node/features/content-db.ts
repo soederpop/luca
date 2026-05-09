@@ -184,7 +184,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     const vm = this.container.feature('vm') as any
 
-    // Seed luca modules first (helpers does this for @soederpop/luca)
+    // Seed luca modules first (helpers does this for luca)
     const helpers = this.container.feature('helpers') as any
     if (helpers?.seedVirtualModules) {
       helpers.seedVirtualModules()

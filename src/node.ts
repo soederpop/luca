@@ -17,7 +17,7 @@ export default container as NodeContainer
 export function createContainer() {
   console.warn(
     '[luca] createContainer() is unnecessary — import the default export instead.\n' +
-    '       `import container from "@soederpop/luca"`\n' +
+    '       `import container from "luca"`\n' +
     '       For a separate instance, use container.subcontainer().'
   )
   return container
@@ -69,7 +69,7 @@ export type { Entity } from './entity'
 export type { EventMap } from './bus'
 export type { SetStateValue, StateChangeType } from './state'
 
-// Zod — so consumer code can `import { z } from '@soederpop/luca'`
+// Zod — so consumer code can `import { z } from 'luca'`
 export { z } from 'zod'
 
 // Schemas

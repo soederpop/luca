@@ -8,20 +8,20 @@ Every capability goes through the container. If you need something that doesn't 
 
 ## Import Rule
 
-All consumer code imports from `@soederpop/luca` only:
+All consumer code imports from `luca` only:
 
 ```ts
-import { Feature, features, z, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Client, clients, RestClient, ClientStateSchema } from '@soederpop/luca/client'
-import { Server, servers, ServerStateSchema } from '@soederpop/luca'
-import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import { Feature, features, z, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Client, clients, RestClient, ClientStateSchema } from 'luca/client'
+import { Server, servers, ServerStateSchema } from 'luca'
+import { commands, CommandOptionsSchema } from 'luca'
 ```
 
 Never import from `fs`, `path`, `crypto`, or other Node builtins. Never import third-party packages in consumer code. If a container feature wraps the functionality, use it.
 
 ## Zod v4
 
-This project uses **Zod v4** — import `z` from `@soederpop/luca`, never from `'zod'` directly. All option, state, and event schemas use Zod v4 syntax. Key patterns:
+This project uses **Zod v4** — import `z` from `luca`, never from `'zod'` directly. All option, state, and event schemas use Zod v4 syntax. Key patterns:
 
 ```ts
 // Extending base schemas (options, state, events)
@@ -48,7 +48,7 @@ Zod v4 differences from v3 that matter:
 
 ## Dependencies
 
-If the project has `node_modules` and a package manager, helper implementations can import third-party libraries internally. If not (e.g. running via the `luca` binary's VM), all code must import only from `@soederpop/luca`.
+If the project has `node_modules` and a package manager, helper implementations can import third-party libraries internally. If not (e.g. running via the `luca` binary's VM), all code must import only from `luca`.
 
 ## Discovering Capabilities
 
@@ -67,9 +67,9 @@ Features access other features via `this.container.feature(...)`:
 
 ```ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+import { Feature, features } from 'luca'
+import type { ContainerContext } from 'luca'
 
 export const ConfigStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether config has been loaded'),
@@ -101,7 +101,7 @@ export class Config extends Feature<z.infer<typeof ConfigStateSchema>, z.infer<t
   }
 }
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures { config: typeof Config }
 }
 export default features.register('config', Config)
@@ -113,8 +113,8 @@ Clients access features and other clients via `this.container`:
 
 ```ts
 import { z } from 'zod'
-import { Client, clients, ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { Client, clients, ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 
 export const GithubOptionsSchema = ClientOptionsSchema.extend({
   token: z.string().describe('GitHub personal access token'),
@@ -143,7 +143,7 @@ export class GithubClient extends Client<z.infer<typeof ClientStateSchema>, z.in
   }
 }
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableClients { github: typeof GithubClient }
 }
 export default clients.register('github', GithubClient)
@@ -159,4 +159,4 @@ export default clients.register('github', GithubClient)
 
 ## Portability
 
-Code that only imports from `@soederpop/luca` can be copied between any luca project. That's the goal. Features, clients, servers, and commands written this way are portable building blocks.
+Code that only imports from `luca` can be copied between any luca project. That's the goal. Features, clients, servers, and commands written this way are portable building blocks.

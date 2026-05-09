@@ -12,7 +12,7 @@ Commands are CLI actions that the `luca` command discovers and runs. They are He
 ```typescript
 // commands/seed.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Seed the database with sample data'
 
@@ -63,7 +63,7 @@ The simplest pattern — export a default async function. The function becomes t
 ```typescript
 // commands/greet.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Greet someone'
 export const argsSchema = z.object({
@@ -82,7 +82,7 @@ Useful when you want to co-locate all exports in one object:
 ```typescript
 // commands/deploy.ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const argsSchema = z.object({
   env: z.enum(['staging', 'production']).describe('Target environment'),

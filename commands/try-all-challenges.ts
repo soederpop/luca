@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { commands, CommandOptionsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { commands, CommandOptionsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableCommands {
     tryAllChallenges: ReturnType<typeof commands.registerHandler>
   }

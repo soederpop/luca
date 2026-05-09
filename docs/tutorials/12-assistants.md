@@ -143,7 +143,7 @@ researchInternalDocs tool first to find accurate information before answering.
 ### In a Script
 
 ```typescript
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const assistant = container.feature('assistant', {
   folder: 'assistants/my-assistant',
@@ -169,7 +169,7 @@ Expose the assistant as an API:
 ```typescript
 // endpoints/ask.ts
 import { z } from 'zod'
-import type { EndpointContext } from '@soederpop/luca'
+import type { EndpointContext } from 'luca'
 
 export const path = '/api/ask'
 export const description = 'Ask the support assistant a question'

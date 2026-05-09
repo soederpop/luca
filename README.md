@@ -68,7 +68,7 @@ This is the core loop: discover what's available, evaluate code against it, buil
 One import. One object. Everything on it.
 
 ```ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 container.features.available   // ['fs', 'git', 'proc', 'vault', 'yaml', 'sqlite', ...]
 container.clients.available    // ['rest', 'websocket', ...]
@@ -88,7 +88,7 @@ No imports beyond the container. No `require('fs')`, no `import axios`, no `npm 
 ### In the browser
 
 ```js
-import container from 'https://esm.sh/@soederpop/luca/web'
+import container from 'https://esm.sh/luca/web'
 ```
 
 Same singleton pattern, optimized for browser features. `window.luca` is set automatically.
@@ -98,7 +98,7 @@ Same singleton pattern, optimized for browser features. `window.luca` is set aut
 The assistant is the interface that ties everything together. It can `use()` any module in the container, automatically inheriting that module's tools:
 
 ```ts
-import container from '@soederpop/luca'
+import container from 'luca'
 
 const browser = container.feature('browserUse', { headed: true })
 const assistant = container.feature('assistant', {

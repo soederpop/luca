@@ -1,4 +1,4 @@
-import container from  '@soederpop/luca/agi'
+import container from  'luca/agi'
 
 const reader = container.feature('docsReader', {
 	contentDb: (await container.docs.load())

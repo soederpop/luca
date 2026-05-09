@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
-import { CommandOptionsSchema } from '@soederpop/luca/schemas'
+import type { ContainerContext } from 'luca'
+import { CommandOptionsSchema } from 'luca/schemas'
 import * as readline from 'readline'
 import * as fs from 'fs'
 import { spawn } from 'child_process'

@@ -209,7 +209,7 @@
     "node-llama-cpp": "3.17.1"
   },
   "overrides": {
-    "@soederpop/luca": "."
+    "luca": "."
   },
   "luca": {
     "aliases": [

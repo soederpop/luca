@@ -11,7 +11,7 @@
  * Usage:
  *   bun run scripts/examples/using-assistant-with-mcp.ts
  */
-import container from '@soederpop/luca/agi'
+import container from 'luca/agi'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

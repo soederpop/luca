@@ -55,17 +55,17 @@ export class VM<
    * Register a virtual module that will be available to `require()` inside VM-executed code.
    * Modules registered here take precedence over Node's native resolution.
    *
-   * @param id - The module specifier (e.g. `'@soederpop/luca'`, `'zod'`)
+   * @param id - The module specifier (e.g. `'luca'`, `'zod'`)
    * @param exports - The module's exports object
    *
    * @example
    * ```typescript
    * const vm = container.feature('vm')
-   * vm.defineModule('@soederpop/luca', { Container, Feature, fs, proc })
+   * vm.defineModule('luca', { Container, Feature, fs, proc })
    * vm.defineModule('zod', { z })
    *
    * // Now loadModule can resolve these in user code:
-   * // import { Container } from '@soederpop/luca'  → works
+   * // import { Container } from 'luca'  → works
    * ```
    */
   defineModule(id: string, exports: any): void {

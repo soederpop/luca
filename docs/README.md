@@ -7,8 +7,8 @@
 ## Summary
 
 ```
-Collection: /Users/jonathansoeder/@soederpop/luca/docs
-Root: /Users/jonathansoeder/@soederpop/luca/docs
+Collection: /Users/jonathansoeder/luca/docs
+Root: /Users/jonathansoeder/luca/docs
 Items: 169
 
   Model: Challenge

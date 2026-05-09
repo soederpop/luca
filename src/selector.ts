@@ -29,7 +29,7 @@ export interface SelectorsInterface {
  *
  * @example
  * ```typescript
- * declare module '@soederpop/luca' {
+ * declare module 'luca' {
  *   interface AvailableSelectors {
  *     packageInfo: SimpleSelector<typeof argsSchema>
  *   }

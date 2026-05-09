@@ -4,7 +4,7 @@ import { Feature } from '../feature.js'
 import type { Assistant } from './assistant.js'
 import type { ToolCallCtx } from '../lib/interceptor-chain.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		lucaCoder: typeof LucaCoder
 	}

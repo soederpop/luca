@@ -842,7 +842,7 @@ function normalizeTypeString(type: string): string {
     (_match, _kind, name) => {
       // Convert shortcut name to PascalCase class name
       const className = name.replace(/(^|[-_])(\w)/g, (_: string, _sep: string, ch: string) => ch.toUpperCase())
-      return `import('@soederpop/luca').${className}`
+      return `import('luca').${className}`
     }
   )
   return type

@@ -11,8 +11,8 @@ When to build a client:
 
 ```ts
 import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca'
 ```
 
 Use `RestClient` for HTTP APIs (most common). It gives you `get`, `post`, `put`, `patch`, `delete` methods that handle JSON, headers, and error wrapping.
@@ -75,7 +75,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
 ## Module Augmentation
 
 ```ts
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -98,10 +98,10 @@ export default {{PascalName}}
 
 ```ts
 import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from 'luca'
 
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }

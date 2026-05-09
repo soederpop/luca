@@ -1,16 +1,16 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
-import { type AvailableFeatures } from '@soederpop/luca/feature'
+import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message } from './conversation'
-import type { ContentDb } from '@soederpop/luca/node'
+import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
 import { InterceptorChain, type InterceptorFn, type InterceptorPoints, type InterceptorPoint } from '../lib/interceptor-chain.js'
 import type { Entity } from '../../entity.js'
 import { State } from '../../state.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
 	interface AvailableFeatures {
 		assistant: typeof Assistant
 	}
@@ -795,7 +795,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			return this.mergeOptionTools(tools)
 		}
 
-		// Ensure virtual modules (zod, @soederpop/luca, etc.) are seeded so tools
+		// Ensure virtual modules (zod, luca, etc.) are seeded so tools
 		// files outside the project tree can resolve them through the VM
 		if (this.container.features.has('helpers')) {
 			const helpers = this.container.feature('helpers') as any

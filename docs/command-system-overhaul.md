@@ -34,11 +34,11 @@ Given a typescript module called serve
 
 
 ```ts
-import type { SimpleCommand } from '@soederpop/luca'
+import type { SimpleCommand } from 'luca'
 
 // SimpleCommand is a ts generic that makes it simpler to construct the actual class ServeCommand<CommandHelperOptions,COmmandHelperState> since all commands share the same base constructor options and have the same state, but we will need to capture
 // the run options schema 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableCommands {
     serve: typeof Command  
   }

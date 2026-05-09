@@ -15,7 +15,7 @@ You can use Luca in any browser environment — no bundler, no build step. Impor
 
 ```html
 <script type="module">
-  import "https://esm.sh/@soederpop/luca/web"
+  import "https://esm.sh/luca/web"
 
   const container = window.luca
   console.log(container.uuid) // unique container ID
@@ -29,7 +29,7 @@ If you prefer a named import:
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
   // container === window.luca
 </script>
 ```
@@ -40,7 +40,7 @@ Once you have the container, features work exactly like they do on the server �
 
 ```html
 <script type="module">
-  import "https://esm.sh/@soederpop/luca/web"
+  import "https://esm.sh/luca/web"
   const { luca: container } = window
 
   // Load a script from a CDN
@@ -67,7 +67,7 @@ The container is a state machine and event bus. This works identically to the se
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   // Listen for state changes
   container.on('stateChanged', ({ changes }) => {
@@ -88,7 +88,7 @@ Make HTTP requests with the built-in REST client. Methods return parsed JSON dir
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const api = container.client('rest', { baseURL: 'https://jsonplaceholder.typicode.com' })
   const posts = await api.get('/posts')
@@ -102,7 +102,7 @@ Connect to a WebSocket server:
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const socket = container.client('socket', { url: 'ws://localhost:3000' })
   socket.on('message', (data) => console.log('Received:', data))
@@ -116,7 +116,7 @@ The container exposes the `Feature` class directly, so you can create your own f
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   const { Feature } = container
 
@@ -148,7 +148,7 @@ The container's built-in utilities are available in the browser too.
 
 ```html
 <script type="module">
-  import container from "https://esm.sh/@soederpop/luca/web"
+  import container from "https://esm.sh/luca/web"
 
   // UUID generation
   const id = container.utils.uuid()
@@ -177,7 +177,7 @@ The container's built-in utilities are available in the browser too.
   <pre id="output"></pre>
 
   <script type="module">
-    import container from "https://esm.sh/@soederpop/luca/web"
+    import container from "https://esm.sh/luca/web"
 
     const log = (msg) => {
       document.getElementById('output').textContent += msg + '\n'
@@ -222,7 +222,7 @@ Save this as an HTML file, open it in a browser, and everything works — no npm
 
 ## Gotchas
 
-- **esm.sh caches aggressively.** Pin a version if you need stability: `https://esm.sh/@soederpop/luca@0.0.29/web`
+- **esm.sh caches aggressively.** Pin a version if you need stability: `https://esm.sh/luca@0.0.29/web`
 - **Browser features only.** The web container doesn't include node-specific features like `fs`, `git`, `proc`, or `docker`. If you need server features, run Luca on the server and connect via the REST or WebSocket clients.
 - **`window.luca` is the singleton.** Don't call `createContainer()` — it just warns and returns the same instance. If you need isolation, use `container.subcontainer()`.
 - **CORS applies.** REST client requests from the browser are subject to browser CORS rules. Your API must send the right headers.

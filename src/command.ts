@@ -31,7 +31,7 @@ export type CommandHandler<T = any> = (options: T, context: ContainerContext) =>
  *
  * @example
  * ```typescript
- * declare module '@soederpop/luca' {
+ * declare module 'luca' {
  *   interface AvailableCommands {
  *     serve: SimpleCommand<typeof argsSchema>
  *   }

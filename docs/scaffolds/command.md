@@ -11,7 +11,7 @@ When to build a command:
 
 ```ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 ```
 
 ## Positional Arguments
@@ -66,7 +66,7 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 
 ```ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 

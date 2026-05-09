@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca/schemas/base.js'
-import { Client } from "@soederpop/luca/client";
-import type { Container, ContainerContext } from "@soederpop/luca/container";
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca/schemas/base.js'
+import { Client } from "luca/client";
+import type { Container, ContainerContext } from "luca/container";
 
 import OpenAI from "openai";
 

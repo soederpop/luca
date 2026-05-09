@@ -1,4 +1,4 @@
-import container from '@soederpop/luca/agi'
+import container from 'luca/agi'
 
 async function main() {
 	const chat = container.feature('conversation', {

@@ -1,4 +1,4 @@
-import type { Assistant, AGIContainer } from '@soederpop/luca/agi'
+import type { Assistant, AGIContainer } from 'luca/agi'
 
 declare global {
 	var assistant: Assistant

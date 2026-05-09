@@ -12,7 +12,7 @@ Luca's type system ensures that as you add features, clients, servers, and comma
 When you register a new helper, you augment the corresponding interface so TypeScript knows about it:
 
 ```typescript
-import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
+import { Feature, features, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
 import { z } from 'zod'
 
 // 1. Define your feature
@@ -24,7 +24,7 @@ export class MyCache extends Feature<MyCacheState, MyCacheOptions> {
 features.register('myCache', MyCache)
 
 // 3. Augment the interface
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     myCache: typeof MyCache
   }
@@ -100,28 +100,28 @@ The pattern is the same for features, clients, servers, and commands:
 
 ```typescript
 // Features
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     myFeature: typeof MyFeature
   }
 }
 
 // Clients
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableClients {
     myClient: typeof MyClient
   }
 }
 
 // Servers
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     myServer: typeof MyServer
   }
 }
 
 // Commands
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableCommands {
     myCommand: typeof MyCommand
   }
@@ -157,7 +157,7 @@ export class Analytics extends Feature<AnalyticsState, AnalyticsOptions> { ... }
 
 // 2. You register + augment
 features.register('analytics', Analytics)
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures { analytics: typeof Analytics }
 }
 

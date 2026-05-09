@@ -18,8 +18,8 @@ export const scaffolds: Record<string, ScaffoldData> = {
   feature: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'` },
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+import { Feature } from 'luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = FeatureStateSchema.extend({
   // Add your state fields here. These are observable — changes emit events.
   // Example: itemCount: z.number().default(0).describe('Number of items stored'),
@@ -60,7 +60,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
     // Set up initial state, start background tasks, etc.
   }
 }` },
-      { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
+      { heading: "Module Augmentation", code: `declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -71,10 +71,10 @@ static { Feature.register(this, '{{camelName}}') }
 // At module level:
 export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -110,10 +110,10 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
 export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -160,8 +160,8 @@ When to build a feature:
 
 \`\`\`ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+import { Feature } from 'luca'
 \`\`\`
 
 These are the only imports your feature file needs from luca. If your feature wraps a third-party library, import it here too — feature implementations are the ONE place where direct library imports are allowed.
@@ -233,7 +233,7 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
 This is what gives \`container.feature('yourName')\` TypeScript autocomplete. Without it, the feature works but TypeScript won't know about it.
 
 \`\`\`ts
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -258,10 +258,10 @@ Here's a minimal but complete feature. This is what a real feature file looks li
 
 \`\`\`ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Feature } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Feature } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -310,8 +310,8 @@ export default {{PascalName}}
   client: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'` },
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ClientStateSchema.extend({
   // Add your state fields here.
   // Example: authenticated: z.boolean().default(false).describe('Whether API auth is configured'),
@@ -353,7 +353,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   //   return this.get('/items')
   // }
 }` },
-      { heading: "Module Augmentation", code: `declare module '@soederpop/luca/client' {
+      { heading: "Module Augmentation", code: `declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -364,10 +364,10 @@ static { Client.register(this, '{{camelName}}') }
 // At module level:
 export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from 'luca'
 
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -405,10 +405,10 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
 export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from 'luca'
 
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -457,8 +457,8 @@ When to build a client:
 
 \`\`\`ts
 import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca'
 \`\`\`
 
 Use \`RestClient\` for HTTP APIs (most common). It gives you \`get\`, \`post\`, \`put\`, \`patch\`, \`delete\` methods that handle JSON, headers, and error wrapping.
@@ -521,7 +521,7 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
 ## Module Augmentation
 
 \`\`\`ts
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -544,10 +544,10 @@ export default {{PascalName}}
 
 \`\`\`ts
 import { z } from 'zod'
-import { Client, RestClient } from '@soederpop/luca/client'
-import { ClientStateSchema, ClientOptionsSchema } from '@soederpop/luca'
+import { Client, RestClient } from 'luca/client'
+import { ClientStateSchema, ClientOptionsSchema } from 'luca'
 
-declare module '@soederpop/luca/client' {
+declare module 'luca/client' {
   interface AvailableClients {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -598,10 +598,10 @@ export default {{PascalName}}
   server: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'` },
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'` },
       { heading: "Schemas", code: `export const {{PascalName}}StateSchema = ServerStateSchema.extend({
   // Add your state fields here.
   // Example: connectionCount: z.number().default(0).describe('Active connections'),
@@ -666,7 +666,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
     return this
   }
 }` },
-      { heading: "Module Augmentation", code: `declare module '@soederpop/luca' {
+      { heading: "Module Augmentation", code: `declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -677,12 +677,12 @@ static { Server.register(this, '{{camelName}}') }
 // At module level:
 export default {{PascalName}}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -744,12 +744,12 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
 export default {{PascalName}}` }
     ],
     full: `import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -822,10 +822,10 @@ When to build a server:
 
 \`\`\`ts
 import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 \`\`\`
 
 ## Schemas
@@ -907,7 +907,7 @@ export class {{PascalName}} extends Server<{{PascalName}}State, {{PascalName}}Op
 ## Module Augmentation
 
 \`\`\`ts
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -930,12 +930,12 @@ export default {{PascalName}}
 
 \`\`\`ts
 import { z } from 'zod'
-import { Server } from '@soederpop/luca'
-import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '@soederpop/luca'
-import type { NodeContainer } from '@soederpop/luca'
-import type { ServersInterface } from '@soederpop/luca'
+import { Server } from 'luca'
+import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from 'luca'
+import type { NodeContainer } from 'luca'
+import type { ServersInterface } from 'luca'
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableServers {
     {{camelName}}: typeof {{PascalName}}
   }
@@ -1010,7 +1010,7 @@ export default {{PascalName}}
   command: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'` },
+import type { ContainerContext } from 'luca'` },
       { heading: "Positional Arguments", code: `// luca {{kebabName}} ./src  =>  options.target === './src'
 export const positionals = ['target']` },
       { heading: "Args Schema", code: `export const argsSchema = z.object({
@@ -1032,7 +1032,7 @@ export const positionals = ['target']` },
   // Your implementation here
 }` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1069,7 +1069,7 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 }` }
     ],
     full: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1099,7 +1099,7 @@ When to build a command:
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 \`\`\`
 
 ## Positional Arguments
@@ -1154,7 +1154,7 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1321,7 +1321,7 @@ Run \`luca serve\` and they're automatically discovered and mounted.
 
 Endpoints are lightweight — just exports and handler functions. No imports are required.
 
-If your project has \`@soederpop/luca\` as an npm dependency, you can import \`z\` from \`zod\` and \`EndpointContext\` from \`@soederpop/luca\` for type safety. Otherwise, use \`any\` types — the framework handles validation and context injection for you.
+If your project has \`luca\` as an npm dependency, you can import \`z\` from \`zod\` and \`EndpointContext\` from \`luca\` for type safety. Otherwise, use \`any\` types — the framework handles validation and context injection for you.
 
 Access framework capabilities through the \`ctx\` parameter:
 - \`ctx.container.feature('fs')\` for file operations
@@ -1367,7 +1367,7 @@ Return any object — it's automatically JSON-serialized as the response.
 
 ## Validation Schemas
 
-If \`zod\` is available (via \`@soederpop/luca\` dependency or \`node_modules\`), export Zod schemas to validate parameters for each method. Name them \`{method}Schema\`:
+If \`zod\` is available (via \`luca\` dependency or \`node_modules\`), export Zod schemas to validate parameters for each method. Name them \`{method}Schema\`:
 
 \`\`\`ts
 import { z } from 'zod'
@@ -1475,7 +1475,7 @@ export { del as delete }
   selector: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'` },
+import type { ContainerContext } from 'luca'` },
       { heading: "Args Schema", code: `export const argsSchema = z.object({
   // Add your input arguments here.
   // Example: field: z.string().optional().describe('Specific field to return'),
@@ -1491,7 +1491,7 @@ import type { ContainerContext } from '@soederpop/luca'` },
   return { /* your data */ }
 }` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1505,7 +1505,7 @@ export async function run(args: z.infer<typeof argsSchema>, context: ContainerCo
 }` }
     ],
     full: `import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1530,7 +1530,7 @@ When to build a selector:
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 \`\`\`
 
 ## Args Schema
@@ -1586,7 +1586,7 @@ export async function run(args: z.infer<typeof argsSchema>, context: ContainerCo
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = '{{description}}'
 
@@ -1659,20 +1659,20 @@ Every capability goes through the container. If you need something that doesn't 
 
 ## Import Rule
 
-All consumer code imports from \`@soederpop/luca\` only:
+All consumer code imports from \`luca\` only:
 
 \`\`\`ts
-import { Feature, features, z, FeatureStateSchema, FeatureOptionsSchema } from '@soederpop/luca'
-import { Client, clients, RestClient, ClientStateSchema } from '@soederpop/luca/client'
-import { Server, servers, ServerStateSchema } from '@soederpop/luca'
-import { commands, CommandOptionsSchema } from '@soederpop/luca'
+import { Feature, features, z, FeatureStateSchema, FeatureOptionsSchema } from 'luca'
+import { Client, clients, RestClient, ClientStateSchema } from 'luca/client'
+import { Server, servers, ServerStateSchema } from 'luca'
+import { commands, CommandOptionsSchema } from 'luca'
 \`\`\`
 
 Never import from \`fs\`, \`path\`, \`crypto\`, or other Node builtins. Never import third-party packages in consumer code. If a container feature wraps the functionality, use it.
 
 ## Zod v4
 
-This project uses **Zod v4** — import \`z\` from \`@soederpop/luca\`, never from \`'zod'\` directly. All option, state, and event schemas use Zod v4 syntax. Key patterns:
+This project uses **Zod v4** — import \`z\` from \`luca\`, never from \`'zod'\` directly. All option, state, and event schemas use Zod v4 syntax. Key patterns:
 
 \`\`\`ts
 // Extending base schemas (options, state, events)
@@ -1699,7 +1699,7 @@ Zod v4 differences from v3 that matter:
 
 ## Dependencies
 
-If the project has \`node_modules\` and a package manager, helper implementations can import third-party libraries internally. If not (e.g. running via the \`luca\` binary's VM), all code must import only from \`@soederpop/luca\`.
+If the project has \`node_modules\` and a package manager, helper implementations can import third-party libraries internally. If not (e.g. running via the \`luca\` binary's VM), all code must import only from \`luca\`.
 
 ## Discovering Capabilities
 
@@ -1718,9 +1718,9 @@ Features access other features via \`this.container.feature(...)\`:
 
 \`\`\`ts
 import { z } from 'zod'
-import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '@soederpop/luca'
-import { Feature, features } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+import { Feature, features } from 'luca'
+import type { ContainerContext } from 'luca'
 
 export const ConfigStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether config has been loaded'),
@@ -1752,7 +1752,7 @@ export class Config extends Feature<z.infer<typeof ConfigStateSchema>, z.infer<t
   }
 }
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableFeatures { config: typeof Config }
 }
 export default features.register('config', Config)
@@ -1764,8 +1764,8 @@ Clients access features and other clients via \`this.container\`:
 
 \`\`\`ts
 import { z } from 'zod'
-import { Client, clients, ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from '@soederpop/luca'
-import type { ContainerContext } from '@soederpop/luca'
+import { Client, clients, ClientStateSchema, ClientOptionsSchema, ClientEventsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 
 export const GithubOptionsSchema = ClientOptionsSchema.extend({
   token: z.string().describe('GitHub personal access token'),
@@ -1794,7 +1794,7 @@ export class GithubClient extends Client<z.infer<typeof ClientStateSchema>, z.in
   }
 }
 
-declare module '@soederpop/luca' {
+declare module 'luca' {
   interface AvailableClients { github: typeof GithubClient }
 }
 export default clients.register('github', GithubClient)
@@ -1810,5 +1810,5 @@ export default clients.register('github', GithubClient)
 
 ## Portability
 
-Code that only imports from \`@soederpop/luca\` can be copied between any luca project. That's the goal. Features, clients, servers, and commands written this way are portable building blocks.
+Code that only imports from \`luca\` can be copied between any luca project. That's the goal. Features, clients, servers, and commands written this way are portable building blocks.
 `

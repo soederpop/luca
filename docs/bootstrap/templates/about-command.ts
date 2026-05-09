@@ -6,7 +6,7 @@
  * For example: `luca about commands` → options._[1] === 'commands'
  */
 import { z } from 'zod'
-import type { ContainerContext } from '@soederpop/luca'
+import type { ContainerContext } from 'luca'
 
 export const description = 'Display project information and discovered helpers'
 

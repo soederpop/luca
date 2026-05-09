@@ -3,7 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { Feature } from '../feature.js'
 import type { Helper } from '../../helper.js'
 
-declare module '@soederpop/luca/feature' {
+declare module 'luca/feature' {
   interface AvailableFeatures {
     browserUse: typeof BrowserUse
   }

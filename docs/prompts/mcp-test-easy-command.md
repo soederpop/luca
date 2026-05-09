@@ -22,6 +22,6 @@ The command should be runnable via `luca greet --name Jon --shout`.
 ## Rules
 
 - Do not install any npm packages
-- Import only from `@soederpop/luca`
+- Import only from `luca`
 - Use the MCP tools to learn the command pattern before writing code
 - After creating the file, verify it works by running `luca greet --name Test`

@@ -20,7 +20,7 @@ Run `luca serve` and they're automatically discovered and mounted.
 
 Endpoints are lightweight — just exports and handler functions. No imports are required.
 
-If your project has `@soederpop/luca` as an npm dependency, you can import `z` from `zod` and `EndpointContext` from `@soederpop/luca` for type safety. Otherwise, use `any` types — the framework handles validation and context injection for you.
+If your project has `luca` as an npm dependency, you can import `z` from `zod` and `EndpointContext` from `luca` for type safety. Otherwise, use `any` types — the framework handles validation and context injection for you.
 
 Access framework capabilities through the `ctx` parameter:
 - `ctx.container.feature('fs')` for file operations
@@ -66,7 +66,7 @@ Return any object — it's automatically JSON-serialized as the response.
 
 ## Validation Schemas
 
-If `zod` is available (via `@soederpop/luca` dependency or `node_modules`), export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
+If `zod` is available (via `luca` dependency or `node_modules`), export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
 
 ```ts
 import { z } from 'zod'

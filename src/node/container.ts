@@ -240,7 +240,7 @@ export interface NodeContainerState extends ContainerState {
  *
  * @example
  * ```ts
- * import container from '@soederpop/luca/node'
+ * import container from 'luca/node'
  *
  * // File operations
  * const content = container.fs.readFile('README.md')

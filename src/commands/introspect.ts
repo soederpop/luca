@@ -178,7 +178,7 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 	}
 
 	const outputPath = options.output || 'features/introspection.generated.ts'
-	const importSource = '@soederpop/luca/introspection'
+	const importSource = 'luca/introspection'
 
 	console.log(`Scanning: ${src.join(', ')}`)
 	console.log(`Output: ${outputPath}`)
