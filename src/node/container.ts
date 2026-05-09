@@ -64,6 +64,7 @@ import "./features/container-link";
 import "./features/semantic-search";
 import "./features/dns";
 import "./features/redis";
+import "./features/socket-repl";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -108,6 +109,7 @@ import type { ContainerLink } from './features/container-link';
 import type { SemanticSearch } from './features/semantic-search';
 import type { Dns } from './features/dns';
 import type { Redis } from './features/redis';
+import type { SocketRepl } from './features/socket-repl';
 export { State };
 
 export {
@@ -147,6 +149,7 @@ export {
   type SemanticSearch,
   type Dns,
   type Redis,
+  type SocketRepl,
   type Transpiler,
 };
 
@@ -213,6 +216,7 @@ export interface NodeFeatures extends AvailableFeatures {
   semanticSearch: typeof SemanticSearch;
   dns: typeof Dns;
   redis: typeof Redis;
+  socketRepl: typeof SocketRepl;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;
