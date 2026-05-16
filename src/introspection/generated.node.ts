@@ -12140,6 +12140,98 @@ setBuildTimeData('features.semanticSearch', {
   }
 });
 
+setBuildTimeData('features.socketRepl', {
+  "id": "features.socketRepl",
+  "description": "Socket REPL — a WebSocket-powered interactive read-eval-print loop. Exposes a REPL session over WebSocket so remote clients (browser, other process, terminal UI) can evaluate expressions in a sandboxed VM context populated with the container and its helpers. Each connected client gets its own session tracking but shares the same VM context. Supports tab completion and async/await. Messages use JSON framing: - Client → Server: `{ type: \"eval\", input: \"expression\" }` - Client → Server: `{ type: \"complete\", partial: \"container.fea\" }` - Server → Client: `{ type: \"prompt\", prompt: \"> \" }` - Server → Client: `{ type: \"result\", value: \"...\" }` - Server → Client: `{ type: \"error\", message: \"...\" }` - Server → Client: `{ type: \"completions\", items: [\"feature\", \"features\"], partial: \"fea\" }`",
+  "shortcut": "features.socketRepl",
+  "className": "SocketRepl",
+  "methods": {
+    "start": {
+      "description": "Start the socket REPL server. Creates a VM context populated with the container and its helpers, starts a WebSocket server, and begins accepting REPL connections.",
+      "parameters": {
+        "options": {
+          "type": "{ port?: number, context?: any, historyPath?: string }",
+          "description": "Configuration for the REPL session",
+          "properties": {
+            "port": {
+              "type": "any",
+              "description": "Port to listen on (default: 8282)"
+            },
+            "context": {
+              "type": "any",
+              "description": "Additional variables to inject into the VM context"
+            },
+            "historyPath": {
+              "type": "any",
+              "description": "Custom path for the history file"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const socketRepl = container.feature('socketRepl', { enable: true })\nawait socketRepl.start({\n port: 8282,\n context: { db: myDatabase },\n})"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop the socket REPL server and disconnect all clients.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    }
+  },
+  "getters": {
+    "vmContext": {
+      "description": "The VM context object used for evaluating expressions.",
+      "returns": "any"
+    },
+    "isStarted": {
+      "description": "Whether the REPL server is currently running.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "client:connected": {
+      "name": "client:connected",
+      "description": "Event emitted by SocketRepl",
+      "arguments": {}
+    },
+    "client:disconnected": {
+      "name": "client:disconnected",
+      "description": "Event emitted by SocketRepl",
+      "arguments": {}
+    },
+    "eval": {
+      "name": "eval",
+      "description": "Event emitted by SocketRepl",
+      "arguments": {}
+    },
+    "eval:result": {
+      "name": "eval:result",
+      "description": "Event emitted by SocketRepl",
+      "arguments": {}
+    },
+    "eval:error": {
+      "name": "eval:error",
+      "description": "Event emitted by SocketRepl",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const socketRepl = container.feature('socketRepl', { enable: true })\nawait socketRepl.start({ port: 8282, context: { myVar: 42 } })"
+    }
+  ]
+});
+
 setBuildTimeData('features.sqlite', {
   "id": "features.sqlite",
   "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
@@ -26508,6 +26600,97 @@ export const introspectionData = [
         }
       }
     }
+  },
+  {
+    "id": "features.socketRepl",
+    "description": "Socket REPL — a WebSocket-powered interactive read-eval-print loop. Exposes a REPL session over WebSocket so remote clients (browser, other process, terminal UI) can evaluate expressions in a sandboxed VM context populated with the container and its helpers. Each connected client gets its own session tracking but shares the same VM context. Supports tab completion and async/await. Messages use JSON framing: - Client → Server: `{ type: \"eval\", input: \"expression\" }` - Client → Server: `{ type: \"complete\", partial: \"container.fea\" }` - Server → Client: `{ type: \"prompt\", prompt: \"> \" }` - Server → Client: `{ type: \"result\", value: \"...\" }` - Server → Client: `{ type: \"error\", message: \"...\" }` - Server → Client: `{ type: \"completions\", items: [\"feature\", \"features\"], partial: \"fea\" }`",
+    "shortcut": "features.socketRepl",
+    "className": "SocketRepl",
+    "methods": {
+      "start": {
+        "description": "Start the socket REPL server. Creates a VM context populated with the container and its helpers, starts a WebSocket server, and begins accepting REPL connections.",
+        "parameters": {
+          "options": {
+            "type": "{ port?: number, context?: any, historyPath?: string }",
+            "description": "Configuration for the REPL session",
+            "properties": {
+              "port": {
+                "type": "any",
+                "description": "Port to listen on (default: 8282)"
+              },
+              "context": {
+                "type": "any",
+                "description": "Additional variables to inject into the VM context"
+              },
+              "historyPath": {
+                "type": "any",
+                "description": "Custom path for the history file"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const socketRepl = container.feature('socketRepl', { enable: true })\nawait socketRepl.start({\n port: 8282,\n context: { db: myDatabase },\n})"
+          }
+        ]
+      },
+      "stop": {
+        "description": "Stop the socket REPL server and disconnect all clients.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      }
+    },
+    "getters": {
+      "vmContext": {
+        "description": "The VM context object used for evaluating expressions.",
+        "returns": "any"
+      },
+      "isStarted": {
+        "description": "Whether the REPL server is currently running.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "client:connected": {
+        "name": "client:connected",
+        "description": "Event emitted by SocketRepl",
+        "arguments": {}
+      },
+      "client:disconnected": {
+        "name": "client:disconnected",
+        "description": "Event emitted by SocketRepl",
+        "arguments": {}
+      },
+      "eval": {
+        "name": "eval",
+        "description": "Event emitted by SocketRepl",
+        "arguments": {}
+      },
+      "eval:result": {
+        "name": "eval:result",
+        "description": "Event emitted by SocketRepl",
+        "arguments": {}
+      },
+      "eval:error": {
+        "name": "eval:error",
+        "description": "Event emitted by SocketRepl",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const socketRepl = container.feature('socketRepl', { enable: true })\nawait socketRepl.start({ port: 8282, context: { myVar: 42 } })"
+      }
+    ]
   },
   {
     "id": "features.sqlite",

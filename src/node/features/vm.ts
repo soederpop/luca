@@ -165,6 +165,8 @@ export class VM<
       Buffer,
       URL,
       URLSearchParams,
+      AbortController,
+      AbortSignal,
       ...this.container.context,
       ...ctx
     })
@@ -451,6 +453,8 @@ export class VM<
       Buffer,
       URL,
       URLSearchParams,
+      AbortController,
+      AbortSignal,
       fetch,
       ...ctx,
     })

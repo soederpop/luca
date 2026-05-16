@@ -11,3 +11,6 @@ src/cli/bundles/
 tmp/
 *.log
 .contentbase
+docs/
+test/
+test-integration/
