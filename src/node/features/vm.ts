@@ -167,6 +167,13 @@ export class VM<
       URLSearchParams,
       AbortController,
       AbortSignal,
+      FormData,
+      Blob,
+      File,
+      Headers,
+      Request,
+      Response,
+      fetch,
       ...this.container.context,
       ...ctx
     })
@@ -455,6 +462,12 @@ export class VM<
       URLSearchParams,
       AbortController,
       AbortSignal,
+      FormData,
+      Blob,
+      File,
+      Headers,
+      Request,
+      Response,
       fetch,
       ...ctx,
     })

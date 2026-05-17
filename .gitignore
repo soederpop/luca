@@ -62,3 +62,6 @@ src/cli/bundles/
 attempts/
 docs/sessions
 
+# for training a lora on luca philosophy
+datasets/
+

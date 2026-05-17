@@ -223,6 +223,18 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('luca/servers/express', { ExpressServer, default: ExpressServer })
     vm.defineModule('luca/servers/socket', { WebsocketServer, default: WebsocketServer })
 
+    // Legacy package name aliases for backwards compatibility
+    vm.defineModule('@soederpop/luca', lucaExports)
+    vm.defineModule('@soederpop/luca/schemas', schemasModule)
+    vm.defineModule('@soederpop/luca/node', lucaExports)
+    vm.defineModule('@soederpop/luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
+    vm.defineModule('@soederpop/luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
+    vm.defineModule('@soederpop/luca/clients/rest', { RestClient, default: RestClient })
+    vm.defineModule('@soederpop/luca/clients/graph', { GraphClient, default: GraphClient })
+    vm.defineModule('@soederpop/luca/clients/websocket', { WebSocketClient, default: WebSocketClient })
+    vm.defineModule('@soederpop/luca/servers/express', { ExpressServer, default: ExpressServer })
+    vm.defineModule('@soederpop/luca/servers/socket', { WebsocketServer, default: WebsocketServer })
+
     vm.defineModule('zod', { z, default: { z } })
   }
 
