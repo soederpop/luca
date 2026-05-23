@@ -272,6 +272,151 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
     return voice
   }
 
+  // ── Conversations ────────────────────────────────────────────────────────
+
+  /**
+   * List conversations for this assistant. Automatically filters by the
+   * assistant ID stored in state when available, so you only see conversations
+   * that belong to the current deployment.
+   *
+   * @example
+   * ```ts
+   * const convos = await connector.listConversations()
+   * const recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })
+   * ```
+   */
+  async listConversations(query: Record<string, any> = {}) {
+    const client = await this._getClient()
+    const assistantId = this.state.get('telnyxAssistantId')
+    const params: any = { ...query }
+    if (assistantId && !params['metadata->assistant_id']) {
+      params['metadata->assistant_id'] = `eq.${assistantId}`
+    }
+    const resp = await client.ai.conversations.list(params)
+    return resp?.data || resp
+  }
+
+  /**
+   * Retrieve a specific conversation by ID.
+   */
+  async getConversation(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.retrieve(conversationId)
+    return resp?.data || resp
+  }
+
+  /**
+   * List all messages in a conversation, including assistant tool calls.
+   */
+  async getConversationMessages(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.messages.list(conversationId)
+    return resp?.data || resp
+  }
+
+  /**
+   * Retrieve post-call insights for a conversation (summaries, extracted data, etc.).
+   * Insights are generated asynchronously after the call ends — check `status` field.
+   */
+  async getConversationInsights(conversationId: string) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.retrieveConversationsInsights(conversationId)
+    return resp?.data || resp
+  }
+
+  /**
+   * Manually inject a message into a conversation. Useful for adding context
+   * or system messages outside of a live call.
+   */
+  async addConversationMessage(conversationId: string, message: {
+    role: string
+    content?: string
+    name?: string
+    sent_at?: string
+    tool_call_id?: string
+    tool_calls?: Array<Record<string, unknown>>
+  }) {
+    const client = await this._getClient()
+    await client.ai.conversations.addMessage(conversationId, message)
+  }
+
+  /**
+   * Disable AI responses on a conversation so a human agent can take over.
+   * While disabled, calls to the Telnyx chat endpoint return 400. Re-enable
+   * with `handoffToAI()`.
+   *
+   * @example
+   * ```ts
+   * await connector.handoffToHuman(conversationId)
+   * ```
+   */
+  async handoffToHuman(conversationId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.update(conversationId, {
+      metadata: { ai_disabled: 'true' },
+    })
+    this._log(`[telnyx] Conversation ${conversationId} handed off to human (AI disabled)`)
+  }
+
+  /**
+   * Re-enable AI responses on a conversation after a human handoff.
+   */
+  async handoffToAI(conversationId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.update(conversationId, {
+      metadata: { ai_disabled: 'false' },
+    })
+    this._log(`[telnyx] Conversation ${conversationId} handed back to AI`)
+  }
+
+  // ── Insight templates ─────────────────────────────────────────────────────
+
+  /**
+   * Create an insight template — a reusable instruction applied to conversations
+   * to extract structured data (summaries, action items, sentiment, etc.).
+   * Optionally provide a `json_schema` to enforce structured output.
+   *
+   * @example
+   * ```ts
+   * await connector.createInsight({
+   *   name: 'call-summary',
+   *   instructions: 'Summarize this call in 2-3 sentences.',
+   * })
+   * await connector.createInsight({
+   *   name: 'action-items',
+   *   instructions: 'Extract any action items promised during the call.',
+   *   json_schema: { type: 'array', items: { type: 'string' } },
+   * })
+   * ```
+   */
+  async createInsight(params: { name: string; instructions: string; json_schema?: unknown; webhook?: string }) {
+    const client = await this._getClient()
+    const resp = await client.ai.conversations.insights.create(params as any)
+    return resp?.data || resp
+  }
+
+  /**
+   * List all insight templates on the account.
+   */
+  async listInsights() {
+    const client = await this._getClient()
+    const results: any[] = []
+    for await (const insight of client.ai.conversations.insights.list()) {
+      results.push(insight)
+    }
+    return results
+  }
+
+  /**
+   * Delete an insight template by ID.
+   */
+  async deleteInsight(insightId: string) {
+    const client = await this._getClient()
+    await client.ai.conversations.insights.delete(insightId)
+  }
+
+  // ── Phone numbers ─────────────────────────────────────────────────────────
+
   /**
    * List all phone numbers on the Telnyx account with their status and connection info.
    */
