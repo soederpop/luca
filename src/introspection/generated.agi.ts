@@ -3673,6 +3673,230 @@ setBuildTimeData('features.browserUse', {
   }
 });
 
+setBuildTimeData('features.cipherSocial', {
+  "id": "features.cipherSocial",
+  "description": "Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network. Each agent gets a persistent X25519 identity. Messages are encrypted using Cipher's GossipEnvelope/SealedBox format (ephemeral X25519 ECDH + XChaCha20-Poly1305), fully compatible with the Cipher desktop app.",
+  "shortcut": "features.cipherSocial",
+  "className": "CipherSocialFeature",
+  "methods": {
+    "connect": {
+      "description": "Connect to the Cipher gossip mesh. Generates identity on first run.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "send": {
+      "description": "Send an encrypted message to a specific agent by their X25519 public key. The payload can be any JSON-serializable value.",
+      "parameters": {
+        "recipientPublicKey": {
+          "type": "string",
+          "description": "Parameter recipientPublicKey"
+        },
+        "payload": {
+          "type": "any",
+          "description": "Parameter payload"
+        }
+      },
+      "required": [
+        "recipientPublicKey",
+        "payload"
+      ],
+      "returns": "Promise<void>"
+    },
+    "announcePresence": {
+      "description": "Broadcast presence so other agents learn your public key and name.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "disconnect": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "storeFile": {
+      "description": "Store a file as an Iroh blob. Returns a BlobMeta object that you can include in a message so the recipient can fetch the file.",
+      "parameters": {
+        "filePath": {
+          "type": "string",
+          "description": "Path to the file (relative to container.cwd)"
+        }
+      },
+      "required": [
+        "filePath"
+      ],
+      "returns": "Promise<BlobMeta>"
+    },
+    "storeBytes": {
+      "description": "Store raw bytes as an Iroh blob. Useful for in-memory data like generated images, JSON exports, etc.",
+      "parameters": {
+        "data": {
+          "type": "Buffer | Uint8Array",
+          "description": "Buffer or Uint8Array to store"
+        },
+        "filename": {
+          "type": "any",
+          "description": "Optional logical filename to include in the metadata"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "returns": "Promise<BlobMeta>"
+    },
+    "fetchBlob": {
+      "description": "Fetch a blob from a peer and return its contents as a Buffer.",
+      "parameters": {
+        "hash": {
+          "type": "string",
+          "description": "Blob hash from the message payload"
+        },
+        "senderNodeAddr": {
+          "type": "NodeAddr",
+          "description": "NodeAddr of the sender (from the message payload)"
+        }
+      },
+      "required": [
+        "hash",
+        "senderNodeAddr"
+      ],
+      "returns": "Promise<Buffer>"
+    },
+    "fetchBlobToFile": {
+      "description": "Fetch a blob from a peer and save it to disk.",
+      "parameters": {
+        "hash": {
+          "type": "string",
+          "description": "Blob hash from the message payload"
+        },
+        "senderNodeAddr": {
+          "type": "NodeAddr",
+          "description": "NodeAddr of the sender"
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "Where to save the file (relative to container.cwd)"
+        }
+      },
+      "required": [
+        "hash",
+        "senderNodeAddr",
+        "outputPath"
+      ],
+      "returns": "Promise<void>"
+    },
+    "sendFile": {
+      "description": "Send a file to a recipient. Stores the file as a blob then sends the hash and node address so they can fetch it directly.",
+      "parameters": {
+        "recipientPublicKey": {
+          "type": "string",
+          "description": "Recipient's X25519 public key (base64)"
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Path to the file (relative to container.cwd)"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Optional text caption"
+        }
+      },
+      "required": [
+        "recipientPublicKey",
+        "filePath"
+      ],
+      "returns": "Promise<void>"
+    },
+    "loadIdentity": {
+      "description": "Load or generate the keypair without starting the Iroh node. Useful for printing identity without joining the network.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "publicKey": {
+      "description": "",
+      "returns": "string | undefined"
+    },
+    "nodeId": {
+      "description": "",
+      "returns": "string | undefined"
+    },
+    "nodeAddrJson": {
+      "description": "Full NodeAddr JSON — pass this to other agents via --bootstrap-addr for immediate connectivity",
+      "returns": "string | undefined"
+    },
+    "knownPeers": {
+      "description": "",
+      "returns": "Map<string, { name: string; nodeId?: string }>"
+    },
+    "dataDir": {
+      "description": "",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "error": {
+      "name": "error",
+      "description": "Event emitted by CipherSocialFeature",
+      "arguments": {}
+    },
+    "connected": {
+      "name": "connected",
+      "description": "Event emitted by CipherSocialFeature",
+      "arguments": {}
+    },
+    "presence": {
+      "name": "presence",
+      "description": "Event emitted by CipherSocialFeature",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
+      "description": "Event emitted by CipherSocialFeature",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const cipher = container.feature('cipher', { name: 'planner-agent' })\nawait cipher.connect()\nconsole.log('My public key:', cipher.publicKey)\n\ncipher.on('message', ({ from, payload }) => {\n console.log('Message from', from.slice(0, 8), payload)\n})\n\nawait cipher.send(recipientPublicKey, { type: 'task', data: { ... } })"
+    }
+  ],
+  "types": {
+    "BlobMeta": {
+      "description": "",
+      "properties": {
+        "hash": {
+          "type": "string",
+          "description": ""
+        },
+        "format": {
+          "type": "string",
+          "description": ""
+        },
+        "size": {
+          "type": "number",
+          "description": ""
+        },
+        "filename": {
+          "type": "string",
+          "description": ""
+        },
+        "nodeAddr": {
+          "type": "NodeAddr",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.claudeCode', {
   "id": "features.claudeCode",
   "description": "Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.",
@@ -24764,6 +24988,229 @@ export const introspectionData = [
           },
           "data": {
             "type": "Record<string, any>",
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.cipherSocial",
+    "description": "Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network. Each agent gets a persistent X25519 identity. Messages are encrypted using Cipher's GossipEnvelope/SealedBox format (ephemeral X25519 ECDH + XChaCha20-Poly1305), fully compatible with the Cipher desktop app.",
+    "shortcut": "features.cipherSocial",
+    "className": "CipherSocialFeature",
+    "methods": {
+      "connect": {
+        "description": "Connect to the Cipher gossip mesh. Generates identity on first run.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "send": {
+        "description": "Send an encrypted message to a specific agent by their X25519 public key. The payload can be any JSON-serializable value.",
+        "parameters": {
+          "recipientPublicKey": {
+            "type": "string",
+            "description": "Parameter recipientPublicKey"
+          },
+          "payload": {
+            "type": "any",
+            "description": "Parameter payload"
+          }
+        },
+        "required": [
+          "recipientPublicKey",
+          "payload"
+        ],
+        "returns": "Promise<void>"
+      },
+      "announcePresence": {
+        "description": "Broadcast presence so other agents learn your public key and name.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "disconnect": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "storeFile": {
+        "description": "Store a file as an Iroh blob. Returns a BlobMeta object that you can include in a message so the recipient can fetch the file.",
+        "parameters": {
+          "filePath": {
+            "type": "string",
+            "description": "Path to the file (relative to container.cwd)"
+          }
+        },
+        "required": [
+          "filePath"
+        ],
+        "returns": "Promise<BlobMeta>"
+      },
+      "storeBytes": {
+        "description": "Store raw bytes as an Iroh blob. Useful for in-memory data like generated images, JSON exports, etc.",
+        "parameters": {
+          "data": {
+            "type": "Buffer | Uint8Array",
+            "description": "Buffer or Uint8Array to store"
+          },
+          "filename": {
+            "type": "any",
+            "description": "Optional logical filename to include in the metadata"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "returns": "Promise<BlobMeta>"
+      },
+      "fetchBlob": {
+        "description": "Fetch a blob from a peer and return its contents as a Buffer.",
+        "parameters": {
+          "hash": {
+            "type": "string",
+            "description": "Blob hash from the message payload"
+          },
+          "senderNodeAddr": {
+            "type": "NodeAddr",
+            "description": "NodeAddr of the sender (from the message payload)"
+          }
+        },
+        "required": [
+          "hash",
+          "senderNodeAddr"
+        ],
+        "returns": "Promise<Buffer>"
+      },
+      "fetchBlobToFile": {
+        "description": "Fetch a blob from a peer and save it to disk.",
+        "parameters": {
+          "hash": {
+            "type": "string",
+            "description": "Blob hash from the message payload"
+          },
+          "senderNodeAddr": {
+            "type": "NodeAddr",
+            "description": "NodeAddr of the sender"
+          },
+          "outputPath": {
+            "type": "string",
+            "description": "Where to save the file (relative to container.cwd)"
+          }
+        },
+        "required": [
+          "hash",
+          "senderNodeAddr",
+          "outputPath"
+        ],
+        "returns": "Promise<void>"
+      },
+      "sendFile": {
+        "description": "Send a file to a recipient. Stores the file as a blob then sends the hash and node address so they can fetch it directly.",
+        "parameters": {
+          "recipientPublicKey": {
+            "type": "string",
+            "description": "Recipient's X25519 public key (base64)"
+          },
+          "filePath": {
+            "type": "string",
+            "description": "Path to the file (relative to container.cwd)"
+          },
+          "caption": {
+            "type": "string",
+            "description": "Optional text caption"
+          }
+        },
+        "required": [
+          "recipientPublicKey",
+          "filePath"
+        ],
+        "returns": "Promise<void>"
+      },
+      "loadIdentity": {
+        "description": "Load or generate the keypair without starting the Iroh node. Useful for printing identity without joining the network.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "publicKey": {
+        "description": "",
+        "returns": "string | undefined"
+      },
+      "nodeId": {
+        "description": "",
+        "returns": "string | undefined"
+      },
+      "nodeAddrJson": {
+        "description": "Full NodeAddr JSON — pass this to other agents via --bootstrap-addr for immediate connectivity",
+        "returns": "string | undefined"
+      },
+      "knownPeers": {
+        "description": "",
+        "returns": "Map<string, { name: string; nodeId?: string }>"
+      },
+      "dataDir": {
+        "description": "",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "error": {
+        "name": "error",
+        "description": "Event emitted by CipherSocialFeature",
+        "arguments": {}
+      },
+      "connected": {
+        "name": "connected",
+        "description": "Event emitted by CipherSocialFeature",
+        "arguments": {}
+      },
+      "presence": {
+        "name": "presence",
+        "description": "Event emitted by CipherSocialFeature",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
+        "description": "Event emitted by CipherSocialFeature",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const cipher = container.feature('cipher', { name: 'planner-agent' })\nawait cipher.connect()\nconsole.log('My public key:', cipher.publicKey)\n\ncipher.on('message', ({ from, payload }) => {\n console.log('Message from', from.slice(0, 8), payload)\n})\n\nawait cipher.send(recipientPublicKey, { type: 'task', data: { ... } })"
+      }
+    ],
+    "types": {
+      "BlobMeta": {
+        "description": "",
+        "properties": {
+          "hash": {
+            "type": "string",
+            "description": ""
+          },
+          "format": {
+            "type": "string",
+            "description": ""
+          },
+          "size": {
+            "type": "number",
+            "description": ""
+          },
+          "filename": {
+            "type": "string",
+            "description": ""
+          },
+          "nodeAddr": {
+            "type": "NodeAddr",
             "description": ""
           }
         }
