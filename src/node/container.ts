@@ -66,6 +66,7 @@ import "./features/dns";
 import "./features/redis";
 import "./features/socket-repl";
 import "./features/telnyx-assistant-connector";
+import "./features/cipher-social";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -112,6 +113,7 @@ import type { Dns } from './features/dns';
 import type { Redis } from './features/redis';
 import type { SocketRepl } from './features/socket-repl';
 import type { TelnyxAssistantConnector } from './features/telnyx-assistant-connector';
+import type { CipherSocialFeature } from './features/cipher-social';
 export { State };
 
 export {
@@ -153,6 +155,7 @@ export {
   type Redis,
   type SocketRepl,
   type TelnyxAssistantConnector,
+  type CipherSocialFeature,
   type Transpiler,
 };
 
@@ -221,6 +224,7 @@ export interface NodeFeatures extends AvailableFeatures {
   redis: typeof Redis;
   socketRepl: typeof SocketRepl;
   telnyxAssistantConnector: typeof TelnyxAssistantConnector;
+  cipherSocial: typeof CipherSocialFeature;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;
