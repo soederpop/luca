@@ -5,7 +5,16 @@ import { x25519 } from '@noble/curves/ed25519.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { blake3 } from '@noble/hashes/blake3.js'
 import { randomBytes } from '@noble/hashes/utils.js'
-import { Iroh } from '@number0/iroh'
+import { Iroh, SetTagOption, BlobDownloadOptions } from '@number0/iroh'
+import type { NodeAddr } from '@number0/iroh'
+
+export interface BlobMeta {
+  hash: string
+  format: string
+  size: number
+  filename: string
+  nodeAddr: NodeAddr
+}
 
 // Blake3 of 'cipher/content/v1' — matches Cipher's topic_to_id() Rust implementation
 const CIPHER_TOPIC_BYTES = Array.from(blake3(new TextEncoder().encode('cipher/content/v1')))
@@ -224,6 +233,114 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
 
   get knownPeers(): Map<string, { name: string; nodeId?: string }> {
     return this._knownPeers
+  }
+
+  /**
+   * Store a file as an Iroh blob. Returns a BlobMeta object that you can
+   * include in a message so the recipient can fetch the file.
+   * @param filePath Path to the file (relative to container.cwd)
+   */
+  async storeFile(filePath: string): Promise<BlobMeta> {
+    if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const absolutePath = this.container.paths.resolve(filePath)
+    const filename = absolutePath.split('/').pop() ?? filePath
+
+    const hash = await new Promise<string>((resolve, reject) => {
+      this._iroh!.blobs.addFromPath(
+        absolutePath,
+        true,
+        SetTagOption.auto(),
+        { wrap: false },
+        (err: Error | null, progress: any) => {
+          if (err) return reject(err)
+          if (progress.allDone) resolve(progress.allDone.hash)
+        }
+      )
+    })
+
+    const size = Number(await this._iroh.blobs.size(hash))
+    const nodeAddr = await this._iroh.net.nodeAddr()
+
+    return { hash, format: 'Raw', size, filename, nodeAddr }
+  }
+
+  /**
+   * Store raw bytes as an Iroh blob. Useful for in-memory data like
+   * generated images, JSON exports, etc.
+   * @param data Buffer or Uint8Array to store
+   * @param filename Optional logical filename to include in the metadata
+   */
+  async storeBytes(data: Buffer | Uint8Array, filename = 'blob'): Promise<BlobMeta> {
+    if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const outcome = await this._iroh.blobs.addBytes(Array.from(data))
+    const size = Number(await this._iroh.blobs.size(outcome.hash))
+    const nodeAddr = await this._iroh.net.nodeAddr()
+    return { hash: outcome.hash, format: outcome.format, size, filename, nodeAddr }
+  }
+
+  /**
+   * Fetch a blob from a peer and return its contents as a Buffer.
+   * @param hash Blob hash from the message payload
+   * @param senderNodeAddr NodeAddr of the sender (from the message payload)
+   */
+  async fetchBlob(hash: string, senderNodeAddr: NodeAddr): Promise<Buffer> {
+    if (!this._iroh) throw new Error('Not connected — call connect() first')
+    await this._iroh.net.addNodeAddr(senderNodeAddr)
+    const opts = new BlobDownloadOptions('Raw', [senderNodeAddr], SetTagOption.auto())
+
+    await new Promise<void>((resolve, reject) => {
+      this._iroh!.blobs.download(hash, opts, (err: Error | null, progress: any) => {
+        if (err) return reject(err)
+        if (progress.allDone) resolve()
+      })
+    })
+
+    return Buffer.from(await this._iroh.blobs.readToBytes(hash))
+  }
+
+  /**
+   * Fetch a blob from a peer and save it to disk.
+   * @param hash Blob hash from the message payload
+   * @param senderNodeAddr NodeAddr of the sender
+   * @param outputPath Where to save the file (relative to container.cwd)
+   */
+  async fetchBlobToFile(hash: string, senderNodeAddr: NodeAddr, outputPath: string): Promise<void> {
+    if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const absolutePath = this.container.paths.resolve(outputPath)
+    const dir = absolutePath.split('/').slice(0, -1).join('/')
+    this.fs.ensureFolder(dir)
+
+    await this._iroh.net.addNodeAddr(senderNodeAddr)
+    const opts = new BlobDownloadOptions('Raw', [senderNodeAddr], SetTagOption.auto())
+
+    await new Promise<void>((resolve, reject) => {
+      this._iroh!.blobs.download(hash, opts, (err: Error | null, progress: any) => {
+        if (err) return reject(err)
+        if (progress.allDone) resolve()
+      })
+    })
+
+    await this._iroh.blobs.writeToPath(hash, absolutePath)
+  }
+
+  /**
+   * Send a file to a recipient. Stores the file as a blob then sends
+   * the hash and node address so they can fetch it directly.
+   * @param recipientPublicKey Recipient's X25519 public key (base64)
+   * @param filePath Path to the file (relative to container.cwd)
+   * @param caption Optional text caption
+   */
+  async sendFile(recipientPublicKey: string, filePath: string, caption?: string): Promise<void> {
+    const blob = await this.storeFile(filePath)
+    await this.send(recipientPublicKey, {
+      type: 'file',
+      filename: blob.filename,
+      blobHash: blob.hash,
+      blobFormat: blob.format,
+      blobNodeAddr: blob.nodeAddr,
+      size: blob.size,
+      caption: caption ?? null,
+    })
   }
 
   /**
