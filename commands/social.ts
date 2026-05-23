@@ -85,8 +85,8 @@ export async function social(options: z.infer<typeof argsSchema>, context: Conta
 
     await agent.send(recipientKey, { type: 'text', text: message })
 
-    // Brief wait for gossip broadcast to propagate
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Wait for gossip broadcast to propagate
+    await new Promise(resolve => setTimeout(resolve, 3000))
     await agent.disconnect()
     ui.print('Sent.')
     return

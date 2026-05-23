@@ -122,6 +122,13 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
       }
     }
 
+    // When bootstrapping, wait for the joined event before considering the mesh ready.
+    // Without this, broadcast() fires before the gossip connection is established.
+    let meshReady: (() => void) | null = null
+    const meshJoined = bootstrapNodeIds.length > 0
+      ? new Promise<void>(resolve => { meshReady = resolve })
+      : Promise.resolve()
+
     this._sender = await this._iroh.gossip.subscribe(
       CIPHER_TOPIC_BYTES,
       bootstrapNodeIds,
@@ -130,11 +137,21 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
           this.emit('error', error.message)
           return
         }
+        if (event.joined && meshReady) {
+          meshReady()
+          meshReady = null
+        }
         if (event.received) {
           this.handleIncoming(event.received)
         }
       }
     )
+
+    // Wait for mesh to be ready (or 8s timeout to avoid hanging forever)
+    await Promise.race([
+      meshJoined,
+      new Promise<void>(resolve => setTimeout(resolve, 8000)),
+    ])
 
     const publicKey = Buffer.from(this._publicKey!).toString('base64')
     this.setState({ connected: true, nodeId, nodeAddr: JSON.stringify(nodeAddr), publicKey })
