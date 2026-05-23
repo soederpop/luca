@@ -16,8 +16,8 @@ export interface BlobMeta {
   nodeAddr: NodeAddr
 }
 
-// Blake3 of 'cipher/content/v1' — matches Cipher's topic_to_id() Rust implementation
-const CIPHER_TOPIC_BYTES = Array.from(blake3(new TextEncoder().encode('cipher/content/v1')))
+// Default topic — matches Cipher's public topic_to_id() Rust implementation
+const DEFAULT_TOPIC_BYTES = Array.from(blake3(new TextEncoder().encode('cipher/content/v1')))
 
 declare module 'luca' {
   interface AvailableFeatures {
@@ -36,6 +36,13 @@ export const CipherOptionsSchema = FeatureOptionsSchema.extend({
    * Get this from another agent's `nodeAddr` state field.
    */
   bootstrapAddrs: z.array(z.string()).default([]).describe('JSON-encoded Iroh NodeAddr objects for bootstrap'),
+  /**
+   * Private mesh identifier. All agents sharing this value subscribe to the same
+   * derived gossip topic and are invisible to agents on different meshes.
+   * Defaults to the public Cipher topic — omit only if you want interop with
+   * the Cipher desktop app.
+   */
+  meshId: z.string().optional().describe('Private mesh ID — derives a closed gossip topic'),
 })
 export type CipherOptions = z.infer<typeof CipherOptionsSchema>
 
@@ -102,6 +109,13 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
   private get fs() { return this.container.feature('fs') }
   private get os() { return this.container.feature('os') as any }
 
+  private get topicBytes(): number[] {
+    if (this.options.meshId) {
+      return Array.from(blake3(new TextEncoder().encode(`luca/mesh/v1/${this.options.meshId}`)))
+    }
+    return DEFAULT_TOPIC_BYTES
+  }
+
   private get identityPath(): string {
     return this.container.paths.resolve(this.dataDir, 'identity.json')
   }
@@ -139,7 +153,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
       : Promise.resolve()
 
     this._sender = await this._iroh.gossip.subscribe(
-      CIPHER_TOPIC_BYTES,
+      this.topicBytes,
       bootstrapNodeIds,
       (error: Error | null, event: any) => {
         if (error) {

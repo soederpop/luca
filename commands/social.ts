@@ -6,6 +6,7 @@ export const argsSchema = CommandOptionsSchema.extend({
   name: z.string().default('luca-agent').describe('Agent name / identity to use'),
   bootstrap: z.string().optional().describe('JSON NodeAddr from another agent — enables immediate gossip connectivity'),
   file: z.string().optional().describe('Path to a file to send as a blob attachment'),
+  mesh: z.string().optional().describe('Private mesh ID — all agents must use the same value to communicate'),
   subcommand: z.string().optional().describe('Subcommand: whoami | listen | send'),
   arg1: z.string().optional().describe('First positional argument'),
   arg2: z.string().optional().describe('Second positional argument'),
@@ -15,11 +16,14 @@ export const positionals = ['subcommand', 'arg1', 'arg2']
 
 const USAGE = `
 Usage:
-  luca social whoami [--name <name>]                                  Print this agent's identity
-  luca social listen [--name <name>]                                  Join the mesh and print incoming messages
-  luca social send <pubkey> <msg> [--name <name>]                     Send an encrypted message
-  luca social send <pubkey> --file <path> [--name <name>]             Send a file
-  luca social send <pubkey> --file <path> <caption> [--name <name>]   Send a file with caption
+  luca social whoami [--name <name>] [--mesh <id>]                                  Print this agent's identity
+  luca social listen [--name <name>] [--mesh <id>]                                  Join the mesh and print incoming messages
+  luca social send <pubkey> <msg> [--name <name>] [--mesh <id>]                     Send an encrypted message
+  luca social send <pubkey> --file <path> [--name <name>] [--mesh <id>]             Send a file
+  luca social send <pubkey> --file <path> <caption> [--name <name>] [--mesh <id>]   Send a file with caption
+
+  --mesh <id>   Private mesh ID. All agents must use the same value.
+                Omit to use the public Cipher topic (interop with Cipher desktop app).
 `.trim()
 
 export async function social(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -34,7 +38,7 @@ export async function social(options: z.infer<typeof argsSchema>, context: Conta
 
   await container.helpers.discoverAll()
   const bootstrapAddrs = options.bootstrap ? [options.bootstrap] : []
-  const agent = container.feature('cipherSocial', { name: options.name, bootstrapAddrs })
+  const agent = container.feature('cipherSocial', { name: options.name, bootstrapAddrs, meshId: options.mesh })
 
   if (subcommand === 'whoami') {
     await agent.loadIdentity()
