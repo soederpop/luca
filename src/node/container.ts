@@ -65,7 +65,7 @@ import "./features/semantic-search";
 import "./features/dns";
 import "./features/redis";
 import "./features/socket-repl";
-import "./features/telnyx-connector";
+import "./features/telnyx-assistant-connector";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
@@ -111,7 +111,7 @@ import type { SemanticSearch } from './features/semantic-search';
 import type { Dns } from './features/dns';
 import type { Redis } from './features/redis';
 import type { SocketRepl } from './features/socket-repl';
-import type { TelnyxConnector } from './features/telnyx-connector';
+import type { TelnyxAssistantConnector } from './features/telnyx-assistant-connector';
 export { State };
 
 export {
@@ -152,7 +152,7 @@ export {
   type Dns,
   type Redis,
   type SocketRepl,
-  type TelnyxConnector,
+  type TelnyxAssistantConnector,
   type Transpiler,
 };
 
@@ -220,7 +220,7 @@ export interface NodeFeatures extends AvailableFeatures {
   dns: typeof Dns;
   redis: typeof Redis;
   socketRepl: typeof SocketRepl;
-  telnyxConnector: typeof TelnyxConnector;
+  telnyxAssistantConnector: typeof TelnyxAssistantConnector;
 }
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;

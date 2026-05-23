@@ -2,16 +2,16 @@ import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
 import { Feature } from '../feature.js'
 
-export const TelnyxConnectorStateSchema = FeatureStateSchema.extend({
+export const TelnyxAssistantConnectorStateSchema = FeatureStateSchema.extend({
   publicUrl: z.string().optional().describe('The public URL for tool webhooks (tunnel or pre-configured domain)'),
   telnyxAssistantId: z.string().optional().describe('The Telnyx assistant ID created for this session'),
   phoneNumberId: z.string().optional().describe('The Telnyx phone number ID wired to the assistant'),
   port: z.number().optional().describe('The port the express server is listening on'),
   running: z.boolean().default(false).describe('Whether the connector is actively running'),
 })
-export type TelnyxConnectorState = z.infer<typeof TelnyxConnectorStateSchema>
+export type TelnyxConnectorState = z.infer<typeof TelnyxAssistantConnectorStateSchema>
 
-export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
+export const TelnyxAssistantConnectorOptionsSchema = FeatureOptionsSchema.extend({
   assistant: z.any().describe('The Luca assistant instance to bridge to Telnyx'),
   port: z.number().default(4567).describe('Port for the local express server'),
   model: z.string().default('meta-llama/Meta-Llama-3.1-70B-Instruct').describe('Telnyx model ID'),
@@ -24,9 +24,9 @@ export const TelnyxConnectorOptionsSchema = FeatureOptionsSchema.extend({
   ttsProvider: z.string().optional().describe('TTS provider: "telnyx" (default) or "elevenlabs"'),
   apiKeyRef: z.string().optional().describe('Integration secret identifier for the TTS provider API key (required for ElevenLabs)'),
 })
-export type TelnyxConnectorOptions = z.infer<typeof TelnyxConnectorOptionsSchema>
+export type TelnyxConnectorOptions = z.infer<typeof TelnyxAssistantConnectorOptionsSchema>
 
-export const TelnyxConnectorEventsSchema = FeatureEventsSchema.extend({
+export const TelnyxAssistantConnectorEventsSchema = FeatureEventsSchema.extend({
   started: z.tuple([z.object({
     publicUrl: z.string(),
     telnyxAssistantId: z.string(),
@@ -45,18 +45,18 @@ export const TelnyxConnectorEventsSchema = FeatureEventsSchema.extend({
  * ```typescript
  * const mgr = container.feature('assistantsManager')
  * const chief = mgr.create('chiefOfStaff')
- * const connector = container.feature('telnyxConnector', { assistant: chief })
+ * const connector = container.feature('telnyxAssistantConnector', { assistant: chief })
  * await connector.start()
  * ```
  *
  * @extends Feature
  */
-export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
-  static override shortcut = 'features.telnyxConnector' as const
-  static override stateSchema = TelnyxConnectorStateSchema
-  static override optionsSchema = TelnyxConnectorOptionsSchema
-  static override eventsSchema = TelnyxConnectorEventsSchema
-  static { Feature.register(this, 'telnyxConnector') }
+export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
+  static override shortcut = 'features.telnyxAssistantConnector' as const
+  static override stateSchema = TelnyxAssistantConnectorStateSchema
+  static override optionsSchema = TelnyxAssistantConnectorOptionsSchema
+  static override eventsSchema = TelnyxAssistantConnectorEventsSchema
+  static { Feature.register(this, 'telnyxAssistantConnector') }
 
   private _log(...args: any[]) {
     if (this.options.debug) console.log(...args)
@@ -1058,4 +1058,4 @@ export class TelnyxConnector extends Feature<TelnyxConnectorState, TelnyxConnect
   }
 }
 
-export default TelnyxConnector
+export default TelnyxAssistantConnector
