@@ -12545,6 +12545,390 @@ setBuildTimeData('features.telegram', {
   ]
 });
 
+setBuildTimeData('features.telnyxAssistantConnector', {
+  "id": "features.telnyxAssistantConnector",
+  "description": "Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings.",
+  "shortcut": "features.telnyxAssistantConnector",
+  "className": "TelnyxAssistantConnector",
+  "methods": {
+    "listMessagingProfiles": {
+      "description": "List all messaging profiles on the account.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getMessagingProfile": {
+      "description": "Get full details of a messaging profile by ID.",
+      "parameters": {
+        "profileId": {
+          "type": "string",
+          "description": "Parameter profileId"
+        }
+      },
+      "required": [
+        "profileId"
+      ],
+      "returns": "void"
+    },
+    "listAssistants": {
+      "description": "List all AI assistants on the account.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getAssistant": {
+      "description": "Get full details of a Telnyx AI assistant by ID.",
+      "parameters": {
+        "assistantId": {
+          "type": "string",
+          "description": "Parameter assistantId"
+        }
+      },
+      "required": [
+        "assistantId"
+      ],
+      "returns": "void"
+    },
+    "listVoices": {
+      "description": "List voices available to your Telnyx account. Optionally pass an integration secret ref for ElevenLabs — Telnyx will then include your personal ElevenLabs voices in the response.",
+      "parameters": {
+        "opts": {
+          "type": "{ provider?: string; apiKeyRef?: string; filter?: string }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.listVoices()                               // Telnyx defaults\nawait connector.listVoices({ provider: 'ElevenLabs',       // your custom voices\n                            apiKeyRef: 'elevenlabs_api_key' })"
+        }
+      ]
+    },
+    "updateAssistantVoice": {
+      "description": "Patch voice_settings on an existing Telnyx AI assistant. Useful for iterating on the voice string without redeploying.",
+      "parameters": {
+        "assistantId": {
+          "type": "string",
+          "description": "Parameter assistantId"
+        },
+        "voiceSettings": {
+          "type": "any",
+          "description": "Parameter voiceSettings"
+        }
+      },
+      "required": [
+        "assistantId",
+        "voiceSettings"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.updateAssistantVoice('assistant-abc', {\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n api_key_ref: 'elevenlabs_api_key',\n voice_speed: 1.05,\n})"
+        }
+      ]
+    },
+    "testVoice": {
+      "description": "Try a voice_settings object on the standalone TTS command endpoint and save the MP3 locally so you can listen. Fastest way to confirm a voice string is valid without deploying an assistant.",
+      "parameters": {
+        "opts": {
+          "type": "{ voice: string; apiKeyRef?: string; text: string; outputPath?: string; voiceSettings?: any }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "opts"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.testVoice({\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n apiKeyRef: 'elevenlabs_api_key',\n text: 'Top of the morning.',\n outputPath: 'docs/calls/voice-test.mp3',\n})"
+        }
+      ]
+    },
+    "inspectVoice": {
+      "description": "Pretty-print the voice-related config of an assistant. Shows the raw voice_settings that Telnyx has stored, so you can compare against what the UI displays.",
+      "parameters": {
+        "assistantId": {
+          "type": "string",
+          "description": "Parameter assistantId"
+        }
+      },
+      "required": [
+        "assistantId"
+      ],
+      "returns": "void"
+    },
+    "listConversations": {
+      "description": "List conversations for this assistant. Automatically filters by the assistant ID stored in state when available, so you only see conversations that belong to the current deployment.",
+      "parameters": {
+        "query": {
+          "type": "Record<string, any>",
+          "description": "Parameter query"
+        }
+      },
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const convos = await connector.listConversations()\nconst recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })"
+        }
+      ]
+    },
+    "getConversation": {
+      "description": "Retrieve a specific conversation by ID.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getConversationMessages": {
+      "description": "List all messages in a conversation, including assistant tool calls.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "getConversationInsights": {
+      "description": "Retrieve post-call insights for a conversation (summaries, extracted data, etc.). Insights are generated asynchronously after the call ends — check `status` field.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "addConversationMessage": {
+      "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        },
+        "message": {
+          "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
+          "description": "Parameter message"
+        }
+      },
+      "required": [
+        "conversationId",
+        "message"
+      ],
+      "returns": "void"
+    },
+    "handoffToHuman": {
+      "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.handoffToHuman(conversationId)"
+        }
+      ]
+    },
+    "handoffToAI": {
+      "description": "Re-enable AI responses on a conversation after a human handoff.",
+      "parameters": {
+        "conversationId": {
+          "type": "string",
+          "description": "Parameter conversationId"
+        }
+      },
+      "required": [
+        "conversationId"
+      ],
+      "returns": "void"
+    },
+    "createInsight": {
+      "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
+      "parameters": {
+        "params": {
+          "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
+          "description": "Parameter params"
+        }
+      },
+      "required": [
+        "params"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.createInsight({\n name: 'call-summary',\n instructions: 'Summarize this call in 2-3 sentences.',\n})\nawait connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
+        }
+      ]
+    },
+    "listInsights": {
+      "description": "List all insight templates on the account.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "deleteInsight": {
+      "description": "Delete an insight template by ID.",
+      "parameters": {
+        "insightId": {
+          "type": "string",
+          "description": "Parameter insightId"
+        }
+      },
+      "required": [
+        "insightId"
+      ],
+      "returns": "void"
+    },
+    "listPhoneNumbers": {
+      "description": "List all phone numbers on the Telnyx account with their status and connection info.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "getPhoneNumber": {
+      "description": "Get the phone number record (voice + messaging config) for an E.164 number.",
+      "parameters": {
+        "phoneNumber": {
+          "type": "string",
+          "description": "Parameter phoneNumber"
+        }
+      },
+      "required": [
+        "phoneNumber"
+      ],
+      "returns": "void"
+    },
+    "getTexmlApp": {
+      "description": "Get a TeXML application by ID.",
+      "parameters": {
+        "appId": {
+          "type": "string",
+          "description": "Parameter appId"
+        }
+      },
+      "required": [
+        "appId"
+      ],
+      "returns": "void"
+    },
+    "listTexmlApps": {
+      "description": "List all TeXML applications on the account.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "deleteAllTexmlApps": {
+      "description": "Delete all TeXML applications on the account. Returns a summary of what was deleted and any failures.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "inspect": {
+      "description": "Inspect the full live config: the current assistant, its messaging profile, the phone number wiring, and the TeXML app. Pass a phone number to include phone config, or omit to just show assistant + profile.",
+      "parameters": {
+        "phoneNumber": {
+          "type": "string",
+          "description": "Parameter phoneNumber"
+        }
+      },
+      "required": [],
+      "returns": "void"
+    },
+    "start": {
+      "description": "Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant, and optionally wire a phone number to it.",
+      "parameters": {},
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const info = await connector.start()\nconsole.log(info.publicUrl, info.telnyxAssistantId)"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop the connector: restore the phone number's previous connection, delete the Telnyx assistant, kill tunnel (if ephemeral), stop the server.",
+      "parameters": {},
+      "required": [],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await connector.stop()"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "assistant": {
+      "description": "",
+      "returns": "any"
+    },
+    "assistantName": {
+      "description": "Canonical name derived from the assistant folder (e.g. `receptionist`), used for both the Telnyx assistant and its messaging profile.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "started": {
+      "name": "started",
+      "description": "Event emitted by TelnyxAssistantConnector",
+      "arguments": {}
+    },
+    "stopped": {
+      "name": "stopped",
+      "description": "Event emitted by TelnyxAssistantConnector",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by TelnyxAssistantConnector",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by TelnyxAssistantConnector",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxAssistantConnector', { assistant: chief })\nawait connector.start()"
+    }
+  ]
+});
+
 setBuildTimeData('features.transpiler', {
   "id": "features.transpiler",
   "description": "Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. Compile code strings on the fly without touching the filesystem or spawning external processes.",
@@ -27000,6 +27384,389 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
+      }
+    ]
+  },
+  {
+    "id": "features.telnyxAssistantConnector",
+    "description": "Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings.",
+    "shortcut": "features.telnyxAssistantConnector",
+    "className": "TelnyxAssistantConnector",
+    "methods": {
+      "listMessagingProfiles": {
+        "description": "List all messaging profiles on the account.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getMessagingProfile": {
+        "description": "Get full details of a messaging profile by ID.",
+        "parameters": {
+          "profileId": {
+            "type": "string",
+            "description": "Parameter profileId"
+          }
+        },
+        "required": [
+          "profileId"
+        ],
+        "returns": "void"
+      },
+      "listAssistants": {
+        "description": "List all AI assistants on the account.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getAssistant": {
+        "description": "Get full details of a Telnyx AI assistant by ID.",
+        "parameters": {
+          "assistantId": {
+            "type": "string",
+            "description": "Parameter assistantId"
+          }
+        },
+        "required": [
+          "assistantId"
+        ],
+        "returns": "void"
+      },
+      "listVoices": {
+        "description": "List voices available to your Telnyx account. Optionally pass an integration secret ref for ElevenLabs — Telnyx will then include your personal ElevenLabs voices in the response.",
+        "parameters": {
+          "opts": {
+            "type": "{ provider?: string; apiKeyRef?: string; filter?: string }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.listVoices()                               // Telnyx defaults\nawait connector.listVoices({ provider: 'ElevenLabs',       // your custom voices\n                            apiKeyRef: 'elevenlabs_api_key' })"
+          }
+        ]
+      },
+      "updateAssistantVoice": {
+        "description": "Patch voice_settings on an existing Telnyx AI assistant. Useful for iterating on the voice string without redeploying.",
+        "parameters": {
+          "assistantId": {
+            "type": "string",
+            "description": "Parameter assistantId"
+          },
+          "voiceSettings": {
+            "type": "any",
+            "description": "Parameter voiceSettings"
+          }
+        },
+        "required": [
+          "assistantId",
+          "voiceSettings"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.updateAssistantVoice('assistant-abc', {\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n api_key_ref: 'elevenlabs_api_key',\n voice_speed: 1.05,\n})"
+          }
+        ]
+      },
+      "testVoice": {
+        "description": "Try a voice_settings object on the standalone TTS command endpoint and save the MP3 locally so you can listen. Fastest way to confirm a voice string is valid without deploying an assistant.",
+        "parameters": {
+          "opts": {
+            "type": "{ voice: string; apiKeyRef?: string; text: string; outputPath?: string; voiceSettings?: any }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "opts"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.testVoice({\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n apiKeyRef: 'elevenlabs_api_key',\n text: 'Top of the morning.',\n outputPath: 'docs/calls/voice-test.mp3',\n})"
+          }
+        ]
+      },
+      "inspectVoice": {
+        "description": "Pretty-print the voice-related config of an assistant. Shows the raw voice_settings that Telnyx has stored, so you can compare against what the UI displays.",
+        "parameters": {
+          "assistantId": {
+            "type": "string",
+            "description": "Parameter assistantId"
+          }
+        },
+        "required": [
+          "assistantId"
+        ],
+        "returns": "void"
+      },
+      "listConversations": {
+        "description": "List conversations for this assistant. Automatically filters by the assistant ID stored in state when available, so you only see conversations that belong to the current deployment.",
+        "parameters": {
+          "query": {
+            "type": "Record<string, any>",
+            "description": "Parameter query"
+          }
+        },
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const convos = await connector.listConversations()\nconst recent = await connector.listConversations({ order: 'last_message_at.desc', limit: 20 })"
+          }
+        ]
+      },
+      "getConversation": {
+        "description": "Retrieve a specific conversation by ID.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getConversationMessages": {
+        "description": "List all messages in a conversation, including assistant tool calls.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "getConversationInsights": {
+        "description": "Retrieve post-call insights for a conversation (summaries, extracted data, etc.). Insights are generated asynchronously after the call ends — check `status` field.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "addConversationMessage": {
+        "description": "Manually inject a message into a conversation. Useful for adding context or system messages outside of a live call.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          },
+          "message": {
+            "type": "{\n    role: string\n    content?: string\n    name?: string\n    sent_at?: string\n    tool_call_id?: string\n    tool_calls?: Array<Record<string, unknown>>\n  }",
+            "description": "Parameter message"
+          }
+        },
+        "required": [
+          "conversationId",
+          "message"
+        ],
+        "returns": "void"
+      },
+      "handoffToHuman": {
+        "description": "Disable AI responses on a conversation so a human agent can take over. While disabled, calls to the Telnyx chat endpoint return 400. Re-enable with `handoffToAI()`.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.handoffToHuman(conversationId)"
+          }
+        ]
+      },
+      "handoffToAI": {
+        "description": "Re-enable AI responses on a conversation after a human handoff.",
+        "parameters": {
+          "conversationId": {
+            "type": "string",
+            "description": "Parameter conversationId"
+          }
+        },
+        "required": [
+          "conversationId"
+        ],
+        "returns": "void"
+      },
+      "createInsight": {
+        "description": "Create an insight template — a reusable instruction applied to conversations to extract structured data (summaries, action items, sentiment, etc.). Optionally provide a `json_schema` to enforce structured output.",
+        "parameters": {
+          "params": {
+            "type": "{ name: string; instructions: string; json_schema?: unknown; webhook?: string }",
+            "description": "Parameter params"
+          }
+        },
+        "required": [
+          "params"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.createInsight({\n name: 'call-summary',\n instructions: 'Summarize this call in 2-3 sentences.',\n})\nawait connector.createInsight({\n name: 'action-items',\n instructions: 'Extract any action items promised during the call.',\n json_schema: { type: 'array', items: { type: 'string' } },\n})"
+          }
+        ]
+      },
+      "listInsights": {
+        "description": "List all insight templates on the account.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "deleteInsight": {
+        "description": "Delete an insight template by ID.",
+        "parameters": {
+          "insightId": {
+            "type": "string",
+            "description": "Parameter insightId"
+          }
+        },
+        "required": [
+          "insightId"
+        ],
+        "returns": "void"
+      },
+      "listPhoneNumbers": {
+        "description": "List all phone numbers on the Telnyx account with their status and connection info.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "getPhoneNumber": {
+        "description": "Get the phone number record (voice + messaging config) for an E.164 number.",
+        "parameters": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Parameter phoneNumber"
+          }
+        },
+        "required": [
+          "phoneNumber"
+        ],
+        "returns": "void"
+      },
+      "getTexmlApp": {
+        "description": "Get a TeXML application by ID.",
+        "parameters": {
+          "appId": {
+            "type": "string",
+            "description": "Parameter appId"
+          }
+        },
+        "required": [
+          "appId"
+        ],
+        "returns": "void"
+      },
+      "listTexmlApps": {
+        "description": "List all TeXML applications on the account.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "deleteAllTexmlApps": {
+        "description": "Delete all TeXML applications on the account. Returns a summary of what was deleted and any failures.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "inspect": {
+        "description": "Inspect the full live config: the current assistant, its messaging profile, the phone number wiring, and the TeXML app. Pass a phone number to include phone config, or omit to just show assistant + profile.",
+        "parameters": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Parameter phoneNumber"
+          }
+        },
+        "required": [],
+        "returns": "void"
+      },
+      "start": {
+        "description": "Start the connector: mount tool endpoints, establish public URL, create Telnyx assistant, and optionally wire a phone number to it.",
+        "parameters": {},
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const info = await connector.start()\nconsole.log(info.publicUrl, info.telnyxAssistantId)"
+          }
+        ]
+      },
+      "stop": {
+        "description": "Stop the connector: restore the phone number's previous connection, delete the Telnyx assistant, kill tunnel (if ephemeral), stop the server.",
+        "parameters": {},
+        "required": [],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await connector.stop()"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "assistant": {
+        "description": "",
+        "returns": "any"
+      },
+      "assistantName": {
+        "description": "Canonical name derived from the assistant folder (e.g. `receptionist`), used for both the Telnyx assistant and its messaging profile.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "started": {
+        "name": "started",
+        "description": "Event emitted by TelnyxAssistantConnector",
+        "arguments": {}
+      },
+      "stopped": {
+        "name": "stopped",
+        "description": "Event emitted by TelnyxAssistantConnector",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by TelnyxAssistantConnector",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by TelnyxAssistantConnector",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxAssistantConnector', { assistant: chief })\nawait connector.start()"
       }
     ]
   },
