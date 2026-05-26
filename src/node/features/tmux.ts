@@ -47,6 +47,133 @@ function stripAnsi(str: string): string {
   return str.replace(ANSI_RE, '')
 }
 
+// ─── Shared prompt-detection logic ───────────────────────────────────────────
+
+const DEFAULT_PROMPT_PATTERNS = [
+  />\s*$/,
+  /❯\s*$/,
+  /\?\s*$/,
+  /\$\s*$/,
+  /%\s*$/,
+  /#\s*$/,
+  /…\s*$/,
+  /\.\.\.\s*$/,
+]
+
+function checkWaitingForInput(
+  raw: string,
+  cmd: string | null,
+  options: { patterns?: RegExp[]; commandName?: string }
+): boolean {
+  const { patterns = DEFAULT_PROMPT_PATTERNS, commandName } = options
+  if (commandName !== undefined && cmd !== null && cmd !== commandName) return false
+  const lines = raw.split('\n').map(l => l.trimEnd()).filter(l => l.length > 0)
+  const lastLine = lines[lines.length - 1] ?? ''
+  return patterns.some(p => p.test(lastLine))
+}
+
+// ─── TmuxPane ─────────────────────────────────────────────────────────────────
+
+/**
+ * A handle to a specific tmux pane, identified by its stable pane ID (e.g. `%3`).
+ * Returned by `TmuxSession.createLayout()` and `TmuxSession.splitPane()`.
+ *
+ * Provides the same interaction surface as `TmuxSession` but scoped to a single pane:
+ * send input, capture output, check foreground process, and kill the pane.
+ *
+ * @example
+ * ```ts
+ * const { panels } = await session.createLayout({
+ *   panels: [{ name: 'claude' }, { name: 'codex' }],
+ * })
+ * const pane = panels.get('claude')!
+ * await pane.send('fix the auth bug')
+ * const output = await pane.capture({ lines: -200 })
+ * ```
+ */
+export class TmuxPane {
+  /** Stable tmux pane ID, e.g. `%3`. Unique across the tmux server. */
+  readonly id: string
+  /** Logical name assigned at creation time. */
+  readonly name: string
+  private _tmux: Tmux
+
+  constructor(id: string, name: string, tmux: Tmux) {
+    this.id = id
+    this.name = name
+    this._tmux = tmux
+  }
+
+  /**
+   * Send text input followed by Enter.
+   */
+  async send(text: string): Promise<void> {
+    await this._tmux.run(['send-keys', '-t', this.id, text, 'Enter'])
+  }
+
+  /**
+   * Send raw key sequences without appending Enter.
+   *
+   * @example
+   * await pane.sendKeys('C-c')    // Ctrl+C — interrupt
+   * await pane.sendKeys('Escape')
+   */
+  async sendKeys(keys: string): Promise<void> {
+    await this._tmux.run(['send-keys', '-t', this.id, keys])
+  }
+
+  /**
+   * Capture the current visible content of the pane. ANSI escape codes are stripped.
+   *
+   * @param options.lines - Negative value includes that many lines of scrollback history.
+   */
+  async capture(options: CaptureOptions = {}): Promise<string> {
+    const args = ['capture-pane', '-t', this.id, '-p']
+    if (options.lines !== undefined) args.push('-S', String(options.lines))
+    const result = await this._tmux.run(args)
+    return stripAnsi(result.stdout)
+  }
+
+  /**
+   * Returns the name of the foreground process currently running in this pane.
+   */
+  async currentCommand(): Promise<string> {
+    const result = await this._tmux.run([
+      'display-message', '-t', this.id, '-p', '#{pane_current_command}',
+    ])
+    return result.stdout.trim()
+  }
+
+  /**
+   * Heuristic: returns true if the pane appears to be waiting for user input.
+   * See `TmuxSession.isWaitingForInput` for full option documentation.
+   */
+  async isWaitingForInput(options: {
+    patterns?: RegExp[]
+    commandName?: string
+  } = {}): Promise<boolean> {
+    const [raw, cmd] = await Promise.all([
+      this.capture(),
+      options.commandName ? this.currentCommand() : Promise.resolve(null),
+    ])
+    return checkWaitingForInput(raw, cmd, options)
+  }
+
+  /**
+   * Kill this pane. If it is the last pane in its window, the window closes.
+   */
+  async kill(): Promise<void> {
+    await this._tmux.run(['kill-pane', '-t', this.id])
+  }
+
+  /**
+   * Resize this pane.
+   */
+  async resize(width: number, height: number): Promise<void> {
+    await this._tmux.run(['resize-pane', '-t', this.id, '-x', String(width), '-y', String(height)])
+  }
+}
+
 /**
  * A handle to a named tmux session. Use `tmux.session()` to get or create one.
  *
@@ -153,35 +280,11 @@ export class TmuxSession {
     patterns?: RegExp[]
     commandName?: string
   } = {}): Promise<boolean> {
-    const {
-      patterns = [
-        />\s*$/,
-        /❯\s*$/,
-        /\?\s*$/,
-        /\$\s*$/,
-        /%\s*$/,
-        /#\s*$/,
-        /…\s*$/,
-        /\.\.\.\s*$/,
-      ],
-      commandName,
-    } = options
-
     const [raw, cmd] = await Promise.all([
       this.capture(),
-      commandName ? this.currentCommand() : Promise.resolve(null),
+      options.commandName ? this.currentCommand() : Promise.resolve(null),
     ])
-
-    // If commandName is given, the foreground process must match
-    if (commandName !== undefined && cmd !== null && cmd !== commandName) {
-      return false
-    }
-
-    // Find the last non-empty line
-    const lines = raw.split('\n').map(l => l.trimEnd()).filter(l => l.length > 0)
-    const lastLine = lines[lines.length - 1] ?? ''
-
-    return patterns.some(p => p.test(lastLine))
+    return checkWaitingForInput(raw, cmd, options)
   }
 
   /**
@@ -196,6 +299,122 @@ export class TmuxSession {
    */
   async resize(width: number, height: number): Promise<void> {
     await this._tmux.run(['resize-window', '-t', this.name, '-x', String(width), '-y', String(height)])
+  }
+
+  /**
+   * Split a pane and return a `TmuxPane` handle to the new pane.
+   *
+   * @param options.target - Pane ID to split. Defaults to `$TMUX_PANE` (current pane).
+   * @param options.direction - `'horizontal'` splits left/right; `'vertical'` splits top/bottom (default).
+   * @param options.size - Size of the new pane in rows (vertical) or columns (horizontal).
+   * @param options.before - Place the new pane above/left instead of below/right.
+   * @param options.command - Command to run in the new pane (defaults to `$SHELL`).
+   * @param options.name - Logical name for the returned `TmuxPane`.
+   *
+   * @example
+   * ```ts
+   * const rightPane = await session.splitPane({ direction: 'horizontal', name: 'editor' })
+   * await rightPane.send('vim .')
+   * ```
+   */
+  async splitPane(options: {
+    target?: string
+    direction?: 'horizontal' | 'vertical'
+    size?: number
+    before?: boolean
+    command?: string
+    name?: string
+  } = {}): Promise<TmuxPane> {
+    const target = options.target ?? process.env.TMUX_PANE
+    if (!target) {
+      throw new Error('splitPane requires a target pane or must be called from within a tmux session (TMUX_PANE not set)')
+    }
+
+    const args: string[] = ['split-window', '-t', target, '-P', '-F', '#{pane_id}']
+    if (options.direction === 'horizontal') args.push('-h')
+    else args.push('-v')
+    if (options.before) args.push('-b')
+    if (options.size !== undefined) args.push('-l', String(options.size))
+    if (options.command) args.push(options.command)
+
+    const result = await this._tmux.run(args)
+    const id = result.stdout.trim()
+    return new TmuxPane(id, options.name ?? id, this._tmux)
+  }
+
+  /**
+   * Create a layout with named column panels above a narrow control strip at the bottom.
+   *
+   * Must be called from within a tmux session (`$TMUX_PANE` must be set — i.e. the
+   * calling script is running inside a tmux pane). The current pane becomes the leftmost
+   * column; additional panels are split to the right. The control strip is split below
+   * all columns and receives focus when the layout is complete.
+   *
+   * Panel commands are sent via `send-keys` so the pane shell survives if the command exits.
+   *
+   * @param options.panels - Column panels. Each needs a `name`; `command` is optional (defaults to `$SHELL`).
+   * @param options.controlHeight - Height of the control strip in rows (default: 3).
+   *
+   * @returns `control` — `TmuxPane` for the bottom strip; `panels` — named map of column panes.
+   *
+   * @example
+   * ```ts
+   * const { control, panels } = await session.createLayout({
+   *   panels: [
+   *     { name: 'claude', command: 'claude' },
+   *     { name: 'codex',  command: 'codex'  },
+   *   ],
+   *   controlHeight: 3,
+   * })
+   * await panels.get('claude')!.send('fix the auth bug in src/auth.ts')
+   * ```
+   */
+  async createLayout(options: {
+    panels: Array<{ name: string; command?: string }>
+    controlHeight?: number
+  }): Promise<{ control: TmuxPane; panels: Map<string, TmuxPane> }> {
+    const currentPaneId = process.env.TMUX_PANE
+    if (!currentPaneId) {
+      throw new Error('createLayout must be called from within a tmux session (TMUX_PANE not set)')
+    }
+    if (options.panels.length === 0) {
+      throw new Error('createLayout requires at least one panel')
+    }
+
+    const controlHeight = options.controlHeight ?? 3
+
+    // Split the control strip below the current pane (which becomes the top area)
+    const controlResult = await this._tmux.run([
+      'split-window', '-t', currentPaneId, '-v', '-l', String(controlHeight), '-P', '-F', '#{pane_id}',
+    ])
+    const controlId = controlResult.stdout.trim()
+    const control = new TmuxPane(controlId, 'control', this._tmux)
+
+    // Current pane is the first (leftmost) column panel
+    const [firstPanel, ...restPanels] = options.panels as [{ name: string; command?: string }, ...{ name: string; command?: string }[]]
+    const panelMap = new Map<string, TmuxPane>()
+    panelMap.set(firstPanel.name, new TmuxPane(currentPaneId, firstPanel.name, this._tmux))
+    if (firstPanel.command) {
+      await this._tmux.run(['send-keys', '-t', currentPaneId, firstPanel.command, 'Enter'])
+    }
+
+    // Additional columns — always split rightward from the last pane for left-to-right ordering
+    let lastPaneId = currentPaneId
+    for (const panelDef of restPanels) {
+      const splitResult = await this._tmux.run([
+        'split-window', '-t', lastPaneId, '-h', '-P', '-F', '#{pane_id}',
+      ])
+      lastPaneId = splitResult.stdout.trim()
+      panelMap.set(panelDef.name, new TmuxPane(lastPaneId, panelDef.name, this._tmux))
+      if (panelDef.command) {
+        await this._tmux.run(['send-keys', '-t', lastPaneId, panelDef.command, 'Enter'])
+      }
+    }
+
+    // Focus lands on the control strip
+    await this._tmux.run(['select-pane', '-t', controlId])
+
+    return { control, panels: panelMap }
   }
 }
 
