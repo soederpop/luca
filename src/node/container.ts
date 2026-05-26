@@ -9,6 +9,7 @@ import { Client, type ClientsInterface } from "../client";
 import "../clients/rest";
 import "../clients/graph";
 import "../clients/websocket";
+import "../clients/socketio";
 import { Server, type ServersInterface } from "../server";
 import "../servers/express";
 import "../servers/socket";

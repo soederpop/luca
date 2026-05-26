@@ -1068,6 +1068,132 @@ setBuildTimeData('clients.rest', {
   ]
 });
 
+setBuildTimeData('clients.socketio', {
+  "id": "clients.socketio",
+  "description": "Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. Mirrors the WebSocket client interface so the two are interchangeable for connect/disconnect/send/ask workflows, while adding `fire()` for socket.io's native named-event emission. Reconnection is delegated to socket.io's built-in machinery. Calling `disconnect()` suppresses auto-reconnect — no extra flag needed. The `ask()` method uses socket.io acknowledgment callbacks rather than the requestId/replyTo correlation used by the WebSocket client — the server must invoke the ack callback. Events emitted: - `open` — connection established (maps from socket.io `connect`) - `message` — a `message` event was received - `close` — disconnected (with reason string) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number)",
+  "shortcut": "clients.socketio",
+  "className": "SocketIOClient",
+  "methods": {
+    "connect": {
+      "description": "Establish a socket.io connection to the configured baseURL (+ optional namespace). The socket and its event listeners are created once — subsequent calls after a manual disconnect reuse the same socket instance without rewiring listeners. Resolves once connected; rejects on first connection error.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "send": {
+      "description": "Emit the `message` event on the socket. Socket.IO handles its own framing, so no explicit JSON serialization is needed (unlike the WebSocket client). Connects first if not already connected.",
+      "parameters": {
+        "data": {
+          "type": "any",
+          "description": "The data to send"
+        }
+      },
+      "required": [
+        "data"
+      ],
+      "returns": "Promise<void>"
+    },
+    "fire": {
+      "description": "Emit a named event on the socket — equivalent to `socket.emit(event, data)`. Use this for socket.io's named-event semantics beyond the generic `message` channel. Connects first if not already connected.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "The event name to emit"
+        },
+        "data": {
+          "type": "any",
+          "description": "Optional payload"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await sio.fire('join', { room: 'general' })\nawait sio.fire('typing', { userId: 1 })"
+        }
+      ]
+    },
+    "ask": {
+      "description": "Emit a named event and wait for the server's acknowledgment callback. The server must accept the ack as its last argument and call it to resolve: `socket.on('getUser', (data, ack) => ack({ data: result }))`. If the ack response has an `error` field the promise rejects with that error. If it has a `data` field, that value is resolved; otherwise the full response is returned.",
+      "parameters": {
+        "event": {
+          "type": "string",
+          "description": "The event name to emit"
+        },
+        "data": {
+          "type": "any",
+          "description": "Optional payload"
+        },
+        "timeout": {
+          "type": "any",
+          "description": "How long to wait for acknowledgment (default 10 000 ms)"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "returns": "Promise<R>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const user = await sio.ask('getUser', { id: 42 })"
+        }
+      ]
+    },
+    "disconnect": {
+      "description": "Gracefully close the socket.io connection. Calling `socket.disconnect()` suppresses socket.io's built-in auto-reconnect automatically.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    }
+  },
+  "getters": {
+    "hasError": {
+      "description": "Whether the client is in an error state.",
+      "returns": "any"
+    }
+  },
+  "events": {
+    "open": {
+      "name": "open",
+      "description": "Event emitted by SocketIOClient",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by SocketIOClient",
+      "arguments": {}
+    },
+    "message": {
+      "name": "message",
+      "description": "Event emitted by SocketIOClient",
+      "arguments": {}
+    },
+    "close": {
+      "name": "close",
+      "description": "Event emitted by SocketIOClient",
+      "arguments": {}
+    },
+    "reconnecting": {
+      "name": "reconnecting",
+      "description": "Event emitted by SocketIOClient",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const sio = container.client('socketio', {\n baseURL: 'http://localhost:3000',\n namespace: '/chat',\n reconnect: true,\n})\nsio.on('message', (data) => console.log('Received:', data))\nawait sio.connect()\nawait sio.send({ text: 'hello' })\n\n// named event emission\nawait sio.fire('join', { room: 'general' })\n\n// ask with server-side ack: server must call the callback\nconst reply = await sio.ask('getUser', { id: 42 })"
+    }
+  ]
+});
+
 setBuildTimeData('clients.supabase', {
   "id": "clients.supabase",
   "description": "Supabase client for the Luca container system. Wraps the official `@supabase/supabase-js` SDK and exposes it through Luca's typed state, events, and introspection system. The SDK is isomorphic so this single implementation works in both Node and browser containers. Use `client.sdk` for full SDK access, or use the convenience wrappers for common operations (auth, database queries, storage, edge functions, realtime).",
@@ -19022,6 +19148,52 @@ setBuildTimeData('features.telnyxAssistantConnector', {
         }
       ]
     },
+    "speak": {
+      "description": "Convert text to speech and return the full audio as a Buffer. Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning. For lower latency on longer text, use `streamSpeak()` instead.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "opts": {
+          "type": "{ voice?: string; apiKeyRef?: string; voiceSettings?: any }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const audio = await connector.speak('Hello world', { voice: 'Telnyx.Ultra.Aurora' })\nawait fs.writeFile('/tmp/out.mp3', audio)"
+        }
+      ]
+    },
+    "streamSpeak": {
+      "description": "Stream text-to-speech audio over a WebSocket, yielding `Buffer` chunks as they arrive. First audio chunk typically arrives in <500ms. You can pipe chunks directly to a speaker or file stream.",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        },
+        "opts": {
+          "type": "{ voice?: string; voiceSettings?: any }",
+          "description": "Parameter opts"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "AsyncGenerator<Buffer>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// collect all chunks (still faster than speak() for long text)\nconst chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)\n\n// or pipe to a write stream as chunks arrive\nconst out = fs.createWriteStream('/tmp/out.pcm')\nfor await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {\n out.write(chunk)\n}\nout.end()"
+        }
+      ]
+    },
     "testVoice": {
       "description": "Try a voice_settings object on the standalone TTS command endpoint and save the MP3 locally so you can listen. Fastest way to confirm a voice string is valid without deploying an assistant.",
       "parameters": {
@@ -22556,6 +22728,131 @@ export const introspectionData = [
       {
         "language": "ts",
         "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')\nawait api.post('/users', { name: 'Alice' })"
+      }
+    ]
+  },
+  {
+    "id": "clients.socketio",
+    "description": "Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. Mirrors the WebSocket client interface so the two are interchangeable for connect/disconnect/send/ask workflows, while adding `fire()` for socket.io's native named-event emission. Reconnection is delegated to socket.io's built-in machinery. Calling `disconnect()` suppresses auto-reconnect — no extra flag needed. The `ask()` method uses socket.io acknowledgment callbacks rather than the requestId/replyTo correlation used by the WebSocket client — the server must invoke the ack callback. Events emitted: - `open` — connection established (maps from socket.io `connect`) - `message` — a `message` event was received - `close` — disconnected (with reason string) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number)",
+    "shortcut": "clients.socketio",
+    "className": "SocketIOClient",
+    "methods": {
+      "connect": {
+        "description": "Establish a socket.io connection to the configured baseURL (+ optional namespace). The socket and its event listeners are created once — subsequent calls after a manual disconnect reuse the same socket instance without rewiring listeners. Resolves once connected; rejects on first connection error.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "send": {
+        "description": "Emit the `message` event on the socket. Socket.IO handles its own framing, so no explicit JSON serialization is needed (unlike the WebSocket client). Connects first if not already connected.",
+        "parameters": {
+          "data": {
+            "type": "any",
+            "description": "The data to send"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "returns": "Promise<void>"
+      },
+      "fire": {
+        "description": "Emit a named event on the socket — equivalent to `socket.emit(event, data)`. Use this for socket.io's named-event semantics beyond the generic `message` channel. Connects first if not already connected.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "The event name to emit"
+          },
+          "data": {
+            "type": "any",
+            "description": "Optional payload"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await sio.fire('join', { room: 'general' })\nawait sio.fire('typing', { userId: 1 })"
+          }
+        ]
+      },
+      "ask": {
+        "description": "Emit a named event and wait for the server's acknowledgment callback. The server must accept the ack as its last argument and call it to resolve: `socket.on('getUser', (data, ack) => ack({ data: result }))`. If the ack response has an `error` field the promise rejects with that error. If it has a `data` field, that value is resolved; otherwise the full response is returned.",
+        "parameters": {
+          "event": {
+            "type": "string",
+            "description": "The event name to emit"
+          },
+          "data": {
+            "type": "any",
+            "description": "Optional payload"
+          },
+          "timeout": {
+            "type": "any",
+            "description": "How long to wait for acknowledgment (default 10 000 ms)"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "returns": "Promise<R>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const user = await sio.ask('getUser', { id: 42 })"
+          }
+        ]
+      },
+      "disconnect": {
+        "description": "Gracefully close the socket.io connection. Calling `socket.disconnect()` suppresses socket.io's built-in auto-reconnect automatically.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      }
+    },
+    "getters": {
+      "hasError": {
+        "description": "Whether the client is in an error state.",
+        "returns": "any"
+      }
+    },
+    "events": {
+      "open": {
+        "name": "open",
+        "description": "Event emitted by SocketIOClient",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by SocketIOClient",
+        "arguments": {}
+      },
+      "message": {
+        "name": "message",
+        "description": "Event emitted by SocketIOClient",
+        "arguments": {}
+      },
+      "close": {
+        "name": "close",
+        "description": "Event emitted by SocketIOClient",
+        "arguments": {}
+      },
+      "reconnecting": {
+        "name": "reconnecting",
+        "description": "Event emitted by SocketIOClient",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const sio = container.client('socketio', {\n baseURL: 'http://localhost:3000',\n namespace: '/chat',\n reconnect: true,\n})\nsio.on('message', (data) => console.log('Received:', data))\nawait sio.connect()\nawait sio.send({ text: 'hello' })\n\n// named event emission\nawait sio.fire('join', { room: 'general' })\n\n// ask with server-side ack: server must call the callback\nconst reply = await sio.ask('getUser', { id: 42 })"
       }
     ]
   },
@@ -40453,6 +40750,52 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "await connector.updateAssistantVoice('assistant-abc', {\n voice: 'ElevenLabs.eleven_v3.ulEiUT06p4S3sHtsvn4T',\n api_key_ref: 'elevenlabs_api_key',\n voice_speed: 1.05,\n})"
+          }
+        ]
+      },
+      "speak": {
+        "description": "Convert text to speech and return the full audio as a Buffer. Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning. For lower latency on longer text, use `streamSpeak()` instead.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "opts": {
+            "type": "{ voice?: string; apiKeyRef?: string; voiceSettings?: any }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const audio = await connector.speak('Hello world', { voice: 'Telnyx.Ultra.Aurora' })\nawait fs.writeFile('/tmp/out.mp3', audio)"
+          }
+        ]
+      },
+      "streamSpeak": {
+        "description": "Stream text-to-speech audio over a WebSocket, yielding `Buffer` chunks as they arrive. First audio chunk typically arrives in <500ms. You can pipe chunks directly to a speaker or file stream.",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          },
+          "opts": {
+            "type": "{ voice?: string; voiceSettings?: any }",
+            "description": "Parameter opts"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "AsyncGenerator<Buffer>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// collect all chunks (still faster than speak() for long text)\nconst chunks: Buffer[] = []\nfor await (const chunk of connector.streamSpeak('Hello world')) {\n chunks.push(chunk)\n}\nconst audio = Buffer.concat(chunks)\n\n// or pipe to a write stream as chunks arrive\nconst out = fs.createWriteStream('/tmp/out.pcm')\nfor await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {\n out.write(chunk)\n}\nout.end()"
           }
         ]
       },

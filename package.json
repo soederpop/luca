@@ -1,7 +1,7 @@
 {
   "name": "luca",
   "website": "https://luca-js.soederpop.com",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "lightweight universal conversational architecture AKA Le Ultimate Component Architecture AKA Last Universal Common Ancestor, part AI part Human",
   "author": "jon soeder aka the people's champ <jon@soederpop.com>",
   "type": "module",
@@ -197,6 +197,8 @@
     "react-reconciler": "0.33.0",
     "remark-gfm": "3.0.1",
     "rimraf": "5.0.10",
+    "socket.io-client": "^4.8.3",
+    "telnyx": "6.41.1",
     "typescript": "5.9.3",
     "unist-util-find-after": "4.0.1",
     "unist-util-find-all-after": "4.0.1",
@@ -207,7 +209,6 @@
     "wink-eng-lite-web-model": "1.8.1",
     "wink-nlp": "2.4.0",
     "ws": "8.18.2",
-    "telnyx": "6.41.1",
     "zod": "4.3.6"
   },
   "optionalDependencies": {

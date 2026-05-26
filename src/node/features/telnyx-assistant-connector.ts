@@ -215,6 +215,89 @@ export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, Teln
   }
 
   /**
+   * Convert text to speech and return the full audio as a Buffer.
+   * Uses the Telnyx TTS REST endpoint — waits for the complete audio before returning.
+   * For lower latency on longer text, use `streamSpeak()` instead.
+   *
+   * @example
+   * ```ts
+   * const audio = await connector.speak('Hello world', { voice: 'Telnyx.Ultra.Aurora' })
+   * await fs.writeFile('/tmp/out.mp3', audio)
+   * ```
+   */
+  async speak(text: string, opts: { voice?: string; apiKeyRef?: string; voiceSettings?: any } = {}): Promise<Buffer> {
+    const client = await this._getClient()
+    const voice = opts.voice || this.options.voice
+    const params: any = { text, output_type: 'base64_output' }
+    if (voice) params.voice = voice
+    if (opts.apiKeyRef) params.elevenlabs = { api_key: opts.apiKeyRef }
+    if (opts.voiceSettings) params.voice_settings = opts.voiceSettings
+
+    this._log('[telnyx] TTS generate:', JSON.stringify({ voice, text: text.slice(0, 60) }))
+    const resp = await client.textToSpeech.generate(params) as any
+    return Buffer.from(resp.base64_audio, 'base64')
+  }
+
+  /**
+   * Stream text-to-speech audio over a WebSocket, yielding `Buffer` chunks as
+   * they arrive. First audio chunk typically arrives in <500ms. You can pipe
+   * chunks directly to a speaker or file stream.
+   *
+   * @example
+   * ```ts
+   * // collect all chunks (still faster than speak() for long text)
+   * const chunks: Buffer[] = []
+   * for await (const chunk of connector.streamSpeak('Hello world')) {
+   *   chunks.push(chunk)
+   * }
+   * const audio = Buffer.concat(chunks)
+   *
+   * // or pipe to a write stream as chunks arrive
+   * const out = fs.createWriteStream('/tmp/out.pcm')
+   * for await (const chunk of connector.streamSpeak('Hello', { voice: 'Telnyx.Ultra.Aurora' })) {
+   *   out.write(chunk)
+   * }
+   * out.end()
+   * ```
+   */
+  async *streamSpeak(text: string, opts: { voice?: string; voiceSettings?: any } = {}): AsyncGenerator<Buffer> {
+    const client = await this._getClient()
+    const voice = opts.voice || this.options.voice
+    const query: any = {}
+    if (voice) query.voice = voice
+
+    const { TextToSpeechWS } = await import('telnyx/resources/text-to-speech') as any
+    const ws = new TextToSpeechWS(client, query)
+
+    this._log('[telnyx] TTS stream start:', JSON.stringify({ voice, text: text.slice(0, 60) }))
+
+    let opened = false
+    for await (const msg of ws.stream()) {
+      if (msg.type === 'open' && !opened) {
+        opened = true
+        ws.send({ text: ' ', voice_settings: opts.voiceSettings || {} })
+        ws.send({ text })
+      } else if (msg.type === 'message') {
+        const event = msg.message
+        if (event.type === 'audio_chunk' && event.audio) {
+          yield Buffer.from(event.audio, 'base64')
+        } else if (event.type === 'final') {
+          ws.close()
+          return
+        } else if (event.type === 'error') {
+          ws.close()
+          throw new Error(event.error || 'TTS stream error')
+        }
+      } else if (msg.type === 'error') {
+        ws.close()
+        throw msg.error
+      } else if (msg.type === 'close') {
+        return
+      }
+    }
+  }
+
+  /**
    * Try a voice_settings object on the standalone TTS command endpoint and
    * save the MP3 locally so you can listen. Fastest way to confirm a voice
    * string is valid without deploying an assistant.
