@@ -13153,6 +13153,169 @@ setBuildTimeData('features.telnyxAssistantConnector', {
   ]
 });
 
+setBuildTimeData('features.tmux', {
+  "id": "features.tmux",
+  "description": "Tmux session manager for controlling coding assistants and long-running CLI tools. Creates and manages named tmux sessions that run as background processes, fully independent of whether you're inside a tmux session yourself. Each session can host a coding assistant (hermes, codex, claude, etc.) and you can programmatically send input and inspect their state. Requires `tmux` to be installed (`brew install tmux` on macOS).",
+  "shortcut": "features.tmux",
+  "className": "Tmux",
+  "methods": {
+    "afterInitialize": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "run": {
+      "description": "Execute a raw tmux command. Returns stdout/stderr strings. This is the low-level escape hatch for any tmux operation not covered by the API.",
+      "parameters": {
+        "args": {
+          "type": "string[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [
+        "args"
+      ],
+      "returns": "Promise<{ stdout: string; stderr: string }>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])"
+        }
+      ]
+    },
+    "hasSession": {
+      "description": "Check whether a named session exists.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "createSession": {
+      "description": "Create a new detached named session. If a session with that name already exists this is a no-op (returns a handle to the existing session).",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Session name (used to target it in all subsequent commands)"
+        },
+        "options": {
+          "type": "{\n      command?: string\n      width?: number\n      height?: number\n      cwd?: string\n    }",
+          "description": "Parameter options",
+          "properties": {
+            "command": {
+              "type": "any",
+              "description": "Shell command to run in the session (e.g. `'hermes'`)"
+            },
+            "width": {
+              "type": "any",
+              "description": "Pane width in columns (default: feature option or 220)"
+            },
+            "height": {
+              "type": "any",
+              "description": "Pane height in rows (default: feature option or 50)"
+            },
+            "cwd": {
+              "type": "any",
+              "description": "Working directory for the session"
+            }
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<TmuxSession>"
+    },
+    "session": {
+      "description": "Get or create a named session. If the session already exists, returns a handle to it without restarting. If it doesn't exist, creates it (running `options.command` if provided). This is the primary entry point for managing coding-assistant sessions.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "options": {
+          "type": "{\n      command?: string\n      width?: number\n      height?: number\n      cwd?: string\n    }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<TmuxSession>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const hermes = await tmux.session('hermes', { command: 'hermes' })\nconst codex = await tmux.session('codex', { command: 'codex' })"
+        }
+      ]
+    },
+    "listSessions": {
+      "description": "List all active tmux sessions.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<SessionInfo[]>"
+    },
+    "killSession": {
+      "description": "Kill a named session by name.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "tmuxPath": {
+      "description": "Path to the resolved tmux binary, or null if not installed",
+      "returns": "string | null"
+    },
+    "available": {
+      "description": "Whether tmux is available on this system",
+      "returns": "boolean"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const tmux = container.feature('tmux')\n\n// Start hermes in a background session\nconst hermes = await tmux.session('hermes', { command: 'hermes' })\n\n// Send it a task\nawait hermes.send('fix the authentication bug in src/auth.ts')\n\n// Poll until it's done\nwhile (!(await hermes.isWaitingForInput({ commandName: 'hermes' }))) {\n await new Promise(r => setTimeout(r, 2000))\n}\n\n// Read the output\nconst output = await hermes.capture({ lines: -200 })\nconsole.log(output)"
+    }
+  ],
+  "types": {
+    "SessionInfo": {
+      "description": "",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": ""
+        },
+        "windows": {
+          "type": "number",
+          "description": ""
+        },
+        "created": {
+          "type": "number",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.transpiler', {
   "id": "features.transpiler",
   "description": "Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. Compile code strings on the fly without touching the filesystem or spawning external processes.",
@@ -28216,6 +28379,168 @@ export const introspectionData = [
         "code": "const mgr = container.feature('assistantsManager')\nconst chief = mgr.create('chiefOfStaff')\nconst connector = container.feature('telnyxAssistantConnector', { assistant: chief })\nawait connector.start()"
       }
     ]
+  },
+  {
+    "id": "features.tmux",
+    "description": "Tmux session manager for controlling coding assistants and long-running CLI tools. Creates and manages named tmux sessions that run as background processes, fully independent of whether you're inside a tmux session yourself. Each session can host a coding assistant (hermes, codex, claude, etc.) and you can programmatically send input and inspect their state. Requires `tmux` to be installed (`brew install tmux` on macOS).",
+    "shortcut": "features.tmux",
+    "className": "Tmux",
+    "methods": {
+      "afterInitialize": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "run": {
+        "description": "Execute a raw tmux command. Returns stdout/stderr strings. This is the low-level escape hatch for any tmux operation not covered by the API.",
+        "parameters": {
+          "args": {
+            "type": "string[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [
+          "args"
+        ],
+        "returns": "Promise<{ stdout: string; stderr: string }>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])"
+          }
+        ]
+      },
+      "hasSession": {
+        "description": "Check whether a named session exists.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "createSession": {
+        "description": "Create a new detached named session. If a session with that name already exists this is a no-op (returns a handle to the existing session).",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Session name (used to target it in all subsequent commands)"
+          },
+          "options": {
+            "type": "{\n      command?: string\n      width?: number\n      height?: number\n      cwd?: string\n    }",
+            "description": "Parameter options",
+            "properties": {
+              "command": {
+                "type": "any",
+                "description": "Shell command to run in the session (e.g. `'hermes'`)"
+              },
+              "width": {
+                "type": "any",
+                "description": "Pane width in columns (default: feature option or 220)"
+              },
+              "height": {
+                "type": "any",
+                "description": "Pane height in rows (default: feature option or 50)"
+              },
+              "cwd": {
+                "type": "any",
+                "description": "Working directory for the session"
+              }
+            }
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<TmuxSession>"
+      },
+      "session": {
+        "description": "Get or create a named session. If the session already exists, returns a handle to it without restarting. If it doesn't exist, creates it (running `options.command` if provided). This is the primary entry point for managing coding-assistant sessions.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "options": {
+            "type": "{\n      command?: string\n      width?: number\n      height?: number\n      cwd?: string\n    }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<TmuxSession>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const hermes = await tmux.session('hermes', { command: 'hermes' })\nconst codex = await tmux.session('codex', { command: 'codex' })"
+          }
+        ]
+      },
+      "listSessions": {
+        "description": "List all active tmux sessions.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<SessionInfo[]>"
+      },
+      "killSession": {
+        "description": "Kill a named session by name.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "tmuxPath": {
+        "description": "Path to the resolved tmux binary, or null if not installed",
+        "returns": "string | null"
+      },
+      "available": {
+        "description": "Whether tmux is available on this system",
+        "returns": "boolean"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const tmux = container.feature('tmux')\n\n// Start hermes in a background session\nconst hermes = await tmux.session('hermes', { command: 'hermes' })\n\n// Send it a task\nawait hermes.send('fix the authentication bug in src/auth.ts')\n\n// Poll until it's done\nwhile (!(await hermes.isWaitingForInput({ commandName: 'hermes' }))) {\n await new Promise(r => setTimeout(r, 2000))\n}\n\n// Read the output\nconst output = await hermes.capture({ lines: -200 })\nconsole.log(output)"
+      }
+    ],
+    "types": {
+      "SessionInfo": {
+        "description": "",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": ""
+          },
+          "windows": {
+            "type": "number",
+            "description": ""
+          },
+          "created": {
+            "type": "number",
+            "description": ""
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.transpiler",
