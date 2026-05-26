@@ -123,6 +123,32 @@ export class TmuxPane {
   }
 
   /**
+   * Simulate typing text character by character with a configurable delay between
+   * keystrokes. Useful for interactive programs that behave differently with streamed
+   * input vs. pasted text.
+   *
+   * Does not submit — call `sendKeys('Enter')` or pass `submit: true` when ready.
+   *
+   * @param options.delay - Milliseconds between keystrokes (default: 50)
+   * @param options.submit - If true, sends Enter after the last character
+   *
+   * @example
+   * await pane.type('fix the auth bug')
+   * await new Promise(r => setTimeout(r, 3000))
+   * await pane.type(' in src/auth.ts', { submit: true })
+   */
+  async type(text: string, options: { delay?: number; submit?: boolean } = {}): Promise<void> {
+    const delay = options.delay ?? 50
+    for (const char of text) {
+      await this._tmux.run(['send-keys', '-t', this.id, char])
+      await new Promise(r => setTimeout(r, delay))
+    }
+    if (options.submit) {
+      await this._tmux.run(['send-keys', '-t', this.id, 'Enter'])
+    }
+  }
+
+  /**
    * Capture the current visible content of the pane. ANSI escape codes are stripped.
    *
    * @param options.lines - Negative value includes that many lines of scrollback history.
@@ -370,7 +396,7 @@ export class TmuxSession {
    * ```
    */
   async createLayout(options: {
-    panels: Array<{ name: string; command?: string }>
+    panels: Array<{ name: string; command?: string; cwd?: string }>
     controlHeight?: number
   }): Promise<{ control: TmuxPane; panels: Map<string, TmuxPane> }> {
     const currentPaneId = process.env.TMUX_PANE
@@ -391,9 +417,13 @@ export class TmuxSession {
     const control = new TmuxPane(controlId, 'control', this._tmux)
 
     // Current pane is the first (leftmost) column panel
-    const [firstPanel, ...restPanels] = options.panels as [{ name: string; command?: string }, ...{ name: string; command?: string }[]]
+    const [firstPanel, ...restPanels] = options.panels as [{ name: string; command?: string; cwd?: string }, ...{ name: string; command?: string; cwd?: string }[]]
     const panelMap = new Map<string, TmuxPane>()
     panelMap.set(firstPanel.name, new TmuxPane(currentPaneId, firstPanel.name, this._tmux))
+    // First panel cwd via cd since we can't set it on an existing pane
+    if (firstPanel.cwd) {
+      await this._tmux.run(['send-keys', '-t', currentPaneId, `cd ${JSON.stringify(firstPanel.cwd)}`, 'Enter'])
+    }
     if (firstPanel.command) {
       await this._tmux.run(['send-keys', '-t', currentPaneId, firstPanel.command, 'Enter'])
     }
@@ -401,9 +431,9 @@ export class TmuxSession {
     // Additional columns — always split rightward from the last pane for left-to-right ordering
     let lastPaneId = currentPaneId
     for (const panelDef of restPanels) {
-      const splitResult = await this._tmux.run([
-        'split-window', '-t', lastPaneId, '-h', '-P', '-F', '#{pane_id}',
-      ])
+      const splitArgs = ['split-window', '-t', lastPaneId, '-h', '-P', '-F', '#{pane_id}']
+      if (panelDef.cwd) splitArgs.push('-c', panelDef.cwd)
+      const splitResult = await this._tmux.run(splitArgs)
       lastPaneId = splitResult.stdout.trim()
       panelMap.set(panelDef.name, new TmuxPane(lastPaneId, panelDef.name, this._tmux))
       if (panelDef.command) {
