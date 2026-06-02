@@ -511,9 +511,9 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     return this
   }
 
-  /** Register tools/list and tools/call protocol handlers on the MCP server. */
-  private _registerToolHandlers() {
-    this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+  /** Register tools/list and tools/call protocol handlers on a given MCP protocol server. */
+  private _registerToolHandlers(target: MCPProtocolServer = this.mcpServer) {
+    target.setRequestHandler(ListToolsRequestSchema, async () => {
       const tools = Array.from(this._tools.values()).map((t) => ({
         name: t.name,
         description: t.description || '',
@@ -523,7 +523,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       return { tools }
     })
 
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    target.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args = {} } = request.params
 
       const tool = this._tools.get(name)
@@ -535,21 +535,18 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       }
 
       try {
-        // Validate arguments with Zod schema if provided
         const validatedArgs = tool.schema ? tool.schema.parse(args) : args
 
         this.emit('toolCalled', name, validatedArgs)
 
         const result = await tool.handler(validatedArgs, this.handlerContext)
 
-        // Auto-wrap string results into text content
         if (typeof result === 'string') {
           return {
             content: [{ type: 'text' as const, text: result }],
           }
         }
 
-        // Assume it's already a CallToolResult
         return result as CallToolResult
       } catch (error: any) {
         return {
@@ -560,9 +557,9 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     })
   }
 
-  /** Register resources/list and resources/read protocol handlers on the MCP server. */
-  private _registerResourceHandlers() {
-    this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+  /** Register resources/list and resources/read protocol handlers on a given MCP protocol server. */
+  private _registerResourceHandlers(target: MCPProtocolServer = this.mcpServer) {
+    target.setRequestHandler(ListResourcesRequestSchema, async () => {
       const resources = Array.from(this._resources.values()).map((r) => ({
         uri: r.uri,
         name: r.name || r.uri,
@@ -573,7 +570,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       return { resources }
     })
 
-    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    target.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const { uri } = request.params
 
       const resource = this._resources.get(uri)
@@ -593,9 +590,9 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     })
   }
 
-  /** Register prompts/list and prompts/get protocol handlers on the MCP server. */
-  private _registerPromptHandlers() {
-    this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+  /** Register prompts/list and prompts/get protocol handlers on a given MCP protocol server. */
+  private _registerPromptHandlers(target: MCPProtocolServer = this.mcpServer) {
+    target.setRequestHandler(ListPromptsRequestSchema, async () => {
       const prompts = Array.from(this._prompts.values()).map((p) => ({
         name: p.name,
         description: p.description,
@@ -611,7 +608,7 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
       return { prompts }
     })
 
-    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    target.setRequestHandler(GetPromptRequestSchema, async (request) => {
       const { name, arguments: args = {} } = request.params
 
       const prompt = this._prompts.get(name)
@@ -630,6 +627,31 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     })
   }
 
+  /**
+   * Create a fresh MCPProtocolServer with all registered handlers wired up.
+   * Used by the HTTP transport to give each client session its own server instance,
+   * avoiding the "Server already initialized" rejection on reconnects.
+   */
+  private _createSessionServer(): MCPProtocolServer {
+    const serverName = this.options.serverName || this.container.manifest?.name || 'luca-mcp'
+    const serverVersion = this.options.serverVersion || this.container.manifest?.version || '1.0.0'
+
+    const server = new MCPProtocolServer(
+      { name: serverName, version: serverVersion },
+      { capabilities: { tools: {}, resources: {}, prompts: {} } },
+    )
+
+    server.onerror = (error) => {
+      console.error('[MCP Server Error]', error)
+    }
+
+    this._registerToolHandlers(server)
+    this._registerResourceHandlers(server)
+    this._registerPromptHandlers(server)
+
+    return server
+  }
+
   /** Start an HTTP transport using StreamableHTTPServerTransport. */
   private async _startHTTPTransport(port: number, compat: MCPCompatMode): Promise<void> {
     const { createServer } = await import('node:http')
@@ -638,10 +660,10 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     )
     const { randomUUID } = await import('node:crypto')
 
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: compat === 'codex' ? undefined : () => randomUUID(),
-      enableJsonResponse: compat === 'codex',
-    })
+    // Track active sessions: sessionId → transport. Each new initialize request
+    // gets a fresh server+transport pair so reconnecting clients don't hit
+    // "Server already initialized".
+    const sessions = new Map<string, InstanceType<typeof StreamableHTTPServerTransport>>()
 
     const httpServer = createServer(async (req, res) => {
       if (compat === 'codex') {
@@ -649,32 +671,65 @@ export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
         this._ensureJSONContentType(res)
       }
 
-      // Only handle the /mcp path
       const url = new URL(req.url || '/', `http://localhost:${port}`)
 
-      if (url.pathname === '/mcp') {
-        // Parse body for POST requests
-        if (req.method === 'POST') {
-          const chunks: Buffer[] = []
-          for await (const chunk of req) {
-            chunks.push(chunk as Buffer)
-          }
-          const body = JSON.parse(Buffer.concat(chunks).toString())
-          await transport.handleRequest(req, res, body)
-        } else {
-          await transport.handleRequest(req, res)
-        }
-      } else {
+      if (url.pathname !== '/mcp') {
         res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
         res.end(JSON.stringify({
           jsonrpc: '2.0',
           error: { code: -32004, message: 'Not found' },
           id: null,
         }))
+        return
       }
-    })
 
-    await this.mcpServer.connect(transport)
+      let body: any
+      if (req.method === 'POST') {
+        const chunks: Buffer[] = []
+        for await (const chunk of req) {
+          chunks.push(chunk as Buffer)
+        }
+        body = JSON.parse(Buffer.concat(chunks).toString())
+      }
+
+      // Route to existing session if the client sent a session ID.
+      const existingSessionId = req.headers['mcp-session-id'] as string | undefined
+      if (existingSessionId && sessions.has(existingSessionId)) {
+        const transport = sessions.get(existingSessionId)!
+        await transport.handleRequest(req, res, body)
+        return
+      }
+
+      // New session — only allow if this is an initialize request.
+      const isInit = body?.method === 'initialize'
+      if (!isInit) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'No active session. Send initialize first.' },
+          id: body?.id ?? null,
+        }))
+        return
+      }
+
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: compat === 'codex' ? undefined : () => randomUUID(),
+        enableJsonResponse: compat === 'codex',
+        onsessioninitialized: (sessionId) => {
+          sessions.set(sessionId, transport)
+        },
+      })
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          sessions.delete(transport.sessionId)
+        }
+      }
+
+      const sessionServer = this._createSessionServer()
+      await sessionServer.connect(transport)
+      await transport.handleRequest(req, res, body)
+    })
 
     await new Promise<void>((resolve) => {
       httpServer.listen(port, () => resolve())
