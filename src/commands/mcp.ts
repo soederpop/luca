@@ -25,6 +25,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	stdioCompat: z.enum(['standard', 'codex', 'auto']).optional()
 		.describe('Stdio framing compatibility profile. Defaults to standard. Can also be set via MCP_STDIO_COMPAT.'),
 	assistant: z.string().optional().describe('Name of a local assistant whose tools to expose as MCP tools'),
+	askOnly: z.boolean().default(false).describe('Expose only a README and Ask_<name> tool for stateless one-shot queries (requires --assistant)'),
 })
 
 export default async function mcp(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -44,6 +45,11 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 		stdioCompat: options.stdioCompat,
 	}) as MCPServer
 
+	if (options.askOnly && !options.assistant) {
+		console.error('--ask-only requires --assistant')
+		process.exit(1)
+	}
+
 	if (options.assistant) {
 		const manager = container.feature('assistantsManager')
 		await manager.discover()
@@ -55,42 +61,70 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 			process.exit(1)
 		}
 
-		const asst = manager.create(options.assistant, { historyMode: 'lifecycle' })
-		await asst.start()
-
-		const tools: Record<string, any> = asst.tools
-		const existingReadme = tools['README']
-
-		// README tool: system prompt concatenated with any existing README tool output
-		mcpServer.tool('README', {
-			schema: z.object({}),
-			description: `System prompt and capabilities of the ${options.assistant} assistant`,
-			handler: async () => {
-				let content: string = asst.effectiveSystemPrompt
-				if (existingReadme) {
-					const raw = await existingReadme.handler({})
-					if (raw != null) {
-						// Unwrap CallToolResult shape if the handler returned one
-						const extra = (raw && typeof raw === 'object' && Array.isArray(raw.content))
-							? raw.content.map((c: any) => c.text || '').join('\n')
-							: typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)
-						content += '\n\n---\n\n' + extra
-					}
+		// Shared helper: build the README content from an assistant instance
+		async function buildReadme(asst: any): Promise<string> {
+			const tools: Record<string, any> = asst.tools
+			const existingReadme = tools['README']
+			let content: string = asst.effectiveSystemPrompt
+			if (existingReadme) {
+				const raw = await existingReadme.handler({})
+				if (raw != null) {
+					const extra = (raw && typeof raw === 'object' && Array.isArray(raw.content))
+						? raw.content.map((c: any) => c.text || '').join('\n')
+						: typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)
+					content += '\n\n---\n\n' + extra
 				}
-				return content
-			},
-		})
+			}
+			return content
+		}
 
-		for (const [toolName, tool] of Object.entries(tools)) {
-			if (toolName === 'README') continue
-			mcpServer.tool(toolName, {
-				schema: bridgeSchema((tool as any).parameters),
-				description: (tool as any).description,
-				handler: async (args: any) => {
-					const result = await (tool as any).handler(args)
-					return typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+		if (options.askOnly) {
+			// Spin up one instance just to resolve the README (system prompt + any README tool output)
+			const probe = manager.create(options.assistant, { historyMode: 'lifecycle' })
+			await probe.start()
+			const readmeContent = await buildReadme(probe)
+
+			mcpServer.tool('README', {
+				schema: z.object({}),
+				description: `System prompt and capabilities of the ${options.assistant} assistant`,
+				handler: async () => readmeContent,
+			})
+
+			const askToolName = `Ask_${options.assistant}`
+			mcpServer.tool(askToolName, {
+				schema: z.object({
+					question: z.string().describe('The question or task to send to the assistant'),
+				}),
+				description: `Ask the ${options.assistant} assistant a question. Each call is stateless — no history is shared between requests.`,
+				handler: async ({ question }: { question: string }) => {
+					const asst = manager.create(options.assistant!, { historyMode: 'lifecycle' })
+					await asst.start()
+					return await asst.ask(question)
 				},
 			})
+		} else {
+			const asst = manager.create(options.assistant, { historyMode: 'lifecycle' })
+			await asst.start()
+
+			const tools: Record<string, any> = asst.tools
+
+			mcpServer.tool('README', {
+				schema: z.object({}),
+				description: `System prompt and capabilities of the ${options.assistant} assistant`,
+				handler: async () => buildReadme(asst),
+			})
+
+			for (const [toolName, tool] of Object.entries(tools)) {
+				if (toolName === 'README') continue
+				mcpServer.tool(toolName, {
+					schema: bridgeSchema((tool as any).parameters),
+					description: (tool as any).description,
+					handler: async (args: any) => {
+						const result = await (tool as any).handler(args)
+						return typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+					},
+				})
+			}
 		}
 	}
 
@@ -109,7 +143,7 @@ export default async function mcp(options: z.infer<typeof argsSchema>, context: 
 	} else {
 		// stdio mode — don't print to stdout as it's used for the protocol
 		console.error(`MCP server started (stdio transport)`)
-		if (options.assistant) console.error(`Assistant: ${options.assistant}`)
+		if (options.assistant) console.error(`Assistant: ${options.assistant}${options.askOnly ? ' (ask-only)' : ''}`)
 		console.error(`Stdio Compatibility: ${resolvedStdioCompat}`)
 	}
 }
