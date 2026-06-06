@@ -137,12 +137,20 @@ export async function bundleCommand(
 	for (const target of targets) {
 		const suffix = target === 'windows-x64' ? '.exe' : ''
 		const outFile = container.paths.resolve(outDir, `${options.name}-${target}${suffix}`)
-		const cmd = `bun build entry.ts --compile --target=bun-${target} --outfile ${JSON.stringify(outFile)}`
+		const args = [
+			'build', 'entry.ts',
+			'--compile',
+			`--target=bun-${target}`,
+			'--outfile', outFile,
+			'--external', 'node-llama-cpp',
+		]
 		process.stdout.write(`  ${target.padEnd(18)} `)
-		const result = await proc.execAndCapture(cmd, { cwd: buildDir, silent: true })
-		if (result.exitCode !== 0) {
+		const result = await proc.spawnAndCapture('bun', args, { cwd: buildDir, silent: true })
+		const succeeded = result.exitCode === 0 && fs.existsSync(outFile)
+		if (!succeeded) {
 			console.log(ui.colors.red('✗'))
-			console.error(result.stderr)
+			if (result.stderr) console.error(result.stderr)
+			else console.error('bun build did not produce an output binary')
 			failed.push(target)
 		} else {
 			console.log(ui.colors.green('✓') + ui.colors.dim(` → ${outFile}`))

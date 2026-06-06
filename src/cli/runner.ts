@@ -1,6 +1,10 @@
 import { homedir } from 'os'
 import { join } from 'path'
 
+// The runner dispatches to `help` for missing/empty commands, so consumer
+// binaries that don't bake the full luca command index still need it.
+import '../commands/help.js'
+
 export interface CommandSources {
   builtinCommands: Set<string>
   projectCommands: Set<string>
