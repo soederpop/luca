@@ -370,6 +370,7 @@ export class CommandsRegistry extends Registry<Command<any>> {
 		opts: {
 			description?: string
 			argsSchema?: z.ZodType
+			positionals?: string[]
 			handler: CommandHandler<T>
 		},
 	) {
@@ -378,6 +379,7 @@ export class CommandsRegistry extends Registry<Command<any>> {
 			{
 				description: opts.description,
 				argsSchema: opts.argsSchema,
+				positionals: opts.positionals,
 				handler: opts.handler,
 			},
 			name,
