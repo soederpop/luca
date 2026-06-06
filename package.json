@@ -58,6 +58,10 @@
       "types": "./dist/schemas/*.d.ts",
       "default": "./src/schemas/*"
     },
+    "./cli/runner": {
+      "types": "./dist/cli/runner.d.ts",
+      "default": "./src/cli/runner.ts"
+    },
     "./container": {
       "types": "./dist/container.d.ts",
       "default": "./src/container.ts"
