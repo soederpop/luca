@@ -60,24 +60,30 @@ function extractOptions(schema: any): Array<{ flag: string; description: string;
  * Format CLI-oriented help text for a single command.
  * Exported so other commands (like describe) can reuse it.
  */
-export function formatCommandHelp(name: string, Cmd: any, colors: any): string {
+export function formatCommandHelp(
+	name: string,
+	Cmd: any,
+	colors: any,
+	options: { binaryName?: string } = {},
+): string {
+	const binaryName = options.binaryName || 'luca'
 	const desc = Cmd.commandDescription || ''
 	const schema = Cmd.argsSchema
 	const lines: string[] = []
 
 	lines.push('')
-	lines.push(`  ${colors.cyan.bold(`luca ${name}`)}  ${desc ? `${colors.dim('—')} ${desc}` : ''}`)
+	lines.push(`  ${colors.cyan.bold(`${binaryName} ${name}`)}  ${desc ? `${colors.dim('—')} ${desc}` : ''}`)
 	lines.push('')
 
-	const options = extractOptions(schema)
+	const opts = extractOptions(schema)
 
-	if (options.length === 0) {
-		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`luca ${name}`)}`)
+	if (opts.length === 0) {
+		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`${binaryName} ${name}`)}`)
 	} else {
-		const booleans = options.filter((o) => o.type === 'boolean')
-		const valued = options.filter((o) => o.type !== 'boolean')
+		const booleans = opts.filter((o) => o.type === 'boolean')
+		const valued = opts.filter((o) => o.type !== 'boolean')
 
-		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`luca ${name}`)} ${colors.dim('[options]')}`)
+		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`${binaryName} ${name}`)} ${colors.dim('[options]')}`)
 		lines.push('')
 
 		if (valued.length > 0) {
@@ -149,13 +155,14 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 	const container = context.container as any
 	const ui = container.feature('ui') as any
 	const c = ui.colors
+	const binaryName = (container as any)._binaryName || 'luca'
 
 	const args = container.argv._ as string[]
 	const target = args[1] as string
 
 	if (!target) {
 		// Robot (left) + banner (right), same height — direct 1:1 alignment
-		const banner = ui.banner('luca', { font: 'Small Slant', colors: BANNER_COLORS })
+		const banner = ui.banner(binaryName, { font: 'Small Slant', colors: BANNER_COLORS })
 		const bannerLines = banner.split('\n').filter((l: string) => l.trim())
 		const coloredRobot = ui.applyGradient(LEGO_ROBOT.join('\n'), BANNER_COLORS)
 		const robotLines = coloredRobot.split('\n') as string[]
@@ -174,7 +181,7 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 		console.log(headerLines.join('\n'))
 		console.log(c.dim('  Lightweight Universal Conversational Architecture'))
 		console.log()
-		console.log(c.white('  Usage: ') + c.cyan('luca') + c.dim(' <command|file> [options]'))
+		console.log(c.white('  Usage: ') + c.cyan(binaryName) + c.dim(' <command|file> [options]'))
 		console.log()
 		const allNames = (container.commands.available as string[]).filter((n: string) => n !== 'help')
 		const maxNameLen = Math.max(...allNames.map((n: string) => n.length)) + 2
@@ -216,8 +223,8 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 		}
 
 		console.log()
-		console.log(c.dim('  Run ') + c.cyan('luca <file>') + c.dim(' to execute a script or markdown (.ts, .js, .md)'))
-		console.log(c.dim('  Run ') + c.cyan('luca help <command>') + c.dim(' for detailed usage of a command'))
+		console.log(c.dim('  Run ') + c.cyan(`${binaryName} <file>`) + c.dim(' to execute a script or markdown (.ts, .js, .md)'))
+		console.log(c.dim('  Run ') + c.cyan(`${binaryName} help <command>`) + c.dim(' for detailed usage of a command'))
 		console.log()
 		return
 	}
@@ -225,12 +232,12 @@ export default async function help(_options: z.infer<typeof argsSchema>, context
 	if (!container.commands.has(target)) {
 		console.error(`  Unknown command: ${c.red(target)}`)
 		console.error()
-		console.error(`  Run ${c.cyan('luca help')} to see available commands.`)
+		console.error(`  Run ${c.cyan(`${binaryName} help`)} to see available commands.`)
 		return
 	}
 
 	const Cmd = container.commands.lookup(target) as any
-	console.log(formatCommandHelp(target, Cmd, c))
+	console.log(formatCommandHelp(target, Cmd, c, { binaryName }))
 }
 
 commands.registerHandler('help', {

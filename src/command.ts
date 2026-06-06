@@ -100,7 +100,8 @@ export class Command<
 			const { formatCommandHelp } = await import('./commands/help.js')
 			const ui = (this.container as any).feature('ui')
 			const name = Cls.shortcut?.replace('commands.', '') || 'unknown'
-			console.log(formatCommandHelp(name, this.constructor, ui.colors))
+			const binaryName = (this.container as any)._binaryName || 'luca'
+			console.log(formatCommandHelp(name, this.constructor, ui.colors, { binaryName }))
 			return
 		}
 
