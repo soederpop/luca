@@ -5,6 +5,7 @@ import { OpenAIClient } from '../clients/openai'
 import { ElevenLabsClient } from '../clients/elevenlabs'
 import { VoiceBoxClient } from '../clients/voicebox'
 import { ClaudeCode } from './features/claude-code'
+import { ClaudeController } from './features/claude-controller'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
 import { ConversationHistory } from './features/conversation-history'
@@ -26,6 +27,7 @@ import type { ZodType } from 'zod'
 
 export {
 	ClaudeCode,
+	ClaudeController,
 	OpenAICodex,
 	Conversation,
 	ConversationHistory,
@@ -56,6 +58,7 @@ export type {
 export interface AGIFeatures extends NodeFeatures {
 	conversation: typeof Conversation
 	claudeCode: typeof ClaudeCode
+	claudeController: typeof ClaudeController
 	openaiCodex: typeof OpenAICodex
 	conversationHistory: typeof ConversationHistory
 	assistant: typeof Assistant
@@ -94,6 +97,7 @@ export class AGIContainer<
 > extends NodeContainer<Features, K> {
 	openai!: OpenAIClient
 	claudeCode?: ClaudeCode
+	claudeController?: ClaudeController
 	openaiCodex?: OpenAICodex
 	conversationHistory?: ConversationHistory
 	docs!: ContentDb
@@ -134,6 +138,7 @@ const container = new AGIContainer()
 	.use(ElevenLabsClient)
 	.use(VoiceBoxClient)
 	.use(ClaudeCode)
+	.use(ClaudeController)
 	.use(OpenAICodex)
 	.use(Conversation)
 	.use(ConversationHistory)
