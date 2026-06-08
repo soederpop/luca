@@ -6,6 +6,7 @@ import { ElevenLabsClient } from '../clients/elevenlabs'
 import { VoiceBoxClient } from '../clients/voicebox'
 import { ClaudeCode } from './features/claude-code'
 import { ClaudeController } from './features/claude-controller'
+import { ClaudeSessionController } from './features/claude-session-controller'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
 import { ConversationHistory } from './features/conversation-history'
@@ -28,6 +29,7 @@ import type { ZodType } from 'zod'
 export {
 	ClaudeCode,
 	ClaudeController,
+	ClaudeSessionController,
 	OpenAICodex,
 	Conversation,
 	ConversationHistory,
