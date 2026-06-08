@@ -108,6 +108,10 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
     return persona ? { ...persona } : undefined
   }
 
+  listPersonas(): Array<{ name: string; persona: ClaudeControllerPersona }> {
+    return Array.from(this.personas.entries()).map(([name, persona]) => ({ name, persona: { ...persona } }))
+  }
+
   private resolvePersona(persona?: string | ClaudeControllerPersona): ClaudeControllerPersona {
     if (!persona) return {}
     if (typeof persona !== 'string') return persona

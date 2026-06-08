@@ -48,6 +48,8 @@ describe('ClaudeController', () => {
 
     const worker = controller.create({ id: 'reviewer', cwd: '/repo/app', persona: 'reviewer' })
 
+    expect(controller.listPersonas().map(p => p.name)).toEqual(['reviewer'])
+    expect(controller.getPersona('reviewer')?.description).toBeUndefined()
     expect(worker.args).toEqual([
       '--system-prompt', 'You are a strict Luca reviewer.',
       '--append-system-prompt', 'Prefer container features and bun.',
