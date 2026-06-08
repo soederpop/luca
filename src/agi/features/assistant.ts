@@ -291,6 +291,24 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.paths.resolve('hooks.ts')
 	}
 
+	/** The path to about.md which provides the human-readable assistant description. */
+	get aboutPath(): string {
+		return this.paths.resolve('about.md')
+	}
+
+	/**
+	 * Human-readable description of the assistant. Returns the `about` option when
+	 * provided, otherwise reads about.md from the assistant folder. Undefined when
+	 * neither is available.
+	 */
+	get about(): string | undefined {
+		if (this.options.about) return this.options.about
+		if (this.container.fs.exists(this.aboutPath)) {
+			return String(this.container.fs.readFile(this.aboutPath))
+		}
+		return undefined
+	}
+
 	/** Whether this assistant has a voice.yml configuration file. */
 	get hasVoice(): boolean {
 		return this.container.fs.exists(this.paths.resolve('voice.yml'))
