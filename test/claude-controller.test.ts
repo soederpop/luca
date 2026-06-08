@@ -26,6 +26,70 @@ describe('ClaudeController', () => {
     expect((controller as any).chooseOption).toBeUndefined()
   })
 
+  it('compiles named personas into interactive Claude CLI args', () => {
+    const c = new AGIContainer()
+    const controller = c.feature('claudeController')
+
+    controller.definePersona('reviewer', {
+      systemPrompt: 'You are a strict Luca reviewer.',
+      appendSystemPrompt: 'Prefer container features and bun.',
+      mcpConfig: ['./.claude/shared-mcp.json'],
+      mcpServers: {
+        luca: { type: 'stdio', command: 'bun', args: ['run', './mcp/luca.ts'] },
+      },
+      skillsFolders: ['/skills/luca'],
+      addDirs: ['/repo/shared'],
+      tools: ['Read', 'Grep'],
+      allowedTools: ['Bash(git *)'],
+      permissionMode: 'acceptEdits',
+      settingsFile: './.claude/settings.reviewer.json',
+      strictMcpConfig: true,
+    })
+
+    const worker = controller.create({ id: 'reviewer', cwd: '/repo/app', persona: 'reviewer' })
+
+    expect(worker.args).toEqual([
+      '--system-prompt', 'You are a strict Luca reviewer.',
+      '--append-system-prompt', 'Prefer container features and bun.',
+      '--mcp-config', './.claude/shared-mcp.json', JSON.stringify({
+        mcpServers: {
+          luca: { type: 'stdio', command: 'bun', args: ['run', './mcp/luca.ts'] },
+        },
+      }),
+      '--strict-mcp-config',
+      '--add-dir', '/repo/shared', '/skills/luca',
+      '--tools', 'Read', 'Grep',
+      '--allowed-tools', 'Bash(git *)',
+      '--permission-mode', 'acceptEdits',
+      '--settings', './.claude/settings.reviewer.json',
+    ])
+  })
+
+  it('lets spawn options override persona prompts and append raw args', () => {
+    const c = new AGIContainer()
+    const controller = c.feature('claudeController')
+    controller.definePersona('docs', {
+      systemPrompt: 'Persona system prompt',
+      skillsFolders: ['/skills/docs'],
+      permissionMode: 'plan',
+    })
+
+    const worker = controller.create({
+      id: 'docs',
+      persona: 'docs',
+      systemPrompt: 'Spawn system prompt',
+      addDirs: ['/repo'],
+      args: ['--model', 'opus'],
+    })
+
+    expect(worker.args).toEqual([
+      '--system-prompt', 'Spawn system prompt',
+      '--add-dir', '/repo', '/skills/docs',
+      '--permission-mode', 'plan',
+      '--model', 'opus',
+    ])
+  })
+
   it('parses numbered Claude prompt choices', () => {
     const choices = parseClaudeChoices(`
 Do you want to proceed?

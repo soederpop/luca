@@ -9,6 +9,8 @@ import { ClaudeController } from './features/claude-controller'
 import { ClaudeSessionController } from './features/claude-session-controller'
 import { OpenAICodex } from './features/openai-codex'
 import { Conversation } from './features/conversation'
+import { ConversationV2 } from './features/conversation-v2'
+import { ModelProviders } from './features/model-providers'
 import { ConversationHistory } from './features/conversation-history'
 import { Assistant } from './features/assistant'
 import { AssistantsManager } from './features/assistants-manager'
@@ -33,6 +35,8 @@ export {
 	ClaudeSessionController,
 	OpenAICodex,
 	Conversation,
+	ConversationV2,
+	ModelProviders,
 	ConversationHistory,
 	Assistant,
 	AssistantsManager,
@@ -61,6 +65,8 @@ export type {
 
 export interface AGIFeatures extends NodeFeatures {
 	conversation: typeof Conversation
+	conversationv2: typeof ConversationV2
+	modelProviders: typeof ModelProviders
 	claudeCode: typeof ClaudeCode
 	claudeController: typeof ClaudeController
 	openaiCodex: typeof OpenAICodex
@@ -105,6 +111,8 @@ export class AGIContainer<
 	claudeController?: ClaudeController
 	openaiCodex?: OpenAICodex
 	conversationHistory?: ConversationHistory
+	conversationv2?: ConversationV2
+	modelProviders?: ModelProviders
 	docs!: ContentDb
 
 	async conversation(options: ConversationFactoryOptions = {}) {
@@ -146,6 +154,8 @@ const container = new AGIContainer()
 	.use(ClaudeController)
 	.use(OpenAICodex)
 	.use(Conversation)
+	.use(ConversationV2)
+	.use(ModelProviders)
 	.use(ConversationHistory)
 	.use(Assistant)
 	.use(AssistantsManager)

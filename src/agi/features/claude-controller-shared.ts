@@ -26,7 +26,22 @@ export interface ClaudeControllerAskOptions {
   wait?: boolean
 }
 
-export interface ClaudeControllerStartOptions {
+export interface ClaudeControllerPersona {
+  description?: string
+  systemPrompt?: string
+  appendSystemPrompt?: string
+  mcpConfig?: string[]
+  mcpServers?: Record<string, any>
+  strictMcpConfig?: boolean
+  addDirs?: string[]
+  skillsFolders?: string[]
+  tools?: string[]
+  allowedTools?: string[]
+  permissionMode?: 'default' | 'acceptEdits' | 'auto' | 'bypassPermissions' | 'plan' | 'dontAsk'
+  settingsFile?: string
+}
+
+export interface ClaudeControllerStartOptions extends ClaudeControllerPersona {
   id?: string
   name?: string
   cwd?: string
@@ -35,6 +50,7 @@ export interface ClaudeControllerStartOptions {
   width?: number
   height?: number
   reuse?: boolean
+  persona?: string | ClaudeControllerPersona
 }
 
 const DEFAULT_AWAITING_PATTERNS = [
