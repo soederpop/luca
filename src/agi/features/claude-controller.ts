@@ -12,6 +12,7 @@ import {
 export type {
   ClaudeControllerAskOptions,
   ClaudeControllerChoice,
+  ClaudeControllerPersona,
   ClaudeControllerSnapshot,
   ClaudeControllerStartOptions,
 } from './claude-controller-shared'
