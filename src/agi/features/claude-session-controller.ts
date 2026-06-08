@@ -6,7 +6,8 @@ import {
   type ClaudeControllerStartOptions,
   detectClaudeAwaitingInput,
   parseClaudeChoices,
-} from './claude-controller'
+  compactClaudeControllerId,
+} from './claude-controller-shared'
 
 export interface ClaudeSessionControllerOptions extends ClaudeControllerStartOptions {
   container: any
@@ -17,10 +18,6 @@ export interface ClaudeSessionControllerOptions extends ClaudeControllerStartOpt
 
 function shQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`
-}
-
-function compactId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'default'
 }
 
 /**
@@ -49,7 +46,7 @@ export class ClaudeSessionController {
 
   constructor(options: ClaudeSessionControllerOptions) {
     this.container = options.container
-    this.id = compactId(options.id ?? 'main')
+    this.id = compactClaudeControllerId(options.id ?? 'main')
     this.cwd = options.cwd ?? this.container.cwd ?? process.cwd()
     this.args = options.args ?? []
     this.command = options.command
