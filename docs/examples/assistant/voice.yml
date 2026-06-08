@@ -1,0 +1,57 @@
+# voice.yml — voice configuration for this assistant.
+#
+# When present, this assistant becomes voice-capable via the `voiceMode` feature.
+# Activate by calling `assistant.use(container.feature('voiceMode', VoiceMode.optionsFromConfig(config)))`
+# where `config` is the result of `VoiceMode.readVoiceConfig(container, assistant)`.
+#
+# Uncomment fields below to enable. All fields are optional; sensible defaults apply.
+
+# ── Provider ──────────────────────────────────────────────────────────
+# Which TTS backend to use. One of: elevenlabs, voicebox
+# provider: elevenlabs
+
+# ── ElevenLabs settings ───────────────────────────────────────────────
+# Requires ELEVENLABS_API_KEY in the environment.
+#
+# voiceId: REPLACE_WITH_YOUR_VOICE_ID
+# modelId: eleven_v3
+# voiceSettings:
+#   stability: 0.35
+#   similarityBoost: 0.8
+#   style: 0.6
+#   speed: 1.0
+#   useSpeakerBoost: true
+#
+# A short tag prepended to each synthesized chunk to steer tone/character.
+# conversationModePrefix: '[warm tone]'
+
+# ── VoiceBox settings (alternative to ElevenLabs) ─────────────────────
+# Requires a running local VoiceBox.sh service.
+#
+# voicebox:
+#   profileId: my-profile
+#   engine: qwen
+#   modelSize: 1.7B
+#   language: en
+#   instruct: null
+
+# ── Chunking ──────────────────────────────────────────────────────────
+# Maximum characters per synthesis chunk. Lower = snappier playback start,
+# higher = fewer cuts. Default 200.
+# maxChunkLength: 200
+
+# ── Canned phrases (optional) ─────────────────────────────────────────
+# Pre-recorded phrases by tag. The `luca voice --generateSounds` command
+# (when available) synthesizes one audio file per phrase and writes a
+# manifest the assistant can play during tool chains.
+#
+# phrases:
+#   generic-ack:
+#     - On it
+#     - Got it
+#   thinking:
+#     - Let me think
+#     - One moment
+#   mistake:
+#     - Oops
+#     - Let me try again

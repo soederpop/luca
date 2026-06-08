@@ -95,7 +95,7 @@ async function buildScaffolds(options: z.infer<typeof argsSchema>, context: Cont
 	// Bundle the assistant example as a multi-file scaffold
 	const assistantDir = 'docs/examples/assistant'
 	const assistantFiles: Record<string, string> = {}
-	const assistantFileNames = ['CORE.md', 'tools.ts', 'hooks.ts']
+	const assistantFileNames = ['CORE.md', 'tools.ts', 'hooks.ts', 'voice.yml']
 	for (const fileName of assistantFileNames) {
 		const filePath = `${assistantDir}/${fileName}`
 		if (fs.exists(filePath)) {

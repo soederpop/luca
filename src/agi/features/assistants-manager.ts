@@ -27,7 +27,7 @@ export interface AssistantEntry {
 	hasTools: boolean
 	/** Whether a hooks.ts file exists. */
 	hasHooks: boolean
-	/** Whether a voice.yaml configuration file exists. */
+	/** Whether a voice.yml configuration file exists. */
 	hasVoice: boolean
 	/** Contents of ABOUT.md if present, undefined otherwise. */
 	about?: string
@@ -222,7 +222,7 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 						hasCorePrompt: true,
 						hasTools: fs.exists(`${folder}/tools.ts`),
 						hasHooks: fs.exists(`${folder}/hooks.ts`),
-						hasVoice: fs.exists(`${folder}/voice.yaml`),
+						hasVoice: fs.exists(`${folder}/voice.yml`),
 						...(about != null && { about }),
 						...(meta != null && { meta }),
 					}

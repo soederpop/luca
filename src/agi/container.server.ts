@@ -22,6 +22,7 @@ import { LucaCoder } from './features/luca-coder'
 import { Memory } from './features/agent-memory'
 import { CodingTools } from './features/coding-tools'
 import { McpBridge } from './features/mcp-bridge'
+import { VoiceMode } from './features/voice-mode'
 
 import type { ConversationTool } from './features/conversation'
 import type { ZodType } from 'zod'
@@ -43,6 +44,7 @@ export {
 	Memory,
 	CodingTools,
 	McpBridge,
+	VoiceMode,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -73,6 +75,7 @@ export interface AGIFeatures extends NodeFeatures {
 	memory: typeof Memory
 	codingTools: typeof CodingTools
 	mcpBridge: typeof McpBridge
+	voiceMode: typeof VoiceMode
 }
 
 export interface ConversationFactoryOptions {

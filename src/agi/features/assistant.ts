@@ -69,6 +69,10 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 
 	/** Text to append to the system prompt from CORE.md */
 	appendPrompt: z.string().optional().describe('Text to append to the system prompt'),
+
+	/** Human-readable description of the assistant. Falls back to about.md in folder mode. */
+	about: z.string().optional().describe('Human-readable description of the assistant. Falls back to about.md in the assistant folder.'),
+
 	/** Override or extend the tools loaded from tools.ts */
 
 	tools: z.record(z.string(), z.any()).optional().describe('Override or extend the tools loaded from tools.ts'),
@@ -287,16 +291,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.paths.resolve('hooks.ts')
 	}
 
-	/** Whether this assistant has a voice.yaml configuration file. */
+	/** Whether this assistant has a voice.yml configuration file. */
 	get hasVoice(): boolean {
-		return this.container.fs.exists(this.paths.resolve('voice.yaml'))
+		return this.container.fs.exists(this.paths.resolve('voice.yml'))
 	}
 
-	/** Parsed voice configuration from voice.yaml, or undefined if not present. */
+	/** Parsed voice configuration from voice.yml, or undefined if not present. */
 	get voiceConfig(): Record<string, any> | undefined {
 		if (!this.hasVoice) return undefined
 		const yaml = this.container.feature('yaml')
-		return yaml.parse(String(this.container.fs.readFile(this.paths.resolve('voice.yaml'))))
+		return yaml.parse(String(this.container.fs.readFile(this.paths.resolve('voice.yml'))))
 	}
 
 	get resolvedDocsFolder() {

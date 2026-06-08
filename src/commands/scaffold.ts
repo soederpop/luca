@@ -173,6 +173,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		ui.print.dim(`    CORE.md   — system prompt (edit this to define your assistant's personality)`)
 		ui.print.dim(`    tools.ts  — tool functions the assistant can call`)
 		ui.print.dim(`    hooks.ts  — lifecycle event handlers`)
+		ui.print.dim(`    voice.yml — optional voice/TTS config (uncomment to enable)`)
 		ui.print(`\n  Start chatting:  luca chat ${name}\n`)
 		return
 	}
