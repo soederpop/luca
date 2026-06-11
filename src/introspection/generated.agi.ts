@@ -2245,12 +2245,20 @@ setBuildTimeData('features.assistant', {
       "description": "The path to hooks.ts which provides event handler functions.",
       "returns": "string"
     },
+    "aboutPath": {
+      "description": "The path to about.md which provides the human-readable assistant description.",
+      "returns": "string"
+    },
+    "about": {
+      "description": "Human-readable description of the assistant. Returns the `about` option when provided, otherwise reads about.md from the assistant folder. Undefined when neither is available.",
+      "returns": "string | undefined"
+    },
     "hasVoice": {
-      "description": "Whether this assistant has a voice.yaml configuration file.",
+      "description": "Whether this assistant has a voice.yml configuration file.",
       "returns": "boolean"
     },
     "voiceConfig": {
-      "description": "Parsed voice configuration from voice.yaml, or undefined if not present.",
+      "description": "Parsed voice configuration from voice.yml, or undefined if not present.",
       "returns": "Record<string, any> | undefined"
     },
     "resolvedDocsFolder": {
@@ -2726,7 +2734,7 @@ setBuildTimeData('features.assistantsManager', {
         },
         "hasVoice": {
           "type": "boolean",
-          "description": "Whether a voice.yaml configuration file exists."
+          "description": "Whether a voice.yml configuration file exists."
         },
         "about": {
           "type": "string",
@@ -4931,6 +4939,200 @@ setBuildTimeData('features.claudeCode', {
       }
     }
   }
+});
+
+setBuildTimeData('features.claudeController', {
+  "id": "features.claudeController",
+  "description": "Multi-session spawner for interactive Claude Code workers. ClaudeController is intentionally only the registry/orchestrator for spawning one or more `ClaudeSessionController` workers. Each worker owns the actual tmux session, cwd, args, screen parsing, JSONL session lookup, and input APIs. This keeps the feature singleton focused on lifecycle and tracking while the per-session controller handles interactive behavior without `claude -p`.",
+  "shortcut": "features.claudeController",
+  "className": "ClaudeController",
+  "methods": {
+    "definePersona": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "persona": {
+          "type": "ClaudeControllerPersona",
+          "description": "Parameter persona"
+        }
+      },
+      "required": [
+        "name",
+        "persona"
+      ],
+      "returns": "this"
+    },
+    "getPersona": {
+      "description": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "ClaudeControllerPersona | undefined"
+    },
+    "listPersonas": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "Array<{ name: string; persona: ClaudeControllerPersona }>"
+    },
+    "create": {
+      "description": "Create a ClaudeSessionController worker without starting its tmux process.",
+      "parameters": {
+        "options": {
+          "type": "ClaudeControllerStartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "ClaudeSessionController"
+    },
+    "start": {
+      "description": "Start one interactive Claude session and track its worker.",
+      "parameters": {
+        "options": {
+          "type": "ClaudeControllerStartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ClaudeControllerSnapshot>"
+    },
+    "startMany": {
+      "description": "Start multiple interactive Claude sessions concurrently.",
+      "parameters": {
+        "options": {
+          "type": "ClaudeControllerStartOptions[]",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<ClaudeControllerSnapshot[]>"
+    },
+    "spawn": {
+      "description": "Alias for start(), emphasizing this feature's spawner role.",
+      "parameters": {
+        "options": {
+          "type": "ClaudeControllerStartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ClaudeControllerSnapshot>"
+    },
+    "spawnMany": {
+      "description": "Alias for startMany(), emphasizing this feature's spawner role.",
+      "parameters": {
+        "options": {
+          "type": "ClaudeControllerStartOptions[]",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "returns": "Promise<ClaudeControllerSnapshot[]>"
+    },
+    "session": {
+      "description": "Return a spawned worker by id. The worker owns ask/respond/choices/etc.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [],
+      "returns": "ClaudeSessionController | undefined"
+    },
+    "listSessions": {
+      "description": "List spawned worker objects.",
+      "parameters": {},
+      "required": [],
+      "returns": "ClaudeSessionController[]"
+    },
+    "snapshots": {
+      "description": "Return latest tracked snapshots without touching tmux.",
+      "parameters": {},
+      "required": [],
+      "returns": "ClaudeControllerSnapshot[]"
+    },
+    "refresh": {
+      "description": "Refresh one spawned worker's tracked snapshot.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [],
+      "returns": "Promise<ClaudeControllerSnapshot>"
+    },
+    "refreshAll": {
+      "description": "Refresh all spawned workers concurrently.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<ClaudeControllerSnapshot[]>"
+    },
+    "stop": {
+      "description": "Stop and forget one spawned Claude session.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "stopAll": {
+      "description": "Stop and forget every spawned Claude session.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    }
+  },
+  "getters": {
+    "activeController": {
+      "description": "",
+      "returns": "string | undefined"
+    }
+  },
+  "events": {
+    "controller:update": {
+      "name": "controller:update",
+      "description": "Event emitted by ClaudeController",
+      "arguments": {}
+    },
+    "controller:start": {
+      "name": "controller:start",
+      "description": "Event emitted by ClaudeController",
+      "arguments": {}
+    },
+    "controller:stop": {
+      "name": "controller:stop",
+      "description": "Event emitted by ClaudeController",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const controller = container.feature('claudeController')\nconst [docs, tests] = await controller.startMany([\n { id: 'docs', cwd: repo, args: ['--add-dir', repo] },\n { id: 'tests', cwd: repo, args: ['--permission-mode', 'acceptEdits'] },\n])\nconst docsWorker = controller.session('docs')\nawait docsWorker?.ask('Inspect the docs')"
+    }
+  ]
 });
 
 setBuildTimeData('features.codingTools', {
@@ -20523,6 +20725,238 @@ setBuildTimeData('features.vm', {
   ]
 });
 
+setBuildTimeData('features.voiceMode', {
+  "id": "features.voiceMode",
+  "description": "VoiceMode helper",
+  "shortcut": "features.voiceMode",
+  "className": "VoiceMode",
+  "methods": {
+    "toggleVoiceMode": {
+      "description": "Toggle voice mode on or off. When enabled: speech-first prompt guidance, TTS pipeline active, low maxTokens. When disabled: normal markdown assistant, no TTS, normal maxTokens.",
+      "parameters": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Parameter enabled"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "returns": "void"
+    },
+    "enableVoiceMode": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "disableVoiceMode": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "mute": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "unmute": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "speak": {
+      "description": "Speak arbitrary text through the TTS pipeline (outside of a conversation turn).",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<void>"
+    },
+    "waitForSpeechDone": {
+      "description": "Wait until the current turn's audio has fully played. Safe to call even if nothing is playing (resolves immediately).",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<void>"
+    },
+    "loadPhraseManifest": {
+      "description": "Loads the phrase manifest JSON from the assistant's generated folder and indexes by tag.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "randomPhrase": {
+      "description": "Returns a random phrase file path for the given tag, avoiding repeats.",
+      "parameters": {
+        "tag": {
+          "type": "string",
+          "description": "Parameter tag"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "returns": "string | null"
+    },
+    "playPhrase": {
+      "description": "Plays a random audio phrase for the given tag using afplay.",
+      "parameters": {
+        "tag": {
+          "type": "string",
+          "description": "Parameter tag"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "returns": "void"
+    },
+    "playToolcallPhrase": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "playToolResultPhrase": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "playToolErrorPhrase": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "checkCapabilities": {
+      "description": "Check whether TTS is available for the current provider config.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{ available: boolean; missing: string[] }>"
+    },
+    "setupToolsConsumer": {
+      "description": "Called automatically when `assistant.use(voiceMode)` is invoked. This is where we wire into the assistant's lifecycle.",
+      "parameters": {
+        "assistant": {
+          "type": "Assistant",
+          "description": "Parameter assistant"
+        }
+      },
+      "required": [
+        "assistant"
+      ],
+      "returns": "void"
+    },
+    "detach": {
+      "description": "Detach from the assistant, removing event listeners and ext methods.",
+      "parameters": {},
+      "required": [],
+      "returns": "void"
+    },
+    "summarizeForSpeech": {
+      "description": "",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Parameter text"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "returns": "Promise<string>"
+    }
+  },
+  "getters": {
+    "assistant": {
+      "description": "The assistant this voiceMode is attached to.",
+      "returns": "Assistant | null"
+    },
+    "isMuted": {
+      "description": "",
+      "returns": "boolean"
+    },
+    "isSpeaking": {
+      "description": "",
+      "returns": "boolean"
+    }
+  },
+  "events": {
+    "muted": {
+      "name": "muted",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "unmuted": {
+      "name": "unmuted",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "attached": {
+      "name": "attached",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "detached": {
+      "name": "detached",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "turnComplete": {
+      "name": "turnComplete",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "summarizing": {
+      "name": "summarizing",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "toolCall": {
+      "name": "toolCall",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "toolResult": {
+      "name": "toolResult",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "toolError": {
+      "name": "toolError",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "generating": {
+      "name": "generating",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "speaking": {
+      "name": "speaking",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    },
+    "error": {
+      "name": "error",
+      "description": "Event emitted by VoiceMode",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": []
+});
+
 setBuildTimeData('features.yaml', {
   "id": "features.yaml",
   "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
@@ -23904,12 +24338,20 @@ export const introspectionData = [
         "description": "The path to hooks.ts which provides event handler functions.",
         "returns": "string"
       },
+      "aboutPath": {
+        "description": "The path to about.md which provides the human-readable assistant description.",
+        "returns": "string"
+      },
+      "about": {
+        "description": "Human-readable description of the assistant. Returns the `about` option when provided, otherwise reads about.md from the assistant folder. Undefined when neither is available.",
+        "returns": "string | undefined"
+      },
       "hasVoice": {
-        "description": "Whether this assistant has a voice.yaml configuration file.",
+        "description": "Whether this assistant has a voice.yml configuration file.",
         "returns": "boolean"
       },
       "voiceConfig": {
-        "description": "Parsed voice configuration from voice.yaml, or undefined if not present.",
+        "description": "Parsed voice configuration from voice.yml, or undefined if not present.",
         "returns": "Record<string, any> | undefined"
       },
       "resolvedDocsFolder": {
@@ -24384,7 +24826,7 @@ export const introspectionData = [
           },
           "hasVoice": {
             "type": "boolean",
-            "description": "Whether a voice.yaml configuration file exists."
+            "description": "Whether a voice.yml configuration file exists."
           },
           "about": {
             "type": "string",
@@ -26585,6 +27027,199 @@ export const introspectionData = [
         }
       }
     }
+  },
+  {
+    "id": "features.claudeController",
+    "description": "Multi-session spawner for interactive Claude Code workers. ClaudeController is intentionally only the registry/orchestrator for spawning one or more `ClaudeSessionController` workers. Each worker owns the actual tmux session, cwd, args, screen parsing, JSONL session lookup, and input APIs. This keeps the feature singleton focused on lifecycle and tracking while the per-session controller handles interactive behavior without `claude -p`.",
+    "shortcut": "features.claudeController",
+    "className": "ClaudeController",
+    "methods": {
+      "definePersona": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "persona": {
+            "type": "ClaudeControllerPersona",
+            "description": "Parameter persona"
+          }
+        },
+        "required": [
+          "name",
+          "persona"
+        ],
+        "returns": "this"
+      },
+      "getPersona": {
+        "description": "",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "ClaudeControllerPersona | undefined"
+      },
+      "listPersonas": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "Array<{ name: string; persona: ClaudeControllerPersona }>"
+      },
+      "create": {
+        "description": "Create a ClaudeSessionController worker without starting its tmux process.",
+        "parameters": {
+          "options": {
+            "type": "ClaudeControllerStartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "ClaudeSessionController"
+      },
+      "start": {
+        "description": "Start one interactive Claude session and track its worker.",
+        "parameters": {
+          "options": {
+            "type": "ClaudeControllerStartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ClaudeControllerSnapshot>"
+      },
+      "startMany": {
+        "description": "Start multiple interactive Claude sessions concurrently.",
+        "parameters": {
+          "options": {
+            "type": "ClaudeControllerStartOptions[]",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<ClaudeControllerSnapshot[]>"
+      },
+      "spawn": {
+        "description": "Alias for start(), emphasizing this feature's spawner role.",
+        "parameters": {
+          "options": {
+            "type": "ClaudeControllerStartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ClaudeControllerSnapshot>"
+      },
+      "spawnMany": {
+        "description": "Alias for startMany(), emphasizing this feature's spawner role.",
+        "parameters": {
+          "options": {
+            "type": "ClaudeControllerStartOptions[]",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "returns": "Promise<ClaudeControllerSnapshot[]>"
+      },
+      "session": {
+        "description": "Return a spawned worker by id. The worker owns ask/respond/choices/etc.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [],
+        "returns": "ClaudeSessionController | undefined"
+      },
+      "listSessions": {
+        "description": "List spawned worker objects.",
+        "parameters": {},
+        "required": [],
+        "returns": "ClaudeSessionController[]"
+      },
+      "snapshots": {
+        "description": "Return latest tracked snapshots without touching tmux.",
+        "parameters": {},
+        "required": [],
+        "returns": "ClaudeControllerSnapshot[]"
+      },
+      "refresh": {
+        "description": "Refresh one spawned worker's tracked snapshot.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [],
+        "returns": "Promise<ClaudeControllerSnapshot>"
+      },
+      "refreshAll": {
+        "description": "Refresh all spawned workers concurrently.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<ClaudeControllerSnapshot[]>"
+      },
+      "stop": {
+        "description": "Stop and forget one spawned Claude session.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "stopAll": {
+        "description": "Stop and forget every spawned Claude session.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      }
+    },
+    "getters": {
+      "activeController": {
+        "description": "",
+        "returns": "string | undefined"
+      }
+    },
+    "events": {
+      "controller:update": {
+        "name": "controller:update",
+        "description": "Event emitted by ClaudeController",
+        "arguments": {}
+      },
+      "controller:start": {
+        "name": "controller:start",
+        "description": "Event emitted by ClaudeController",
+        "arguments": {}
+      },
+      "controller:stop": {
+        "name": "controller:stop",
+        "description": "Event emitted by ClaudeController",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const controller = container.feature('claudeController')\nconst [docs, tests] = await controller.startMany([\n { id: 'docs', cwd: repo, args: ['--add-dir', repo] },\n { id: 'tests', cwd: repo, args: ['--permission-mode', 'acceptEdits'] },\n])\nconst docsWorker = controller.session('docs')\nawait docsWorker?.ask('Inspect the docs')"
+      }
+    ]
   },
   {
     "id": "features.codingTools",
@@ -42120,6 +42755,237 @@ export const introspectionData = [
         "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
       }
     ]
+  },
+  {
+    "id": "features.voiceMode",
+    "description": "VoiceMode helper",
+    "shortcut": "features.voiceMode",
+    "className": "VoiceMode",
+    "methods": {
+      "toggleVoiceMode": {
+        "description": "Toggle voice mode on or off. When enabled: speech-first prompt guidance, TTS pipeline active, low maxTokens. When disabled: normal markdown assistant, no TTS, normal maxTokens.",
+        "parameters": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Parameter enabled"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "returns": "void"
+      },
+      "enableVoiceMode": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "disableVoiceMode": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "mute": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "unmute": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "speak": {
+        "description": "Speak arbitrary text through the TTS pipeline (outside of a conversation turn).",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<void>"
+      },
+      "waitForSpeechDone": {
+        "description": "Wait until the current turn's audio has fully played. Safe to call even if nothing is playing (resolves immediately).",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<void>"
+      },
+      "loadPhraseManifest": {
+        "description": "Loads the phrase manifest JSON from the assistant's generated folder and indexes by tag.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "randomPhrase": {
+        "description": "Returns a random phrase file path for the given tag, avoiding repeats.",
+        "parameters": {
+          "tag": {
+            "type": "string",
+            "description": "Parameter tag"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "returns": "string | null"
+      },
+      "playPhrase": {
+        "description": "Plays a random audio phrase for the given tag using afplay.",
+        "parameters": {
+          "tag": {
+            "type": "string",
+            "description": "Parameter tag"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "returns": "void"
+      },
+      "playToolcallPhrase": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "playToolResultPhrase": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "playToolErrorPhrase": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "checkCapabilities": {
+        "description": "Check whether TTS is available for the current provider config.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{ available: boolean; missing: string[] }>"
+      },
+      "setupToolsConsumer": {
+        "description": "Called automatically when `assistant.use(voiceMode)` is invoked. This is where we wire into the assistant's lifecycle.",
+        "parameters": {
+          "assistant": {
+            "type": "Assistant",
+            "description": "Parameter assistant"
+          }
+        },
+        "required": [
+          "assistant"
+        ],
+        "returns": "void"
+      },
+      "detach": {
+        "description": "Detach from the assistant, removing event listeners and ext methods.",
+        "parameters": {},
+        "required": [],
+        "returns": "void"
+      },
+      "summarizeForSpeech": {
+        "description": "",
+        "parameters": {
+          "text": {
+            "type": "string",
+            "description": "Parameter text"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "returns": "Promise<string>"
+      }
+    },
+    "getters": {
+      "assistant": {
+        "description": "The assistant this voiceMode is attached to.",
+        "returns": "Assistant | null"
+      },
+      "isMuted": {
+        "description": "",
+        "returns": "boolean"
+      },
+      "isSpeaking": {
+        "description": "",
+        "returns": "boolean"
+      }
+    },
+    "events": {
+      "muted": {
+        "name": "muted",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "unmuted": {
+        "name": "unmuted",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "attached": {
+        "name": "attached",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "detached": {
+        "name": "detached",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "turnComplete": {
+        "name": "turnComplete",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "summarizing": {
+        "name": "summarizing",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "toolCall": {
+        "name": "toolCall",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "toolResult": {
+        "name": "toolResult",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "toolError": {
+        "name": "toolError",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "generating": {
+        "name": "generating",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "speaking": {
+        "name": "speaking",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      },
+      "error": {
+        "name": "error",
+        "description": "Event emitted by VoiceMode",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": []
   },
   {
     "id": "features.yaml",

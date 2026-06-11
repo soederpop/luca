@@ -3,6 +3,7 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message } from './conversation'
+import type { ConversationV2 } from './conversation-v2'
 import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -79,6 +80,15 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Override or extend the schemas loaded from tools.ts */
 
 	schemas: z.record(z.string(), z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
+	/** Use the provider-backed ConversationV2 implementation instead of the legacy conversation feature. */
+	v2: z.boolean().default(false).describe('Use the provider-backed ConversationV2 implementation'),
+
+	/** Model provider preset or inline provider config for ConversationV2. */
+	provider: z.any().optional().describe('Model provider preset or inline provider config for ConversationV2'),
+
+	/** Provider-specific transport options for ConversationV2. */
+	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options for ConversationV2'),
+
 	/** OpenAI model to use for the conversation */
 
 	model: z.string().optional().describe('OpenAI model to use'),
@@ -370,26 +380,44 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}, 1)
 	}
 
-	get conversation(): Conversation {
-		let conv = this.state.get('conversation') as Conversation | null
+	get conversation(): Conversation | ConversationV2 {
+		let conv = this.state.get('conversation') as Conversation | ConversationV2 | null
 		if (!conv) {
-			conv = this.container.feature('conversation', {
-				model: this.effectiveOptions.model || 'gpt-5.4',
-				local: !!this.effectiveOptions.local,
-				tools: this.tools,
-				api: 'chat',
-				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
-				...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
-				...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
-				...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),
-				...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
-				...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
-				...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
-				...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
-				history: [
-					{ role: 'system', content: this.effectiveSystemPrompt },
-				],
-			})
+			if (this.effectiveOptions.v2) {
+				const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
+				conv = this.container.feature('conversationv2', {
+					provider: this.effectiveOptions.provider,
+					providerOptions: {
+						...callerProviderOptions,
+						assistant: callerProviderOptions.assistant ?? this.name,
+					},
+					model: this.effectiveOptions.model,
+					tools: this.tools,
+					...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+					...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
+					history: [
+						{ role: 'system', content: this.effectiveSystemPrompt },
+					],
+				})
+			} else {
+				conv = this.container.feature('conversation', {
+					model: this.effectiveOptions.model || 'gpt-5.4',
+					local: !!this.effectiveOptions.local,
+					tools: this.tools,
+					api: 'chat',
+					...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+					...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
+					...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
+					...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),
+					...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
+					...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
+					...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
+					...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
+					history: [
+						{ role: 'system', content: this.effectiveSystemPrompt },
+					],
+				})
+			}
 			this.state.set('conversation', conv)
 		}
 		return conv
@@ -1103,7 +1131,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		} else {
 			// Fresh conversation — just set thread
 			this.conversation.state.set('thread', threadId)
-			this.state.set('conversationId', this.conversation.state.get('id'))
+			this.state.set('conversationId', this.conversation.state.get('id') as string)
 		}
 	}
 
@@ -1194,44 +1222,46 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 
 		// Wire up event forwarding from conversation to assistant.
 		// Each forwarded event triggers its hook (awaited) before emitting on the assistant bus.
-		this.conversation.on('turnStart', async (info: any) => {
+		const conversation = this.conversation as any
+
+		conversation.on('turnStart', async (info: any) => {
 			await this.triggerHook('turnStart', info)
 			this.emit('turnStart', info)
 		})
-		this.conversation.on('turnEnd', async (info: any) => {
+		conversation.on('turnEnd', async (info: any) => {
 			await this.triggerHook('turnEnd', info)
 			this.emit('turnEnd', info)
 		})
-		this.conversation.on('chunk', async (chunk: string) => {
+		conversation.on('chunk', async (chunk: string) => {
 			await this.triggerHook('chunk', chunk)
 			this.emit('chunk', chunk)
 		})
-		this.conversation.on('preview', async (text: string) => {
+		conversation.on('preview', async (text: string) => {
 			await this.triggerHook('preview', text)
 			this.emit('preview', text)
 		})
-		this.conversation.on('response', async (text: string) => {
+		conversation.on('response', async (text: string) => {
 			await this.triggerHook('response', text)
 			this.emit('response', text)
 			this.state.set('lastResponse', text)
 		})
-		this.conversation.on('rawEvent', async (event: any) => {
+		conversation.on('rawEvent', async (event: any) => {
 			await this.triggerHook('rawEvent', event)
 			this.emit('rawEvent', event)
 		})
-		this.conversation.on('mcpEvent', async (event: any) => {
+		conversation.on('mcpEvent', async (event: any) => {
 			await this.triggerHook('mcpEvent', event)
 			this.emit('mcpEvent', event)
 		})
-		this.conversation.on('toolCall', async (name: string, args: any) => {
+		conversation.on('toolCall', async (name: string, args: any) => {
 			await this.triggerHook('toolCall', name, args)
 			this.emit('toolCall', name, args)
 		})
-		this.conversation.on('toolResult', async (name: string, result: any) => {
+		conversation.on('toolResult', async (name: string, result: any) => {
 			await this.triggerHook('toolResult', name, result)
 			this.emit('toolResult', name, result)
 		})
-		this.conversation.on('toolError', async (name: string, error: any) => {
+		conversation.on('toolError', async (name: string, error: any) => {
 			await this.triggerHook('toolError', name, error)
 			this.emit('toolError', name, error)
 		})
@@ -1427,7 +1457,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		const { history: historyMode, forbidTools, allowTools, toolNames, onFork, ...convOverrides } = options
 
 		// Fork the conversation with history truncation
-		const forkedConv = this.conversation.fork({ history: historyMode ?? 'full', ...convOverrides })
+		const forkedConv = (this.conversation as any).fork({ history: historyMode ?? 'full', ...convOverrides })
 
 		// Create a new assistant that reuses the forked conversation
 		const forkedAssistant = this.container.feature('assistant', {

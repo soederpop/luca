@@ -1,4 +1,5 @@
 import { Feature, features } from '../feature'
+import OpenAI from 'openai'
 import type { ClaudeSessionController } from './claude-session-controller'
 
 declare module 'luca/feature' {
@@ -109,8 +110,9 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
   {
     id: 'openai',
     label: 'OpenAI',
-    apiMode: 'openai-responses',
+    apiMode: 'openai-chat-completions',
     auth: 'apiKey',
+    baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
     defaultModel: 'gpt-5',
   },
@@ -119,6 +121,7 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     label: 'OpenAI Chat Completions',
     apiMode: 'openai-chat-completions',
     auth: 'apiKey',
+    baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
     defaultModel: 'gpt-5',
   },
@@ -148,9 +151,9 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
   {
     id: 'openai-codex',
     label: 'OpenAI Codex auth',
-    apiMode: 'openai-responses',
+    apiMode: 'openai-codex',
     auth: 'codex',
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-5-codex',
   },
   {
     id: 'anthropic',
@@ -192,28 +195,20 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
     if (!provider.baseURL) throw new Error(`Provider ${provider.id} requires baseURL for chat completions`)
     if (provider.auth !== 'none' && !provider.apiKey) throw new Error(`Provider ${provider.id} requires an API key`)
 
-    const response = await fetch(`${provider.baseURL.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(provider.apiKey ? { authorization: `Bearer ${provider.apiKey}` } : {}),
-        ...(provider.headers ?? {}),
-      },
-      body: JSON.stringify({
-        model: request.model ?? provider.model,
-        messages: request.messages,
-        tools: request.tools?.length ? request.tools : undefined,
-        temperature: request.temperature,
-        max_tokens: request.maxTokens,
-        stream: false,
-      }),
+    const client = provider.providerOptions?.client ?? new OpenAI({
+      apiKey: provider.apiKey ?? 'not-needed',
+      baseURL: provider.baseURL,
+      defaultHeaders: provider.headers,
     })
 
-    if (!response.ok) {
-      throw new Error(`OpenAI-compatible request failed (${response.status}): ${await response.text()}`)
-    }
-
-    const json = await response.json() as any
+    const json = await client.chat.completions.create({
+      model: request.model ?? provider.model,
+      messages: request.messages,
+      tools: request.tools?.length ? request.tools : undefined,
+      temperature: request.temperature,
+      max_tokens: request.maxTokens,
+      stream: false,
+    }) as any
     yield { type: 'rawEvent', event: json }
     const choice = json.choices?.[0]
     const message = choice?.message ?? {}
@@ -240,6 +235,47 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
 
 export interface ClaudeSessionTransportOptions {
   controllerClass?: typeof ClaudeSessionController
+}
+
+export class OpenAICodexTransport implements ModelTransport {
+  apiMode = 'openai-codex'
+
+  constructor(private container: any) {}
+
+  async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
+    const codex = this.container.feature('openaiCodex') as any
+    const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
+    const prompt = this.promptFromMessages(request.messages)
+    const result = await codex.run(prompt, {
+      ...providerOptions,
+      model: request.model ?? provider.model,
+    })
+    const content = typeof result === 'string' ? result : (result?.result ?? result?.content ?? '')
+    if (content) yield { type: 'chunk', text: content }
+    yield {
+      type: 'response',
+      response: {
+        content,
+        toolCalls: [],
+        usage: typeof result === 'object' ? result?.usage : undefined,
+        providerData: typeof result === 'object' ? { ...result, result: undefined, content: undefined, usage: undefined } : undefined,
+      },
+    }
+  }
+
+  private promptFromMessages(messages: ModelMessage[]): string {
+    return messages
+      .filter(message => message.role !== 'assistant' && message.role !== 'tool')
+      .map(message => this.contentToText(message.content))
+      .filter(Boolean)
+      .join('\n\n')
+  }
+
+  private contentToText(content: any): string {
+    if (typeof content === 'string') return content
+    if (Array.isArray(content)) return content.map(part => typeof part === 'string' ? part : part.text ?? part.content ?? '').filter(Boolean).join('\n')
+    return String(content ?? '')
+  }
 }
 
 export class ClaudeSessionTransport implements ModelTransport {
@@ -272,6 +308,8 @@ export class ClaudeSessionTransport implements ModelTransport {
     if (providerOptions.controller) return providerOptions.controller
     if (this.controllers.has(key)) return this.controllers.get(key)
 
+    const args = await this.resolveClaudeArgs(providerOptions)
+
     const Controller = this.options.controllerClass ?? (await import('./claude-session-controller')).ClaudeSessionController
     const controller = new Controller({
       container: this.container,
@@ -279,7 +317,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       cwd: providerOptions.cwd ?? this.container.cwd ?? process.cwd(),
       name: providerOptions.name,
       command: providerOptions.command,
-      args: providerOptions.args,
+      args,
       width: providerOptions.width,
       height: providerOptions.height,
       reuse: providerOptions.reuse ?? true,
@@ -289,6 +327,39 @@ export class ClaudeSessionTransport implements ModelTransport {
     })
     this.controllers.set(key, controller)
     return controller
+  }
+
+  /**
+   * Build the args list for the Claude CLI, bootstrapping an MCP config when
+   * providerOptions.assistant is set so the spawned Claude process can call
+   * back into a `luca mcp --assistant <name>` subprocess for tool execution.
+   * Honors `providerOptions.mcpServers` for extra MCP servers, `lucaBin` for
+   * the luca binary path, `askOnly` for `--ask-only`, `mcpServerName` for the
+   * server label, and `strictMcp` (default true) for `--strict-mcp-config`.
+   */
+  private async resolveClaudeArgs(providerOptions: Record<string, any>): Promise<string[]> {
+    const args = [...(providerOptions.args ?? [])]
+    const assistant = providerOptions.assistant
+    const extraServers = providerOptions.mcpServers as Record<string, any> | undefined
+    if ((!assistant || assistant === false) && !extraServers) return args
+
+    const servers: Record<string, any> = { ...(extraServers ?? {}) }
+
+    if (typeof assistant === 'string' && assistant.length > 0) {
+      const lucaBin = providerOptions.lucaBin ?? 'luca'
+      const mcpArgs = ['mcp', '--assistant', assistant, '--transport', 'stdio']
+      if (providerOptions.askOnly) mcpArgs.push('--ask-only')
+      const serverName = providerOptions.mcpServerName ?? `luca-${assistant}`
+      servers[serverName] = { command: lucaBin, args: mcpArgs }
+    }
+
+    if (Object.keys(servers).length === 0) return args
+
+    const claudeCode = this.container.feature('claudeCode') as any
+    const configPath = await claudeCode.writeMcpConfig(servers)
+    args.push('--mcp-config', configPath)
+    if (providerOptions.strictMcp !== false) args.push('--strict-mcp-config')
+    return args
   }
 
   private promptFromMessages(messages: ModelMessage[]): string {
@@ -314,6 +385,7 @@ export class ModelProviders extends Feature {
     super(options, context)
     for (const profile of BUILTIN_PROFILES) this.registerProfile(profile)
     this.registerTransport('openai-chat-completions', new OpenAIChatCompletionsTransport())
+    this.registerTransport('openai-codex', new OpenAICodexTransport(this.container))
     this.registerTransport('claude-session', new ClaudeSessionTransport(this.container))
   }
 
