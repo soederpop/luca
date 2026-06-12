@@ -290,8 +290,8 @@ export class ClaudeSessionTransport implements ModelTransport {
     const controller = await this.controllerFor(key, providerOptions)
     const prompt = this.promptFromMessages(request.messages)
     const response = await controller.ask(prompt, providerOptions.askOptions ?? {})
-    const content = typeof response === 'string' ? response : (response?.response ?? response?.text ?? '')
-    const snapshot = controller.snapshot ?? (typeof controller.refresh === 'function' ? await controller.refresh() : undefined)
+    const snapshot = controller.snapshot ?? (typeof response === 'object' ? response : undefined) ?? (typeof controller.refresh === 'function' ? await controller.refresh() : undefined)
+    const content = this.contentFromControllerResponse(response, snapshot)
 
     if (content) yield { type: 'chunk', text: content }
     yield {
@@ -326,6 +326,7 @@ export class ClaudeSessionTransport implements ModelTransport {
       sessionPrefix: providerOptions.sessionPrefix,
     })
     this.controllers.set(key, controller)
+    if (typeof controller.start === 'function') await controller.start()
     return controller
   }
 
@@ -360,6 +361,35 @@ export class ClaudeSessionTransport implements ModelTransport {
     args.push('--mcp-config', configPath)
     if (providerOptions.strictMcp !== false) args.push('--strict-mcp-config')
     return args
+  }
+
+  private contentFromControllerResponse(response: any, snapshot: any): string {
+    if (typeof response === 'string') return response
+    const direct = response?.response ?? response?.text ?? response?.content
+    if (typeof direct === 'string') return direct
+    return this.latestAssistantText(snapshot?.history ?? response?.history ?? [])
+  }
+
+  private latestAssistantText(history: any[]): string {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const entry = history[i]
+      const role = entry?.role ?? entry?.message?.role ?? entry?.type
+      if (role !== 'assistant') continue
+      const text = this.textFromClaudeContent(entry?.content ?? entry?.message?.content ?? entry?.text)
+      if (text) return text
+    }
+    return ''
+  }
+
+  private textFromClaudeContent(content: any): string {
+    if (typeof content === 'string') return content
+    if (Array.isArray(content)) {
+      return content
+        .map(part => typeof part === 'string' ? part : part?.text ?? part?.content ?? '')
+        .filter(Boolean)
+        .join('\n')
+    }
+    return content == null ? '' : String(content)
   }
 
   private promptFromMessages(messages: ModelMessage[]): string {

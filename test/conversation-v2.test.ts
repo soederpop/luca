@@ -114,14 +114,25 @@ describe('ConversationV2', () => {
     const providers = c.feature('modelProviders')
     const constructed: any[] = []
     const asked: any[] = []
+    const started: any[] = []
 
     class FakeController {
       constructor(options: any) {
         constructed.push(options)
       }
+      start = async () => {
+        started.push(constructed[constructed.length - 1])
+        return { state: 'ready', history: [] }
+      }
       ask = async (prompt: string, options: any) => {
         asked.push({ prompt, options })
-        return 'claude says ok'
+        return {
+          state: 'ready',
+          history: [
+            { type: 'user', message: { role: 'user', content: prompt } },
+            { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'claude says ok' }] } },
+          ],
+        }
       }
       get snapshot() { return { state: 'ready' } }
     }
@@ -137,6 +148,7 @@ describe('ConversationV2', () => {
     const answer = await conversation.ask('Review this diff')
 
     expect(answer).toBe('claude says ok')
+    expect(started.length).toBe(1)
     expect(constructed[0].id).toBe('reviewer')
     expect(constructed[0].cwd).toBe('/tmp/repo')
     expect(asked).toEqual([{ prompt: 'Review this diff', options: { timeoutMs: 1000 } }])
@@ -144,6 +156,51 @@ describe('ConversationV2', () => {
       { role: 'system', content: 'System text ignored by session prompt adapter.' },
       { role: 'user', content: 'Review this diff' },
       { role: 'assistant', content: 'claude says ok' },
+    ])
+  })
+
+  it('keeps multi-turn claude-code asks in the same session controller', async () => {
+    const c = new AGIContainer()
+    const providers = c.feature('modelProviders')
+    const constructed: any[] = []
+    const asked: any[] = []
+
+    class FakeController {
+      constructor(options: any) {
+        constructed.push(options)
+      }
+      ask = async (prompt: string, options: any) => {
+        asked.push({ prompt, options })
+        return `claude turn ${asked.length}`
+      }
+      get snapshot() { return { state: 'ready' } }
+    }
+
+    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { controllerClass: FakeController as any }))
+
+    const conversation = c.feature('conversationv2', {
+      provider: 'claude-code',
+      providerOptions: { id: 'pairing-session', cwd: '/tmp/repo', askOptions: { timeoutMs: 1000 } },
+      history: [{ role: 'system', content: 'You are pairing on this repo.' }],
+    })
+
+    const first = await conversation.ask('First question')
+    const second = await conversation.ask('Follow up question')
+
+    expect(first).toBe('claude turn 1')
+    expect(second).toBe('claude turn 2')
+    expect(constructed.length).toBe(1)
+    expect(constructed[0].id).toBe('pairing-session')
+    expect(asked).toEqual([
+      { prompt: 'First question', options: { timeoutMs: 1000 } },
+      { prompt: 'Follow up question', options: { timeoutMs: 1000 } },
+    ])
+    expect(conversation.messages).toEqual([
+      { role: 'system', content: 'You are pairing on this repo.' },
+      { role: 'user', content: 'First question' },
+      { role: 'assistant', content: 'claude turn 1' },
+      { role: 'user', content: 'Follow up question' },
+      { role: 'assistant', content: 'claude turn 2' },
     ])
   })
 })
