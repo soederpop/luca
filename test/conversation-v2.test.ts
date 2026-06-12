@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { AGIContainer } from '../src/agi/container.server'
 import { ConversationV2 } from '../src/agi/features/conversation-v2'
+import { ClaudeSessionTransport } from '../src/agi/features/model-providers'
 
 describe('ConversationV2', () => {
   it('is registered in the AGI container', () => {
@@ -80,5 +81,69 @@ describe('ConversationV2', () => {
     expect(requests.length).toBe(2)
     expect(requests[1].messages).toContainEqual({ role: 'assistant', content: '', toolCalls: [{ id: 'call_1', name: 'lookup', arguments: { id: 42 } }] })
     expect(requests[1].messages).toContainEqual({ role: 'tool', tool_call_id: 'call_1', name: 'lookup', content: JSON.stringify({ ok: true, id: 42 }) })
+  })
+
+  it('routes asks through the openai-codex provider backend', async () => {
+    const c = new AGIContainer()
+    const codex = c.feature('openaiCodex') as any
+    const runs: any[] = []
+    codex.run = async (prompt: string, options: any) => {
+      runs.push({ prompt, options })
+      return { result: 'codex says ok', usage: { input_tokens: 2, output_tokens: 3 } }
+    }
+
+    const conversation = c.feature('conversationv2', {
+      provider: 'openai-codex',
+      providerOptions: { cwd: '/tmp/repo' },
+      history: [{ role: 'system', content: 'Be terse.' }],
+    })
+
+    const answer = await conversation.ask('Fix the bug', { model: 'gpt-5-codex' })
+
+    expect(answer).toBe('codex says ok')
+    expect(runs).toEqual([{ prompt: 'Be terse.\n\nFix the bug', options: { cwd: '/tmp/repo', model: 'gpt-5-codex' } }])
+    expect(conversation.messages).toEqual([
+      { role: 'system', content: 'Be terse.' },
+      { role: 'user', content: 'Fix the bug' },
+      { role: 'assistant', content: 'codex says ok' },
+    ])
+  })
+
+  it('routes asks through the claude-code provider backend', async () => {
+    const c = new AGIContainer()
+    const providers = c.feature('modelProviders')
+    const constructed: any[] = []
+    const asked: any[] = []
+
+    class FakeController {
+      constructor(options: any) {
+        constructed.push(options)
+      }
+      ask = async (prompt: string, options: any) => {
+        asked.push({ prompt, options })
+        return 'claude says ok'
+      }
+      get snapshot() { return { state: 'ready' } }
+    }
+
+    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { controllerClass: FakeController as any }))
+
+    const conversation = c.feature('conversationv2', {
+      provider: 'claude-code',
+      providerOptions: { id: 'reviewer', cwd: '/tmp/repo', askOptions: { timeoutMs: 1000 } },
+      history: [{ role: 'system', content: 'System text ignored by session prompt adapter.' }],
+    })
+
+    const answer = await conversation.ask('Review this diff')
+
+    expect(answer).toBe('claude says ok')
+    expect(constructed[0].id).toBe('reviewer')
+    expect(constructed[0].cwd).toBe('/tmp/repo')
+    expect(asked).toEqual([{ prompt: 'Review this diff', options: { timeoutMs: 1000 } }])
+    expect(conversation.messages).toEqual([
+      { role: 'system', content: 'System text ignored by session prompt adapter.' },
+      { role: 'user', content: 'Review this diff' },
+      { role: 'assistant', content: 'claude says ok' },
+    ])
   })
 })
