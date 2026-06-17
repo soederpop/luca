@@ -101,7 +101,14 @@ describe('ConversationV2', () => {
     const answer = await conversation.ask('Fix the bug', { model: 'gpt-5-codex' })
 
     expect(answer).toBe('codex says ok')
-    expect(runs).toEqual([{ prompt: 'Be terse.\n\nFix the bug', options: { cwd: '/tmp/repo', model: 'gpt-5-codex' } }])
+    expect(runs).toEqual([{
+      prompt: 'Fix the bug',
+      options: {
+        cwd: '/tmp/repo',
+        model: 'gpt-5-codex',
+        config: { developer_instructions: 'Be terse.' },
+      },
+    }])
     expect(conversation.messages).toEqual([
       { role: 'system', content: 'Be terse.' },
       { role: 'user', content: 'Fix the bug' },

@@ -145,7 +145,14 @@ describe('ModelProviders', () => {
       events.push(event)
     }
 
-    expect(runs[0]).toEqual({ prompt: 'Be brief.\n\nfix it', options: { cwd: '/tmp/repo', model: 'gpt-5-codex' } })
+    expect(runs[0]).toEqual({
+      prompt: 'fix it',
+      options: {
+        cwd: '/tmp/repo',
+        model: 'gpt-5-codex',
+        config: { developer_instructions: 'Be brief.' },
+      },
+    })
     expect(events.map(e => e.type)).toEqual(['chunk', 'response'])
     expect((events.at(-1) as any).response.content).toBe('codex answer')
   })

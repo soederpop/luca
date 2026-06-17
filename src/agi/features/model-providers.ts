@@ -245,12 +245,30 @@ export class OpenAICodexTransport implements ModelTransport {
   async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
     const codex = this.container.feature('openaiCodex') as any
     const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
-    const prompt = this.promptFromMessages(request.messages)
+    const previousThreadId = providerOptions.previousProviderData?.codexThreadId
+    const systemText = this.systemInstructions(request.messages)
+    const prompt = previousThreadId
+      ? this.lastUserMessage(request.messages)
+      : this.promptFromMessages(request.messages)
+    const config = {
+      ...(providerOptions.config ?? {}),
+      ...(systemText && !previousThreadId ? { developer_instructions: systemText } : {}),
+    }
     const result = await codex.run(prompt, {
       ...providerOptions,
+      previousProviderData: undefined,
+      config: Object.keys(config).length ? config : undefined,
       model: request.model ?? provider.model,
+      ...(previousThreadId ? { resumeSessionId: previousThreadId } : {}),
     })
     const content = typeof result === 'string' ? result : (result?.result ?? result?.content ?? '')
+    const status = typeof result === 'object' ? result?.status : undefined
+    if (status === 'error') {
+      const errorPayload = typeof result === 'object' ? (result?.error ?? result?.messages ?? result) : result
+      throw new Error(`codex session failed: ${typeof errorPayload === 'string' ? errorPayload : JSON.stringify(errorPayload)}`)
+    }
+    const threadId = typeof result === 'object' ? result?.threadId : undefined
+    const baseProviderData = typeof result === 'object' ? { ...result, result: undefined, content: undefined, usage: undefined } : undefined
     if (content) yield { type: 'chunk', text: content }
     yield {
       type: 'response',
@@ -258,17 +276,36 @@ export class OpenAICodexTransport implements ModelTransport {
         content,
         toolCalls: [],
         usage: typeof result === 'object' ? result?.usage : undefined,
-        providerData: typeof result === 'object' ? { ...result, result: undefined, content: undefined, usage: undefined } : undefined,
+        providerData: {
+          ...(baseProviderData ?? {}),
+          ...(threadId ? { codexThreadId: threadId } : {}),
+        },
       },
     }
   }
 
-  private promptFromMessages(messages: ModelMessage[]): string {
+  private systemInstructions(messages: ModelMessage[]): string {
     return messages
-      .filter(message => message.role !== 'assistant' && message.role !== 'tool')
+      .filter(message => message.role === 'system' || message.role === 'developer')
       .map(message => this.contentToText(message.content))
       .filter(Boolean)
       .join('\n\n')
+  }
+
+  private promptFromMessages(messages: ModelMessage[]): string {
+    return messages
+      .filter(message => message.role !== 'assistant' && message.role !== 'tool' && message.role !== 'system' && message.role !== 'developer')
+      .map(message => this.contentToText(message.content))
+      .filter(Boolean)
+      .join('\n\n')
+  }
+
+  private lastUserMessage(messages: ModelMessage[]): string {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m && m.role === 'user') return this.contentToText(m.content)
+    }
+    return ''
   }
 
   private contentToText(content: any): string {

@@ -129,6 +129,16 @@ export interface CodexRunOptions {
   resumeLast?: boolean
   /** Skip all approvals and sandboxing. */
   dangerouslyAutoApproveEverything?: boolean
+  /**
+   * Inline config overrides forwarded to codex as `-c key=value` flags. Values
+   * are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays
+   * are passed through). Use this to set things like `developer_instructions`,
+   * `base_instructions`, `model_reasoning_effort`, etc. without writing a
+   * profile file.
+   */
+  config?: Record<string, unknown>
+  /** Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`. */
+  profile?: string
   /** Additional CLI flags. */
   extraArgs?: string[]
 }
@@ -220,6 +230,15 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   private buildArgs(options: CodexRunOptions = {}): string[] {
     const args: string[] = ['exec', '--json']
 
+    if (options.profile) args.push('--profile', options.profile)
+
+    if (options.config) {
+      for (const [key, value] of Object.entries(options.config)) {
+        if (value === undefined || value === null) continue
+        args.push('-c', `${key}=${this.encodeTomlValue(value)}`)
+      }
+    }
+
     const model = options.model ?? this.options.model
     if (model) args.push('--model', model)
 
@@ -267,6 +286,12 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
     args.push('-')
 
     return args
+  }
+
+  private encodeTomlValue(value: unknown): string {
+    if (typeof value === 'string') return JSON.stringify(value)
+    if (typeof value === 'boolean' || typeof value === 'number') return String(value)
+    return JSON.stringify(value)
   }
 
   private createSessionId(): string {

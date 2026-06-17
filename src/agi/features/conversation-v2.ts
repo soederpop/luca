@@ -29,6 +29,7 @@ export const ConversationV2OptionsSchema = FeatureOptionsSchema.extend({
 export const ConversationV2StateSchema = FeatureStateSchema.extend({
   messages: z.array(z.any()).describe('Normalized message history'),
   lastResponse: z.string().describe('Last assistant response text'),
+  lastProviderData: z.any().optional().describe('Provider-specific continuation data from the most recent response (e.g. session ids for resume)'),
 })
 
 export const ConversationV2EventsSchema = FeatureEventsSchema.extend({
@@ -78,6 +79,7 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
       ...super.initialState,
       messages: this.options.history ?? [],
       lastResponse: '',
+      lastProviderData: undefined,
     }
   }
 
@@ -108,10 +110,16 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
   async ask(content: string | ContentPart[], options: any = {}): Promise<string> {
     const userMessage: ModelMessage = { role: 'user', content }
     let messages = [...this.messages, userMessage]
+    const previousProviderData = this.state.get('lastProviderData')
+    const baseProviderOptions = {
+      ...(this.options.providerOptions ?? {}),
+      ...(options.providerOptions ?? {}),
+      ...(previousProviderData ? { previousProviderData } : {}),
+    }
     const provider = await this.container.feature('modelProviders').resolve({
       provider: options.provider ?? this.options.provider,
       model: options.model ?? this.options.model,
-      providerOptions: { ...(this.options.providerOptions ?? {}), ...(options.providerOptions ?? {}) },
+      providerOptions: baseProviderOptions,
     })
 
     const tools = this.tools.map(tool => ({
@@ -122,6 +130,7 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
 
     this.emit('turnStart', { turn: 1, isFollowUp: false })
     let finalText = ''
+    let finalProviderData: any = undefined
     const maxTurns = options.maxTurns ?? this.options.maxTurns ?? 8
 
     for (let turn = 1; turn <= maxTurns; turn++) {
@@ -135,7 +144,7 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
         tools: tools.length ? tools : undefined,
         temperature: options.temperature ?? this.options.temperature,
         maxTokens: options.maxTokens ?? this.options.maxTokens,
-        providerOptions: { ...(this.options.providerOptions ?? {}), ...(options.providerOptions ?? {}) },
+        providerOptions: baseProviderOptions,
       }, provider)) {
         if (event.type === 'chunk') {
           responseText += event.text
@@ -148,6 +157,7 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
         } else if (event.type === 'response') {
           responseText = event.response.content
           toolCalls = event.response.toolCalls ?? toolCalls
+          if (event.response.providerData !== undefined) finalProviderData = event.response.providerData
         }
       }
 
@@ -173,7 +183,7 @@ export class ConversationV2 extends Feature<ConversationV2State, ConversationV2O
       }
     }
 
-    this.setState({ messages, lastResponse: finalText })
+    this.setState({ messages, lastResponse: finalText, lastProviderData: finalProviderData })
     this.emit('response', finalText)
     return finalText
   }
