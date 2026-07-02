@@ -88,6 +88,9 @@
 - [Google Features](./tutorials/16-google-features.md)
 - [Building TUI Primitive Blocks](./tutorials/17-tui-blocks.md)
 - [Semantic Search](./tutorials/18-semantic-search.md)
+- [Working with Python Projects](./tutorials/19-python-sessions.md)
+- [Browser: Import Luca from esm.sh](./tutorials/20-browser-esm.md)
+- [Embedding Luca in an Existing Project](./tutorials/21-embedding-luca.md)
 
 ## Bases
 

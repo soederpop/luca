@@ -3,9 +3,9 @@
 **Lightweight Universal Conversational Architecture**
 *(aka Le Ultimate Component Architecture)*
 
-An agent-native TypeScript runtime that ships as a single binary — and builds yours too.
+Build AI operators in TypeScript. Ship them as single binaries — runtime, tools, and the agent that knows how to use them, in one file.
 
-Luca gives humans and AI agents the same architectural map: one self-documenting `container` object with typed features, clients, servers, commands, state, events, and runtime docs. The agent doesn't guess at architecture — it discovers it. No `npm install`, no `node_modules`, no supply chain exposure, no ceremony.
+Luca is an agent-native runtime that gives humans and AI agents the same architectural map: one self-documenting `container` object with typed features, clients, servers, commands, state, events, and runtime docs. The agent doesn't guess at architecture — it discovers it. No `npm install`, no `node_modules`, no supply chain exposure, no ceremony.
 
 ## What Makes Luca Different
 
@@ -62,6 +62,8 @@ luca console                      # full REPL
 ```
 
 This is the core loop: discover what's available, evaluate code against it, build on top of it. Your AI assistant does the same thing.
+
+Full walkthrough: [Getting Started](docs/tutorials/01-getting-started.md). Want the container as a library inside an existing TypeScript app instead? See [Embedding Luca in an Existing Project](docs/tutorials/21-embedding-luca.md).
 
 ## The Container
 
@@ -164,7 +166,7 @@ luca scaffold feature myCache --description "Custom caching layer"
 luca scaffold endpoint status --description "Health check endpoint"
 
 # compile to a single binary
-luca bundle
+luca bundle my-tool
 ```
 
 The output is a self-contained executable. No node, no bun, no npm on the target machine. Your users download one file and run it. Your custom commands show up in `my-tool --help`. Your assistant ships inside.

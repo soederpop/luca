@@ -1,106 +1,127 @@
 ---
 title: Getting Started with Luca
-tags: [setup, quickstart, project, init]
+tags: [setup, quickstart, project, init, install, bundle]
 ---
 
 # Getting Started with Luca
 
-## Prerequisites
+Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No `npm install`, no `node_modules`, no supply chain exposure.
 
-- [Bun](https://bun.sh) installed (Luca's runtime)
-- A new or existing bun project
+This tutorial takes you from nothing to a shipped binary of your own.
 
-## Create a New Project
+## 1. Install the Binary
 
-```bash
-mkdir my-app && cd my-app
-bun init -y
-bun add luca 
+```sh
+curl -fsSL https://luca-js.soederpop.com/install.sh | bash
 ```
 
-## Project Structure
+Detects your platform, downloads the binary, puts `luca` in your path. Or grab a release directly from [GitHub Releases](https://github.com/soederpop/luca/releases/latest) — binaries are available for macOS (Apple Silicon and Intel), Linux (x64 and ARM64), and Windows (x64).
 
-A typical Luca project looks like this:
+Verify it works:
+
+```sh
+luca --version
+luca describe features
+```
+
+That second command is the important one — it prints docs for every feature the runtime carries: file system, git, process management, SQLite, HTTP servers, AI assistants, and more. You'll never need to memorize this list; the binary can always tell you what it can do. (See [Bootstrap: Learning the Container at Runtime](./00-bootstrap.md) for the full discovery pattern.)
+
+## 2. Create a Project
+
+```sh
+luca bootstrap my-app
+cd my-app
+```
+
+This scaffolds a project with `commands/`, `endpoints/`, `features/`, `docs/`, and AI assistant configuration — everything wired up and ready to extend:
 
 ```
 my-app/
-├── package.json
-├── endpoints/          # File-based HTTP routes (auto-discovered by `luca serve`)
-│   ├── health.ts
-│   └── users.ts
 ├── commands/           # Project-local CLI commands (auto-discovered by `luca`)
-│   └── seed.ts
+├── endpoints/          # File-based HTTP routes (auto-discovered by `luca serve`)
+├── features/           # Custom container features
 ├── assistants/         # AI assistants (file-based convention)
-│   └── my-helper/
-│       ├── CORE.md
-│       ├── tools.ts
-│       ├── hooks.ts
-│       └── docs/
-├── public/             # Static files served by `luca serve`
-│   └── index.html
-└── scripts/            # Standalone scripts that use the container
-    └── migrate.ts
+├── docs/               # Content documents queryable via container.docs
+└── public/             # Static files served by `luca serve`
 ```
 
-## The Container
+There's no `package.json` required and nothing to install. The binary discovers these folders by convention and runs them through its own runtime.
 
-Everything in Luca revolves around the **container**. It is a per-process singleton that acts as your dependency injector, event bus, and state machine.
+## 3. Add Your Own Pieces
 
-In scripts, you create one directly:
+Generate boilerplate with `luca scaffold`:
+
+```sh
+luca scaffold command seed --description "Seed the database"
+luca scaffold endpoint health --description "Health check endpoint"
+luca scaffold feature myCache --description "Custom caching layer"
+```
+
+A command handler receives the container with everything on it:
 
 ```typescript
-import container from 'luca/node'
+// commands/seed.ts
+export default async function seed(options, context) {
+  const { container } = context
+  const fs = container.feature('fs')
+  const ui = container.feature('ui')
 
-// Now you have access to all features
-const fs = container.fs           // File system operations
-const git = container.git         // Git utilities (branch, sha, lsFiles, etc.)
-const ui = container.ui           // Terminal UI (colors, prompts, figlet)
-const proc = container.feature('proc')  // Process execution
+  ui.print.success(`Seeded ${options.count} records`)
+}
 ```
 
-In endpoints and commands, the container is provided for you via context:
+An endpoint gets the container via context too:
 
 ```typescript
 // endpoints/health.ts
 export const path = '/health'
 
-export async function get(_params: any, ctx: EndpointContext) {
+export async function get(_params, ctx) {
   const { container } = ctx
   return { status: 'ok', uptime: process.uptime() }
 }
 ```
 
-## Running Your Project
+No imports beyond what the container gives you. File I/O, HTTP clients, databases, YAML, git — it's all on the container, typed and documented. Run `luca describe fs` (or any helper name) whenever you want the full API.
 
-### Start the API server
+## 4. Run It
 
-```bash
-luca serve
-# or with options:
-luca serve --port 4000 --endpointsDir src/endpoints
-```
-
-This auto-discovers your `endpoints/` directory, mounts all routes, and generates an OpenAPI spec at `/openapi.json`.
-
-### Run a CLI command
-
-```bash
+```sh
+# run your CLI command
 luca seed --count 10
-```
 
-This auto-discovers `commands/seed.ts` from your project and runs it.
+# start the API server — auto-discovers endpoints/, serves public/,
+# generates an OpenAPI spec at /openapi.json
+luca serve
 
-### Run a script
-
-```bash
+# run a one-off script with the container in scope
 luca run scripts/migrate.ts
 ```
 
+Your commands show up alongside the built-ins when you run `luca` with no arguments.
+
+## 5. Ship It
+
+This is the payoff. Compile your project — your commands, endpoints, features, and assistants — into its own standalone binary:
+
+```sh
+luca bundle my-app
+```
+
+The output is a self-contained executable. No node, no bun, no npm on the target machine. Your users download one file and run it; your custom commands show up in `my-app --help`.
+
+Single binary in, single binary out.
+
+## Using Luca Inside an Existing App?
+
+If you want the container as a library inside an existing TypeScript/Bun project — `bun add luca`, import the container, keep your own build — see [Embedding Luca in an Existing Project](./21-embedding-luca.md).
+
 ## What's Next
 
+- [Bootstrap: Learning the Container at Runtime](./00-bootstrap.md) -- the discovery pattern: `luca describe`, `luca eval`, the REPL
 - [The Container](./02-container.md) -- deep dive into the container
 - [Scripts and Markdown Notebooks](./03-scripts.md) -- run scripts and executable markdown
 - [Using Features](./04-features-overview.md) -- explore built-in features
-- [Servers](./06-servers.md) -- set up Express and WebSocket servers
 - [Writing Endpoints](./07-endpoints.md) -- build your API routes
 - [Writing Commands](./08-commands.md) -- add CLI commands to your project
+- [Assistants](./12-assistants.md) -- build an AI operator into your project
