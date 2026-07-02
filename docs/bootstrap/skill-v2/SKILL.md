@@ -43,14 +43,16 @@ Eval is also your **test harness**: logic that works in eval will work in a hand
 
 Eval limits (see `references/runtime-envelope.md`): no npm imports, no project-file imports — inline everything. A trailing `undefined` after your console output is just the expression's return value.
 
-### 3. Build — `luca scaffold`
+### 3. Build — examples first, then `luca scaffold`
+
+**Before writing anything, check `references/recipes.md` and `references/examples/` for your task.** A runnable example beats fifty describes — run it with `luca run` to confirm it works, then adapt it. In a measured A/B, the fastest websocket solution came from finding and running the shipped ask/reply example; the slowest came from scaffolding a custom client from scratch.
 
 ```shell
-luca scaffold command --tutorial     # READ THIS FIRST — the authoritative guide per type
+luca scaffold command --tutorial     # the authoritative guide per type
 luca scaffold command sync --description "Pull data from staging"
 ```
 
-Types: `feature`, `command`, `endpoint`, `client`, `server`. The tutorial covers imports, schemas, registration, and complete examples — multiple models called it "the single most valuable resource." Never hand-write a helper from memory when a scaffold exists.
+Types: `feature`, `command`, `endpoint`, `client`, `server`. The tutorial covers imports, schemas, registration, and complete examples. Never hand-write a helper from memory when a scaffold exists — but also don't scaffold what you don't need: **if a built-in client/server already speaks the protocol (websocket, rest), use it directly with your message conventions on top.** Scaffold a custom client only to wrap an external service the container doesn't cover.
 
 ### 4. Prove — verify like a skeptic
 

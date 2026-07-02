@@ -58,12 +58,29 @@ Every entry here cost at least one real session real time. Format: the trap, the
 - Registry names are **camelCase**, files are **kebab-case**: `cipherSocial` ↔ `cipher-social.ts`.
 - Don't guess short registry names (`telnyx` when the feature is `telnyxAssistantConnector`). When describe fails, its "Available:" list is authoritative — read it.
 
+## Data / caching
+
+**`diskCache.get()` throws on a missing key** instead of returning `undefined`.
+✓ Guard with `diskCache.has(key)` first (or catch the NotFoundError).
+
+**Serialize read-modify-write of shared counters in event handlers.** Concurrent `file:change` events (e.g. a seeded batch) racing on async load→increment→save silently drop updates.
+✓ Chain the updates through a promise mutex, or use synchronous fs JSON read/write (atomic within the event loop).
+
 ## Terminal UI / ink
+
+**Colors silently disappear when stdout isn't a real TTY.** `ui.colors`/`ui.banner` gradients auto-disable (standard chalk behavior) in pipes and sandboxed shells — this is not a bug in your command. Verify with `FORCE_COLOR=1 luca yourCmd | cat -v` before debugging.
+
 
 - **No `.tsx` in commands** — build elements with `React.createElement()`.
 - `useInput` requires a TTY (`process.stdin.setRawMode`); it crashes when stdin is piped. Guard with `process.stdin.isTTY` and fall back to `process.on('SIGINT', …)`.
 - Lifecycle order: `loadModules()` → `await ink.render(element)` → `waitUntilExit()`. The `render` await is mandatory.
 - `ui.print.*` writes to stdout. For `--json` commands, print data with `console.log` and gate decorative output behind `if (!options.json)`.
+
+## Custom clients
+
+**Don't build a custom client when a built-in one speaks the protocol.** For websocket/rest tasks, use `container.client('websocket'|'rest')` directly with your message conventions on top — scaffold a custom client only for external services the container doesn't cover.
+
+If you do write one: **`afterInitialize()` has been observed not to fire for clients** (it fires for features) — don't put connection setup there; initialize lazily in the first method call. And if `import { RestClient } from 'luca/client'` comes back `undefined` under the compiled binary, extend the generic `Client` and compose a built-in client internally.
 
 ## Runtime / environment
 
