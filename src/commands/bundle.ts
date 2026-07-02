@@ -4,11 +4,14 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import {
+	collectAssistantFolderFiles,
 	commandNameFromFile,
+	generateAssistantsModule,
 	generateConsumerEntry,
 	generateConsumerManifest,
 	normalizeTargets,
 	shouldIncludeBundleFile,
+	type BundleAssistantEntry,
 	type BundleCommandFile,
 } from '../cli/bundle-utils.js'
 
@@ -32,6 +35,29 @@ export const argsSchema = CommandOptionsSchema.extend({
 
 const SELF_REGISTERING_DIRS = ['features', 'clients', 'servers', 'endpoints', 'selectors'] as const
 const COMMAND_DIRS = ['commands'] as const
+
+/**
+ * Collects assistant definitions (subdirectories of assistants/ containing a
+ * CORE.md) from the source project, reading every file so it can be embedded
+ * in the generated bundle. Binary files are encoded as base64.
+ */
+export function collectAssistants(container: any, source: string): BundleAssistantEntry[] {
+	const fs = container.feature('fs') as any
+	const assistantsDir = container.paths.resolve(source, 'assistants')
+	if (!fs.existsSync(assistantsDir)) return []
+
+	const collected: BundleAssistantEntry[] = []
+
+	for (const entryName of fs.readdirSync(assistantsDir)) {
+		const folder = container.paths.resolve(assistantsDir, entryName)
+		if (!fs.isDirectory(folder)) continue
+		if (!fs.existsSync(container.paths.resolve(folder, 'CORE.md'))) continue
+
+		collected.push({ name: entryName, files: collectAssistantFolderFiles(container, folder) })
+	}
+
+	return collected
+}
 
 function resolveAbsolute(container: any, input: string): string {
 	const os = container.feature('os') as any
@@ -87,20 +113,53 @@ export async function bundleCommand(
 		}
 	}
 
-	ui.print.dim(`  discovered ${helperFiles.length} helper file(s), ${commandFiles.length} command file(s)`)
+	const assistants = collectAssistants(container, source)
+
+	ui.print.dim(`  discovered ${helperFiles.length} helper file(s), ${commandFiles.length} command file(s), ${assistants.length} assistant(s)`)
+	if (assistants.length > 0) {
+		for (const assistant of assistants) {
+			ui.print.dim(`    assistant: ${assistant.name} (${assistant.files.length} file(s))`)
+		}
+	}
 	console.log()
 
 	fs.ensureFolder(outDir)
 	fs.ensureFolder(buildDir)
 
+	// Built-in luca commands compiled into the binary. Bundling assistants
+	// implies chat + assistant so the binary can actually run its agents.
+	const builtins = new Set(options.builtins.split(',').map((s: string) => s.trim()).filter(Boolean))
+	if (assistants.length > 0) {
+		builtins.add('chat')
+		builtins.add('assistant')
+	}
+	for (const builtin of builtins) {
+		if (!container.commands.has(builtin)) {
+			ui.print.yellow(`  ! "${builtin}" is not a known luca command — the compiled build may fail to resolve luca/commands/${builtin}`)
+		}
+	}
+
 	const manifestPath = container.paths.resolve(buildDir, 'generated-consumer-manifest.ts')
 	const entryPath = container.paths.resolve(buildDir, 'entry.ts')
 	const pkgPath = container.paths.resolve(buildDir, 'package.json')
+	const assistantsPath = container.paths.resolve(buildDir, 'generated-consumer-assistants.ts')
 
 	fs.writeFile(manifestPath, generateConsumerManifest({ helperFiles, commandFiles }))
+
+	if (assistants.length > 0) {
+		fs.writeFile(assistantsPath, generateAssistantsModule({
+			binaryName: options.name,
+			assistants,
+			bundleHash: container.utils.hashObject({ assistants }),
+		}))
+		ui.print.dim(`  wrote ${assistantsPath}`)
+	}
+
 	fs.writeFile(entryPath, generateConsumerEntry({
 		binaryName: options.name,
 		manifestPath: './generated-consumer-manifest.ts',
+		builtins: [...builtins],
+		...(assistants.length > 0 && { assistantsPath: './generated-consumer-assistants.ts' }),
 	}))
 	fs.writeFile(pkgPath, JSON.stringify({
 		name: `luca-bundle-${options.name}`,

@@ -302,8 +302,14 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		return this.paths.resolve('hooks.ts')
 	}
 
-	/** The path to about.md which provides the human-readable assistant description. */
+	/**
+	 * The path to the about file which provides the human-readable assistant
+	 * description. Prefers ABOUT.md (the casing used by discovery and scaffolds),
+	 * falling back to about.md for older assistant folders.
+	 */
 	get aboutPath(): string {
+		const canonical = this.paths.resolve('ABOUT.md')
+		if (this.container.fs.exists(canonical)) return canonical
 		return this.paths.resolve('about.md')
 	}
 

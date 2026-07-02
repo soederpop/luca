@@ -62,6 +62,14 @@
       "types": "./dist/cli/runner.d.ts",
       "default": "./src/cli/runner.ts"
     },
+    "./commands": {
+      "types": "./dist/commands/index.d.ts",
+      "default": "./src/commands/index.ts"
+    },
+    "./commands/*": {
+      "types": "./dist/commands/*.d.ts",
+      "default": "./src/commands/*.ts"
+    },
     "./container": {
       "types": "./dist/container.d.ts",
       "default": "./src/container.ts"

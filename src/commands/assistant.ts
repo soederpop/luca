@@ -4,6 +4,7 @@ import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import { assistantFiles } from '../scaffolds/generated.js'
 import { toCamelCase } from '../scaffolds/template.js'
+import { collectAssistantFolderFiles, type BundleAssistantFile } from '../cli/bundle-utils.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -22,7 +23,7 @@ type AssistantArgs = z.infer<typeof argsSchema>
 const SUBCOMMANDS = ['create', 'bundle', 'export'] as const
 type Sub = (typeof SUBCOMMANDS)[number]
 
-const CANONICAL_FILES = ['CORE.md', 'tools.ts', 'hooks.ts', 'voice.yml', 'about.md'] as const
+const CANONICAL_FILES = ['CORE.md', 'tools.ts', 'hooks.ts', 'voice.yml', 'ABOUT.md', 'about.md'] as const
 
 export default async function assistantCommand(
 	options: AssistantArgs,
@@ -102,7 +103,7 @@ async function createSub(container: any, ui: any, rest: string[], options: Assis
 interface BundleEntry {
 	id: string
 	folder: string
-	files: Record<string, string>
+	files: BundleAssistantFile[]
 }
 
 async function bundleSub(container: any, ui: any, rest: string[], options: AssistantArgs) {
@@ -126,14 +127,7 @@ async function bundleSub(container: any, ui: any, rest: string[], options: Assis
 			ui.print.dim(`  · ${id} already collected, skipping duplicate at ${folderPath}`)
 			return
 		}
-		const files: Record<string, string> = {}
-		for (const fname of CANONICAL_FILES) {
-			const fp = container.paths.resolve(absFolder, fname)
-			if (fs.existsSync(fp)) {
-				files[fname] = String(fs.readFile(fp))
-			}
-		}
-		entries.push({ id, folder: absFolder, files })
+		entries.push({ id, folder: absFolder, files: collectAssistantFolderFiles(container, absFolder) })
 		seenIds.add(id)
 	}
 
@@ -171,7 +165,7 @@ async function bundleSub(container: any, ui: any, rest: string[], options: Assis
 
 	ui.print.green(`\n  ✓ Bundled ${entries.length} assistant(s) → ${outputPath}`)
 	for (const entry of entries) {
-		const fileList = Object.keys(entry.files).join(', ')
+		const fileList = entry.files.map((f) => f.path).join(', ')
 		ui.print.dim(`    ${entry.id}  (${fileList})`)
 	}
 	ui.print('\n  Use it:')
@@ -182,10 +176,10 @@ async function bundleSub(container: any, ui: any, rest: string[], options: Assis
 function renderBundle(entries: BundleEntry[]): string {
 	const ASSISTANTS = entries
 		.map((entry) => {
-			const fileLines = Object.entries(entry.files)
-				.map(([name, content]) => `    ${JSON.stringify(name)}: ${JSON.stringify(content)},`)
+			const fileLines = entry.files
+				.map((f) => `    { path: ${JSON.stringify(f.path)}, encoding: ${JSON.stringify(f.encoding)}, content: ${JSON.stringify(f.content)} },`)
 				.join('\n')
-			return `  ${JSON.stringify(entry.id)}: {\n${fileLines}\n  },`
+			return `  ${JSON.stringify(entry.id)}: [\n${fileLines}\n  ],`
 		})
 		.join('\n')
 
@@ -197,7 +191,9 @@ function renderBundle(entries: BundleEntry[]): string {
 		'',
 		"import container from 'luca/agi'",
 		'',
-		'const ASSISTANTS: Record<string, Record<string, string>> = {',
+		"interface BundledFile { path: string; encoding: 'utf8' | 'base64'; content: string }",
+		'',
+		'const ASSISTANTS: Record<string, BundledFile[]> = {',
 		ASSISTANTS,
 		'}',
 		'',
@@ -211,8 +207,11 @@ function renderBundle(entries: BundleEntry[]): string {
 		'for (const [id, files] of Object.entries(ASSISTANTS)) {',
 		'  const folder = container.paths.resolve(bundleRoot, id)',
 		'  fs.ensureFolder(folder)',
-		'  for (const [name, content] of Object.entries(files)) {',
-		'    fs.writeFile(container.paths.resolve(folder, name), content)',
+		'  for (const file of files) {',
+		'    const dest = container.paths.resolve(folder, file.path)',
+		"    fs.ensureFolder(container.paths.resolve(dest, '..'))",
+		"    const data = file.encoding === 'base64' ? Buffer.from(file.content, 'base64') : file.content",
+		'    fs.writeFile(dest, data)',
 		'  }',
 		'  manager.register(id, (options: Record<string, any> = {}) =>',
 		"    container.feature('assistant', { folder, ...options })",
