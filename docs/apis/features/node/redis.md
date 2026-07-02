@@ -1,5 +1,7 @@
 # RedisFeature (features.redis)
 
+> Stability: `stable`
+
 Redis feature for shared state and pub/sub communication between container instances. Wraps ioredis with a focused API for the primitives that matter most: key/value state, pub/sub messaging, and cross-instance coordination. Uses a dedicated subscriber connection for pub/sub (ioredis requirement), created lazily on first subscribe call.
 
 ## Usage

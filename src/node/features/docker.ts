@@ -85,6 +85,7 @@ export interface DockerShell {
  */
 export class Docker extends Feature<DockerState, DockerOptions> {
   static override shortcut = 'features.docker' as const
+  static override stability = 'stable' as const
   static override stateSchema = DockerStateSchema
   static override optionsSchema = DockerOptionsSchema
   static { Feature.register(this, 'docker') }

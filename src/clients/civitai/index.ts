@@ -38,6 +38,7 @@ export type CivitaiClientState = z.infer<typeof CivitaiClientStateSchema>
 export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   static override stateSchema = CivitaiClientStateSchema;
 
+  static override stability = 'experimental' as const
   static { Client.register(this, 'civitai') }
 
   constructor(options: ClientOptions, context: ContainerContext) {

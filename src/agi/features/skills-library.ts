@@ -79,6 +79,7 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	static override optionsSchema = SkillsLibraryOptionsSchema
 	static override eventsSchema = SkillsLibraryEventsSchema
 	static override shortcut = 'features.skillsLibrary' as const
+	static override stability = 'stable' as const
 
 	static { Feature.register(this, 'skillsLibrary') }
 

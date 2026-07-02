@@ -1,5 +1,7 @@
 # Esbuild (features.esbuild)
 
+> Stability: `stable`
+
 Browser-side TypeScript/ESM compilation feature using esbuild-wasm. Loads esbuild's WebAssembly build via the AssetLoader, then provides `compile()` and `transform()` methods that work entirely in the browser. Useful for live playgrounds, in-browser REPLs, and client-side bundling.
 
 ## Usage

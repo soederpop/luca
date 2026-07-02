@@ -67,6 +67,7 @@ type MessageHandler = (channel: string, message: string) => void
  */
 export class RedisFeature extends Feature<RedisState, RedisOptions> {
   static override shortcut = 'features.redis' as const
+  static override stability = 'stable' as const
   static override stateSchema = RedisStateSchema
   static override optionsSchema = RedisOptionsSchema
   static override eventsSchema = RedisEventsSchema

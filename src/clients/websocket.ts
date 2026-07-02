@@ -62,6 +62,7 @@ export class WebSocketClient<
   _pending = new Map<string, PendingRequest>()
 
   static override shortcut = "clients.websocket" as const
+  static override stability = 'stable' as const
   static override stateSchema = WebSocketClientStateSchema
   static override optionsSchema = WebSocketClientOptionsSchema
   static override eventsSchema = WebSocketClientEventsSchema

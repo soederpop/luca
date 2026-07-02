@@ -38,6 +38,7 @@ export class VM<
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
   static override shortcut = "features.vm" as const
+  static override stability = 'core' as const
 
   static { Feature.register(this, 'vm') }
 

@@ -1,5 +1,7 @@
 # Speech (features.speech)
 
+> Stability: `experimental`
+
 Text-to-speech synthesis using the Web Speech API (SpeechSynthesis). Wraps the browser's built-in speech synthesis, providing voice selection, queue management, and state tracking. Voices are discovered on init and exposed via state for UI binding.
 
 ## Usage

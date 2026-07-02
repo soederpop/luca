@@ -3,7 +3,7 @@ import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
-import { introspect, type HelperIntrospection, type IntrospectionSection, type ExampleIntrospection } from "./introspection/index.js";
+import { introspect, type HelperIntrospection, type IntrospectionSection, type ExampleIntrospection, type HelperStability } from "./introspection/index.js";
 import { z } from 'zod'
 import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
@@ -31,6 +31,14 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
 
   static description: string = "No description provided"
   static envVars: string[] = []
+
+  /**
+   * Stability index for this helper: `core` (essential to the golden path),
+   * `stable` (batteries-included, safe to build on), or `experimental`
+   * (may change or be removed without notice). Every built-in helper must
+   * declare its own — the introspection build enforces this.
+   */
+  static stability?: HelperStability
 
   static stateSchema: z.ZodType = HelperStateSchema
   static optionsSchema: z.ZodType = HelperOptionsSchema
@@ -648,7 +656,8 @@ function presentIntrospectionJSONAsMarkdown(introspection: HelperIntrospection, 
     const title = introspection.className
       ? `${heading(1)} ${introspection.className} (${introspection.id})`
       : `${heading(1)} ${introspection.id}`
-    sections.push(`${title}\n\n${introspection.description}`)
+    const stability = introspection.stability ? `\n\n> Stability: \`${introspection.stability}\`` : ''
+    sections.push(`${title}${stability}\n\n${introspection.description}`)
   }
 
   const renderers: Record<IntrospectionSection, () => string[]> = {

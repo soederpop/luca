@@ -1,5 +1,7 @@
 # Conversation (features.conversation)
 
+> Stability: `stable`
+
 A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management.
 
 ## Usage
@@ -52,6 +54,8 @@ container.feature('conversation', {
   contextWindow,
   // Number of recent messages to preserve after compaction (default 4)
   compactKeepRecent,
+  // Maximum input tokens. Accepts a number or a named size: tiny (8k), small (16k), medium (32k), large (64k), xlarge (256k). Defaults to large (64k)
+  maxInputTokens,
 })
 ```
 
@@ -82,6 +86,7 @@ container.feature('conversation', {
 | `compactThreshold` | `number` | Fraction of context window at which auto-compact triggers (default 0.8) |
 | `contextWindow` | `number` | Override the inferred context window size for this model |
 | `compactKeepRecent` | `number` | Number of recent messages to preserve after compaction (default 4) |
+| `maxInputTokens` | `any` | Maximum input tokens. Accepts a number or a named size: tiny (8k), small (16k), medium (32k), large (64k), xlarge (256k). Defaults to large (64k) |
 
 ## Methods
 
@@ -153,6 +158,54 @@ Register a hardcoded stub response that bypasses the API when the user's message
 conversation.stub('hello', 'Hi there!')
 conversation.stub(/weather/i, () => 'Sunny and 72°F.')
 ```
+
+
+
+### fork
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `overrides` | `ForkOptions | ForkOptions[]` |  | Parameter overrides |
+
+**Returns:** `Conversation | Conversation[]`
+
+
+
+### research
+
+Fan out N questions in parallel using forked conversations, return the results. Each fork is independent and ephemeral — no history is saved.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `questions` | `(string | { question: string; forkOptions?: ForkOptions })[]` | ✓ | Array of questions (strings) or objects with question + per-fork overrides |
+| `defaults` | `ForkOptions` |  | Default fork options applied to all forks (individual overrides take precedence) |
+
+**Returns:** `Promise<string[]>`
+
+```ts
+const results = await conversation.research([
+ "What are the pros of approach A?",
+ "What are the pros of approach B?",
+], { history: 'none', model: 'gpt-4o-mini' })
+
+// Per-fork overrides
+const results = await conversation.research([
+ "Quick factual question",
+ { question: "Needs recent context", forkOptions: { history: 5 } },
+], { history: 'none' })
+```
+
+
+
+### abort
+
+Abort the current ask() call. Cancels the in-flight network request and any pending tool executions. The ask() promise will reject with a ConversationAbortError whose `partial` property contains any text accumulated before the abort.
+
+**Returns:** `void`
 
 
 
@@ -335,6 +388,18 @@ Fired when a user message is added to the conversation
 
 
 
+### aborted
+
+Fired when the conversation is aborted mid-response
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Partial text accumulated before the abort |
+
+
+
 ### toolError
 
 Fired when a tool handler throws or the tool is unknown
@@ -504,12 +569,20 @@ Fired after all tool calls in a turn have been executed
 | `toolCalls` | `number` | Total number of tool calls made in this conversation |
 | `api` | `string` | Which completion API is active for this conversation |
 | `lastResponseId` | `any` | Most recent OpenAI Responses API response ID for continuing conversation state |
-| `tokenUsage` | `object` | Cumulative token usage statistics |
+| `tokenUsage` | `object` | Cumulative token usage statistics including detail breakdowns from the API |
+| `cost` | `object` | Running cost estimate based on cumulative token usage and model pricing |
 | `estimatedInputTokens` | `number` | Estimated input token count for the current messages array |
 | `compactionCount` | `number` | Number of times compact() has been called |
 | `contextWindow` | `number` | The context window size for the current model |
 | `tools` | `object` | Active tools map including any runtime overrides |
 | `callMaxTokens` | `any` | Per-call max tokens override, cleared after each ask() |
+| `temperature` | `any` | Sampling temperature (0-2). Null means use model default |
+| `topP` | `any` | Nucleus sampling cutoff (0-1). Null means use model default |
+| `topK` | `any` | Top-K sampling. Null means use model default |
+| `frequencyPenalty` | `any` | Frequency penalty (-2 to 2). Null means use model default |
+| `presencePenalty` | `any` | Presence penalty (-2 to 2). Null means use model default |
+| `stop` | `any` | Stop sequences. Null means none |
+| `maxTokens` | `any` | Maximum output tokens per completion. Null means use model default |
 
 ## Examples
 
@@ -531,6 +604,23 @@ const reply = await conversation.ask('What is the meaning of life?')
 ```ts
 conversation.stub('hello', 'Hi there!')
 conversation.stub(/weather/i, () => 'Sunny and 72°F.')
+```
+
+
+
+**research**
+
+```ts
+const results = await conversation.research([
+ "What are the pros of approach A?",
+ "What are the pros of approach B?",
+], { history: 'none', model: 'gpt-4o-mini' })
+
+// Per-fork overrides
+const results = await conversation.research([
+ "Quick factual question",
+ { question: "Needs recent context", forkOptions: { history: 5 } },
+], { history: 'none' })
 ```
 
 

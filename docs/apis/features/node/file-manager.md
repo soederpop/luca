@@ -1,5 +1,7 @@
 # FileManager (features.fileManager)
 
+> Stability: `core`
+
 The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.
 
 ## Usage

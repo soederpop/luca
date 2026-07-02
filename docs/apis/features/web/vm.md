@@ -1,5 +1,7 @@
 # VM (features.vm)
 
+> Stability: `core`
+
 Sandboxed JavaScript execution environment for the browser. Automatically injects the container's context object into the global scope, so evaluated code can use anything provided by the container. Useful for live code playgrounds, plugin systems, and dynamic script evaluation.
 
 ## Usage

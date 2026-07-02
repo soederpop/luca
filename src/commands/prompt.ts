@@ -856,7 +856,7 @@ async function preparePrompt(
 	// Exclude sections by heading name
 	if (options['exclude-sections']) {
 		const headings = options['exclude-sections'].split(',').map((s) => s.trim()).filter(Boolean)
-		let doc = new Document({ id: filePath, content: promptContent, collection: null as any })
+		let doc = new Document({ id: filePath, content: promptContent })
 
 		for (const heading of headings) {
 			try {

@@ -1,5 +1,7 @@
 # Git (features.git)
 
+> Stability: `core`
+
 The Git feature provides utilities for interacting with Git repositories. This feature allows you to check repository status, list files, get branch information, and access Git metadata for projects within a Git repository.
 
 ## Usage
@@ -192,7 +194,7 @@ const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `gitPath` | `string` | Resolve the git binary path via `which`, caching the result. |
+| `gitPath` | `string` | Resolve the git binary path, caching the result. |
 | `branch` | `string | null` | Gets the current Git branch name. |
 | `sha` | `string | null` | Gets the current Git commit SHA hash. |
 | `isRepo` | `boolean` | Checks if the current directory is within a Git repository. |

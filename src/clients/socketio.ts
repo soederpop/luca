@@ -79,6 +79,7 @@ export class SocketIOClient<
   socket!: Socket
 
   static override shortcut = 'clients.socketio' as const
+  static override stability = 'stable' as const
   static override stateSchema = SocketIOClientStateSchema
   static override optionsSchema = SocketIOClientOptionsSchema
   static override eventsSchema = SocketIOClientEventsSchema

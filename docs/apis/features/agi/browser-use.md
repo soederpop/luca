@@ -1,5 +1,7 @@
 # BrowserUse (features.browserUse)
 
+> Stability: `experimental`
+
 Browser automation feature wrapping the browser-use CLI. Provides programmatic browser control — navigation, clicking, typing, screenshots, JavaScript evaluation, data extraction, and more.
 
 ## Usage
@@ -30,6 +32,20 @@ container.feature('browserUse', {
 | `cdpUrl` | `string` | Connect to an existing browser via CDP URL (http:// or ws://) |
 
 ## Methods
+
+### setupToolsConsumer
+
+When an assistant uses browserUse, inject system prompt guidance about the browser interaction loop.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
 
 ### afterInitialize
 
@@ -315,6 +331,20 @@ Close the browser session
 List active browser sessions
 
 **Returns:** `Promise<BrowserUseResult>`
+
+
+
+### setHeaded
+
+Toggle headed/headless mode
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `headed` | `boolean` | ✓ | true for visible browser window, false for headless |
+
+**Returns:** `{ success: boolean; headed: boolean }`
 
 
 
@@ -692,6 +722,18 @@ Get all attributes of an element
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `options` | `{ index: string }` | ✓ | Parameter options |
+
+**Returns:** `void`
+
+
+
+### browserSetHeaded
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ headed: boolean }` | ✓ | Parameter options |
 
 **Returns:** `void`
 

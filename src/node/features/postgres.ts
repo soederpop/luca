@@ -59,6 +59,7 @@ export const PostgresEventsSchema = FeatureEventsSchema.extend({
  */
 export class Postgres extends Feature<PostgresState, PostgresOptions> {
   static override shortcut = 'features.postgres' as const
+  static override stability = 'stable' as const
   static override stateSchema = PostgresStateSchema
   static override optionsSchema = PostgresOptionsSchema
   static override eventsSchema = PostgresEventsSchema

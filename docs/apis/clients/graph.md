@@ -1,5 +1,7 @@
 # GraphClient (clients.graph)
 
+> Stability: `stable`
+
 GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. Automatically handles the GraphQL request envelope (query/variables/operationName) and unwraps responses, extracting the `data` field and emitting events for GraphQL-level errors.
 
 ## Usage

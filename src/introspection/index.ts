@@ -27,6 +27,14 @@ import { describeZodShape, describeEventsSchema } from '../schemas/base.js'
 
 export type ExampleIntrospection = { language: string; code: string }
 
+/**
+ * Stability index for a helper, following the Node.js stability vocabulary:
+ * - `core` — essential to the framework's golden path; the assistant/binary story depends on it
+ * - `stable` — batteries-included, tested, safe to build on
+ * - `experimental` — rough, may change or be removed without notice
+ */
+export type HelperStability = 'core' | 'stable' | 'experimental'
+
 export type MethodIntrospection = {
 	description: string
 	parameters: Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }>
@@ -61,6 +69,8 @@ export type HelperIntrospection = {
 	shortcut: string;
 	// the class name, e.g. "FileManagerFeature", "RESTClient"
 	className?: string;
+	// stability index: core | stable | experimental
+	stability?: HelperStability;
 	// a map of method names to their introspection
 	methods: Record<string, MethodIntrospection>
 	// a map of getter names to their introspection
@@ -202,6 +212,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		...data,
 		// preserve runtime-derived className/state/options if registration already happened
 		className: data.className || existing?.className,
+		stability: existing?.stability || data.stability,
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
 		events: mergedEvents,
@@ -255,6 +266,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		description: (helperConstructor.hasOwnProperty('description') ? helperConstructor.description : null) || existing?.description || helperConstructor.description || '',
 		shortcut: helperConstructor.shortcut,
 		className: helperConstructor.name || existing?.className,
+		stability: helperConstructor.stability || existing?.stability,
 		// preserve build-time AST data if generated file already loaded
 		methods: existing?.methods || {},
 		getters: existing?.getters || {},

@@ -1,5 +1,7 @@
 # FileTools (features.fileTools)
 
+> Stability: `stable`
+
 Curated file-system and code-search tools for AI assistants. Wraps the container's `fs` and `grep` features into a focused tool surface modeled on the tools that coding assistants (Claude Code, Cursor, etc.) rely on: read, write, edit, list, search, find, stat, mkdir, move, copy, delete. Usage: ```typescript const fileTools = container.feature('fileTools') assistant.use(fileTools) // or selectively: assistant.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] })) ```
 
 ## Usage

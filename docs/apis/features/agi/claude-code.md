@@ -1,5 +1,7 @@
 # ClaudeCode (features.claudeCode)
 
+> Stability: `stable`
+
 Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions as subprocesses, streaming structured JSON events back through the container's event system. Sessions are long-lived: each call to `run()` spawns a `claude -p` process with `--output-format stream-json`, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.
 
 ## Usage
@@ -54,6 +56,12 @@ container.feature('claudeCode', {
   skillsFolders,
   // Launch Claude Code with a Chrome browser tool
   chrome,
+  // Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL
+  baseURL,
+  // Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN
+  authToken,
+  // Use local models, sets baseURL to LOCAL_CHAT_ENDPOINT and model to LOCAL_CODER_MODEL
+  local,
 })
 ```
 
@@ -85,6 +93,9 @@ container.feature('claudeCode', {
 | `settingsFile` | `string` | Path to a custom settings file |
 | `skillsFolders` | `array` | Directories containing Claude Code skills to load into sessions |
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool |
+| `baseURL` | `string` | Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL |
+| `authToken` | `string` | Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN |
+| `local` | `boolean` | Use local models, sets baseURL to LOCAL_CHAT_ENDPOINT and model to LOCAL_CODER_MODEL |
 
 ## Methods
 
@@ -184,6 +195,9 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `debugFile` | `string` | Path to write debug output to a file. |
 | `settingsFile` | `string` | Path to a custom settings file. |
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
+| `baseURL` | `string` | Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env. |
+| `authToken` | `string` | Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. |
+| `local` | `boolean` | Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). |
 
 **Returns:** `Promise<ClaudeSession>`
 
@@ -263,6 +277,9 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `debugFile` | `string` | Path to write debug output to a file. |
 | `settingsFile` | `string` | Path to a custom settings file. |
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
+| `baseURL` | `string` | Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env. |
+| `authToken` | `string` | Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. |
+| `local` | `boolean` | Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). |
 
 **Returns:** `Promise<string>`
 

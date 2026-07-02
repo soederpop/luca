@@ -1,5 +1,7 @@
 # GoogleSheets (features.googleSheets)
 
+> Stability: `stable`
+
 Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.
 
 ## Usage

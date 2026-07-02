@@ -1,5 +1,7 @@
 # RestClient (clients.rest)
 
+> Stability: `core`
+
 HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission.
 
 ## Usage

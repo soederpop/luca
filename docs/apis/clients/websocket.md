@@ -1,5 +1,7 @@
 # WebSocketClient (clients.websocket)
 
+> Stability: `stable`
+
 WebSocketClient helper
 
 ## Usage

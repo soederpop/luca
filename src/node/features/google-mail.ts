@@ -134,6 +134,7 @@ export const GoogleMailEventsSchema = FeatureEventsSchema.extend({
  */
 export class GoogleMail extends Feature<GoogleMailState, GoogleMailOptions> {
   static override shortcut = 'features.googleMail' as const
+  static override stability = 'stable' as const
   static override stateSchema = GoogleMailStateSchema
   static override optionsSchema = GoogleMailOptionsSchema
   static override eventsSchema = GoogleMailEventsSchema

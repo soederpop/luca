@@ -1,5 +1,7 @@
 # VoiceRecognition (features.voice)
 
+> Stability: `experimental`
+
 Speech-to-text recognition using the Web Speech API (SpeechRecognition). Wraps the browser's built-in speech recognition, supporting continuous listening, interim results, and language selection. Recognized text is accumulated in state and emitted as events for real-time transcription UIs.
 
 ## Usage

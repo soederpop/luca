@@ -52,6 +52,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   static { Feature.register(this, 'ui') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ui" as const
+  static override stability = 'core' as const
   static override stateSchema = UIStateSchema
   
   /**
@@ -95,7 +96,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     bgCyan: (text: string) => console.log(colors.bgCyan(text)),
     bgMagenta: (text: string) => console.log(colors.bgMagenta(text)),
     bgWhite: (text: string) => console.log(colors.bgWhite(text)),
-  }) as ColoredPrintFunction
+  }) as unknown as ColoredPrintFunction
 
   /**
    * Parse markdown text and render it for terminal display using marked-terminal.

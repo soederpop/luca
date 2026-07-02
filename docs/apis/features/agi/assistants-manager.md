@@ -1,5 +1,7 @@
 # AssistantsManager (features.assistantsManager)
 
+> Stability: `core`
+
 Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/. Each subdirectory containing a CORE.md is treated as an assistant definition. Use `discover()` to scan for available assistants, `list()` to enumerate them, and `create(name)` to instantiate one as a running Assistant feature.
 
 ## Usage
@@ -134,6 +136,73 @@ Creates and returns a new Assistant feature instance for the given name. Checks 
 
 ```ts
 const assistant = manager.create('chief-of-staff', { model: 'gpt-4.1' })
+```
+
+
+
+### reload
+
+Reload tools, hooks, and system prompt from disk for active assistants. When called with a name, reloads only that assistant. When called without arguments, reloads all active instances.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` |  | Optional assistant name to reload. Omit to reload all. |
+
+**Returns:** `{ reloaded: string[] }`
+
+```ts
+manager.reload('researcher')       // reload one
+manager.reload()                    // reload all active
+```
+
+
+
+### threadPrefixFor
+
+Build the thread prefix for a given assistant name, matching the convention used by the Assistant class: `name:cwdHash:`. This allows history lookups without an active instance.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `assistantId` | `string` | ✓ | The assistant name |
+
+**Returns:** `string`
+
+
+
+### loadAssistantHistory
+
+Load conversation history for an assistant. Works whether or not the assistant is currently instantiated — uses the thread prefix convention to query the conversationHistory feature directly.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `assistantId` | `string` | ✓ | The assistant name (e.g. 'researcher') |
+| `options` | `{ limit?: number; includeMessages?: boolean; thread?: string }` |  | Query options |
+
+`{ limit?: number; includeMessages?: boolean; thread?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `limit` | `any` | Maximum number of records to return |
+| `includeMessages` | `any` | Load full records with messages (default: false, returns metadata only) |
+| `thread` | `any` | Load a specific thread ID instead of all threads for this assistant |
+
+**Returns:** `Promise<ConversationMeta[] | ConversationRecord[]>`
+
+```ts
+// List recent sessions (metadata only)
+const sessions = await manager.loadAssistantHistory('researcher', { limit: 5 })
+
+// Load full records with messages
+const full = await manager.loadAssistantHistory('researcher', { includeMessages: true, limit: 3 })
+
+// Load a specific thread
+const thread = await manager.loadAssistantHistory('researcher', { thread: 'researcher:abc12345:2026-04-12' })
 ```
 
 
@@ -278,5 +347,29 @@ const bot = manager.create('custom-bot')
 
 ```ts
 const assistant = manager.create('chief-of-staff', { model: 'gpt-4.1' })
+```
+
+
+
+**reload**
+
+```ts
+manager.reload('researcher')       // reload one
+manager.reload()                    // reload all active
+```
+
+
+
+**loadAssistantHistory**
+
+```ts
+// List recent sessions (metadata only)
+const sessions = await manager.loadAssistantHistory('researcher', { limit: 5 })
+
+// Load full records with messages
+const full = await manager.loadAssistantHistory('researcher', { includeMessages: true, limit: 3 })
+
+// Load a specific thread
+const thread = await manager.loadAssistantHistory('researcher', { thread: 'researcher:abc12345:2026-04-12' })
 ```
 

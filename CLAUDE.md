@@ -70,6 +70,7 @@ When creating a new feature (e.g. `gws`), all four of these steps must be comple
 
 1. **Feature file** — `src/node/features/gws.ts`
    - Export the class: `export class Gws extends Feature { ... }`
+   - Declare stability: `static override stability = 'core' | 'stable' | 'experimental' as const` — REQUIRED, the introspection build fails without it
    - Register inside the class: `static { Feature.register(this, 'gws') }`
    - Default export is just the class: `export default Gws`
 

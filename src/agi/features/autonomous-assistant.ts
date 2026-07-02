@@ -134,6 +134,7 @@ export type AutonomousAssistantOptions = z.infer<typeof AutonomousAssistantOptio
  */
 export class AutonomousAssistant extends Feature<AutonomousAssistantState, AutonomousAssistantOptions> {
 	static override shortcut = 'features.autoAssistant' as const
+	static override stability = 'experimental' as const
 	static override stateSchema = AutonomousAssistantStateSchema
 	static override optionsSchema = AutonomousAssistantOptionsSchema
 	static override eventsSchema = AutonomousAssistantEventsSchema

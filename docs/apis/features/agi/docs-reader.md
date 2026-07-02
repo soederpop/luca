@@ -1,5 +1,7 @@
 # DocsReader (features.docsReader)
 
+> Stability: `stable`
+
 The DocsReader feature is an AI Assisted wrapper around a ContentDB feature. You can ask it questions about the content, and it will use the ContentDB to find the answers from the documents.
 
 ## Usage

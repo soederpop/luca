@@ -1,5 +1,7 @@
 # OpenAPI (features.openapi)
 
+> Stability: `stable`
+
 The OpenAPI feature loads an OpenAPI/Swagger spec from a URL and provides inspection and conversion utilities. Works in both browser and node environments since it uses fetch.
 
 ## Usage

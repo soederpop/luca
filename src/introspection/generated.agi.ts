@@ -246,6 +246,7 @@ setBuildTimeData('clients.comfyui', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -493,6 +494,7 @@ setBuildTimeData('clients.elevenlabs', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -633,6 +635,7 @@ setBuildTimeData('clients.graph', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -901,6 +904,7 @@ setBuildTimeData('clients.openai', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -1060,6 +1064,7 @@ setBuildTimeData('clients.rest', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -1186,6 +1191,7 @@ setBuildTimeData('clients.socketio', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -1382,6 +1388,7 @@ setBuildTimeData('clients.supabase', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -1685,6 +1692,7 @@ setBuildTimeData('clients.voicebox', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -1868,7 +1876,8 @@ setBuildTimeData('clients.websocket', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.assistant', {
@@ -2271,7 +2280,7 @@ setBuildTimeData('features.assistant', {
     },
     "conversation": {
       "description": "",
-      "returns": "Conversation"
+      "returns": "Conversation | ConversationV2"
     },
     "availableTools": {
       "description": "",
@@ -2436,6 +2445,7 @@ setBuildTimeData('features.assistant', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -2702,6 +2712,7 @@ setBuildTimeData('features.assistantsManager', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -3000,6 +3011,7 @@ setBuildTimeData('features.autoAssistant', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -3779,6 +3791,7 @@ setBuildTimeData('features.browserUse', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -3996,6 +4009,7 @@ setBuildTimeData('features.cipherSocial', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -4681,6 +4695,7 @@ setBuildTimeData('features.claudeCode', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -5127,6 +5142,7 @@ setBuildTimeData('features.claudeController', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -5224,7 +5240,8 @@ setBuildTimeData('features.codingTools', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.containerLink', {
@@ -5402,6 +5419,7 @@ setBuildTimeData('features.containerLink', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -5912,6 +5930,7 @@ setBuildTimeData('features.contentDb', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -6280,6 +6299,7 @@ setBuildTimeData('features.conversation', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -6775,6 +6795,7 @@ setBuildTimeData('features.conversationHistory', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -7216,6 +7237,7 @@ setBuildTimeData('features.diskCache', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -7788,6 +7810,7 @@ setBuildTimeData('features.dns', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -8309,6 +8332,7 @@ setBuildTimeData('features.docker', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -8407,7 +8431,8 @@ setBuildTimeData('features.docsReader', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.downloader', {
@@ -8446,6 +8471,7 @@ setBuildTimeData('features.downloader', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -8622,6 +8648,7 @@ setBuildTimeData('features.fileManager', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -8840,7 +8867,8 @@ setBuildTimeData('features.fileTools', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.fs', {
@@ -9813,6 +9841,7 @@ setBuildTimeData('features.fs', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -10104,6 +10133,7 @@ setBuildTimeData('features.git', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -10267,6 +10297,7 @@ setBuildTimeData('features.googleAuth', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -10452,6 +10483,7 @@ setBuildTimeData('features.googleCalendar', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -10738,6 +10770,7 @@ setBuildTimeData('features.googleDocs', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -10955,6 +10988,7 @@ setBuildTimeData('features.googleDrive', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -11261,6 +11295,7 @@ setBuildTimeData('features.googleMail', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -11621,6 +11656,7 @@ setBuildTimeData('features.googleSheets', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -11915,6 +11951,7 @@ setBuildTimeData('features.grep', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -12180,6 +12217,7 @@ setBuildTimeData('features.helpers', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -12397,7 +12435,8 @@ setBuildTimeData('features.ink', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.ipcSocket', {
@@ -12606,7 +12645,8 @@ setBuildTimeData('features.ipcSocket', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.jsonTree', {
@@ -12654,7 +12694,8 @@ setBuildTimeData('features.jsonTree', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "stable"
 });
 
 setBuildTimeData('features.lucaCoder', {
@@ -12919,6 +12960,7 @@ setBuildTimeData('features.lucaCoder', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -13117,6 +13159,7 @@ setBuildTimeData('features.mcpBridge', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -13591,6 +13634,7 @@ setBuildTimeData('features.memory', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -13874,6 +13918,7 @@ setBuildTimeData('features.networking', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -14098,6 +14143,7 @@ setBuildTimeData('features.nlp', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -14177,6 +14223,14 @@ setBuildTimeData('features.openaiCodex', {
               "type": "boolean",
               "description": "Skip all approvals and sandboxing."
             },
+            "config": {
+              "type": "Record<string, unknown>",
+              "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file."
+            },
+            "profile": {
+              "type": "string",
+              "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`."
+            },
             "extraArgs": {
               "type": "string[]",
               "description": "Additional CLI flags."
@@ -14253,6 +14307,14 @@ setBuildTimeData('features.openaiCodex', {
             "dangerouslyAutoApproveEverything": {
               "type": "boolean",
               "description": "Skip all approvals and sandboxing."
+            },
+            "config": {
+              "type": "Record<string, unknown>",
+              "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file."
+            },
+            "profile": {
+              "type": "string",
+              "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`."
             },
             "extraArgs": {
               "type": "string[]",
@@ -14389,6 +14451,7 @@ setBuildTimeData('features.openaiCodex', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -14457,6 +14520,16 @@ setBuildTimeData('features.openaiCodex', {
         "dangerouslyAutoApproveEverything": {
           "type": "boolean",
           "description": "Skip all approvals and sandboxing.",
+          "optional": true
+        },
+        "config": {
+          "type": "Record<string, unknown>",
+          "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file.",
+          "optional": true
+        },
+        "profile": {
+          "type": "string",
+          "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`.",
           "optional": true
         },
         "extraArgs": {
@@ -14731,6 +14804,7 @@ setBuildTimeData('features.openapi', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -14905,6 +14979,7 @@ setBuildTimeData('features.opener', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -15117,6 +15192,7 @@ setBuildTimeData('features.os', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -15421,6 +15497,7 @@ setBuildTimeData('features.packageFinder', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "types": {
     "PartialManifest": {
       "description": "Partial representation of a package.json manifest file. Contains the most commonly used fields for package analysis and dependency management.",
@@ -15583,6 +15660,7 @@ setBuildTimeData('features.postgres', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -15873,6 +15951,7 @@ setBuildTimeData('features.proc', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -16214,6 +16293,7 @@ setBuildTimeData('features.processManager', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -16577,6 +16657,7 @@ setBuildTimeData('features.python', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -16912,6 +16993,7 @@ setBuildTimeData('features.redis', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -16968,6 +17050,7 @@ setBuildTimeData('features.repl', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -17497,6 +17580,7 @@ setBuildTimeData('features.runpod', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -17920,6 +18004,7 @@ setBuildTimeData('features.secureShell', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -18415,6 +18500,7 @@ setBuildTimeData('features.semanticSearch', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -18821,6 +18907,7 @@ setBuildTimeData('features.skillsLibrary', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -18944,6 +19031,7 @@ setBuildTimeData('features.socketRepl', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -19072,6 +19160,7 @@ setBuildTimeData('features.sqlite', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -19257,6 +19346,7 @@ setBuildTimeData('features.telegram', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -19687,6 +19777,7 @@ setBuildTimeData('features.telnyxAssistantConnector', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -19831,6 +19922,7 @@ setBuildTimeData('features.tmux', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -19949,6 +20041,7 @@ setBuildTimeData('features.transpiler', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -20055,6 +20148,7 @@ setBuildTimeData('features.tts', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -20399,7 +20493,8 @@ setBuildTimeData('features.ui', {
   "events": {},
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "core"
 });
 
 setBuildTimeData('features.vault', {
@@ -20456,6 +20551,7 @@ setBuildTimeData('features.vault', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -20717,6 +20813,7 @@ setBuildTimeData('features.vm', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -20954,7 +21051,8 @@ setBuildTimeData('features.voiceMode', {
   },
   "state": {},
   "options": {},
-  "envVars": []
+  "envVars": [],
+  "stability": "experimental"
 });
 
 setBuildTimeData('features.yaml', {
@@ -21007,6 +21105,7 @@ setBuildTimeData('features.yaml', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -21061,6 +21160,7 @@ setBuildTimeData('features.yamlTree', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -21191,6 +21291,7 @@ setBuildTimeData('servers.express', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -21356,6 +21457,7 @@ setBuildTimeData('servers.mcp', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -21563,6 +21665,7 @@ setBuildTimeData('servers.websocket', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -22348,6 +22451,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -22594,6 +22698,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -22733,6 +22838,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -23000,6 +23106,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -23158,6 +23265,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -23283,6 +23391,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -23478,6 +23587,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -23780,6 +23890,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -23962,7 +24073,8 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.assistant",
@@ -24364,7 +24476,7 @@ export const introspectionData = [
       },
       "conversation": {
         "description": "",
-        "returns": "Conversation"
+        "returns": "Conversation | ConversationV2"
       },
       "availableTools": {
         "description": "",
@@ -24529,6 +24641,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -24794,6 +24907,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -25091,6 +25205,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -25869,6 +25984,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -26085,6 +26201,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -26769,6 +26886,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -27214,6 +27332,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -27310,7 +27429,8 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.containerLink",
@@ -27487,6 +27607,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -27996,6 +28117,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -28363,6 +28485,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -28857,6 +28980,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -29297,6 +29421,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -29868,6 +29993,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -30388,6 +30514,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -30485,7 +30612,8 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.downloader",
@@ -30523,6 +30651,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -30698,6 +30827,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -30915,7 +31045,8 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.fs",
@@ -31887,6 +32018,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -32177,6 +32309,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -32339,6 +32472,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -32523,6 +32657,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -32808,6 +32943,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -33024,6 +33160,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -33329,6 +33466,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -33688,6 +33826,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -33981,6 +34120,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -34245,6 +34385,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -34461,7 +34602,8 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.ipcSocket",
@@ -34669,7 +34811,8 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.jsonTree",
@@ -34716,7 +34859,8 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "stable"
   },
   {
     "id": "features.lucaCoder",
@@ -34980,6 +35124,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -35177,6 +35322,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -35650,6 +35796,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -35932,6 +36079,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -36155,6 +36303,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -36233,6 +36382,14 @@ export const introspectionData = [
                 "type": "boolean",
                 "description": "Skip all approvals and sandboxing."
               },
+              "config": {
+                "type": "Record<string, unknown>",
+                "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file."
+              },
+              "profile": {
+                "type": "string",
+                "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`."
+              },
               "extraArgs": {
                 "type": "string[]",
                 "description": "Additional CLI flags."
@@ -36309,6 +36466,14 @@ export const introspectionData = [
               "dangerouslyAutoApproveEverything": {
                 "type": "boolean",
                 "description": "Skip all approvals and sandboxing."
+              },
+              "config": {
+                "type": "Record<string, unknown>",
+                "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file."
+              },
+              "profile": {
+                "type": "string",
+                "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`."
               },
               "extraArgs": {
                 "type": "string[]",
@@ -36445,6 +36610,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -36513,6 +36679,16 @@ export const introspectionData = [
           "dangerouslyAutoApproveEverything": {
             "type": "boolean",
             "description": "Skip all approvals and sandboxing.",
+            "optional": true
+          },
+          "config": {
+            "type": "Record<string, unknown>",
+            "description": "Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file.",
+            "optional": true
+          },
+          "profile": {
+            "type": "string",
+            "description": "Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`.",
             "optional": true
           },
           "extraArgs": {
@@ -36786,6 +36962,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -36959,6 +37136,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -37170,6 +37348,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -37473,6 +37652,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "types": {
       "PartialManifest": {
         "description": "Partial representation of a package.json manifest file. Contains the most commonly used fields for package analysis and dependency management.",
@@ -37634,6 +37814,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -37923,6 +38104,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -38263,6 +38445,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -38625,6 +38808,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -38959,6 +39143,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -39014,6 +39199,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -39542,6 +39728,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -39964,6 +40151,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -40458,6 +40646,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -40863,6 +41052,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -40985,6 +41175,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -41112,6 +41303,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -41296,6 +41488,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -41725,6 +41918,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -41868,6 +42062,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -41985,6 +42180,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -42090,6 +42286,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -42433,7 +42630,8 @@ export const introspectionData = [
     "events": {},
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "core"
   },
   {
     "id": "features.vault",
@@ -42489,6 +42687,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -42749,6 +42948,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -42985,7 +43185,8 @@ export const introspectionData = [
     },
     "state": {},
     "options": {},
-    "envVars": []
+    "envVars": [],
+    "stability": "experimental"
   },
   {
     "id": "features.yaml",
@@ -43037,6 +43238,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -43090,6 +43292,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -43219,6 +43422,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -43383,6 +43587,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -43589,6 +43794,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",

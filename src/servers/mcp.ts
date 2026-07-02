@@ -293,6 +293,7 @@ class CompatStdioServerTransport {
  */
 export class MCPServer extends Server<MCPServerState, MCPServerOptions> {
   static override shortcut = 'servers.mcp' as const
+  static override stability = 'core' as const
   static override stateSchema = MCPServerStateSchema
   static override optionsSchema = MCPServerOptionsSchema
   static override eventsSchema = MCPServerEventsSchema

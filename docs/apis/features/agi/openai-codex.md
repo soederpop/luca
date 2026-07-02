@@ -1,5 +1,7 @@
 # OpenAICodex (features.openaiCodex)
 
+> Stability: `stable`
+
 OpenAI Codex CLI wrapper feature. Spawns and manages Codex sessions as subprocesses, streaming structured JSON events back through the container's event system. Mirrors the ClaudeCode feature pattern: each call to `run()` spawns a `codex exec --json` process, parses NDJSON from stdout line-by-line, and emits typed events on the feature's event bus.
 
 ## Usage
@@ -75,6 +77,8 @@ Run a prompt in a new Codex session. Spawns a subprocess, streams NDJSON events,
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `resumeLast` | `boolean` | Resume the most recent session. |
 | `dangerouslyAutoApproveEverything` | `boolean` | Skip all approvals and sandboxing. |
+| `config` | `Record<string, unknown>` | Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file. |
+| `profile` | `string` | Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`. |
 | `extraArgs` | `string[]` | Additional CLI flags. |
 
 **Returns:** `Promise<CodexSession>`
@@ -119,6 +123,8 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `resumeSessionId` | `string` | Resume a previous session by ID. |
 | `resumeLast` | `boolean` | Resume the most recent session. |
 | `dangerouslyAutoApproveEverything` | `boolean` | Skip all approvals and sandboxing. |
+| `config` | `Record<string, unknown>` | Inline config overrides forwarded to codex as `-c key=value` flags. Values are TOML-encoded (strings get JSON-quoted; booleans, numbers, and arrays are passed through). Use this to set things like `developer_instructions`, `base_instructions`, `model_reasoning_effort`, etc. without writing a profile file. |
+| `profile` | `string` | Codex profile name to layer (codex -p <name>). Reads `$CODEX_HOME/<name>.config.toml`. |
 | `extraArgs` | `string[]` | Additional CLI flags. |
 
 **Returns:** `string`

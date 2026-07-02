@@ -32,6 +32,7 @@ export const CodingToolsOptionsSchema = FeatureOptionsSchema.extend({})
  */
 export class CodingTools extends Feature {
 	static override shortcut = 'features.codingTools' as const
+	static override stability = 'stable' as const
 	static override stateSchema = CodingToolsStateSchema
 	static override optionsSchema = CodingToolsOptionsSchema
 

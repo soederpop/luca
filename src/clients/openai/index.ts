@@ -52,6 +52,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   private openai!: OpenAI;
 
   static override shortcut = "clients.openai" as const
+  static override stability = 'core' as const
   static override envVars = ['OPENAI_API_KEY', 'OPENAI_DEFAULT_MODEL']
   static override stateSchema = OpenAIClientStateSchema
   static override optionsSchema = OpenAIClientOptionsSchema

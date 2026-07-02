@@ -1,5 +1,7 @@
 # Runpod (features.runpod)
 
+> Stability: `experimental`
+
 RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. Provides a complete interface for provisioning and managing RunPod GPU instances. Supports creating pods from templates, managing network storage volumes, SSH access via the SecureShell feature, file transfers, and polling for pod readiness.
 
 ## Usage
@@ -462,7 +464,7 @@ gpus.forEach(g => console.log(`${g.gpuType}: $${g.ondemandPrice}/hr`))
 | Property | Type | Description |
 |----------|------|-------------|
 | `proc` | `any` | The proc feature used for executing CLI commands like runpodctl. |
-| `runpodctlPath` | `string` | Resolve the runpodctl binary path via `which`, caching the result. |
+| `runpodctlPath` | `string` | Resolve the runpodctl binary path, caching the result. |
 | `apiKey` | `any` | RunPod API key from options or the RUNPOD_API_KEY environment variable. |
 | `dataCenterId` | `any` | Preferred data center ID, defaults to 'US-TX-3'. |
 

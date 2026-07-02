@@ -1,5 +1,7 @@
 # Helpers (features.helpers)
 
+> Stability: `core`
+
 The Helpers feature discovers and loads project-level helpers from a JSON manifest served over HTTP. Scripts are injected via AssetLoader and self-register into the container's registries. This is the web equivalent of the node Helpers feature, which scans the filesystem. Instead of filesystem scanning, this feature fetches a manifest from a well-known URL and uses AssetLoader.loadScript() to inject each helper's script tag.
 
 ## Usage
@@ -30,6 +32,18 @@ Set a new manifest URL. Invalidates any cached manifest.
 | `url` | `string` | ✓ | The new URL to fetch the manifest from |
 
 **Returns:** `void`
+
+
+
+### getInstances
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `FilterClass` | `new (...args: any[]) => T` |  | Parameter FilterClass |
+
+**Returns:** `Helper[] | T[]`
 
 
 

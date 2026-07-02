@@ -1,5 +1,7 @@
 # WebsocketServer (servers.websocket)
 
+> Stability: `stable`
+
 WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
 
 ## Usage

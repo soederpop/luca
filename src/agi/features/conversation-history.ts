@@ -100,6 +100,7 @@ export class ConversationHistory extends Feature<ConversationHistoryState, Conve
 	static override optionsSchema = ConversationHistoryOptionsSchema
 	static override eventsSchema = ConversationHistoryEventsSchema
 	static override shortcut = 'features.conversationHistory' as const
+	static override stability = 'stable' as const
 
 	static { Feature.register(this, 'conversationHistory') }
 

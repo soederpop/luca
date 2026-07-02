@@ -119,6 +119,7 @@ export const ContainerLinkEventsSchema = FeatureEventsSchema.extend({
  */
 export class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOptions> {
   static override shortcut = 'features.containerLink' as const
+  static override stability = 'stable' as const
   static override stateSchema = ContainerLinkStateSchema
   static override optionsSchema = ContainerLinkOptionsSchema
   static override eventsSchema = ContainerLinkEventsSchema

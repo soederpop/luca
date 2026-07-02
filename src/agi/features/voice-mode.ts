@@ -129,6 +129,7 @@ function stripTags(text: string): string {
 
 export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 	static override shortcut = 'features.voiceMode' as const
+	static override stability = 'experimental' as const
 	static override optionsSchema = VoiceModeOptionsSchema
 	static override stateSchema = VoiceModeStateSchema
 
@@ -173,7 +174,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 
 	// ── Public API: Voice Mode Toggle ────────────────────────────────
 
-	get isEnabled(): boolean {
+	override get isEnabled(): boolean {
 		return this.state.get('enabled') === true
 	}
 
@@ -278,7 +279,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		}
 
 		try {
-			const raw = JSON.parse(fs.readFile(manifestPath)) as PhraseManifestEntry[]
+			const raw = JSON.parse(fs.readFile(manifestPath) as string) as PhraseManifestEntry[]
 			const valid = raw.filter((entry) => fs.exists(entry.file))
 
 			this._phraseManifest = valid
@@ -720,7 +721,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		let match: RegExpExecArray | null
 
 		while ((match = strongPunctuation.exec(this._buffer)) !== null) {
-			const before = this._buffer.slice(0, match.index + match[1].length)
+			const before = this._buffer.slice(0, match.index + match[1]!.length)
 			const opens = (before.match(/\[/g) || []).length
 			const closes = (before.match(/\]/g) || []).length
 			if (opens > closes) {
@@ -729,7 +730,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 				continue
 			}
 
-			const endIndex = match.index + match[1].length
+			const endIndex = match.index + match[1]!.length
 			const chunk = this._buffer.slice(0, endIndex).trim()
 
 			if (chunk) {
@@ -741,12 +742,12 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		if (spokenLength(this._buffer) > maxLen * 0.6) {
 			const weakPunctuation = /([;:])\s+/
 			while ((match = weakPunctuation.exec(this._buffer)) !== null) {
-				const before = this._buffer.slice(0, match.index + match[1].length)
+				const before = this._buffer.slice(0, match.index + match[1]!.length)
 				const opens = (before.match(/\[/g) || []).length
 				const closes = (before.match(/\]/g) || []).length
 				if (opens > closes) break
 
-				const endIndex = match.index + match[1].length
+				const endIndex = match.index + match[1]!.length
 				const chunk = this._buffer.slice(0, endIndex).trim()
 
 				if (chunk && spokenLength(chunk) >= minLen) {
@@ -826,7 +827,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 			}
 
 			if (this._queue.length > 0) {
-				prefetchedAudio = this._synthesize(this._queue[0])
+				prefetchedAudio = this._synthesize(this._queue[0]!)
 			}
 
 			await this._play(audioResult.path)
@@ -880,7 +881,7 @@ export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 		const prefixInner = prefix.replace(/^\[|\]$/g, '').trim()
 		const leadingTag = text.match(/^\[([^\]]+)\]\s*/)
 		if (leadingTag) {
-			const tagInner = leadingTag[1].trim()
+			const tagInner = leadingTag[1]!.trim()
 			const rest = text.slice(leadingTag[0].length)
 			return `[${prefixInner}, ${tagInner}] ${rest}`
 		}

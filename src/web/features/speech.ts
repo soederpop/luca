@@ -50,6 +50,7 @@ export class Speech<
   static override stateSchema = SpeechStateSchema
   static override optionsSchema = SpeechOptionsSchema
   static override shortcut = "features.speech" as const
+  static override stability = 'experimental' as const
 
   static { Feature.register(this as any, 'speech') }
   

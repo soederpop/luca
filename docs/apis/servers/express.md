@@ -1,5 +1,7 @@
 # ExpressServer (servers.express)
 
+> Stability: `core`
+
 Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.
 
 ## Usage

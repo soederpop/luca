@@ -65,6 +65,7 @@ async function lstatFollowIsDirAsync(fullPath: string): Promise<boolean> {
  */
 export class FS extends Feature {
   static override shortcut = "features.fs" as const
+  static override stability = 'core' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'fs') }

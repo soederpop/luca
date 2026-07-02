@@ -104,6 +104,7 @@ export interface OpenAIToolDef {
 export class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
   static override shortcut = 'features.openapi' as const
   static override description = 'Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions'
+  static override stability = 'stable' as const
   static override stateSchema = OpenAPIStateSchema
   static override optionsSchema = OpenAPIOptionsSchema
   static override eventsSchema = OpenAPIEventsSchema

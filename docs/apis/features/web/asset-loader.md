@@ -1,5 +1,7 @@
 # AssetLoader (features.assetLoader)
 
+> Stability: `stable`
+
 Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.
 
 ## Usage

@@ -1,5 +1,7 @@
 # UI (features.ui)
 
+> Stability: `core`
+
 UI Feature - Interactive Terminal User Interface Builder Unified interface for building professional CLI experiences using chalk (colors/styles), figlet (ASCII art), and inquirer (interactive prompts). Provides rich color management, automatic color assignment, text gradients, banner generation, padding utilities, markdown rendering, and interactive wizards.
 
 ## Usage

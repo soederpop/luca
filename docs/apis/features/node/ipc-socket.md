@@ -1,5 +1,7 @@
 # IpcSocket (features.ipcSocket)
 
+> Stability: `stable`
+
 IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Reply to sender, or ask and wait ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```
 
 ## Usage

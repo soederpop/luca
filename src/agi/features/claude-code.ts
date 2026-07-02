@@ -312,6 +312,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   static override optionsSchema = ClaudeCodeOptionsSchema
   static override eventsSchema = ClaudeCodeEventsSchema
   static override shortcut = 'features.claudeCode' as const
+  static override stability = 'stable' as const
   static override envVars = ['TMPDIR']
 
   static { Feature.register(this, 'claudeCode') }

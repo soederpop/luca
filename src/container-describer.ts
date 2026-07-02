@@ -757,8 +757,11 @@ Use these tools whenever you are unsure what helpers are available, what a helpe
 					const intermediate = this.findIntermediateParent(Ctor, baseClassRef)
 
 					const platformTag = includeBrowser && collidingIds.has(id) ? ' (node)' : ''
+					const stability = introspection?.stability || (Ctor as any).stability
+					const stabilityTag = stability ? ` \`${stability}\`` : ''
 
 					const entryJson: Record<string, any> = { description: summary, methods: featureMethods, getters: featureGetters }
+					if (stability) entryJson.stability = stability
 					if (intermediate) {
 						entryJson.extends = intermediate.name
 						entryJson.inheritedMethods = intermediate.methods
@@ -776,7 +779,7 @@ Use these tools whenever you are unsure what helpers are available, what a helpe
 						if (intermediate.methods.length) memberLines.push(`  inherited methods: ${intermediate.methods.map(m => m + '()').join(', ')}`)
 					}
 					const memberBlock = memberLines.length ? '\n' + memberLines.join('\n') + '\n' : ''
-					textParts.push(`${hSub} ${id}${platformTag}${extendsLine}\n${summary}\n${memberBlock}`)
+					textParts.push(`${hSub} ${id}${platformTag}${stabilityTag}${extendsLine}\n${summary}\n${memberBlock}`)
 				}
 			}
 

@@ -1,5 +1,7 @@
 # GoogleCalendar (features.googleCalendar)
 
+> Stability: `stable`
+
 Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.
 
 ## Usage

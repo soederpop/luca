@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Client, type ClientOptions, type ClientState } from '../client.js'
+import type { HelperStability } from '../introspection/index.js'
 import type { ContainerContext } from '../container.js'
 import { ClientEventsSchema } from '../schemas/base.js'
 import { z } from 'zod'
@@ -31,6 +32,8 @@ export class RestClient<
   axios!: AxiosInstance;
 
   static override shortcut: string = "clients.rest"
+  // annotated (not `as const`) so subclasses can declare their own stability
+  static override stability: HelperStability = 'core'
   static override eventsSchema = RestClientEventsSchema
   static { Client.register(this, 'rest') }
 

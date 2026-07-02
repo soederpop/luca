@@ -122,6 +122,7 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 		]
 
 		let totalWarnings = 0
+		const missingStability = new Map<string, string>()
 
 		for (const target of targets) {
 			console.log(`\nGenerating ${target.name} introspection data...`)
@@ -148,11 +149,26 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 				console.log(`  Wrote ${target.outputPath}`)
 			}
 
+			const scanResults = scanner.state.get('scanResults') || []
+			for (const result of scanResults) {
+				if (!result.stability) {
+					missingStability.set(result.id, result.className || result.id)
+				}
+			}
+
 			if (options.lint) {
-				const scanResults = scanner.state.get('scanResults') || []
 				const warnings = lintResults(scanResults)
 				totalWarnings += printLintReport(warnings, target.name)
 			}
+		}
+
+		if (missingStability.size > 0) {
+			console.error(`\nERROR: ${missingStability.size} helper(s) missing a stability declaration.`)
+			console.error(`Every built-in helper must declare \`static override stability = 'core' | 'stable' | 'experimental'\`:\n`)
+			for (const [id, className] of missingStability) {
+				console.error(`  - ${className} (${id})`)
+			}
+			process.exit(1)
 		}
 
 		console.log('\nAll introspection data generated.')

@@ -442,6 +442,7 @@ export class ClaudeSessionTransport implements ModelTransport {
 
 export class ModelProviders extends Feature {
   static override description = 'Resolve model provider profiles and route requests to provider transports.'
+  static override stability = 'core' as const
   static override optionsSchema = Feature.optionsSchema.extend({})
   static override stateSchema = Feature.stateSchema.extend({})
 

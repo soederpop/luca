@@ -1,5 +1,7 @@
 # ProcessManager (features.processManager)
 
+> Stability: `stable`
+
 Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.
 
 ## Usage
@@ -78,6 +80,20 @@ Tool handler: kill a process by ID or tag.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `args` | `{ id?: string; tag?: string; signal?: string }` | ✓ | Parameter args |
+
+**Returns:** `void`
+
+
+
+### setupToolsConsumer
+
+When an assistant uses processManager, inject system prompt guidance about how to manage processes safely and effectively.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
 
 **Returns:** `void`
 

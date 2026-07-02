@@ -1,5 +1,7 @@
 # OpenAIClient (clients.openai)
 
+> Stability: `core`
+
 OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. Provides convenience methods for common operations while tracking token usage and request counts. Supports both the Chat Completions API and the newer Responses API.
 
 ## Usage
@@ -18,7 +20,7 @@ container.client('openai', {
   project,
   // Allow usage in browser environments
   dangerouslyAllowBrowser,
-  // Default model for completions (default: gpt-4o)
+  // Default model for completions (falls back to OPENAI_DEFAULT_MODEL env var, then gpt-5.4-mini)
   defaultModel,
   // Request timeout in milliseconds
   timeout,
@@ -37,7 +39,7 @@ container.client('openai', {
 | `organization` | `string` | OpenAI organization ID |
 | `project` | `string` | OpenAI project ID |
 | `dangerouslyAllowBrowser` | `boolean` | Allow usage in browser environments |
-| `defaultModel` | `string` | Default model for completions (default: gpt-4o) |
+| `defaultModel` | `string` | Default model for completions (falls back to OPENAI_DEFAULT_MODEL env var, then gpt-5.4-mini) |
 | `timeout` | `number` | Request timeout in milliseconds |
 | `maxRetries` | `number` | Maximum number of retries on failure |
 
@@ -321,6 +323,7 @@ Emitted after listing available models
 ## Environment Variables
 
 - `OPENAI_API_KEY`
+- `OPENAI_DEFAULT_MODEL`
 
 ## Examples
 

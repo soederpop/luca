@@ -18,9 +18,12 @@ export type FeatureOptions = z.infer<typeof FeatureOptionsSchema>
 export type FeatureState = z.infer<typeof FeatureStateSchema>
 
 export abstract class Feature<T extends FeatureState = FeatureState, K extends FeatureOptions = FeatureOptions> extends Helper<T, K> {
-    static override stateSchema = FeatureStateSchema
-    static override optionsSchema = FeatureOptionsSchema
-    static override eventsSchema = FeatureEventsSchema
+    // Annotated as ZodObject<any> so subclasses may assign schemas of any shape
+    // (a bare initializer narrows the static type and breaks subclasses whose
+    // schemas don't structurally extend the base schema)
+    static override stateSchema: z.ZodObject<any> = FeatureStateSchema
+    static override optionsSchema: z.ZodObject<any> = FeatureOptionsSchema
+    static override eventsSchema: z.ZodObject<any> = FeatureEventsSchema
 
     /** Self-register a Feature subclass from a static initialization block. */
     static register: (SubClass: abstract new (options: any, context: any) => Feature, id?: string) => abstract new (options: any, context: any) => Feature

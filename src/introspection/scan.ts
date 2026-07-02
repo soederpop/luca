@@ -26,6 +26,7 @@ export type IntrospectionScannerOptions = z.infer<typeof IntrospectionScannerOpt
 
 export class IntrospectionScannerFeature extends Feature<IntrospectionScannerState, IntrospectionScannerOptions> {
   static override shortcut = 'introspectionScanner';
+  static override stability = 'core' as const;
   static override description = 'Scans TypeScript files for Helper classes and generates introspection data using AST analysis';
   static override stateSchema = IntrospectionScannerStateSchema;
   static override optionsSchema = IntrospectionScannerOptionsSchema;
@@ -186,6 +187,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
     if (!shortcut) return null;
 
     const description = this.extractJSDocDescription(classNode);
+    const stability = this.extractStability(classNode);
     const methods = this.extractMethods(classNode, sourceFile);
     const getters = this.extractGetters(classNode, sourceFile);
     const events = this.extractEvents(classNode, sourceFile);
@@ -205,6 +207,7 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       state: {},
       options: {},
       envVars: [],
+      ...(stability ? { stability } : {}),
       ...(examples.length > 0 ? { examples } : {}),
       ...(Object.keys(types).length > 0 ? { types } : {}),
     };
@@ -378,6 +381,31 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
             if (match && match[1]) {
               return match[1];
             }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private extractStability(classNode: ts.ClassDeclaration): 'core' | 'stable' | 'experimental' | null {
+    for (const member of classNode.members) {
+      if (ts.isPropertyDeclaration(member) &&
+          member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword) &&
+          member.name?.getText() === 'stability') {
+
+        if (member.initializer) {
+          let value: string | null = null
+          if (ts.isStringLiteral(member.initializer)) {
+            value = member.initializer.text;
+          } else if (ts.isAsExpression(member.initializer) && ts.isStringLiteral(member.initializer.expression)) {
+            value = member.initializer.expression.text;
+          } else {
+            const match = member.initializer.getText().match(/^['"]([^'"]+)['"]/);
+            if (match && match[1]) value = match[1];
+          }
+          if (value === 'core' || value === 'stable' || value === 'experimental') {
+            return value;
           }
         }
       }

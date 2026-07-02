@@ -1,5 +1,7 @@
 # Docker (features.docker)
 
+> Stability: `stable`
+
 Docker CLI interface feature for managing containers, images, and executing Docker commands. Provides comprehensive Docker operations including: - Container management (list, start, stop, create, remove) - Image management (list, pull, build, remove) - Command execution inside containers - Docker system information
 
 ## Usage
@@ -552,7 +554,7 @@ Initialize the Docker feature by checking availability and optionally refreshing
 | Property | Type | Description |
 |----------|------|-------------|
 | `proc` | `any` |  |
-| `dockerPath` | `string` | Resolve the docker binary path via `which`, caching the result. Options take precedence. |
+| `dockerPath` | `string` | Resolve the docker binary path, caching the result. Options take precedence. |
 
 ## State (Zod v4 schema)
 

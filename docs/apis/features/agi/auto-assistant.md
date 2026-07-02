@@ -1,5 +1,7 @@
 # AutonomousAssistant (features.autoAssistant)
 
+> Stability: `experimental`
+
 An autonomous assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Tools are stacked from feature bundles (fileTools, processManager, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).
 
 ## Usage

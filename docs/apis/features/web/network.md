@@ -1,5 +1,7 @@
 # Network (features.network)
 
+> Stability: `stable`
+
 Tracks browser online/offline connectivity state. Listens for the browser's `online` and `offline` events and keeps the feature state in sync. Other features can observe the `offline` state value or listen for change events to react to connectivity changes.
 
 ## Usage

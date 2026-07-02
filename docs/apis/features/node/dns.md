@@ -1,5 +1,7 @@
 # Dns (features.dns)
 
+> Stability: `stable`
+
 The Dns feature provides structured DNS lookups by wrapping the `dig` CLI. All query methods parse dig output into typed JSON objects, making it easy to explore and audit a domain's DNS configuration programmatically.
 
 ## Usage

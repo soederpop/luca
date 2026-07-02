@@ -31,6 +31,7 @@ export class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = EsbuildWebOptionsSchema
   static override shortcut = "features.esbuild" as const
+  static override stability = 'stable' as const
 
   static { Feature.register(this as any, 'esbuild') }
   

@@ -34,6 +34,7 @@ export class Repl<
   K extends ReplOptions = ReplOptions
 > extends Feature<T, K> {
   static override shortcut = "features.repl" as const
+  static override stability = 'stable' as const
   static override stateSchema = ReplStateSchema
   static override optionsSchema = ReplOptionsSchema
   static { Feature.register(this, 'repl') }

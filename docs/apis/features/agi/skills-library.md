@@ -1,6 +1,8 @@
 # SkillsLibrary (features.skillsLibrary)
 
-Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary).
+> Stability: `stable`
+
+Manages a registry of skill locations — folders containing SKILL.md files. Persists known locations to ~/.luca/skills.json and scans them on start. Each skill folder can be opened as a DocsReader for AI-assisted Q&A. Exposes tools for assistant integration via assistant.use(skillsLibrary). No paths are scanned by default — callers must explicitly provide locations via the `locations` option or `addLocation()`. Set `useAgentsFolders: true` to automatically scan conventional agent skill folders (.claude/skills and .agents/skills in both $HOME and cwd).
 
 ## Usage
 
@@ -8,6 +10,12 @@ Manages a registry of skill locations — folders containing SKILL.md files. Per
 container.feature('skillsLibrary', {
   // Override path for skills.json (defaults to ~/.luca/skills.json)
   configPath,
+  // Glob patterns to filter which skills are exposed. When set, only matching skills are available. Supports * wildcards (e.g. "luca-*", "react-ink").
+  only,
+  // Additional skill location directories to scan for this instance only. Not persisted to skills.json — other consumers will not see these.
+  locations,
+  // When true, automatically scan conventional agent skill folders: .claude/skills and .agents/skills in both the home directory and project cwd.
+  useAgentsFolders,
 })
 ```
 
@@ -16,6 +24,9 @@ container.feature('skillsLibrary', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `configPath` | `string` | Override path for skills.json (defaults to ~/.luca/skills.json) |
+| `only` | `array` | Glob patterns to filter which skills are exposed. When set, only matching skills are available. Supports * wildcards (e.g. "luca-*", "react-ink"). |
+| `locations` | `array` | Additional skill location directories to scan for this instance only. Not persisted to skills.json — other consumers will not see these. |
+| `useAgentsFolders` | `boolean` | When true, automatically scan conventional agent skill folders: .claude/skills and .agents/skills in both the home directory and project cwd. |
 
 ## Methods
 
@@ -83,7 +94,7 @@ Scan a location folder for skill subfolders containing SKILL.md.
 
 ### list
 
-Return all discovered skills.
+Return all discovered skills (respects the `only` filter).
 
 **Returns:** `SkillInfo[]`
 
@@ -133,7 +144,7 @@ Create a tmp directory containing symlinked/copied skill folders by name, suitab
 
 ### searchAvailableSkills
 
-Search available skills, optionally filtered by a query string.
+Search available skills, optionally filtered by a query string. Respects the `only` filter.
 
 **Parameters:**
 
@@ -173,11 +184,27 @@ Ask a question about a specific skill using a DocsReader.
 
 
 
+### findRelevantSkillsForAssistant
+
+Fork the given assistant and ask it which skills (if any) are relevant to the user's query. Returns an array of skill names that should be loaded before the real question is answered. The fork is ephemeral (historyMode: 'none') and uses structured output so the result is always a clean string array — never free text.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `assistant` | `Assistant` | ✓ | The assistant instance to fork |
+| `userQuery` | `string` | ✓ | The user's original question |
+
+**Returns:** `Promise<string[]>`
+
+
+
 ## Getters
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `skills` | `Record<string, SkillInfo>` | Discovered skills keyed by name. |
+| `skills` | `Record<string, SkillInfo>` | Discovered skills keyed by name (unfiltered). |
+| `filteredSkills` | `Record<string, SkillInfo>` | Skills filtered by the `only` option when set. |
 | `availableSkills` | `any` |  |
 | `skillsTable` | `Record<string, string>` |  |
 | `configPath` | `string` | Resolved path to the skills.json config file. |
@@ -215,6 +242,12 @@ Fired when a skill is discovered during scanning
 
 
 
+### foundSkills
+
+Event emitted by SkillsLibrary
+
+
+
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -230,10 +263,12 @@ Fired when a skill is discovered during scanning
 **features.skillsLibrary**
 
 ```ts
-const lib = container.feature('skillsLibrary')
+const lib = container.feature('skillsLibrary', { locations: ['./my-skills'] })
 await lib.start()
-await lib.addLocation('~/.claude/skills')
 lib.list() // => SkillInfo[]
-const reader = lib.createSkillReader('my-skill')
+
+// Or opt in to conventional agent folders:
+const lib2 = container.feature('skillsLibrary', { useAgentsFolders: true })
+await lib2.start()
 ```
 

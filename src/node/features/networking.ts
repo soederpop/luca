@@ -223,6 +223,7 @@ type NmapHost = {
  */
 export class Networking extends Feature<NetworkingState, NetworkingOptions> {
   static override shortcut = 'features.networking' as const
+  static override stability = 'stable' as const
   static override stateSchema = NetworkingStateSchema
   static override optionsSchema = NetworkingOptionsSchema
   static override eventsSchema = NetworkingEventsSchema

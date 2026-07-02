@@ -55,6 +55,7 @@ export const GoogleDocsEventsSchema = FeatureEventsSchema.extend({
  */
 export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   static override shortcut = 'features.googleDocs' as const
+  static override stability = 'stable' as const
   static override stateSchema = GoogleDocsStateSchema
   static override optionsSchema = GoogleDocsOptionsSchema
   static override eventsSchema = GoogleDocsEventsSchema

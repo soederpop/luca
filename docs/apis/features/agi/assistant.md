@@ -1,5 +1,7 @@
 # Assistant (features.assistant)
 
+> Stability: `core`
+
 An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. You define an assistant by creating a folder with CORE.md (system prompt), tools.ts (tool implementations), and hooks.ts (event handlers).
 
 ## Usage
@@ -16,10 +18,18 @@ container.feature('assistant', {
   prependPrompt,
   // Text to append to the system prompt
   appendPrompt,
+  // Human-readable description of the assistant. Falls back to about.md in the assistant folder.
+  about,
   // Override or extend the tools loaded from tools.ts
   tools,
   // Override or extend schemas whose keys match tool names
   schemas,
+  // Use the provider-backed ConversationV2 implementation
+  v2,
+  // Model provider preset or inline provider config for ConversationV2
+  provider,
+  // Provider-specific transport options for ConversationV2
+  providerOptions,
   // OpenAI model to use
   model,
   // Maximum number of output tokens per completion
@@ -48,6 +58,8 @@ container.feature('assistant', {
   forbidTools,
   // Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns.
   toolNames,
+  // Options for the OpenAI client, passed through to the conversation
+  clientOptions,
 })
 ```
 
@@ -60,8 +72,12 @@ container.feature('assistant', {
 | `systemPrompt` | `string` | Provide a complete system prompt directly, bypassing CORE.md |
 | `prependPrompt` | `string` | Text to prepend to the system prompt |
 | `appendPrompt` | `string` | Text to append to the system prompt |
+| `about` | `string` | Human-readable description of the assistant. Falls back to about.md in the assistant folder. |
 | `tools` | `object` | Override or extend the tools loaded from tools.ts |
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
+| `v2` | `boolean` | Use the provider-backed ConversationV2 implementation |
+| `provider` | `any` | Model provider preset or inline provider config for ConversationV2 |
+| `providerOptions` | `object` | Provider-specific transport options for ConversationV2 |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
 | `temperature` | `number` | Sampling temperature (0-2) |
@@ -76,6 +92,7 @@ container.feature('assistant', {
 | `allowTools` | `array` | Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching. |
 | `forbidTools` | `array` | Denylist of tool name patterns to exclude. Supports * glob matching. |
 | `toolNames` | `array` | Explicit list of tool names to include (exact match). Shorthand for allowTools without glob patterns. |
+| `clientOptions` | `object` | Options for the OpenAI client, passed through to the conversation |
 
 ## Methods
 
@@ -94,9 +111,24 @@ Register an interceptor at a given point in the pipeline.
 
 
 
+### triggerHook
+
+Trigger a named hook and await its completion. The hook function receives `(assistant, ...args)` and its return value is passed back to the caller. This ensures hooks run to completion BEFORE any subsequent logic executes, unlike the old bus-based approach where async hooks were fire-and-forget. Hooks that don't exist are silently skipped (returns undefined).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `hookName` | `string` | ✓ | The hook to trigger (matches an export name from hooks.ts) |
+| `args` | `any[]` | ✓ | Arguments passed to the hook after the assistant instance |
+
+**Returns:** `Promise<any>`
+
+
+
 ### afterInitialize
 
-Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks, then binds hooks as event listeners so every emitted event automatically invokes its corresponding hook.
+Called immediately after the assistant is constructed. Synchronously loads the system prompt, tools, and hooks. Hooks are invoked via triggerHook() at each emit site, ensuring async hooks are properly awaited.
 
 **Returns:** `void`
 
@@ -153,23 +185,15 @@ assistant
 
 ### addTool
 
-Add a tool to this assistant. The tool name is derived from the handler's function name.
-
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `name` | `string` | ✓ | Parameter name |
-| `handler` | `(...args: any[]) => any` | ✓ | A named function that implements the tool |
-| `schema` | `z.ZodType` |  | Optional Zod schema describing the tool's parameters |
+| `nameOrHandler` | `string | ((...args: any[]) => any)` | ✓ | Parameter nameOrHandler |
+| `handlerOrSchema` | `((...args: any[]) => any) | z.ZodType` |  | Parameter handlerOrSchema |
+| `maybeSchema` | `z.ZodType` |  | Parameter maybeSchema |
 
 **Returns:** `this`
-
-```ts
-assistant.addTool(function getWeather(args) {
- return { temp: 72 }
-}, z.object({ city: z.string() }).describe('Get weather for a city'))
-```
 
 
 
@@ -327,6 +351,75 @@ Save the conversation to disk via conversationHistory.
 
 
 
+### fork
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `AssistantForkOptions | AssistantForkOptions[]` |  | Parameter options |
+
+**Returns:** `Promise<Assistant | Assistant[]>`
+
+
+
+### createResearchJob
+
+Create a non-blocking research job that fans out questions across forked assistants. The forks fire immediately and the returned entity tracks progress via observable state and events. Each fork preserves the full assistant identity (interceptors, tools, hooks).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `prompt` | `string` | ✓ | Shared context/framing prompt prepended to each fork's system prompt |
+| `questions` | `(string | { question: string; forkOptions?: AssistantForkOptions })[]` | ✓ | Array of questions (strings) or objects with question + per-fork overrides |
+| `defaults` | `AssistantForkOptions` |  | Default fork options applied to all forks |
+
+**Returns:** `Promise<ResearchJob>`
+
+```ts
+// Fire and forget — check later
+const job = await assistant.createResearchJob(
+ "Analyze this codebase for security issues",
+ ["Look for SQL injection", "Look for XSS", "Look for auth bypass"],
+ { history: 'none', model: 'gpt-4o-mini' }
+)
+
+// Check progress
+job.state.get('completed') // 2 of 3
+job.state.get('results')   // [answer1, answer2, null]
+
+// React to events
+job.on('forkCompleted', (index, result) => console.log(`Fork ${index} done`))
+
+// Or just wait
+await job.waitFor('completed')
+```
+
+
+
+### research
+
+Fan out N questions in parallel using forked assistants, return the results. Sugar over createResearchJob — blocks until all forks complete.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `questions` | `(string | { question: string; forkOptions?: AssistantForkOptions })[]` | ✓ | Array of questions (strings) or objects with question + per-fork overrides |
+| `defaults` | `AssistantForkOptions & { prompt?: string }` |  | Default fork options applied to all forks |
+
+**Returns:** `Promise<(string | null)[]>`
+
+```ts
+const results = await assistant.research([
+ "What are best practices for X?",
+ "What are common pitfalls of X?",
+], { history: 'none', model: 'gpt-4o-mini' })
+```
+
+
+
 ### subagent
 
 Get or create a subagent assistant. Uses the assistantsManager to discover and create the assistant, then caches the instance for reuse across tool calls.
@@ -356,14 +449,18 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
-| `hasVoice` | `boolean` | Whether this assistant has a voice.yaml configuration file. |
-| `voiceConfig` | `Record<string, any> | undefined` | Parsed voice configuration from voice.yaml, or undefined if not present. |
+| `aboutPath` | `string` | The path to about.md which provides the human-readable assistant description. |
+| `about` | `string | undefined` | Human-readable description of the assistant. Returns the `about` option when provided, otherwise reads about.md from the assistant folder. Undefined when neither is available. |
+| `hasVoice` | `boolean` | Whether this assistant has a voice.yml configuration file. |
+| `voiceConfig` | `Record<string, any> | undefined` | Parsed voice configuration from voice.yml, or undefined if not present. |
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
-| `conversation` | `Conversation` |  |
+| `conversation` | `Conversation | ConversationV2` |  |
 | `availableTools` | `any` |  |
 | `messages` | `any` |  |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |
+| `isFork` | `boolean` | Whether this assistant was created via fork(). |
+| `forkDepth` | `number` | How many levels deep this fork is. 0 = original, 1 = direct fork, 2 = fork of a fork, etc. |
 | `systemPrompt` | `string` | The current system prompt text. |
 | `systemPromptExtensions` | `Record<string, string>` | The named extensions appended to the system prompt. |
 | `effectiveSystemPrompt` | `string` | The system prompt with all extensions appended. This is the value passed to the conversation. |
@@ -380,6 +477,18 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 
 ## Events (Zod v4 schema)
 
+### hookFired
+
+Emitted when a hook function is called
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Hook/event name |
+
+
+
 ### created
 
 Emitted immediately after the assistant loads its prompt, tools, and hooks.
@@ -395,18 +504,6 @@ Emitted when system prompt extensions are added or removed
 ### toolsChanged
 
 Event emitted by Assistant
-
-
-
-### hookFired
-
-Emitted when a hook function is called
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Hook/event name |
 
 
 
@@ -574,6 +671,7 @@ Event emitted by Assistant
 | `pendingPlugins` | `array` | Pending async plugin promises |
 | `conversation` | `any` | The active Conversation feature instance |
 | `subagents` | `object` | Cached subagent instances |
+| `forkDepth` | `number` | How many times this assistant has been forked from an ancestor. 0 = original. |
 
 ## Examples
 
@@ -598,20 +696,44 @@ assistant
 
 
 
-**addTool**
-
-```ts
-assistant.addTool(function getWeather(args) {
- return { temp: 72 }
-}, z.object({ city: z.string() }).describe('Get weather for a city'))
-```
-
-
-
 **ask**
 
 ```ts
 const answer = await assistant.ask('What capabilities do you have?')
+```
+
+
+
+**createResearchJob**
+
+```ts
+// Fire and forget — check later
+const job = await assistant.createResearchJob(
+ "Analyze this codebase for security issues",
+ ["Look for SQL injection", "Look for XSS", "Look for auth bypass"],
+ { history: 'none', model: 'gpt-4o-mini' }
+)
+
+// Check progress
+job.state.get('completed') // 2 of 3
+job.state.get('results')   // [answer1, answer2, null]
+
+// React to events
+job.on('forkCompleted', (index, result) => console.log(`Fork ${index} done`))
+
+// Or just wait
+await job.waitFor('completed')
+```
+
+
+
+**research**
+
+```ts
+const results = await assistant.research([
+ "What are best practices for X?",
+ "What are common pitfalls of X?",
+], { history: 'none', model: 'gpt-4o-mini' })
 ```
 
 

@@ -1,5 +1,7 @@
 # Transpiler (features.transpiler)
 
+> Stability: `core`
+
 Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. Compile code strings on the fly without touching the filesystem or spawning external processes.
 
 ## Usage
@@ -53,6 +55,21 @@ Transform code asynchronously
 | `minify` | `boolean` |  |
 
 **Returns:** `Promise<TransformResult>`
+
+
+
+### bundle
+
+Bundle a file using Bun.build, inlining all imports except those marked external. Returns CJS code ready for VM execution.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `filePath` | `string` | ✓ | Absolute path to the entrypoint file |
+| `external` | `string[]` |  | Module IDs to leave as require() calls (e.g. virtual modules) |
+
+**Returns:** `Promise<string>`
 
 
 

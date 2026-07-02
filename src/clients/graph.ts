@@ -32,6 +32,7 @@ export class GraphClient<
   K extends GraphClientOptions = GraphClientOptions
 > extends RestClient<T, K> {
   static override shortcut = "clients.graph" as const
+  static override stability = 'stable' as const
   static override optionsSchema = GraphClientOptionsSchema
   static override eventsSchema = GraphClientEventsSchema
   static { Client.register(this, 'graph') }

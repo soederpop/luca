@@ -172,6 +172,7 @@ export class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOptions> {
   static override optionsSchema = OpenAICodexOptionsSchema
   static override eventsSchema = OpenAICodexEventsSchema
   static override shortcut = 'features.openaiCodex' as const
+  static override stability = 'stable' as const
 
   static { Feature.register(this, 'openaiCodex') }
 

@@ -47,6 +47,7 @@ export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
  */
 export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
   static override shortcut = 'features.secureShell' as const
+  static override stability = 'stable' as const
   static override stateSchema = SecureShellStateSchema
   static override optionsSchema = SecureShellOptionsSchema
   static { Feature.register(this, 'secureShell') }

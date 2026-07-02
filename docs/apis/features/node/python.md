@@ -1,5 +1,7 @@
 # Python (features.python)
 
+> Stability: `stable`
+
 The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables
 
 ## Usage

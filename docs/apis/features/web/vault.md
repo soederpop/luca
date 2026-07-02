@@ -1,5 +1,7 @@
 # WebVault (features.vault)
 
+> Stability: `stable`
+
 AES-256-GCM encryption and decryption for the browser using the Web Crypto API. Generates or accepts a secret key and provides `encrypt()` / `decrypt()` methods that work entirely client-side. Keys are stored as base64-encoded state so they can persist across sessions when needed.
 
 ## Usage

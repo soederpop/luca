@@ -58,6 +58,7 @@ interface BrowserUseResult {
  */
 export class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
   static override shortcut = 'features.browserUse' as const
+  static override stability = 'experimental' as const
   static override stateSchema = BrowserUseStateSchema
   static override optionsSchema = BrowserUseOptionsSchema
   static override eventsSchema = BrowserUseEventsSchema

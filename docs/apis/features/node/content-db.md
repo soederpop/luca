@@ -1,5 +1,7 @@
 # ContentDb (features.contentDb)
 
+> Stability: `core`
+
 Provides access to a Contentbase Collection for a folder of structured markdown files. Models are defined in the collection's models.ts file and auto-discovered on load. This feature is a thin wrapper that manages the collection lifecycle and provides convenience accessors for models and documents.
 
 ## Usage
@@ -18,6 +20,20 @@ container.feature('contentDb', {
 | `rootPath` | `string` | Root directory path containing the structured markdown collection |
 
 ## Methods
+
+### setupToolsConsumer
+
+When an assistant uses contentDb, inject system prompt guidance about progressive document exploration.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `consumer` | `Helper` | ✓ | Parameter consumer |
+
+**Returns:** `void`
+
+
 
 ### renderTree
 
@@ -80,6 +96,39 @@ Parse a markdown file at the given path without loading the full collection.
 ```ts
 const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')
 console.log(doc.frontmatter, doc.content)
+```
+
+
+
+### document
+
+Get a document object by collection ID, file path, or inline markdown string. Exactly one of `id`, `path`, or `content` must be provided.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `options` | `{ id: string; path?: never; content?: never } | { path: string; id?: never; content?: never } | { content: string; id?: never; path?: never }` | ✓ | Parameter options |
+
+`{ id: string; path?: never; content?: never } | { path: string; id?: never; content?: never } | { content: string; id?: never; path?: never }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `any` | Collection document ID (e.g. `'guides/intro'`); auto-loads the collection if needed |
+| `path` | `any` | Absolute or relative path to a markdown file on disk |
+| `content` | `any` | Raw markdown string; returned as an in-memory Document |
+
+**Returns:** `Promise<Document>`
+
+```ts
+// By collection document ID
+const doc = await contentDb.document({ id: 'guides/intro' })
+
+// By file path
+const doc = await contentDb.document({ path: '/absolute/path/to/file.md' })
+
+// In-memory from a markdown string
+const doc = contentDb.document({ content: '# Hello\n\nworld' })
 ```
 
 
@@ -405,6 +454,21 @@ const articles = await contentDb.query(contentDb.models.Article).fetchAll()
 ```ts
 const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')
 console.log(doc.frontmatter, doc.content)
+```
+
+
+
+**document**
+
+```ts
+// By collection document ID
+const doc = await contentDb.document({ id: 'guides/intro' })
+
+// By file path
+const doc = await contentDb.document({ path: '/absolute/path/to/file.md' })
+
+// In-memory from a markdown string
+const doc = contentDb.document({ content: '# Hello\n\nworld' })
 ```
 
 

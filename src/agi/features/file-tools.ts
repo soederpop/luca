@@ -36,6 +36,7 @@ export const FileToolsOptionsSchema = FeatureOptionsSchema.extend({
  */
 export class FileTools extends Feature {
 	static override shortcut = 'features.fileTools' as const
+	static override stability = 'stable' as const
 	static override stateSchema = FileToolsStateSchema
 	static override optionsSchema = FileToolsOptionsSchema
 

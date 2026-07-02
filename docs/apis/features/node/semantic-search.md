@@ -1,5 +1,7 @@
 # SemanticSearch (features.semanticSearch)
 
+> Stability: `experimental`
+
 Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.
 
 ## Usage

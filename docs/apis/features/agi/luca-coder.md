@@ -1,6 +1,8 @@
 # LucaCoder (features.lucaCoder)
 
-A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in .claude/skills paths. Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).
+> Stability: `experimental`
+
+A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in conventional agent skill folders (.claude/skills or .agents/skills). Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).
 
 ## Usage
 
@@ -26,7 +28,7 @@ container.feature('lucaCoder', {
   folder,
   // Skill names to auto-load into the system prompt
   skills,
-  // Auto-load luca-framework skill if found in .claude/skills path
+  // Auto-load luca-framework skill if found in agent skill folders (.claude/skills or .agents/skills)
   autoLoadLucaSkill,
 })
 ```
@@ -45,7 +47,7 @@ container.feature('lucaCoder', {
 | `historyMode` | `string` | Conversation history persistence mode |
 | `folder` | `string` | Assistant folder for disk-based definitions |
 | `skills` | `array` | Skill names to auto-load into the system prompt |
-| `autoLoadLucaSkill` | `boolean` | Auto-load luca-framework skill if found in .claude/skills path |
+| `autoLoadLucaSkill` | `boolean` | Auto-load luca-framework skill if found in agent skill folders (.claude/skills or .agents/skills) |
 
 ## Methods
 

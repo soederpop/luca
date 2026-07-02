@@ -39,6 +39,7 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
   static { Feature.register(this, 'yamlTree') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.yamlTree" as const
+  static override stability = 'stable' as const
   static override stateSchema = YamlTreeStateSchema
   static override optionsSchema = FeatureOptionsSchema
 

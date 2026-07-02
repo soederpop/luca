@@ -58,6 +58,7 @@ setBuildTimeData('features.assetLoader', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -151,6 +152,7 @@ setBuildTimeData('features.containerLink', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -205,6 +207,7 @@ setBuildTimeData('features.esbuild', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -325,6 +328,7 @@ setBuildTimeData('features.helpers', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -366,6 +370,7 @@ setBuildTimeData('features.network', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -437,6 +442,7 @@ setBuildTimeData('features.speech', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -521,6 +527,7 @@ setBuildTimeData('features.vault', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "stable",
   "examples": [
     {
       "language": "ts",
@@ -586,6 +593,7 @@ setBuildTimeData('features.vm', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "core",
   "examples": [
     {
       "language": "ts",
@@ -661,6 +669,7 @@ setBuildTimeData('features.voice', {
   "state": {},
   "options": {},
   "envVars": [],
+  "stability": "experimental",
   "examples": [
     {
       "language": "ts",
@@ -1196,6 +1205,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -1288,6 +1298,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -1341,6 +1352,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -1460,6 +1472,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -1500,6 +1513,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -1570,6 +1584,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",
@@ -1653,6 +1668,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "stable",
     "examples": [
       {
         "language": "ts",
@@ -1717,6 +1733,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "core",
     "examples": [
       {
         "language": "ts",
@@ -1791,6 +1808,7 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
+    "stability": "experimental",
     "examples": [
       {
         "language": "ts",

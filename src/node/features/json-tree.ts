@@ -54,6 +54,7 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
   static { Feature.register(this, 'jsonTree') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.jsonTree" as const
+  static override stability = 'stable' as const
   static override stateSchema = JsonTreeStateSchema
   static override optionsSchema = FeatureOptionsSchema
 

@@ -287,6 +287,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	static override optionsSchema = SemanticSearchOptionsSchema
 	static override eventsSchema = SemanticSearchEventsSchema
 	static override shortcut = 'features.semanticSearch' as const
+	static override stability = 'experimental' as const
 	static { Feature.register(this, 'semanticSearch') }
 
 	private _db: Database | null = null

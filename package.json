@@ -165,7 +165,7 @@
     "chokidar": "3.6.0",
     "cli-markdown": "3.5.0",
     "compromise": "14.14.5",
-    "contentbase": "0.4.1",
+    "contentbase": "0.4.2",
     "cors": "2.8.5",
     "detect-port": "1.6.1",
     "dotenv": "17.2.4",

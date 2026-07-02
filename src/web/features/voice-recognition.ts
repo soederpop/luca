@@ -60,6 +60,7 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   static override optionsSchema = VoiceRecognitionOptionsSchema
   static override eventsSchema = VoiceRecognitionEventsSchema
   static override shortcut = "features.voice" as const
+  static override stability = 'experimental' as const
 
   static { Feature.register(this as any, 'voice') }
 

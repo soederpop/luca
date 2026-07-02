@@ -6,7 +6,7 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { blake3 } from '@noble/hashes/blake3.js'
 import { randomBytes } from '@noble/hashes/utils.js'
 import { Iroh, SetTagOption, BlobDownloadOptions } from '@number0/iroh'
-import type { NodeAddr } from '@number0/iroh'
+import type { NodeAddr, BlobFormat } from '@number0/iroh'
 
 export interface BlobMeta {
   hash: string
@@ -89,6 +89,7 @@ export const CipherEventsSchema = FeatureEventsSchema.extend({
  */
 export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
   static override shortcut = 'features.cipherSocial' as const
+  static override stability = 'experimental' as const
   static override stateSchema = CipherStateSchema
   static override optionsSchema = CipherOptionsSchema
   static override eventsSchema = CipherEventsSchema
@@ -294,7 +295,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
   async fetchBlob(hash: string, senderNodeAddr: NodeAddr): Promise<Buffer> {
     if (!this._iroh) throw new Error('Not connected — call connect() first')
     await this._iroh.net.addNodeAddr(senderNodeAddr)
-    const opts = new BlobDownloadOptions('Raw', [senderNodeAddr], SetTagOption.auto())
+    const opts = new BlobDownloadOptions('Raw' as BlobFormat, [senderNodeAddr], SetTagOption.auto())
 
     await new Promise<void>((resolve, reject) => {
       this._iroh!.blobs.download(hash, opts, (err: Error | null, progress: any) => {
@@ -319,7 +320,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
     this.fs.ensureFolder(dir)
 
     await this._iroh.net.addNodeAddr(senderNodeAddr)
-    const opts = new BlobDownloadOptions('Raw', [senderNodeAddr], SetTagOption.auto())
+    const opts = new BlobDownloadOptions('Raw' as BlobFormat, [senderNodeAddr], SetTagOption.auto())
 
     await new Promise<void>((resolve, reject) => {
       this._iroh!.blobs.download(hash, opts, (err: Error | null, progress: any) => {

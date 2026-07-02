@@ -45,6 +45,7 @@ export class Network<
   static override optionsSchema = NetworkOptionsSchema
   static override eventsSchema = NetworkEventsSchema
   static override shortcut = "features.network" as const
+  static override stability = 'stable' as const
 
   static { Feature.register(this as any, 'network') }
   

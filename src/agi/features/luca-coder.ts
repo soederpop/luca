@@ -148,6 +148,7 @@ export type LucaCoderOptions = z.infer<typeof LucaCoderOptionsSchema>
  */
 export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 	static override shortcut = 'features.lucaCoder' as const
+	static override stability = 'experimental' as const
 	static override stateSchema = LucaCoderStateSchema
 	static override optionsSchema = LucaCoderOptionsSchema
 	static override eventsSchema = LucaCoderEventsSchema

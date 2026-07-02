@@ -98,6 +98,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   static { Feature.register(this, 'ipcSocket') }
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
+  static override stability = 'stable' as const
   static override stateSchema = IpcStateSchema
   static override eventsSchema = IpcEventsSchema
 

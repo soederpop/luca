@@ -1,5 +1,7 @@
 # ConversationHistory (features.conversationHistory)
 
+> Stability: `stable`
+
 Persists conversations to disk using the diskCache feature (cacache). Each conversation is stored as a JSON blob keyed by ID, with metadata stored alongside for efficient listing and search without loading full message arrays.
 
 ## Usage
@@ -45,6 +47,8 @@ Save a conversation. Creates or overwrites by ID.
 | `createdAt` | `string` |  |
 | `updatedAt` | `string` |  |
 | `messageCount` | `number` |  |
+| `tokenUsage` | `TokenUsage` |  |
+| `cost` | `CostInfo` |  |
 | `metadata` | `Record<string, any>` |  |
 
 **Returns:** `Promise<void>`
@@ -66,6 +70,8 @@ Create a new conversation from messages, returning the saved record.
 		messages: Message[]
 		tags?: string[]
 		thread?: string
+		tokenUsage?: TokenUsage
+		cost?: CostInfo
 		metadata?: Record<string, any>
 	}` | ✓ | Creation options including messages, optional title, model, tags, thread, and metadata |
 
@@ -300,6 +306,48 @@ Delete all conversations matching a thread prefix.
 | `prefix` | `string` | ✓ | The thread prefix to match |
 
 **Returns:** `Promise<number>`
+
+
+
+### summarize
+
+Generate a concise summary of a stored conversation using the LLM. The summary is stored in `metadata.summary` and returned. No tool calls are made — this is a single completion request.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | ✓ | The conversation ID to summarize |
+| `options` | `{ model?: string }` |  | Optional settings |
+
+`{ model?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `model` | `any` | Override the model used for summarization |
+
+**Returns:** `Promise<string | null>`
+
+
+
+### generateTitle
+
+Generate a short, descriptive title for a stored conversation using the LLM. The title is stored both as the record's `title` field and in `metadata.generatedTitle`, then returned. No tool calls are made.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `id` | `string` | ✓ | The conversation ID to generate a title for |
+| `options` | `{ model?: string }` |  | Optional settings |
+
+`{ model?: string }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `model` | `any` | Override the model used for title generation |
+
+**Returns:** `Promise<string | null>`
 
 
 

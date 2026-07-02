@@ -193,6 +193,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 	static override optionsSchema = AssistantOptionsSchema
 	static override eventsSchema = AssistantEventsSchema
 	static override shortcut = 'features.assistant' as const
+	static override stability = 'core' as const
 
 	static { Feature.register(this, 'assistant') }
 

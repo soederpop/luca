@@ -115,6 +115,7 @@ export class PackageFinder<
 
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.packageFinder" as const
+  static override stability = 'stable' as const
   static override stateSchema = PackageFinderStateSchema
   static override optionsSchema = PackageFinderOptionsSchema
 

@@ -1,5 +1,7 @@
 # ElevenLabsClient (clients.elevenlabs)
 
+> Stability: `experimental`
+
 ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. Provides methods for listing voices, listing models, and generating speech audio. Audio is returned as a Buffer; use `say()` for a convenience method that writes to disk.
 
 ## Usage

@@ -25,6 +25,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
  */
 export class Downloader extends Feature {
   static override shortcut = 'features.downloader' as const
+  static override stability = 'stable' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'downloader') }

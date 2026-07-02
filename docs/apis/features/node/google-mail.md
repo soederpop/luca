@@ -1,5 +1,7 @@
 # GoogleMail (features.googleMail)
 
+> Stability: `stable`
+
 Google Mail feature for searching, reading, and watching Gmail messages. Depends on the googleAuth feature for authentication. Creates a Gmail v1 API client lazily. Supports Gmail search query syntax, individual message reading, and polling-based new mail detection with event emission.
 
 ## Usage

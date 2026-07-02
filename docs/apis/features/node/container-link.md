@@ -1,5 +1,7 @@
 # ContainerLink (features.containerLink)
 
+> Stability: `stable`
+
 ContainerLink (Web-side) — WebSocket client that connects to a node host. Connects to a ContainerLink host over WebSocket. The host can evaluate code in this container, and the web side can emit structured events to the host. The web side can NEVER eval code in the host — trust is strictly one-way.
 
 ## Usage

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { Feature } from '../../feature'
 import type { Helper } from '../../helper'
-import type { FeatureState, FeatureOptions } from '../../schemas/base'
+import type { FeatureState, FeatureOptions } from '../../feature'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
@@ -109,6 +109,7 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
  */
 export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & FeatureOptions> {
 	static override shortcut = 'features.mcpBridge' as const
+	static override stability = 'stable' as const
 	static override optionsSchema = McpBridgeOptionsSchema
 	static override stateSchema = McpBridgeStateSchema
 	static override eventsSchema = McpBridgeEventsSchema

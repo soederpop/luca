@@ -119,6 +119,7 @@ type QueryOptions = {
 export class Dns extends Feature<DnsState, DnsOptions> {
   static override shortcut = 'features.dns' as const
   static override description = 'DNS lookup utilities wrapping the dig CLI'
+  static override stability = 'stable' as const
   static override stateSchema = DnsStateSchema
   static override optionsSchema = DnsOptionsSchema
   static { Feature.register(this, 'dns') }

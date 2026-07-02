@@ -42,6 +42,7 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 	static override optionsSchema = DocsReaderOptionsSchema
 	static override eventsSchema = DocsReaderEventsSchema
 	static override shortcut = 'features.docsReader' as const
+	static override stability = 'stable' as const
 
 	static { Feature.register(this, 'docsReader') }
 

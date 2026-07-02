@@ -1,5 +1,7 @@
 # Postgres (features.postgres)
 
+> Stability: `stable`
+
 Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring
 
 ## Usage

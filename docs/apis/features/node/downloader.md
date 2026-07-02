@@ -1,5 +1,7 @@
 # Downloader (features.downloader)
 
+> Stability: `stable`
+
 A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.
 
 ## Usage

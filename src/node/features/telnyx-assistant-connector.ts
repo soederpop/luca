@@ -53,6 +53,7 @@ export const TelnyxAssistantConnectorEventsSchema = FeatureEventsSchema.extend({
  */
 export class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
   static override shortcut = 'features.telnyxAssistantConnector' as const
+  static override stability = 'experimental' as const
   static override stateSchema = TelnyxAssistantConnectorStateSchema
   static override optionsSchema = TelnyxAssistantConnectorOptionsSchema
   static override eventsSchema = TelnyxAssistantConnectorEventsSchema

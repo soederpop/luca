@@ -33,6 +33,7 @@ import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 export class Opener extends Feature {
   static override shortcut = "features.opener" as const
   static override description = "Opens files, URLs, desktop apps, and code editors"
+  static override stability = 'stable' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'opener') }

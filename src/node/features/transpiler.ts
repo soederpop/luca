@@ -88,6 +88,7 @@ function esmToCjs(code: string): string {
  */
 export class Transpiler extends Feature {
   static override shortcut = 'features.transpiler' as const
+  static override stability = 'core' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'transpiler') }

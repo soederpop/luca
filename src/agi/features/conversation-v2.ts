@@ -68,6 +68,7 @@ export type ConversationV2Events = {
 
 export class ConversationV2 extends Feature<ConversationV2State, ConversationV2Options> {
   static override description = 'Provider-native conversation feature backed by modelProviders.'
+  static override stability = 'core' as const
   static override optionsSchema = ConversationV2OptionsSchema
   static override stateSchema = ConversationV2StateSchema
   static override eventsSchema = ConversationV2EventsSchema
