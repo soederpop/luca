@@ -104,7 +104,7 @@ Handlers are `(params, ctx)` where **`params` is `{...query, ...body, ...urlPara
 - **Helper `state` may not be hydrated** even when the helper works (e.g. a listening server with `state == {}`). Trust events and observed behavior over state values when debugging.
 - **Registry names are camelCase, source files are kebab-case:** `cipherSocial` lives in `cipher-social.ts`. When a name lookup fails, the error's "Available:" list is authoritative — read it instead of guessing variants.
 - **VM contexts start empty** — with `container.feature('vm')`, inject `console`, `Date`, `Promise`, `crypto`, `TextEncoder`, `setTimeout` explicitly.
-- **Long-running commands** need `await new Promise(() => {})` at the end plus a `process.on('SIGINT', …)` cleanup handler.
+- **Long-running commands** end with `await container.feature('scheduler').run()` — blocks until SIGINT/SIGTERM, stops all scheduled tasks, runs your `onShutdown` hook. (Manual idiom: `await new Promise(() => {})` plus a `process.on('SIGINT', …)` cleanup handler.)
 - **Persisting state between command runs:** each invocation is a fresh process. Use `container.feature('diskCache')` (or sqlite) rather than inventing ad-hoc JSON files.
 
 ## What's Available

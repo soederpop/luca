@@ -82,7 +82,7 @@ fm.on('file:change', (event) => {
 await fm.watch({ paths: ['inbox'] })
 ```
 
-Test the `processFile` logic in `luca eval` first; run the live watch as a background task. The command file needs `await new Promise(() => {})` at the end plus a `SIGINT` cleanup handler.
+Test the `processFile` logic in `luca eval` first; run the live watch as a background task. End the command file with `await container.feature('scheduler').run()` to hold the process open and clean up on SIGINT (or the manual idiom: `await new Promise(() => {})` plus a `SIGINT` handler).
 
 ## 5. Persisting state between command runs
 

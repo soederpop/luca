@@ -113,8 +113,9 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 ## Long-Running Commands (daemons, pollers, watchers)
 
 A command that should keep running (a server, a poll loop, a queue worker) must hold the
-process open explicitly and clean up on SIGINT. There is no `container.feature('scheduler')` —
-the idiomatic Luca poll loop is `container.utils.every`, which never overlaps runs:
+process open explicitly and clean up on SIGINT. `container.feature('scheduler')` handles the
+whole lifecycle: named recurring tasks (intervals or cron), and `run()` holds the process
+open until SIGINT/SIGTERM, then stops every task:
 
 ```ts
 export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -124,22 +125,20 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
   const proc = container.feature('proc')
   proc.establishLock('tmp/{{kebabName}}.pid')
 
-  // Poll loop: waits for each run to finish before scheduling the next (recursive setTimeout idiom)
-  const stop = container.utils.every(30_000, async () => {
-    await doOneUnitOfWork(container)
-  }, { immediate: true })
+  // Named tasks: intervals ('30s', '5m', ms) or cron ('0 9 * * mon-fri', '@hourly').
+  // The next run never starts before the previous one finishes.
+  const scheduler = container.feature('scheduler')
+  scheduler.every('30s', () => doOneUnitOfWork(container), { name: 'worker', immediate: true })
 
-  // Hold the process open; release everything on Ctrl-C
-  process.on('SIGINT', () => {
-    stop()
-    process.exit(0)
-  })
-  await new Promise(() => {})
+  // Hold the process open; on Ctrl-C every task stops, then onShutdown runs
+  await scheduler.run({ onShutdown: () => flushBuffers() })
 }
 ```
 
-Related tools: `container.utils.sleep(ms)` for pauses, `container.utils.backoff(fn, { attempts, delay })`
-for retrying flaky calls with exponential backoff.
+Inspect `scheduler.tasks` for run counts, errors, and next-run times. For a bare loop
+without the managed layer, the primitives live on utils: `container.utils.every(ms, fn)`
+(non-overlapping poll loop, returns `stop()`), `container.utils.sleep(ms)`, and
+`container.utils.backoff(fn, { attempts, delay })` for retrying flaky calls.
 
 ## Conventions
 

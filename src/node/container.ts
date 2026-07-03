@@ -23,6 +23,7 @@ import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
 
 import "./features/disk-cache";
+import "./features/scheduler";
 import "./features/content-db";
 import "./features/downloader";
 import "./features/transpiler";
@@ -72,6 +73,7 @@ import "./features/tmux";
 
 import type { ChildProcess } from "./features/proc";
 import type { DiskCache } from "./features/disk-cache";
+import type { Scheduler } from "./features/scheduler";
 import type { ContentDb } from "./features/content-db";
 import type { Downloader } from "./features/downloader";
 import type { Transpiler } from "./features/transpiler";
@@ -132,6 +134,7 @@ export {
   type UI,
   type FileManager,
   type DiskCache,
+  type Scheduler,
   type Vault,
   type Downloader,
   type Docker,
@@ -200,6 +203,7 @@ export interface NodeFeatures extends AvailableFeatures {
   yaml: typeof YAML;
   transpiler: typeof Transpiler;
   diskCache: typeof DiskCache;
+  scheduler: typeof Scheduler;
   vault: typeof Vault;
   jsonTree: typeof JsonTree;
   downloader: typeof Downloader;
@@ -294,6 +298,7 @@ export class NodeContainer<
   repl?: Repl;
   transpiler?: Transpiler;
   diskCache?: DiskCache;
+  scheduler?: Scheduler;
   vault?: Vault;
   python?: Python;
   ink?: Ink;

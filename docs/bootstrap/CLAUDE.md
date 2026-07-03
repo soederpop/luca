@@ -71,7 +71,8 @@ The container provides more than you might expect. Before importing anything ext
 - **chalk** — available as `container.feature('ui').colors`, not via `import('chalk')`.
 - **figlet** — available as `container.feature('ui').asciiArt(text)`.
 - **uuid** — `container.utils.uuid()`
-- **timing** — `container.utils.sleep(ms)`, `container.utils.backoff(fn, { attempts, delay })` (retry with exponential backoff), `container.utils.every(ms, fn)` (poll loop with no overlapping runs; returns `stop()`).
+- **Scheduler** — `container.feature('scheduler')` for named recurring tasks: `every('5m', fn)`, `cron('0 9 * * mon-fri', fn)`, one-shots via `at()`/`in()`, and `run()` for the daemon lifecycle (holds the process open, stops all tasks on SIGINT/SIGTERM). Inspect `scheduler.tasks` for run counts and errors.
+- **timing** — `container.utils.sleep(ms)`, `container.utils.backoff(fn, { attempts, delay })` (retry with exponential backoff), `container.utils.every(ms, fn)` (bare poll loop with no overlapping runs; returns `stop()`).
 - **lodash** — `container.utils.lodash`. Exactly these: `uniq`, `uniqBy`, `keyBy`, `groupBy`, `debounce`, `throttle`, `mapValues`, `mapKeys`, `pick`, `get`, `set`, `omit`. Nothing else (no `sortBy`, `orderBy`, `chunk`, …) — use native array methods for the rest.
 - **string utils** — `container.utils.stringUtils`. Exactly these: `camelCase`, `kebabCase`, `upperFirst`, `lowerFirst`, `pluralize`, `singularize`.
 
@@ -83,11 +84,11 @@ The container provides more than you might expect. Before importing anything ext
 - **`ui.print.<color>()` is not a string formatter** — it prints immediately and returns `undefined`, so `` `${ui.print.green('OK')}` `` interpolates `undefined`. To compose colored strings, use `ui.colors.<color>()`, which returns the styled string.
 - **Checking whether a PID is alive**: `proc.kill(pid, 0)` sends nothing and returns `false` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
 - **VM contexts start empty** — when using `container.feature('vm')`, inject globals explicitly (`console`, `Date`, `Promise`, `crypto`, `TextEncoder`, `setTimeout`).
-- **Long-running commands** (servers, watchers) need `await new Promise(() => {})` at the end with a `process.on('SIGINT', ...)` handler for cleanup.
+- **Long-running commands** (servers, watchers) must hold the process open. The easy path is `await container.feature('scheduler').run()` — it blocks until SIGINT/SIGTERM, then stops all scheduled tasks and runs your `onShutdown` hook. The manual idiom is `await new Promise(() => {})` plus a `process.on('SIGINT', ...)` cleanup handler.
 - **Shared state between endpoints**: use `ctx.request.app.locals` to share data across endpoint files.
 - **Database init**: use `luca.cli.ts` `main()` hook for table creation and seeding — it runs before any command or server starts.
 - **Which store for cross-process state?** In-process/ephemeral → `container.state`; cross-process scalars/blobs → `diskCache` (supports `ttl`); queryable/relational/durable queues → `sqlite` (use `transaction()` and `UPDATE … RETURNING` for atomic job claims); cross-process pub/sub → `redis`.
-- **No scheduler feature exists** — the idiomatic poll loop is `container.utils.every(ms, fn)` (no overlapping runs, returns a `stop()` function), plus `container.utils.sleep(ms)` and `container.utils.backoff(fn, opts)` for retries.
+- **Scheduling**: `container.feature('scheduler')` is the managed layer (named tasks, cron, run history, daemon `run()`); `container.utils.every(ms, fn)` / `sleep(ms)` / `backoff(fn, opts)` are the bare primitives when you don't need names or lifecycle. Neither ever overlaps runs of the same task.
 
 ## Extending the Container
 

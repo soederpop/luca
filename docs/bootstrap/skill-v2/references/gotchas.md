@@ -40,7 +40,7 @@ Every entry here cost at least one real session real time. Format: the trap, the
 
 **Sharing state across endpoint files:** `ctx.request.app.locals`. Database/table init goes in `luca.cli.ts`'s `main()` hook (runs before any command or server).
 
-**Long-running commands** need `await new Promise(() => {})` at the end plus `process.on('SIGINT', …)` cleanup.
+**Long-running commands** end with `await container.feature('scheduler').run()` (blocks until SIGINT/SIGTERM, stops scheduled tasks, runs `onShutdown`). Manual idiom: `await new Promise(() => {})` plus `process.on('SIGINT', …)` cleanup.
 
 ## REST client
 
