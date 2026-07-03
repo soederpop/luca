@@ -52,7 +52,7 @@ describe('bundle command', () => {
     expect(pkg.dependencies.luca).toBe('latest')
   })
 
-  it('auto runtime omits dependencies when the source runtime is available', async () => {
+  it('auto runtime resolves to the local repo when running from a luca checkout', async () => {
     const root = mkdtempSync(join(tmpdir(), 'luca-bundle-auto-test-'))
     const outDir = join(root, 'out')
     const cmd = container.command('bundle' as any)
@@ -69,9 +69,8 @@ describe('bundle command', () => {
       'headless',
     )
 
-    // Running from the luca repo, auto resolves to the embedded/source runtime
     const pkg = JSON.parse(readFileSync(join(outDir, '.luca-bundle-build', 'auto-bin', 'package.json'), 'utf8'))
-    expect(pkg.dependencies).toBeUndefined()
+    expect(pkg.dependencies.luca).toMatch(/^file:\//)
   })
 
   it('embeds assistants and wires chat into the entry', async () => {

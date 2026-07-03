@@ -9,13 +9,7 @@ import {
   generateConsumerManifest,
   generateConsumerEntry,
   generateAssistantsModule,
-  generateNamespaceShim,
-  generateCommandShim,
-  generateRuntimePackageJson,
-  generateEmbeddedRuntimeModule,
-  buildRuntimeBlobIndex,
   normalizeRuntimeDependencySpec,
-  RUNTIME_EXPORT_MAP,
 } from '../src/cli/bundle-utils'
 
 describe('bundle utils', () => {
@@ -106,66 +100,11 @@ describe('bundle utils', () => {
     expect(shouldIncludeAssistantFile('.bundle-hash')).toBe(false)
   })
 
-  it('generates namespace shims that re-export from the runtime barrel', () => {
-    const shim = generateNamespaceShim('lucaMain', ['Feature', 'commands', 'default', 'not-an-ident'])
-
-    expect(shim).toContain("import { lucaMain as __ns } from './runtime-barrel.js'")
-    expect(shim).toContain('const { Feature, commands } = __ns')
-    expect(shim).toContain('export { Feature, commands }')
-    expect(shim).toContain('export default __ns.default')
-    expect(shim).not.toContain('not-an-ident')
-  })
-
-  it('omits the default export from shims when the namespace has none', () => {
-    const shim = generateNamespaceShim('lucaSchemas', ['CommandOptionsSchema'])
-    expect(shim).not.toContain('export default')
-  })
-
-  it('generates command shims that register via lazy loaders', () => {
-    const shim = generateCommandShim('chat')
-    expect(shim).toContain("import { commandLoaders } from '../runtime-barrel.js'")
-    expect(shim).toContain('await commandLoaders["chat"]()')
-  })
-
-  it('maps every runtime specifier to a shim artifact', () => {
-    expect(RUNTIME_EXPORT_MAP['.']).toBe('./index.js')
-    expect(RUNTIME_EXPORT_MAP['./agi']).toBe('./agi.js')
-    expect(RUNTIME_EXPORT_MAP['./cli/runner']).toBe('./cli-runner.js')
-    expect(RUNTIME_EXPORT_MAP['./commands/*']).toBe('./commands/*.js')
-    const pkg = JSON.parse(generateRuntimePackageJson('9.9.9'))
-    expect(pkg.name).toBe('luca')
-    expect(pkg.version).toBe('9.9.9')
-    expect(pkg.exports).toEqual(RUNTIME_EXPORT_MAP)
-  })
-
   it('normalizes runtime specs into dependency values', () => {
     expect(normalizeRuntimeDependencySpec('luca')).toBe('latest')
     expect(normalizeRuntimeDependencySpec('luca@3.3.0')).toBe('3.3.0')
     expect(normalizeRuntimeDependencySpec('3.3.0')).toBe('3.3.0')
     expect(normalizeRuntimeDependencySpec('file:/repos/luca')).toBe('file:/repos/luca')
-  })
-
-  it('builds a contiguous blob index from file sizes', () => {
-    const index = buildRuntimeBlobIndex([
-      { path: 'runtime-barrel.js', size: 100 },
-      { path: 'index.js', size: 10 },
-      { path: '__vendor/@number0/iroh/index.js', size: 5 },
-    ])
-    expect(index).toEqual([
-      { path: 'runtime-barrel.js', offset: 0, length: 100 },
-      { path: 'index.js', offset: 100, length: 10 },
-      { path: '__vendor/@number0/iroh/index.js', offset: 110, length: 5 },
-    ])
-  })
-
-  it('generates the embedded runtime module with a blob import, or a stub without one', () => {
-    const populated = generateEmbeddedRuntimeModule([{ path: 'runtime-barrel.js', offset: 0, length: 42 }])
-    expect(populated).toContain("import _blob from './artifacts.blob' with { type: 'file' }")
-    expect(populated).toContain('{ path: "runtime-barrel.js", offset: 0, length: 42 }')
-
-    const stub = generateEmbeddedRuntimeModule([])
-    expect(stub).not.toContain('artifacts.blob')
-    expect(stub).toContain('export const runtimeBlob: string | null = null')
   })
 
   it('generates the assistants module with extraction and discovery registration', () => {

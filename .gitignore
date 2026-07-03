@@ -65,5 +65,3 @@ docs/sessions
 # for training a lora on luca philosophy
 datasets/
 
-src/bundle-runtime/artifacts/
-src/bundle-runtime/artifacts.blob
