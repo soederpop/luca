@@ -320,6 +320,13 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
           returns,
           ...(examples.length > 0 ? { examples } : {}),
         };
+        continue;
+      }
+
+      // Function-valued properties on containers are callable members too
+      const fnProp = this.extractFunctionValuedProperty(member);
+      if (fnProp) {
+        methods[fnProp.name] = fnProp.introspection;
       }
     }
 
@@ -539,10 +546,96 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
           returns,
           ...(examples.length > 0 ? { examples } : {}),
         };
+        continue;
+      }
+
+      // Function-valued property declarations (e.g. `print = (...args) => {...}` or
+      // `print = Object.assign((...args) => {...}, { red: ... })`) are callable
+      // members too — surface them as methods so introspection doesn't hide them.
+      const fnProp = this.extractFunctionValuedProperty(member);
+      if (fnProp) {
+        methods[fnProp.name] = fnProp.introspection;
       }
     }
 
     return methods;
+  }
+
+  /**
+   * Detect a class property whose value is a function — either a direct
+   * arrow/function expression, or an `Object.assign(fn, {...})` call that
+   * attaches extra members to a function (like `ui.print`). Returns a
+   * MethodIntrospection for it, or null when the member is not a public
+   * function-valued property.
+   */
+  private extractFunctionValuedProperty(member: ts.ClassElement): { name: string; introspection: MethodIntrospection } | null {
+    if (!ts.isPropertyDeclaration(member) || !member.name) return null;
+
+    const propName = member.name.getText();
+
+    // Skip internal/private/static properties, same rules as methods
+    if (propName.startsWith('_')) return null;
+    const isPrivate = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.PrivateKeyword);
+    if (isPrivate && !this.options.includePrivate) return null;
+    const isStatic = member.modifiers?.some(mod => mod.kind === ts.SyntaxKind.StaticKeyword);
+    if (isStatic) return null;
+    if (this.hasJSDocTag(member, 'internal')) return null;
+
+    const fn = this.unwrapFunctionInitializer(member.initializer);
+    if (!fn) return null;
+
+    const description = this.extractJSDocFromNode(member, member.getSourceFile()) || '';
+    const parameters: Record<string, { type: string, description: string }> = {};
+    const required: string[] = [];
+
+    for (const param of fn.parameters) {
+      const paramName = param.name.getText();
+      const type = param.type ? param.type.getText() : 'any';
+      parameters[paramName] = { type, description: `Parameter ${paramName}` };
+      if (!param.questionToken && !param.initializer && !param.dotDotDotToken) {
+        required.push(paramName);
+      }
+    }
+
+    const returns = fn.type ? fn.type.getText() : (member.type ? member.type.getText() : 'any');
+    const examples = this.extractJSDocExamples(member);
+
+    return {
+      name: propName,
+      introspection: {
+        description,
+        parameters,
+        required,
+        returns,
+        ...(examples.length > 0 ? { examples } : {}),
+      },
+    };
+  }
+
+  /**
+   * Unwrap a property initializer down to the function expression it carries,
+   * looking through `as` casts, parentheses, and `Object.assign(fn, ...)` calls.
+   */
+  private unwrapFunctionInitializer(initializer: ts.Expression | undefined): ts.ArrowFunction | ts.FunctionExpression | null {
+    if (!initializer) return null;
+
+    let expr: ts.Expression = initializer;
+    while (ts.isAsExpression(expr) || ts.isParenthesizedExpression(expr)) {
+      expr = expr.expression;
+    }
+
+    if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) return expr;
+
+    // Object.assign(fn, { ...attached members }) — a function with properties
+    if (ts.isCallExpression(expr) && expr.expression.getText() === 'Object.assign' && expr.arguments.length > 0) {
+      let first: ts.Expression = expr.arguments[0]!;
+      while (ts.isAsExpression(first) || ts.isParenthesizedExpression(first)) {
+        first = first.expression;
+      }
+      if (ts.isArrowFunction(first) || ts.isFunctionExpression(first)) return first;
+    }
+
+    return null;
   }
 
   /**

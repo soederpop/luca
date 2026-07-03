@@ -69,7 +69,21 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     } as unknown) as T
   }
 
-  /** Enhanced print function with color methods for convenient terminal output */
+  /**
+   * Enhanced print function with color methods for convenient terminal output.
+   * Call it directly like console.log, or use the attached color/style methods
+   * (red, green, blue, yellow, cyan, dim, bold, italic, underline, bg* variants)
+   * and semantic helpers (error, info, success, warn).
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * ui.print('plain text')
+   * ui.print.cyan('cyan text')
+   * ui.print.error('printed in red')
+   * ui.print.success('printed in green')
+   * ```
+   */
   print: ColoredPrintFunction = Object.assign((...args: any[]) => {
     return console.log(...args)
   }, {

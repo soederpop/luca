@@ -37,6 +37,8 @@ interface RawSpawnOptions {
   stdout?: "pipe" | "inherit" | "ignore";
   /** Stderr mode for the child process */
   stderr?: "pipe" | "inherit" | "ignore";
+  /** Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore') */
+  detached?: boolean;
 }
 
 /**
@@ -233,15 +235,49 @@ export class ChildProcess extends Feature {
    *
    * Useful when callers need streaming access to stdout/stderr and
    * direct lifecycle control (for example, cancellation via kill()).
+   *
+   * Pass `detached: true` to run the child in its own process group so it can
+   * outlive the parent. When detached, stdio defaults to 'ignore' (piped stdio
+   * would tie the child to the parent and keep the parent's event loop alive) —
+   * call `.unref()` on the returned handle to let the parent exit.
+   *
+   * @param {string} command - The executable to run
+   * @param {string[]} args - Arguments to pass to the command
+   * @param {RawSpawnOptions} [options] - Spawn options
+   * @param {boolean} [options.detached] - Run the child in its own process group so it survives parent exit
+   * @param {string} [options.stdout] - 'pipe' | 'inherit' | 'ignore' (defaults to 'ignore' when detached)
+   * @param {string} [options.stderr] - 'pipe' | 'inherit' | 'ignore' (defaults to 'ignore' when detached)
+   * @returns {import('child_process').ChildProcess} The raw child process handle
+   *
+   * @example
+   * ```typescript
+   * // Streaming access with lifecycle control
+   * const child = proc.spawn('bun', ['run', 'dev'])
+   * child.stdout?.on('data', (buf) => console.log(buf.toString()))
+   *
+   * // Background worker that outlives the CLI process
+   * const worker = proc.spawn('bun', ['worker.ts'], {
+   *   detached: true,   // own process group — not reaped when the CLI exits
+   *   stdout: 'ignore', // no pipes back to the parent
+   *   stderr: 'ignore',
+   * })
+   * worker.unref()      // let the parent event loop exit
+   * console.log('worker pid:', worker.pid)
+   * ```
    */
   spawn(command: string, args: string[] = [], options: RawSpawnOptions = {}): import('child_process').ChildProcess {
     const cwd = options.cwd ?? this.container.cwd
-    const stdout = options.stdout ?? 'pipe'
-    const stderr = options.stderr ?? 'pipe'
+    const detached = options.detached ?? false
+    // Piped stdio keeps the parent alive and dies with it — detached children
+    // default to 'ignore' so they can genuinely outlive the parent process.
+    const stdout = options.stdout ?? (detached ? 'ignore' : 'pipe')
+    const stderr = options.stderr ?? (detached ? 'ignore' : 'pipe')
+    const stdin = options.stdin != null ? 'pipe' : (detached ? 'ignore' : 'pipe')
     const child = nodeSpawn(command, args, {
       cwd,
       env: { ...process.env, ...(options.environment ?? {}) },
-      stdio: ['pipe', stdout, stderr],
+      stdio: [stdin, stdout, stderr],
+      detached,
     })
 
     if (options.stdin != null && child.stdin) {

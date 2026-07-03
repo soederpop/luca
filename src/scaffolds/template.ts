@@ -21,11 +21,29 @@ export function toKebabCase(str: string): string {
 		.toLowerCase()
 }
 
+/**
+ * Escape a value so it is safe to interpolate inside any JS/TS string literal
+ * (single-quoted, double-quoted, or template literal). Escapes backslashes,
+ * all three quote characters, template interpolation, and newlines.
+ */
+export function escapeForStringLiteral(value: string): string {
+	return value
+		.replace(/\\/g, '\\\\')
+		.replace(/'/g, "\\'")
+		.replace(/"/g, '\\"')
+		.replace(/`/g, '\\`')
+		.replace(/\$\{/g, '\\${')
+		.replace(/\r/g, '\\r')
+		.replace(/\n/g, '\\n')
+}
+
 /** Apply mustache-style template variables to scaffold code */
 export function applyTemplate(template: string, vars: Record<string, string>): string {
 	let result = template
 	for (const [key, value] of Object.entries(vars)) {
-		result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value)
+		// Use a function replacement so `$` sequences in the value (e.g. "$&")
+		// are inserted literally instead of being treated as replacement patterns
+		result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), () => value)
 	}
 	return result
 }
@@ -39,7 +57,9 @@ export function generateScaffold(type: string, name: string, description?: strin
 		PascalName: toPascalCase(name),
 		camelName: toCamelCase(name),
 		kebabName: toKebabCase(name),
-		description: description || `A ${type} that does something useful`,
+		// Descriptions are interpolated into string literals in the templates —
+		// escape them so quotes/backslashes/newlines can't produce invalid TS
+		description: escapeForStringLiteral(description || `A ${type} that does something useful`),
 	}
 
 	return applyTemplate(scaffold.full, vars)

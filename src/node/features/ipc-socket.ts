@@ -61,6 +61,13 @@ type ClientInfo = {
  * - Stale socket detection: probeSocket() before listen()
  * - Clean shutdown: stopServer() removes socket file
  *
+ * **Mode locking:** a single IpcSocket instance is locked to one role — the first
+ * `listen()` locks it into server mode and the first `connect()` locks it into client
+ * mode (attempting the other call afterwards throws). To act as both server and client
+ * within one process, create two distinct instances, e.g. by passing different options:
+ * `container.feature('ipcSocket', { role: 'server' })` and
+ * `container.feature('ipcSocket', { role: 'client' })`.
+ *
  * **Server (Hub):**
  * ```typescript
  * const ipc = container.feature('ipcSocket');
@@ -72,8 +79,10 @@ type ClientInfo = {
  *
  * ipc.on('message', (data, clientId) => {
  *   console.log(`From ${clientId}:`, data);
- *   // Reply to sender, or ask and wait
- *   ipc.sendTo(clientId, { ack: true });
+ *   // Incoming ask() requests carry a requestId — reply to complete them
+ *   if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId);
+ *   // Or fire-and-forget back to the sender
+ *   else ipc.sendTo(clientId, { ack: true });
  * });
  * ```
  *
@@ -85,12 +94,15 @@ type ClientInfo = {
  * // Fire and forget
  * await ipc.send({ type: 'status', ready: true });
  *
- * // Request/reply
+ * // Request/reply: ask the server and await its reply
+ * const answer = await ipc.ask({ type: 'question' });
+ *
+ * // Answer asks initiated by the server
  * ipc.on('message', (data) => {
  *   if (data.requestId) ipc.reply(data.requestId, { result: 42 });
  * });
  * ```
- * 
+ *
  * @template T - The state type, defaults to IpcState
  * @extends {Feature<T>}
  */
@@ -391,7 +403,10 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * Sends a message and waits for a correlated reply.
    * Works in both client and server mode.
    *
-   * The recipient should call `reply(requestId, response)` to respond.
+   * On the receiving side the message is delivered via the 'message' event with
+   * a `requestId` property merged onto the payload; the recipient should call
+   * `reply(requestId, response)` (plus the sender's clientId when replying from
+   * a server) to resolve this promise.
    *
    * @param message - The message to send
    * @param options - Optional: clientId (server mode target), timeoutMs
@@ -446,9 +461,21 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /**
    * Sends a reply to a previous ask() call, correlated by requestId.
    *
+   * Incoming ask() requests surface their `requestId` on the payload delivered
+   * to the 'message' event, so a handler can correlate the reply:
+   *
+   * ```typescript
+   * // Server side — the 'message' handler receives (data, clientId)
+   * ipc.on('message', (data, clientId) => {
+   *   if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId)
+   * })
+   * ```
+   *
    * @param requestId - The requestId from the incoming message
    * @param data - The reply payload
-   * @param clientId - Target client (server mode; for client mode, omit)
+   * @param clientId - Target client (required in server mode; omit in client mode)
+   *
+   * @throws {Error} In server mode when clientId is omitted
    */
   reply(requestId: string, data: any, clientId?: string): void {
     const envelope = JSON.stringify({
@@ -457,7 +484,10 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
       replyTo: requestId,
     }) + '\n'
 
-    if (this.isServer && clientId) {
+    if (this.isServer) {
+      if (!clientId) {
+        throw new Error('reply() in server mode requires a clientId (the second argument of the "message" event)')
+      }
       const client = this.clients.get(clientId)
       if (client?.socket.writable) {
         client.socket.write(envelope)
@@ -637,9 +667,17 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
           continue
         }
 
-        // Regular message — include sender clientId in server mode
+        // Regular message — include sender clientId in server mode.
+        // If the envelope carries a requestId (an ask() in flight), preserve it
+        // on the emitted payload so handlers can wire up reply(requestId, ...).
         const clientId = this._socketToClient.get(socket)
-        this.emit('message', parsed.data ?? parsed, clientId)
+        let payload = parsed.data ?? parsed
+        if (parsed.requestId != null) {
+          payload = (payload !== null && typeof payload === 'object' && !Array.isArray(payload))
+            ? { ...payload, requestId: parsed.requestId }
+            : { data: payload, requestId: parsed.requestId }
+        }
+        this.emit('message', payload, clientId)
       } catch {
         // Malformed JSON line — skip
       }
