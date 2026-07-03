@@ -31,47 +31,41 @@ console.log(docs)
 ## Checking Mode
 
 ```ts
-const ipc = container.feature('ipcSocket')
+// code blocks share one scope — `ipc` comes from the first block
 console.log('Is server:', ipc.isServer)
 console.log('Is client:', ipc.isClient)
 ```
 
-## Starting a Server
+## Hub and Spoke: a Complete Runnable Roundtrip
 
-Listen on a Unix domain socket and handle incoming connections.
+Each feature instance is mode-locked to server-XOR-client, but you can get two independent instances in one process by constructing them with distinct `name` options. This example runs a full request/reply roundtrip:
 
-```ts skip
-const server = await ipc.listen('/tmp/myapp.sock', true)
-console.log('Server listening')
+```ts
+const hub = container.feature('ipcSocket', { name: 'hub' })
+const spoke = container.feature('ipcSocket', { name: 'spoke' })
 
-ipc.on('connection', (socket) => {
-  console.log('Client connected')
+const sock = `/tmp/ipc-example-${process.pid}.sock`
+await hub.listen(sock, true)  // `true` removes any stale socket file before binding
+
+// Server side: messages sent via ask() arrive with a requestId —
+// reply with it (plus the sender's clientId when replying from the server).
+hub.on('message', (data, clientId) => {
+  if (data.requestId && data.type === 'sum') {
+    hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)
+  }
 })
 
-ipc.on('message', (data) => {
-  console.log('Received:', data)
-  ipc.broadcast({ reply: 'ACK', original: data })
-})
+await spoke.connect(sock, { name: 'worker-1' })
+const answer = await spoke.ask({ type: 'sum', numbers: [1, 2, 3] })
+console.log('answer:', JSON.stringify(answer))  // { "sum": 6 }
+
+await spoke.disconnect()
+await hub.stopServer()
 ```
 
-The second argument `true` removes any stale socket file before binding. Without it, the call throws if the socket file already exists.
+In real projects the hub and spoke live in different processes (e.g. a `luca hub` command and a `luca ask` command) — the API is identical; only the socket path is shared. Fire-and-forget messages use `send()`/`sendTo(clientId)` instead of `ask()`/`reply()`.
 
-## Connecting a Client
-
-Connect to an existing server and exchange messages.
-
-```ts skip
-const socket = await ipc.connect('/tmp/myapp.sock')
-console.log('Connected to server')
-
-ipc.on('message', (data) => {
-  console.log('Server says:', data)
-})
-
-ipc.send({ type: 'hello', clientId: 'worker-1' })
-```
-
-Messages sent via `ipc.send()` are automatically wrapped with a unique ID for tracking. The server receives the original data in the `message` event.
+**Gotcha:** a CLI command holding an open socket keeps the event loop alive after its work finishes — call `disconnect()`/`stopServer()` and, if the command still hangs, `process.exit(0)`.
 
 ## Broadcasting Messages
 
