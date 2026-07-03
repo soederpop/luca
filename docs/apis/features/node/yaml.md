@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.
+The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access. The API is two methods: `parse()` (YAML string → object) and `stringify()` (object → YAML string). The parser handles nested objects, arrays, numbers, and booleans automatically, and nulls serialize cleanly on the way back out. A parse → modify → stringify round-trip preserves data intact, which makes this the standard tool for reading a config file, mutating a value, and writing it back.
 
 ## Usage
 
@@ -14,7 +14,7 @@ container.feature('yaml')
 
 ### stringify
 
-Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.
+Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files. Deeply nested and mixed-type structures serialize cleanly — nulls, booleans, numbers, and nested arrays of objects all round-trip without special handling.
 
 **Parameters:**
 
@@ -102,19 +102,35 @@ console.log(typedConfig.settings.ports) // [3000, 3001]
 **features.yaml**
 
 ```ts
-const yamlFeature = container.feature('yaml')
+const yml = container.feature('yaml')
 
-// Parse YAML string to object
-const config = yamlFeature.parse(`
- name: MyApp
- version: 1.0.0
- settings:
-   debug: true
+// Parse YAML string to object — nested objects, arrays, numbers,
+// and booleans are all handled automatically.
+const config = yml.parse(`
+ name: my-app
+ version: 2.1.0
+ database:
+   host: localhost
+   port: 5432
+ features:
+   - auth
+   - logging
 `)
+console.log(config.database.host) // 'localhost'
+console.log(config.features)      // ['auth', 'logging']
 
-// Convert object to YAML string
-const yamlString = yamlFeature.stringify(config)
-console.log(yamlString)
+// Convert an object back to a human-readable YAML string.
+const output = yml.stringify({
+ server: { host: '0.0.0.0', port: 3000 },
+ cors: { origins: ['https://example.com'] },
+})
+
+// Round-trip: parse → modify → stringify preserves data intact.
+const parsed = yml.parse('replicas: 3\nmemory: 256Mi\n')
+parsed.replicas = 5
+const updated = yml.stringify(parsed)
+const reparsed = yml.parse(updated)
+console.log(reparsed.replicas) // 5 — survives the cycle
 ```
 
 

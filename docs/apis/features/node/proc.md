@@ -170,6 +170,9 @@ Execute a command synchronously and return its output. Runs a shell command and 
 ```ts
 const branch = proc.exec('git branch --show-current')
 const version = proc.exec('node --version')
+
+// Run in a different directory without changing the container's cwd
+const listing = proc.exec('ls -1', { cwd: 'packages/app' })
 ```
 
 
@@ -403,6 +406,9 @@ console.log('worker pid:', worker.pid)
 ```ts
 const branch = proc.exec('git branch --show-current')
 const version = proc.exec('node --version')
+
+// Run in a different directory without changing the container's cwd
+const listing = proc.exec('ls -1', { cwd: 'packages/app' })
 ```
 
 

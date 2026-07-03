@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses.
+File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses. The cache directory (from the `path` option, or a default under the OS cache dir) is created automatically on first use — no setup step is required.
 
 ## Usage
 

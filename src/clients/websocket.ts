@@ -14,16 +14,29 @@ declare module '../client' {
   }
 }
 
+/** Tracks an in-flight `ask()` request awaiting a correlated reply (resolve/reject callbacks plus the timeout timer). */
+export interface PendingRequest<T = any> {
+  resolve: (value: T) => void
+  reject: (reason: any) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
 /**
  * WebSocket client that bridges raw WebSocket events to Luca's Helper event bus,
  * providing a clean interface for sending/receiving messages, tracking connection
- * state, and optional auto-reconnection with exponential backoff.
+ * state (`state.connected`, `state.reconnectAttempts`), and optional
+ * auto-reconnection with exponential backoff (base `reconnectInterval`, doubled
+ * per attempt, capped at 30s, up to `maxReconnectAttempts`).
  *
- * Supports ask/reply semantics when paired with the Luca WebSocket server.
- * The client can `ask(type, data)` the server and await a typed response.
- * Incoming messages with a `requestId` are treated as asks from the server
- * and can be answered with `send({ replyTo: requestId, data })`. Requests
- * time out if no reply arrives within the configurable window.
+ * Supports ask/reply semantics when paired with the Luca WebSocket server
+ * (`container.server('websocket')`). The client can `ask(type, data)` the server
+ * and await a typed response. In the other direction, an ask from the server
+ * arrives as a normal `message` event whose payload carries a `requestId`;
+ * answer it with `send({ replyTo: requestId, data })`. Asks time out (reject)
+ * if no reply arrives within the configurable window.
+ *
+ * Incoming messages are JSON-parsed when possible; non-JSON payloads are
+ * delivered as-is. Outgoing payloads are always `JSON.stringify`'d.
  *
  * Events emitted:
  * - `open` — connection established
@@ -49,16 +62,14 @@ declare module '../client' {
  * await ws.connect()
  * await ws.send({ type: 'hello' })
  *
- * // ask/reply: request data from the server
+ * // ask/reply: request data from the server and await its answer
  * const result = await ws.ask('getUser', { id: 42 })
+ * console.log(result)
+ *
+ * // done — close the socket so the process can exit
+ * await ws.disconnect()
  * ```
  */
-export interface PendingRequest<T = any> {
-  resolve: (value: T) => void
-  reject: (reason: any) => void
-  timer: ReturnType<typeof setTimeout>
-}
-
 export class WebSocketClient<
   T extends WebSocketClientState = WebSocketClientState,
   K extends WebSocketClientOptions = WebSocketClientOptions
@@ -91,6 +102,16 @@ export class WebSocketClient<
    * Wires all raw WebSocket events (open, message, close, error) to the
    * Helper event bus and updates connection state accordingly.
    * Resolves once the connection is open; rejects on error.
+   * Calling connect() while already connected is a no-op that resolves immediately.
+   *
+   * @example
+   * ```typescript
+   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * ws.on('open', () => console.log('connected'))
+   * ws.on('close', (code, reason) => console.log('closed', code, reason))
+   * await ws.connect()
+   * console.log(ws.state.get('connected'))   // true
+   * ```
    */
   override async connect(): Promise<this> {
     if (this.isConnected) {
@@ -140,8 +161,23 @@ export class WebSocketClient<
 
   /**
    * Send data over the WebSocket connection. Automatically JSON-serializes
-   * the payload. If not currently connected, attempts to connect first.
+   * the payload. If not currently connected, attempts to connect first
+   * (so an explicit connect() call beforehand is optional).
    * @param data - The data to send (will be JSON.stringify'd)
+   *
+   * @example
+   * ```typescript
+   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * await ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects
+   *
+   * // Answering an ask from the server: its message carries a requestId —
+   * // reply by echoing it back as replyTo
+   * ws.on('message', async (msg) => {
+   *   if (msg?.requestId) {
+   *     await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
+   *   }
+   * })
+   * ```
    */
   async send(data: any): Promise<void> {
     if (!this.isConnected) {
@@ -160,6 +196,10 @@ export class WebSocketClient<
    * with a unique `requestId`; the remote side is expected to reply with a
    * message containing `replyTo` set to that same ID.
    *
+   * Rejects if the reply carries an `error` field, or with a timeout Error
+   * if no reply arrives in time — so unlike the rest client, ask() failures
+   * DO throw and should be try/caught.
+   *
    * @param type - A string identifying the request type
    * @param data - Optional payload to include with the request
    * @param timeout - How long to wait for a response (default 10 000 ms)
@@ -167,7 +207,22 @@ export class WebSocketClient<
    *
    * @example
    * ```typescript
-   * const result = await ws.ask('getUser', { id: 42 })
+   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * await ws.connect()
+   *
+   * try {
+   *   const user = await ws.ask('getUser', { id: 42 }, 5000)
+   *   console.log(user)
+   * } catch (err) {
+   *   // reply carried an error field, or no reply within 5s
+   *   console.error(err.message)   // e.g. 'ask("getUser") timed out after 5000ms'
+   * }
+   *
+   * // Server side (container.server('websocket')): messages with a requestId
+   * // arrive with reply helpers attached
+   * // server.on('message', (msg) => {
+   * //   if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
+   * // })
    * ```
    */
   async ask<R = any>(type: string, data?: any, timeout = 10000): Promise<R> {
@@ -212,8 +267,21 @@ export class WebSocketClient<
   }
 
   /**
-   * Gracefully close the WebSocket connection. Suppresses auto-reconnect
-   * and updates connection state to disconnected.
+   * Gracefully close the WebSocket connection. Suppresses auto-reconnect,
+   * rejects any in-flight ask() promises with a 'WebSocket disconnected'
+   * error, and updates connection state to disconnected.
+   *
+   * Always call this at the end of CLI commands — an open socket keeps the
+   * process's event loop alive and the command will hang without it.
+   *
+   * @example
+   * ```typescript
+   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * await ws.connect()
+   * await ws.send({ type: 'goodbye' })
+   * await ws.disconnect()
+   * console.log(ws.state.get('connected'))   // false
+   * ```
    */
   async disconnect(): Promise<this> {
     this._intentionalClose = true

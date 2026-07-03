@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-WebSocketClient helper
+WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). Supports ask/reply semantics when paired with the Luca WebSocket server (`container.server('websocket')`). The client can `ask(type, data)` the server and await a typed response. In the other direction, an ask from the server arrives as a normal `message` event whose payload carries a `requestId`; answer it with `send({ replyTo: requestId, data })`. Asks time out (reject) if no reply arrives within the configurable window. Incoming messages are JSON-parsed when possible; non-JSON payloads are delivered as-is. Outgoing payloads are always `JSON.stringify`'d. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number) **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live WebSocket (and any reconnect timers) keep the event loop running. Call `await ws.disconnect()` when finished, and if the process still lingers (other handles or pending timers), end with `process.exit(0)`.
 
 ## Usage
 
@@ -35,15 +35,23 @@ container.client('websocket', {
 
 ### connect
 
-Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error.
+Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately.
 
 **Returns:** `Promise<this>`
+
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+ws.on('open', () => console.log('connected'))
+ws.on('close', (code, reason) => console.log('closed', code, reason))
+await ws.connect()
+console.log(ws.state.get('connected'))   // true
+```
 
 
 
 ### send
 
-Send data over the WebSocket connection. Automatically JSON-serializes the payload. If not currently connected, attempts to connect first.
+Send data over the WebSocket connection. Automatically JSON-serializes the payload. If not currently connected, attempts to connect first (so an explicit connect() call beforehand is optional).
 
 **Parameters:**
 
@@ -53,11 +61,24 @@ Send data over the WebSocket connection. Automatically JSON-serializes the paylo
 
 **Returns:** `Promise<void>`
 
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects
+
+// Answering an ask from the server: its message carries a requestId —
+// reply by echoing it back as replyTo
+ws.on('message', async (msg) => {
+ if (msg?.requestId) {
+   await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
+ }
+})
+```
+
 
 
 ### ask
 
-Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID.
+Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID. Rejects if the reply carries an `error` field, or with a timeout Error if no reply arrives in time — so unlike the rest client, ask() failures DO throw and should be try/caught.
 
 **Parameters:**
 
@@ -70,16 +91,39 @@ Send a request and wait for a correlated response. The message is sent with a un
 **Returns:** `Promise<R>`
 
 ```ts
-const result = await ws.ask('getUser', { id: 42 })
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.connect()
+
+try {
+ const user = await ws.ask('getUser', { id: 42 }, 5000)
+ console.log(user)
+} catch (err) {
+ // reply carried an error field, or no reply within 5s
+ console.error(err.message)   // e.g. 'ask("getUser") timed out after 5000ms'
+}
+
+// Server side (container.server('websocket')): messages with a requestId
+// arrive with reply helpers attached
+// server.on('message', (msg) => {
+//   if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
+// })
 ```
 
 
 
 ### disconnect
 
-Gracefully close the WebSocket connection. Suppresses auto-reconnect and updates connection state to disconnected.
+Gracefully close the WebSocket connection. Suppresses auto-reconnect, rejects any in-flight ask() promises with a 'WebSocket disconnected' error, and updates connection state to disconnected. Always call this at the end of CLI commands — an open socket keeps the process's event loop alive and the command will hang without it.
 
 **Returns:** `Promise<this>`
+
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.connect()
+await ws.send({ type: 'goodbye' })
+await ws.disconnect()
+console.log(ws.state.get('connected'))   // false
+```
 
 
 
@@ -168,9 +212,87 @@ Emitted when a request fails
 
 ## Examples
 
+**clients.websocket**
+
+```ts
+const ws = container.client('websocket', {
+ baseURL: 'ws://localhost:8080',
+ reconnect: true,
+ maxReconnectAttempts: 5
+})
+ws.on('message', (data) => console.log('Received:', data))
+await ws.connect()
+await ws.send({ type: 'hello' })
+
+// ask/reply: request data from the server and await its answer
+const result = await ws.ask('getUser', { id: 42 })
+console.log(result)
+
+// done — close the socket so the process can exit
+await ws.disconnect()
+```
+
+
+
+**connect**
+
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+ws.on('open', () => console.log('connected'))
+ws.on('close', (code, reason) => console.log('closed', code, reason))
+await ws.connect()
+console.log(ws.state.get('connected'))   // true
+```
+
+
+
+**send**
+
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects
+
+// Answering an ask from the server: its message carries a requestId —
+// reply by echoing it back as replyTo
+ws.on('message', async (msg) => {
+ if (msg?.requestId) {
+   await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
+ }
+})
+```
+
+
+
 **ask**
 
 ```ts
-const result = await ws.ask('getUser', { id: 42 })
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.connect()
+
+try {
+ const user = await ws.ask('getUser', { id: 42 }, 5000)
+ console.log(user)
+} catch (err) {
+ // reply carried an error field, or no reply within 5s
+ console.error(err.message)   // e.g. 'ask("getUser") timed out after 5000ms'
+}
+
+// Server side (container.server('websocket')): messages with a requestId
+// arrive with reply helpers attached
+// server.on('message', (msg) => {
+//   if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
+// })
+```
+
+
+
+**disconnect**
+
+```ts
+const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+await ws.connect()
+await ws.send({ type: 'goodbye' })
+await ws.disconnect()
+console.log(ws.state.get('connected'))   // false
 ```
 

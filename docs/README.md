@@ -7,54 +7,42 @@
 ## Summary
 
 ```
-Collection: /Users/jonathansoeder/luca/docs
-Root: /Users/jonathansoeder/luca/docs
-Items: 169
+Collection: /Users/jonathansoeder/@soederpop/projects/luca/docs
+Root: /Users/jonathansoeder/@soederpop/projects/luca/docs
+Items: 208
 
   Model: Challenge
-    Prefix: challenges
+    Description: challenges are used by our evaluation suite to measure the quality of the introspection content and tool, as well as the SKILL.md that gets generated to help coding assistants work with the luca framework
+    Path prefix: docs/challenges/*.md
     Meta: difficulty(enum(`easy`, `medium`, `hard`)), maxTime(number)
     Sections: (none)
     Relationships: (none)
-    Documents: 13
-    IDs: challenges/build-a-websocket-server-with-matching-client, challenges/build-a-custom-command, challenges/build-a-caching-proxy, challenges/process-orchestrator, challenges/build-a-file-watcher-pipeline, challenges/grep-audit-report, challenges/build-a-multi-feature-dashboard, challenges/yaml-config-system, challenges/script-runner-with-vm, challenges/build-an-api, challenges/find-confusing-apis, challenges/build-a-rest-server-with-matching-client, challenges/content-db-round-trip
 
   Model: Example
-    Prefix: examples
-    Meta: tags(string[])
+    Description: Runnable composition patterns that combine multiple luca helpers (single-feature usage lives in JSDoc @example blocks, surfaced by `luca describe`)
+    Path prefix: docs/examples/*.md
+    Meta: tags(string[]), lastTested(string | null), lastTestPassed(boolean | null)
     Sections: (none)
     Relationships: (none)
-    Documents: 43
-    IDs: examples/postgres, examples/yaml-tree, examples/grep, examples/ink, examples/git, examples/ink-renderer, examples/esbuild, examples/window-manager, examples/process-manager, examples/runpod, examples/google-auth, examples/downloader, examples/secure-shell, examples/vault, examples/window-manager-layouts, examples/ipc-socket, examples/google-sheets, examples/fs, examples/networking, examples/ink-blocks, examples/ui, examples/opener, examples/nlp, examples/disk-cache, examples/assistant/CORE, examples/vm, examples/google-docs, examples/google-calendar, examples/content-db, examples/yaml, examples/package-finder, examples/os, examples/json-tree, examples/google-drive, examples/telegram, examples/file-manager, examples/repl, examples/python, examples/sqlite, examples/tts, examples/docker, examples/proc
-
-  Model: Idea
-    Prefix: ideas
-    Meta: goal(string), tags(string[]), status(enum(`spark`, `exploring`, `parked`, `promoted`))
-    Sections: (none)
-    Relationships: (none)
-    Documents: 0
 
   Model: Report
-    Prefix: reports
+    Description: Used for e.g. documentation audits, usability audits for agents, or anything else long form project related
+    Path prefix: docs/reports/*.md
     Meta: tags(string[])
     Sections: (none)
     Relationships: (none)
-    Documents: 5
-    IDs: reports/introspection-audit-tasks, reports/attach-pattern-usage, reports/code-audit-results, reports/assistant-bugs, reports/luca-mcp-improvements
 
   Model: Tutorial
-    Prefix: tutorials
+    Description: Tutorials on how to compose things together to do neat things
+    Path prefix: docs/tutorials/*.md
     Meta: tags(string[])
     Sections: (none)
     Relationships: (none)
-    Documents: 19
-    IDs: tutorials/08-commands, tutorials/06-servers, tutorials/04-features-overview, tutorials/01-getting-started, tutorials/07-endpoints, tutorials/00-bootstrap, tutorials/10-creating-features, tutorials/13-introspection, tutorials/17-tui-blocks, tutorials/18-semantic-search, tutorials/03-scripts, tutorials/05-state-and-events, tutorials/14-type-system, tutorials/11-contentbase, tutorials/12-assistants, tutorials/02-container, tutorials/15-project-patterns, tutorials/09-clients, tutorials/16-google-features
 
   Model: Base
-    Prefix: 
+    Description: A Base document.
+    Path prefix: docs/*.md
     Meta: (none)
     Sections: (none)
     Relationships: (none)
-    Documents: 9
-    IDs: introspection, principles, todos, README, CLI, documentation-audit, introspection-audit, TABLE-OF-CONTENTS, philosophy
 ```

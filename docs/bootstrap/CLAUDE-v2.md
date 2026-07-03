@@ -14,6 +14,7 @@ Almost every failed session follows the same script: the model guesses an API na
 | "How does helper X work?" | `luca describe X` (e.g. `luca describe fs`) |
 | "What does method X.y take / return?" | `luca describe X.y` (e.g. `luca describe fs.readFile`) |
 | "Will this code actually work?" | `luca eval "…"` — run it against the live container |
+| "How do I combine helpers / build something bigger?" | `.claude/skills/luca-framework/references/examples/` — runnable composition patterns; `luca run <doc.md>` executes one |
 | "I need to build a new command/feature/endpoint" | `luca scaffold <type> --tutorial` first, then `luca scaffold <type> <name>` |
 | "Why is this behaving strangely?" | `luca eval` to probe the live instance; `luca eval "container.feature('x').someMethod.toString()"` to read the real implementation |
 
@@ -111,7 +112,7 @@ Handlers are `(params, ctx)` where **`params` is `{...query, ...body, ...urlPara
 
 Before importing anything external, check here — then check `luca describe features`:
 
-- **Files/search** — `fs`, `grep` (has `.todos()` and `codeAnnotations()`), `fileManager` (watching)
+- **Files/search** — `fs`, `grep` (has `.todos()` for TODO/FIXME scanning), `fileManager` (watching)
 - **Processes** — `proc` (`exec`, `spawnAndCapture`, `findPidsByPort`, `kill`), `processManager`
 - **Data** — `sqlite`, `postgres`, `diskCache`, `contentDb` (`container.docs`), `yaml`
 - **HTTP** — `rest` client, `express` server, `websocket` client+server, `mcp` server

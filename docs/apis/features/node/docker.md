@@ -144,7 +144,7 @@ await docker.removeContainer('stubborn-container', { force: true })
 
 ### runContainer
 
-Create and run a new container from the given image.
+Create and run a new container from the given image. With `detach: true` the container runs in the background and the returned string is the new container's ID. Without it, the call blocks until the container exits and the return value is the container's stdout.
 
 **Parameters:**
 
@@ -318,6 +318,17 @@ Create a shell-like wrapper for executing multiple commands against a container.
     }` |  | Parameter options |
 
 **Returns:** `Promise<DockerShell>`
+
+```ts
+// (no-run) requires the docker daemon
+const docker = container.feature('docker')
+const shell = await docker.createShell('web-server', { workdir: '/app' })
+await shell.run('ls -la')
+console.log(shell.last.stdout)
+await shell.run('cat package.json')
+console.log(shell.last.stdout)
+await shell.destroy() // clean up any helper container created for volume mounts
+```
 
 
 
@@ -649,6 +660,21 @@ const containerId = await docker.runContainer('nginx:latest', {
 ```ts
 const result = await docker.execCommand('my-app', ['ls', '-la', '/app'])
 console.log(result.stdout)
+```
+
+
+
+**createShell**
+
+```ts
+// (no-run) requires the docker daemon
+const docker = container.feature('docker')
+const shell = await docker.createShell('web-server', { workdir: '/app' })
+await shell.run('ls -la')
+console.log(shell.last.stdout)
+await shell.run('cat package.json')
+console.log(shell.last.stdout)
+await shell.destroy() // clean up any helper container created for volume mounts
 ```
 
 

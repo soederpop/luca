@@ -40,7 +40,7 @@ ui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints "OK" on its o
 
 ### markdown
 
-Parse markdown text and render it for terminal display using marked-terminal.
+Parse markdown text and render it for terminal display using marked-terminal. Headings, bold text, inline code, lists, and other markdown constructs come back styled for the terminal.
 
 **Parameters:**
 
@@ -49,6 +49,12 @@ Parse markdown text and render it for terminal display using marked-terminal.
 | `text` | `string` | ✓ | The markdown string to parse and render |
 
 **Returns:** `string | Promise<string>`
+
+```ts
+const ui = container.feature('ui')
+const rendered = ui.markdown('## Features\n\n- **Bold** text\n- `inline code`\n- Regular paragraph text\n')
+console.log(rendered)
+```
 
 
 
@@ -460,6 +466,16 @@ ui.print.success('printed in green')
 // Composing strings: use ui.colors, not ui.print
 ui.print(`Status: ${ui.colors.green('OK')}`)   // correct
 ui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints "OK" on its own line, interpolates "undefined"
+```
+
+
+
+**markdown**
+
+```ts
+const ui = container.feature('ui')
+const rendered = ui.markdown('## Features\n\n- **Bold** text\n- `inline code`\n- Regular paragraph text\n')
+console.log(rendered)
 ```
 
 

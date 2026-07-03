@@ -67,7 +67,7 @@ The container provides more than you might expect. Before importing anything ext
 - **SQLite** — `container.feature('sqlite')` for databases. Parameterized queries, tagged templates.
 - **REST client** — `container.client('rest', { baseURL })`. Methods (`get`, `post`, etc.) return **parsed JSON directly**, not `{ data, status, headers }`. On HTTP errors, the error is returned (not thrown).
 - **Content DB** — `container.docs` (alias for `container.feature('contentDb')`) manages markdown documents with frontmatter. Query with `docs.query(docs.models.MyModel).fetchAll()`.
-- **Grep** — `container.feature('grep')` has `search()` and `codeAnnotations()` for finding TODOs/FIXMEs/etc.
+- **Grep** — `container.feature('grep')` has `search()` and `todos()` for finding TODOs/FIXMEs/etc.
 - **chalk** — available as `container.feature('ui').colors`, not via `import('chalk')`.
 - **figlet** — available as `container.feature('ui').asciiArt(text)`.
 - **uuid** — `container.utils.uuid()`

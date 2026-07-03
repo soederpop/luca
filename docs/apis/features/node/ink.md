@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection="column"> <Text color="green">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```
+Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit - `ink.registerBlock()` / `ink.renderBlock()` / `ink.renderBlockAsync()` — a named block registry for rendering components inline in document flow ("poor man's MDX", used by `luca run` for markdown files with a `## Blocks` section) **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection="column"> <Text color="green">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```
 
 ## Usage
 
@@ -131,7 +131,7 @@ ink.clear()
 
 ### registerBlock
 
-Register a named React function component as a renderable block.
+Register a named React function component as a renderable block. Blocks power the "poor man's MDX" pattern used by `luca run` on markdown files: any `tsx`/`jsx` code fence under a `## Blocks` heading has its top-level function components auto-registered as blocks, and the plain `ts` code blocks in the rest of the document get `render(name, props)` and `renderAsync(name, props)` globals that map to `renderBlock()` and `renderBlockAsync()` — so rich terminal UI renders inline with the document flow.
 
 **Parameters:**
 
@@ -209,7 +209,7 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 |----------|------|-------------|
 | `React` | `typeof import('react')` | The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import. |
 | `components` | `{ Box: typeof import('ink').Box; Text: typeof import('ink').Text; Static: typeof import('ink').Static; Transform: typeof import('ink').Transform; Newline: typeof import('ink').Newline; Spacer: typeof import('ink').Spacer }` | All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ``` |
-| `hooks` | `{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` |
+| `hooks` | `{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }` | All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` Hooks work inside functional components passed to `render()`. |
 | `measureElement` | `typeof import('ink').measureElement` | The Ink measureElement utility. |
 | `isMounted` | `boolean` | Whether an ink app is currently mounted. |
 | `instance` | `any | null` | The raw ink render instance if you need low-level access. |
@@ -332,5 +332,29 @@ function AsyncChart({ url, done }) {
 
 // In a code block:
 await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
+```
+
+
+
+**hooks**
+
+```ts
+const ink = container.feature('ink', { enable: true })
+await ink.loadModules()
+const { Text } = ink.components
+const { React } = ink
+const { useInput, useApp } = ink.hooks
+
+function App() {
+ const { exit } = useApp()
+ useInput((input, key) => {
+   if (input === 'q') exit()
+ })
+ return React.createElement(Text, null, 'Press q to quit')
+}
+
+await ink.render(React.createElement(App))
+await ink.waitUntilExit()
+console.log('App exited')
 ```
 

@@ -1,8 +1,14 @@
 ---
-title: "websocket-ask-and-reply"
-tags: [websocket, client, server, ask, reply, rpc]
-lastTested: null
-lastTestPassed: null
+title: websocket-ask-and-reply
+tags:
+  - websocket
+  - client
+  - server
+  - ask
+  - reply
+  - rpc
+lastTested: '2026-07-03'
+lastTestPassed: true
 ---
 
 # websocket-ask-and-reply

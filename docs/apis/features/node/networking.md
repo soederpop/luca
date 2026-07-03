@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.
+The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services. Use `findOpenPort` before starting a server to avoid port conflicts, and `isPortOpen` to test a specific port without claiming it. It also offers heavier LAN tooling — host discovery, TCP port scanning, and an optional nmap wrapper — for inspecting the local network.
 
 ## Usage
 
@@ -278,15 +278,22 @@ When an open port is detected on a host
 ```ts
 const networking = container.feature('networking')
 
-// Find an available port starting from 3000
+// Find the next available port starting at 3000. If 3000 is free you get
+// 3000 back; otherwise you get the next open port above it.
 const port = await networking.findOpenPort(3000)
 console.log(`Available port: ${port}`)
 
-// Check if a specific port is available
+// Check whether a specific port is free without claiming it.
 const isAvailable = await networking.isPortOpen(8080)
 if (isAvailable) {
  console.log('Port 8080 is available')
 }
+
+// Allocate several non-conflicting ports for a multi-service setup —
+// each call independently finds the next open port from its start point.
+const apiPort = await networking.findOpenPort(8080)
+const wsPort = await networking.findOpenPort(8090)
+const devPort = await networking.findOpenPort(5173)
 ```
 
 

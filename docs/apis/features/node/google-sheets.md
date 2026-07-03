@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.
+Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication (OAuth2 credentials or a service account with Sheets access). Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data. Set `defaultSpreadsheetId` once to avoid passing the ID on every call. Numeric cell values come through as strings by default.
 
 ## Usage
 
@@ -176,9 +176,15 @@ Sheet data was fetched
 **features.googleSheets**
 
 ```ts
+// (no-run) requires Google OAuth credentials
 const sheets = container.feature('googleSheets', {
  defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'
 })
+
+// Inspect structure before reading
+const meta = await sheets.getSpreadsheet()
+const tabs = await sheets.listSheets()
+// => [{ title: 'Sheet1', rowCount: 100, ... }]
 
 // Read as JSON objects (first row = headers)
 const data = await sheets.getAsJson('Sheet1')
@@ -187,10 +193,10 @@ const data = await sheets.getAsJson('Sheet1')
 // Read as CSV string
 const csv = await sheets.getAsCsv('Revenue')
 
-// Read a specific range
+// Read a specific range (A1 notation, returns a 2D string array)
 const values = await sheets.getRange('Sheet1!A1:D10')
 
-// Save to file
+// Save to file (path resolved relative to the container cwd; returns the resolved path)
 await sheets.saveAsJson('./data/export.json')
 ```
 

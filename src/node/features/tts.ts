@@ -48,11 +48,35 @@ export const TTSEventsSchema = FeatureEventsSchema.extend({
  * on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset
  * voices and voice cloning via a reference audio URL.
  *
+ * Requires a `RUNPOD_API_KEY` environment variable or an `apiKey` option. Three
+ * output formats are supported: `wav` (default, uncompressed), `flac` (lossless
+ * compressed), and `ogg` (lossy compressed). Generated files are saved to
+ * `outputDir` (defaults to `~/.luca/tts-cache`) with hash-based filenames, and the
+ * `synthesized` event fires on the Luca event bus when generation completes.
+ *
  * @example
  * ```typescript
- * const tts = container.feature('tts', { enable: true })
- * const path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })
- * console.log(`Audio saved to: ${path}`)
+ * // (no-run) requires RUNPOD_API_KEY and calls the RunPod API
+ * const tts = container.feature('tts', {
+ *   voice: 'lucy',            // default preset voice
+ *   format: 'wav',            // 'wav' | 'flac' | 'ogg'
+ *   outputDir: '/tmp/tts-output'
+ * })
+ *
+ * // List the 20 preset voice names (safe — no API call)
+ * console.log('Available voices:', tts.voices.join(', '))
+ *
+ * // Synthesize with a preset voice
+ * const path = await tts.synthesize('Good morning! Here is your daily briefing.', {
+ *   voice: 'ethan'
+ * })
+ * console.log('Audio saved to:', path)
+ * console.log('Last generated file:', tts.state.get('lastFile'))
+ *
+ * // Clone any voice from a reference audio URL instead of a preset
+ * const cloned = await tts.synthesize('Hello world, this is a cloned voice.', {
+ *   voiceUrl: 'https://example.com/reference-voice.wav'
+ * })
  * ```
  */
 export class TTS extends Feature<TTSState, TTSOptions> {
@@ -74,7 +98,18 @@ export class TTS extends Feature<TTSState, TTSOptions> {
     return this.options.outputDir || this.container.paths.resolve(this.container.feature('os').homedir, '.luca', 'tts-cache')
   }
 
-  /** The 20 preset voice names available in Chatterbox Turbo. */
+  /**
+   * The 20 preset voice names available in Chatterbox Turbo.
+   *
+   * Safe to read without an API key — this is a static list, no network call.
+   *
+   * @example
+   * ```typescript
+   * const tts = container.feature('tts')
+   * console.log('Available voices:', tts.voices.join(', '))
+   * // aaron, abigail, anaya, andy, archer, brian, chloe, dylan, emmanuel, ethan, ...
+   * ```
+   */
   get voices(): readonly string[] {
     return PRESET_VOICES
   }
@@ -82,8 +117,13 @@ export class TTS extends Feature<TTSState, TTSOptions> {
   /**
    * Synthesize text to an audio file using Chatterbox Turbo.
    *
-   * Calls the RunPod public endpoint, downloads the generated audio,
-   * and saves it to the output directory.
+   * Calls the RunPod public endpoint, waits for generation, downloads the
+   * resulting audio, and saves it to the output directory. On completion the
+   * file path is recorded in state (`lastFile`) and the `synthesized` event
+   * fires with `(text, filePath, voice, durationMs)`. If `voiceUrl` is given
+   * it takes precedence over any preset `voice` — the reference audio should
+   * be a clear recording of the voice you want to clone. Defaults: voice
+   * `'lucy'`, format `'wav'`. Throws if no RunPod API key is configured.
    *
    * @param text - The text to synthesize into speech
    * @param options - Override voice, format, or provide a voiceUrl for cloning
@@ -91,13 +131,19 @@ export class TTS extends Feature<TTSState, TTSOptions> {
    *
    * @example
    * ```typescript
+   * // (no-run) requires RUNPOD_API_KEY and calls the RunPod API
    * // Use a preset voice
    * const path = await tts.synthesize('Good morning!', { voice: 'ethan' })
+   * console.log('Audio saved to:', path)
    *
    * // Clone a voice from a reference audio URL
-   * const path = await tts.synthesize('Hello world', {
+   * const clonedPath = await tts.synthesize('Hello world', {
    *   voiceUrl: 'https://example.com/reference.wav'
    * })
+   *
+   * // Choose an output format per call: wav (uncompressed, default),
+   * // flac (lossless), or ogg (lossy)
+   * const ogg = await tts.synthesize('OGG format', { format: 'ogg' })
    * ```
    */
   async synthesize(text: string, options?: {

@@ -1,7 +1,12 @@
 ---
-title: "Meta-Discovery: Building a Plugin System"
-tags: [helpers, discovery, plugins, registry, commands]
-lastTested: "2026-07-03"
+title: 'Meta-Discovery: Building a Plugin System'
+tags:
+  - helpers
+  - discovery
+  - plugins
+  - registry
+  - commands
+lastTested: '2026-07-03'
 lastTestPassed: true
 ---
 

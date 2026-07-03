@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring
+Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Requires a running PostgreSQL server and a connection URL — `options.url` is required (the constructor throws without it). In production, read the URL from an environment variable rather than hardcoding credentials.
 
 ## Usage
 

@@ -359,6 +359,10 @@ export class Docker extends Feature<DockerState, DockerOptions> {
   /**
    * Create and run a new container from the given image.
    *
+   * With `detach: true` the container runs in the background and the returned string
+   * is the new container's ID. Without it, the call blocks until the container exits
+   * and the return value is the container's stdout.
+   *
    * @param image - Docker image to run (e.g. 'nginx:latest')
    * @param options - Container run options
    * @param options.name - Assign a name to the container
@@ -575,6 +579,18 @@ export class Docker extends Feature<DockerState, DockerOptions> {
    * - `run(command)` — execute a shell command string via `sh -c`
    * - `last` — getter for the most recent command result
    * - `destroy()` — stop the helper container (no-op when no volumes were needed)
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires the docker daemon
+   * const docker = container.feature('docker')
+   * const shell = await docker.createShell('web-server', { workdir: '/app' })
+   * await shell.run('ls -la')
+   * console.log(shell.last.stdout)
+   * await shell.run('cat package.json')
+   * console.log(shell.last.stdout)
+   * await shell.destroy() // clean up any helper container created for volume mounts
+   * ```
    */
   async createShell(
     containerIdOrName: string,

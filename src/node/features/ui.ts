@@ -123,9 +123,18 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
 
   /**
    * Parse markdown text and render it for terminal display using marked-terminal.
+   * Headings, bold text, inline code, lists, and other markdown constructs come
+   * back styled for the terminal.
    *
    * @param text - The markdown string to parse and render
    * @returns The rendered terminal-formatted string
+   *
+   * @example
+   * ```typescript
+   * const ui = container.feature('ui')
+   * const rendered = ui.markdown('## Features\n\n- **Bold** text\n- `inline code`\n- Regular paragraph text\n')
+   * console.log(rendered)
+   * ```
    */
   markdown(text: string): string | Promise<string> {
     return marked.parse(text)

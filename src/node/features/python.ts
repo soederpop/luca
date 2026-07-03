@@ -100,7 +100,8 @@ export interface RunResult {
  *
  * This feature automatically detects Python environments (uv, conda, venv, system) and provides
  * methods to install dependencies and execute Python scripts. It can manage project-specific
- * Python environments and maintain context between executions.
+ * Python environments and maintain context between executions. Requires a Python interpreter
+ * to be installed on the host.
  *
  * Supports two modes:
  * - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call
@@ -303,8 +304,9 @@ export class Python<
    * Installs dependencies for the Python project.
    * 
    * This method automatically detects the appropriate package manager and install command
-   * based on the environment type. If a custom installCommand is provided in options,
-   * it will use that instead.
+   * based on the environment type — e.g. `uv sync` for uv, `conda env update` for conda,
+   * `pip install -r requirements.txt` or `pip install -e .` for venv/system. If a custom
+   * installCommand is provided in options, it will use that instead.
    * 
    * @returns {Promise<{ stdout: string; stderr: string; exitCode: number }>}
    * 
@@ -789,6 +791,12 @@ export class Python<
    * // Inject variables from JS
    * const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
    * console.log(result2.stdout) // 'Hello World!\n'
+   *
+   * // Errors don't crash the session — they come back on the result
+   * const bad = await python.run('raise ValueError("oops")')
+   * console.log(bad.ok)    // false
+   * console.log(bad.error) // 'oops'
+   * const alive = await python.run('print("still here")') // session keeps working
    * ```
    */
   async run(code: string, variables: Record<string, any> = {}): Promise<RunResult> {

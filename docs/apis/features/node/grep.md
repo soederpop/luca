@@ -59,6 +59,9 @@ const results = await grep.search({
  before: 2,
  after: 2
 })
+
+// Cap the number of results
+const firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })
 ```
 
 
@@ -239,6 +242,9 @@ const results = await grep.search({
  before: 2,
  after: 2
 })
+
+// Cap the number of results
+const firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })
 ```
 
 

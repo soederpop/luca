@@ -404,10 +404,10 @@ luca eval "container.feature('fs').readFile('package.json')"
 
 The skill directory includes reference material:
 
-- **`references/examples/`** — short, focused example docs for individual features (e.g. `fs.md`, `git.md`, `proc.md`)
+- **`references/examples/`** — runnable composition patterns that combine multiple helpers (e.g. `custom-feature-authoring.md`, `full-stack-slice.md`, `daemon-command.md`). For single-feature usage, use `luca describe <name>` instead — every helper's docs include examples.
 - **`references/tutorials/`** — longer-form guides covering the container, helpers, commands, endpoints, state/events, assistants, and more
 
-These complement `luca describe` — describe gives you the API surface, examples show you patterns in action, and tutorials walk through building things end to end.
+These complement `luca describe` — describe gives you the API surface and per-method examples, the example docs show multi-helper patterns in action, and tutorials walk through building things end to end.
 
 **Tip:** Runnable markdown is a great artifact to produce when building with luca. `luca run doc.md` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
 

@@ -26,20 +26,40 @@ export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>
  * SecureShell Feature -- SSH command execution and SCP file transfers.
  *
  * Uses the system `ssh` and `scp` binaries to run commands on remote hosts
- * and transfer files. Supports key-based and password-based authentication
- * through the container's `proc` feature.
+ * and transfer files, through the container's `proc` feature.
+ *
+ * All connections run with `BatchMode=yes`, so a command that would require an
+ * interactive prompt fails immediately instead of hanging. In practice this
+ * means authentication must be non-interactive: a `key` option pointing at a
+ * private key file, or an already-loaded ssh-agent identity. (A `password`
+ * option exists in the schema but is not wired into the ssh/scp command line —
+ * BatchMode suppresses password prompts.)
+ *
+ * Connection state is tracked on the feature: `testConnection()` and `exec()`
+ * update `state.connected` based on whether the remote host responded.
  *
  * @example
  * ```typescript
+ * // (no-run) requires a reachable SSH host
  * const ssh = container.feature('secureShell', {
  *   host: '192.168.1.100',
+ *   port: 22,                  // default: 22
  *   username: 'deploy',
  *   key: '~/.ssh/id_ed25519',
  * })
  *
+ * // Verify reachability before doing real work — never throws
  * if (await ssh.testConnection()) {
+ *   console.log('connected:', ssh.state.get('connected')) // true
+ *
+ *   // exec() returns the command's trimmed stdout
  *   const uptime = await ssh.exec('uptime')
  *   console.log(uptime)
+ *
+ *   // SCP round-trip. Remote paths are absolute, or relative to
+ *   // the remote user's home directory.
+ *   await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
+ *   await ssh.download('/var/log/app.log', './logs/app.log')
  * }
  * ```
  *
@@ -145,9 +165,11 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * @example
 	 * ```typescript
+	 * // (no-run) requires a reachable SSH host
 	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
 	 * const ok = await ssh.testConnection()
 	 * if (!ok) console.error('SSH connection failed')
+	 * console.log('state connected:', ssh.state.get('connected'))
 	 * ```
 	 */
 	async testConnection(): Promise<boolean> {
@@ -171,7 +193,11 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * @example
 	 * ```typescript
+	 * // (no-run) requires a reachable SSH host
 	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
+	 * const uptime = await ssh.exec('uptime')
+	 * console.log('Remote uptime:', uptime)
+	 *
 	 * const listing = await ssh.exec('ls -la /var/log')
 	 * console.log(listing)
 	 * ```
@@ -199,6 +225,9 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	/**
 	 * Downloads a file from the remote host via SCP.
 	 *
+	 * Uses the same authentication credentials configured on the feature instance.
+	 * Remote paths are absolute, or relative to the remote user's home directory.
+	 *
 	 * @param source - The source file path on the remote host
 	 * @param target - The target file path on the local machine
 	 * @returns A confirmation message or the scp stdout output
@@ -206,6 +235,7 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * @example
 	 * ```typescript
+	 * // (no-run) requires a reachable SSH host
 	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
 	 * await ssh.download('/var/log/app.log', './logs/app.log')
 	 * ```
@@ -230,6 +260,9 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	/**
 	 * Uploads a file to the remote host via SCP.
 	 *
+	 * Uses the same authentication credentials configured on the feature instance.
+	 * Remote paths are absolute, or relative to the remote user's home directory.
+	 *
 	 * @param source - The source file path on the local machine
 	 * @param target - The target file path on the remote host
 	 * @returns A confirmation message or the scp stdout output
@@ -237,6 +270,7 @@ export class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
 	 *
 	 * @example
 	 * ```typescript
+	 * // (no-run) requires a reachable SSH host
 	 * const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })
 	 * await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
 	 * ```

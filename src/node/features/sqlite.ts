@@ -49,6 +49,10 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
  * - parameterized query execution (`query` / `execute`)
  * - tagged-template query execution (`sql`) to avoid manual placeholder wiring
  *
+ * Pass `{ path: ':memory:' }` (the default when no path is given) for an
+ * ephemeral in-memory database with zero setup, or a file path to persist
+ * to disk.
+ *
  * @example
  * ```typescript
  * const sqlite = container.feature('sqlite', { path: 'data/app.db' })

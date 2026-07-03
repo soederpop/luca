@@ -119,10 +119,24 @@ export class Vault extends Feature<VaultState, VaultOptions> {
  
   /**
    * Decrypts an encrypted payload that was created by the encrypt method.
-   * 
+   *
+   * Because AES-256-GCM is authenticated encryption, decryption verifies the
+   * auth tag — a tampered or truncated payload, or the wrong key, throws rather
+   * than silently returning garbage.
+   *
    * @param {string} payload - The encrypted payload to decrypt (base64 encoded with delimiters)
    * @returns {string} The decrypted plaintext
    * @throws {Error} Throws an error if decryption fails or the payload is malformed
+   *
+   * @example
+   * ```typescript
+   * const vault = container.feature('vault')
+   * const encrypted = vault.encrypt('my-database-password-12345')
+   *
+   * const decrypted = vault.decrypt(encrypted)
+   * console.log(decrypted)                                    // 'my-database-password-12345'
+   * console.log(decrypted === 'my-database-password-12345')   // true — exact round-trip
+   * ```
    */
   decrypt(payload: string) {
     const [iv, ciphertext, authTag] = payload.split('\n------\n').map((v) => Buffer.from(v, 'base64'))
@@ -131,9 +145,28 @@ export class Vault extends Feature<VaultState, VaultOptions> {
 
   /**
    * Encrypts a plaintext string using AES-256-GCM encryption.
-   * 
+   *
+   * The output is an opaque text payload — three base64 segments (IV, ciphertext,
+   * auth tag) joined by a delimiter — safe to store in config files or databases.
+   *
+   * A fresh random IV is generated on every call, so encrypting the same input
+   * twice produces different ciphertexts (semantic security): an attacker cannot
+   * tell whether two payloads contain the same plaintext. Both still decrypt to
+   * the same value.
+   *
    * @param {string} payload - The plaintext string to encrypt
    * @returns {string} The encrypted payload as a base64 encoded string with delimiters
+   *
+   * @example
+   * ```typescript
+   * const vault = container.feature('vault')
+   *
+   * // Same input, unique ciphertext every time — a fresh IV is used per call
+   * const a = vault.encrypt('same-input')
+   * const b = vault.encrypt('same-input')
+   * console.log(a === b)                                   // false
+   * console.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip
+   * ```
    */
   encrypt(payload: string) {
     const { iv, ciphertext, authTag } = this._encrypt(payload)

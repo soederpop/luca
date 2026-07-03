@@ -116,7 +116,7 @@ This means **JSDoc blocks on helpers (features, clients, servers) must be valid 
 ## API Docs
 
 - See [docs/apis](./docs/apis/) for detailed API descriptions of the public methods and options for creating various helpers
-- See [docs/examples](./docs/examples/) for examples of using each feature.  NOTE: These docs are runnable so you can see the output of the code blocks.  `luca run docs/examples/grep` for example
+- See [docs/examples](./docs/examples/) for **composition patterns** — runnable docs that combine multiple helpers (custom feature authoring, full-stack slices, daemons, pipelines). Run one with `luca run docs/examples/full-stack-slice.md`, or all of them with `luca test-examples`. For single-feature usage, use `luca describe <name>` — every helper carries per-method @example blocks (doctest them with `luca doctest-jsdoc`).
 - See [docs/tutorials](./docs/tutorials/) for longer form tutorials on various subjects and best practices
 
 ## Git Strategy

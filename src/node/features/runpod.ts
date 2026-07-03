@@ -154,6 +154,9 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 	/**
 	 * Stop a running pod.
 	 *
+	 * Stopping preserves the pod's disk and data — restart it later with `startPod()`.
+	 * Use `removePod()` to delete a pod permanently.
+	 *
 	 * @param podId - The pod ID to stop
 	 * @returns API response
 	 *
@@ -295,6 +298,9 @@ export class Runpod extends Feature<RunpodState, RunpodOptions> {
 
 	/**
 	 * Create a new network storage volume.
+	 *
+	 * Network volumes persist independently of pods — attach one to a pod via the
+	 * `networkVolumeId` option of `createPod()`.
 	 *
 	 * @param options - Volume configuration
 	 * @returns The created volume info

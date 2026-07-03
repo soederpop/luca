@@ -1,8 +1,13 @@
 ---
-title: "Structured Output with Assistants"
-tags: [assistant, conversation, structured-output, zod, openai]
-lastTested: null
-lastTestPassed: null
+title: Structured Output with Assistants
+tags:
+  - assistant
+  - conversation
+  - structured-output
+  - zod
+  - openai
+lastTested: '2026-07-03'
+lastTestPassed: true
 ---
 
 # Structured Output with Assistants
@@ -15,11 +20,13 @@ OpenAI's Structured Outputs feature constrains the model to return JSON that exa
 
 Pass a `schema` option to `ask()` and the response comes back as a parsed object guaranteed to match your schema.
 
+Every block below calls the OpenAI API, so they are shown rather than executed — set `OPENAI_API_KEY` and run them yourself (paste into `luca eval`, or remove the `skip` annotations and `luca run` this doc).
+
 ## Basic: Extract Structured Data
 
 The simplest use case — ask a question and get structured data back.
 
-```ts
+```ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -47,7 +54,7 @@ The `.describe()` on the schema gives OpenAI the schema name — keep it short a
 
 Structured outputs work great for classification tasks where you want the model to pick from a fixed set of values.
 
-```ts
+```ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -73,7 +80,7 @@ Because the model is constrained by the schema, `sentiment` will always be one o
 
 Schemas can be as complex as you need. Here we extract a structured analysis with nested objects.
 
-```ts
+```ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -110,7 +117,7 @@ Every level of nesting is validated — the model cannot return a feature withou
 
 Structured outputs work the same way through the assistant API. The schema passes straight through to the underlying conversation.
 
-```ts
+```ts skip
 const { z } = container
 const assistant = container.feature('assistant', {
   systemPrompt: 'You are a code review assistant. You analyze code snippets and provide structured feedback.',

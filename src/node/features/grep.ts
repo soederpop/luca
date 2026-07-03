@@ -136,6 +136,9 @@ export class Grep extends Feature {
      *   before: 2,
      *   after: 2
      * })
+     *
+     * // Cap the number of results
+     * const firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })
      * ```
      */
     async search(options: GrepOptions): Promise<GrepMatch[]> {

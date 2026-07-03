@@ -565,7 +565,13 @@ export class Tmux extends Feature<TmuxState, TmuxOptions> {
    * This is the low-level escape hatch for any tmux operation not covered by the API.
    *
    * @example
+   * ```typescript
    * await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])
+   *
+   * // Read the stdout of any tmux query, e.g. pane dimensions
+   * const info = await tmux.run(['display-message', '-t', 'myapp', '-p', '#{pane_width}x#{pane_height}'])
+   * console.log('pane dimensions:', info.stdout.trim())
+   * ```
    */
   async run(args: string[]): Promise<{ stdout: string; stderr: string }> {
     this._assertAvailable()
@@ -655,6 +661,12 @@ export class Tmux extends Feature<TmuxState, TmuxOptions> {
    * List all active tmux sessions.
    *
    * @returns Array of session info objects with name, window count, and creation timestamp.
+   *
+   * @example
+   * ```typescript
+   * const sessions = await tmux.listSessions()
+   * sessions.forEach(s => console.log(s.name, '— windows:', s.windows))
+   * ```
    */
   async listSessions(): Promise<SessionInfo[]> {
     const result = await this.run([

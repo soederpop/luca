@@ -30,27 +30,37 @@ export const GoogleDocsEventsSchema = FeatureEventsSchema.extend({
 /**
  * Google Docs feature for reading documents and converting them to Markdown.
  *
- * Depends on googleAuth for authentication and optionally googleDrive for listing docs.
- * The markdown converter handles headings, text formatting, links, lists, tables, and images.
+ * Depends on googleAuth for authentication (requires Google OAuth2 credentials or a
+ * service account with Docs access, e.g. the `documents.readonly` scope) and uses
+ * googleDrive for listing and searching docs (which needs Drive access too).
+ *
+ * The standout capability is Markdown conversion: the converter handles headings
+ * (H1-H6), bold/italic/strikethrough, links, code spans (Courier/monospace fonts),
+ * ordered and unordered lists with nesting, tables (pipe format), images, and
+ * section breaks. Also supports plain text extraction and raw Docs API structure.
+ *
+ * The document ID is in the doc URL: `https://docs.google.com/document/d/{DOCUMENT_ID}/edit`
  *
  * @example
  * ```typescript
+ * // (no-run) requires Google OAuth credentials
+ * // Authenticate once via googleAuth (cached tokens restore automatically)
+ * const auth = container.feature('googleAuth', {
+ *   scopes: [
+ *     'https://www.googleapis.com/auth/documents.readonly',
+ *     'https://www.googleapis.com/auth/drive.readonly',
+ *   ],
+ * })
+ * if (!(await auth.tryRestoreTokens())) await auth.authorize()
+ *
  * const docs = container.feature('googleDocs')
  *
- * // Get a doc as markdown
+ * // Convert a doc to clean Markdown
  * const markdown = await docs.getAsMarkdown('1abc_document_id')
  *
- * // Save to file
- * await docs.saveAsMarkdown('1abc_document_id', './output/doc.md')
- *
- * // List all Google Docs in Drive
- * const allDocs = await docs.listDocs()
- *
- * // Get raw document structure
- * const rawDoc = await docs.getDocument('1abc_document_id')
- *
- * // Plain text extraction
- * const text = await docs.getAsText('1abc_document_id')
+ * // Find docs by name or content (via Drive)
+ * const results = await docs.searchDocs('meeting notes')
+ * results.forEach(d => console.log(d.name, d.id))
  * ```
  */
 export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
@@ -91,9 +101,20 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
 
   /**
    * Get the raw document structure from the Docs API.
+   * Use this when you need the full Docs API structure for custom processing.
    *
    * @param documentId - The Google Docs document ID
    * @returns Full document JSON including body, lists, inlineObjects, etc.
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const rawDoc = await docs.getDocument('1abc_document_id')
+   * console.log(rawDoc.title)
+   * console.log(rawDoc.body?.content?.length)  // structural elements
+   * console.log(rawDoc.inlineObjects)          // embedded images
+   * ```
    */
   async getDocument(documentId: string): Promise<docs_v1.Schema$Document> {
     try {
@@ -118,10 +139,19 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
    * Read a Google Doc and convert it to Markdown.
    *
    * Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered
-   * lists with nesting, tables, images, and section breaks.
+   * lists with nesting, tables, images, and section breaks. This is the primary
+   * method for extracting document content.
    *
    * @param documentId - The Google Docs document ID
    * @returns Markdown string representation of the document
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const markdown = await docs.getAsMarkdown('1abc_document_id')
+   * console.log(markdown)
+   * ```
    */
   async getAsMarkdown(documentId: string): Promise<string> {
     const doc = await this.getDocument(documentId)
@@ -130,8 +160,17 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
 
   /**
    * Read a Google Doc as plain text (strips all formatting).
+   * Use this when you only need the words without any Markdown syntax.
    *
    * @param documentId - The Google Docs document ID
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const text = await docs.getAsText('1abc_document_id')
+   * console.log('Plain text length:', text.length)
+   * ```
    */
   async getAsText(documentId: string): Promise<string> {
     const doc = await this.getDocument(documentId)
@@ -139,11 +178,19 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   }
 
   /**
-   * Download a Google Doc as Markdown and save to a local file.
+   * Download a Google Doc as Markdown and save to a local file in one step.
    *
    * @param documentId - The Google Docs document ID
    * @param localPath - Local file path (resolved relative to container cwd)
    * @returns Absolute path of the saved file
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const path = await docs.saveAsMarkdown('1abc_document_id', './output/doc.md')
+   * console.log('Saved to:', path)  // absolute path
+   * ```
    */
   async saveAsMarkdown(documentId: string, localPath: string): Promise<string> {
     const markdown = await this.getAsMarkdown(documentId)
@@ -153,11 +200,23 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   }
 
   /**
-   * List Google Docs in Drive (filters by Docs MIME type).
+   * List Google Docs in Drive (filters by the Docs MIME type, excludes trashed files).
+   * Passing a query filters by document name.
    *
-   * @param query - Optional additional Drive search query
+   * @param query - Optional name filter (matches "name contains" in Drive)
    * @param options - Pagination options
    * @returns Array of Google Docs as DriveFile objects
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const allDocs = await docs.listDocs()
+   * console.log(`Found ${allDocs.length} Google Docs`)
+   *
+   * // Filter by name
+   * const reports = await docs.listDocs('report')
+   * ```
    */
   async listDocs(query?: string, options?: { pageSize?: number; pageToken?: string }): Promise<DriveFile[]> {
     const parts = ["mimeType = 'application/vnd.google-apps.document'", 'trashed = false']
@@ -167,10 +226,19 @@ export class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
   }
 
   /**
-   * Search for Google Docs by name or content.
+   * Search for Google Docs by name or content (full-text search via Drive,
+   * filtered to the Google Docs MIME type).
    *
    * @param term - Search term
    * @returns Array of matching Google Docs as DriveFile objects
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const docs = container.feature('googleDocs')
+   * const results = await docs.searchDocs('quarterly earnings')
+   * results.forEach(d => console.log(d.name, d.id))
+   * ```
    */
   async searchDocs(term: string): Promise<DriveFile[]> {
     const { files } = await this.drive.search(term, {

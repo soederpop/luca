@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring
+SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Pass `{ path: ':memory:' }` (the default when no path is given) for an ephemeral in-memory database with zero setup, or a file path to persist to disk.
 
 ## Usage
 

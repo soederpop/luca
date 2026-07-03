@@ -47,6 +47,8 @@ Eval limits (see `references/runtime-envelope.md`): no npm imports, no project-f
 
 **Before writing anything, check `references/recipes.md` and `references/examples/` for your task.** A runnable example beats fifty describes — run it with `luca run` to confirm it works, then adapt it. In a measured A/B, the fastest websocket solution came from finding and running the shipped ask/reply example; the slowest came from scaffolding a custom client from scratch.
 
+Route by what you need: **single-helper API usage → `luca describe <name>`** (every helper carries per-method examples; `luca describe <name> --only-examples` for just the code); **multi-helper patterns and authoring conventions → `references/examples/`** (runnable composition docs: building a custom feature, a full express+rest slice, daemons, data pipelines). Don't hunt the examples folder for "how do I call fs.readFile" — describe answers that faster and never rots.
+
 ```shell
 luca scaffold command --tutorial     # the authoritative guide per type
 luca scaffold command sync --description "Pull data from staging"
@@ -122,7 +124,7 @@ Work bottom-up; each rung is one command, not a grep session:
 - `references/recipes.md` — complete, tested shapes for the tasks models attempt most: commands, REST API + client roundtrip, websocket roundtrip, file watcher, persistence between runs, shared endpoint context
 - `references/gotchas.md` — every known trap with the wrong→right pair (`fs.readFile` encoding, `execAndCapture` splitting, watch event ordering, rest client semantics, …)
 - `references/runtime-envelope.md` — what can import what, where the container exists, process lifetime rules (`'luca'` vs `'luca/agi'`, eval/run/bun matrix)
-- `references/examples/` and `references/tutorials/` — per-feature examples and long-form guides (when present, copied by bootstrap)
+- `references/examples/` and `references/tutorials/` — runnable multi-helper composition patterns and long-form guides (when present, copied by bootstrap). Single-feature usage lives in `luca describe <name>`, not here.
 
 ## Container Primitives (30-second model)
 

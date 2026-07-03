@@ -46,10 +46,13 @@ const allFiles = await git.lsFiles()
 const modified = await git.lsFiles({ modified: true })
 
 // Get untracked files excluding certain patterns
-const untracked = await git.lsFiles({ 
- others: true, 
- exclude: ['*.log', 'node_modules'] 
+const untracked = await git.lsFiles({
+ others: true,
+ exclude: ['*.log', 'node_modules']
 })
+
+// Scope the listing to a subdirectory
+const srcFiles = await git.lsFiles({ baseDir: 'src' })
 ```
 
 
@@ -236,10 +239,13 @@ const allFiles = await git.lsFiles()
 const modified = await git.lsFiles({ modified: true })
 
 // Get untracked files excluding certain patterns
-const untracked = await git.lsFiles({ 
- others: true, 
- exclude: ['*.log', 'node_modules'] 
+const untracked = await git.lsFiles({
+ others: true,
+ exclude: ['*.log', 'node_modules']
 })
+
+// Scope the listing to a subdirectory
+const srcFiles = await git.lsFiles({ baseDir: 'src' })
 ```
 
 

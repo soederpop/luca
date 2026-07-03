@@ -160,6 +160,7 @@ interface CronSpec {
  * ```typescript
  * // Observability: every task has a name, run counts, and error history
  * const handle = scheduler.every('10s', pollQueue)
+ * console.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }
  * console.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]
  * handle.stop()
  * ```
@@ -268,7 +269,8 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
    * syntax (minute hour day-of-month month day-of-week) with lists (`1,15`),
    * ranges (`mon-fri`), steps (`0-59/15`, and star-with-step), month/day
    * names, and `@hourly`-style aliases. Day-of-month and day-of-week follow the standard rule: when both
-   * are restricted, the task runs when either matches. Times are local.
+   * are restricted, the task runs when either matches. Times are local. Invalid
+   * expressions throw immediately with the reason — before the task is registered.
    * @param expression - A 5-field cron expression or alias like '@daily'
    * @param fn - The function to run (sync or async)
    * @param options - Task name and error handler
@@ -298,7 +300,8 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
   }
 
   /**
-   * Run a function once at a specific time.
+   * Run a function once at a specific time. One-shots deactivate after they
+   * fire (`active` becomes false) but stay visible in scheduler.tasks.
    * @param when - A Date, a timestamp in ms, or an ISO date string
    * @param fn - The function to run (sync or async)
    * @param options - Task name and error handler

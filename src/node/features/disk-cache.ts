@@ -28,6 +28,9 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
  * for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed
  * on access and behave exactly like cache misses.
  *
+ * The cache directory (from the `path` option, or a default under the OS cache dir)
+ * is created automatically on first use — no setup step is required.
+ *
  * @extends Feature
  * @example
  * ```typescript
@@ -191,6 +194,9 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @param key - The cache key to retrieve
    * @param json - Whether to parse the value as JSON (default: false)
    * @returns Promise that resolves to the cached value (string or parsed JSON)
+   * @throws If the key does not exist (or has expired) — a cache miss rejects rather
+   *   than returning undefined. Guard with `has()` first, or use `ensure()` to seed
+   *   a default value.
    * @example
    * ```typescript
    * const text = await diskCache.get('myText')

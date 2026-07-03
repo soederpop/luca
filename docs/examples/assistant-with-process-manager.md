@@ -1,21 +1,27 @@
 ---
-title: "Assistant with ProcessManager Tools"
-tags: [assistant, processManager, tools, runtime, use]
-lastTested: null
-lastTestPassed: null
+title: Assistant with ProcessManager Tools
+tags:
+  - assistant
+  - processManager
+  - tools
+  - runtime
+  - use
+lastTested: '2026-07-03'
+lastTestPassed: true
 ---
 
 # Assistant with ProcessManager Tools
 
-Create an assistant at runtime, give it processManager tools, and watch it orchestrate long-running processes — spawning ping and top, checking their output over time, running a quick command in between, then coming back to report.
+Create an assistant at runtime, give it processManager tools via `assistant.use()`, and let it orchestrate long-running processes — spawning ping and top, checking their output over time, running a quick command in between, then coming back to report.
 
-## The Demo
+## Wire the tools (no API key needed)
+
+`assistant.use(feature)` registers the feature's tool surface immediately — the tool schemas, bound handlers, and system-prompt extension all exist before any model is involved. That makes the wiring verifiable without credentials:
 
 ```ts
-const pm = container.feature('processManager', { enable: true, autoCleanup: true })
-const ui = container.feature('ui')
+pm = container.feature('processManager', { enable: true, autoCleanup: true })
 
-const assistant = container.feature('assistant', {
+assistant = container.feature('assistant', {
   systemPrompt: [
     'You are a process management assistant with tools to spawn, monitor, inspect, and kill background processes.',
     'When asked to check on processes, use getProcessOutput to read their latest output and summarize what you see.',
@@ -27,11 +33,19 @@ const assistant = container.feature('assistant', {
 })
 
 assistant.use(pm)
-await assistant.start()
 
 const tools = Object.keys(assistant.tools)
-console.log(ui.colors.cyan('Tools registered:'), tools.join(', '))
-console.log()
+console.log('Tools registered:', tools.join(', '))
+if (tools.length === 0) throw new Error('assistant.use(pm) registered no tools')
+```
+
+## The conversation demo
+
+Driving the conversation calls the model, so this part needs an `OPENAI_API_KEY`:
+
+```ts skip
+await assistant.start()
+const ui = container.feature('ui')
 
 // ── Helper to print assistant responses ──────────────────────────────
 const ask = async (label, question) => {
@@ -72,13 +86,19 @@ await ask('CHECK-IN #2',
 await ask('CLEANUP',
   'Kill all running processes and confirm they are stopped.'
 )
+```
 
-// Belt and suspenders
+## Cleanup always works headlessly
+
+The tools the assistant would call are just processManager methods — call them directly to prove the surface is live:
+
+```ts
 pm.killAll()
 const remaining = pm.list().filter(h => h.status === 'running')
-console.log(ui.colors.green('Running after cleanup:'), remaining.length)
+console.log('Running after cleanup:', remaining.length)
+if (remaining.length !== 0) throw new Error('processes survived killAll')
 ```
 
 ## Summary
 
-This example showed a runtime assistant orchestrating real background processes over multiple conversation turns — spawning long-running `ping` and `top` commands, checking in on their output as it accumulates, running a quick `uptime` in between, then coming back for a second check-in before cleaning everything up. The assistant parsed ping times, summarized CPU usage, and managed the full lifecycle without any hardcoded logic — just natural language and processManager tools.
+The runnable part proves the composition: a runtime assistant wired with processManager tools, verified without a model call. The skipped conversation shows what it looks like driven end to end — spawning long-running `ping` and `top` commands, checking in on their output as it accumulates, running a quick `uptime` in between, then cleaning everything up with natural language alone. See [feature-as-tool-provider](./feature-as-tool-provider.md) for how to author your own tool-providing feature.

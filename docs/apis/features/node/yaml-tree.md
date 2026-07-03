@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions
+YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions This is the YAML counterpart to the `jsonTree` feature — same design in every respect (recursive scan, camelCased property paths, a `tree` getter, a custom key for namespacing). The only differences are the extensions it looks for (`.yml`/`.yaml` vs `.json`) and the parser it uses (the `yaml` feature vs `JSON.parse`). It is on-demand, so you must enable it before use, and the tree starts empty until you load a directory into it.
 
 ## Usage
 
@@ -26,14 +26,19 @@ Loads a tree of YAML files from the specified base path and stores them in state
 **Returns:** `void`
 
 ```ts
+// Given a directory of YAML files (create one for the demo):
+const fs = container.feature('fs')
+fs.writeFile('config/database/production.yml', 'host: db.example.com\nport: 5432\n')
+
 // Load all YAML files from 'config' directory into state.config
 await yamlTree.loadTree('config');
 
-// Load with custom key
-await yamlTree.loadTree('app/settings', 'appSettings');
-
-// Access the loaded data
+// Access the loaded data — file paths become camelCased property paths
 const dbConfig = yamlTree.tree.config.database.production;
+console.log(dbConfig.host); // 'db.example.com'
+
+// Load a different folder under a custom key
+await yamlTree.loadTree('config', 'appSettings');
 ```
 
 
@@ -55,7 +60,14 @@ const dbConfig = yamlTree.tree.config.database.production;
 **features.yamlTree**
 
 ```ts
+// On-demand: enable it explicitly first.
 const yamlTree = container.feature('yamlTree', { enable: true });
+console.log(yamlTree.state.enabled);          // true
+console.log(yamlTree.tree);                    // {} — empty until loaded
+
+// Scan a directory of YAML files. Paths become camelCased property paths:
+//   config/database/production.yml -> tree.appConfig.database.production
+//   config/app-settings.yaml       -> tree.appConfig.appSettings
 await yamlTree.loadTree('config', 'appConfig');
 const configData = yamlTree.tree.appConfig;
 ```
@@ -65,14 +77,19 @@ const configData = yamlTree.tree.appConfig;
 **loadTree**
 
 ```ts
+// Given a directory of YAML files (create one for the demo):
+const fs = container.feature('fs')
+fs.writeFile('config/database/production.yml', 'host: db.example.com\nport: 5432\n')
+
 // Load all YAML files from 'config' directory into state.config
 await yamlTree.loadTree('config');
 
-// Load with custom key
-await yamlTree.loadTree('app/settings', 'appSettings');
-
-// Access the loaded data
+// Access the loaded data — file paths become camelCased property paths
 const dbConfig = yamlTree.tree.config.database.production;
+console.log(dbConfig.host); // 'db.example.com'
+
+// Load a different folder under a custom key
+await yamlTree.loadTree('config', 'appSettings');
 ```
 
 

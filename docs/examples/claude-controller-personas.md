@@ -1,8 +1,13 @@
 ---
-title: "Claude Controller Personas"
-tags: [claude, claude-code, tmux, personas, agents]
-lastTested: null
-lastTestPassed: null
+title: Claude Controller Personas
+tags:
+  - claude
+  - claude-code
+  - tmux
+  - personas
+  - agents
+lastTested: '2026-07-03'
+lastTestPassed: true
 ---
 
 # Claude Controller Personas
@@ -14,27 +19,33 @@ Use `claudeController` personas when you want repeatable interactive Claude Code
 ## Quick Start
 
 ```ts
-const controller = container.feature('claudeController')
+// bare assignments so these survive into the later blocks
+controller = container.feature('claudeController')
+repo = container.cwd
 
 controller.definePersona('reviewer', {
   description: 'Strict Luca-aware code reviewer',
   systemPrompt: `You are a strict code reviewer for Luca projects.`,
   appendSystemPrompt: `Check Luca conventions, tests, API shape, and edge cases.`,
-  addDirs: ['/Users/jonathansoeder/@soederpop/projects/luca'],
-  skillsFolders: ['/Users/jonathansoeder/@agentic-loop/.claude/skills'],
+  addDirs: [repo],
   tools: ['Read', 'Grep', 'Glob', 'Bash'],
   allowedTools: ['Bash(git *)', 'Bash(bun test *)'],
   permissionMode: 'acceptEdits',
 })
 
-const reviewer = controller.create({
+const reviewerWorker = controller.create({
   id: 'reviewer',
-  cwd: '/Users/jonathansoeder/@soederpop/projects/luca',
+  cwd: repo,
   persona: 'reviewer',
 })
+console.log('reviewer worker constructed (tmux not started yet)')
+```
 
-await reviewer.start()
-await reviewer.ask('Review the current diff and tell me what is risky.')
+Starting the worker launches a real interactive Claude Code session in tmux — that part is shown, not executed:
+
+```ts skip
+await reviewerWorker.start()
+await reviewerWorker.ask('Review the current diff and tell me what is risky.')
 ```
 
 The persona compiles to normal interactive Claude Code CLI flags before the session starts. For example, the persona above passes flags like `--system-prompt`, `--append-system-prompt`, `--add-dir`, `--tools`, `--allowed-tools`, and `--permission-mode` to `claude`.
@@ -84,9 +95,7 @@ Personas live in memory on the controller. If you need persistence, store your p
 
 `create()` constructs a worker without starting tmux. `start()` constructs and starts it immediately.
 
-```ts
-const controller = container.feature('claudeController')
-
+```ts skip
 const worker = controller.create({
   id: 'docs-worker',
   cwd: '/repo',
@@ -99,7 +108,7 @@ await worker.ask('Update docs for the new command.')
 
 Or:
 
-```ts
+```ts skip
 await controller.start({
   id: 'docs-worker',
   cwd: '/repo',
@@ -114,7 +123,7 @@ await worker?.ask('Update docs for the new command.')
 
 Use `startMany()` to launch multiple interactive Claude Code sessions with different personas.
 
-```ts
+```ts skip
 await controller.startMany([
   { id: 'planner', cwd: repo, persona: 'architect' },
   { id: 'tester', cwd: repo, persona: 'tdd' },
@@ -143,7 +152,10 @@ const spike = controller.create({
     permissionMode: 'plan',
   },
 })
+console.log('inline-persona worker constructed')
+```
 
+```ts skip
 await spike.start()
 await spike.ask('Find the likely files involved in adding OAuth support.')
 ```
@@ -219,10 +231,10 @@ Prefer container.paths and container.feature('fs') over direct path/fs imports.
 
 Then start it:
 
-```ts
+```ts skip
 const architect = controller.create({
   id: 'architect',
-  cwd: '/Users/jonathansoeder/@soederpop/projects/luca',
+  cwd: repo,
   persona: 'luca-architect',
 })
 
@@ -278,7 +290,7 @@ For unattended or parallel sessions, prefer tight `allowedTools` plus a specific
 
 After the worker starts, use the session worker API, not the controller, for input.
 
-```ts
+```ts skip
 const worker = controller.session('reviewer')
 if (!worker) throw new Error('reviewer session was not started')
 
@@ -326,7 +338,7 @@ Check these first:
 
 A project command that spawns named workers can define personas once, list them for the operator, then start selected ones.
 
-```ts
+```ts skip
 export default async function run({ container }) {
   const claude = container.feature('claudeController')
   const repo = container.paths.resolve('.')

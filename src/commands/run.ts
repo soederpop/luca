@@ -76,6 +76,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 	await container.docs.load()
 
 	const doc = await container.docs.parseMarkdownAtPath(scriptPath)
+	const rawSource = container.fs.readFile(scriptPath) as string
 
 	const transpiler = container.feature('transpiler')
 	const ink = container.feature('ink', { enable: true })
@@ -88,6 +89,7 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 		console, ink, render, renderAsync,
 		setTimeout, clearTimeout, setInterval, clearInterval,
 		fetch, URL, URLSearchParams,
+		z,
 		...container.context,
 		$doc: doc
 	})
@@ -155,13 +157,17 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			}
 
 			// Transform tsx/jsx through esbuild, and also ts for consistency
-			const needsTransform = lang === 'tsx' || lang === 'jsx'
+			// (ts blocks with type annotations are invalid JS and fail in the vm otherwise).
+			// ts blocks only strip types (format esm): the cjs conversion is regex-based
+			// and mangles template literals whose content has lines starting with
+			// import/export — doc blocks use the injected container, not module syntax.
+			const needsTransform = lang === 'tsx' || lang === 'jsx' || lang === 'ts'
 			let code = value
 
 			if (needsTransform) {
 				const { code: transformed } = transpiler.transformSync(value, {
-					loader: lang as 'tsx' | 'jsx',
-					format: 'cjs',
+					loader: lang as 'ts' | 'tsx' | 'jsx',
+					format: lang === 'ts' ? 'esm' : 'cjs',
 				})
 				code = transformed
 			}
@@ -171,7 +177,13 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			// if we enabled any features, they will be in the context object
 			Object.assign(shared, container.context)
 		} else {
-			const md = doc.stringify({ type: 'root', children: [node] })
+			let md: string
+			try {
+				md = doc.stringify({ type: 'root', children: [node] })
+			} catch {
+				// the stringifier lacks GFM extensions (tables etc.) — fall back to the raw source slice
+				md = rawSource.slice(node.position?.start?.offset ?? 0, node.position?.end?.offset ?? 0)
+			}
 			console.log(container.ui.markdown(md))
 		}
 	}
@@ -211,6 +223,7 @@ async function runScript(scriptPath: string, context: ContainerContext, options:
 		setTimeout, setInterval, clearTimeout, clearInterval,
 		process, Buffer, URL, URLSearchParams,
 		fetch,
+		z,
 		...container.context,
 	}
 
@@ -268,6 +281,7 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 		}
 	} catch (err: any) {
 		await diagnoseError(scriptPath, err instanceof Error ? err : new Error(String(err)), context)
+		process.exitCode = 1
 	}
 }
 

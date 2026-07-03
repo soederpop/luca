@@ -412,26 +412,43 @@ export class SpawnHandler {
  * pattern: `proc.spawn(cmd, args, { detached: true })` + persist the PID via
  * `diskCache`, and check liveness with `proc.kill(pid, 0)`.
  *
+ * EVENT NAMING: handler-level events are singular (`exit`, `crash`, `killed` on the
+ * SpawnHandler) while feature-level events are past tense (`exited`, `crashed`,
+ * `killed`, `spawned`, `allStopped` on the ProcessManager itself). Subscribe on the
+ * right object for the name you want.
+ *
+ * The feature also keeps observable bookkeeping state: `pm.state.get('totalSpawned')`
+ * counts every spawn since the feature was created, and `pm.state.get('processes')`
+ * maps process IDs to metadata records (command, args, pid, status, exit code,
+ * timestamps). With `autoCleanup: true` (the default) exit/SIGINT/SIGTERM handlers
+ * are registered on first spawn so tracked children die with the parent.
+ *
  * @example
  * ```typescript
- * const pm = container.feature('processManager', { enable: true })
+ * // Enable with auto-cleanup so tracked processes die when the parent exits
+ * const pm = container.feature('processManager', { enable: true, autoCleanup: true })
  *
+ * // spawn() returns a SpawnHandler immediately — it never blocks
  * const server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })
  * server.on('stdout', (data) => console.log('[api]', data))
  * server.on('crash', (code) => console.error('API crashed:', code))
  *
- * // Peek at buffered output
+ * // Peek at buffered output (first 20 + last 50 lines)
  * const { head, tail } = server.peek()
  *
- * // Kill one
- * server.kill()
+ * // List and lookup tracked processes (running and finished)
+ * pm.list()                          // SpawnHandler[]
+ * pm.getByTag('api')                 // SpawnHandler | undefined
+ * pm.state.get('totalSpawned')       // number of processes spawned so far
  *
- * // Kill all tracked processes
+ * // Spawn something long-lived and terminate it
+ * const sleeper = pm.spawn('sleep', ['10'], { tag: 'sleeper' })
+ * sleeper.kill()                     // status becomes 'killed'
+ *
+ * // Kill everything still running, then full teardown
  * pm.killAll()
- *
- * // List and lookup
- * pm.list()              // SpawnHandler[]
- * pm.getByTag('api')     // SpawnHandler | undefined
+ * pm.list().filter(h => h.isRunning).length // => 0
+ * await pm.stop()                    // killAll + remove exit handlers
  * ```
  *
  * @extends Feature
@@ -653,6 +670,18 @@ export class ProcessManager extends Feature {
    * @param options.stdout - stdout mode: 'pipe', 'inherit', 'ignore' (default: 'pipe')
    * @param options.stderr - stderr mode: 'pipe', 'inherit', 'ignore' (default: 'pipe')
    * @returns SpawnHandler — a non-blocking handle to the process
+   *
+   * @example
+   * ```typescript
+   * const pm = container.feature('processManager', { enable: true })
+   *
+   * // Returns immediately — the handle carries state, events, and lifecycle methods
+   * const handle = pm.spawn('echo', ['hello from process manager'], { tag: 'greeter' })
+   * handle.on('stdout', (data) => console.log(data))
+   *
+   * // Wait for completion when you need the result
+   * const exitCode = await handle.await()
+   * ```
    */
   spawn(command: string, args: string[] = [], options: SpawnOptions = {}): SpawnHandler {
     const id = crypto.randomUUID()
@@ -703,6 +732,13 @@ export class ProcessManager extends Feature {
    *
    * @param tag - The tag passed to spawn()
    * @returns The first matching SpawnHandler, or undefined
+   *
+   * @example
+   * ```typescript
+   * pm.spawn('sleep', ['5'], { tag: 'napper' })
+   * const found = pm.getByTag('napper')
+   * console.log('Found by tag:', found ? found.status : 'no')
+   * ```
    */
   getByTag(tag: string): SpawnHandler | undefined {
     for (const handler of this._handlers.values()) {
@@ -714,7 +750,17 @@ export class ProcessManager extends Feature {
   /**
    * List all tracked SpawnHandlers (running and finished).
    *
+   * Finished processes stay in the registry until removed with `remove(id)`,
+   * so the list is a full history of everything spawned by this feature instance.
+   *
    * @returns Array of all SpawnHandlers
+   *
+   * @example
+   * ```typescript
+   * const all = pm.list()
+   * const running = all.filter(h => h.isRunning)
+   * console.log(`${running.length} running of ${all.length} tracked`)
+   * ```
    */
   list(): SpawnHandler[] {
     return Array.from(this._handlers.values())
@@ -723,7 +769,17 @@ export class ProcessManager extends Feature {
   /**
    * Kill all running processes.
    *
+   * Already-finished handlers are skipped; they remain in the registry for
+   * inspection. Use `stop()` instead when you also want the process exit
+   * handlers removed.
+   *
    * @param signal - Signal to send (default: SIGTERM)
+   *
+   * @example
+   * ```typescript
+   * pm.killAll()
+   * pm.list().filter(h => h.isRunning).length // => 0
+   * ```
    */
   killAll(signal?: NodeJS.Signals | number): void {
     for (const handler of this._handlers.values()) {
@@ -735,6 +791,15 @@ export class ProcessManager extends Feature {
 
   /**
    * Stop the process manager: kill all running processes and remove cleanup handlers.
+   *
+   * This is the full teardown — unlike `killAll()` it also unregisters the
+   * exit/SIGINT/SIGTERM handlers installed by `autoCleanup`, so call it when a
+   * long-running command is shutting down and should leave no listeners behind.
+   *
+   * @example
+   * ```typescript
+   * await pm.stop() // killAll + remove process exit handlers
+   * ```
    */
   async stop(): Promise<void> {
     this.killAll()

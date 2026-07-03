@@ -280,6 +280,8 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * const contentDb = container.feature('contentDb', { rootPath: './docs' })
    * await contentDb.load()
    * const articles = await contentDb.query(contentDb.models.Article).fetchAll()
+   * // Each result has an id (derived from the file path) and parsed frontmatter meta
+   * articles.forEach(doc => console.log(doc.id, doc.meta?.title))
    * ```
    */
   query<T extends ModelDefinition>(model: T) {
@@ -293,8 +295,9 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
    * @returns The parsed markdown document with frontmatter and content
    * @example
    * ```typescript
-   * const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')
-   * console.log(doc.frontmatter, doc.content)
+   * const doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')
+   * console.log(doc.meta?.title, doc.meta?.tags)
+   * console.log(doc.content)
    * ```
    */
   parseMarkdownAtPath(path: string) {

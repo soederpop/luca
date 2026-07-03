@@ -30,13 +30,26 @@ export type JsonTreeState = z.infer<typeof JsonTreeStateSchema>
  * - File names become the final property names (without .json extension)
  * - Nested directories create nested objects
  * 
+ * This feature is on-demand: enable it explicitly before use. The tree starts
+ * empty and stays empty until you call `loadTree`. The `tree` getter returns a
+ * clean view of your loaded data — it filters out the internal `enabled` state
+ * property, so you only ever see JSON you loaded, never framework bookkeeping.
+ *
  * **Usage Example:**
  * ```typescript
+ * // On-demand: enable it explicitly first.
  * const jsonTree = container.feature('jsonTree', { enable: true });
+ * console.log(jsonTree.state.enabled);       // true
+ * console.log(jsonTree.tree);                 // {} — empty until loaded
+ * console.log('enabled' in jsonTree.tree);    // false — getter is clean
+ *
+ * // Scan a directory of JSON files. Paths become camelCased property paths:
+ * //   data/users/profiles.json  -> tree.appData.users.profiles
+ * //   data/user-profiles.json   -> tree.appData.userProfiles
  * await jsonTree.loadTree('data', 'appData');
  * const userData = jsonTree.tree.appData.users.profiles;
  * ```
- * 
+ *
  * **Directory Structure Example:**
  * ```
  * data/

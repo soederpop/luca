@@ -47,6 +47,10 @@ Execute a raw tmux command. Returns stdout/stderr strings. This is the low-level
 
 ```ts
 await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])
+
+// Read the stdout of any tmux query, e.g. pane dimensions
+const info = await tmux.run(['display-message', '-t', 'myapp', '-p', '#{pane_width}x#{pane_height}'])
+console.log('pane dimensions:', info.stdout.trim())
 ```
 
 
@@ -130,6 +134,11 @@ List all active tmux sessions.
 
 **Returns:** `Promise<SessionInfo[]>`
 
+```ts
+const sessions = await tmux.listSessions()
+sessions.forEach(s => console.log(s.name, '— windows:', s.windows))
+```
+
 
 
 ### killSession
@@ -190,6 +199,10 @@ console.log(output)
 
 ```ts
 await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])
+
+// Read the stdout of any tmux query, e.g. pane dimensions
+const info = await tmux.run(['display-message', '-t', 'myapp', '-p', '#{pane_width}x#{pane_height}'])
+console.log('pane dimensions:', info.stdout.trim())
 ```
 
 
@@ -199,5 +212,14 @@ await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])
 ```ts
 const hermes = await tmux.session('hermes', { command: 'hermes' })
 const codex = await tmux.session('codex', { command: 'codex' })
+```
+
+
+
+**listSessions**
+
+```ts
+const sessions = await tmux.listSessions()
+sessions.forEach(s => console.log(s.name, '— windows:', s.windows))
 ```
 

@@ -1,7 +1,13 @@
 ---
-title: "Server + REST Client Roundtrip"
-tags: [express, endpoints, rest, rateLimit, server, http]
-lastTested: "2026-07-03"
+title: Server + REST Client Roundtrip
+tags:
+  - express
+  - endpoints
+  - rest
+  - rateLimit
+  - server
+  - http
+lastTested: '2026-07-03'
 lastTestPassed: true
 ---
 

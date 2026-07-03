@@ -58,25 +58,49 @@ export const GoogleAuthEventsSchema = FeatureEventsSchema.extend({
  * token exchange, refresh token storage (via diskCache), and automatic token refresh.
  * Also supports non-interactive service account authentication via JSON key files.
  *
+ * Two modes:
+ * - **oauth2** (default) — opens a browser for user consent. Requires `GOOGLE_CLIENT_ID` and
+ *   `GOOGLE_CLIENT_SECRET` env vars (or `clientId` / `clientSecret` options). The refresh token
+ *   is cached in diskCache, so subsequent runs restore authentication without a browser.
+ * - **service-account** — non-interactive, uses a JSON key file. Auto-selected when
+ *   `serviceAccountKeyPath`, `serviceAccountKey`, or the `GOOGLE_SERVICE_ACCOUNT_KEY` env var
+ *   is set. Ideal for automation, CI/CD, and background services. Note: a service account can
+ *   only see files, sheets, and calendars that have been shared with its `client_email`.
+ *
+ * If no scopes are passed, `defaultScopes` is used — read-only access to Drive, Sheets,
+ * Calendar, Docs, and Gmail.
+ *
  * Other Google features (drive, sheets, calendar, docs) depend on this feature
- * and access it lazily via `container.feature('googleAuth')`.
+ * and access it lazily via `container.feature('googleAuth')` — authenticate once
+ * and every Google feature picks it up automatically.
  *
  * @example
  * ```typescript
- * // OAuth2 flow — opens browser for consent
+ * // (no-run) requires Google OAuth credentials
+ * // OAuth2 flow — reads GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from env,
+ * // opens a browser for consent, caches the refresh token in diskCache
  * const auth = container.feature('googleAuth', {
- *   clientId: 'your-client-id.apps.googleusercontent.com',
- *   clientSecret: 'your-secret',
  *   scopes: ['https://www.googleapis.com/auth/drive.readonly'],
  * })
  * await auth.authorize()
+ * console.log(auth.isAuthenticated)        // true
+ * console.log(auth.state.get('email'))     // your Google email
  *
+ * // Other Google features use the same auth automatically
+ * const drive = container.feature('googleDrive')
+ * const { files } = await drive.listFiles()
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // (no-run) requires Google OAuth credentials
  * // Service account flow — no browser needed
- * const auth = container.feature('googleAuth', {
- *   serviceAccountKeyPath: '/path/to/key.json',
+ * const sa = container.feature('googleAuth', {
+ *   serviceAccountKeyPath: '/path/to/service-account-key.json',
  *   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
  * })
- * await auth.authenticateServiceAccount()
+ * await sa.authenticateServiceAccount()
+ * console.log(sa.state.get('email'))       // the service account's client_email
  * ```
  */
 export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
@@ -172,10 +196,22 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
 
   /**
    * Get the authenticated auth client for passing to googleapis service constructors.
-   * Handles token refresh automatically for OAuth2. For service accounts, returns
-   * the JWT auth client.
+   * Handles token refresh automatically for OAuth2 (refreshes when the access token is
+   * within a minute of expiry, emitting `tokenRefreshed`). For service accounts, returns
+   * the JWT auth client. If not yet authenticated, attempts to restore cached tokens
+   * first and throws if that fails.
    *
    * @returns An auth client suitable for `google.drive({ version: 'v3', auth })`
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const auth = container.feature('googleAuth')
+   * // Tries cached tokens automatically; throws if never authorized
+   * const client = await auth.getAuthClient()
+   * // Pass to any googleapis constructor
+   * // google.drive({ version: 'v3', auth: client })
+   * ```
    */
   async getAuthClient(): Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>> {
     if (!this.isAuthenticated) {
@@ -226,7 +262,22 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
    * 6. Stores the refresh token in diskCache
    * 7. Shuts down the callback server
    *
+   * Emits `authorizationRequired` with the consent URL, then `authenticated` on success.
+   * Times out after 5 minutes if the user never completes consent.
+   *
    * @param scopes - OAuth2 scopes to request (defaults to options.scopes or defaultScopes)
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const auth = container.feature('googleAuth', {
+   *   scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+   * })
+   * await auth.authorize()
+   * console.log(auth.isAuthenticated)         // true
+   * console.log(auth.state.get('scopes'))     // the authorized scopes
+   * // The refresh token is now cached — future runs won't need the browser
+   * ```
    */
   async authorize(scopes?: string[]): Promise<this> {
     const requestedScopes = scopes || this.options.scopes || this.defaultScopes
@@ -345,9 +396,22 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   /**
    * Authenticate using a service account JSON key file.
    * Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey,
-   * or the GOOGLE_SERVICE_ACCOUNT_KEY env var.
+   * or the GOOGLE_SERVICE_ACCOUNT_KEY env var. Non-interactive — ideal for
+   * automation, CI/CD, and background services. Remember to share the Drive
+   * files, Sheets, or Calendars you need with the service account's client_email.
    *
    * @returns This feature instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const auth = container.feature('googleAuth', {
+   *   serviceAccountKeyPath: '/path/to/service-account-key.json',
+   *   scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+   * })
+   * await auth.authenticateServiceAccount()
+   * console.log(auth.state.get('email'))  // service account email
+   * ```
    */
   async authenticateServiceAccount(): Promise<this> {
     try {
@@ -383,8 +447,20 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   /**
    * Attempt to restore authentication from a cached refresh token.
    * Called automatically by getAuthClient() if not yet authenticated.
+   * In service-account mode, this simply re-authenticates with the key file.
    *
    * @returns true if tokens were restored successfully
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * // Restore-or-authorize pattern for scripts
+   * const auth = container.feature('googleAuth')
+   * const restored = await auth.tryRestoreTokens()
+   * if (!restored) {
+   *   await auth.authorize()  // falls back to the browser flow
+   * }
+   * ```
    */
   async tryRestoreTokens(): Promise<boolean> {
     if (this.authMode === 'service-account') {
@@ -431,9 +507,17 @@ export class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
   }
 
   /**
-   * Revoke the current credentials and clear cached tokens.
+   * Revoke the current credentials and clear the cached refresh token from diskCache.
    *
    * @returns This feature instance for chaining
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const auth = container.feature('googleAuth')
+   * await auth.revoke()
+   * console.log(auth.isAuthenticated)  // false — next run will need authorize() again
+   * ```
    */
   async revoke(): Promise<this> {
     try {

@@ -49,17 +49,42 @@ export const FileManagerEventsSchema = FeatureEventsSchema.extend({
 export type FileManagerState = z.infer<typeof FileManagerStateSchema>
 export type FileManagerOptions = z.infer<typeof FileManagerOptionsSchema>
 
-/** 
- * The FileManager feature creates a database like index of all of the files in the project,
- * and provides metadata about these files, and also provides a way to watch for changes to the files.
+/**
+ * The FileManager feature creates a database-like, in-memory index of all of the files in
+ * the project, provides metadata about these files, and can watch for changes to them.
+ * Think of it as a fast, queryable snapshot of your file tree — useful for code analysis
+ * tools, documentation generators, or any script that needs to reason about project
+ * structure.
+ *
+ * After `start()` completes, every file is indexed under its project-relative path (its
+ * "file ID"). The scan skips common build/dependency folders (node_modules, dist, out) by
+ * default; pass `exclude` patterns to skip more. In a git repo the index is also cached on
+ * disk keyed by the current commit SHA and directory mtimes, so repeat scans of a clean
+ * repo are nearly instant.
+ *
+ * Each indexed file carries metadata: `relativePath`, `absolutePath`, `name`, `extension`
+ * (with leading dot, e.g. `.ts`), `dirname`, `relativeDirname`, `size`, `modifiedAt`,
+ * and `createdAt`.
  *
  * @example
  * ```typescript
- * const fileManager = container.feature('fileManager')
- * await fileManager.start()
- * 
- * const fileIds = fileManager.fileIds
- * const typescriptFiles = fileManager.matchFiles("**ts")
+ * const fm = container.feature('fileManager')
+ * await fm.start()
+ * console.log('Scan complete:', fm.isStarted)
+ * console.log('Total files indexed:', fm.fileIds.length)
+ *
+ * // Glob matching returns relative paths...
+ * const tsFiles = fm.match('**' + '/*.ts')
+ * console.log('TypeScript files:', tsFiles.length)
+ *
+ * // ...or full metadata objects
+ * for (const f of fm.matchFiles('package.json')) {
+ *   console.log(f?.relativePath, f?.extension, f?.size)
+ * }
+ *
+ * // Understand the project at a glance
+ * console.log('Extensions:', fm.uniqueExtensions.join(', ')) // e.g. .ts, .md, .json
+ * console.log('Directories:', fm.directoryIds.length)
  * ```
 */
 export class FileManager<

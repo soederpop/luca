@@ -113,7 +113,7 @@ console.log(`Pod ${pod.id} created`)
 
 ### stopPod
 
-Stop a running pod.
+Stop a running pod. Stopping preserves the pod's disk and data — restart it later with `startPod()`. Use `removePod()` to delete a pod permanently.
 
 **Parameters:**
 
@@ -266,7 +266,7 @@ console.log(`${vol.name}: ${vol.size}GB in ${vol.dataCenterId}`)
 
 ### createVolume
 
-Create a new network storage volume.
+Create a new network storage volume. Network volumes persist independently of pods — attach one to a pod via the `networkVolumeId` option of `createPod()`.
 
 **Parameters:**
 

@@ -64,7 +64,7 @@ poll.stop() // or scheduler.stop('sync')
 
 ### cron
 
-Run a function on a cron schedule as a named task. Standard 5-field syntax (minute hour day-of-month month day-of-week) with lists (`1,15`), ranges (`mon-fri`), steps (`0-59/15`, and star-with-step), month/day names, and `@hourly`-style aliases. Day-of-month and day-of-week follow the standard rule: when both are restricted, the task runs when either matches. Times are local.
+Run a function on a cron schedule as a named task. Standard 5-field syntax (minute hour day-of-month month day-of-week) with lists (`1,15`), ranges (`mon-fri`), steps (`0-59/15`, and star-with-step), month/day names, and `@hourly`-style aliases. Day-of-month and day-of-week follow the standard rule: when both are restricted, the task runs when either matches. Times are local. Invalid expressions throw immediately with the reason — before the task is registered.
 
 **Parameters:**
 
@@ -93,7 +93,7 @@ scheduler.cron('@daily', cleanup)
 
 ### at
 
-Run a function once at a specific time.
+Run a function once at a specific time. One-shots deactivate after they fire (`active` becomes false) but stay visible in scheduler.tasks.
 
 **Parameters:**
 
@@ -318,6 +318,7 @@ await scheduler.run()
 ```ts
 // Observability: every task has a name, run counts, and error history
 const handle = scheduler.every('10s', pollQueue)
+console.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }
 console.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]
 handle.stop()
 ```

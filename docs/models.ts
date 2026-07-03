@@ -24,10 +24,12 @@ export const Report = defineModel("Report", {
 })
 
 export const Example = defineModel("Example", {
-	description: 'Examples of using various luca features',
+	description: 'Runnable composition patterns that combine multiple luca helpers (single-feature usage lives in JSDoc @example blocks, surfaced by `luca describe`)',
 	prefix: "examples",
 	meta: z.object({
 		tags: z.array(z.string()).default([]).describe("Arbitrary tags for categorizing the example"),
+		lastTested: z.string().nullable().optional().describe("Date the doc last ran via `luca test-examples` (stamped automatically)"),
+		lastTestPassed: z.boolean().nullable().optional().describe("Whether the last `luca test-examples` run passed (stamped automatically)"),
 	}),
 })
 

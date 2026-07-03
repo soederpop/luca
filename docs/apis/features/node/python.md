@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables
+The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Requires a Python interpreter to be installed on the host. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables
 
 ## Usage
 
@@ -58,7 +58,7 @@ console.log(python.state.get('pythonPath')) // '/path/to/python/executable'
 
 ### installDependencies
 
-Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.
+Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type — e.g. `uv sync` for uv, `conda env update` for conda, `pip install -r requirements.txt` or `pip install -e .` for venv/system. If a custom installCommand is provided in options, it will use that instead.
 
 **Returns:** `Promise<{ stdout: string; stderr: string; exitCode: number }>`
 
@@ -192,6 +192,12 @@ console.log(result.stdout) // '84\n'
 // Inject variables from JS
 const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
 console.log(result2.stdout) // 'Hello World!\n'
+
+// Errors don't crash the session — they come back on the result
+const bad = await python.run('raise ValueError("oops")')
+console.log(bad.ok)    // false
+console.log(bad.error) // 'oops'
+const alive = await python.run('print("still here")') // session keeps working
 ```
 
 
@@ -553,6 +559,12 @@ console.log(result.stdout) // '84\n'
 // Inject variables from JS
 const result2 = await python.run('print(f"Hello {name}!")', { name: 'World' })
 console.log(result2.stdout) // 'Hello World!\n'
+
+// Errors don't crash the session — they come back on the result
+const bad = await python.run('raise ValueError("oops")')
+console.log(bad.ok)    // false
+console.log(bad.error) // 'oops'
+const alive = await python.run('print("still here")') // session keeps working
 ```
 
 

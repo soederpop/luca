@@ -74,30 +74,36 @@ export const GoogleCalendarEventsSchema = FeatureEventsSchema.extend({
 /**
  * Google Calendar feature for listing calendars and reading events.
  *
- * Depends on the googleAuth feature for authentication. Creates a Calendar v3 API
- * client lazily. Provides convenience methods for today's events and upcoming days.
+ * Depends on the googleAuth feature for authentication (requires Google OAuth2
+ * credentials or a service account with Calendar access, e.g. the
+ * `calendar.readonly` scope). Creates a Calendar v3 API client lazily.
+ * Provides convenience methods for today's events and upcoming days alongside
+ * the full `listEvents()` for custom time ranges.
+ *
+ * Event `start` and `end` are objects: timed events have `dateTime`, all-day
+ * events have `date`. Pass a `timeZone` option (e.g. "America/Chicago") to
+ * control the timezone used when rendering event times in queries.
  *
  * @example
  * ```typescript
- * const calendar = container.feature('googleCalendar')
- *
- * // List all calendars
- * const calendars = await calendar.listCalendars()
- *
- * // Get today's events
- * const today = await calendar.getToday()
- *
- * // Get next 7 days of events
- * const upcoming = await calendar.getUpcoming(7)
- *
- * // Search events
- * const meetings = await calendar.searchEvents('standup')
- *
- * // List events in a time range
- * const events = await calendar.listEvents({
- *   timeMin: '2026-03-01T00:00:00Z',
- *   timeMax: '2026-03-31T23:59:59Z',
+ * // (no-run) requires Google OAuth credentials
+ * // Authenticate once via googleAuth (cached tokens restore automatically)
+ * const auth = container.feature('googleAuth', {
+ *   scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
  * })
+ * if (!(await auth.tryRestoreTokens())) await auth.authorize()
+ *
+ * const calendar = container.feature('googleCalendar', {
+ *   defaultCalendarId: 'primary',
+ *   timeZone: 'America/Chicago',
+ * })
+ *
+ * // Today's events — start.dateTime for timed events, start.date for all-day
+ * const today = await calendar.getToday()
+ * today.forEach(e => console.log(e.start.dateTime || e.start.date, e.summary))
+ *
+ * // Next 7 days
+ * const upcoming = await calendar.getUpcoming(7)
  * ```
  */
 export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarOptions> {
@@ -138,8 +144,18 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
 
   /**
    * List all calendars accessible to the authenticated user.
+   * Returns calendar metadata including id, summary, timeZone, and accessRole —
+   * use the id to target specific calendars in the other methods.
    *
    * @returns Array of calendar info objects
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const calendar = container.feature('googleCalendar')
+   * const calendars = await calendar.listCalendars()
+   * calendars.forEach(c => console.log(`${c.primary ? '*' : ' '} ${c.summary} (${c.id})`))
+   * ```
    */
   async listCalendars(): Promise<CalendarInfo[]> {
     try {
@@ -163,9 +179,24 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
 
   /**
    * List events from a calendar within a time range.
+   * Defaults: maxResults 250, orderBy 'startTime', singleEvents true (recurring
+   * events are expanded into instances). Paginate via the returned nextPageToken.
    *
    * @param options - Filtering options including timeMin, timeMax, query, maxResults
    * @returns Events array with optional nextPageToken and timeZone
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const calendar = container.feature('googleCalendar')
+   * const { events, nextPageToken } = await calendar.listEvents({
+   *   timeMin: '2026-03-01T00:00:00Z',
+   *   timeMax: '2026-03-31T23:59:59Z',
+   *   maxResults: 50,
+   *   orderBy: 'startTime',
+   * })
+   * console.log(`March events: ${events.length}`)
+   * ```
    */
   async listEvents(options: ListEventsOptions = {}): Promise<CalendarEventList> {
     const calendarId = options.calendarId || this.defaultCalendarId
@@ -199,10 +230,23 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
   }
 
   /**
-   * Get today's events from a calendar.
+   * Get today's events from a calendar — midnight to midnight in the server's local time.
    *
    * @param calendarId - Calendar ID (defaults to options.defaultCalendarId or 'primary')
    * @returns Array of today's calendar events
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const calendar = container.feature('googleCalendar')
+   * const today = await calendar.getToday()
+   * today.forEach(e => {
+   *   const time = e.start.dateTime
+   *     ? new Date(e.start.dateTime).toLocaleTimeString()
+   *     : 'All day'
+   *   console.log(`${time} - ${e.summary}`)
+   * })
+   * ```
    */
   async getToday(calendarId?: string): Promise<CalendarEvent[]> {
     const now = new Date()
@@ -218,11 +262,21 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
   }
 
   /**
-   * Get upcoming events for the next N days.
+   * Get upcoming events for the next N days, starting from now.
    *
    * @param days - Number of days to look ahead (default: 7)
    * @param calendarId - Calendar ID
    * @returns Array of upcoming calendar events
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const calendar = container.feature('googleCalendar')
+   * const week = await calendar.getUpcoming(7)
+   * const month = await calendar.getUpcoming(30)
+   * const work = await calendar.getUpcoming(7, 'work-calendar-id')
+   * console.log(`Next 7 days: ${week.length} events`)
+   * ```
    */
   async getUpcoming(days: number = 7, calendarId?: string): Promise<CalendarEvent[]> {
     const now = new Date()
@@ -258,10 +312,23 @@ export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarO
 
   /**
    * Search events by text query across event summaries, descriptions, and locations.
+   * Combine with timeMin/timeMax options for more precise results.
    *
    * @param query - Freetext search term
    * @param options - Additional listing options (timeMin, timeMax, calendarId, etc.)
    * @returns Array of matching calendar events
+   *
+   * @example
+   * ```typescript
+   * // (no-run) requires Google OAuth credentials
+   * const calendar = container.feature('googleCalendar')
+   * const standups = await calendar.searchEvents('standup')
+   * const reviews = await calendar.searchEvents('review', {
+   *   timeMin: '2026-03-01T00:00:00Z',
+   *   timeMax: '2026-03-31T23:59:59Z',
+   * })
+   * console.log(`Found ${standups.length} standup events`)
+   * ```
    */
   async searchEvents(query: string, options: ListEventsOptions = {}): Promise<CalendarEvent[]> {
     const { events } = await this.listEvents({ ...options, query })

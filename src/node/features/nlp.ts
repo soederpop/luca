@@ -82,6 +82,11 @@ export class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof 
    * Parse an utterance into structured command data using compromise.
    * Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.
    *
+   * Prepositional phrases ("of", "about", "for", "with") are pulled out as the
+   * `subject`, while the direct object becomes the `target`. This method is fast
+   * and lightweight (compromise only, no wink model load), so it is well suited
+   * to batch-processing large lists of voice commands.
+   *
    * @param text - The raw utterance to parse
    * @returns Parsed command structure with intent, target, subject, modifiers
    *
@@ -92,6 +97,13 @@ export class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof 
    *
    * nlp.parse("draw a diagram of the auth flow")
    * // { intent: "draw", target: "diagram", subject: "auth flow", modifiers: [], raw: "..." }
+   *
+   * // Fast enough to batch-process many commands at once:
+   * const commands = ["deploy the app to production", "restart the database server"]
+   * for (const raw of commands) {
+   *   const { intent, target } = nlp.parse(raw)
+   *   console.log(`${intent} -> ${target}`)
+   * }
    * ```
    */
   parse(text: string): ParsedCommand {

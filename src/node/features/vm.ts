@@ -152,6 +152,12 @@ export class VM<
    * ```typescript
    * const context = vm.createContext({ user: { name: 'John' } })
    * const result = vm.runSync('user.name', context)
+   *
+   * // Reuse the same context to share state across runs — variables accumulate
+   * const ctx = vm.createContext({ counter: 0 })
+   * vm.runSync('counter += 1', ctx)
+   * vm.runSync('counter += 10', ctx)
+   * vm.runSync('counter', ctx) // 11
    * ```
    */
   createContext(ctx: any = {}): vm.Context {
@@ -180,40 +186,6 @@ export class VM<
     })
   }
   
-  /**
-   * Executes JavaScript code in a controlled environment.
-   * 
-   * This method creates a script from the provided code, sets up an execution context
-   * with the specified variables, and runs the code safely. It handles errors gracefully
-   * and returns either the result or the error object.
-   * 
-   * @param {string} code - The JavaScript code to execute
-   * @param {any} [ctx={}] - Context variables to make available to the executing code
-   * @returns {any} The result of the code execution, or an Error object if execution failed
-   * 
-   * @example
-   * ```typescript
-   * // Simple calculation
-   * const result = vm.run('2 + 3 * 4')
-   * console.log(result) // 14
-   * 
-   * // Using context variables
-   * const greeting = vm.run('`Hello ${name}!`', { name: 'Alice' })
-   * console.log(greeting) // 'Hello Alice!'
-   * 
-   * // Array operations
-   * const sum = vm.run('numbers.reduce((a, b) => a + b, 0)', { 
-   *   numbers: [1, 2, 3, 4, 5] 
-   * })
-   * console.log(sum) // 15
-   * 
-   * // Error handling
-   * const error = vm.run('invalidFunction()')
-   * if (error instanceof Error) {
-   *   console.log('Execution failed:', error.message)
-   * }
-   * ```
-   */
   /**
    * Wrap code containing top-level `await` in an async IIFE, injecting
    * `return` before the last expression so the value is not lost.
@@ -258,6 +230,44 @@ export class VM<
     return `(async () => {\n${lines.join('\n')}\n})()`
   }
 
+  /**
+   * Executes JavaScript code asynchronously in a controlled environment.
+   *
+   * This method creates a script from the provided code, sets up an execution context
+   * with the specified variables, and runs the code. Code containing top-level `await`
+   * is automatically wrapped in an async IIFE so the final expression's value is returned.
+   *
+   * Errors thrown by the evaluated code propagate to the caller — wrap the call in
+   * try/catch if the snippet might throw.
+   *
+   * @param {string} code - The JavaScript code to execute
+   * @param {any} [ctx={}] - Context variables to make available to the executing code
+   * @returns {Promise<any>} A promise resolving to the result of the code execution
+   *
+   * @example
+   * ```typescript
+   * // Simple calculation
+   * const result = await vm.run('2 + 3 * 4')
+   * console.log(result) // 14
+   *
+   * // Using context variables
+   * const greeting = await vm.run('`Hello ${name}!`', { name: 'Alice' })
+   * console.log(greeting) // 'Hello Alice!'
+   *
+   * // Array operations — any JS value can be passed through the context
+   * const sum = await vm.run('numbers.reduce((a, b) => a + b, 0)', {
+   *   numbers: [10, 20, 30, 40]
+   * })
+   * console.log(sum) // 100
+   *
+   * // Error handling — a throwing snippet rejects, so catch it
+   * try {
+   *   await vm.run('undefinedFunction()')
+   * } catch (err) {
+   *   console.log('Execution failed:', err.message)
+   * }
+   * ```
+   */
   async run<T extends any>(code: string, ctx: any = {}): Promise<T> {
     const wrapped = this.wrapTopLevelAwait(code)
     const script = this.createScript(wrapped)

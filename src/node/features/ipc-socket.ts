@@ -109,6 +109,37 @@ type ClientInfo = {
  * });
  * ```
  *
+ * @example
+ * ```typescript
+ * // Complete request/reply roundtrip in a single process.
+ * // Passing distinct options yields two independent instances,
+ * // one locked into server mode and one into client mode.
+ * const hub = container.feature('ipcSocket', { role: 'server' })
+ * const spoke = container.feature('ipcSocket', { role: 'client' })
+ *
+ * const sock = `/tmp/ipc-example-${process.pid}.sock`
+ * await hub.listen(sock, true) // `true` removes a stale socket file before binding
+ *
+ * // Server side: ask() requests arrive on the 'message' event with a requestId —
+ * // reply with it (plus the sender's clientId when replying from the server).
+ * hub.on('message', (data, clientId) => {
+ *   if (data.requestId && data.type === 'sum') {
+ *     hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)
+ *   }
+ * })
+ *
+ * await spoke.connect(sock, { name: 'worker-1' })
+ * const answer = await spoke.ask({ type: 'sum', numbers: [1, 2, 3] })
+ * console.log(answer) // { sum: 6 }
+ *
+ * // Fire-and-forget alternatives: send() (client→server), sendTo()/broadcast() (server→clients)
+ *
+ * spoke.disconnect()
+ * await hub.stopServer()
+ * // In real projects the hub and spoke live in different processes —
+ * // the API is identical; only the socket path is shared.
+ * ```
+ *
  * @template T - The state type, defaults to IpcState
  * @extends {Feature<T>}
  */
@@ -214,17 +245,18 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * ```typescript
    * // Basic server setup
    * const server = await ipc.listen('/tmp/myapp.sock');
-   * 
-   * // With automatic lock removal
-   * const server = await ipc.listen('/tmp/myapp.sock', true);
-   * 
-   * // Handle connections and messages
-   * ipc.on('connection', (socket) => {
-   *   console.log('New client connected');
+   *
+   * // With automatic stale-socket removal (probes first; throws if a live
+   * // process is already listening on the path)
+   * const server2 = await ipc.listen('/tmp/myapp2.sock', true);
+   *
+   * // Handle connections and messages — both events include the client ID
+   * ipc.on('connection', (clientId, socket) => {
+   *   console.log('New client connected:', clientId);
    * });
-   * 
-   * ipc.on('message', (data) => {
-   *   console.log('Received message:', data);
+   *
+   * ipc.on('message', (data, clientId) => {
+   *   console.log(`Received from ${clientId}:`, data);
    *   // Echo back to all clients
    *   ipc.broadcast({ echo: data });
    * });
@@ -352,9 +384,22 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /**
    * Broadcasts a message to all connected clients (server mode only).
    *
+   * Each connected client receives the broadcast as a `message` event.
+   * Messages are JSON-encoded in an envelope carrying a UUID for correlation.
+   * Clients whose sockets are no longer writable are silently skipped.
+   *
    * @param message - The message object to broadcast
    * @param exclude - Optional client ID to exclude from broadcast
    * @returns This instance for method chaining
+   *
+   * @example
+   * ```typescript
+   * ipc.broadcast({
+   *   type: 'notification',
+   *   message: 'Deployment starting',
+   *   timestamp: Date.now()
+   * })
+   * ```
    */
   broadcast(message: any, exclude?: string): this {
     const envelope = JSON.stringify({
@@ -377,6 +422,14 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * @param clientId - The target client ID
    * @param message - The message to send
    * @returns True if the message was sent, false if client not found or not writable
+   *
+   * @example
+   * ```typescript
+   * // Reply directly to the sender of an incoming message
+   * ipc.on('message', (data, clientId) => {
+   *   if (clientId) ipc.sendTo(clientId, { ack: true })
+   * })
+   * ```
    */
   sendTo(clientId: string, message: any): boolean {
     const client = this.clients.get(clientId)
@@ -392,9 +445,18 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
   /**
    * Fire-and-forget: sends a message to the server (client mode only).
-   * For server→client, use sendTo() or broadcast().
+   * For server→client, use sendTo() or broadcast(). When you need a
+   * correlated response, use ask() instead.
    *
    * @param message - The message to send
+   *
+   * @throws {Error} When there is no active connection
+   *
+   * @example
+   * ```typescript
+   * await ipc.connect('/tmp/hub.sock')
+   * await ipc.send({ type: 'status', ready: true })
+   * ```
    */
   async send(message: any): Promise<void> {
     if(!this._connection) {
@@ -417,6 +479,17 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * @param message - The message to send
    * @param options - Optional: clientId (server mode target), timeoutMs
    * @returns The reply data
+   *
+   * @throws {Error} On timeout (default 10s), or in server mode when clientId is omitted
+   *
+   * @example
+   * ```typescript
+   * // Client asking the server
+   * const answer = await ipc.ask({ type: 'sum', numbers: [1, 2, 3] })
+   *
+   * // Server asking a specific client
+   * const status = await ipc.ask({ type: 'ping' }, { clientId, timeoutMs: 2000 })
+   * ```
    */
   async ask(message: any, options?: { clientId?: string; timeoutMs?: number }): Promise<any> {
     const requestId = this.container.utils.uuid()
@@ -510,8 +583,23 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * Connects to an IPC server at the specified socket path (client mode).
    *
    * @param socketPath - Path to the server's Unix domain socket
-   * @param options - Optional: reconnect (enable auto-reconnect), name (identify this client)
+   * @param options - Optional: reconnect (enable auto-reconnect with exponential backoff), name (identify this client to the server)
    * @returns The established Socket connection
+   *
+   * @throws {Error} When this instance is already locked into server mode
+   *
+   * @example
+   * ```typescript
+   * const ipc = container.feature('ipcSocket')
+   * await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' })
+   *
+   * ipc.on('message', (data) => {
+   *   console.log('From server:', data)
+   * })
+   *
+   * // The server assigns this client an ID on connect
+   * console.log('My client id:', ipc.clientId)
+   * ```
    */
   async connect(socketPath: string, options?: { reconnect?: boolean; name?: string }): Promise<Socket> {
     if(this.isServer) {
@@ -593,6 +681,16 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
   /**
    * Disconnects the client and stops any reconnection attempts.
+   *
+   * Call this when a CLI command finishes its work — an open socket (and any
+   * reconnect timers) keeps the event loop alive, so a command that skips
+   * disconnect() will hang instead of exiting.
+   *
+   * @example
+   * ```typescript
+   * const answer = await ipc.ask({ type: 'status' })
+   * ipc.disconnect() // let the process exit cleanly
+   * ```
    */
   disconnect(): void {
     this._reconnect.enabled = false
@@ -610,7 +708,20 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
 
   /**
    * Probe an existing socket to see if a live listener is behind it.
-   * Attempts a quick connect — if it succeeds, someone is listening.
+   * Attempts a quick connect (500ms timeout) — if it succeeds, someone is
+   * listening. Used internally by listen(socketPath, true) to distinguish a
+   * stale socket file (safe to remove) from one owned by a live process.
+   *
+   * @param socketPath - Path to the socket file to probe
+   * @returns True if a live process is listening on the socket
+   *
+   * @example
+   * ```typescript
+   * const alive = await ipc.probeSocket('/tmp/hub.sock')
+   * if (!alive) {
+   *   await ipc.listen('/tmp/hub.sock', true)
+   * }
+   * ```
    */
   probeSocket(socketPath: string): Promise<boolean> {
     if (!existsSync(socketPath)) return Promise.resolve(false)

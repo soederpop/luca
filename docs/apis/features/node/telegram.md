@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.
+Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly (via `.bot`) for full API access while bridging Telegram events to Luca's event bus — `started`, `stopped`, `command`, `webhook_ready`, and `error` all fire as container events, so other features can react to bot activity. Requires a bot token from @BotFather: set the `TELEGRAM_BOT_TOKEN` environment variable (read automatically) or pass `token` explicitly as an option.
 
 ## Usage
 
@@ -62,9 +62,16 @@ container.feature('telegram', {
 
 ### start
 
-Start the bot in the configured mode (polling or webhook).
+Start the bot in the configured mode (polling or webhook). In polling mode the bot continuously fetches updates from Telegram until you call `stop()`. The `started` event fires on the Luca event bus with `{ mode }`. Calling `start()` while already running is a no-op.
 
 **Returns:** `Promise<this>`
+
+```ts
+// (no-run) requires TELEGRAM_BOT_TOKEN
+await tg.start()
+console.log(tg.isRunning) // true
+console.log(tg.mode)      // 'polling' (or 'webhook')
+```
 
 
 
@@ -78,7 +85,7 @@ Stop the bot gracefully.
 
 ### command
 
-Register a command handler. Also emits 'command' on the Luca event bus.
+Register a command handler. Also emits 'command' on the Luca event bus, and tracks the command name in `state.get('commandsRegistered')`.
 
 **Parameters:**
 
@@ -89,11 +96,18 @@ Register a command handler. Also emits 'command' on the Luca event bus.
 
 **Returns:** `this`
 
+```ts
+// (no-run) requires TELEGRAM_BOT_TOKEN
+tg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))
+tg.command('ping', (ctx) => ctx.reply('Pong!'))
+console.log(tg.state.get('commandsRegistered')) // ['start', 'ping']
+```
+
 
 
 ### handle
 
-Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method.
+Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method. Maps directly to grammY's `bot.on()` and supports all grammY filter queries, e.g. `message:text`, `message:photo`, `edited_message`, `callback_query:data`.
 
 **Parameters:**
 
@@ -105,8 +119,9 @@ Register a grammY update handler (filter query). Named 'handle' to avoid collisi
 **Returns:** `this`
 
 ```ts
-tg.handle('message:text', (ctx) => ctx.reply('Got text'))
-tg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))
+// (no-run) requires TELEGRAM_BOT_TOKEN
+tg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))
+tg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Button clicked!'))
 ```
 
 
@@ -265,9 +280,50 @@ Error occurred
 **features.telegram**
 
 ```ts
-const tg = container.feature('telegram', { autoStart: true })
-tg.command('start', (ctx) => ctx.reply('Hello!'))
+// (no-run) requires TELEGRAM_BOT_TOKEN
+const tg = container.feature('telegram', {
+ mode: 'polling',            // or 'webhook'
+ dropPendingUpdates: true,   // skip updates queued while offline
+})
+
+// Register bot commands — each also emits a 'command' event on the Luca event bus
+tg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))
+tg.command('help', (ctx) => ctx.reply('Available: /start, /help, /ping'))
+tg.command('ping', (ctx) => ctx.reply('Pong!'))
+
+// Handle any grammY filter query (message:text, message:photo, callback_query:data, ...)
 tg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))
+
+// Start receiving updates; in polling mode this fetches continuously
+await tg.start()
+console.log('Bot is running:', tg.isRunning)   // true
+console.log('Mode:', tg.mode)                  // 'polling'
+console.log('Commands:', tg.state.get('commandsRegistered')) // ['start', 'help', 'ping']
+
+// ... later, shut down gracefully (fires the 'stopped' event)
+await tg.stop()
+```
+
+
+
+**start**
+
+```ts
+// (no-run) requires TELEGRAM_BOT_TOKEN
+await tg.start()
+console.log(tg.isRunning) // true
+console.log(tg.mode)      // 'polling' (or 'webhook')
+```
+
+
+
+**command**
+
+```ts
+// (no-run) requires TELEGRAM_BOT_TOKEN
+tg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))
+tg.command('ping', (ctx) => ctx.reply('Pong!'))
+console.log(tg.state.get('commandsRegistered')) // ['start', 'ping']
 ```
 
 
@@ -275,7 +331,8 @@ tg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))
 **handle**
 
 ```ts
-tg.handle('message:text', (ctx) => ctx.reply('Got text'))
-tg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))
+// (no-run) requires TELEGRAM_BOT_TOKEN
+tg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))
+tg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Button clicked!'))
 ```
 

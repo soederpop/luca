@@ -43,6 +43,10 @@ export const PostgresEventsSchema = FeatureEventsSchema.extend({
  * - parameterized query execution (`query` / `execute`)
  * - tagged-template query execution (`sql`) to avoid manual placeholder wiring
  *
+ * Requires a running PostgreSQL server and a connection URL — `options.url`
+ * is required (the constructor throws without it). In production, read the
+ * URL from an environment variable rather than hardcoding credentials.
+ *
  * @example
  * ```typescript
  * const postgres = container.feature('postgres', { url: process.env.DATABASE_URL! })

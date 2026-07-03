@@ -46,6 +46,9 @@ export const InkEventsSchema = FeatureEventsSchema.extend({
  * - `ink.React` — the React module itself (createElement, useState, etc.)
  * - `ink.unmount()` — tear down the currently mounted app
  * - `ink.waitUntilExit()` — await the mounted app's exit
+ * - `ink.registerBlock()` / `ink.renderBlock()` / `ink.renderBlockAsync()` — a named
+ *   block registry for rendering components inline in document flow ("poor man's MDX",
+ *   used by `luca run` for markdown files with a `## Blocks` section)
  *
  * **Quick start:**
  * ```tsx
@@ -187,6 +190,29 @@ export class Ink extends Feature<InkState, InkOptions> {
    *
    * ```ts
    * const { useInput, useApp, useFocus } = ink.hooks
+   * ```
+   *
+   * Hooks work inside functional components passed to `render()`.
+   *
+   * @example
+   * ```typescript
+   * const ink = container.feature('ink', { enable: true })
+   * await ink.loadModules()
+   * const { Text } = ink.components
+   * const { React } = ink
+   * const { useInput, useApp } = ink.hooks
+   *
+   * function App() {
+   *   const { exit } = useApp()
+   *   useInput((input, key) => {
+   *     if (input === 'q') exit()
+   *   })
+   *   return React.createElement(Text, null, 'Press q to quit')
+   * }
+   *
+   * await ink.render(React.createElement(App))
+   * await ink.waitUntilExit()
+   * console.log('App exited')
    * ```
    */
   get hooks(): { useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor } {
@@ -376,6 +402,14 @@ export class Ink extends Feature<InkState, InkOptions> {
 
   /**
    * Register a named React function component as a renderable block.
+   *
+   * Blocks power the "poor man's MDX" pattern used by `luca run` on markdown
+   * files: any `tsx`/`jsx` code fence under a `## Blocks` heading has its
+   * top-level function components auto-registered as blocks, and the plain
+   * `ts` code blocks in the rest of the document get `render(name, props)` and
+   * `renderAsync(name, props)` globals that map to `renderBlock()` and
+   * `renderBlockAsync()` — so rich terminal UI renders inline with the
+   * document flow.
    *
    * @param name - Unique block name
    * @param component - A React function component

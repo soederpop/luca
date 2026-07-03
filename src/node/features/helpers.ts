@@ -552,16 +552,24 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // Try fileManager first (faster in git repos, and now symlink-aware),
     // fall back to fs.walk which also follows symlinks natively.
     let files: string[] = []
+    const defaultDir = this.resolveFolderPath(type)
+    const isOverrideDir = !defaultDir || resolve(dir) !== resolve(defaultDir)
     try {
       const fm = await this.ensureFileManager()
       const absPatterns = [`${dir}/*.ts`, `${dir}/**/*.ts`]
       // Only use relative patterns when rootDir matches the container cwd,
       // otherwise the fileManager (rooted in cwd) returns files from the
       // wrong project which then get resolved against this.rootDir.
-      const useRelative = this.rootDir === this.container.cwd
+      // Never use them for an explicit directory override — they would leak
+      // the project's own helpers into the override scan.
+      const useRelative = this.rootDir === this.container.cwd && !isOverrideDir
       const relPatterns = useRelative ? [`${type}/*.ts`, `${type}/**/*.ts`] : []
       const matched = fm.match([...absPatterns, ...relPatterns])
       files = matched.map((f: string) => f.startsWith('/') ? f : resolve(this.rootDir, f))
+      // fileManager only indexes tracked files — keep only results under the
+      // requested dir so untracked override dirs fall through to fs.walk.
+      const dirPrefix = resolve(dir) + '/'
+      files = files.filter((f: string) => resolve(f).startsWith(dirPrefix))
     } catch {}
 
     // Fall back to fs.walk if fileManager found nothing

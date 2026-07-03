@@ -77,6 +77,8 @@ Query documents belonging to a specific model definition.
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
 const articles = await contentDb.query(contentDb.models.Article).fetchAll()
+// Each result has an id (derived from the file path) and parsed frontmatter meta
+articles.forEach(doc => console.log(doc.id, doc.meta?.title))
 ```
 
 
@@ -94,8 +96,9 @@ Parse a markdown file at the given path without loading the full collection.
 **Returns:** `void`
 
 ```ts
-const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')
-console.log(doc.frontmatter, doc.content)
+const doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')
+console.log(doc.meta?.title, doc.meta?.tags)
+console.log(doc.content)
 ```
 
 
@@ -445,6 +448,8 @@ console.log(contentDb.modelNames) // ['Article', 'Page', ...]
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
 const articles = await contentDb.query(contentDb.models.Article).fetchAll()
+// Each result has an id (derived from the file path) and parsed frontmatter meta
+articles.forEach(doc => console.log(doc.id, doc.meta?.title))
 ```
 
 
@@ -452,8 +457,9 @@ const articles = await contentDb.query(contentDb.models.Article).fetchAll()
 **parseMarkdownAtPath**
 
 ```ts
-const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')
-console.log(doc.frontmatter, doc.content)
+const doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')
+console.log(doc.meta?.title, doc.meta?.tags)
+console.log(doc.content)
 ```
 
 

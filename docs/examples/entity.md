@@ -1,8 +1,13 @@
 ---
-title: "Entity"
-tags: [entity, state, events, tools, core]
-lastTested: null
-lastTestPassed: null
+title: Entity
+tags:
+  - entity
+  - state
+  - events
+  - tools
+  - core
+lastTested: '2026-07-03'
+lastTestPassed: true
 ---
 
 # entity

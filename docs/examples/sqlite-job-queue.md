@@ -1,7 +1,13 @@
 ---
-title: "SQLite Job Queue Worker"
-tags: [sqlite, queue, worker, transaction, returning, wal]
-lastTested: "2026-07-03"
+title: SQLite Job Queue Worker
+tags:
+  - sqlite
+  - queue
+  - worker
+  - transaction
+  - returning
+  - wal
+lastTested: '2026-07-03'
 lastTestPassed: true
 ---
 

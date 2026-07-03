@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.
+Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication (requires Google OAuth2 credentials or a service account with Drive access, e.g. the `drive.readonly` scope). Creates a Drive v3 API client lazily and passes the auth client from googleAuth — authenticate once via googleAuth and this feature picks it up. Use `download()`/`downloadTo()` for binary files and `exportFile()` to convert Google Workspace documents (Docs, Sheets, Slides) to formats like PDF, CSV, or plain text. Listing defaults: 100 results per page, ordered by modifiedTime desc.
 
 ## Usage
 
@@ -29,7 +29,7 @@ container.feature('googleDrive', {
 
 ### listFiles
 
-List files in the user's Drive with an optional query filter.
+List files in the user's Drive with an optional query filter. Defaults to 100 results ordered by modifiedTime desc. Paginate via the returned nextPageToken. Pass `corpora: 'allDrives'` to include shared drives.
 
 **Parameters:**
 
@@ -49,6 +49,21 @@ List files in the user's Drive with an optional query filter.
 | `corpora` | `'user' | 'drive' | 'allDrives'` |  |
 
 **Returns:** `Promise<DriveFileList>`
+
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+
+// Recent files
+const { files } = await drive.listFiles()
+
+// With a Drive query filter
+const { files: pdfs } = await drive.listFiles("mimeType = 'application/pdf'")
+
+// Paginate
+const page1 = await drive.listFiles(undefined, { pageSize: 10 })
+const page2 = await drive.listFiles(undefined, { pageSize: 10, pageToken: page1.nextPageToken })
+```
 
 
 
@@ -79,7 +94,7 @@ List files within a specific folder.
 
 ### browse
 
-Browse a folder's contents, separating files from subfolders.
+Browse a folder's contents, separating files from subfolders for easy navigation.
 
 **Parameters:**
 
@@ -89,11 +104,21 @@ Browse a folder's contents, separating files from subfolders.
 
 **Returns:** `Promise<DriveBrowseResult>`
 
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+const root = await drive.browse()  // defaults to the root folder
+root.folders.forEach(f => console.log(`[dir]  ${f.name}`))
+root.files.forEach(f => console.log(`[file] ${f.name}`))
+
+const sub = await drive.browse('folder-id-here')
+```
+
 
 
 ### search
 
-Search files by name, content, or MIME type.
+Search files by name, content, or MIME type (full-text search, trashed files excluded). A simpler interface than raw Drive query strings on `listFiles()`.
 
 **Parameters:**
 
@@ -103,6 +128,18 @@ Search files by name, content, or MIME type.
 | `options` | `SearchOptions` |  | Additional search options like mimeType filter or folder restriction |
 
 **Returns:** `Promise<DriveFileList>`
+
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+
+// Search by name and content
+const { files } = await drive.search('quarterly report')
+
+// Filter by MIME type, or restrict to a folder
+const { files: pdfs } = await drive.search('report', { mimeType: 'application/pdf' })
+const { files: notes } = await drive.search('notes', { inFolder: 'folder-id-here' })
+```
 
 
 
@@ -231,18 +268,72 @@ A file was downloaded
 **features.googleDrive**
 
 ```ts
+// (no-run) requires Google OAuth credentials
+// Authenticate once via googleAuth (cached tokens restore automatically)
+const auth = container.feature('googleAuth', {
+ scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+})
+if (!(await auth.tryRestoreTokens())) await auth.authorize()
+
 const drive = container.feature('googleDrive')
 
 // List recent files
 const { files } = await drive.listFiles()
+files.forEach(f => console.log(f.name, f.mimeType))
 
-// Search for documents
-const { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })
+// Search, then download a match to disk
+const { files: pdfs } = await drive.search('quarterly report', {
+ mimeType: 'application/pdf',
+})
+await drive.downloadTo(pdfs[0].id, './downloads/report.pdf')
+```
 
-// Browse a folder
-const contents = await drive.browse('folder-id-here')
 
-// Download a file to disk
-await drive.downloadTo('file-id', './downloads/report.pdf')
+
+**listFiles**
+
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+
+// Recent files
+const { files } = await drive.listFiles()
+
+// With a Drive query filter
+const { files: pdfs } = await drive.listFiles("mimeType = 'application/pdf'")
+
+// Paginate
+const page1 = await drive.listFiles(undefined, { pageSize: 10 })
+const page2 = await drive.listFiles(undefined, { pageSize: 10, pageToken: page1.nextPageToken })
+```
+
+
+
+**browse**
+
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+const root = await drive.browse()  // defaults to the root folder
+root.folders.forEach(f => console.log(`[dir]  ${f.name}`))
+root.files.forEach(f => console.log(`[file] ${f.name}`))
+
+const sub = await drive.browse('folder-id-here')
+```
+
+
+
+**search**
+
+```ts
+// (no-run) requires Google OAuth credentials
+const drive = container.feature('googleDrive')
+
+// Search by name and content
+const { files } = await drive.search('quarterly report')
+
+// Filter by MIME type, or restrict to a folder
+const { files: pdfs } = await drive.search('report', { mimeType: 'application/pdf' })
+const { files: notes } = await drive.search('notes', { inFolder: 'folder-id-here' })
 ```
 
