@@ -21,7 +21,7 @@
         "chokidar": "3.6.0",
         "cli-markdown": "3.5.0",
         "compromise": "14.14.5",
-        "contentbase": "0.4.1",
+        "contentbase": "0.4.2",
         "cors": "2.8.5",
         "detect-port": "1.6.1",
         "dotenv": "17.2.4",
@@ -692,7 +692,7 @@
 
     "content-type": ["content-type@1.0.5", "", {}, "sha512-nTjqfcBFEipKdXCv4YDQWCfmcLZKm81ldF0pAopTvyrFGVbcR6P/VAAd5G7N+0tTr8QqiU0tFadD6FK4NtJwOA=="],
 
-    "contentbase": ["contentbase@0.4.1", "", { "dependencies": { "gray-matter": "^4.0.3", "js-yaml": "^4.1.0", "luca": ">= 3.0.2", "mdast-util-mdxjs-esm": "^2.0.1", "mdast-util-to-markdown": "^2.1.2", "mdast-util-to-string": "^4.0.0", "picomatch": "^4.0.3", "rehype-stringify": "^10.0.1", "remark-gfm": "^4.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.1.2", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "unist-util-find-after": "^5.0.0", "unist-util-find-all-after": "^5.0.0", "unist-util-find-all-before": "^5.0.0", "unist-util-find-before": "^4.0.0", "unist-util-select": "^5.1.0", "unist-util-visit": "^5.0.0", "zod": "^4.3.6" }, "bin": { "cnotes": "src/cli/index.ts", "contentbase": "src/cli/index.ts" } }, "sha512-/EGrKsqKK7ZHGeYOsm4PnSzQnxjUHDI/hnNaDNplZrmBkpODmOYC5614WIAV6X2L0I5nZb1iA0lv/J4aYkiwzw=="],
+    "contentbase": ["contentbase@0.4.2", "", { "dependencies": { "gray-matter": "^4.0.3", "js-yaml": "^4.1.0", "luca": ">= 3.0.2", "mdast-util-mdxjs-esm": "^2.0.1", "mdast-util-to-markdown": "^2.1.2", "mdast-util-to-string": "^4.0.0", "picomatch": "^4.0.3", "rehype-stringify": "^10.0.1", "remark-gfm": "^4.0.0", "remark-parse": "^11.0.0", "remark-rehype": "^11.1.2", "remark-stringify": "^11.0.0", "unified": "^11.0.5", "unist-util-find-after": "^5.0.0", "unist-util-find-all-after": "^5.0.0", "unist-util-find-all-before": "^5.0.0", "unist-util-find-before": "^4.0.0", "unist-util-select": "^5.1.0", "unist-util-visit": "^5.0.0", "zod": "^4.3.6" }, "bin": { "cnotes": "src/cli/index.ts", "contentbase": "src/cli/index.ts" } }, "sha512-oyPsR5wbmnC+moxt8cVM+EP3J3W86QxaYV/8oP7HdNg21ubnGiuBiZ4V6aqZn8j/KtyzR3DikMMZ88btPmkh5A=="],
 
     "convert-to-spaces": ["convert-to-spaces@2.0.1", "", {}, "sha512-rcQ1bsQO9799wq24uE5AM2tAILy4gXGIK/njFWcVQkGNZ96edlpY+A7bjwvzjYvLDyzmG1MmMLZhpcsb+klNMQ=="],
 

@@ -234,16 +234,24 @@ export class VM<
 
     let lastLine = lines[lastIdx] ?? ''
 
+    // Never inject `return` before a line that isn't an expression: statement
+    // keywords, or closing delimiters (`}`, `)`, `]`) that end a multi-line
+    // block. `return }` would parse as a bare `return;` INSIDE the block (ASI),
+    // silently exiting the wrapper mid-loop.
+    const isNotReturnable = (stmt: string) =>
+      /^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(stmt) ||
+      /^[\s}\]);]*$/.test(stmt)
+
     // For single-line code with semicolons (e.g. CLI eval), split the last line
     // into statements and only try to return the final statement.
     const stmts = lastLine.split(';').map(s => s.trim()).filter(Boolean)
     if (stmts.length > 1) {
       const finalStmt = stmts[stmts.length - 1]!
-      if (!/^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(finalStmt)) {
+      if (!isNotReturnable(finalStmt)) {
         stmts[stmts.length - 1] = `return ${finalStmt}`
       }
       lines[lastIdx] = stmts.join('; ')
-    } else if (!/^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(lastLine)) {
+    } else if (!isNotReturnable(lastLine)) {
       lines[lastIdx] = `return ${lastLine}`
     }
 

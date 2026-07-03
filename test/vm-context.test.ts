@@ -143,4 +143,39 @@ describe('VM wrapTopLevelAwait', () => {
 		const code = 'async function go() { await fetch("http://example.com") }'
 		expect(vm.wrapTopLevelAwait(code)).toBe(code)
 	})
+
+	it('does not inject return before a closing brace (await loop regression)', () => {
+		const c = new NodeContainer()
+		const vm = c.feature('vm')
+
+		const code = [
+			'for (let i = 0; i < 3; i++) {',
+			'  await Promise.resolve()',
+			'  count++',
+			'}',
+		].join('\n')
+
+		const wrapped = vm.wrapTopLevelAwait(code)
+		// `return }` would ASI into a bare `return;` inside the loop body,
+		// exiting the wrapper after the first iteration
+		expect(wrapped).not.toContain('return }')
+	})
+
+	it('runs all iterations of an await loop ending in a closing brace', async () => {
+		const c = new NodeContainer()
+		const vm = c.feature('vm')
+
+		const shared = vm.createContext({ count: 0 })
+		await vm.run('for (let i = 0; i < 3; i++) {\n  await Promise.resolve()\n  count++\n}', shared)
+
+		expect(shared.count).toBe(3)
+	})
+
+	it('still returns the value of a trailing expression', async () => {
+		const c = new NodeContainer()
+		const vm = c.feature('vm')
+
+		const result = await vm.run('const x = await Promise.resolve(21)\nx * 2')
+		expect(result).toBe(42)
+	})
 })
