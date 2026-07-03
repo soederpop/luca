@@ -14,6 +14,85 @@ export interface TransformResult {
 }
 
 /**
+ * Compute a mask over `code` marking every offset that sits inside a string
+ * literal, template literal, or comment. Template interpolation bodies
+ * (`${ ... }`) count as code; the surrounding template text does not.
+ * Used so the line-anchored esmToCjs regexes never fire on lines that merely
+ * LOOK like import/export statements inside string content.
+ */
+export function computeNonCodeMask(code: string): Uint8Array {
+  const mask = new Uint8Array(code.length)
+  type State = 'code' | 'single' | 'double' | 'template' | 'line' | 'block'
+  let state: State = 'code'
+  // Brace depth per unclosed `${` — presence means state 'code' is inside a template interpolation
+  const interpDepths: number[] = []
+
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i]
+    const next = code[i + 1]
+
+    if (state === 'code') {
+      if (ch === '/' && next === '/') { state = 'line'; mask[i] = 1; continue }
+      if (ch === '/' && next === '*') { state = 'block'; mask[i] = 1; continue }
+      if (ch === "'") { state = 'single'; mask[i] = 1; continue }
+      if (ch === '"') { state = 'double'; mask[i] = 1; continue }
+      if (ch === '`') { state = 'template'; mask[i] = 1; continue }
+      if (interpDepths.length > 0) {
+        if (ch === '{') { interpDepths[interpDepths.length - 1]!++; continue }
+        if (ch === '}') {
+          if (interpDepths[interpDepths.length - 1] === 0) {
+            interpDepths.pop()
+            state = 'template'
+            mask[i] = 1
+          } else {
+            interpDepths[interpDepths.length - 1]!--
+          }
+          continue
+        }
+      }
+      continue
+    }
+
+    mask[i] = 1
+
+    if (state === 'line') {
+      if (ch === '\n') state = 'code'
+      continue
+    }
+    if (state === 'block') {
+      if (ch === '*' && next === '/') { mask[i + 1] = 1; i++; state = 'code' }
+      continue
+    }
+    if (state === 'single' || state === 'double') {
+      if (ch === '\\') { if (i + 1 < code.length) mask[i + 1] = 1; i++; continue }
+      if ((state === 'single' && ch === "'") || (state === 'double' && ch === '"')) state = 'code'
+      else if (ch === '\n') state = 'code' // unterminated string — bail to code so the rest of the file isn't masked
+      continue
+    }
+    // template
+    if (ch === '\\') { if (i + 1 < code.length) mask[i + 1] = 1; i++; continue }
+    if (ch === '`') { state = 'code'; continue }
+    if (ch === '$' && next === '{') { mask[i + 1] = 1; i++; interpDepths.push(0); state = 'code'; continue }
+  }
+
+  return mask
+}
+
+/**
+ * Like String.replace, but leaves matches untouched when they start inside a
+ * string literal, template literal, or comment. The mask is recomputed per
+ * call because sequential passes shift offsets.
+ */
+function replaceInCode(code: string, regex: RegExp, replacer: (match: string, ...groups: string[]) => string): string {
+  const mask = computeNonCodeMask(code)
+  return code.replace(regex, (...args) => {
+    const offset = args[args.length - 2] as number
+    if (mask[offset]) return args[0] as string
+    return replacer(...(args.slice(0, -2) as [string, ...string[]]))
+  })
+}
+
+/**
  * Convert ESM import/export statements to CJS require/module.exports
  * so the code can run in a vm context that provides `require`.
  *
@@ -22,55 +101,61 @@ export interface TransformResult {
  * imports without a space (`import"./x.ts";`) — a `\s+` there silently
  * leaves the statement untransformed, which then blows up in the VM with
  * `SyntaxError: ... import call expects one or two arguments.`
+ *
+ * Statements are only rewritten at genuine code positions: lines that merely
+ * look like import/export inside template literals, strings, or comments are
+ * left verbatim (they used to get mangled, and the phantom appended
+ * `exports['x'] = x` crashed the vm with "exports is not defined").
  */
-function esmToCjs(code: string): string {
+export function esmToCjs(code: string): string {
   const exportedNames: string[] = []
 
   let result = code
-    // import Foo, { bar, baz } from 'x' → const Foo = require('x').default ?? require('x'); const { bar, baz } = require('x')
-    .replace(/^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
-      'const $1 = require($3).default ?? require($3); const {$2} = require($3);')
-    // import { a, b } from 'x' → const { a, b } = require('x')
-    .replace(/^import\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
-      'const {$1} = require($2);')
-    // import x from 'y' → const x = require('y').default ?? require('y')
-    .replace(/^import\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
-      'const $1 = require($2).default ?? require($2);')
-    // import * as x from 'y' → const x = require('y')
-    .replace(/^import\s*\*\s*as\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
-      'const $1 = require($2);')
-    // import 'y' → require('y')  (Bun emits this with no space: import"./x.ts";)
-    .replace(/^import\s*(['"][^'"]+['"])\s*;?$/gm,
-      'require($1);')
-    // export default → module.exports.default =
-    .replace(/^export\s+default\s+/gm, 'module.exports.default = ')
-    // export { a, b } from 'x' → Object.assign(module.exports, require('x'))  (re-exports)
-    .replace(/^export\s+\{[^}]*\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
-      'Object.assign(module.exports, require($1));')
-    // export { a, b as c } → exports.a = a; exports.c = b;
-    .replace(/^export\s+\{([^}]*)\}\s*;?$/gm, (_match, body: string) => {
-      return body.split(',').map(s => {
-        const parts = s.trim().split(/\s+as\s+/)
-        const local = (parts[0] ?? '').trim()
-        const exported = (parts[1] ?? parts[0] ?? '').trim()
-        return local ? `exports['${exported}'] = ${local};` : ''
-      }).filter(Boolean).join(' ')
-    })
-    // export const/let/var NAME → const/let/var NAME (track for deferred export)
-    .replace(/^export\s+(const|let|var)\s+(\w+)/gm, (_match, decl: string, name: string) => {
-      exportedNames.push(name)
-      return `${decl} ${name}`
-    })
-    // export function NAME / export class NAME → function/class NAME (track for deferred export)
-    .replace(/^export\s+(function|class)\s+(\w+)/gm, (_match, type: string, name: string) => {
-      exportedNames.push(name)
-      return `${type} ${name}`
-    })
-    // export async function NAME → async function NAME (track for deferred export)
-    .replace(/^export\s+(async\s+function)\s+(\w+)/gm, (_match, type: string, name: string) => {
-      exportedNames.push(name)
-      return `${type} ${name}`
-    })
+  // import Foo, { bar, baz } from 'x' → const Foo = require('x').default ?? require('x'); const { bar, baz } = require('x')
+  result = replaceInCode(result, /^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
+    (_m, name, names, spec) => `const ${name} = require(${spec}).default ?? require(${spec}); const {${names}} = require(${spec});`)
+  // import { a, b } from 'x' → const { a, b } = require('x')
+  result = replaceInCode(result, /^import\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
+    (_m, names, spec) => `const {${names}} = require(${spec});`)
+  // import x from 'y' → const x = require('y').default ?? require('y')
+  result = replaceInCode(result, /^import\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
+    (_m, name, spec) => `const ${name} = require(${spec}).default ?? require(${spec});`)
+  // import * as x from 'y' → const x = require('y')
+  result = replaceInCode(result, /^import\s*\*\s*as\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
+    (_m, name, spec) => `const ${name} = require(${spec});`)
+  // import 'y' → require('y')  (Bun emits this with no space: import"./x.ts";)
+  result = replaceInCode(result, /^import\s*(['"][^'"]+['"])\s*;?$/gm,
+    (_m, spec) => `require(${spec});`)
+  // export default → module.exports.default =
+  result = replaceInCode(result, /^export\s+default\s+/gm,
+    () => 'module.exports.default = ')
+  // export { a, b } from 'x' → Object.assign(module.exports, require('x'))  (re-exports)
+  result = replaceInCode(result, /^export\s+\{[^}]*\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+    (_m, spec) => `Object.assign(module.exports, require(${spec}));`)
+  // export { a, b as c } → exports.a = a; exports.c = b;
+  result = replaceInCode(result, /^export\s+\{([^}]*)\}\s*;?$/gm, (_match, body) => {
+    return body!.split(',').map(s => {
+      const parts = s.trim().split(/\s+as\s+/)
+      const local = (parts[0] ?? '').trim()
+      const exported = (parts[1] ?? parts[0] ?? '').trim()
+      return local ? `exports['${exported}'] = ${local};` : ''
+    }).filter(Boolean).join(' ')
+  })
+  // export const/let/var NAME → const/let/var NAME (track for deferred export)
+  result = replaceInCode(result, /^export\s+(const|let|var)\s+(\w+)/gm, (_match, decl, name) => {
+    exportedNames.push(name!)
+    return `${decl} ${name}`
+  })
+  // export function NAME / export class NAME → function/class NAME (track for deferred export)
+  result = replaceInCode(result, /^export\s+(function|class)\s+(\w+)/gm, (_match, type, name) => {
+    exportedNames.push(name!)
+    return `${type} ${name}`
+  })
+  // export async function NAME → async function NAME (track for deferred export)
+  result = replaceInCode(result, /^export\s+(async\s+function)\s+(\w+)/gm, (_match, type, name) => {
+    exportedNames.push(name!)
+    return `${type} ${name}`
+  })
 
   // Append exports for all tracked named exports
   if (exportedNames.length > 0) {

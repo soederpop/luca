@@ -158,9 +158,8 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 
 			// Transform tsx/jsx through esbuild, and also ts for consistency
 			// (ts blocks with type annotations are invalid JS and fail in the vm otherwise).
-			// ts blocks only strip types (format esm): the cjs conversion is regex-based
-			// and mangles template literals whose content has lines starting with
-			// import/export — doc blocks use the injected container, not module syntax.
+			// ts blocks only strip types (format esm): doc blocks use the injected
+			// container, not module syntax, so the cjs conversion is unnecessary.
 			const needsTransform = lang === 'tsx' || lang === 'jsx' || lang === 'ts'
 			let code = value
 
