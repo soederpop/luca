@@ -131,6 +131,13 @@ export class Command<
 			throw err
 		}
 
+		// Honor the documented `options._` contract: handlers can read raw
+		// positionals via options._ (where _[0] is the command name). Zod object
+		// schemas strip unknown keys, so re-attach `_` after validation.
+		if (parsed && typeof parsed === 'object' && Array.isArray(raw._) && parsed._ === undefined) {
+			parsed._ = raw._
+		}
+
 		// For headless dispatch, capture stdout/stderr
 		if (dispatchSource !== 'cli') {
 			return this._runCaptured(parsed)

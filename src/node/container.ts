@@ -403,6 +403,13 @@ export class NodeContainer<
         return resolve(cwd, ...paths);
       },
       relative(...paths: string[]) {
+        // Two-arg form behaves like Node's path.relative(from, to):
+        // relative('/tmp/a', '/tmp/a/b') === 'b'. Relative bases resolve against cwd.
+        if (paths.length >= 2) {
+          const [base, ...rest] = paths;
+          return relative(resolve(cwd, base!), resolve(cwd, ...rest));
+        }
+        // Single-arg form: target relative to the container cwd.
         return relative(cwd, resolve(cwd, ...paths));
       },
       basename,

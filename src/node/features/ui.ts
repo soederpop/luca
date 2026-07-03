@@ -75,6 +75,11 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * (red, green, blue, yellow, cyan, dim, bold, italic, underline, bg* variants)
    * and semantic helpers (error, info, success, warn).
    *
+   * NOTE: `ui.print.<color>(text)` is NOT a string formatter — it writes the
+   * colored text to stdout immediately and returns `undefined`. To compose a
+   * colored string (e.g. to embed inside a larger message), use
+   * `ui.colors.<color>(text)`, which returns the styled string.
+   *
    * @example
    * ```typescript
    * const ui = container.feature('ui')
@@ -82,6 +87,10 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * ui.print.cyan('cyan text')
    * ui.print.error('printed in red')
    * ui.print.success('printed in green')
+   *
+   * // Composing strings: use ui.colors, not ui.print
+   * ui.print(`Status: ${ui.colors.green('OK')}`)   // correct
+   * ui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints "OK" on its own line, interpolates "undefined"
    * ```
    */
   print: ColoredPrintFunction = Object.assign((...args: any[]) => {

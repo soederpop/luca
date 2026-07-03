@@ -405,6 +405,13 @@ export class SpawnHandler {
  * Each handler maintains a memory-efficient output buffer: the first 20 lines (head)
  * and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.
  *
+ * SCOPE: tracking is in-memory and per-process. ProcessManager supervises children
+ * of the *current* process only — its registry does not survive the CLI exiting, so
+ * it is the wrong tool for cross-invocation supervision (a `start` command spawning
+ * a worker that a later `stop` command must find). For that, use the detached spawn
+ * pattern: `proc.spawn(cmd, args, { detached: true })` + persist the PID via
+ * `diskCache`, and check liveness with `proc.kill(pid, 0)`.
+ *
  * @example
  * ```typescript
  * const pm = container.feature('processManager', { enable: true })

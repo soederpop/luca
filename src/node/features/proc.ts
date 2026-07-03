@@ -413,7 +413,7 @@ export class ChildProcess extends Feature {
    *
    * @param {number} pid - The process ID to kill
    * @param {NodeJS.Signals | number} [signal='SIGTERM'] - The signal to send (e.g. 'SIGTERM', 'SIGKILL', 9)
-   * @returns {boolean} True if the signal was sent successfully, false if the process was not found
+   * @returns {boolean} True if the signal was sent successfully, false if the process was not found (ESRCH). Other errors (e.g. EPERM for processes you lack permission to signal) are thrown.
    *
    * @example
    * ```typescript
@@ -422,6 +422,15 @@ export class ChildProcess extends Feature {
    *
    * // Force kill a process
    * proc.kill(12345, 'SIGKILL')
+   *
+   * // Liveness check (supervisor pattern): signal 0 sends nothing but
+   * // returns false if the PID is dead/recycled — it does not throw.
+   * // Perfect for checking a PID persisted via diskCache from an earlier run.
+   * const cache = container.feature('diskCache')
+   * if (await cache.has('worker')) {
+   *   const { pid } = await cache.get('worker')
+   *   const alive = proc.kill(pid, 0)   // true = still running, false = gone
+   * }
    * ```
    */
   kill(pid: number, signal: NodeJS.Signals | number = 'SIGTERM'): boolean {

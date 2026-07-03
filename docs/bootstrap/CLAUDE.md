@@ -79,6 +79,8 @@ The container provides more than you might expect. Before importing anything ext
 - **For DELETE endpoint handlers, use `export { del as delete }`** — `delete` is a JS reserved word. Define your function with any name, then re-export it as `delete`.
 - **Bun globals (`Bun.spawn`, `Bun.serve`) are unavailable** in command/endpoint handlers. Use Node's `child_process` for spawning processes, or use `container.feature('proc').exec()`.
 - **`ui.print.*` writes to stdout** — if your command supports `--json`, gate UI output behind `if (!options.json)`.
+- **`ui.print.<color>()` is not a string formatter** — it prints immediately and returns `undefined`, so `` `${ui.print.green('OK')}` `` interpolates `undefined`. To compose colored strings, use `ui.colors.<color>()`, which returns the styled string.
+- **Checking whether a PID is alive**: `proc.kill(pid, 0)` sends nothing and returns `false` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
 - **VM contexts start empty** — when using `container.feature('vm')`, inject globals explicitly (`console`, `Date`, `Promise`, `crypto`, `TextEncoder`, `setTimeout`).
 - **Long-running commands** (servers, watchers) need `await new Promise(() => {})` at the end with a `process.on('SIGINT', ...)` handler for cleanup.
 - **Shared state between endpoints**: use `ctx.request.app.locals` to share data across endpoint files.

@@ -293,15 +293,30 @@ export const argsSchema = z.object({
 })
 ```
 
-### Background workers that outlive the CLI
+### Supervising background workers across invocations
 
-`proc.spawn` supports detaching — the child survives the parent command exiting:
+The complete start/status/stop shape: detach the workers so they outlive the CLI, persist their PIDs, and check liveness with signal 0. (`processManager` won't work here — its tracking is in-memory, per-process.)
 
 ```js
 const proc = container.feature('proc')
-const worker = proc.spawn('bun', ['worker.ts'], { detached: true })  // stdio defaults to 'ignore' when detached
-worker.unref()  // let the parent event loop exit
-// persist worker.pid (diskCache) so a later `stop` command can kill it
+const cache = container.feature('diskCache')
+
+// start — detached children survive the parent command exiting
+const pids = []
+for (let i = 0; i < 3; i++) {
+  const worker = proc.spawn('bun', ['worker.ts'], { detached: true })  // stdio defaults to 'ignore' when detached
+  worker.unref()  // let the parent event loop exit
+  pids.push(worker.pid)
+}
+await cache.set('fleet', { pids })
+
+// status — a later, separate process finds them again
+const { pids: saved } = await cache.get('fleet')
+const alive = saved.filter(pid => proc.kill(pid, 0))  // signal 0: liveness check, returns false when gone
+
+// stop
+for (const pid of saved) proc.kill(pid)   // SIGTERM; proc.kill(pid, 'SIGKILL') for stragglers
+await cache.rm('fleet')
 ```
 
 ### Client commands must exit explicitly
