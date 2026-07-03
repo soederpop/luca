@@ -55,10 +55,12 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static { Client.register(this, '{{camelName}}') }
 
   /**
-   * Called after the client is initialized. Use this for any setup logic
-   * instead of overriding the constructor.
+   * Called after the client is fully constructed. Use this for any setup logic
+   * instead of overriding the constructor. NOTE: the return value is not
+   * awaited — keep this synchronous and put async work (connecting, handshakes)
+   * behind an explicit method like `connect()`.
    */
-  async afterInitialize() {
+  afterInitialize() {
     // Set up default headers, configure auth, etc.
   }
 
@@ -131,8 +133,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Client.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 

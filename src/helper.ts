@@ -146,16 +146,47 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     }
     this._context = context;
     this.state = new State<T>({ initialState: this.initialState });
-    
-    this.hide('_context', '_state', '_options', '_events', '_instanceTools', 'uuid')
-    
+
+    this.hide('_context', '_state', '_options', '_events', '_instanceTools', 'uuid', '_afterInitializeHasRun')
+
     this.state.observe(() => {
       (this as any).emit('stateChange', this.state.current)
     })
-    
+
+    // NOTE: afterInitialize() is intentionally NOT called here. Calling it from
+    // the base constructor means it runs during `super()` — BEFORE subclass
+    // class-field declarations are defined. Under ES2022 field semantics
+    // (`useDefineForClassFields`, bun's default) even an uninitialized declared
+    // field like `socket!: WebSocketClient` is redefined to `undefined` after
+    // `super()` returns, silently clobbering anything afterInitialize() assigned
+    // to `this`. The container factory (createHelperInstance) calls
+    // runAfterInitialize() synchronously once the entire constructor chain has
+    // finished; the microtask below is a safety net for helpers constructed
+    // directly with `new` (which is not the supported path).
+    queueMicrotask(() => this.runAfterInitialize())
+  }
+
+  /** @internal Guards runAfterInitialize() so afterInitialize() only ever runs once. */
+  protected _afterInitializeHasRun = false
+
+  /**
+   * Runs `afterInitialize()` exactly once, then emits `helperInitialized` on the
+   * container. Called by the container factory immediately after construction —
+   * i.e. after all subclass constructors and class-field initializers have run —
+   * so property assignments made in afterInitialize() cannot be clobbered by
+   * field declarations. Safe to call multiple times; subsequent calls are no-ops.
+   *
+   * @internal
+   */
+  runAfterInitialize(): this {
+    if (this._afterInitializeHasRun) return this
+    this._afterInitializeHasRun = true
+
     this.afterInitialize()
 
     this.container.emit('helperInitialized', this)
+
+    return this
   }
 
   /**
@@ -188,11 +219,20 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
     return this._options._cacheKey
   }
 
-  /** 
-   * This method will get called in the constructor and can be used instead of overriding the constructor
-   * in your helper subclases.
+  /**
+   * Called automatically after the helper is fully constructed — after every
+   * constructor in the chain and all class-field initializers have run. Override
+   * this instead of overriding the constructor in your helper subclasses: it is
+   * safe to assign instance properties here (e.g. `this.socket = ...`), even ones
+   * declared as class fields.
+   *
+   * NOTE: the return value is NOT awaited. If you declare `async afterInitialize()`,
+   * the container fires it and moves on — callers may use the helper before your
+   * async work completes, and a rejection surfaces as an unhandled rejection.
+   * Prefer synchronous setup here; put async work behind an explicit method
+   * (e.g. `connect()`, `start()`) or track its completion in state.
   */
-  afterInitialize() {
+  afterInitialize(): void | Promise<void> {
     // override this method to do something after the helper is initialized
   }
   

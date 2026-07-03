@@ -53,10 +53,12 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static { Feature.register(this, '{{camelName}}') }
 
   /**
-   * Called after the feature is initialized. Use this for any setup logic
-   * instead of overriding the constructor.
+   * Called after the feature is fully constructed. Use this for any setup logic
+   * instead of overriding the constructor. NOTE: the return value is not
+   * awaited — keep this synchronous and put async work behind an explicit
+   * method or an enable()/start() lifecycle hook.
    */
-  async afterInitialize() {
+  afterInitialize() {
     // Set up initial state, start background tasks, etc.
   }
 }` },
@@ -102,8 +104,8 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Feature.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 
@@ -141,8 +143,8 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Feature.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 
@@ -217,10 +219,12 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static { Feature.register(this, '{{camelName}}') }
 
   /**
-   * Called after the feature is initialized. Use this for any setup logic
-   * instead of overriding the constructor.
+   * Called after the feature is fully constructed. Use this for any setup logic
+   * instead of overriding the constructor. NOTE: the return value is not
+   * awaited — keep this synchronous and put async work behind an explicit
+   * method or an enable()/start() lifecycle hook.
    */
-  async afterInitialize() {
+  afterInitialize() {
     // Set up initial state, start background tasks, etc.
   }
 }
@@ -289,8 +293,8 @@ export class {{PascalName}} extends Feature<{{PascalName}}State, {{PascalName}}O
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Feature.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 
@@ -340,10 +344,12 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static { Client.register(this, '{{camelName}}') }
 
   /**
-   * Called after the client is initialized. Use this for any setup logic
-   * instead of overriding the constructor.
+   * Called after the client is fully constructed. Use this for any setup logic
+   * instead of overriding the constructor. NOTE: the return value is not
+   * awaited — keep this synchronous and put async work (connecting, handshakes)
+   * behind an explicit method like \`connect()\`.
    */
-  async afterInitialize() {
+  afterInitialize() {
     // Set up default headers, configure auth, etc.
   }
 
@@ -397,8 +403,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Client.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 
@@ -438,8 +444,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Client.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 
@@ -501,10 +507,12 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static { Client.register(this, '{{camelName}}') }
 
   /**
-   * Called after the client is initialized. Use this for any setup logic
-   * instead of overriding the constructor.
+   * Called after the client is fully constructed. Use this for any setup logic
+   * instead of overriding the constructor. NOTE: the return value is not
+   * awaited — keep this synchronous and put async work (connecting, handshakes)
+   * behind an explicit method like \`connect()\`.
    */
-  async afterInitialize() {
+  afterInitialize() {
     // Set up default headers, configure auth, etc.
   }
 
@@ -577,8 +585,8 @@ export class {{PascalName}} extends RestClient<{{PascalName}}State, {{PascalName
   static override optionsSchema = {{PascalName}}OptionsSchema
   static { Client.register(this, '{{camelName}}') }
 
-  async afterInitialize() {
-    // Setup logic goes here — not in the constructor
+  afterInitialize() {
+    // Setup logic goes here — not in the constructor (runs after construction; not awaited)
   }
 }
 

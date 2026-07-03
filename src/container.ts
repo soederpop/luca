@@ -447,6 +447,16 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
     }
 
     const instance = new (BaseClass as any)(helperOptions, context || this.context)
+
+    // Run afterInitialize() only now, once the entire constructor chain —
+    // including subclass class-field initializers — has completed. If it ran
+    // inside the base constructor, declared fields (even uninitialized ones)
+    // would be redefined after super() returns and clobber anything
+    // afterInitialize() assigned to `this`.
+    if (typeof instance.runAfterInitialize === 'function') {
+      instance.runAfterInitialize()
+    }
+
     cache.set(cacheKey, instance)
     uuidCache.set(instance.uuid, instance)
     return instance

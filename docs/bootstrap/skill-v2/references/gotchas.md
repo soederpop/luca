@@ -80,7 +80,7 @@ Every entry here cost at least one real session real time. Format: the trap, the
 
 **Don't build a custom client when a built-in one speaks the protocol.** For websocket/rest tasks, use `container.client('websocket'|'rest')` directly with your message conventions on top — scaffold a custom client only for external services the container doesn't cover.
 
-If you do write one: **`afterInitialize()` has been observed not to fire for clients** (it fires for features) — don't put connection setup there; initialize lazily in the first method call. And if `import { RestClient } from 'luca/client'` comes back `undefined` under the compiled binary, extend the generic `Client` and compose a built-in client internally.
+If you do write one: `afterInitialize()` now runs after the entire constructor chain (including class-field declarations), so assignments like `this.socket = container.client('websocket', …)` made there survive — and `import { Client, RestClient, WebSocketClient } from 'luca/client'` works in both native and compiled-binary modes. Two remaining caveats: `async afterInitialize()` is fired but **not awaited** (do synchronous setup there; put connection work behind an explicit `connect()`), and helpers constructed directly with `new` (instead of `container.client(...)`) only get `afterInitialize()` on the next microtask.
 
 ## Runtime / environment
 

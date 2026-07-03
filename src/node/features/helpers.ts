@@ -215,8 +215,19 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('luca/schemas', schemasModule)
     vm.defineModule('luca/node', lucaExports)
 
-    // Deep import paths AIs and developers might reach for
-    vm.defineModule('luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
+    // Deep import paths AIs and developers might reach for.
+    // luca/client must expose the concrete client classes too — the client
+    // scaffold teaches `import { Client, RestClient } from 'luca/client'`.
+    const clientModule = {
+      Client, RestClient, GraphClient, WebSocketClient,
+      clients,
+      ClientsRegistry: clients.constructor,
+      ClientStateSchema: (Client as any).stateSchema,
+      ClientOptionsSchema: (Client as any).optionsSchema,
+      ClientEventsSchema: (Client as any).eventsSchema,
+      default: Client,
+    }
+    vm.defineModule('luca/client', clientModule)
     vm.defineModule('luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
     vm.defineModule('luca/clients/rest', { RestClient, default: RestClient })
     vm.defineModule('luca/clients/graph', { GraphClient, default: GraphClient })
@@ -228,7 +239,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('@soederpop/luca', lucaExports)
     vm.defineModule('@soederpop/luca/schemas', schemasModule)
     vm.defineModule('@soederpop/luca/node', lucaExports)
-    vm.defineModule('@soederpop/luca/client', { Client, ClientsRegistry: clients.constructor, default: Client })
+    vm.defineModule('@soederpop/luca/client', clientModule)
     vm.defineModule('@soederpop/luca/server', { Server, ServersRegistry: servers.constructor, default: Server })
     vm.defineModule('@soederpop/luca/clients/rest', { RestClient, default: RestClient })
     vm.defineModule('@soederpop/luca/clients/graph', { GraphClient, default: GraphClient })

@@ -9,11 +9,15 @@ import {
 export type ClientOptions = z.infer<typeof ClientOptionsSchema>
 export type ClientState = z.infer<typeof ClientStateSchema>
 
-// Subclass types re-exported for backward compatibility.
-// Import the concrete classes from their individual files:
-//   import { RestClient } from './clients/rest'
-//   import { GraphClient } from './clients/graph'
-//   import { WebSocketClient } from './clients/websocket'
+// Schema values re-exported so `import { ClientStateSchema } from 'luca/client'`
+// works alongside the classes (schemas/base has no dependency on this module).
+export { ClientStateSchema, ClientOptionsSchema, ClientEventsSchema }
+
+// Concrete client classes re-exported so `import { RestClient } from 'luca/client'`
+// works as documented in the scaffold tutorials. These live in their own files:
+//   ./clients/rest.ts, ./clients/graph.ts, ./clients/websocket.ts
+// NOTE: those files import `Client` from this module, so these re-exports are
+// circular — safe only because they sit at the bottom of this file (see below).
 export type { WebSocketClientState, WebSocketClientOptions } from './clients/websocket.js'
 export type { GraphClientOptions } from './clients/graph.js'
 
@@ -166,5 +170,23 @@ Client.register = function registerClient(
 
   return SubClass
 }
+
+// --- Concrete class re-exports -------------------------------------------
+// The subclass files import `Client` from THIS module, so a static
+// `export { RestClient } from './clients/rest.js'` would evaluate rest.ts
+// before the Client class above is initialized (import hoisting) and crash
+// with a TDZ ReferenceError. Instead we load them synchronously HERE, after
+// Client and Client.register are fully defined — `require` is not hoisted,
+// so the cycle resolves cleanly.
+const restModule = require('./clients/rest.js') as typeof import('./clients/rest.js')
+const graphModule = require('./clients/graph.js') as typeof import('./clients/graph.js')
+const websocketModule = require('./clients/websocket.js') as typeof import('./clients/websocket.js')
+
+/** HTTP REST client (axios-based). Re-exported so `import { RestClient } from 'luca/client'` works as documented. */
+export const RestClient = restModule.RestClient
+/** GraphQL client. Re-exported so `import { GraphClient } from 'luca/client'` works as documented. */
+export const GraphClient = graphModule.GraphClient
+/** WebSocket client. Re-exported so `import { WebSocketClient } from 'luca/client'` works as documented. */
+export const WebSocketClient = websocketModule.WebSocketClient
 
 export default Client;
