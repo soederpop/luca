@@ -65,8 +65,8 @@
     border-radius: 10px;
     color: var(--text);
     font-family: ui-monospace, Menlo, monospace;
-    font-size: 16px;
-    letter-spacing: 2px;
+    font-size: 13px;
+    letter-spacing: 0.5px;
     text-align: center;
     text-transform: lowercase;
     padding: 14px 10px;
@@ -101,6 +101,10 @@
     background: rgba(125, 201, 122, 0.08);
     border: 1px solid rgba(125, 201, 122, 0.35);
   }
+  .verify.failed {
+    background: rgba(242, 131, 123, 0.08);
+    border-color: rgba(242, 131, 123, 0.45);
+  }
   .verify .vt {
     font-family: ui-monospace, Menlo, monospace;
     font-size: 10px;
@@ -109,13 +113,8 @@
     color: var(--green);
     margin-bottom: 8px;
   }
-  .verify .phrase {
-    font-family: ui-monospace, Menlo, monospace;
-    font-size: 16px;
-    letter-spacing: 1px;
-    color: var(--text);
-  }
-  .verify .hint { font-size: 12px; color: var(--dim); margin-top: 8px; font-style: italic; }
+  .verify.failed .vt { color: var(--red); }
+  .verify .hint { font-size: 12px; color: var(--dim); margin-top: 4px; font-style: italic; }
 
   .timer {
     display: none;
@@ -141,10 +140,11 @@
   <h1>The <em>Private Line</em></h1>
   <div class="tagline">peer-to-peer &middot; end-to-end encrypted</div>
 
-  <div class="status" id="status">enter a room code to begin</div>
+  <div class="status" id="status">enter your shared safety phrase</div>
 
   <div class="room-row" id="joinRow">
-    <input id="room" placeholder="room code" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <input id="room" placeholder="five word safety phrase" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="genBtn" title="Generate a new random phrase">&#9860;</button>
     <button class="primary" id="joinBtn">Join</button>
   </div>
 
@@ -156,24 +156,80 @@
   </div>
 
   <div class="verify" id="verify">
-    <div class="vt">&#128274; Safety phrase &mdash; compare out loud</div>
-    <div class="phrase" id="phrase">&mdash;</div>
-    <div class="hint">If you both see the same words, no one is in the middle.</div>
+    <div class="vt" id="verifyTitle">&#128274; Authenticated</div>
+    <div class="hint" id="verifyHint">Both parties proved knowledge of the safety phrase. No one is in the middle.</div>
   </div>
 
   <audio id="remoteAudio" autoplay playsinline></audio>
 
-  <div class="foot">signaling: sealed relay &middot; media: dtls-srtp p2p</div>
+  <div class="foot">signaling: blind relay &middot; media: dtls-srtp p2p &middot; auth: phrase-keyed hmac</div>
 </div>
 
 <script>
-const WORDS = ['acorn','amber','anchor','arrow','aspen','badge','banjo','bay','beacon','birch','bloom','breeze','brook','candle','canyon','cedar','chime','cliff','clover','coral','crane','dawn','delta','drift','eagle','ember','fable','falcon','fern','flint','forge','garnet','glade','grove','harbor','hazel','heron','iris','ivory','jade','juniper','kite','lagoon','lantern','laurel','linden','lotus','maple','meadow','mesa','moss','north','oak','opal','orchid','otter','pearl','pine','prairie','quartz','raven','reed','ridge','river','robin','saffron','sage','shore','sierra','slate','sparrow','spruce','stone','summit','thistle','tide','topaz','trail','tundra','vale','violet','walnut','willow','wren'];
-
 const $ = id => document.getElementById(id);
 const statusEl = $('status');
+const enc = new TextEncoder();
 
 let ws, pc, localStream, joined = false, muted = false, timerInterval, callStart;
 let makingOffer = false, polite = false;
+let authKey = null, myNonce = null, peerNonce = null, peerTag = null;
+let myTagSent = false, verified = false, pendingRemoteStream = null, verifyTimeout = null;
+let wordlist = null;
+
+// ---- phrase-derived secrets ----
+// The phrase never leaves this device. PBKDF2 stretches it into 64 bytes:
+// the first 32 become the (opaque) room id the server sees, the last 32
+// become an HMAC key used to authenticate the DTLS fingerprints, so a
+// man-in-the-middle who doesn't know the phrase cannot complete a call.
+
+const hex = bytes => [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+
+function normalizePhrase(raw) {
+  return raw.trim().toLowerCase().split(/\s+/).join(' ');
+}
+
+async function deriveSecrets(phrase) {
+  const utcDate = new Date().toISOString().slice(0, 10);
+  const material = await crypto.subtle.importKey('raw', enc.encode(phrase), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode('private-line-v1|' + utcDate), iterations: 210000 },
+    material, 512
+  ));
+  const roomId = hex(bits.slice(0, 32));
+  authKey = await crypto.subtle.importKey('raw', bits.slice(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return roomId;
+}
+
+async function hmacHex(str) {
+  return hex(new Uint8Array(await crypto.subtle.sign('HMAC', authKey, enc.encode(str))));
+}
+
+// ---- phrase generation (EFF large wordlist, ~64 bits for 5 words) ----
+
+async function getWordlist() {
+  if (!wordlist) {
+    const txt = await (await fetch('/wordlist.txt')).text();
+    wordlist = txt.trim().split('\n').map(l => l.split('\t')[1]).filter(Boolean);
+  }
+  return wordlist;
+}
+
+function randomIndex(n) {
+  const limit = Math.floor(65536 / n) * n;
+  const buf = new Uint16Array(1);
+  do { crypto.getRandomValues(buf); } while (buf[0] >= limit);
+  return buf[0] % n;
+}
+
+async function generatePhrase() {
+  try {
+    const words = await getWordlist();
+    $('room').value = Array.from({ length: 5 }, () => words[randomIndex(words.length)]).join(' ');
+    setStatus('share this phrase privately — in person, never through this server');
+  } catch {
+    setStatus('could not load wordlist', 'err');
+  }
+}
 
 function setStatus(text, cls) {
   statusEl.textContent = text;
@@ -182,7 +238,7 @@ function setStatus(text, cls) {
 
 function connectWs() {
   return new Promise((resolve, reject) => {
-    ws = new WebSocket('wss://' + location.host);
+    ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
     ws.onopen = () => resolve();
     ws.onerror = () => reject(new Error('signaling connection failed'));
     ws.onmessage = onSignalMessage;
@@ -191,15 +247,22 @@ function connectWs() {
 }
 
 async function join() {
-  const room = $('room').value.trim().toLowerCase();
-  if (!room) return setStatus('enter a room code first', 'err');
+  const phrase = normalizePhrase($('room').value);
+  if (!phrase) return setStatus('enter your safety phrase first', 'err');
+  if (phrase.split(' ').length < 5) return setStatus('use at least five words — the ⚄ button generates a phrase', 'err');
   $('joinBtn').disabled = true;
+  peerNonce = null; peerTag = null; myTagSent = false; verified = false;
+  pendingRemoteStream = null;
+  $('verify').style.display = 'none';
   try {
+    setStatus('deriving keys from phrase…');
+    const roomId = await deriveSecrets(phrase);
+    myNonce = hex(crypto.getRandomValues(new Uint8Array(16)));
     setStatus('requesting microphone…');
     localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     setStatus('connecting…');
     await connectWs();
-    ws.send(JSON.stringify({ type: 'join', room }));
+    ws.send(JSON.stringify({ type: 'join', room: roomId }));
   } catch (err) {
     $('joinBtn').disabled = false;
     setStatus(err.message || 'could not start', 'err');
@@ -222,14 +285,16 @@ async function onSignalMessage(event) {
     polite = msg.peers === 0;
     createPeer();
     if (msg.peers === 1) {
+      sendSignal({ authNonce: myNonce });
       setStatus('peer is here — calling…');
     } else {
-      setStatus('waiting for the other party… share the room code');
+      setStatus('waiting for the other party…');
     }
     return;
   }
 
   if (msg.type === 'peer-joined') {
+    sendSignal({ authNonce: myNonce });
     setStatus('peer joined — connecting…');
     return;
   }
@@ -242,6 +307,18 @@ async function onSignalMessage(event) {
   if (msg.type === 'signal') {
     const data = msg.data;
     try {
+      if (data.authNonce) {
+        if (typeof data.authNonce === 'string' && /^[0-9a-f]{32}$/.test(data.authNonce)) {
+          peerNonce = data.authNonce;
+          await maybeAuthenticate();
+        }
+        return;
+      }
+      if (data.authTag) {
+        peerTag = String(data.authTag);
+        await maybeVerify();
+        return;
+      }
       if (data.sdp) {
         const collision = data.sdp.type === 'offer' && (makingOffer || pc.signalingState !== 'stable');
         if (collision && !polite) return;
@@ -266,7 +343,9 @@ function sendSignal(data) {
 
 function createPeer() {
   pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  // Mic stays silenced until the peer proves knowledge of the phrase —
+  // a MITM completing the DTLS handshake must never receive real audio.
+  localStream.getTracks().forEach(t => { t.enabled = false; pc.addTrack(t, localStream); });
 
   pc.onicecandidate = e => { if (e.candidate) sendSignal({ candidate: e.candidate }); };
 
@@ -282,36 +361,91 @@ function createPeer() {
     }
   };
 
-  pc.ontrack = e => { $('remoteAudio').srcObject = e.streams[0]; };
+  pc.ontrack = e => {
+    pendingRemoteStream = e.streams[0];
+    if (verified) $('remoteAudio').srcObject = pendingRemoteStream;
+  };
 
   pc.onconnectionstatechange = async () => {
-    if (pc.connectionState === 'connected') {
-      setStatus('● live — encrypted peer-to-peer', 'live');
-      $('controls').style.display = 'flex';
-      $('timer').style.display = 'block';
-      startTimer();
-      await showSafetyPhrase();
+    if (pc.connectionState === 'connected' && !verified) {
+      setStatus('connected — verifying identity…');
+      clearTimeout(verifyTimeout);
+      verifyTimeout = setTimeout(() => authFail('verification timed out'), 15000);
+      await maybeAuthenticate();
+      await maybeVerify();
     }
     if (pc.connectionState === 'failed') setStatus('connection failed — check network', 'err');
     if (pc.connectionState === 'disconnected') setStatus('reconnecting…');
   };
 }
 
-async function showSafetyPhrase() {
-  // Derive a phrase both sides can compare, from both DTLS cert
-  // fingerprints (sorted so both ends compute identical words).
-  const fps = [];
-  for (const desc of [pc.localDescription, pc.remoteDescription]) {
-    const m = desc && desc.sdp.match(/a=fingerprint:sha-256 ([A-F0-9:]+)/i);
-    if (m) fps.push(m[1].toUpperCase());
-  }
-  if (fps.length < 2) return;
-  fps.sort();
-  const bytes = new TextEncoder().encode(fps.join('|'));
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  const words = [0, 1, 2, 3].map(i => WORDS[digest[i] % WORDS.length]);
-  $('phrase').textContent = words.join(' · ');
+// ---- phrase authentication ----
+// Each side MACs the session (its role, both nonces, both DTLS cert
+// fingerprints) with the phrase-derived key. If a MITM substituted
+// fingerprints in signaling, or doesn't know the phrase, tags won't
+// verify and the call fails closed before any audio flows.
+
+function fingerprints() {
+  const fp = d => {
+    const m = d && d.sdp.match(/a=fingerprint:sha-256 ([A-F0-9:]+)/i);
+    return m ? m[1].toUpperCase() : null;
+  };
+  return { mine: fp(pc.localDescription), theirs: fp(pc.remoteDescription) };
+}
+
+function authReady() {
+  if (!pc || pc.connectionState !== 'connected' || !peerNonce) return null;
+  const fps = fingerprints();
+  return fps.mine && fps.theirs ? fps : null;
+}
+
+async function maybeAuthenticate() {
+  const fps = authReady();
+  if (!fps || myTagSent) return;
+  myTagSent = true;
+  const role = polite ? 'A' : 'B';
+  sendSignal({ authTag: await hmacHex(`plv1|${role}|${myNonce}|${peerNonce}|${fps.mine}|${fps.theirs}`) });
+}
+
+async function maybeVerify() {
+  const fps = authReady();
+  if (!fps || !peerTag || verified) return;
+  const theirRole = polite ? 'B' : 'A';
+  const expected = await hmacHex(`plv1|${theirRole}|${peerNonce}|${myNonce}|${fps.theirs}|${fps.mine}`);
+  if (peerTag === expected) onVerified();
+  else authFail('safety phrase verification failed');
+}
+
+function onVerified() {
+  verified = true;
+  clearTimeout(verifyTimeout);
+  localStream.getAudioTracks().forEach(t => { t.enabled = !muted; });
+  if (pendingRemoteStream) $('remoteAudio').srcObject = pendingRemoteStream;
+  setStatus('● live — authenticated & encrypted', 'live');
+  $('controls').style.display = 'flex';
+  $('timer').style.display = 'block';
+  $('verify').className = 'verify';
+  $('verifyTitle').innerHTML = '&#128274; Authenticated';
+  $('verifyHint').textContent = 'Both parties proved knowledge of the safety phrase. No one is in the middle.';
   $('verify').style.display = 'block';
+  startTimer();
+}
+
+function authFail(reason) {
+  clearTimeout(verifyTimeout);
+  if (pc) { pc.close(); pc = null; }
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+  localStream?.getTracks().forEach(t => t.stop());
+  joined = false;
+  $('controls').style.display = 'none';
+  $('timer').style.display = 'none';
+  $('joinRow').style.display = 'flex';
+  $('joinBtn').disabled = false;
+  $('verify').className = 'verify failed';
+  $('verifyTitle').innerHTML = '&#9888; Call refused';
+  $('verifyHint').textContent = 'This connection could not be authenticated with your phrase — possible interception, or the two of you typed different phrases. No audio was sent.';
+  $('verify').style.display = 'block';
+  setStatus(reason, 'err');
 }
 
 function startTimer() {
@@ -325,7 +459,12 @@ function startTimer() {
 
 function endCall(reason) {
   clearInterval(timerInterval);
+  clearTimeout(verifyTimeout);
   if (pc) { pc.close(); pc = null; }
+  localStream?.getTracks().forEach(t => t.stop());
+  authKey = null; myNonce = null; peerNonce = null; peerTag = null;
+  myTagSent = false; verified = false; pendingRemoteStream = null;
+  $('remoteAudio').srcObject = null;
   $('controls').style.display = 'none';
   $('verify').style.display = 'none';
   $('timer').style.display = 'none';
@@ -336,6 +475,7 @@ function endCall(reason) {
 }
 
 $('joinBtn').onclick = join;
+$('genBtn').onclick = generatePhrase;
 $('room').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
 
 $('hangBtn').onclick = () => {

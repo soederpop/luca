@@ -1,14 +1,18 @@
 /**
  * Private Line — two-device WebRTC voice call prototype.
  *
- * Run with:  luca run examples/private-line/serve.ts
- * Then open the printed https:// URL on two devices (accept the
- * self-signed cert warning on each) and join the same room code.
+ * Run with:  luca run examples/private-line/serve.ts        (https, self-signed)
+ *       or:  HTTP=1 luca run examples/private-line/serve.ts (plain http on 8080,
+ *            for use behind a TLS tunnel like cloudflared/ngrok)
  *
- * Serves the static phone UI over HTTPS and relays WebRTC signaling
- * (offer/answer/ICE) between exactly two peers per room over WSS.
- * The server never sees audio — media flows peer-to-peer, encrypted
- * with DTLS-SRTP.
+ * Both parties enter a shared five-word safety phrase (generated from the
+ * EFF wordlist via the dice button, exchanged out-of-band). The phrase
+ * never reaches this server: clients join a room named by a PBKDF2 hash
+ * of the phrase, and authenticate each other's DTLS cert fingerprints
+ * with a phrase-derived HMAC key before any audio is enabled. A signaling
+ * MITM who doesn't know the phrase cannot complete a call — it fails
+ * closed. This server is a blind relay for offers/answers/ICE between
+ * exactly two peers per room; media flows peer-to-peer via DTLS-SRTP.
  */
 
 // CONTAINER GAP: browsers require a secure origin for getUserMedia on
@@ -16,11 +20,15 @@
 // have no TLS option yet. Until a TLS-capable server feature exists,
 // node:https + a ws server attached to it are used directly here.
 import https from 'node:https'
+import http from 'node:http'
 import { WebSocketServer, WebSocket } from 'ws'
 
 declare var container: any
 
-const PORT = Number(process.env.PORT || 8443)
+// HTTP=1 serves plain http (no self-signed cert) — for use behind a
+// TLS-terminating tunnel like cloudflared or ngrok.
+const PLAIN_HTTP = process.env.HTTP === '1'
+const PORT = Number(process.env.PORT || (PLAIN_HTTP ? 8080 : 8443))
 
 interface Peer {
   ws: WebSocket
@@ -35,32 +43,44 @@ async function main() {
   const networking = container.feature('networking')
 
   const baseDir = paths.resolve('examples/private-line')
-  const certDir = paths.resolve(baseDir, '.certs')
-  const keyPath = paths.resolve(certDir, 'key.pem')
-  const certPath = paths.resolve(certDir, 'cert.pem')
-
-  if (!fs.exists(keyPath) || !fs.exists(certPath)) {
-    fs.ensureFolder(certDir)
-    await proc.exec(
-      `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 365 -nodes -subj "/CN=private-line.local"`
-    )
-    console.log(ui.colors.dim('Generated self-signed certificate in .certs/'))
-  }
-
   const indexPath = paths.resolve(baseDir, 'public', 'index.html')
 
-  const server = https.createServer(
-    { key: fs.readFile(keyPath), cert: fs.readFile(certPath) },
-    (req, res) => {
-      if (req.method === 'GET' && (req.url === '/' || req.url?.startsWith('/?'))) {
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-        res.end(fs.readFile(indexPath))
-      } else {
-        res.writeHead(404)
-        res.end('not found')
-      }
+  const wordlistPath = paths.resolve(baseDir, 'public', 'wordlist.txt')
+
+  const requestHandler = (req: any, res: any) => {
+    if (req.method === 'GET' && (req.url === '/' || req.url?.startsWith('/?'))) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      res.end(fs.readFile(indexPath))
+    } else if (req.method === 'GET' && req.url === '/wordlist.txt') {
+      res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'max-age=86400' })
+      res.end(fs.readFile(wordlistPath))
+    } else {
+      res.writeHead(404)
+      res.end('not found')
     }
-  )
+  }
+
+  let server: http.Server | https.Server
+  if (PLAIN_HTTP) {
+    server = http.createServer(requestHandler)
+  } else {
+    const certDir = paths.resolve(baseDir, '.certs')
+    const keyPath = paths.resolve(certDir, 'key.pem')
+    const certPath = paths.resolve(certDir, 'cert.pem')
+
+    if (!fs.exists(keyPath) || !fs.exists(certPath)) {
+      fs.ensureFolder(certDir)
+      await proc.exec(
+        `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 365 -nodes -subj "/CN=private-line.local"`
+      )
+      console.log(ui.colors.dim('Generated self-signed certificate in .certs/'))
+    }
+
+    server = https.createServer(
+      { key: fs.readFile(keyPath), cert: fs.readFile(certPath) },
+      requestHandler
+    )
+  }
 
   // ---- signaling: rooms of exactly two peers ----
   const rooms = new Map<string, Set<WebSocket>>()
@@ -112,7 +132,7 @@ async function main() {
         ws.send(JSON.stringify({ type: 'joined', room, peers: members.size - 1 }))
         const other = otherPeer(ws)
         if (other) other.send(JSON.stringify({ type: 'peer-joined' }))
-        console.log(ui.colors.dim(`[room ${room}] peer joined (${members.size}/2)`))
+        console.log(ui.colors.dim(`[room ${room.slice(0, 8)}…] peer joined (${members.size}/2)`))
         return
       }
 
@@ -132,19 +152,25 @@ async function main() {
   })
 
   server.listen(PORT, '0.0.0.0', async () => {
+    const proto = PLAIN_HTTP ? 'http' : 'https'
     const nets = await networking.getLocalNetworks()
     const lan = nets.find((n: any) => n.address.startsWith('192.168.') || n.address.startsWith('10.'))
 
     console.log()
     console.log(ui.colors.bold('  Private Line — prototype'))
     console.log()
-    console.log(`  This device:   ${ui.colors.cyan(`https://localhost:${PORT}`)}`)
+    console.log(`  This device:   ${ui.colors.cyan(`${proto}://localhost:${PORT}`)}`)
     if (lan) {
-      console.log(`  Other device:  ${ui.colors.cyan(`https://${lan.address}:${PORT}`)}`)
+      console.log(`  Other device:  ${ui.colors.cyan(`${proto}://${lan.address}:${PORT}`)}`)
     }
     console.log()
-    console.log(ui.colors.dim('  Open on two devices, accept the self-signed cert warning,'))
-    console.log(ui.colors.dim('  and join the same room code. Ctrl+C to stop.'))
+    if (PLAIN_HTTP) {
+      console.log(ui.colors.dim('  Plain HTTP mode — put a TLS tunnel in front, e.g.'))
+      console.log(ui.colors.dim(`  cloudflared tunnel --url http://localhost:${PORT}`))
+    } else {
+      console.log(ui.colors.dim('  Open on two devices, accept the self-signed cert warning,'))
+      console.log(ui.colors.dim('  and join the same room code. Ctrl+C to stop.'))
+    }
     console.log()
   })
 
