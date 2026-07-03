@@ -4,16 +4,21 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import {
+	buildRuntimePackage,
 	collectAssistantFolderFiles,
+	expandVendorPackages,
 	commandNameFromFile,
 	generateAssistantsModule,
 	generateConsumerEntry,
 	generateConsumerManifest,
+	generateZodShim,
 	normalizeTargets,
 	shouldIncludeBundleFile,
 	type BundleAssistantEntry,
 	type BundleCommandFile,
 } from '../cli/bundle-utils.js'
+// @ts-ignore — bun resolves JSON imports at bundle time
+import pkg from '../../package.json'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -29,12 +34,83 @@ export const argsSchema = CommandOptionsSchema.extend({
 	outDir: z.string().default('dist').describe('Directory to write compiled binaries'),
 	targets: z.string().default('darwin-arm64').describe('Comma-separated Bun target platforms'),
 	builtins: z.string().default('').describe('Optional comma-separated Luca built-in commands to include'),
-	runtime: z.string().default('luca').describe('Luca package spec for the generated build dir (e.g. luca or file:/path/to/luca)'),
+	runtime: z.string().default('embedded').describe("How to provide luca in the build: 'embedded' (default) uses the runtime carried inside this binary — no package installation. Any other value is a package spec (e.g. luca@3.3.0 or file:/path/to/luca) installed with bun."),
 	dryRun: z.boolean().default(false).describe('Generate bundle files but skip bun install/build'),
 })
 
 const SELF_REGISTERING_DIRS = ['features', 'clients', 'servers', 'endpoints', 'selectors'] as const
 const COMMAND_DIRS = ['commands'] as const
+
+/**
+ * Provides luca to the consumer build dir without any package installation by
+ * writing a synthesized node_modules containing the prebundled runtime.
+ *
+ * In dev (running from the luca repo) the runtime is prebundled fresh from
+ * source. In the compiled binary the artifacts produced by `luca build-runtime`
+ * are carried inside the executable and extracted here via Bun.file().
+ */
+async function materializeEmbeddedRuntime(container: any, ui: any, buildDir: string): Promise<void> {
+	const fs = container.feature('fs') as any
+	const nodeModulesDir = container.paths.resolve(buildDir, 'node_modules')
+	const lucaDir = container.paths.resolve(nodeModulesDir, 'luca')
+	const zodDir = container.paths.resolve(nodeModulesDir, 'zod')
+
+	fs.rmdirSync(lucaDir)
+
+	// Dev: this file lives at <repo>/src/commands, so the runtime barrel exists
+	// on disk. In the compiled binary import.meta points into the executable's
+	// virtual filesystem and this check misses.
+	let devBarrelPath: string | null = null
+	try {
+		const candidate = container.paths.resolve(import.meta.dir, '..', 'bundle-runtime', 'runtime-barrel.ts')
+		if (fs.existsSync(candidate)) devBarrelPath = candidate
+	} catch {
+		// virtual filesystem — fall through to the embedded blob
+	}
+
+	if (devBarrelPath) {
+		ui.print.dim('  prebundling runtime from source (dev mode)')
+		await buildRuntimePackage(container, {
+			barrelPath: devBarrelPath,
+			outDir: lucaDir,
+			version: pkg.version,
+		})
+		const repoNodeModules = container.paths.resolve(devBarrelPath, '..', '..', '..', 'node_modules')
+		for (const vendorName of expandVendorPackages(container, repoNodeModules)) {
+			const src = container.paths.resolve(repoNodeModules, vendorName)
+			const dest = container.paths.resolve(nodeModulesDir, vendorName)
+			fs.rmdirSync(dest)
+			fs.ensureFolder(container.paths.resolve(dest, '..'))
+			fs.copy(src, dest, { overwrite: true })
+		}
+	} else {
+		// Loaded lazily: the blob import only resolves inside a compiled binary
+		// (or after build-runtime has run), and the dev path above never needs it.
+		const { runtimeBlob, runtimeIndex } = await import('../bundle-runtime/embedded.generated.js')
+		if (!runtimeBlob || runtimeIndex.length === 0) {
+			throw new Error(
+				'This luca build carries no embedded runtime. Recompile luca with `bun compile` '
+				+ '(which runs build-runtime), or pass --runtime <package-spec> to install instead.'
+			)
+		}
+		ui.print.dim(`  extracting embedded runtime (${runtimeIndex.length} file(s))`)
+		const blob = Buffer.from(await Bun.file(runtimeBlob).arrayBuffer())
+		for (const file of runtimeIndex) {
+			// __vendor/<pkg>/... entries are original npm packages restored beside
+			// luca; everything else belongs to the synthesized luca package.
+			const dest = file.path.startsWith('__vendor/')
+				? container.paths.resolve(nodeModulesDir, file.path.slice('__vendor/'.length))
+				: container.paths.resolve(lucaDir, file.path)
+			fs.ensureFolder(container.paths.resolve(dest, '..'))
+			fs.writeFile(dest, blob.subarray(file.offset, file.offset + file.length))
+		}
+	}
+
+	const zodShim = generateZodShim()
+	fs.ensureFolder(zodDir)
+	fs.writeFile(container.paths.resolve(zodDir, 'package.json'), zodShim.packageJson)
+	fs.writeFile(container.paths.resolve(zodDir, 'index.js'), zodShim.index)
+}
 
 /**
  * Collects assistant definitions (subdirectories of assistants/ containing a
@@ -161,13 +237,13 @@ export async function bundleCommand(
 		builtins: [...builtins],
 		...(assistants.length > 0 && { assistantsPath: './generated-consumer-assistants.ts' }),
 	}))
+	const useEmbeddedRuntime = options.runtime === 'embedded'
+
 	fs.writeFile(pkgPath, JSON.stringify({
 		name: `luca-bundle-${options.name}`,
 		version: '0.0.1',
 		type: 'module',
-		dependencies: {
-			luca: options.runtime,
-		},
+		...(useEmbeddedRuntime ? {} : { dependencies: { luca: options.runtime } }),
 	}, null, 2))
 
 	ui.print.dim(`  wrote ${entryPath}`)
@@ -176,14 +252,19 @@ export async function bundleCommand(
 	console.log()
 
 	if (options.dryRun) {
-		ui.print.info('Dry run — skipping bun install and bun build')
+		ui.print.info('Dry run — skipping runtime materialization and bun build')
 		return
 	}
 
-	ui.print.info('Installing build dependencies...')
-	const install = await proc.execAndCapture('bun install', { cwd: buildDir, silent: false })
-	if (install.exitCode !== 0) {
-		throw new Error(`bun install failed:\n${install.stderr}`)
+	if (useEmbeddedRuntime) {
+		ui.print.info('Materializing luca runtime (no package installation)...')
+		await materializeEmbeddedRuntime(container, ui, buildDir)
+	} else {
+		ui.print.info(`Installing build dependencies (${options.runtime})...`)
+		const install = await proc.execAndCapture('bun install', { cwd: buildDir, silent: false })
+		if (install.exitCode !== 0) {
+			throw new Error(`bun install failed:\n${install.stderr}`)
+		}
 	}
 	console.log()
 

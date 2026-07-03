@@ -108,6 +108,277 @@ export function collectAssistantFolderFiles(container: any, folder: string): Bun
   return collected
 }
 
+// ---------------------------------------------------------------------------
+// Embedded runtime — install-free bundling
+// ---------------------------------------------------------------------------
+
+/**
+ * Subpath exports for the synthesized node_modules/luca package written into
+ * a bundle build dir. Each key mirrors a specifier the generated entry,
+ * manifest, or consumer helper files may import; each value is a prebundled
+ * runtime artifact produced from src/bundle-runtime/entries.
+ */
+export const RUNTIME_EXPORT_MAP: Record<string, string> = {
+  '.': './index.js',
+  './node': './index.js',
+  './agi': './agi.js',
+  './cli/runner': './cli-runner.js',
+  './feature': './feature.js',
+  './schemas': './schemas.js',
+  './container': './container.js',
+  './client': './client.js',
+  './server': './server.js',
+  './zod': './zod.js',
+  './commands/*': './commands/*.js',
+}
+
+/** package.json for the synthesized node_modules/luca in a bundle build dir. */
+export function generateRuntimePackageJson(version: string): string {
+  return JSON.stringify({
+    name: 'luca',
+    version,
+    type: 'module',
+    exports: RUNTIME_EXPORT_MAP,
+  }, null, 2)
+}
+
+/**
+ * Files for the synthesized node_modules/zod shim. It re-exports the runtime's
+ * own zod artifact so consumer helpers share the exact zod instance the
+ * runtime uses (instanceof checks across schemas would break otherwise).
+ */
+export function generateZodShim(): { packageJson: string; index: string } {
+  return {
+    packageJson: JSON.stringify({
+      name: 'zod',
+      version: '0.0.0-luca-runtime',
+      type: 'module',
+      exports: { '.': './index.js' },
+    }, null, 2),
+    index: `export * from '../luca/zod.js'\nexport { default } from '../luca/zod.js'\n`,
+  }
+}
+
+/**
+ * Packages whose bundler-emitted form cannot survive a second bundling pass
+ * (e.g. iroh reassigns `require`, which bun renames into an illegal import
+ * assignment). They are kept external in the runtime prebundle and vendored
+ * into the consumer build dir as their original npm package files, which bun
+ * bundles cleanly from source during the consumer compile.
+ */
+export const VENDORED_RUNTIME_PACKAGES = ['@number0/iroh']
+
+/** Specifiers every runtime prebundle and consumer compile must keep external. */
+export const RUNTIME_EXTERNALS = ['node-llama-cpp', ...VENDORED_RUNTIME_PACKAGES]
+
+/**
+ * Expands the vendored package list with the napi-rs platform sibling packages
+ * that are actually installed (e.g. @number0/iroh-darwin-arm64 next to
+ * @number0/iroh) — the native .node bindings live in those, not in the base
+ * package. Only host-platform siblings exist locally, so cross-target builds
+ * carry only the platforms present at build time.
+ */
+export function expandVendorPackages(container: any, nodeModulesDir: string): string[] {
+  const fs = container.feature('fs') as any
+  const expanded: string[] = []
+
+  for (const base of VENDORED_RUNTIME_PACKAGES) {
+    expanded.push(base)
+
+    const lastSlash = base.lastIndexOf('/')
+    const parent = lastSlash === -1 ? '' : base.slice(0, lastSlash)
+    const baseName = lastSlash === -1 ? base : base.slice(lastSlash + 1)
+    const parentDir = parent
+      ? container.paths.resolve(nodeModulesDir, parent)
+      : nodeModulesDir
+
+    if (!fs.existsSync(parentDir)) continue
+    for (const entry of fs.readdirSync(parentDir) as string[]) {
+      if (entry.startsWith(`${baseName}-`)) {
+        expanded.push(parent ? `${parent}/${entry}` : entry)
+      }
+    }
+  }
+
+  return [...new Set(expanded)]
+}
+
+/** Maps each namespace exported by runtime-barrel.ts to its shim filename. */
+export const RUNTIME_NAMESPACE_SHIMS: Record<string, string> = {
+  lucaMain: 'index.js',
+  lucaAgi: 'agi.js',
+  lucaCliRunner: 'cli-runner.js',
+  lucaFeature: 'feature.js',
+  lucaSchemas: 'schemas.js',
+  lucaContainer: 'container.js',
+  lucaClient: 'client.js',
+  lucaServer: 'server.js',
+  lucaZod: 'zod.js',
+}
+
+const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+/**
+ * Generates a specifier shim (e.g. node_modules/luca/agi.js) that statically
+ * re-exports one namespace from the single-file runtime bundle. Names that are
+ * not valid identifiers are skipped; `default` is forwarded explicitly.
+ */
+export function generateNamespaceShim(namespaceName: string, exportNames: string[]): string {
+  const names = [...new Set(exportNames)]
+    .filter((n) => n !== 'default' && IDENTIFIER_RE.test(n))
+    .sort()
+  const hasDefault = exportNames.includes('default')
+
+  const lines = [
+    `// Generated shim for the '${namespaceName}' namespace of the luca runtime.`,
+    `import { ${namespaceName} as __ns } from './runtime-barrel.js'`,
+  ]
+  if (names.length > 0) {
+    lines.push(`const { ${names.join(', ')} } = __ns`)
+    lines.push(`export { ${names.join(', ')} }`)
+  }
+  if (hasDefault) {
+    lines.push('export default __ns.default')
+  }
+  return lines.join('\n') + '\n'
+}
+
+/**
+ * Generates a builtin-command shim (node_modules/luca/commands/<name>.js) that
+ * registers the command as a side effect via the runtime's lazy loaders.
+ */
+export function generateCommandShim(commandName: string): string {
+  return `// Generated shim registering the '${commandName}' builtin command.
+import { commandLoaders } from '../runtime-barrel.js'
+await commandLoaders[${JSON.stringify(commandName)}]()
+`
+}
+
+/**
+ * Prebundles runtime-barrel.ts into a single self-contained runtime-barrel.js
+ * (plus any native-addon assets), then writes the specifier shims and
+ * package.json that make it a complete synthesized node_modules/luca package.
+ *
+ * Used by `luca build-runtime` (output embedded into the compiled binary) and
+ * by dev-mode `luca bundle` (fresh runtime straight into the build dir).
+ * Returns the package's relative file list; vendored native packages are
+ * resolved separately via expandVendorPackages().
+ */
+export async function buildRuntimePackage(
+  container: any,
+  options: { barrelPath: string; outDir: string; version: string },
+): Promise<{ files: string[] }> {
+  const fs = container.feature('fs') as any
+  const proc = container.feature('proc') as any
+
+  const args = [
+    'build', options.barrelPath,
+    '--outdir', options.outDir,
+    '--target=bun',
+    '--format=esm',
+    ...RUNTIME_EXTERNALS.flatMap((e) => ['--external', e]),
+  ]
+
+  const result = await proc.spawnAndCapture('bun', args, { silent: true })
+  if (result.exitCode !== 0) {
+    throw new Error(`Runtime prebundle failed:\n${result.stderr || result.stdout}`)
+  }
+
+  // Introspect the barrel's namespaces from source to learn the export names
+  // each shim must forward. This evaluates in the current (dev) process where
+  // the modules are already loaded or loadable.
+  const barrel = await import(options.barrelPath)
+
+  for (const [namespaceName, shimFile] of Object.entries(RUNTIME_NAMESPACE_SHIMS)) {
+    const ns = barrel[namespaceName]
+    if (!ns) throw new Error(`runtime-barrel does not export namespace ${namespaceName}`)
+    fs.writeFile(
+      container.paths.resolve(options.outDir, shimFile),
+      generateNamespaceShim(namespaceName, Object.keys(ns)),
+    )
+  }
+
+  fs.ensureFolder(container.paths.resolve(options.outDir, 'commands'))
+  for (const commandName of Object.keys(barrel.commandLoaders ?? {})) {
+    fs.writeFile(
+      container.paths.resolve(options.outDir, 'commands', `${commandName}.js`),
+      generateCommandShim(commandName),
+    )
+  }
+
+  fs.writeFile(
+    container.paths.resolve(options.outDir, 'package.json'),
+    generateRuntimePackageJson(options.version),
+  )
+
+  const { files } = fs.walk(options.outDir, { relative: true })
+  return {
+    files: (files as string[]).map((f) => f.split('\\').join('/')).sort(),
+  }
+}
+
+/** One artifact's location within the concatenated runtime blob. */
+export interface RuntimeBlobIndexEntry {
+  path: string
+  offset: number
+  length: number
+}
+
+/**
+ * Builds the offset index for a runtime blob from artifact sizes, in the
+ * order the artifacts are concatenated.
+ */
+export function buildRuntimeBlobIndex(files: Array<{ path: string; size: number }>): RuntimeBlobIndexEntry[] {
+  let offset = 0
+  return files.map(({ path, size }) => {
+    const entry = { path, offset, length: size }
+    offset += size
+    return entry
+  })
+}
+
+/**
+ * Generates src/bundle-runtime/embedded.generated.ts. The runtime artifacts
+ * are concatenated into a single artifacts.blob which this module imports
+ * with `{ type: 'file' }`, so `bun build --compile` embeds the bytes in the
+ * luca binary; `luca bundle` slices files back out via the offset index to
+ * materialize the runtime without any package installation.
+ *
+ * A single blob (rather than per-file imports) keeps tsc from pulling ~127MB
+ * of bundled JS into its program (allowJs is on) and keeps the plain bun
+ * runtime from trying to evaluate `.node` addon imports in dev.
+ *
+ * With an empty index the blob import is omitted entirely — the stub state
+ * for fresh checkouts, where the blob file does not exist yet.
+ */
+export function generateEmbeddedRuntimeModule(index: RuntimeBlobIndexEntry[]): string {
+  const header = `// Generated by \`luca build-runtime\`. Do not edit by hand.
+// @ts-nocheck — the blob only exists after build-runtime has run`
+
+  if (index.length === 0) {
+    return `${header}
+
+export const runtimeBlob: string | null = null
+
+export const runtimeIndex: Array<{ path: string; offset: number; length: number }> = []
+`
+  }
+
+  const entries = index
+    .map((e) => `  { path: ${JSON.stringify(e.path)}, offset: ${e.offset}, length: ${e.length} },`)
+    .join('\n')
+
+  return `${header}
+import _blob from './artifacts.blob' with { type: 'file' }
+
+export const runtimeBlob: string | null = _blob
+
+export const runtimeIndex: Array<{ path: string; offset: number; length: number }> = [
+${entries}
+]
+`
+}
+
 export interface AssistantsModuleInput {
   binaryName: string
   assistants: BundleAssistantEntry[]
