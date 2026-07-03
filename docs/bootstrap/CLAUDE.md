@@ -89,6 +89,15 @@ The container provides more than you might expect. Before importing anything ext
 - **Database init**: use `luca.cli.ts` `main()` hook for table creation and seeding — it runs before any command or server starts.
 - **Which store for cross-process state?** In-process/ephemeral → `container.state`; cross-process scalars/blobs → `diskCache` (supports `ttl`); queryable/relational/durable queues → `sqlite` (use `transaction()` and `UPDATE … RETURNING` for atomic job claims); cross-process pub/sub → `redis`.
 - **Scheduling**: `container.feature('scheduler')` is the managed layer (named tasks, cron, run history, daemon `run()`); `container.utils.every(ms, fn)` / `sleep(ms)` / `backoff(fn, opts)` are the bare primitives when you don't need names or lifecycle. Neither ever overlaps runs of the same task.
+- **`paths.join()` prepends `container.cwd` even when the first arg is absolute** — use `paths.resolve(absPath, 'sub')` when the base is already absolute (e.g. `os.tmpdir`); `resolve` behaves like Node's.
+- **Colors silently disappear when stdout isn't a real TTY** — chalk auto-disables in pipes and sandboxed shells; this is not a bug in your command. Verify with `FORCE_COLOR=1 luca yourCmd | cat -v`.
+- **`useInput` requires a TTY** (`setRawMode`) and crashes on piped stdin — guard with `process.stdin.isTTY` and fall back to `process.on('SIGINT', ...)`.
+- **`fileManager.watch` emits `file:change` before its own bookkeeping** — a handler that moves or deletes the file crashes the watcher's internal `statSync`; defer mutating work (`setTimeout(() => processFile(e.path), 100)`). Watching is recursive by default — filter by directory in your handler.
+- **`docs.models` showing only `["Base"]`** means `docs/models.ts` failed to load *silently* — run `bun docs/models.ts` to see the real error (often package resolution).
+- **Registry names are camelCase, files are kebab-case** (`cipherSocial` ↔ `cipher-social.ts`). Don't guess short names; when `luca describe` fails, its "Available:" list is authoritative.
+- **Server options belong in the constructor** — `container.server('websocket', { port: 8099, json: true })`, then `start()`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
+- **Builds can lie** — `bun build --compile` can exit 0 without writing the binary. Check the artifact exists on disk before reporting success.
+- **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: `afterInitialize()` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit `connect()`.
 
 ## Extending the Container
 
