@@ -32,6 +32,12 @@ declare module '../client' {
  * - `error` — connection error
  * - `reconnecting` — attempting reconnection (with attempt number)
  *
+ * **CLI commands: an open socket keeps the process alive.** A `luca` command that
+ * connects as a client will hang after its work is done — the live WebSocket (and
+ * any reconnect timers) keep the event loop running. Call `await ws.disconnect()`
+ * when finished, and if the process still lingers (other handles or pending
+ * timers), end with `process.exit(0)`.
+ *
  * @example
  * ```typescript
  * const ws = container.client('websocket', {

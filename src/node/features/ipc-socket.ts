@@ -61,6 +61,12 @@ type ClientInfo = {
  * - Stale socket detection: probeSocket() before listen()
  * - Clean shutdown: stopServer() removes socket file
  *
+ * **CLI commands: an open socket keeps the process alive.** A `luca` command that
+ * connects as a client will hang after its work is done — the live socket (and
+ * reconnect timers, when `reconnect: true`) keep the event loop running. Call
+ * `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished,
+ * and if the process still lingers, end with `process.exit(0)`.
+ *
  * **Mode locking:** a single IpcSocket instance is locked to one role — the first
  * `listen()` locks it into server mode and the first `connect()` locks it into client
  * mode (attempting the other call afterwards throws). To act as both server and client

@@ -19,6 +19,9 @@ spread across two lines`
 describe('scaffold description escaping', () => {
   it('every scaffold type produces parseable TypeScript with a hostile description', () => {
     for (const type of Object.keys(scaffolds)) {
+      // The assistant scaffold is multi-file (assistantFiles), not a single-file
+      // template — generateScaffold intentionally has nothing for it.
+      if (!scaffolds[type]!.full) continue
       const code = generateScaffold(type, 'trickyHelper', NASTY_DESCRIPTION)
       expect(code, `scaffold type "${type}" returned no code`).toBeTruthy()
       expect(

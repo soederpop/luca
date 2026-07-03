@@ -16,25 +16,31 @@ export interface TransformResult {
 /**
  * Convert ESM import/export statements to CJS require/module.exports
  * so the code can run in a vm context that provides `require`.
+ *
+ * NOTE: whitespace between tokens is optional (`\s*`) wherever a brace or
+ * quote provides the token boundary. Bun's transpiler emits side-effect
+ * imports without a space (`import"./x.ts";`) — a `\s+` there silently
+ * leaves the statement untransformed, which then blows up in the VM with
+ * `SyntaxError: ... import call expects one or two arguments.`
  */
 function esmToCjs(code: string): string {
   const exportedNames: string[] = []
 
   let result = code
     // import Foo, { bar, baz } from 'x' → const Foo = require('x').default ?? require('x'); const { bar, baz } = require('x')
-    .replace(/^import\s+(\w+)\s*,\s*\{([^}]+)\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+    .replace(/^import\s+(\w+)\s*,\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
       'const $1 = require($3).default ?? require($3); const {$2} = require($3);')
     // import { a, b } from 'x' → const { a, b } = require('x')
-    .replace(/^import\s+\{([^}]+)\}\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+    .replace(/^import\s*\{([^}]+)\}\s*from\s*(['"][^'"]+['"])\s*;?$/gm,
       'const {$1} = require($2);')
     // import x from 'y' → const x = require('y').default ?? require('y')
-    .replace(/^import\s+(\w+)\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+    .replace(/^import\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
       'const $1 = require($2).default ?? require($2);')
     // import * as x from 'y' → const x = require('y')
-    .replace(/^import\s+\*\s+as\s+(\w+)\s+from\s+(['"][^'"]+['"])\s*;?$/gm,
+    .replace(/^import\s*\*\s*as\s+(\w+)\s+from\s*(['"][^'"]+['"])\s*;?$/gm,
       'const $1 = require($2);')
-    // import 'y' → require('y')
-    .replace(/^import\s+(['"][^'"]+['"])\s*;?$/gm,
+    // import 'y' → require('y')  (Bun emits this with no space: import"./x.ts";)
+    .replace(/^import\s*(['"][^'"]+['"])\s*;?$/gm,
       'require($1);')
     // export default → module.exports.default =
     .replace(/^export\s+default\s+/gm, 'module.exports.default = ')

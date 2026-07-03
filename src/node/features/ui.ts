@@ -133,9 +133,15 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * - Advanced: rgb, hex, hsl color support
    * 
    * Colors and styles can be chained for complex formatting.
-   * 
+   *
+   * NOTE: chalk auto-detects color support and DISABLES all ANSI codes when stdout
+   * is not a TTY — piped output, `$(...)` capture, CI, and sandboxed environments all
+   * produce plain uncolored text. This is expected behavior, not a bug. To verify that
+   * output actually contains ANSI codes (or to force color through a pipe), set
+   * `FORCE_COLOR=1` in the environment.
+   *
    * @returns The chalk colors object with all styling methods
-   * 
+   *
    * @example
    * ```typescript
    * // Basic colors
@@ -460,7 +466,12 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * - Customizable gradient directions
    * - Multiple color combinations
    * - Professional terminal presentation
-   * 
+   *
+   * NOTE: the gradient colors rely on chalk, which auto-disables ANSI codes when
+   * stdout is not a TTY (pipes, command substitution, CI, sandboxes) — in those
+   * contexts the banner renders as plain ASCII art with no color. Not a bug; set
+   * `FORCE_COLOR=1` to force color codes into non-TTY output.
+   *
    * @param text - The text to convert to a styled banner
    * @param options - Banner styling options
    * @param options.font - The figlet font to use for ASCII art generation

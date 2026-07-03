@@ -5,7 +5,7 @@ import type { ContainerContext } from '../container.js'
 import type { HelperIntrospection, IntrospectionSection } from '../introspection/index.js'
 import { __INTROSPECTION__, __BROWSER_INTROSPECTION__ } from '../introspection/index.js'
 import { features } from '../feature.js'
-import { ContainerDescriber } from '../container-describer.js'
+import { ContainerDescriber, DescribeError } from '../container-describer.js'
 import type { BrowserFeatureData } from '../container-describer.js'
 import { presentIntrospectionAsTypeScript } from '../helper.js'
 
@@ -153,11 +153,24 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 
 	const sections = ContainerDescriber.getSectionsFromFlags(options)
 
-	const result = await describer.describe(targets, {
-		sections,
-		noTitle: !options.title,
-		platform: options.platform as any,
-	})
+	let result: Awaited<ReturnType<typeof describer.describe>>
+	try {
+		result = await describer.describe(targets, {
+			sections,
+			noTitle: !options.title,
+			platform: options.platform as any,
+		})
+	} catch (err: any) {
+		// Known lookup misses (unknown helper/member/registry) are user errors, not
+		// crashes — print the friendly message + suggestions without a stack trace.
+		// Unexpected errors still propagate with their full stack.
+		if (err instanceof DescribeError || err?.name === 'DescribeError') {
+			console.error(err.message)
+			process.exitCode = 1
+			return
+		}
+		throw err
+	}
 
 	const wantsTypeScript = options.typescript || options.ts
 

@@ -18,24 +18,42 @@ export type VaultOptions = z.infer<typeof VaultOptionsSchema>
 
 /**
  * The Vault feature provides encryption and decryption capabilities using AES-256-GCM.
- * 
+ *
  * This feature allows you to securely encrypt and decrypt sensitive data using
  * industry-standard encryption. It manages secret keys and provides a simple
  * interface for cryptographic operations.
- * 
+ *
+ * **Keys are NOT persisted.** Unless you pass a `secret` option, the vault mints a
+ * brand-new random key the first time one is needed, and that key lives only in
+ * process memory. Every `luca` invocation (every process) gets a fresh key, so data
+ * encrypted in one run CANNOT be decrypted in a later run unless you save the key
+ * yourself and pass it back via `container.feature('vault', { secret })`.
+ *
  * @example
  * ```typescript
  * const vault = container.feature('vault')
- * 
+ *
  * // Encrypt sensitive data
  * const encrypted = vault.encrypt('sensitive information')
  * console.log(encrypted) // Base64 encoded encrypted data
- * 
- * // Decrypt the data
+ *
+ * // Decrypt the data (same process — the in-memory key is still around)
  * const decrypted = vault.decrypt(encrypted)
  * console.log(decrypted) // 'sensitive information'
+ *
+ * // ── Cross-invocation decryption: persist the key and pass it back ──
+ * // Run 1: encrypt and save the base64 key alongside (or apart from) the data
+ * const v1 = container.feature('vault')
+ * const payload = v1.encrypt('remember me')
+ * await container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key
+ * await container.fs.writeFileAsync('payload.enc', payload)
+ *
+ * // Run 2 (a NEW process): restore the key via the `secret` option
+ * const key = container.fs.readFile('secret.key') as string
+ * const v2 = container.feature('vault', { secret: key })            // base64 string or Buffer
+ * v2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'
  * ```
- * 
+ *
  * @extends Feature
  */
 export class Vault extends Feature<VaultState, VaultOptions> {
@@ -59,8 +77,13 @@ export class Vault extends Feature<VaultState, VaultOptions> {
   
   /**
    * Gets the secret key as a base64-encoded string.
-   * 
-   * @returns {string | undefined} The secret key encoded as base64, or undefined if no secret is set
+   *
+   * Lazily populated: unless a `secret` option was passed at construction, this is
+   * `undefined` until something forces key generation — i.e. until `secret()`,
+   * `encrypt()`, or `decrypt()` has run. Call `vault.secret()` first if you want to
+   * read `secretText` before encrypting anything.
+   *
+   * @returns {string | undefined} The secret key encoded as base64, or undefined if no secret has been set or generated yet
    */
   get secretText() {
     return this.state.get('secret')!?.toString('base64')
@@ -68,7 +91,13 @@ export class Vault extends Feature<VaultState, VaultOptions> {
 
   /**
    * Gets or generates a secret key for encryption operations.
-   * 
+   *
+   * If no key exists yet, this mints a NEW cryptographically random 32-byte key —
+   * it is not derived from anything and is never written to disk. Each process
+   * therefore gets its own key: data encrypted with it is undecryptable in any
+   * other `luca` invocation unless you persist the key (see `secretText`) and pass
+   * it back via `container.feature('vault', { secret })`.
+   *
    * @param {object} [options={}] - Options for secret key handling
    * @param {boolean} [options.refresh=false] - Whether to generate a new secret key
    * @param {boolean} [options.set=true] - Whether to store the generated key in state

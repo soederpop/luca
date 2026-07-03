@@ -77,15 +77,21 @@ export class FS extends Feature {
   /**
    * Synchronously reads a file and returns its contents as a string.
    *
+   * **Binary files: pass `null` as the encoding to get a raw Buffer.** The default
+   * encoding is utf-8, which silently corrupts binary content (images, zips, PDFs,
+   * compiled binaries) — invalid byte sequences are replaced and the data cannot be
+   * round-tripped. `fs.readFile('image.png')` returns garbage;
+   * `fs.readFile('image.png', null)` returns the real bytes.
+   *
    * @param {string} path - The file path relative to the container's working directory
-   * @param {BufferEncoding | null} [encoding='utf-8'] - The encoding to use. Pass null to get a raw Buffer.
+   * @param {BufferEncoding | null} [encoding='utf-8'] - The encoding to use. Pass null to get a raw Buffer (required for binary files).
    * @returns {string | Buffer} The file contents as a string (default) or Buffer if encoding is null
    * @throws {Error} Throws an error if the file doesn't exist or cannot be read
    *
    * @example
    * ```typescript
-   * const content = fs.readFile('README.md')
-   * const buffer = fs.readFile('image.png', null)
+   * const content = fs.readFile('README.md')          // string (utf-8)
+   * const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
    * ```
    */
   readFile(path: string, encoding?: BufferEncoding | null): string | Buffer {

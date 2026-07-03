@@ -214,7 +214,14 @@ export class Grep extends Feature {
     }
 
     /**
-     * Find TODO, FIXME, HACK, and XXX comments.
+     * Find lines containing TODO, FIXME, HACK, or XXX.
+     *
+     * NOTE: this is a plain substring/regex match against the whole line — it does
+     * NOT parse comments. Any occurrence of these words matches, including inside
+     * string literals, markdown prose, and documentation. In particular, a command
+     * or script that generates a report about TODOs will match its own source
+     * (e.g. `console.log('TODO report')`), so filter out the reporting file itself
+     * or exclude string-literal matches when post-processing results.
      *
      * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
      * @returns {Promise<GrepMatch[]>} Array of matches
@@ -223,6 +230,9 @@ export class Grep extends Feature {
      * ```typescript
      * const todos = await grep.todos()
      * const fixmes = await grep.todos({ include: '*.ts' })
+     *
+     * // A report generator should exclude itself from the results
+     * const filtered = todos.filter(m => !m.file.endsWith('commands/todo-report.ts'))
      * ```
      */
     async todos(options: Omit<GrepOptions, 'pattern'> = {}): Promise<GrepMatch[]> {

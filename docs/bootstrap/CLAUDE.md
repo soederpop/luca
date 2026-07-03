@@ -71,8 +71,8 @@ The container provides more than you might expect. Before importing anything ext
 - **chalk** — available as `container.feature('ui').colors`, not via `import('chalk')`.
 - **figlet** — available as `container.feature('ui').asciiArt(text)`.
 - **uuid** — `container.utils.uuid()`
-- **lodash** — `container.utils.lodash` (groupBy, keyBy, pick, omit, debounce, etc.)
-- **string utils** — `container.utils.stringUtils` (camelCase, kebabCase, pluralize, etc.)
+- **lodash** — `container.utils.lodash`. Exactly these: `uniq`, `uniqBy`, `keyBy`, `groupBy`, `debounce`, `throttle`, `mapValues`, `mapKeys`, `pick`, `get`, `set`, `omit`. Nothing else (no `sortBy`, `orderBy`, `chunk`, …) — use native array methods for the rest.
+- **string utils** — `container.utils.stringUtils`. Exactly these: `camelCase`, `kebabCase`, `upperFirst`, `lowerFirst`, `pluralize`, `singularize`.
 
 ## Known Gotchas
 

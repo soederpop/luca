@@ -79,11 +79,18 @@ export class ChildProcess extends Feature {
 
   /**
    * Executes a command string and captures its output asynchronously.
-   * 
+   *
    * This method takes a complete command string, splits it into command and arguments,
    * and executes it using the spawnAndCapture method. It's a convenient wrapper
    * for simple command execution.
-   * 
+   *
+   * **WARNING: the command string is split naively on spaces** — there is no shell
+   * quoting or escaping. Quoted arguments containing spaces (paths like
+   * `"/My Documents/file.txt"`, format strings like `--format="%h %s"`) get mangled
+   * into multiple arguments, quotes included. If any argument contains spaces or
+   * quotes, use `spawnAndCapture(command, argsArray)` instead and pass each argument
+   * as its own array element.
+   *
    * @param {string} cmd - The complete command string to execute (e.g., "git status --porcelain")
    * @param {any} [options] - Options to pass to the underlying spawn process
    * @returns {Promise<object>} Promise resolving to execution result with stdout, stderr, exitCode, pid, and error
@@ -102,6 +109,11 @@ export class ChildProcess extends Feature {
    * const result = await proc.execAndCapture('npm list --depth=0', {
    *   cwd: '/path/to/project'
    * })
+   *
+   * // WRONG: quoted args with spaces get split apart
+   * // await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
+   * // RIGHT: use spawnAndCapture with an args array
+   * const log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--date=short'])
    * ```
    */
   async execAndCapture(
