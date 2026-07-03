@@ -8,7 +8,9 @@ import {
 	generateEmbeddedRuntimeModule,
 } from '../src/cli/bundle-utils.js'
 
-export const argsSchema = CommandOptionsSchema.extend({})
+export const argsSchema = CommandOptionsSchema.extend({
+	stub: z.boolean().default(false).describe('Only reset embedded.generated.ts to the empty stub (used by the default slim compile)'),
+})
 
 /**
  * Prebundles the consumer runtime (runtime-barrel.ts plus specifier shims and
@@ -27,6 +29,12 @@ async function buildRuntime(options: z.infer<typeof argsSchema>, context: Contai
 	const blobPath = container.paths.resolve('src/bundle-runtime/artifacts.blob')
 	const generatedPath = container.paths.resolve('src/bundle-runtime/embedded.generated.ts')
 	const pkg = JSON.parse(String(fs.readFile(container.paths.resolve('package.json'))))
+
+	if (options.stub) {
+		fs.writeFile(generatedPath, generateEmbeddedRuntimeModule([]))
+		ui.print.dim(`Reset ${generatedPath} to stub (no embedded runtime)`)
+		return
+	}
 
 	ui.print.info('Prebundling consumer runtime...')
 	fs.rmdirSync(artifactsDir)

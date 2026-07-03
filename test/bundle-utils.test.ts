@@ -14,6 +14,7 @@ import {
   generateRuntimePackageJson,
   generateEmbeddedRuntimeModule,
   buildRuntimeBlobIndex,
+  normalizeRuntimeDependencySpec,
   RUNTIME_EXPORT_MAP,
 } from '../src/cli/bundle-utils'
 
@@ -135,6 +136,13 @@ describe('bundle utils', () => {
     expect(pkg.name).toBe('luca')
     expect(pkg.version).toBe('9.9.9')
     expect(pkg.exports).toEqual(RUNTIME_EXPORT_MAP)
+  })
+
+  it('normalizes runtime specs into dependency values', () => {
+    expect(normalizeRuntimeDependencySpec('luca')).toBe('latest')
+    expect(normalizeRuntimeDependencySpec('luca@3.3.0')).toBe('3.3.0')
+    expect(normalizeRuntimeDependencySpec('3.3.0')).toBe('3.3.0')
+    expect(normalizeRuntimeDependencySpec('file:/repos/luca')).toBe('file:/repos/luca')
   })
 
   it('builds a contiguous blob index from file sizes', () => {

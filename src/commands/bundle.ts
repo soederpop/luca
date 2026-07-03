@@ -12,6 +12,7 @@ import {
 	generateConsumerEntry,
 	generateConsumerManifest,
 	generateZodShim,
+	normalizeRuntimeDependencySpec,
 	normalizeTargets,
 	shouldIncludeBundleFile,
 	type BundleAssistantEntry,
@@ -34,7 +35,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	outDir: z.string().default('dist').describe('Directory to write compiled binaries'),
 	targets: z.string().default('darwin-arm64').describe('Comma-separated Bun target platforms'),
 	builtins: z.string().default('').describe('Optional comma-separated Luca built-in commands to include'),
-	runtime: z.string().default('embedded').describe("How to provide luca in the build: 'embedded' (default) uses the runtime carried inside this binary — no package installation. Any other value is a package spec (e.g. luca@3.3.0 or file:/path/to/luca) installed with bun."),
+	runtime: z.string().default('auto').describe("How to provide luca in the build: 'auto' (default) uses the embedded/source runtime when this build carries one, otherwise installs luca from npm. 'embedded' requires the embedded runtime. Any other value is a package spec (e.g. luca@3.3.0 or file:/path/to/luca) installed with bun."),
 	dryRun: z.boolean().default(false).describe('Generate bundle files but skip bun install/build'),
 })
 
@@ -42,12 +43,45 @@ const SELF_REGISTERING_DIRS = ['features', 'clients', 'servers', 'endpoints', 's
 const COMMAND_DIRS = ['commands'] as const
 
 /**
+ * Locates runtime-barrel.ts when running from the luca repo (dev). In the
+ * compiled binary import.meta points into the executable's virtual filesystem
+ * and this returns null.
+ */
+function findDevBarrel(container: any): string | null {
+	const fs = container.feature('fs') as any
+	try {
+		const candidate = container.paths.resolve(import.meta.dir, '..', 'bundle-runtime', 'runtime-barrel.ts')
+		if (fs.existsSync(candidate)) return candidate
+	} catch {
+		// virtual filesystem — no dev barrel
+	}
+	return null
+}
+
+/** Whether this build can provide the runtime without installing anything. */
+async function embeddedRuntimeAvailable(container: any): Promise<boolean> {
+	if (findDevBarrel(container)) return true
+	const { runtimeBlob, runtimeIndex } = await import('../bundle-runtime/embedded.generated.js')
+	return Boolean(runtimeBlob) && runtimeIndex.length > 0
+}
+
+/**
+ * Resolves the requested --runtime value to either 'embedded' or a package
+ * spec to install. 'auto' prefers the embedded/source runtime when this build
+ * carries one and falls back to installing luca from npm.
+ */
+async function resolveRuntimeSpec(container: any, requested: string): Promise<string> {
+	if (requested !== 'auto') return requested
+	return (await embeddedRuntimeAvailable(container)) ? 'embedded' : 'luca'
+}
+
+/**
  * Provides luca to the consumer build dir without any package installation by
  * writing a synthesized node_modules containing the prebundled runtime.
  *
  * In dev (running from the luca repo) the runtime is prebundled fresh from
- * source. In the compiled binary the artifacts produced by `luca build-runtime`
- * are carried inside the executable and extracted here via Bun.file().
+ * source. In a fat compiled binary (`bun run compile:fat`) the blob produced
+ * by `luca build-runtime` is carried inside the executable and extracted here.
  */
 async function materializeEmbeddedRuntime(container: any, ui: any, buildDir: string): Promise<void> {
 	const fs = container.feature('fs') as any
@@ -57,16 +91,7 @@ async function materializeEmbeddedRuntime(container: any, ui: any, buildDir: str
 
 	fs.rmdirSync(lucaDir)
 
-	// Dev: this file lives at <repo>/src/commands, so the runtime barrel exists
-	// on disk. In the compiled binary import.meta points into the executable's
-	// virtual filesystem and this check misses.
-	let devBarrelPath: string | null = null
-	try {
-		const candidate = container.paths.resolve(import.meta.dir, '..', 'bundle-runtime', 'runtime-barrel.ts')
-		if (fs.existsSync(candidate)) devBarrelPath = candidate
-	} catch {
-		// virtual filesystem — fall through to the embedded blob
-	}
+	const devBarrelPath = findDevBarrel(container)
 
 	if (devBarrelPath) {
 		ui.print.dim('  prebundling runtime from source (dev mode)')
@@ -89,8 +114,8 @@ async function materializeEmbeddedRuntime(container: any, ui: any, buildDir: str
 		const { runtimeBlob, runtimeIndex } = await import('../bundle-runtime/embedded.generated.js')
 		if (!runtimeBlob || runtimeIndex.length === 0) {
 			throw new Error(
-				'This luca build carries no embedded runtime. Recompile luca with `bun compile` '
-				+ '(which runs build-runtime), or pass --runtime <package-spec> to install instead.'
+				'This luca build carries no embedded runtime. Use --runtime <package-spec> (or the '
+				+ "default --runtime auto) to install luca instead, or rebuild luca with `bun run compile:fat`."
 			)
 		}
 		ui.print.dim(`  extracting embedded runtime (${runtimeIndex.length} file(s))`)
@@ -237,13 +262,14 @@ export async function bundleCommand(
 		builtins: [...builtins],
 		...(assistants.length > 0 && { assistantsPath: './generated-consumer-assistants.ts' }),
 	}))
-	const useEmbeddedRuntime = options.runtime === 'embedded'
+	const runtimeSpec = await resolveRuntimeSpec(container, options.runtime)
+	const useEmbeddedRuntime = runtimeSpec === 'embedded'
 
 	fs.writeFile(pkgPath, JSON.stringify({
 		name: `luca-bundle-${options.name}`,
 		version: '0.0.1',
 		type: 'module',
-		...(useEmbeddedRuntime ? {} : { dependencies: { luca: options.runtime } }),
+		...(useEmbeddedRuntime ? {} : { dependencies: { luca: normalizeRuntimeDependencySpec(runtimeSpec) } }),
 	}, null, 2))
 
 	ui.print.dim(`  wrote ${entryPath}`)
@@ -260,7 +286,7 @@ export async function bundleCommand(
 		ui.print.info('Materializing luca runtime (no package installation)...')
 		await materializeEmbeddedRuntime(container, ui, buildDir)
 	} else {
-		ui.print.info(`Installing build dependencies (${options.runtime})...`)
+		ui.print.info(`Installing build dependencies (luca: ${runtimeSpec})...`)
 		const install = await proc.execAndCapture('bun install', { cwd: buildDir, silent: false })
 		if (install.exitCode !== 0) {
 			throw new Error(`bun install failed:\n${install.stderr}`)

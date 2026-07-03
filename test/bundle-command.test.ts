@@ -49,7 +49,29 @@ describe('bundle command', () => {
     expect(manifest).toContain('registerBundledCommand("hello"')
 
     const pkg = JSON.parse(readFileSync(join(buildDir, 'package.json'), 'utf8'))
-    expect(pkg.dependencies.luca).toBe('luca')
+    expect(pkg.dependencies.luca).toBe('latest')
+  })
+
+  it('auto runtime omits dependencies when the source runtime is available', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'luca-bundle-auto-test-'))
+    const outDir = join(root, 'out')
+    const cmd = container.command('bundle' as any)
+    await cmd.dispatch(
+      {
+        name: 'auto-bin',
+        source: root,
+        outDir,
+        targets: 'darwin-arm64',
+        builtins: '',
+        runtime: 'auto',
+        dryRun: true,
+      },
+      'headless',
+    )
+
+    // Running from the luca repo, auto resolves to the embedded/source runtime
+    const pkg = JSON.parse(readFileSync(join(outDir, '.luca-bundle-build', 'auto-bin', 'package.json'), 'utf8'))
+    expect(pkg.dependencies).toBeUndefined()
   })
 
   it('embeds assistants and wires chat into the entry', async () => {

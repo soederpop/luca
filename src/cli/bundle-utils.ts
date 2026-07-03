@@ -132,6 +132,17 @@ export const RUNTIME_EXPORT_MAP: Record<string, string> = {
   './commands/*': './commands/*.js',
 }
 
+/**
+ * Normalizes a --runtime package spec into a valid package.json dependency
+ * value for the `luca` key: 'luca' → 'latest', 'luca@X' → 'X', and file:/
+ * version/range specs pass through unchanged.
+ */
+export function normalizeRuntimeDependencySpec(spec: string): string {
+  if (spec === 'luca') return 'latest'
+  if (spec.startsWith('luca@')) return spec.slice('luca@'.length)
+  return spec
+}
+
 /** package.json for the synthesized node_modules/luca in a bundle build dir. */
 export function generateRuntimePackageJson(version: string): string {
   return JSON.stringify({
