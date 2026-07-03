@@ -262,6 +262,63 @@ This is useful inside commands and scripts where you need introspection data pro
 - `luca serve --any-port` will open on any port
 
 
+## Common Patterns
+
+Recurring shapes that evaluation sessions had to improvise — use these instead of inventing your own:
+
+### State between separate `luca` invocations
+
+Every `luca` command runs in a fresh process with a fresh container — module-level variables and helper registrations do not survive. The blessed handoff is `diskCache` (note: `get()` throws on a missing key — guard with `has()`):
+
+```js
+// process A (e.g. `luca scout`)
+const cache = container.feature('diskCache')
+await cache.set('scout', { port, pid, startedAt: new Date().toISOString() })
+
+// process B (e.g. `luca check`)
+if (cache.has('scout')) { const { port } = await cache.get('scout') }
+```
+
+For queryable state use `sqlite`; for simple cases a JSON file via `fs.writeJson`/`readJson` is fine too.
+
+### Subcommand-style CLIs (`luca note add|list|wipe`)
+
+One command file; map the verb through positionals and validate with an enum:
+
+```ts
+export const positionals = ['action', 'text']
+export const argsSchema = z.object({
+  action: z.enum(['add', 'list', 'wipe']).describe('What to do'),
+  text: z.string().optional().describe('Note text (for add)'),
+})
+```
+
+### Background workers that outlive the CLI
+
+`proc.spawn` supports detaching — the child survives the parent command exiting:
+
+```js
+const proc = container.feature('proc')
+const worker = proc.spawn('bun', ['worker.ts'], { detached: true })  // stdio defaults to 'ignore' when detached
+worker.unref()  // let the parent event loop exit
+// persist worker.pid (diskCache) so a later `stop` command can kill it
+```
+
+### Client commands must exit explicitly
+
+A command that connects as a websocket/IPC client can keep the event loop alive after its work is done and hang forever. Disconnect and exit:
+
+```js
+const answer = await client.ask({ type: 'time' })
+console.log(answer)
+await client.disconnect?.()
+process.exit(0)
+```
+
+### Secrets across invocations
+
+`vault.secret()` mints a **new random key each process** — encrypt in one command, and the next command can't decrypt unless you persist the key and pass it back: `container.feature('vault', { secret: savedKey })`. (`vault.secretText` is also lazy — undefined until `secret()`/`encrypt()`/`decrypt()` has run once.)
+
 ## Framework Index
 
 A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
