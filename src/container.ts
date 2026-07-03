@@ -58,11 +58,37 @@ export interface Plugin<T> {
 
 export type Extension<T> = 'string' | keyof AvailableFeatures | Plugin<T> | { attach: (container: Container<any>, options?: any) => T}
 
+export interface BackoffOptions {
+  /** Maximum number of attempts, including the first (default: 3) */
+  attempts?: number
+  /** Delay in milliseconds before the first retry (default: 250) */
+  delay?: number
+  /** Multiplier applied to the delay after each failed attempt (default: 2) */
+  factor?: number
+  /** Upper bound in milliseconds for any single delay */
+  maxDelay?: number
+  /** Called before each retry with the error and the attempt number that just failed (1-based) */
+  onRetry?: (error: unknown, attempt: number) => void
+}
+
+export interface EveryOptions {
+  /** Run fn immediately instead of waiting for the first interval (default: false) */
+  immediate?: boolean
+  /** Called when fn throws or rejects. If not provided, the loop stops and the error is rethrown asynchronously. */
+  onError?: (error: unknown) => void
+}
+
 export interface ContainerUtils {
   /** Generate a v4 UUID */
   uuid: () => string
   /** Deterministic hash of any object */
   hashObject: (obj: any) => string
+  /** Resolve after the given number of milliseconds */
+  sleep: (ms?: number) => Promise<void>
+  /** Run an async function with retries and exponential backoff. Returns fn's result; throws the last error after exhausting attempts. */
+  backoff: <T>(fn: () => T | Promise<T>, options?: BackoffOptions) => Promise<T>
+  /** Run fn on an interval using the recursive-setTimeout idiom (no overlapping runs). Returns a stop() function. */
+  every: (ms: number, fn: () => any | Promise<any>, options?: EveryOptions) => () => void
   /** String case conversion and inflection utilities */
   stringUtils: { kebabCase: typeof kebabCase; camelCase: typeof camelCase; upperFirst: typeof upperFirst; lowerFirst: typeof lowerFirst; pluralize: typeof pluralize; singularize: typeof singularize }
   /** Lodash utility subset */
@@ -197,10 +223,13 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   
   /**
    * Common utilities available on every container. Provides UUID generation, object hashing,
-   * string case conversion, and lodash helpers — no imports needed.
+   * timing helpers (sleep, backoff, every), string case conversion, and lodash helpers — no imports needed.
    *
    * - `utils.uuid()` — generate a v4 UUID
    * - `utils.hashObject(obj)` — deterministic hash of any object
+   * - `utils.sleep(ms)` — resolve after ms milliseconds
+   * - `utils.backoff(fn, opts)` — retry an async fn with exponential backoff
+   * - `utils.every(ms, fn, opts)` — poll loop with no overlapping runs; returns a stop() function
    * - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }`
    * - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`
    *
@@ -211,12 +240,73 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * const name = container.utils.stringUtils.camelCase('my-feature')
    * const unique = container.utils.lodash.uniq([1, 2, 2, 3])
    * ```
+   *
+   * @example
+   * ```ts
+   * // Retry a flaky call: 5 attempts, 200ms → 400ms → 800ms → 1600ms between them
+   * const data = await container.utils.backoff(() => api.get('/status'), {
+   *   attempts: 5, delay: 200,
+   *   onRetry: (err, attempt) => console.log(`attempt ${attempt} failed`)
+   * })
+   *
+   * // Poll every 30s until stopped — the next run never starts before the previous finishes
+   * const stop = container.utils.every(30_000, async () => { await syncOnce() })
+   * process.on('SIGINT', () => { stop(); process.exit(0) })
+   * ```
    */
   get utils(): ContainerUtils {
+    const sleep = (ms: number = 1000) => new Promise<void>((res) => setTimeout(res, ms))
     return {
       hashObject: (obj: any) => hashObject(obj),
       get stringUtils() { return stringUtils },
       uuid: () => v4(),
+      sleep,
+      backoff: async <T>(fn: () => T | Promise<T>, options: BackoffOptions = {}): Promise<T> => {
+        const { attempts = 3, delay = 250, factor = 2, maxDelay, onRetry } = options
+        let wait = delay
+        let lastError: unknown
+        for (let attempt = 1; attempt <= Math.max(1, attempts); attempt++) {
+          try {
+            return await fn()
+          } catch (error) {
+            lastError = error
+            if (attempt >= attempts) break
+            onRetry?.(error, attempt)
+            await sleep(maxDelay != null ? Math.min(wait, maxDelay) : wait)
+            wait *= factor
+          }
+        }
+        throw lastError
+      },
+      every: (ms: number, fn: () => any | Promise<any>, options: EveryOptions = {}) => {
+        const { immediate = false, onError } = options
+        let stopped = false
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const tick = async () => {
+          if (stopped) return
+          try {
+            await fn()
+          } catch (error) {
+            if (onError) {
+              onError(error)
+            } else {
+              stopped = true
+              // no handler: stop the loop and surface the error instead of swallowing it
+              throw error
+            }
+          }
+          if (!stopped) timer = setTimeout(tick, ms)
+        }
+        if (immediate) {
+          tick()
+        } else {
+          timer = setTimeout(tick, ms)
+        }
+        return () => {
+          stopped = true
+          if (timer) clearTimeout(timer)
+        }
+      },
       lodash: {
         uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit,
       }

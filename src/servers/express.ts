@@ -32,6 +32,14 @@ const defaultCreate = (app: Express, server: Server) => app
  *
  * @extends Server
  *
+ * Endpoint modules can declare built-in IP-keyed sliding-window rate limiting by
+ * exporting `rateLimit: { maxRequests, windowSeconds }` (all methods) or per-method
+ * variants like `getRateLimit` — no need to hand-roll one.
+ *
+ * For raw custom routes there are three doors: the `create: (app, server) => app`
+ * option hook (runs before endpoints mount), `server.app.use(...)` after creation,
+ * or `luca serve --setup setup.ts` from the CLI (your setup file receives the app).
+ *
  * @example
  * ```typescript
  * const server = container.server('express', { cors: true, static: './public' })
@@ -42,6 +50,19 @@ const defaultCreate = (app: Express, server: Server) => app
  *
  * // Access the underlying Express app
  * server.app.get('/health', (req, res) => res.json({ ok: true }))
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // endpoints/status.ts — rate-limited endpoint module, mounted by `luca serve`
+ * export const path = '/status'
+ * export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods
+ * export async function get() { return { ok: true } }
+ *
+ * // Custom middleware via the create hook
+ * const server = container.server('express', {
+ *   create: (app, server) => { app.use(myMiddleware); return app },
+ * })
  * ```
  */
 export class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T,K> {

@@ -281,6 +281,15 @@ if (cache.has('scout')) { const { port } = await cache.get('scout') }
 
 For queryable state use `sqlite`; for simple cases a JSON file via `fs.writeJson`/`readJson` is fine too.
 
+**Which store? The decision heuristic:**
+
+| Need | Use |
+|------|-----|
+| In-process, ephemeral, reactive | `container.state` / feature state |
+| Cross-process handoff of scalars/blobs (config, tokens, PIDs) | `diskCache` (supports `ttl` for expiry) |
+| Queryable, relational, transactional, durable queues | `sqlite` (see `transaction()` and `UPDATE … RETURNING` for atomic job claims) |
+| Cross-process pub/sub fan-out | `redis` (`publish`/`subscribe`) |
+
 ### Subcommand-style CLIs (`luca note add|list|wipe`)
 
 One command file; map the verb through positionals and validate with an enum:

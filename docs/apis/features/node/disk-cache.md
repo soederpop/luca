@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.
+File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses.
 
 ## Usage
 
@@ -144,7 +144,7 @@ Store a value in the cache
 |------|------|----------|-------------|
 | `key` | `string` | ✓ | The cache key to store under |
 | `value` | `any` | ✓ | The value to store (string, object, or any serializable data) |
-| `meta` | `any` |  | Optional metadata to associate with the cached item |
+| `meta` | `any` |  | Optional metadata to associate with the cached item. `meta.ttl` |
 
 **Returns:** `Promise<any>`
 
@@ -152,6 +152,7 @@ Store a value in the cache
 await diskCache.set('myKey', 'Hello World')
 await diskCache.set('userData', { name: 'John', age: 30 })
 await diskCache.set('file', content, { size: 1024, type: 'image' })
+await diskCache.set('token', jwt, { ttl: 900 }) // expires in 15 minutes
 ```
 
 
@@ -240,7 +241,7 @@ const customCache = diskCache.create('/custom/cache/path')
 | Property | Type | Description |
 |----------|------|-------------|
 | `cache` | `ReturnType<typeof this.create>` | Returns the underlying cacache instance configured with the cache directory path. |
-| `securely` | `{ set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> }` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
+| `securely` | `{ set(name: string, payload: any, meta?: any, expiresAt?: number): Promise<any>; get(name: string): Promise<any> }` | Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided |
 
 ## State (Zod v4 schema)
 
@@ -256,6 +257,13 @@ const customCache = diskCache.create('/custom/cache/path')
 const diskCache = container.feature('diskCache', { path: '/tmp/cache' })
 await diskCache.set('greeting', 'Hello World')
 const value = await diskCache.get('greeting')
+```
+
+```ts
+// TTL: entries expire and read as cache misses afterwards
+const cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour
+await cache.set('session', token)                  // expires in 1 hour
+await cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds
 ```
 
 
@@ -320,6 +328,7 @@ const data = await diskCache.get('myData', true) // parse as JSON
 await diskCache.set('myKey', 'Hello World')
 await diskCache.set('userData', { name: 'John', age: 30 })
 await diskCache.set('file', content, { size: 1024, type: 'image' })
+await diskCache.set('token', jwt, { ttl: 900 }) // expires in 15 minutes
 ```
 
 

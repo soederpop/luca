@@ -2,7 +2,7 @@
 
 > Stability: `experimental`
 
-Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.
+Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.
 
 ## Usage
 
@@ -10,9 +10,9 @@ Semantic search feature providing BM25 keyword search, vector similarity search,
 container.feature('semanticSearch', {
   // Path to the SQLite database file
   dbPath,
-  // Embedding model name
+  // Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())
   embeddingModel,
-  // Where to generate embeddings
+  // Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights
   embeddingProvider,
   // How to split documents
   chunkStrategy,
@@ -28,8 +28,8 @@ container.feature('semanticSearch', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `dbPath` | `string` | Path to the SQLite database file |
-| `embeddingModel` | `string` | Embedding model name |
-| `embeddingProvider` | `string` | Where to generate embeddings |
+| `embeddingModel` | `string` | Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings()) |
+| `embeddingProvider` | `string` | Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights |
 | `chunkStrategy` | `string` | How to split documents |
 | `chunkSize` | `number` | Token limit per chunk for fixed strategy |
 | `chunkOverlap` | `number` | Overlap ratio for fixed strategy |
@@ -324,9 +324,28 @@ container.feature('semanticSearch', {
 
 
 
+### downloadModelWeights
+
+Download the .gguf weights for a supported local embedding model into ~/.cache/luca/models/. Skips the download when the weights already exist. Downloads to a temp file first, then renames atomically.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `modelName` | `string` |  | Local model to fetch (default: the resolved embeddingModel) |
+
+**Returns:** `Promise<string>`
+
+```ts
+const search = container.feature('semanticSearch', { embeddingProvider: 'local' })
+await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing
+```
+
+
+
 ### installLocalEmbeddings
 
-Install node-llama-cpp into the user's project for local embedding support. Detects package manager from lockfile presence and verifies the native addon loads.
+Install node-llama-cpp into the user's project for local embedding support, then download the embedding model weights so local embeddings work turnkey. Detects package manager from lockfile presence and verifies the native addon loads.
 
 **Parameters:**
 
@@ -348,6 +367,7 @@ Install node-llama-cpp into the user's project for local embedding support. Dete
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `embeddingModel` | `string` | The embedding model in effect, resolved per provider when no explicit embeddingModel option was given (openai → text-embedding-3-small, local → embedding-gemma-300M-Q8_0). |
 | `db` | `Database` |  |
 | `dimensions` | `number` |  |
 
@@ -399,12 +419,23 @@ When documents are indexed with embeddings
 **features.semanticSearch**
 
 ```ts
+// Offline/local embeddings — one-time setup, then fully local
 const search = container.feature('semanticSearch', {
  dbPath: '.contentbase/search.sqlite',
  embeddingProvider: 'local',
 })
+await search.installLocalEmbeddings(process.cwd()) // installs addon + downloads weights
 await search.initDb()
 await search.indexDocuments(docs)
 const results = await search.hybridSearch('how does authentication work')
+```
+
+
+
+**downloadModelWeights**
+
+```ts
+const search = container.feature('semanticSearch', { embeddingProvider: 'local' })
+await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing
 ```
 

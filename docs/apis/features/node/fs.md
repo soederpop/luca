@@ -14,20 +14,20 @@ container.feature('fs')
 
 ### readFile
 
-Synchronously reads a file and returns its contents as a string.
+Synchronously reads a file and returns its contents as a string. **Binary files: pass `null` as the encoding to get a raw Buffer.** The default encoding is utf-8, which silently corrupts binary content (images, zips, PDFs, compiled binaries) — invalid byte sequences are replaced and the data cannot be round-tripped. `fs.readFile('image.png')` returns garbage; `fs.readFile('image.png', null)` returns the real bytes.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The file path relative to the container's working directory |
-| `encoding` | `BufferEncoding | null` |  | The encoding to use. Pass null to get a raw Buffer. |
+| `encoding` | `BufferEncoding | null` |  | The encoding to use. Pass null to get a raw Buffer (required for binary files). |
 
 **Returns:** `string | Buffer`
 
 ```ts
-const content = fs.readFile('README.md')
-const buffer = fs.readFile('image.png', null)
+const content = fs.readFile('README.md')          // string (utf-8)
+const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
 ```
 
 
@@ -882,8 +882,8 @@ fs.copy('src', 'backup/src')
 **readFile**
 
 ```ts
-const content = fs.readFile('README.md')
-const buffer = fs.readFile('image.png', null)
+const content = fs.readFile('README.md')          // string (utf-8)
+const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
 ```
 
 

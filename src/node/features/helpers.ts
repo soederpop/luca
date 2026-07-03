@@ -60,6 +60,14 @@ const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
  * - Class-based (features, clients, servers): Dynamic import, validate subclass, register
  * - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms
  *
+ * This is also the composition point for building your own plugin/registry systems
+ * ("meta-discovery"): call `discover(type, { directory })` once per plugin folder to
+ * load helpers from anywhere, not just the conventional locations. A missing directory
+ * simply yields no helpers. See `assistantsManager` for a production example.
+ *
+ * Note: registries (`container.commands`, `container.features`, ...) are class
+ * instances — enumerate them with `.available`, not `Object.keys()`.
+ *
  * @example
  * ```typescript
  * const helpers = container.feature('helpers', { enable: true })
@@ -72,6 +80,15 @@ const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
  *
  * // Unified view of all available helpers
  * console.log(helpers.available)
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Meta-discovery: load each plugin's commands from its own folder
+ * for (const dir of ['./plugins/analytics/commands', './plugins/billing/commands']) {
+ *   await container.helpers.discover('commands', { directory: dir })
+ * }
+ * console.log(container.commands.available) // all registered command names
  * ```
  */
 export class Helpers extends Feature<HelpersState, HelpersOptions> {
@@ -331,7 +348,9 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    *
    * @param type - Which type of helpers to discover
    * @param options - Optional overrides
-   * @param options.directory - Override the directory to scan
+   * @param options.directory - Override the directory to scan. A missing directory
+   *   is not an error — it resolves to `[]`, same as when no conventional folder
+   *   exists (a plugin that declares no commands/ folder is normal).
    * @returns Names of helpers that were discovered and registered
    *
    * @example
@@ -339,13 +358,29 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * const names = await container.helpers.discover('features')
    * console.log(names) // ['myCustomFeature']
    * ```
+   *
+   * @example
+   * ```typescript
+   * // Meta-discovery: build a plugin system by scanning each plugin's folders.
+   * // To enumerate a registry afterwards use `.available` — registries are class
+   * // instances, so `Object.keys(container.commands)` will NOT list helper names.
+   * for (const plugin of pluginDirs) {
+   *   await container.helpers.discover('commands', { directory: `${plugin}/commands` })
+   * }
+   * console.log(container.commands.available)
+   * ```
    */
   async discover(type: RegistryType, options: { directory?: string } = {}): Promise<string[]> {
     // Key by type + resolved directory so that different directories
     // (e.g. project commands/ vs ~/.luca/commands/) are discovered independently
     // while concurrent calls to the same directory coalesce on one promise.
-    const dir = options.directory || this.resolveFolderPath(type)
-    const cacheKey = dir ? `${type}:${dir}` : type
+    // An explicit directory that doesn't exist behaves like the conventional
+    // path with no folder: nothing to discover.
+    const requestedDir = options.directory
+    const dir = requestedDir
+      ? (this.container.fs.exists(requestedDir) ? requestedDir : null)
+      : this.resolveFolderPath(type)
+    const cacheKey = requestedDir ? `${type}:${requestedDir}` : (dir ? `${type}:${dir}` : type)
 
     // Return cached results if already completed
     if (this._discoveryResults.has(cacheKey)) {
@@ -355,6 +390,13 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // If in-flight, await the same promise
     if (this._discoveryPromises.has(cacheKey)) {
       return this._discoveryPromises.get(cacheKey)!
+    }
+
+    // An explicit directory that doesn't exist: nothing to discover — and no
+    // falling back to the conventional folder, the caller asked for this one.
+    if (requestedDir && !dir) {
+      this._discoveryResults.set(cacheKey, [])
+      return []
     }
 
     // First caller — start the work and store the promise
@@ -464,10 +506,19 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * Load a module either via native `import()` or the VM's virtual module system.
    * Uses the same `useNativeImport` check as discovery to decide the loading strategy.
    *
+   * Prefer this over a raw dynamic `import()` when loading project files: it works
+   * both in dev and inside the compiled `luca` binary (where project modules must
+   * go through the VM), so plugin loaders built on it don't break in production.
+   *
    * @param absPath - Absolute path to the module file
    * @param options - Optional settings
    * @param options.cacheBust - When true, appends a timestamp query to bypass the native import cache (useful for hot reload)
    * @returns The module's exports
+   *
+   * @example
+   * ```typescript
+   * const mod = await container.helpers.loadModuleExports('/abs/path/to/plugin.ts')
+   * ```
    */
   async loadModuleExports(absPath: string, options?: { cacheBust?: boolean }): Promise<Record<string, any>> {
     if (this.useNativeImport) {

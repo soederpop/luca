@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.
+Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded. SCOPE: tracking is in-memory and per-process. ProcessManager supervises children of the *current* process only — its registry does not survive the CLI exiting, so it is the wrong tool for cross-invocation supervision (a `start` command spawning a worker that a later `stop` command must find). For that, use the detached spawn pattern: `proc.spawn(cmd, args, { detached: true })` + persist the PID via `diskCache`, and check liveness with `proc.kill(pid, 0)`.
 
 ## Usage
 

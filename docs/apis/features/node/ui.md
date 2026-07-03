@@ -12,6 +12,32 @@ container.feature('ui')
 
 ## Methods
 
+### print
+
+Enhanced print function with color methods for convenient terminal output. Call it directly like console.log, or use the attached color/style methods (red, green, blue, yellow, cyan, dim, bold, italic, underline, bg* variants) and semantic helpers (error, info, success, warn). NOTE: `ui.print.<color>(text)` is NOT a string formatter — it writes the colored text to stdout immediately and returns `undefined`. To compose a colored string (e.g. to embed inside a larger message), use `ui.colors.<color>(text)`, which returns the styled string.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `args` | `any[]` |  | Parameter args |
+
+**Returns:** `ColoredPrintFunction`
+
+```ts
+const ui = container.feature('ui')
+ui.print('plain text')
+ui.print.cyan('cyan text')
+ui.print.error('printed in red')
+ui.print.success('printed in green')
+
+// Composing strings: use ui.colors, not ui.print
+ui.print(`Status: ${ui.colors.green('OK')}`)   // correct
+ui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints "OK" on its own line, interpolates "undefined"
+```
+
+
+
 ### markdown
 
 Parse markdown text and render it for terminal display using marked-terminal.
@@ -177,7 +203,7 @@ console.log('Available fonts:', ui.fonts.slice(0, 10).join(', '));
 
 ### banner
 
-Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation
+Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation NOTE: the gradient colors rely on chalk, which auto-disables ANSI codes when stdout is not a TTY (pipes, command substitution, CI, sandboxes) — in those contexts the banner renders as plain ASCII art with no color. Not a bug; set `FORCE_COLOR=1` to force color codes into non-TTY output.
 
 **Parameters:**
 
@@ -409,7 +435,7 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `colors` | `typeof colors` | Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. |
+| `colors` | `typeof colors` | Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. NOTE: chalk auto-detects color support and DISABLES all ANSI codes when stdout is not a TTY — piped output, `$(...)` capture, CI, and sandboxed environments all produce plain uncolored text. This is expected behavior, not a bug. To verify that output actually contains ANSI codes (or to force color through a pipe), set `FORCE_COLOR=1` in the environment. |
 | `colorPalette` | `string[]` | Gets the current color palette used for automatic color assignment. The color palette is a predefined set of hex colors that are automatically assigned to named entities in a cycling fashion. This ensures consistent color assignment across the application. |
 | `randomColor` | `string | undefined` | Gets a random color name from the available chalk colors. This provides access to a randomly selected color from chalk's built-in color set. Useful for adding variety to terminal output or testing. |
 | `fonts` | `string[]` | Gets an array of available fonts for ASCII art generation. This method provides access to all fonts available through figlet for creating ASCII art. The fonts are automatically discovered and cached on first access for performance. **Font Discovery:** - Fonts are loaded from figlet's built-in font collection - Results are cached in state to avoid repeated file system access - Returns comprehensive list of available font names |
@@ -421,6 +447,22 @@ const menuItem = ui.padRight('Coffee', 20, '.') + '$3.50';
 | `enabled` | `boolean` | Whether this feature is currently enabled |
 
 ## Examples
+
+**print**
+
+```ts
+const ui = container.feature('ui')
+ui.print('plain text')
+ui.print.cyan('cyan text')
+ui.print.error('printed in red')
+ui.print.success('printed in green')
+
+// Composing strings: use ui.colors, not ui.print
+ui.print(`Status: ${ui.colors.green('OK')}`)   // correct
+ui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints "OK" on its own line, interpolates "undefined"
+```
+
+
 
 **assignColor**
 

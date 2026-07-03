@@ -547,4 +547,42 @@ describe('SemanticSearch', () => {
 			expect(search.needsReindex(doc)).toBe(false)
 		})
 	})
+
+	describe('Provider-aware model defaults', () => {
+		it('defaults to embedding-gemma for the local provider when no model is given', () => {
+			const s = container.feature('semanticSearch', {
+				dbPath: join(tmpDir, 'local-default.sqlite'),
+				embeddingProvider: 'local',
+			}) as unknown as SemanticSearch
+			expect(s.embeddingModel).toBe('embedding-gemma-300M-Q8_0')
+			expect(s.dimensions).toBe(768)
+		})
+
+		it('defaults to text-embedding-3-small for the openai provider', () => {
+			const s = container.feature('semanticSearch', {
+				dbPath: join(tmpDir, 'openai-default.sqlite'),
+				embeddingProvider: 'openai',
+			}) as unknown as SemanticSearch
+			expect(s.embeddingModel).toBe('text-embedding-3-small')
+			expect(s.dimensions).toBe(1536)
+		})
+
+		it('respects an explicit embeddingModel', () => {
+			const s = container.feature('semanticSearch', {
+				dbPath: join(tmpDir, 'explicit.sqlite'),
+				embeddingProvider: 'openai',
+				embeddingModel: 'text-embedding-3-large',
+			}) as unknown as SemanticSearch
+			expect(s.embeddingModel).toBe('text-embedding-3-large')
+			expect(s.dimensions).toBe(3072)
+		})
+
+		it('fails fast when the local provider is paired with an unknown model', () => {
+			expect(() => container.feature('semanticSearch', {
+				dbPath: join(tmpDir, 'invalid.sqlite'),
+				embeddingProvider: 'local',
+				embeddingModel: 'text-embedding-3-small',
+			})).toThrow(/Unknown local embedding model/)
+		})
+	})
 })

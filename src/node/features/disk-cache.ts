@@ -13,6 +13,8 @@ export const DiskCacheOptionsSchema = FeatureOptionsSchema.extend({
   secret: z.custom<Buffer>().optional().describe('Secret key buffer used for encryption operations'),
   /** Custom directory path for the cache storage */
   path: z.string().optional().describe('Custom directory path for the cache storage'),
+  /** Default time-to-live in seconds for all entries */
+  ttl: z.number().optional().describe('Default time-to-live in seconds for cached entries. Expired entries behave like cache misses. Override per entry with meta.ttl on set()'),
 })
 
 export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
@@ -22,12 +24,24 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
  * that powers npm). Suitable for persisting arbitrary data including very large
  * blobs when necessary, with optional encryption support.
  *
+ * Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default
+ * for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed
+ * on access and behave exactly like cache misses.
+ *
  * @extends Feature
  * @example
  * ```typescript
  * const diskCache = container.feature('diskCache', { path: '/tmp/cache' })
  * await diskCache.set('greeting', 'Hello World')
  * const value = await diskCache.get('greeting')
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // TTL: entries expire and read as cache misses afterwards
+ * const cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour
+ * await cache.set('session', token)                  // expires in 1 hour
+ * await cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds
  * ```
  */
 export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
@@ -149,7 +163,27 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * ```
    */
   async has(key: string): Promise<boolean> {
-    return this.cache.get.info(key).then((r:any) => r != null)
+    const info = await this.cache.get.info(key)
+    if (info == null) return false
+    if (this._isExpired(info)) {
+      await this.rm(key)
+      return false
+    }
+    return true
+  }
+
+  /** Whether a cacache entry's metadata carries an expiresAt timestamp in the past. */
+  private _isExpired(info: any): boolean {
+    const expiresAt = info?.metadata?.expiresAt
+    return typeof expiresAt === 'number' && Date.now() > expiresAt
+  }
+
+  /** Remove the entry if it has expired, so subsequent reads behave like a cache miss. */
+  private async _evictIfExpired(key: string): Promise<void> {
+    const info = await this.cache.get.info(key)
+    if (info != null && this._isExpired(info)) {
+      await this.rm(key)
+    }
   }
 
   /**
@@ -164,8 +198,10 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * ```
    */
   async get(key: string, json = false): Promise<any> {
-    const val = this.options.encrypt 
-      ? await this.securely.get(key) 
+    await this._evictIfExpired(key)
+
+    const val = this.options.encrypt
+      ? await this.securely.get(key)
       : await this.cache.get(key).then((data: any) => data.data.toString())
     
     if (json) {
@@ -183,27 +219,38 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * Store a value in the cache
    * @param key - The cache key to store under
    * @param value - The value to store (string, object, or any serializable data)
-   * @param meta - Optional metadata to associate with the cached item
+   * @param meta - Optional metadata to associate with the cached item. `meta.ttl`
+   *   (seconds) sets a time-to-live for this entry, overriding the feature-level
+   *   `ttl` option; after expiry the entry behaves like a cache miss.
    * @returns Promise that resolves when the value is stored
    * @example
    * ```typescript
    * await diskCache.set('myKey', 'Hello World')
    * await diskCache.set('userData', { name: 'John', age: 30 })
    * await diskCache.set('file', content, { size: 1024, type: 'image' })
+   * await diskCache.set('token', jwt, { ttl: 900 }) // expires in 15 minutes
    * ```
    */
   async set(key: string, value: any, meta?: any): Promise<any> {
+    const { ttl = this.options.ttl, ...userMeta } = meta ?? {}
+    const hasUserMeta = Object.keys(userMeta).length > 0
+    const expiresAt = typeof ttl === 'number' ? Date.now() + ttl * 1000 : undefined
+
     if (this.options.encrypt) {
-      return this.securely.set(key, value, meta)
+      return this.securely.set(key, value, hasUserMeta ? userMeta : undefined, expiresAt)
     }
+
+    const metadata = (hasUserMeta || expiresAt != null)
+      ? { ...userMeta, ...(expiresAt != null && { expiresAt }) }
+      : undefined
 
     if(typeof value !== 'string') {
       return this.cache.put(key, Buffer.from(JSON.stringify(value)), {
-        ...(meta && { metadata: meta })
-      }) 
+        ...(metadata && { metadata })
+      })
     } else {
       return this.cache.put(key, Buffer.from(value), {
-        ...(meta && { metadata: meta })
+        ...(metadata && { metadata })
       })
     }
   }
@@ -282,7 +329,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * const decrypted = await cache.securely.get('sensitive')
    * ```
    */
-  get securely(): { set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> } {
+  get securely(): { set(name: string, payload: any, meta?: any, expiresAt?: number): Promise<any>; get(name: string): Promise<any> } {
     const { secret, encrypt } = this.options
     
     if (!encrypt) {
@@ -305,14 +352,18 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
        * @param name - The cache key
        * @param payload - The data to encrypt and store
        * @param meta - Optional metadata (will also be encrypted)
+       * @param expiresAt - Optional expiry timestamp (ms since epoch), stored in
+       *   plaintext so expiry can be checked without decryption
        * @returns Promise that resolves when stored
        */
-      async set(name: string, payload: any, meta?: any) {
+      async set(name: string, payload: any, meta?: any, expiresAt?: number) {
         const encrypted = vault.encrypt(payload)
+        const metadata = {
+          ...(meta && { encrypted: vault.encrypt(JSON.stringify(meta)) }),
+          ...(expiresAt != null && { expiresAt }),
+        }
         return cache.put(name, Buffer.from(encrypted), {
-          ...(meta && { metadata: {
-              encrypted: vault.encrypt(JSON.stringify(meta))
-          }}) 
+          ...(Object.keys(metadata).length > 0 && { metadata })
         })
       },
       /**

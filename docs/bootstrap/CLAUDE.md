@@ -71,6 +71,7 @@ The container provides more than you might expect. Before importing anything ext
 - **chalk** — available as `container.feature('ui').colors`, not via `import('chalk')`.
 - **figlet** — available as `container.feature('ui').asciiArt(text)`.
 - **uuid** — `container.utils.uuid()`
+- **timing** — `container.utils.sleep(ms)`, `container.utils.backoff(fn, { attempts, delay })` (retry with exponential backoff), `container.utils.every(ms, fn)` (poll loop with no overlapping runs; returns `stop()`).
 - **lodash** — `container.utils.lodash`. Exactly these: `uniq`, `uniqBy`, `keyBy`, `groupBy`, `debounce`, `throttle`, `mapValues`, `mapKeys`, `pick`, `get`, `set`, `omit`. Nothing else (no `sortBy`, `orderBy`, `chunk`, …) — use native array methods for the rest.
 - **string utils** — `container.utils.stringUtils`. Exactly these: `camelCase`, `kebabCase`, `upperFirst`, `lowerFirst`, `pluralize`, `singularize`.
 
@@ -85,6 +86,8 @@ The container provides more than you might expect. Before importing anything ext
 - **Long-running commands** (servers, watchers) need `await new Promise(() => {})` at the end with a `process.on('SIGINT', ...)` handler for cleanup.
 - **Shared state between endpoints**: use `ctx.request.app.locals` to share data across endpoint files.
 - **Database init**: use `luca.cli.ts` `main()` hook for table creation and seeding — it runs before any command or server starts.
+- **Which store for cross-process state?** In-process/ephemeral → `container.state`; cross-process scalars/blobs → `diskCache` (supports `ttl`); queryable/relational/durable queues → `sqlite` (use `transaction()` and `UPDATE … RETURNING` for atomic job claims); cross-process pub/sub → `redis`.
+- **No scheduler feature exists** — the idiomatic poll loop is `container.utils.every(ms, fn)` (no overlapping runs, returns a `stop()` function), plus `container.utils.sleep(ms)` and `container.utils.backoff(fn, opts)` for retries.
 
 ## Extending the Container
 

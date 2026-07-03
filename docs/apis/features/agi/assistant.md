@@ -449,7 +449,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `corePromptPath` | `string` | The path to CORE.md which provides the system prompt. |
 | `toolsModulePath` | `string` | The path to tools.ts which provides tool implementations and schemas. |
 | `hooksModulePath` | `string` | The path to hooks.ts which provides event handler functions. |
-| `aboutPath` | `string` | The path to about.md which provides the human-readable assistant description. |
+| `aboutPath` | `string` | The path to the about file which provides the human-readable assistant description. Prefers ABOUT.md (the casing used by discovery and scaffolds), falling back to about.md for older assistant folders. |
 | `about` | `string | undefined` | Human-readable description of the assistant. Returns the `about` option when provided, otherwise reads about.md from the assistant folder. Undefined when neither is available. |
 | `hasVoice` | `boolean` | Whether this assistant has a voice.yml configuration file. |
 | `voiceConfig` | `Record<string, any> | undefined` | Parsed voice configuration from voice.yml, or undefined if not present. |

@@ -2,7 +2,7 @@
 
 > Stability: `core`
 
-HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission.
+HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (ECONNREFUSED, DNS failures, timeouts — anything axios wraps in an AxiosError). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`, with fields like `message` and `code`) instead of rejecting, and a `failure` event is emitted. A try/catch around `api.get(...)` will NOT catch a down server — inspect the returned value instead.
 
 ## Usage
 
@@ -159,5 +159,14 @@ Emitted when a request fails
 const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })
 const users = await api.get('/users')
 await api.post('/users', { name: 'Alice' })
+
+// Health check: distinguish an up server from a down one by inspecting the result
+const local = container.client('rest', { baseURL: 'http://localhost:4000' })
+const result = await local.get('/health')
+if (result?.code === 'ECONNREFUSED' || result?.name === 'AxiosError') {
+ console.log('server is DOWN:', result.message)   // connection error, returned not thrown
+} else {
+ console.log('server is UP:', result)             // parsed response body
+}
 ```
 

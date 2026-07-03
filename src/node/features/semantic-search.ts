@@ -18,8 +18,8 @@ declare module 'luca/feature' {
 
 export const SemanticSearchOptionsSchema = FeatureOptionsSchema.extend({
 	dbPath: z.string().default('.contentbase/search.sqlite').describe('Path to the SQLite database file'),
-	embeddingModel: z.string().default('text-embedding-3-small').describe('Embedding model name'),
-	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings'),
+	embeddingModel: z.string().optional().describe('Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())'),
+	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights'),
 	chunkStrategy: z.enum(['section', 'fixed', 'document']).default('section').describe('How to split documents'),
 	chunkSize: z.number().default(900).describe('Token limit per chunk for fixed strategy'),
 	chunkOverlap: z.number().default(0.15).describe('Overlap ratio for fixed strategy'),
@@ -116,9 +116,22 @@ function getDimensions(provider: string, model: string): number {
 
 // ── Model path resolution ───────────────────────────────────────────
 
+/** Default embedding model per provider — a local provider must never fall back to an OpenAI model name */
+const PROVIDER_DEFAULT_MODELS: Record<'local' | 'openai', string> = {
+	openai: 'text-embedding-3-small',
+	local: 'embedding-gemma-300M-Q8_0',
+}
+
 const MODEL_FILENAMES: Record<string, string> = {
 	'embedding-gemma-300M-Q8_0': 'hf_ggml-org_embeddinggemma-300M-Q8_0.gguf',
 }
+
+/** Where the .gguf weights for each supported local model can be downloaded */
+const MODEL_SOURCES: Record<string, string> = {
+	'embedding-gemma-300M-Q8_0': 'https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/resolve/main/embeddinggemma-300M-Q8_0.gguf',
+}
+
+const VALID_LOCAL_MODELS = Object.keys(MODEL_FILENAMES)
 
 function resolveModelPath(modelName: string): string {
 	const filename = MODEL_FILENAMES[modelName] ?? `${modelName}.gguf`
@@ -269,14 +282,22 @@ function chunkByDocument(doc: DocumentInput): Chunk[] {
  * Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with
  * JavaScript cosine similarity for vector search.
  *
+ * Embedding models default per provider: `openai` → text-embedding-3-small,
+ * `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local
+ * embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once —
+ * it installs the node-llama-cpp addon and downloads the .gguf weights to
+ * ~/.cache/luca/models/.
+ *
  * @extends Feature
  *
  * @example
  * ```typescript
+ * // Offline/local embeddings — one-time setup, then fully local
  * const search = container.feature('semanticSearch', {
  *   dbPath: '.contentbase/search.sqlite',
  *   embeddingProvider: 'local',
  * })
+ * await search.installLocalEmbeddings(process.cwd()) // installs addon + downloads weights
  * await search.initDb()
  * await search.indexDocuments(docs)
  * const results = await search.hybridSearch('how does authentication work')
@@ -310,14 +331,32 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 	constructor(options: SemanticSearchOptions, context: any) {
 		super(options, context)
-		this._dimensions = getDimensions(this.options.embeddingProvider, this.options.embeddingModel)
+
+		if (this.options.embeddingProvider === 'local' && !MODEL_FILENAMES[this.embeddingModel]) {
+			throw new Error(
+				`Unknown local embedding model "${this.embeddingModel}". ` +
+				`Valid local models: ${VALID_LOCAL_MODELS.join(', ')}. ` +
+				`Omit embeddingModel to use the local default (${PROVIDER_DEFAULT_MODELS.local}).`
+			)
+		}
+
+		this._dimensions = getDimensions(this.options.embeddingProvider, this.embeddingModel)
+	}
+
+	/**
+	 * The embedding model in effect, resolved per provider when no explicit
+	 * embeddingModel option was given (openai → text-embedding-3-small,
+	 * local → embedding-gemma-300M-Q8_0).
+	 */
+	get embeddingModel(): string {
+		return this.options.embeddingModel ?? PROVIDER_DEFAULT_MODELS[this.options.embeddingProvider]
 	}
 
 	// ── Database path ───────────────────────────────────────────────
 
 	private get resolvedDbPath(): string {
 		const base = this.options.dbPath.replace(/\.sqlite$/, '')
-		const suffix = `${this.options.embeddingProvider}-${this.options.embeddingModel}`
+		const suffix = `${this.options.embeddingProvider}-${this.embeddingModel}`
 		return `${base}.${suffix}.sqlite`
 	}
 
@@ -402,7 +441,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		const insert = this.db.prepare('INSERT INTO search_meta (key, value) VALUES (?, ?)')
 		const tx = this.db.transaction(() => {
 			insert.run('provider', this.options.embeddingProvider)
-			insert.run('model', this.options.embeddingModel)
+			insert.run('model', this.embeddingModel)
 			insert.run('dims', String(this._dimensions))
 			insert.run('createdAt', new Date().toISOString())
 		})
@@ -419,7 +458,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 		const expected = {
 			provider: this.options.embeddingProvider,
-			model: this.options.embeddingModel,
+			model: this.embeddingModel,
 			dims: String(this._dimensions),
 		}
 
@@ -499,7 +538,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			embeddingCount: embCount,
 			lastIndexedAt: lastDoc?.indexed_at ?? null,
 			provider: this.options.embeddingProvider,
-			model: this.options.embeddingModel,
+			model: this.embeddingModel,
 			dimensions: this._dimensions,
 			dbSizeBytes: dbSize,
 		}
@@ -544,9 +583,9 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		for (let i = 0; i < texts.length; i += 2048) {
 			const batch = texts.slice(i, i + 2048)
 			const response = await openai.openai.embeddings.create({
-				model: this.options.embeddingModel === 'embedding-gemma-300M-Q8_0'
+				model: this.embeddingModel === 'embedding-gemma-300M-Q8_0'
 					? 'text-embedding-3-small'
-					: this.options.embeddingModel,
+					: this.embeddingModel,
 				input: batch,
 			})
 			for (const item of response.data) {
@@ -587,11 +626,16 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		}
 		this._llamaInstance = await getLlama()
 
-		const modelPath = resolveModelPath(this.options.embeddingModel)
+		const modelPath = resolveModelPath(this.embeddingModel)
 		if (!existsSync(modelPath)) {
+			const source = MODEL_SOURCES[this.embeddingModel]
 			throw new Error(
-				`Embedding model not found at ${modelPath}. ` +
-				`Download it to ~/.cache/luca/models/ or ~/.cache/qmd/models/`
+				`Local embedding model "${this.embeddingModel}" weights not found at ${modelPath}.\n` +
+				`Valid local models: ${VALID_LOCAL_MODELS.join(', ')}.\n` +
+				`To fix, either:\n` +
+				`  1. Run: await semanticSearch.installLocalEmbeddings(process.cwd()) — installs the addon AND downloads the weights\n` +
+				`  2. Run: await semanticSearch.downloadModelWeights() — downloads just the weights\n` +
+				(source ? `  3. Download manually: curl -L "${source}" -o "${modelPath}"\n` : '')
 			)
 		}
 
@@ -879,7 +923,55 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	static readonly PINNED_LLAMA_VERSION = '3.17.1'
 
 	/**
-	 * Install node-llama-cpp into the user's project for local embedding support.
+	 * Download the .gguf weights for a supported local embedding model into
+	 * ~/.cache/luca/models/. Skips the download when the weights already exist.
+	 * Downloads to a temp file first, then renames atomically.
+	 *
+	 * @param modelName - Local model to fetch (default: the resolved embeddingModel)
+	 * @returns The absolute path to the weights file
+	 *
+	 * @example
+	 * ```typescript
+	 * const search = container.feature('semanticSearch', { embeddingProvider: 'local' })
+	 * await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing
+	 * ```
+	 */
+	async downloadModelWeights(modelName: string = this.embeddingModel): Promise<string> {
+		const source = MODEL_SOURCES[modelName]
+		if (!source) {
+			throw new Error(
+				`No download source for model "${modelName}". ` +
+				`Valid local models: ${VALID_LOCAL_MODELS.join(', ')}`
+			)
+		}
+
+		const modelPath = resolveModelPath(modelName)
+		if (existsSync(modelPath)) return modelPath
+
+		const { mkdir, rename, writeFile, rm } = await import('node:fs/promises')
+		await mkdir(dirname(modelPath), { recursive: true })
+
+		const response = await fetch(source)
+		if (!response.ok) {
+			throw new Error(`Failed to download ${modelName} weights from ${source}: HTTP ${response.status}`)
+		}
+
+		const tmpPath = `${modelPath}.download-${process.pid}`
+		try {
+			const data = new Uint8Array(await response.arrayBuffer())
+			await writeFile(tmpPath, data)
+			await rename(tmpPath, modelPath)
+		} catch (err) {
+			await rm(tmpPath, { force: true }).catch(() => {})
+			throw err
+		}
+
+		return modelPath
+	}
+
+	/**
+	 * Install node-llama-cpp into the user's project for local embedding support,
+	 * then download the embedding model weights so local embeddings work turnkey.
 	 * Detects package manager from lockfile presence and verifies the native addon loads.
 	 */
 	async installLocalEmbeddings(cwd: string): Promise<void> {
@@ -919,6 +1011,12 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 				`Error: ${err?.message ?? err}`
 			)
 		}
+
+		// The addon alone is not enough — fetch the model weights too
+		const localModel = this.options.embeddingProvider === 'local'
+			? this.embeddingModel
+			: PROVIDER_DEFAULT_MODELS.local
+		await this.downloadModelWeights(localModel)
 	}
 
 	// ── Lifecycle ───────────────────────────────────────────────────

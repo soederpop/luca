@@ -14,7 +14,7 @@ container.feature('proc')
 
 ### execAndCapture
 
-Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.
+Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution. **WARNING: the command string is split naively on spaces** — there is no shell quoting or escaping. Quoted arguments containing spaces (paths like `"/My Documents/file.txt"`, format strings like `--format="%h %s"`) get mangled into multiple arguments, quotes included. If any argument contains spaces or quotes, use `spawnAndCapture(command, argsArray)` instead and pass each argument as its own array element.
 
 **Parameters:**
 
@@ -44,6 +44,11 @@ if (result.exitCode === 0) {
 const result = await proc.execAndCapture('npm list --depth=0', {
  cwd: '/path/to/project'
 })
+
+// WRONG: quoted args with spaces get split apart
+// await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
+// RIGHT: use spawnAndCapture with an args array
+const log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--date=short'])
 ```
 
 
@@ -109,15 +114,15 @@ const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
 
 ### spawn
 
-Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).
+Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()). Pass `detached: true` to run the child in its own process group so it can outlive the parent. When detached, stdio defaults to 'ignore' (piped stdio would tie the child to the parent and keep the parent's event loop alive) — call `.unref()` on the returned handle to let the parent exit.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `command` | `string` | ✓ | Parameter command |
-| `args` | `string[]` |  | Parameter args |
-| `options` | `RawSpawnOptions` |  | Parameter options |
+| `command` | `string` | ✓ | The executable to run |
+| `args` | `string[]` |  | Arguments to pass to the command |
+| `options` | `RawSpawnOptions` |  | Spawn options |
 
 `RawSpawnOptions` properties:
 
@@ -128,8 +133,24 @@ Spawn a raw child process and return the handle immediately. Useful when callers
 | `stdin` | `string | Buffer` | Optional stdin payload written immediately after spawn |
 | `stdout` | `"pipe" | "inherit" | "ignore"` | Stdout mode for the child process |
 | `stderr` | `"pipe" | "inherit" | "ignore"` | Stderr mode for the child process |
+| `detached` | `boolean` | Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore') |
 
 **Returns:** `import('child_process').ChildProcess`
+
+```ts
+// Streaming access with lifecycle control
+const child = proc.spawn('bun', ['run', 'dev'])
+child.stdout?.on('data', (buf) => console.log(buf.toString()))
+
+// Background worker that outlives the CLI process
+const worker = proc.spawn('bun', ['worker.ts'], {
+ detached: true,   // own process group — not reaped when the CLI exits
+ stdout: 'ignore', // no pipes back to the parent
+ stderr: 'ignore',
+})
+worker.unref()      // let the parent event loop exit
+console.log('worker pid:', worker.pid)
+```
 
 
 
@@ -207,6 +228,15 @@ proc.kill(12345)
 
 // Force kill a process
 proc.kill(12345, 'SIGKILL')
+
+// Liveness check (supervisor pattern): signal 0 sends nothing but
+// returns false if the PID is dead/recycled — it does not throw.
+// Perfect for checking a PID persisted via diskCache from an earlier run.
+const cache = container.feature('diskCache')
+if (await cache.has('worker')) {
+ const { pid } = await cache.get('worker')
+ const alive = proc.kill(pid, 0)   // true = still running, false = gone
+}
 ```
 
 
@@ -313,6 +343,11 @@ if (result.exitCode === 0) {
 const result = await proc.execAndCapture('npm list --depth=0', {
  cwd: '/path/to/project'
 })
+
+// WRONG: quoted args with spaces get split apart
+// await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
+// RIGHT: use spawnAndCapture with an args array
+const log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--date=short'])
 ```
 
 
@@ -340,6 +375,25 @@ const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
    }
  }
 })
+```
+
+
+
+**spawn**
+
+```ts
+// Streaming access with lifecycle control
+const child = proc.spawn('bun', ['run', 'dev'])
+child.stdout?.on('data', (buf) => console.log(buf.toString()))
+
+// Background worker that outlives the CLI process
+const worker = proc.spawn('bun', ['worker.ts'], {
+ detached: true,   // own process group — not reaped when the CLI exits
+ stdout: 'ignore', // no pipes back to the parent
+ stderr: 'ignore',
+})
+worker.unref()      // let the parent event loop exit
+console.log('worker pid:', worker.pid)
 ```
 
 
@@ -373,6 +427,15 @@ proc.kill(12345)
 
 // Force kill a process
 proc.kill(12345, 'SIGKILL')
+
+// Liveness check (supervisor pattern): signal 0 sends nothing but
+// returns false if the PID is dead/recycled — it does not throw.
+// Perfect for checking a PID persisted via diskCache from an earlier run.
+const cache = container.feature('diskCache')
+if (await cache.has('worker')) {
+ const { pid } = await cache.get('worker')
+ const alive = proc.kill(pid, 0)   // true = still running, false = gone
+}
 ```
 
 

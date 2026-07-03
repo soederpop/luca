@@ -228,6 +228,50 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   }
 
   /**
+   * Runs a function inside a database transaction. Delegates to Bun's native
+   * `db.transaction()` — the transaction commits when the function returns and
+   * rolls back if it throws. The function must be synchronous (bun:sqlite
+   * transactions do not span awaits); use the raw `db` getter's prepared
+   * statements inside it for speed.
+   *
+   * Combined with `UPDATE ... RETURNING`, this gives you atomic job-claiming
+   * for durable queues and workers.
+   *
+   * @param fn - Synchronous function containing the transactional work
+   * @returns The function's return value
+   *
+   * @example
+   * ```typescript
+   * const db = container.feature('sqlite', { path: 'queue.db' })
+   *
+   * // Atomically claim the next pending job (single statement — no explicit
+   * // transaction needed thanks to UPDATE ... RETURNING)
+   * const [job] = await db.query(`
+   *   UPDATE jobs SET status = 'running', claimed_at = datetime('now')
+   *   WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)
+   *   RETURNING id, payload
+   * `)
+   *
+   * // Multi-statement atomic work: all-or-nothing
+   * db.transaction(() => {
+   *   db.db.query('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(100, 1)
+   *   db.db.query('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(100, 2)
+   * })
+   * ```
+   */
+  transaction<T>(fn: () => T): T {
+    try {
+      const result = this.db.transaction(fn)()
+      this.setState({ lastError: undefined })
+      return result
+    } catch (error: any) {
+      this.setState({ lastError: error?.message || String(error) })
+      this.emit('error', error)
+      throw error
+    }
+  }
+
+  /**
    * Closes the sqlite database and updates feature state.
    *
    * Emits `closed` after the database handle is released.

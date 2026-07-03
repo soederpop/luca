@@ -171,3 +171,15 @@ server.mount(myEndpoint)
 server.app.get('/health', (req, res) => res.json({ ok: true }))
 ```
 
+```ts
+// endpoints/status.ts — rate-limited endpoint module, mounted by `luca serve`
+export const path = '/status'
+export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods
+export async function get() { return { ok: true } }
+
+// Custom middleware via the create hook
+const server = container.server('express', {
+ create: (app, server) => { app.use(myMiddleware); return app },
+})
+```
+

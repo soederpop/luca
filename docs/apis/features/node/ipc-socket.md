@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Reply to sender, or ask and wait ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```
+IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live socket (and reconnect timers, when `reconnect: true`) keep the event loop running. Call `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished, and if the process still lingers, end with `process.exit(0)`. **Mode locking:** a single IpcSocket instance is locked to one role — the first `listen()` locks it into server mode and the first `connect()` locks it into client mode (attempting the other call afterwards throws). To act as both server and client within one process, create two distinct instances, e.g. by passing different options: `container.feature('ipcSocket', { role: 'server' })` and `container.feature('ipcSocket', { role: 'client' })`. **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Incoming ask() requests carry a requestId — reply to complete them if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId); // Or fire-and-forget back to the sender else ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply: ask the server and await its reply const answer = await ipc.ask({ type: 'question' }); // Answer asks initiated by the server ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```
 
 ## Usage
 
@@ -110,7 +110,7 @@ Fire-and-forget: sends a message to the server (client mode only). For server→
 
 ### ask
 
-Sends a message and waits for a correlated reply. Works in both client and server mode. The recipient should call `reply(requestId, response)` to respond.
+Sends a message and waits for a correlated reply. Works in both client and server mode. On the receiving side the message is delivered via the 'message' event with a `requestId` property merged onto the payload; the recipient should call `reply(requestId, response)` (plus the sender's clientId when replying from a server) to resolve this promise.
 
 **Parameters:**
 
@@ -125,7 +125,7 @@ Sends a message and waits for a correlated reply. Works in both client and serve
 
 ### reply
 
-Sends a reply to a previous ask() call, correlated by requestId.
+Sends a reply to a previous ask() call, correlated by requestId. Incoming ask() requests surface their `requestId` on the payload delivered to the 'message' event, so a handler can correlate the reply: ```typescript // Server side — the 'message' handler receives (data, clientId) ipc.on('message', (data, clientId) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId) }) ```
 
 **Parameters:**
 
@@ -133,7 +133,7 @@ Sends a reply to a previous ask() call, correlated by requestId.
 |------|------|----------|-------------|
 | `requestId` | `string` | ✓ | The requestId from the incoming message |
 | `data` | `any` | ✓ | The reply payload |
-| `clientId` | `string` |  | Target client (server mode; for client mode, omit) |
+| `clientId` | `string` |  | Target client (required in server mode; omit in client mode) |
 
 **Returns:** `void`
 
