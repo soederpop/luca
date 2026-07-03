@@ -109,15 +109,21 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
    * 
    * @example
    * ```typescript
-   * // Load all JSON files from 'data' directory into state.data
-   * await jsonTree.loadTree('data');
-   * 
-   * // Load with custom key
-   * await jsonTree.loadTree('app/config', 'configuration');
-   * 
-   * // Access the loaded data
-   * const dbConfig = jsonTree.tree.data.database.production;
-   * const apiEndpoints = jsonTree.tree.data.api.endpoints;
+   * // Given a directory of JSON files (create one for the demo —
+   * // writeFile does not create parent dirs, so ensure the folder first):
+   * const fs = container.feature('fs')
+   * fs.ensureFolder('settings/database')
+   * fs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))
+   *
+   * // Load all JSON files from the 'settings' directory into state.settings
+   * await jsonTree.loadTree('settings');
+   *
+   * // Access the loaded data — file paths become camelCased property paths
+   * const dbConfig = jsonTree.tree.settings.database.production;
+   * console.log(dbConfig.host); // 'db.example.com'
+   *
+   * // Load the same folder again under a custom key
+   * await jsonTree.loadTree('settings', 'configuration');
    * ```
    */
   async loadTree(basePath: string, key: string = basePath.split('/')[0]!) {
@@ -130,20 +136,27 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
     // Use the FileManager to find all JSON files in the tree.
     const jsonFiles = fileManager.matchFiles([`${basePath}/**/*.json`]);
 
+    let filePaths: string[] = jsonFiles.filter(Boolean).flatMap((f: any) => f?.relativePath ? [f.relativePath] : [])
+
+    // fileManager only indexes git-tracked files — fall back to fs.walk so
+    // untracked files and non-git directories load too
+    if (filePaths.length === 0 && fileSystem.exists(basePath)) {
+      const walked = fileSystem.walk(basePath, { include: ['**/*.json'], relative: true })
+      filePaths = walked.files.map((f: string) => `${basePath}/${f}`)
+    }
+
     const tree: any = {};
 
-    for (const file of jsonFiles.filter(Boolean)) {
-      if (file?.relativePath) {
-        const fileContent = fileSystem.readFile(file.relativePath);
-        const fileData = JSON.parse(String(fileContent));
-        const path = file.relativePath
-          .replace(/\.json$/, "")
-          .replace(basePath + "/", "")
-          .split("/")
-          .filter((v) => v?.length)
-          .map((p) => camelCase(p));
-        set(tree, path, fileData);
-      }
+    for (const relativePath of filePaths) {
+      const fileContent = fileSystem.readFile(relativePath);
+      const fileData = JSON.parse(String(fileContent));
+      const path = relativePath
+        .replace(/\.json$/, "")
+        .replace(basePath + "/", "")
+        .split("/")
+        .filter((v) => v?.length)
+        .map((p) => camelCase(p));
+      set(tree, path, fileData);
     }
 
     // @ts-ignore-next-line

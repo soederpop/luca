@@ -68,10 +68,24 @@ Send a request to a specific client and wait for a correlated response. The clie
 **Returns:** `Promise<R>`
 
 ```ts
-ws.on('connection', async (client) => {
- const info = await ws.ask(client, 'identify')
- console.log('Client says:', info)
+const server = container.server('websocket', { json: true })
+const port = await container.feature('networking').findOpenPort(8190)
+await server.start({ port })
+const firstConnection = new Promise((resolve) => server.on('connection', resolve))
+
+// a connected Luca websocket client replies by echoing requestId as replyTo
+const client = container.client('websocket', { baseURL: `ws://localhost:${port}` })
+client.on('message', (msg) => {
+ if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
 })
+await client.connect()
+
+const socket = await firstConnection
+const info = await server.ask(socket, 'identify')
+console.log('Client says:', info)   // { name: 'my-client' }
+
+await client.disconnect()
+await server.stop()
 ```
 
 
@@ -144,19 +158,31 @@ Fires when a message is received from a client. Handler signature: (data, ws)
 **servers.websocket**
 
 ```ts
-const ws = container.server('websocket', { json: true })
-await ws.start({ port: 8080 })
+const server = container.server('websocket', { json: true })
+const port = await container.feature('networking').findOpenPort(8180)
+await server.start({ port })
 
-ws.on('message', (data, client) => {
+server.on('message', (data, client) => {
  console.log('Received:', data)
- ws.broadcast({ echo: data })
 })
 
-// ask/reply: request info from a connected client
-ws.on('connection', async (client) => {
- const info = await ws.ask(client, 'identify')
- console.log('Client says:', info)
+// a Luca websocket client on the other end — it answers asks from the
+// server by echoing the requestId back as replyTo
+const firstConnection = new Promise((resolve) => server.on('connection', resolve))
+const client = container.client('websocket', { baseURL: `ws://localhost:${port}` })
+client.on('message', (msg) => {
+ if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
 })
+await client.connect()
+await client.send({ type: 'hello' })      // -> Received: { type: 'hello' }
+
+// ask/reply: request info from a connected client and await its answer
+const socket = await firstConnection
+const info = await server.ask(socket, 'identify')
+console.log('Client says:', info)         // { name: 'my-client' }
+
+await client.disconnect()
+await server.stop()
 ```
 
 
@@ -164,9 +190,23 @@ ws.on('connection', async (client) => {
 **ask**
 
 ```ts
-ws.on('connection', async (client) => {
- const info = await ws.ask(client, 'identify')
- console.log('Client says:', info)
+const server = container.server('websocket', { json: true })
+const port = await container.feature('networking').findOpenPort(8190)
+await server.start({ port })
+const firstConnection = new Promise((resolve) => server.on('connection', resolve))
+
+// a connected Luca websocket client replies by echoing requestId as replyTo
+const client = container.client('websocket', { baseURL: `ws://localhost:${port}` })
+client.on('message', (msg) => {
+ if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
 })
+await client.connect()
+
+const socket = await firstConnection
+const info = await server.ask(socket, 'identify')
+console.log('Client says:', info)   // { name: 'my-client' }
+
+await client.disconnect()
+await server.stop()
 ```
 

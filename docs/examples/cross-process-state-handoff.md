@@ -123,8 +123,10 @@ console.log('removed scratch db and cache dir')
 
 ## The decision heuristic
 
-- **Stays inside this process, other modules should react to it** → `container.state` / `container.entity`. Observable, memoized by id, zero persistence.
-- **Another process (or a later run) fetches it by key** → `diskCache`. KV with native TTL (`set(key, value, { ttl })`); remember `get()` throws on a miss.
-- **You will ask questions of it** — filter, count, group, join, claim-one-atomically → `sqlite`. A file path makes it durable and shared; SQL makes it queryable.
+| The value... | Reach for | Why |
+|---|---|---|
+| Stays inside this process; other modules should react to it | `container.state` / `container.entity` | Observable, memoized by id, zero persistence |
+| Another process (or a later run) fetches it by key | `diskCache` | KV with native TTL (`set(key, value, { ttl })`); remember `get()` throws on a miss |
+| You will ask questions of it — filter, count, group, join, claim-one-atomically | `sqlite` | A file path makes it durable and shared; SQL makes it queryable |
 
 When in doubt: if the *access pattern* is a key, cache it; if the access pattern is a question, table it; if nobody outside this process cares, keep it in state.

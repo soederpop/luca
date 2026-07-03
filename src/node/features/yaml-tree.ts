@@ -99,8 +99,10 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
    * 
    * @example
    * ```typescript
-   * // Given a directory of YAML files (create one for the demo):
+   * // Given a directory of YAML files (create one for the demo —
+   * // writeFile does not create parent dirs, so ensure the folder first):
    * const fs = container.feature('fs')
+   * fs.ensureFolder('config/database')
    * fs.writeFile('config/database/production.yml', 'host: db.example.com\nport: 5432\n')
    *
    * // Load all YAML files from 'config' directory into state.config
@@ -124,19 +126,26 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
 
     // Use the FileManager to find all YAML files in the tree.
     const yamlFiles = fileManager.matchFiles([
-      `${basePath}/**/*.yml`, 
+      `${basePath}/**/*.yml`,
       `${basePath}/**/*.yaml`
     ]);
 
+    let filePaths: string[] = yamlFiles.filter(Boolean).flatMap((f: any) => f?.relativePath ? [f.relativePath] : [])
+
+    // fileManager only indexes git-tracked files — fall back to fs.walk so
+    // untracked files and non-git directories load too
+    if (filePaths.length === 0 && fileSystem.exists(basePath)) {
+      const walked = fileSystem.walk(basePath, { include: ['**/*.yml', '**/*.yaml'], relative: true })
+      filePaths = walked.files.map((f: string) => `${basePath}/${f}`)
+    }
+
     const tree : any = {}
 
-    for (const file of yamlFiles.filter(Boolean)) {
-      if(file?.relativePath) {
-        const fileContent = fileSystem.readFile(file.relativePath);
-        const fileData = yamlFeature.parse(String(fileContent));
-        const path = file.relativePath.replace(/\.ya?ml$/, "").replace(basePath + "/", "").split("/").filter(v => v?.length).map(p => camelCase(p));
-        set(tree, path, fileData)
-      }
+    for (const relativePath of filePaths) {
+      const fileContent = fileSystem.readFile(relativePath);
+      const fileData = yamlFeature.parse(String(fileContent));
+      const path = relativePath.replace(/\.ya?ml$/, "").replace(basePath + "/", "").split("/").filter(v => v?.length).map(p => camelCase(p));
+      set(tree, path, fileData)
     }
 
     // @ts-ignore-next-line

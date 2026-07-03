@@ -364,6 +364,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
    * // Meta-discovery: build a plugin system by scanning each plugin's folders.
    * // To enumerate a registry afterwards use `.available` — registries are class
    * // instances, so `Object.keys(container.commands)` will NOT list helper names.
+   * const pluginDirs = [container.paths.resolve(container.feature('os').tmpdir, 'my-plugin')]
    * for (const plugin of pluginDirs) {
    *   await container.helpers.discover('commands', { directory: `${plugin}/commands` })
    * }

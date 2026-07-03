@@ -70,9 +70,10 @@ type ClientInfo = {
  * **Mode locking:** a single IpcSocket instance is locked to one role — the first
  * `listen()` locks it into server mode and the first `connect()` locks it into client
  * mode (attempting the other call afterwards throws). To act as both server and client
- * within one process, create two distinct instances, e.g. by passing different options:
- * `container.feature('ipcSocket', { role: 'server' })` and
- * `container.feature('ipcSocket', { role: 'client' })`.
+ * within one process, create two distinct instances by giving each a different `name`
+ * option (instances are memoized per schema-validated options, so the differentiating
+ * key must be a real option): `container.feature('ipcSocket', { name: 'hub' })` and
+ * `container.feature('ipcSocket', { name: 'spoke' })`.
  *
  * **Server (Hub):**
  * ```typescript
@@ -112,10 +113,10 @@ type ClientInfo = {
  * @example
  * ```typescript
  * // Complete request/reply roundtrip in a single process.
- * // Passing distinct options yields two independent instances,
+ * // Distinct `name` options yield two independent instances,
  * // one locked into server mode and one into client mode.
- * const hub = container.feature('ipcSocket', { role: 'server' })
- * const spoke = container.feature('ipcSocket', { role: 'client' })
+ * const hub = container.feature('ipcSocket', { name: 'hub' })
+ * const spoke = container.feature('ipcSocket', { name: 'spoke' })
  *
  * const sock = `/tmp/ipc-example-${process.pid}.sock`
  * await hub.listen(sock, true) // `true` removes a stale socket file before binding
@@ -243,12 +244,11 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    * 
    * @example
    * ```typescript
-   * // Basic server setup
-   * const server = await ipc.listen('/tmp/myapp.sock');
+   * const sock = `/tmp/myapp-${process.pid}.sock`
    *
-   * // With automatic stale-socket removal (probes first; throws if a live
+   * // `true` removes a stale socket file first (probes it; throws if a live
    * // process is already listening on the path)
-   * const server2 = await ipc.listen('/tmp/myapp2.sock', true);
+   * const server = await ipc.listen(sock, true);
    *
    * // Handle connections and messages — both events include the client ID
    * ipc.on('connection', (clientId, socket) => {
@@ -260,6 +260,9 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *   // Echo back to all clients
    *   ipc.broadcast({ echo: data });
    * });
+   *
+   * // An open server holds the event loop — stop it when your command is done
+   * await ipc.stopServer();
    * ```
    */
   async listen(socketPath: string, removeLock = false): Promise<Server> {
@@ -454,8 +457,18 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @example
    * ```typescript
-   * await ipc.connect('/tmp/hub.sock')
+   * // A live hub to talk to (in real projects it runs in another process)
+   * const hub = container.feature('ipcSocket', { name: 'hub' })
+   * const sock = `/tmp/send-demo-${process.pid}.sock`
+   * await hub.listen(sock, true)
+   * hub.on('message', (data, clientId) => console.log('hub received:', data))
+   *
+   * const ipc = container.feature('ipcSocket', { name: 'spoke' })
+   * await ipc.connect(sock)
    * await ipc.send({ type: 'status', ready: true })
+   *
+   * await container.utils.sleep(100)  // let the message arrive
+   * ipc.disconnect(); await hub.stopServer()
    * ```
    */
   async send(message: any): Promise<void> {
@@ -484,11 +497,22 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @example
    * ```typescript
-   * // Client asking the server
-   * const answer = await ipc.ask({ type: 'sum', numbers: [1, 2, 3] })
+   * // Full roundtrip: hub answers a spoke's ask (distinct `name` options
+   * // yield two independent instances — see the class example)
+   * const hub = container.feature('ipcSocket', { name: 'hub' })
+   * const sock = `/tmp/ask-demo-${process.pid}.sock`
+   * await hub.listen(sock, true)
+   * hub.on('message', (data, clientId) => {
+   *   if (data.requestId) hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)
+   * })
    *
-   * // Server asking a specific client
-   * const status = await ipc.ask({ type: 'ping' }, { clientId, timeoutMs: 2000 })
+   * const ipc = container.feature('ipcSocket', { name: 'spoke' })
+   * await ipc.connect(sock)
+   * const answer = await ipc.ask({ type: 'sum', numbers: [1, 2, 3] })
+   * console.log(answer) // { sum: 6 }
+   *
+   * // Server → client works too: ipc.ask(msg, { clientId, timeoutMs: 2000 })
+   * ipc.disconnect(); await hub.stopServer()
    * ```
    */
   async ask(message: any, options?: { clientId?: string; timeoutMs?: number }): Promise<any> {
@@ -590,8 +614,13 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @example
    * ```typescript
-   * const ipc = container.feature('ipcSocket')
-   * await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' })
+   * // A live hub to connect to (in real projects it runs in another process)
+   * const hub = container.feature('ipcSocket', { name: 'hub' })
+   * const sock = `/tmp/connect-demo-${process.pid}.sock`
+   * await hub.listen(sock, true)
+   *
+   * const ipc = container.feature('ipcSocket', { name: 'spoke' })
+   * await ipc.connect(sock, { reconnect: false, name: 'worker-1' })
    *
    * ipc.on('message', (data) => {
    *   console.log('From server:', data)
@@ -599,6 +628,8 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * // The server assigns this client an ID on connect
    * console.log('My client id:', ipc.clientId)
+   *
+   * ipc.disconnect(); await hub.stopServer()
    * ```
    */
   async connect(socketPath: string, options?: { reconnect?: boolean; name?: string }): Promise<Socket> {
@@ -688,8 +719,16 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @example
    * ```typescript
-   * const answer = await ipc.ask({ type: 'status' })
+   * const hub = container.feature('ipcSocket', { name: 'hub' })
+   * const sock = `/tmp/disconnect-demo-${process.pid}.sock`
+   * await hub.listen(sock, true)
+   *
+   * const ipc = container.feature('ipcSocket', { name: 'spoke' })
+   * await ipc.connect(sock)
+   *
+   * // ...do your work, then:
    * ipc.disconnect() // let the process exit cleanly
+   * await hub.stopServer()
    * ```
    */
   disconnect(): void {
@@ -717,10 +756,16 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
    *
    * @example
    * ```typescript
-   * const alive = await ipc.probeSocket('/tmp/hub.sock')
-   * if (!alive) {
-   *   await ipc.listen('/tmp/hub.sock', true)
-   * }
+   * const sock = `/tmp/probe-demo-${process.pid}.sock`
+   *
+   * console.log(await ipc.probeSocket(sock)) // false — nothing listening
+   *
+   * await ipc.listen(sock, true)
+   * // Probing from any process now reports a live listener
+   * const other = container.feature('ipcSocket', { name: 'prober' })
+   * console.log(await other.probeSocket(sock)) // true
+   *
+   * await ipc.stopServer()
    * ```
    */
   probeSocket(socketPath: string): Promise<boolean> {

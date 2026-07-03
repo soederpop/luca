@@ -43,6 +43,8 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>
  * ```typescript
  * // TTL: entries expire and read as cache misses afterwards
  * const cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour
+ * const token = 'abc123'
+ * const data = { symbol: 'LUCA', price: 42 }
  * await cache.set('session', token)                  // expires in 1 hour
  * await cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds
  * ```
@@ -75,8 +77,12 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @returns Promise that resolves to the file data as Buffer
    * @example
    * ```typescript
-   * await diskCache.saveFile('myFile', './output/file.txt')
-   * await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
+   * await diskCache.set('myFile', 'file contents')
+   * await diskCache.saveFile('myFile', './file.txt')
+   *
+   * // Base64-encoded entries (e.g. images) are decoded before writing
+   * await diskCache.set('encodedImage', Buffer.from('binary data').toString('base64'))
+   * await diskCache.saveFile('encodedImage', './photo.jpg', true)
    * ```
    */
   async saveFile(key: string, outputPath: string, isBase64 = false): Promise<Buffer | string> {
@@ -94,6 +100,7 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @returns Promise that resolves to the key
    * @example
    * ```typescript
+   * const defaultConfig = { theme: 'dark', retries: 3 }
    * await diskCache.ensure('config', JSON.stringify(defaultConfig))
    * ```
    */
@@ -116,6 +123,8 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @throws Error if destination exists and overwrite is false
    * @example
    * ```typescript
+   * await diskCache.set('original', 'important data')
+   * await diskCache.set('file1', 'v1')
    * await diskCache.copy('original', 'backup')
    * await diskCache.copy('file1', 'file2', true) // force overwrite
    * ```
@@ -139,6 +148,8 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @throws Error if destination exists and overwrite is false
    * @example
    * ```typescript
+   * await diskCache.set('temp', 'work in progress')
+   * await diskCache.set('old_key', 'legacy value')
    * await diskCache.move('temp', 'permanent')
    * await diskCache.move('old_key', 'new_key', true) // force overwrite
    * ```
@@ -199,6 +210,8 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    *   a default value.
    * @example
    * ```typescript
+   * await diskCache.set('myText', 'Hello World')
+   * await diskCache.set('myData', { count: 42 })
    * const text = await diskCache.get('myText')
    * const data = await diskCache.get('myData', true) // parse as JSON
    * ```
@@ -231,6 +244,8 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @returns Promise that resolves when the value is stored
    * @example
    * ```typescript
+   * const content = Buffer.from('binary data').toString('base64')
+   * const jwt = 'header.payload.signature'
    * await diskCache.set('myKey', 'Hello World')
    * await diskCache.set('userData', { name: 'John', age: 30 })
    * await diskCache.set('file', content, { size: 1024, type: 'image' })
@@ -324,10 +339,10 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @throws Error if encryption is not enabled or no secret is provided
    * @example
    * ```typescript
-   * // Initialize with encryption
-   * const cache = container.feature('diskCache', { 
-   *   encrypt: true, 
-   *   secret: Buffer.from('my-secret-key') 
+   * // Initialize with encryption (secret must be a 32-byte key for AES-256)
+   * const cache = container.feature('diskCache', {
+   *   encrypt: true,
+   *   secret: Buffer.alloc(32, 'my-secret-key')
    * })
    * 
    * // Use encrypted operations
@@ -392,7 +407,8 @@ export class DiskCache extends Feature<FeatureState,DiskCacheOptions> {
    * @returns Configured cacache instance with all methods bound to the path
    * @example
    * ```typescript
-   * const customCache = diskCache.create('/custom/cache/path')
+   * const cachePath = container.paths.resolve(container.feature('os').tmpdir, 'my-cache')
+   * const customCache = diskCache.create(cachePath)
    * ```
    */
   create(path?: string) {

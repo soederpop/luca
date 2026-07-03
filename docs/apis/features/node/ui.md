@@ -101,6 +101,8 @@ Creates an interactive wizard using inquirer prompts. This method provides a con
 **Returns:** `Promise<any>`
 
 ```ts
+// (no-run) interactive — waits for keyboard input
+
 // Basic wizard
 const answers = await ui.wizard([
  {
@@ -161,6 +163,8 @@ Opens text in the user's external editor for editing. This method integrates wit
 **Returns:** `Promise<unknown>`
 
 ```ts
+// (no-run) interactive — opens $EDITOR and waits for the user
+
 // Edit code snippet
 const code = `function hello() {\n  console.log('Hello');\n}`;
 const editedCode = await ui.openInEditor(code, '.js');
@@ -324,7 +328,7 @@ const rainbow = ui.applyHorizontalGradient('RAINBOW',
 );
 
 // Simple two-color transition
-const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);
+const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'yellow']);
 
 // Great for short text and ASCII art
 const art = ui.asciiArt('COOL', 'Big');
@@ -353,8 +357,8 @@ const patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);
 
 // Sunset effect on ASCII art
 const banner = ui.asciiArt('SUNSET', 'Big');
-const sunset = ui.applyVerticalGradient(banner, 
- ['yellow', 'orange', 'red', 'purple']
+const sunset = ui.applyVerticalGradient(banner,
+ ['yellow', 'red', 'magenta', 'blue']
 );
 
 // Ocean waves effect
@@ -502,6 +506,8 @@ const successColor = ui.assignColor('success');
 **wizard**
 
 ```ts
+// (no-run) interactive — waits for keyboard input
+
 // Basic wizard
 const answers = await ui.wizard([
  {
@@ -537,6 +543,8 @@ const moreAnswers = await ui.wizard([
 **openInEditor**
 
 ```ts
+// (no-run) interactive — opens $EDITOR and waits for the user
+
 // Edit code snippet
 const code = `function hello() {\n  console.log('Hello');\n}`;
 const editedCode = await ui.openInEditor(code, '.js');
@@ -634,7 +642,7 @@ const rainbow = ui.applyHorizontalGradient('RAINBOW',
 );
 
 // Simple two-color transition
-const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);
+const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'yellow']);
 
 // Great for short text and ASCII art
 const art = ui.asciiArt('COOL', 'Big');
@@ -652,8 +660,8 @@ const patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);
 
 // Sunset effect on ASCII art
 const banner = ui.asciiArt('SUNSET', 'Big');
-const sunset = ui.applyVerticalGradient(banner, 
- ['yellow', 'orange', 'red', 'purple']
+const sunset = ui.applyVerticalGradient(banner,
+ ['yellow', 'red', 'magenta', 'blue']
 );
 
 // Ocean waves effect
@@ -737,6 +745,7 @@ const randomColor = ui.randomColor;
 console.log(ui.colors[randomColor]('This text is a random color!'));
 
 // Use in loops for varied output
+const items = ['alpha', 'beta', 'gamma'];
 items.forEach(item => {
  const color = ui.randomColor;
  console.log(ui.colors[color](`- ${item}`));

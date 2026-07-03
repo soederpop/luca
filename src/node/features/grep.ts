@@ -130,7 +130,7 @@ export class Grep extends Feature {
      * })
      *
      * // Case insensitive search with context
-     * const results = await grep.search({
+     * const withContext = await grep.search({
      *   pattern: 'error',
      *   ignoreCase: true,
      *   before: 2,

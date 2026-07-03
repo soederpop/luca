@@ -91,7 +91,8 @@ export class FS extends Feature {
    * @example
    * ```typescript
    * const content = fs.readFile('README.md')          // string (utf-8)
-   * const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
+   * fs.writeFile('logo.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+   * const buffer = fs.readFile('logo.png', null)      // Buffer — safe for binary data
    * ```
    */
   readFile(path: string, encoding?: BufferEncoding | null): string | Buffer {
@@ -122,8 +123,8 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
-   * const content = await fs.readFileAsync('data.txt')
-   * const buffer = await fs.readFileAsync('image.png', null)
+   * const content = await fs.readFileAsync('README.md')
+   * const buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer
    * ```
    */
   async readFileAsync(path: string, encoding?: BufferEncoding | null): Promise<string | Buffer> {
@@ -143,8 +144,8 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
-   * const config = fs.readJson('config.json')
-   * console.log(config.version)
+   * const pkg = fs.readJson('package.json')
+   * console.log(pkg.version)
    * ```
    */
   readJson(path: string): any {
@@ -168,8 +169,8 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
-   * const config = await fs.readJsonAsync('config.json')
-   * console.log(config.version)
+   * const pkg = await fs.readJsonAsync('package.json')
+   * console.log(pkg.version)
    * ```
    */
   async readJsonAsync(path: string): Promise<any> {
@@ -646,6 +647,7 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
+   * fs.ensureFile('temp/cache.tmp', '')
    * await fs.rm('temp/cache.tmp')
    * ```
    */
@@ -700,7 +702,7 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
-   * fs.copy('src/config.json', 'backup/config.json')
+   * fs.copy('src/index.ts', 'backup/index.ts')
    * fs.copy('src', 'backup/src')
    * ```
    */
@@ -724,7 +726,7 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
-   * await fs.copyAsync('src/config.json', 'backup/config.json')
+   * await fs.copyAsync('src/index.ts', 'backup/index.ts')
    * await fs.copyAsync('src', 'backup/src')
    * ```
    */
@@ -744,7 +746,10 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
+   * fs.ensureFile('temp/draft.txt', 'work in progress')
    * fs.move('temp/draft.txt', 'final/document.txt')
+   *
+   * fs.ensureFolder('old-dir')
    * fs.move('old-dir', 'new-dir')
    * ```
    */
@@ -775,7 +780,10 @@ export class FS extends Feature {
    *
    * @example
    * ```typescript
+   * await fs.ensureFileAsync('temp/draft.txt', 'work in progress')
    * await fs.moveAsync('temp/draft.txt', 'final/document.txt')
+   *
+   * await fs.ensureFolderAsync('old-dir')
    * await fs.moveAsync('old-dir', 'new-dir')
    * ```
    */
@@ -818,7 +826,9 @@ export class FS extends Feature {
    * ```typescript
    * const result = fs.walk('src', { files: true, directories: false })
    * const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
-   * const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }
+   *
+   * fs.ensureFile('inbox/contact-1.json', '{}')
+   * const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }
    * ```
    */
   walk(basePath: string, options: WalkOptions = {}): { directories: string[], files: string[] } {
@@ -896,8 +906,10 @@ export class FS extends Feature {
    * @example
    * ```typescript
    * const result = await fs.walkAsync('src', { exclude: ['node_modules'] })
+   *
+   * await fs.ensureFileAsync('inbox/contact-1.json', '{}')
    * const files = await fs.walkAsync('inbox', { relative: true })
-   * // files.files => ['contact-1.json', 'subfolder/file.txt', ...]
+   * // files.files => ['contact-1.json']
    * ```
    */
   async walkAsync(baseDir: string, options: WalkOptions = {}): Promise<{ directories: string[], files: string[] }> {

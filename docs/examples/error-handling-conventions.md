@@ -91,7 +91,7 @@ if (execError.status !== 3) throw new Error(`expected err.status === 3, got ${ex
 console.log('exec returned a string on success, threw with status', execError.status, 'on failure')
 ```
 
-`proc.execAndCapture(cmd)` is asynchronous and **never throws for a failing command** — it always resolves to a structured `{ stdout, stderr, exitCode, pid, error }`. On success `error` is `null`; on a nonzero exit `error` is set and the exit code lives at `error.code`.
+`proc.execAndCapture(cmd)` is asynchronous and **never throws for a failing command** — it always resolves to a structured `{ stdout, stderr, exitCode, pid, error }`. On success `error` is `null` and `exitCode` is `0`; on a nonzero exit `exitCode` carries the child's real status and `error` is set (with the code also at `error.code`).
 
 ```ts
 const ok = await proc.execAndCapture('bun --version')
@@ -100,14 +100,14 @@ if (ok.error !== null) throw new Error('successful run should have error === nul
 if (ok.exitCode !== 0) throw new Error('successful run should have exitCode 0')
 
 const failed = await proc.execAndCapture('bun -e process.exit(3)')
-if (failed.error == null) throw new Error('nonzero exit must surface on .error — it did not')
+if (failed.exitCode !== 3) throw new Error(`expected exitCode === 3, got ${failed.exitCode}`)
+if (failed.error == null) throw new Error('nonzero exit should also surface on .error')
 if (failed.error.code !== 3) throw new Error(`expected error.code === 3, got ${failed.error.code}`)
-console.log('execAndCapture success: error === null; failure: error.code =', failed.error.code)
+console.log('execAndCapture failure: exitCode =', failed.exitCode, ', error.code =', failed.error.code)
 ```
 
-Two traps to know:
+One trap to know:
 
-- **Gate on `error`, not `exitCode`.** Today the top-level `exitCode` field is not updated when the child fails (it stays `0`) — `error === null` is the reliable success signal, and the real exit code is `error.code`.
 - **The command string is split naively on spaces** — no shell quoting. Any argument containing spaces (paths, `--format="%h %s"`) gets mangled. Use `proc.spawnAndCapture(command, argsArray)` and pass each argument as its own element.
 
 ## 4. Registries are classes — use .available
@@ -135,5 +135,5 @@ console.log('removed scratch cache dir', cacheDir)
 - **`rest` client** — failure is **returned** as a plain object. Detect: `result?.name === 'AxiosError'`, `result?.code`, `result?.status`.
 - **`diskCache.get`** — a miss **throws** `NotFoundError` (`code: 'ENOENT'`). Detect: try/catch, or guard with `has()` / `ensure()`.
 - **`proc.exec`** — failure **throws**, exit code at `err.status`. Detect: try/catch.
-- **`proc.execAndCapture`** — always **resolves**; failure sets `.error` (exit code at `error.code`). Detect: `result.error === null` means success.
+- **`proc.execAndCapture`** — always **resolves**; failure reports the real `exitCode` and sets `.error`. Detect: `result.exitCode === 0` (or `result.error === null`) means success.
 - **Registries** — `Object.keys()` returns internals. Enumerate with `.available`.

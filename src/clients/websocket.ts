@@ -53,8 +53,16 @@ export interface PendingRequest<T = any> {
  *
  * @example
  * ```typescript
+ * // pair it with the Luca websocket server so the example is self-contained
+ * const port = await container.feature('networking').findOpenPort(8200)
+ * const server = container.server('websocket', { json: true })
+ * await server.start({ port })
+ * server.on('message', (msg) => {
+ *   if (msg?.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
+ * })
+ *
  * const ws = container.client('websocket', {
- *   baseURL: 'ws://localhost:8080',
+ *   baseURL: `ws://localhost:${port}`,
  *   reconnect: true,
  *   maxReconnectAttempts: 5
  * })
@@ -64,10 +72,11 @@ export interface PendingRequest<T = any> {
  *
  * // ask/reply: request data from the server and await its answer
  * const result = await ws.ask('getUser', { id: 42 })
- * console.log(result)
+ * console.log(result)   // { id: 42, name: 'Alice' }
  *
  * // done — close the socket so the process can exit
  * await ws.disconnect()
+ * await server.stop()
  * ```
  */
 export class WebSocketClient<
@@ -106,11 +115,19 @@ export class WebSocketClient<
    *
    * @example
    * ```typescript
-   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * // a local server to connect to (any ws endpoint works)
+   * const port = await container.feature('networking').findOpenPort(8210)
+   * const server = container.server('websocket')
+   * await server.start({ port })
+   *
+   * const ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })
    * ws.on('open', () => console.log('connected'))
    * ws.on('close', (code, reason) => console.log('closed', code, reason))
    * await ws.connect()
    * console.log(ws.state.get('connected'))   // true
+   *
+   * await ws.disconnect()   // an open socket keeps the process alive
+   * await server.stop()
    * ```
    */
   override async connect(): Promise<this> {
@@ -167,7 +184,12 @@ export class WebSocketClient<
    *
    * @example
    * ```typescript
-   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * const port = await container.feature('networking').findOpenPort(8220)
+   * const server = container.server('websocket', { json: true })
+   * await server.start({ port })
+   * const firstConnection = new Promise((resolve) => server.on('connection', resolve))
+   *
+   * const ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })
    * await ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects
    *
    * // Answering an ask from the server: its message carries a requestId —
@@ -177,6 +199,11 @@ export class WebSocketClient<
    *     await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })
    *   }
    * })
+   * const socket = await firstConnection
+   * console.log(await server.ask(socket, 'identify'))   // { name: 'my-client' }
+   *
+   * await ws.disconnect()
+   * await server.stop()
    * ```
    */
   async send(data: any): Promise<void> {
@@ -207,22 +234,28 @@ export class WebSocketClient<
    *
    * @example
    * ```typescript
-   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * // Server side (container.server('websocket', { json: true })): messages
+   * // with a requestId arrive with reply helpers attached
+   * const port = await container.feature('networking').findOpenPort(8230)
+   * const server = container.server('websocket', { json: true })
+   * await server.start({ port })
+   * server.on('message', (msg) => {
+   *   if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
+   * })
+   *
+   * const ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })
    * await ws.connect()
    *
    * try {
    *   const user = await ws.ask('getUser', { id: 42 }, 5000)
-   *   console.log(user)
+   *   console.log(user)   // { id: 42, name: 'Alice' }
    * } catch (err) {
    *   // reply carried an error field, or no reply within 5s
    *   console.error(err.message)   // e.g. 'ask("getUser") timed out after 5000ms'
    * }
    *
-   * // Server side (container.server('websocket')): messages with a requestId
-   * // arrive with reply helpers attached
-   * // server.on('message', (msg) => {
-   * //   if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })
-   * // })
+   * await ws.disconnect()
+   * await server.stop()
    * ```
    */
   async ask<R = any>(type: string, data?: any, timeout = 10000): Promise<R> {
@@ -276,11 +309,16 @@ export class WebSocketClient<
    *
    * @example
    * ```typescript
-   * const ws = container.client('websocket', { baseURL: 'ws://localhost:8080' })
+   * const port = await container.feature('networking').findOpenPort(8240)
+   * const server = container.server('websocket')
+   * await server.start({ port })
+   *
+   * const ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })
    * await ws.connect()
    * await ws.send({ type: 'goodbye' })
    * await ws.disconnect()
    * console.log(ws.state.get('connected'))   // false
+   * await server.stop()
    * ```
    */
   async disconnect(): Promise<this> {

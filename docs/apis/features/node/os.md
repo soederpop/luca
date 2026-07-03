@@ -218,6 +218,7 @@ if (os.isLinux) {
 
 ```ts
 // spawn a shell command cross-platform
+const proc = container.feature('proc')
 await proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])
 ```
 
@@ -226,6 +227,8 @@ await proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])
 **shellFlag**
 
 ```ts
+const proc = container.feature('proc')
+const command = 'echo hello'
 await proc.spawnAndCapture(os.shell, [os.shellFlag, command])
 ```
 

@@ -225,6 +225,7 @@ export class OS extends Feature {
    * @example
    * ```typescript
    * // spawn a shell command cross-platform
+   * const proc = container.feature('proc')
    * await proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])
    * ```
    */
@@ -240,6 +241,8 @@ export class OS extends Feature {
    *
    * @example
    * ```typescript
+   * const proc = container.feature('proc')
+   * const command = 'echo hello'
    * await proc.spawnAndCapture(os.shell, [os.shellFlag, command])
    * ```
    */

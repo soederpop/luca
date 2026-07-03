@@ -44,11 +44,15 @@ Executes a SELECT-like query and returns result rows. Use sqlite placeholders (`
 **Returns:** `Promise<T[]>`
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)')
+await db.execute('INSERT INTO users (email, active) VALUES (?, ?)', ['hello@example.com', 1])
+
 const users = await db.query<{ id: number; email: string }>(
  'SELECT id, email FROM users WHERE active = ?',
  [1]
 )
+console.log(users) // [{ id: 1, email: 'hello@example.com' }]
 ```
 
 
@@ -67,7 +71,9 @@ Executes a write/update/delete statement and returns metadata. Use sqlite placeh
 **Returns:** `Promise<{ changes: number; lastInsertRowid: number | bigint | null }>`
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')
+
 const { changes, lastInsertRowid } = await db.execute(
  'INSERT INTO users (email) VALUES (?)',
  ['hello@example.com']
@@ -91,11 +97,15 @@ Safe tagged-template SQL helper. Values become bound parameters automatically, p
 **Returns:** `Promise<T[]>`
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+
 const email = 'hello@example.com'
 const rows = await db.sql<{ id: number }>`
  SELECT id FROM users WHERE email = ${email}
 `
+console.log(rows) // [{ id: 1 }]
 ```
 
 
@@ -113,7 +123,11 @@ Runs a function inside a database transaction. Delegates to Bun's native `db.tra
 **Returns:** `T`
 
 ```ts
-const db = container.feature('sqlite', { path: 'queue.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute(`CREATE TABLE jobs (id INTEGER PRIMARY KEY, payload TEXT, status TEXT DEFAULT 'pending', claimed_at TEXT)`)
+await db.execute(`CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER)`)
+await db.execute(`INSERT INTO jobs (payload) VALUES ('build'), ('deploy')`)
+await db.execute(`INSERT INTO accounts (balance) VALUES (500), (500)`)
 
 // Atomically claim the next pending job (single statement — no explicit
 // transaction needed thanks to UPDATE ... RETURNING)
@@ -122,6 +136,7 @@ const [job] = await db.query(`
  WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)
  RETURNING id, payload
 `)
+console.log(job) // { id: 1, payload: 'build' }
 
 // Multi-statement atomic work: all-or-nothing
 db.transaction(() => {
@@ -205,7 +220,9 @@ Emitted when the database connection is closed
 **features.sqlite**
 
 ```ts
-const sqlite = container.feature('sqlite', { path: 'data/app.db' })
+// In-memory by default; pass { path: 'app.db' } to persist to disk
+// (the parent folder of a file path must already exist)
+const sqlite = container.feature('sqlite')
 
 await sqlite.execute(
  'create table if not exists users (id integer primary key, email text not null unique)'
@@ -216,6 +233,7 @@ await sqlite.execute('insert into users (email) values (?)', ['hello@example.com
 const users = await sqlite.sql<{ id: number; email: string }>`
  select id, email from users where email = ${'hello@example.com'}
 `
+console.log(users) // [{ id: 1, email: 'hello@example.com' }]
 ```
 
 
@@ -223,11 +241,15 @@ const users = await sqlite.sql<{ id: number; email: string }>`
 **query**
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)')
+await db.execute('INSERT INTO users (email, active) VALUES (?, ?)', ['hello@example.com', 1])
+
 const users = await db.query<{ id: number; email: string }>(
  'SELECT id, email FROM users WHERE active = ?',
  [1]
 )
+console.log(users) // [{ id: 1, email: 'hello@example.com' }]
 ```
 
 
@@ -235,7 +257,9 @@ const users = await db.query<{ id: number; email: string }>(
 **execute**
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')
+
 const { changes, lastInsertRowid } = await db.execute(
  'INSERT INTO users (email) VALUES (?)',
  ['hello@example.com']
@@ -248,11 +272,15 @@ console.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)
 **sql**
 
 ```ts
-const db = container.feature('sqlite', { path: 'app.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+
 const email = 'hello@example.com'
 const rows = await db.sql<{ id: number }>`
  SELECT id FROM users WHERE email = ${email}
 `
+console.log(rows) // [{ id: 1 }]
 ```
 
 
@@ -260,7 +288,11 @@ const rows = await db.sql<{ id: number }>`
 **transaction**
 
 ```ts
-const db = container.feature('sqlite', { path: 'queue.db' })
+const db = container.feature('sqlite') // in-memory
+await db.execute(`CREATE TABLE jobs (id INTEGER PRIMARY KEY, payload TEXT, status TEXT DEFAULT 'pending', claimed_at TEXT)`)
+await db.execute(`CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER)`)
+await db.execute(`INSERT INTO jobs (payload) VALUES ('build'), ('deploy')`)
+await db.execute(`INSERT INTO accounts (balance) VALUES (500), (500)`)
 
 // Atomically claim the next pending job (single statement — no explicit
 // transaction needed thanks to UPDATE ... RETURNING)
@@ -269,6 +301,7 @@ const [job] = await db.query(`
  WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)
  RETURNING id, payload
 `)
+console.log(job) // { id: 1, payload: 'build' }
 
 // Multi-statement atomic work: all-or-nothing
 db.transaction(() => {

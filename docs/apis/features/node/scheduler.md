@@ -84,9 +84,15 @@ Run a function on a cron schedule as a named task. Standard 5-field syntax (minu
 **Returns:** `TaskHandle`
 
 ```ts
+const rotateLogs = async () => console.log('rotating logs')
+const digest = async () => console.log('sending digest')
+const cleanup = () => console.log('cleaning up')
+
 scheduler.cron('0-59/15 * * * *', rotateLogs)           // every 15 minutes
 scheduler.cron('0 9 * * mon-fri', digest, { name: 'digest' }) // weekdays at 9am
 scheduler.cron('@daily', cleanup)
+
+scheduler.stopAll() // release the pending cron timers when done
 ```
 
 
@@ -113,7 +119,10 @@ Run a function once at a specific time. One-shots deactivate after they fire (`a
 **Returns:** `TaskHandle`
 
 ```ts
-scheduler.at(new Date('2026-07-04T09:00:00'), sendReminder)
+const sendReminder = () => console.log('time for standup')
+const handle = scheduler.at(new Date(Date.now() + 60_000), sendReminder)
+console.log(handle.info.nextRun) // ~one minute from now
+handle.stop() // cancel it (a pending one-shot holds a timer until it fires)
 ```
 
 
@@ -140,7 +149,9 @@ Run a function once after a delay. Sugar for at(Date.now() + duration).
 **Returns:** `TaskHandle`
 
 ```ts
-scheduler.in('30s', () => console.log('half a minute later'))
+const handle = scheduler.in('150ms', () => console.log('a moment later'))
+await container.utils.sleep(300)      // let the one-shot fire
+console.log(handle.info.runs)         // 1 — fired and deactivated
 ```
 
 
@@ -195,6 +206,10 @@ Keep the process alive until a shutdown signal arrives, then stop all tasks and 
 **Returns:** `Promise<string>`
 
 ```ts
+// (no-run) blocks until SIGINT/SIGTERM arrives
+const poll = async () => console.log('polling')
+const flushBuffers = async () => console.log('flushing')
+
 scheduler.every('1m', poll, { name: 'poller', immediate: true })
 const signal = await scheduler.run({
  onShutdown: async () => { await flushBuffers() },
@@ -307,16 +322,23 @@ Emitted after a task run completes (success or error)
 ```ts
 const scheduler = container.feature('scheduler')
 
+const syncOnce = async () => console.log('syncing...')
+const sendDigest = async () => console.log('sending digest')
+const warmCache = () => console.log('warming cache')
+
 scheduler.every('5m', syncOnce, { name: 'sync', immediate: true })
 scheduler.cron('0 9 * * mon-fri', sendDigest, { name: 'digest' })
 scheduler.in('30s', warmCache)
 
-// Daemon: keeps the process alive, stops all tasks on SIGINT/SIGTERM
-await scheduler.run()
+console.log(scheduler.tasks.map(t => t.name)) // ['sync', 'digest', ...]
+scheduler.stopAll() // release the pending timers
+// In a long-running command you'd instead: await scheduler.run()
+// — it blocks until SIGINT/SIGTERM and stops all tasks for you.
 ```
 
 ```ts
 // Observability: every task has a name, run counts, and error history
+const pollQueue = async () => console.log('polling the queue')
 const handle = scheduler.every('10s', pollQueue)
 console.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }
 console.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]
@@ -350,9 +372,15 @@ poll.stop() // or scheduler.stop('sync')
 **cron**
 
 ```ts
+const rotateLogs = async () => console.log('rotating logs')
+const digest = async () => console.log('sending digest')
+const cleanup = () => console.log('cleaning up')
+
 scheduler.cron('0-59/15 * * * *', rotateLogs)           // every 15 minutes
 scheduler.cron('0 9 * * mon-fri', digest, { name: 'digest' }) // weekdays at 9am
 scheduler.cron('@daily', cleanup)
+
+scheduler.stopAll() // release the pending cron timers when done
 ```
 
 
@@ -360,7 +388,10 @@ scheduler.cron('@daily', cleanup)
 **at**
 
 ```ts
-scheduler.at(new Date('2026-07-04T09:00:00'), sendReminder)
+const sendReminder = () => console.log('time for standup')
+const handle = scheduler.at(new Date(Date.now() + 60_000), sendReminder)
+console.log(handle.info.nextRun) // ~one minute from now
+handle.stop() // cancel it (a pending one-shot holds a timer until it fires)
 ```
 
 
@@ -368,7 +399,9 @@ scheduler.at(new Date('2026-07-04T09:00:00'), sendReminder)
 **in**
 
 ```ts
-scheduler.in('30s', () => console.log('half a minute later'))
+const handle = scheduler.in('150ms', () => console.log('a moment later'))
+await container.utils.sleep(300)      // let the one-shot fire
+console.log(handle.info.runs)         // 1 — fired and deactivated
 ```
 
 
@@ -392,6 +425,10 @@ scheduler.stopAll()
 **run**
 
 ```ts
+// (no-run) blocks until SIGINT/SIGTERM arrives
+const poll = async () => console.log('polling')
+const flushBuffers = async () => console.log('flushing')
+
 scheduler.every('1m', poll, { name: 'poller', immediate: true })
 const signal = await scheduler.run({
  onShutdown: async () => { await flushBuffers() },

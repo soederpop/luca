@@ -176,12 +176,20 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 			// if we enabled any features, they will be in the context object
 			Object.assign(shared, container.context)
 		} else {
+			// Prefer the raw source slice — it's verbatim (no lossy re-render) and
+			// immune to stringifier gaps (contentbase's toMarkdown lacks the GFM
+			// extensions, so re-stringifying a table node throws).
+			const start = node.position?.start?.offset
+			const end = node.position?.end?.offset
 			let md: string
-			try {
-				md = doc.stringify({ type: 'root', children: [node] })
-			} catch {
-				// the stringifier lacks GFM extensions (tables etc.) — fall back to the raw source slice
-				md = rawSource.slice(node.position?.start?.offset ?? 0, node.position?.end?.offset ?? 0)
+			if (typeof start === 'number' && typeof end === 'number') {
+				md = rawSource.slice(start, end)
+			} else {
+				try {
+					md = doc.stringify({ type: 'root', children: [node] })
+				} catch {
+					md = ''
+				}
 			}
 			console.log(container.ui.markdown(md))
 		}

@@ -82,20 +82,23 @@ export class Git extends Feature {
      * 
      * @example
      * ```typescript
-     * // Get all tracked files
-     * const allFiles = await git.lsFiles()
-     * 
-     * // Get only modified files
-     * const modified = await git.lsFiles({ modified: true })
-     * 
-     * // Get untracked files excluding certain patterns
-     * const untracked = await git.lsFiles({
-     *   others: true,
-     *   exclude: ['*.log', 'node_modules']
-     * })
+     * // ls-files needs a repository — guard with isRepo when the cwd might not be one
+     * if (git.isRepo) {
+     *   // Get all tracked files
+     *   const allFiles = await git.lsFiles()
      *
-     * // Scope the listing to a subdirectory
-     * const srcFiles = await git.lsFiles({ baseDir: 'src' })
+     *   // Get only modified files
+     *   const modified = await git.lsFiles({ modified: true })
+     *
+     *   // Get untracked files excluding certain patterns
+     *   const untracked = await git.lsFiles({
+     *     others: true,
+     *     exclude: ['*.log', 'node_modules']
+     *   })
+     *
+     *   // Scope the listing to a subdirectory
+     *   const srcFiles = await git.lsFiles({ baseDir: 'src' })
+     * }
      * ```
      */
     async lsFiles(options: LsFilesOptions = {}): Promise<string[]> {
@@ -293,7 +296,7 @@ export class Git extends Feature {
      * @example
      * ```typescript
      * const log = git.fileLog('package.json')
-     * const log = git.fileLog('src/index.ts', 'src/helper.ts')
+     * const multiFileLog = git.fileLog('src/index.ts', 'src/helper.ts')
      * for (const entry of log) {
      *   console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)
      * }
@@ -343,10 +346,10 @@ export class Git extends Feature {
      * @example
      * ```typescript
      * // Diff package.json between HEAD and a specific commit
-     * const d = git.diff('package.json', 'abc1234')
+     * const fromHead = git.diff('package.json', 'abc1234')
      *
      * // Diff between two branches
-     * const d = git.diff('src/index.ts', 'feature-branch', 'main')
+     * const betweenBranches = git.diff('src/index.ts', 'feature-branch', 'main')
      * ```
      */
     diff(file: string, compareTo: string, compareFrom?: string): string {
@@ -442,14 +445,16 @@ export class Git extends Feature {
      *
      * @example
      * ```typescript
+     * // (no-run) downloads tarballs from GitHub — requires network access
+     *
      * // Extract a subfolder
-     * await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+     * await git.extractFolder({ source: 'soederpop/luca/docs/examples', destination: './examples' })
      *
      * // Specific branch
-     * await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+     * await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'master' })
      *
      * // Full GitHub URL
-     * await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
+     * await git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/docs/examples', destination: './examples' })
      * ```
      */
     async extractFolder({ source, destination, branch }: { source: string, destination: string, branch?: string }) {
@@ -528,7 +533,7 @@ export class Git extends Feature {
      * @example
      * ```typescript
      * const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
-     * const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
+     * const globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')
      * ```
      */
     getChangeHistoryForFiles(...paths: string[]): Array<{ sha: string, message: string, longMessage: string, filesMatched: string[] }> {

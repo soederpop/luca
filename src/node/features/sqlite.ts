@@ -55,7 +55,9 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
  *
  * @example
  * ```typescript
- * const sqlite = container.feature('sqlite', { path: 'data/app.db' })
+ * // In-memory by default; pass { path: 'app.db' } to persist to disk
+ * // (the parent folder of a file path must already exist)
+ * const sqlite = container.feature('sqlite')
  *
  * await sqlite.execute(
  *   'create table if not exists users (id integer primary key, email text not null unique)'
@@ -66,6 +68,7 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
  * const users = await sqlite.sql<{ id: number; email: string }>`
  *   select id, email from users where email = ${'hello@example.com'}
  * `
+ * console.log(users) // [{ id: 1, email: 'hello@example.com' }]
  * ```
  */
 export class Sqlite extends Feature<SqliteState, SqliteOptions> {
@@ -124,11 +127,15 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    *
    * @example
    * ```typescript
-   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const db = container.feature('sqlite') // in-memory
+   * await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)')
+   * await db.execute('INSERT INTO users (email, active) VALUES (?, ?)', ['hello@example.com', 1])
+   *
    * const users = await db.query<{ id: number; email: string }>(
    *   'SELECT id, email FROM users WHERE active = ?',
    *   [1]
    * )
+   * console.log(users) // [{ id: 1, email: 'hello@example.com' }]
    * ```
    */
   async query<T extends object = Record<string, unknown>>(queryText: string, params: SqlValue[] = []): Promise<T[]> {
@@ -169,7 +176,9 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    *
    * @example
    * ```typescript
-   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const db = container.feature('sqlite') // in-memory
+   * await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')
+   *
    * const { changes, lastInsertRowid } = await db.execute(
    *   'INSERT INTO users (email) VALUES (?)',
    *   ['hello@example.com']
@@ -219,11 +228,15 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    *
    * @example
    * ```typescript
-   * const db = container.feature('sqlite', { path: 'app.db' })
+   * const db = container.feature('sqlite') // in-memory
+   * await db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')
+   * await db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])
+   *
    * const email = 'hello@example.com'
    * const rows = await db.sql<{ id: number }>`
    *   SELECT id FROM users WHERE email = ${email}
    * `
+   * console.log(rows) // [{ id: 1 }]
    * ```
    */
   async sql<T extends object = Record<string, unknown>>(strings: TemplateStringsArray, ...values: SqlValue[]): Promise<T[]> {
@@ -246,7 +259,11 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    *
    * @example
    * ```typescript
-   * const db = container.feature('sqlite', { path: 'queue.db' })
+   * const db = container.feature('sqlite') // in-memory
+   * await db.execute(`CREATE TABLE jobs (id INTEGER PRIMARY KEY, payload TEXT, status TEXT DEFAULT 'pending', claimed_at TEXT)`)
+   * await db.execute(`CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER)`)
+   * await db.execute(`INSERT INTO jobs (payload) VALUES ('build'), ('deploy')`)
+   * await db.execute(`INSERT INTO accounts (balance) VALUES (500), (500)`)
    *
    * // Atomically claim the next pending job (single statement — no explicit
    * // transaction needed thanks to UPDATE ... RETURNING)
@@ -255,6 +272,7 @@ export class Sqlite extends Feature<SqliteState, SqliteOptions> {
    *   WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)
    *   RETURNING id, payload
    * `)
+   * console.log(job) // { id: 1, payload: 'build' }
    *
    * // Multi-statement atomic work: all-or-nothing
    * db.transaction(() => {

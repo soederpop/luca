@@ -32,7 +32,7 @@ Executes a command string and captures its output asynchronously. This method ta
   }>`
 
 ```ts
-// Execute a git command
+// Execute a git command — failures are captured, not thrown
 const result = await proc.execAndCapture('git status --porcelain')
 if (result.exitCode === 0) {
  console.log('Git status:', result.stdout)
@@ -41,9 +41,7 @@ if (result.exitCode === 0) {
 }
 
 // Execute with options
-const result = await proc.execAndCapture('npm list --depth=0', {
- cwd: '/path/to/project'
-})
+const listing = await proc.execAndCapture('ls -1', { cwd: 'src' })
 
 // WRONG: quoted args with spaces get split apart
 // await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
@@ -93,15 +91,15 @@ const result = await proc.spawnAndCapture('node', ['--version'])
 console.log(`Node version: ${result.stdout}`)
 
 // With real-time output monitoring
-const result = await proc.spawnAndCapture('npm', ['install'], {
- onOutput: (data) => console.log('📦 ', data.trim()),
- onError: (data) => console.error('❌ ', data.trim()),
+const monitored = await proc.spawnAndCapture('bun', ['--version'], {
+ onOutput: (data) => console.log('OUT:', data.trim()),
+ onError: (data) => console.error('ERR:', data.trim()),
  onExit: (code) => console.log(`Process exited with code ${code}`)
 })
 
-// Long-running process with custom working directory
-const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
- cwd: '/path/to/project',
+// Custom working directory, watching output as it streams
+const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
+ cwd: 'src',
  onOutput: (data) => {
    if (data.includes('error')) {
      console.error('Build error detected:', data)
@@ -168,11 +166,14 @@ Execute a command synchronously and return its output. Runs a shell command and 
 **Returns:** `string`
 
 ```ts
-const branch = proc.exec('git branch --show-current')
+const greeting = proc.exec('echo "Hello World"')
 const version = proc.exec('node --version')
 
 // Run in a different directory without changing the container's cwd
-const listing = proc.exec('ls -1', { cwd: 'packages/app' })
+const listing = proc.exec('ls -1', { cwd: 'src' })
+
+// NOTE: exec throws on a non-zero exit code — commands that can fail
+// (e.g. git outside a repository) belong in a try/catch or execAndCapture
 ```
 
 
@@ -334,7 +335,7 @@ await proc.spawnAndCapture('npm', ['install'], {
 **execAndCapture**
 
 ```ts
-// Execute a git command
+// Execute a git command — failures are captured, not thrown
 const result = await proc.execAndCapture('git status --porcelain')
 if (result.exitCode === 0) {
  console.log('Git status:', result.stdout)
@@ -343,9 +344,7 @@ if (result.exitCode === 0) {
 }
 
 // Execute with options
-const result = await proc.execAndCapture('npm list --depth=0', {
- cwd: '/path/to/project'
-})
+const listing = await proc.execAndCapture('ls -1', { cwd: 'src' })
 
 // WRONG: quoted args with spaces get split apart
 // await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
@@ -363,15 +362,15 @@ const result = await proc.spawnAndCapture('node', ['--version'])
 console.log(`Node version: ${result.stdout}`)
 
 // With real-time output monitoring
-const result = await proc.spawnAndCapture('npm', ['install'], {
- onOutput: (data) => console.log('📦 ', data.trim()),
- onError: (data) => console.error('❌ ', data.trim()),
+const monitored = await proc.spawnAndCapture('bun', ['--version'], {
+ onOutput: (data) => console.log('OUT:', data.trim()),
+ onError: (data) => console.error('ERR:', data.trim()),
  onExit: (code) => console.log(`Process exited with code ${code}`)
 })
 
-// Long-running process with custom working directory
-const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
- cwd: '/path/to/project',
+// Custom working directory, watching output as it streams
+const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
+ cwd: 'src',
  onOutput: (data) => {
    if (data.includes('error')) {
      console.error('Build error detected:', data)
@@ -404,11 +403,14 @@ console.log('worker pid:', worker.pid)
 **exec**
 
 ```ts
-const branch = proc.exec('git branch --show-current')
+const greeting = proc.exec('echo "Hello World"')
 const version = proc.exec('node --version')
 
 // Run in a different directory without changing the container's cwd
-const listing = proc.exec('ls -1', { cwd: 'packages/app' })
+const listing = proc.exec('ls -1', { cwd: 'src' })
+
+// NOTE: exec throws on a non-zero exit code — commands that can fail
+// (e.g. git outside a repository) belong in a try/catch or execAndCapture
 ```
 
 

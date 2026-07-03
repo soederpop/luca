@@ -27,8 +27,12 @@ Retrieve a file from the disk cache and save it to the local disk
 **Returns:** `Promise<Buffer | string>`
 
 ```ts
-await diskCache.saveFile('myFile', './output/file.txt')
-await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
+await diskCache.set('myFile', 'file contents')
+await diskCache.saveFile('myFile', './file.txt')
+
+// Base64-encoded entries (e.g. images) are decoded before writing
+await diskCache.set('encodedImage', Buffer.from('binary data').toString('base64'))
+await diskCache.saveFile('encodedImage', './photo.jpg', true)
 ```
 
 
@@ -47,6 +51,7 @@ Ensure a key exists in the cache, setting it with the provided content if it doe
 **Returns:** `Promise<string>`
 
 ```ts
+const defaultConfig = { theme: 'dark', retries: 3 }
 await diskCache.ensure('config', JSON.stringify(defaultConfig))
 ```
 
@@ -67,6 +72,8 @@ Copy a cached item from one key to another
 **Returns:** `Promise<string>`
 
 ```ts
+await diskCache.set('original', 'important data')
+await diskCache.set('file1', 'v1')
 await diskCache.copy('original', 'backup')
 await diskCache.copy('file1', 'file2', true) // force overwrite
 ```
@@ -88,6 +95,8 @@ Move a cached item from one key to another (copy then delete source)
 **Returns:** `Promise<string>`
 
 ```ts
+await diskCache.set('temp', 'work in progress')
+await diskCache.set('old_key', 'legacy value')
 await diskCache.move('temp', 'permanent')
 await diskCache.move('old_key', 'new_key', true) // force overwrite
 ```
@@ -128,6 +137,8 @@ Retrieve a value from the cache
 **Returns:** `Promise<any>`
 
 ```ts
+await diskCache.set('myText', 'Hello World')
+await diskCache.set('myData', { count: 42 })
 const text = await diskCache.get('myText')
 const data = await diskCache.get('myData', true) // parse as JSON
 ```
@@ -149,6 +160,8 @@ Store a value in the cache
 **Returns:** `Promise<any>`
 
 ```ts
+const content = Buffer.from('binary data').toString('base64')
+const jwt = 'header.payload.signature'
 await diskCache.set('myKey', 'Hello World')
 await diskCache.set('userData', { name: 'John', age: 30 })
 await diskCache.set('file', content, { size: 1024, type: 'image' })
@@ -231,7 +244,8 @@ Create a cacache instance with the specified path
 **Returns:** `void`
 
 ```ts
-const customCache = diskCache.create('/custom/cache/path')
+const cachePath = container.paths.resolve(container.feature('os').tmpdir, 'my-cache')
+const customCache = diskCache.create(cachePath)
 ```
 
 
@@ -262,6 +276,8 @@ const value = await diskCache.get('greeting')
 ```ts
 // TTL: entries expire and read as cache misses afterwards
 const cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour
+const token = 'abc123'
+const data = { symbol: 'LUCA', price: 42 }
 await cache.set('session', token)                  // expires in 1 hour
 await cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds
 ```
@@ -271,8 +287,12 @@ await cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 sec
 **saveFile**
 
 ```ts
-await diskCache.saveFile('myFile', './output/file.txt')
-await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
+await diskCache.set('myFile', 'file contents')
+await diskCache.saveFile('myFile', './file.txt')
+
+// Base64-encoded entries (e.g. images) are decoded before writing
+await diskCache.set('encodedImage', Buffer.from('binary data').toString('base64'))
+await diskCache.saveFile('encodedImage', './photo.jpg', true)
 ```
 
 
@@ -280,6 +300,7 @@ await diskCache.saveFile('encodedImage', './images/photo.jpg', true)
 **ensure**
 
 ```ts
+const defaultConfig = { theme: 'dark', retries: 3 }
 await diskCache.ensure('config', JSON.stringify(defaultConfig))
 ```
 
@@ -288,6 +309,8 @@ await diskCache.ensure('config', JSON.stringify(defaultConfig))
 **copy**
 
 ```ts
+await diskCache.set('original', 'important data')
+await diskCache.set('file1', 'v1')
 await diskCache.copy('original', 'backup')
 await diskCache.copy('file1', 'file2', true) // force overwrite
 ```
@@ -297,6 +320,8 @@ await diskCache.copy('file1', 'file2', true) // force overwrite
 **move**
 
 ```ts
+await diskCache.set('temp', 'work in progress')
+await diskCache.set('old_key', 'legacy value')
 await diskCache.move('temp', 'permanent')
 await diskCache.move('old_key', 'new_key', true) // force overwrite
 ```
@@ -316,6 +341,8 @@ if (await diskCache.has('myKey')) {
 **get**
 
 ```ts
+await diskCache.set('myText', 'Hello World')
+await diskCache.set('myData', { count: 42 })
 const text = await diskCache.get('myText')
 const data = await diskCache.get('myData', true) // parse as JSON
 ```
@@ -325,6 +352,8 @@ const data = await diskCache.get('myData', true) // parse as JSON
 **set**
 
 ```ts
+const content = Buffer.from('binary data').toString('base64')
+const jwt = 'header.payload.signature'
 await diskCache.set('myKey', 'Hello World')
 await diskCache.set('userData', { name: 'John', age: 30 })
 await diskCache.set('file', content, { size: 1024, type: 'image' })
@@ -369,7 +398,8 @@ const keyList = await diskCache.listKeys()
 **create**
 
 ```ts
-const customCache = diskCache.create('/custom/cache/path')
+const cachePath = container.paths.resolve(container.feature('os').tmpdir, 'my-cache')
+const customCache = diskCache.create(cachePath)
 ```
 
 
@@ -377,10 +407,10 @@ const customCache = diskCache.create('/custom/cache/path')
 **securely**
 
 ```ts
-// Initialize with encryption
-const cache = container.feature('diskCache', { 
- encrypt: true, 
- secret: Buffer.from('my-secret-key') 
+// Initialize with encryption (secret must be a 32-byte key for AES-256)
+const cache = container.feature('diskCache', {
+ encrypt: true,
+ secret: Buffer.alloc(32, 'my-secret-key')
 })
 
 // Use encrypted operations

@@ -96,6 +96,11 @@ Parse a markdown file at the given path without loading the full collection.
 **Returns:** `void`
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs')
+await fs.writeFileAsync('docs/getting-started.md', '---\ntitle: Getting Started\ntags: [intro]\n---\n\n# Getting Started\n\nWelcome!\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 const doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')
 console.log(doc.meta?.title, doc.meta?.tags)
 console.log(doc.content)
@@ -124,14 +129,20 @@ Get a document object by collection ID, file path, or inline markdown string. Ex
 **Returns:** `Promise<Document>`
 
 ```ts
-// By collection document ID
-const doc = await contentDb.document({ id: 'guides/intro' })
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', '# Intro\n\nWelcome.\n')
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+
+// By collection document ID (relative to the collection rootPath)
+const byId = await contentDb.document({ id: 'guides/intro' })
 
 // By file path
-const doc = await contentDb.document({ path: '/absolute/path/to/file.md' })
+const byPath = await contentDb.document({ path: './docs/guides/intro.md' })
 
 // In-memory from a markdown string
-const doc = contentDb.document({ content: '# Hello\n\nworld' })
+const inline = await contentDb.document({ content: '# Hello\n\nworld' })
+console.log(inline.title) // 'Hello'
 ```
 
 
@@ -181,6 +192,18 @@ Read a single document by its path ID, optionally filtering to specific sections
 **Returns:** `Promise<string>`
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', [
+ '---', 'title: Intro', '---', '',
+ '# Intro', '', 'Welcome.', '',
+ '## Installation', '', 'bun add luca', '',
+ '## Usage', '', 'Use it.', '',
+ '## API', '', 'See reference.', '',
+ '## Changelog', '', '- 1.0', '',
+].join('\n'))
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.read('guides/intro')
 await contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })
 await contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })
@@ -209,6 +232,12 @@ Read multiple documents by their path IDs, concatenated into a single string. By
 **Returns:** `Promise<string>`
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', '# Intro\n\nWelcome.\n\n## Overview\n\nThe big picture.\n')
+await fs.writeFileAsync('docs/guides/setup.md', '# Setup\n\nInstall it.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.readMultiple(['guides/intro', 'guides/setup'])
 await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
 ```
@@ -457,6 +486,11 @@ articles.forEach(doc => console.log(doc.id, doc.meta?.title))
 **parseMarkdownAtPath**
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs')
+await fs.writeFileAsync('docs/getting-started.md', '---\ntitle: Getting Started\ntags: [intro]\n---\n\n# Getting Started\n\nWelcome!\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 const doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')
 console.log(doc.meta?.title, doc.meta?.tags)
 console.log(doc.content)
@@ -467,14 +501,20 @@ console.log(doc.content)
 **document**
 
 ```ts
-// By collection document ID
-const doc = await contentDb.document({ id: 'guides/intro' })
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', '# Intro\n\nWelcome.\n')
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
+
+// By collection document ID (relative to the collection rootPath)
+const byId = await contentDb.document({ id: 'guides/intro' })
 
 // By file path
-const doc = await contentDb.document({ path: '/absolute/path/to/file.md' })
+const byPath = await contentDb.document({ path: './docs/guides/intro.md' })
 
 // In-memory from a markdown string
-const doc = contentDb.document({ content: '# Hello\n\nworld' })
+const inline = await contentDb.document({ content: '# Hello\n\nworld' })
+console.log(inline.title) // 'Hello'
 ```
 
 
@@ -492,6 +532,18 @@ console.log(contentDb.isLoaded) // true
 **read**
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', [
+ '---', 'title: Intro', '---', '',
+ '# Intro', '', 'Welcome.', '',
+ '## Installation', '', 'bun add luca', '',
+ '## Usage', '', 'Use it.', '',
+ '## API', '', 'See reference.', '',
+ '## Changelog', '', '- 1.0', '',
+].join('\n'))
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.read('guides/intro')
 await contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })
 await contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })
@@ -503,6 +555,12 @@ await contentDb.read('guides/intro', { include: ['API'], leadingContent: false }
 **readMultiple**
 
 ```ts
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/guides')
+await fs.writeFileAsync('docs/guides/intro.md', '# Intro\n\nWelcome.\n\n## Overview\n\nThe big picture.\n')
+await fs.writeFileAsync('docs/guides/setup.md', '# Setup\n\nInstall it.\n')
+
+const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.readMultiple(['guides/intro', 'guides/setup'])
 await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })
 ```
@@ -512,9 +570,24 @@ await contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], 
 **queries**
 
 ```ts
+// Given a collection whose models.ts defines an Article model:
+const fs = container.feature('fs')
+await fs.ensureFolder('docs/articles')
+await fs.writeFileAsync('docs/models.ts', [
+ "import { defineModel, z } from 'contentbase'",
+ "export const Article = defineModel('Article', {",
+ "  prefix: 'articles',",
+ "  description: 'A published article',",
+ "  meta: z.object({ title: z.string().optional() }),",
+ "})",
+].join('\n'))
+await fs.writeFileAsync('docs/articles/first.md', '---\ntitle: First\n---\n\n# First\n\nHello.\n')
+
 const contentDb = container.feature('contentDb', { rootPath: './docs' })
 await contentDb.load()
+// Keys are the lowercased model names, singular and plural
 const allArticles = await contentDb.queries.articles.fetchAll()
-const firstTask = await contentDb.queries.task.first()
+const firstArticle = await contentDb.queries.article.first()
+console.log(allArticles.map(doc => doc.id)) // ['articles/first']
 ```
 

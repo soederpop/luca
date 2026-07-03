@@ -258,6 +258,7 @@ export class RestClient<
    * const results = await api.get('/search', { q: 'luca', limit: 10 })
    *
    * // per-request headers via the third arg
+   * const token = 'my-jwt'
    * const me = await api.get('/me', {}, { headers: { Authorization: `Bearer ${token}` } })
    *
    * // errors come back as a plain object, not a throw

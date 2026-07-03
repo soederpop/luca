@@ -706,12 +706,12 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			FROM documents_fts f
 			JOIN documents d ON d.path_id = f.path_id
 			WHERE documents_fts MATCH ?
-			${whereClause}
+			${whereClause.sql}
 			ORDER BY score
 			LIMIT ?
 		`)
 
-		const rows = stmt.all(query, limit) as any[]
+		const rows = stmt.all(query, ...whereClause.params, limit) as any[]
 
 		return rows.map(r => ({
 			pathId: r.path_id,
@@ -817,21 +817,28 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			.map(s => ({ ...s.result, score: s.score }))
 	}
 
-	private _buildWhereClause(options: SearchOptions): string {
+	/**
+	 * Build the optional model/meta filter as parameterized SQL. Both the meta
+	 * keys and the values are bound as parameters (the json path is assembled
+	 * with `'$.' || ?`), so untrusted filter input can't inject SQL.
+	 */
+	private _buildWhereClause(options: SearchOptions): { sql: string; params: (string | number)[] } {
 		const conditions: string[] = []
+		const params: (string | number)[] = []
 
 		if (options.model) {
-			conditions.push(`d.model = '${options.model.replace(/'/g, "''")}'`)
+			conditions.push('d.model = ?')
+			params.push(options.model)
 		}
 
 		if (options.where) {
 			for (const [key, value] of Object.entries(options.where)) {
-				const escaped = String(value).replace(/'/g, "''")
-				conditions.push(`json_extract(d.meta_json, '$.${key}') = '${escaped}'`)
+				conditions.push(`json_extract(d.meta_json, '$.' || ?) = ?`)
+				params.push(key, String(value))
 			}
 		}
 
-		return conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : ''
+		return { sql: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '', params }
 	}
 
 	private _matchesFilters(row: any, options: SearchOptions): boolean {

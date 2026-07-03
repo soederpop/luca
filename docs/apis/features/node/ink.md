@@ -91,7 +91,10 @@ Unmount the currently mounted Ink app. Tears down the React tree rendered in the
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'Hello'))
 // ... later
 ink.unmount()
 console.log(ink.isMounted) // false
@@ -107,7 +110,13 @@ Returns a promise that resolves when the mounted app exits. Useful for keeping a
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'working...'))
+// something must eventually unmount the app or the promise never settles —
+// here a timer stands in for user input / app completion
+setTimeout(() => ink.unmount(), 100)
 await ink.waitUntilExit()
 console.log('App exited')
 ```
@@ -122,9 +131,13 @@ Clear the terminal output of the mounted app. Erases all Ink-rendered content fr
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'temporary output'))
 // ... later, wipe the screen
 ink.clear()
+ink.unmount()
 ```
 
 
@@ -164,6 +177,12 @@ Render a registered block by name with optional props. Looks up the component, c
 **Returns:** `Promise<void>`
 
 ```ts
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
 await ink.renderBlock('Greeting', { name: 'Jon' })
 ```
 
@@ -184,6 +203,7 @@ Render a registered block that needs to stay mounted for async work. The compone
 **Returns:** `Promise<void>`
 
 ```tsx
+// (no-run) demonstrates the ## Blocks convention inside runnable markdown docs
 // In a ## Blocks section:
 function AsyncChart({ url, done }) {
  const [rows, setRows] = React.useState(null)
@@ -266,7 +286,10 @@ ink.rerender(React.createElement(Text, null, 'Updated!'))
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'Hello'))
 // ... later
 ink.unmount()
 console.log(ink.isMounted) // false
@@ -278,7 +301,13 @@ console.log(ink.isMounted) // false
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'working...'))
+// something must eventually unmount the app or the promise never settles —
+// here a timer stands in for user input / app completion
+setTimeout(() => ink.unmount(), 100)
 await ink.waitUntilExit()
 console.log('App exited')
 ```
@@ -289,9 +318,13 @@ console.log('App exited')
 
 ```ts
 const ink = container.feature('ink', { enable: true })
-await ink.render(myElement)
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+await ink.render(React.createElement(Text, null, 'temporary output'))
 // ... later, wipe the screen
 ink.clear()
+ink.unmount()
 ```
 
 
@@ -309,6 +342,12 @@ ink.registerBlock('Greeting', ({ name }) =>
 **renderBlock**
 
 ```ts
+const { React } = await ink.loadModules()
+const { Text } = ink.components
+
+ink.registerBlock('Greeting', ({ name }) =>
+ React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+)
 await ink.renderBlock('Greeting', { name: 'Jon' })
 ```
 
@@ -317,6 +356,7 @@ await ink.renderBlock('Greeting', { name: 'Jon' })
 **renderBlockAsync**
 
 ```tsx
+// (no-run) demonstrates the ## Blocks convention inside runnable markdown docs
 // In a ## Blocks section:
 function AsyncChart({ url, done }) {
  const [rows, setRows] = React.useState(null)
@@ -339,6 +379,7 @@ await renderAsync('AsyncChart', { url: 'https://api.example.com/data' })
 **hooks**
 
 ```ts
+// (no-run) interactive — waits for a keypress
 const ink = container.feature('ink', { enable: true })
 await ink.loadModules()
 const { Text } = ink.components

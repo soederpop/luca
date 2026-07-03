@@ -62,11 +62,13 @@ export class VM<
    * @example
    * ```typescript
    * const vm = container.feature('vm')
-   * vm.defineModule('luca', { Container, Feature, fs, proc })
-   * vm.defineModule('zod', { z })
+   *
+   * // Expose container helpers (or anything else) under a virtual module id
+   * vm.defineModule('luca', { fs: container.fs, proc: container.feature('proc') })
+   * vm.defineModule('answers', { magic: 42 })
    *
    * // Now loadModule can resolve these in user code:
-   * // import { Container } from 'luca'  → works
+   * // const { magic } = require('answers')  → works
    * ```
    */
   defineModule(id: string, exports: any): void {
@@ -288,7 +290,8 @@ export class VM<
    *
    * @example
    * ```typescript
-   * const { result, console: calls } = await vm.runCaptured('console.log("hi"); console.warn("oh"); 42')
+   * const snippet = 'console.log("hi")\nconsole.warn("oh")\n42'
+   * const { result, console: calls } = await vm.runCaptured(snippet)
    * // result === 42
    * // calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]
    * ```
@@ -381,11 +384,13 @@ export class VM<
    *
    * @example
    * ```typescript
+   * const code = 'module.exports = { double: (n) => n * 2 }'
    * const { result, context } = vm.performSync(code, {
    *   exports: {},
    *   module: { exports: {} },
    * })
    * const moduleExports = context.module?.exports || context.exports
+   * console.log(moduleExports.double(21)) // 42
    * ```
    */
   performSync<T extends any = any>(code: string, ctx: any = {}): { result: T, context: vm.Context } {
@@ -408,9 +413,10 @@ export class VM<
    * ```typescript
    * const vm = container.feature('vm')
    *
-   * // Load a tools module, injecting the container
-   * const tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })
-   * // tools.myFunction, tools.schemas, etc.
+   * // Write a module to disk, then load it with extra context injected
+   * container.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => "hi " + name }')
+   * const tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })
+   * console.log(tools.greet('luca')) // 'hi luca'
    * ```
    */
   loadModule(filePath: string, ctx: any = {}): Record<string, any> {

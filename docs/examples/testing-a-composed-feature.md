@@ -249,7 +249,7 @@ it('emits tallied with the file and count', async () => {
 })
 ```
 
-Every helper also has `waitFor(event)` — handy shorthand, with one caveat: it resolves with only the **first** listener argument, so for multi-argument events like `tallied(file, count)` use the promise-plus-`once` pattern to capture everything. (Use one one-shot listener per emission — `waitFor` is `once` under the hood, and a `once` listener removing itself during dispatch can starve a second one-shot listener registered on the same event.)
+Every helper also has `waitFor(event)` — handy shorthand, with one caveat: it resolves with only the **first** listener argument, so for multi-argument events like `tallied(file, count)` use the promise-plus-`once` pattern to capture everything.
 
 ```ts
 const t2 = container.subcontainer({}).feature('tally')

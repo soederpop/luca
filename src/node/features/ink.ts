@@ -196,6 +196,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    *
    * @example
    * ```typescript
+   * // (no-run) interactive — waits for a keypress
    * const ink = container.feature('ink', { enable: true })
    * await ink.loadModules()
    * const { Text } = ink.components
@@ -325,7 +326,10 @@ export class Ink extends Feature<InkState, InkOptions> {
    * @example
    * ```typescript
    * const ink = container.feature('ink', { enable: true })
-   * await ink.render(myElement)
+   * const { React } = await ink.loadModules()
+   * const { Text } = ink.components
+   *
+   * await ink.render(React.createElement(Text, null, 'Hello'))
    * // ... later
    * ink.unmount()
    * console.log(ink.isMounted) // false
@@ -350,7 +354,13 @@ export class Ink extends Feature<InkState, InkOptions> {
    * @example
    * ```typescript
    * const ink = container.feature('ink', { enable: true })
-   * await ink.render(myElement)
+   * const { React } = await ink.loadModules()
+   * const { Text } = ink.components
+   *
+   * await ink.render(React.createElement(Text, null, 'working...'))
+   * // something must eventually unmount the app or the promise never settles —
+   * // here a timer stands in for user input / app completion
+   * setTimeout(() => ink.unmount(), 100)
    * await ink.waitUntilExit()
    * console.log('App exited')
    * ```
@@ -373,9 +383,13 @@ export class Ink extends Feature<InkState, InkOptions> {
    * @example
    * ```typescript
    * const ink = container.feature('ink', { enable: true })
-   * await ink.render(myElement)
+   * const { React } = await ink.loadModules()
+   * const { Text } = ink.components
+   *
+   * await ink.render(React.createElement(Text, null, 'temporary output'))
    * // ... later, wipe the screen
    * ink.clear()
+   * ink.unmount()
    * ```
    */
   clear(): void {
@@ -439,6 +453,12 @@ export class Ink extends Feature<InkState, InkOptions> {
    *
    * @example
    * ```typescript
+   * const { React } = await ink.loadModules()
+   * const { Text } = ink.components
+   *
+   * ink.registerBlock('Greeting', ({ name }) =>
+   *   React.createElement(Text, { color: 'green' }, `Hello ${name}!`)
+   * )
    * await ink.renderBlock('Greeting', { name: 'Jon' })
    * ```
    */
@@ -468,6 +488,7 @@ export class Ink extends Feature<InkState, InkOptions> {
    *
    * @example
    * ```tsx
+   * // (no-run) demonstrates the ## Blocks convention inside runnable markdown docs
    * // In a ## Blocks section:
    * function AsyncChart({ url, done }) {
    *   const [rows, setRows] = React.useState(null)

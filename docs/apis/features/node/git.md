@@ -39,20 +39,23 @@ Lists files in the Git repository using git ls-files command. This method provid
 **Returns:** `Promise<string[]>`
 
 ```ts
-// Get all tracked files
-const allFiles = await git.lsFiles()
+// ls-files needs a repository — guard with isRepo when the cwd might not be one
+if (git.isRepo) {
+ // Get all tracked files
+ const allFiles = await git.lsFiles()
 
-// Get only modified files
-const modified = await git.lsFiles({ modified: true })
+ // Get only modified files
+ const modified = await git.lsFiles({ modified: true })
 
-// Get untracked files excluding certain patterns
-const untracked = await git.lsFiles({
- others: true,
- exclude: ['*.log', 'node_modules']
-})
+ // Get untracked files excluding certain patterns
+ const untracked = await git.lsFiles({
+   others: true,
+   exclude: ['*.log', 'node_modules']
+ })
 
-// Scope the listing to a subdirectory
-const srcFiles = await git.lsFiles({ baseDir: 'src' })
+ // Scope the listing to a subdirectory
+ const srcFiles = await git.lsFiles({ baseDir: 'src' })
+}
 ```
 
 
@@ -92,7 +95,7 @@ Gets a lightweight commit log for one or more files. Returns the SHA and message
 
 ```ts
 const log = git.fileLog('package.json')
-const log = git.fileLog('src/index.ts', 'src/helper.ts')
+const multiFileLog = git.fileLog('src/index.ts', 'src/helper.ts')
 for (const entry of log) {
  console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)
 }
@@ -116,10 +119,10 @@ Gets the diff for a file between two refs. By default compares from the current 
 
 ```ts
 // Diff package.json between HEAD and a specific commit
-const d = git.diff('package.json', 'abc1234')
+const fromHead = git.diff('package.json', 'abc1234')
 
 // Diff between two branches
-const d = git.diff('src/index.ts', 'feature-branch', 'main')
+const betweenBranches = git.diff('src/index.ts', 'feature-branch', 'main')
 ```
 
 
@@ -162,14 +165,16 @@ Extracts a folder (or entire repo) from a remote GitHub repository without cloni
 **Returns:** `Promise<{ files: string[], source: { user: string, repo: string, ref: string, subdir: string`
 
 ```ts
+// (no-run) downloads tarballs from GitHub — requires network access
+
 // Extract a subfolder
-await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+await git.extractFolder({ source: 'soederpop/luca/docs/examples', destination: './examples' })
 
 // Specific branch
-await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'master' })
 
 // Full GitHub URL
-await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
+await git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/docs/examples', destination: './examples' })
 ```
 
 
@@ -188,7 +193,7 @@ Gets the commit history for a set of files or glob patterns. Accepts absolute pa
 
 ```ts
 const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
-const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
+const globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')
 ```
 
 
@@ -232,20 +237,23 @@ if (git.isRepo) {
 **lsFiles**
 
 ```ts
-// Get all tracked files
-const allFiles = await git.lsFiles()
+// ls-files needs a repository — guard with isRepo when the cwd might not be one
+if (git.isRepo) {
+ // Get all tracked files
+ const allFiles = await git.lsFiles()
 
-// Get only modified files
-const modified = await git.lsFiles({ modified: true })
+ // Get only modified files
+ const modified = await git.lsFiles({ modified: true })
 
-// Get untracked files excluding certain patterns
-const untracked = await git.lsFiles({
- others: true,
- exclude: ['*.log', 'node_modules']
-})
+ // Get untracked files excluding certain patterns
+ const untracked = await git.lsFiles({
+   others: true,
+   exclude: ['*.log', 'node_modules']
+ })
 
-// Scope the listing to a subdirectory
-const srcFiles = await git.lsFiles({ baseDir: 'src' })
+ // Scope the listing to a subdirectory
+ const srcFiles = await git.lsFiles({ baseDir: 'src' })
+}
 ```
 
 
@@ -265,7 +273,7 @@ for (const commit of changes) {
 
 ```ts
 const log = git.fileLog('package.json')
-const log = git.fileLog('src/index.ts', 'src/helper.ts')
+const multiFileLog = git.fileLog('src/index.ts', 'src/helper.ts')
 for (const entry of log) {
  console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)
 }
@@ -277,10 +285,10 @@ for (const entry of log) {
 
 ```ts
 // Diff package.json between HEAD and a specific commit
-const d = git.diff('package.json', 'abc1234')
+const fromHead = git.diff('package.json', 'abc1234')
 
 // Diff between two branches
-const d = git.diff('src/index.ts', 'feature-branch', 'main')
+const betweenBranches = git.diff('src/index.ts', 'feature-branch', 'main')
 ```
 
 
@@ -301,14 +309,16 @@ git.displayDiff('src/index.ts', 'abc1234')
 **extractFolder**
 
 ```ts
+// (no-run) downloads tarballs from GitHub — requires network access
+
 // Extract a subfolder
-await git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })
+await git.extractFolder({ source: 'soederpop/luca/docs/examples', destination: './examples' })
 
 // Specific branch
-await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })
+await git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'master' })
 
 // Full GitHub URL
-await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })
+await git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/docs/examples', destination: './examples' })
 ```
 
 
@@ -317,7 +327,7 @@ await git.extractFolder({ source: 'https://github.com/user/repo/tree/main/exampl
 
 ```ts
 const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')
-const history = git.getChangeHistoryForFiles('src/node/features/*.ts')
+const globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')
 ```
 
 

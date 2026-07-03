@@ -26,8 +26,10 @@ Loads a tree of YAML files from the specified base path and stores them in state
 **Returns:** `void`
 
 ```ts
-// Given a directory of YAML files (create one for the demo):
+// Given a directory of YAML files (create one for the demo —
+// writeFile does not create parent dirs, so ensure the folder first):
 const fs = container.feature('fs')
+fs.ensureFolder('config/database')
 fs.writeFile('config/database/production.yml', 'host: db.example.com\nport: 5432\n')
 
 // Load all YAML files from 'config' directory into state.config
@@ -77,8 +79,10 @@ const configData = yamlTree.tree.appConfig;
 **loadTree**
 
 ```ts
-// Given a directory of YAML files (create one for the demo):
+// Given a directory of YAML files (create one for the demo —
+// writeFile does not create parent dirs, so ensure the folder first):
 const fs = container.feature('fs')
+fs.ensureFolder('config/database')
 fs.writeFile('config/database/production.yml', 'host: db.example.com\nport: 5432\n')
 
 // Load all YAML files from 'config' directory into state.config

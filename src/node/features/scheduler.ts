@@ -148,17 +148,24 @@ interface CronSpec {
  * ```typescript
  * const scheduler = container.feature('scheduler')
  *
+ * const syncOnce = async () => console.log('syncing...')
+ * const sendDigest = async () => console.log('sending digest')
+ * const warmCache = () => console.log('warming cache')
+ *
  * scheduler.every('5m', syncOnce, { name: 'sync', immediate: true })
  * scheduler.cron('0 9 * * mon-fri', sendDigest, { name: 'digest' })
  * scheduler.in('30s', warmCache)
  *
- * // Daemon: keeps the process alive, stops all tasks on SIGINT/SIGTERM
- * await scheduler.run()
+ * console.log(scheduler.tasks.map(t => t.name)) // ['sync', 'digest', ...]
+ * scheduler.stopAll() // release the pending timers
+ * // In a long-running command you'd instead: await scheduler.run()
+ * // — it blocks until SIGINT/SIGTERM and stops all tasks for you.
  * ```
  *
  * @example
  * ```typescript
  * // Observability: every task has a name, run counts, and error history
+ * const pollQueue = async () => console.log('polling the queue')
  * const handle = scheduler.every('10s', pollQueue)
  * console.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }
  * console.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]
@@ -278,9 +285,15 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
    * @throws Error when the cron expression is invalid
    * @example
    * ```typescript
+   * const rotateLogs = async () => console.log('rotating logs')
+   * const digest = async () => console.log('sending digest')
+   * const cleanup = () => console.log('cleaning up')
+   *
    * scheduler.cron('0-59/15 * * * *', rotateLogs)           // every 15 minutes
    * scheduler.cron('0 9 * * mon-fri', digest, { name: 'digest' }) // weekdays at 9am
    * scheduler.cron('@daily', cleanup)
+   *
+   * scheduler.stopAll() // release the pending cron timers when done
    * ```
    */
   cron(expression: string, fn: () => any | Promise<any>, options: ScheduleTaskOptions = {}): TaskHandle {
@@ -309,7 +322,10 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
    * @throws Error when the date is invalid
    * @example
    * ```typescript
-   * scheduler.at(new Date('2026-07-04T09:00:00'), sendReminder)
+   * const sendReminder = () => console.log('time for standup')
+   * const handle = scheduler.at(new Date(Date.now() + 60_000), sendReminder)
+   * console.log(handle.info.nextRun) // ~one minute from now
+   * handle.stop() // cancel it (a pending one-shot holds a timer until it fires)
    * ```
    */
   at(when: Date | string | number, fn: () => any | Promise<any>, options: ScheduleTaskOptions = {}): TaskHandle {
@@ -333,7 +349,9 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
    * @returns A handle with the task's name, a stop() function, and a live info snapshot
    * @example
    * ```typescript
-   * scheduler.in('30s', () => console.log('half a minute later'))
+   * const handle = scheduler.in('150ms', () => console.log('a moment later'))
+   * await container.utils.sleep(300)      // let the one-shot fire
+   * console.log(handle.info.runs)         // 1 — fired and deactivated
    * ```
    */
   in(delay: string | number, fn: () => any | Promise<any>, options: ScheduleTaskOptions = {}): TaskHandle {
@@ -386,6 +404,10 @@ export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
    * @returns The name of the signal that triggered shutdown
    * @example
    * ```typescript
+   * // (no-run) blocks until SIGINT/SIGTERM arrives
+   * const poll = async () => console.log('polling')
+   * const flushBuffers = async () => console.log('flushing')
+   *
    * scheduler.every('1m', poll, { name: 'poller', immediate: true })
    * const signal = await scheduler.run({
    *   onShutdown: async () => { await flushBuffers() },

@@ -68,9 +68,11 @@ export class Bus<T extends EventMap = EventMap> {
         this.recordEmit(event);
         const listeners = this.events.get(event);
         if (listeners) {
-            listeners.forEach(listener => listener(...args));
+            // Iterate a snapshot: a once() listener removes itself (splices the
+            // live array) during dispatch, which would skip the next listener.
+            [...listeners].forEach(listener => listener(...args));
         }
-        this.wildcardListeners.forEach(listener => listener(event, ...args));
+        [...this.wildcardListeners].forEach(listener => listener(event, ...args));
     }
 
     on(event: '*', listener: WildcardListener): void

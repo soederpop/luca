@@ -65,6 +65,64 @@ describe('Bus', () => {
     expect(() => bus.emit('nope')).not.toThrow()
   })
 
+  describe('listener removal during dispatch', () => {
+    it('two once listeners on the same event both fire', () => {
+      const bus = new Bus()
+      const a = mock()
+      const b = mock()
+      bus.once('x', a)
+      bus.once('x', b)
+      bus.emit('x')
+      expect(a).toHaveBeenCalledTimes(1)
+      expect(b).toHaveBeenCalledTimes(1)
+    })
+
+    it('two concurrent waitFor promises on the same event both resolve', async () => {
+      const bus = new Bus()
+      const first = bus.waitFor('ready')
+      const second = bus.waitFor('ready')
+      bus.emit('ready', 'go')
+      expect(await first).toBe('go')
+      expect(await second).toBe('go')
+    })
+
+    it('waitFor plus once on the same event both fire', async () => {
+      const bus = new Bus()
+      const oneShot = mock()
+      const promise = bus.waitFor('tick')
+      bus.once('tick', oneShot)
+      bus.emit('tick', 1)
+      expect(await promise).toBe(1)
+      expect(oneShot).toHaveBeenCalledTimes(1)
+    })
+
+    it('off() called during dispatch does not skip the next listener', () => {
+      const bus = new Bus()
+      const b = mock()
+      const a = mock(() => bus.off('x', a))
+      bus.on('x', a)
+      bus.on('x', b)
+      bus.emit('x')
+      expect(a).toHaveBeenCalledTimes(1)
+      expect(b).toHaveBeenCalledTimes(1)
+      // and a really is gone on the next emit
+      bus.emit('x')
+      expect(a).toHaveBeenCalledTimes(1)
+      expect(b).toHaveBeenCalledTimes(2)
+    })
+
+    it('a wildcard listener removing itself does not skip the next wildcard listener', () => {
+      const bus = new Bus()
+      const b = mock()
+      const a = mock(() => bus.off('*', a))
+      bus.on('*', a)
+      bus.on('*', b)
+      bus.emit('anything')
+      expect(a).toHaveBeenCalledTimes(1)
+      expect(b).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('event stats tracking', () => {
     it('tracks fire count for events', () => {
       const bus = new Bus()

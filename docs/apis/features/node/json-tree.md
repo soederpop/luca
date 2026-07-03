@@ -26,15 +26,21 @@ Loads a tree of JSON files from the specified base path and stores them in state
 **Returns:** `void`
 
 ```ts
-// Load all JSON files from 'data' directory into state.data
-await jsonTree.loadTree('data');
+// Given a directory of JSON files (create one for the demo —
+// writeFile does not create parent dirs, so ensure the folder first):
+const fs = container.feature('fs')
+fs.ensureFolder('settings/database')
+fs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))
 
-// Load with custom key
-await jsonTree.loadTree('app/config', 'configuration');
+// Load all JSON files from the 'settings' directory into state.settings
+await jsonTree.loadTree('settings');
 
-// Access the loaded data
-const dbConfig = jsonTree.tree.data.database.production;
-const apiEndpoints = jsonTree.tree.data.api.endpoints;
+// Access the loaded data — file paths become camelCased property paths
+const dbConfig = jsonTree.tree.settings.database.production;
+console.log(dbConfig.host); // 'db.example.com'
+
+// Load the same folder again under a custom key
+await jsonTree.loadTree('settings', 'configuration');
 ```
 
 
@@ -56,15 +62,21 @@ const apiEndpoints = jsonTree.tree.data.api.endpoints;
 **loadTree**
 
 ```ts
-// Load all JSON files from 'data' directory into state.data
-await jsonTree.loadTree('data');
+// Given a directory of JSON files (create one for the demo —
+// writeFile does not create parent dirs, so ensure the folder first):
+const fs = container.feature('fs')
+fs.ensureFolder('settings/database')
+fs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))
 
-// Load with custom key
-await jsonTree.loadTree('app/config', 'configuration');
+// Load all JSON files from the 'settings' directory into state.settings
+await jsonTree.loadTree('settings');
 
-// Access the loaded data
-const dbConfig = jsonTree.tree.data.database.production;
-const apiEndpoints = jsonTree.tree.data.api.endpoints;
+// Access the loaded data — file paths become camelCased property paths
+const dbConfig = jsonTree.tree.settings.database.production;
+console.log(dbConfig.host); // 'db.example.com'
+
+// Load the same folder again under a custom key
+await jsonTree.loadTree('settings', 'configuration');
 ```
 
 

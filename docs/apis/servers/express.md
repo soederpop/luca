@@ -55,9 +55,12 @@ Start the Express HTTP server. A runtime `port` overrides the constructor option
 const server = container.server('express')
 server.app.get('/ping', (req, res) => res.json({ pong: true }))
 
-await server.start({ port: 3000 })
-console.log(server.isListening)   // true
-console.log(server.port)          // 3000 — runtime port wins over options
+// findOpenPort keeps the example collision-free; start({ port: 3000 }) works the same
+const port = await container.feature('networking').findOpenPort(3430)
+await server.start({ port })
+console.log(server.isListening)    // true
+console.log(server.port === port)  // true — runtime port wins over options
+await server.stop()
 ```
 
 
@@ -70,7 +73,8 @@ Stop the HTTP listener. Waits up to 500ms for the underlying server to close (op
 
 ```ts
 const server = container.server('express')
-await server.start({ port: 3000 })
+const port = await container.feature('networking').findOpenPort(3440)
+await server.start({ port })
 // ... handle requests ...
 await server.stop()
 console.log(server.isListening)   // false
@@ -97,7 +101,8 @@ Mount an already-constructed Endpoint instance onto the Express app and track it
 **Returns:** `this`
 
 ```ts
-import { Endpoint } from 'luca'
+// The Endpoint class is on the endpoints registry — no import needed
+const Endpoint = container.endpoints.baseClass
 
 const server = container.server('express')
 const endpoint = new Endpoint({ path: '/hello' }, container.context)
@@ -106,7 +111,12 @@ await endpoint.load({
  get: async (params) => ({ hello: params.name || 'world' }),
 })
 server.useEndpoint(endpoint)
-await server.start({ port: 3000 })
+
+const port = await container.feature('networking').findOpenPort(3450)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/hello', { name: 'luca' }))   // { hello: 'luca' }
+await server.stop()
 ```
 
 
@@ -124,16 +134,21 @@ Discover and mount every endpoint module in a directory (recursive `**\/*.ts` sc
 **Returns:** `Promise<this>`
 
 ```ts
-// endpoints/users.ts:
-//   export const path = '/users/:id'
-//   export async function get(params, ctx) {
-//     return { id: params.id }        // params merges query + body + route params
-//   }
+// Given an endpoints/users.ts file like this (written here so the example runs):
+const fs = container.feature('fs')
+fs.ensureFile(container.paths.join('endpoints', 'users.ts'), [
+ "export const path = '/users/:id'",
+ "export async function get(params) { return { id: params.id } }",
+].join('\n'))
 
 const server = container.server('express')
 await server.useEndpoints(container.paths.join('endpoints'))
-await server.start({ port: 3000 })
-// GET http://localhost:3000/users/42 -> { "id": "42" }
+
+const port = await container.feature('networking').findOpenPort(3460)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/users/42'))   // { id: '42' } — params merges query + body + route params
+await server.stop()
 ```
 
 
@@ -151,12 +166,16 @@ Reload a mounted endpoint by its file path. Re-reads the module through the help
 **Returns:** `Promise<Endpoint | null>`
 
 ```ts
+const fs = container.feature('fs')
+const file = container.paths.join('endpoints', 'users.ts')
+fs.ensureFile(file, "export const path = '/users/:id'\nexport async function get(params) { return { id: params.id } }")
+
 const server = container.server('express')
 await server.useEndpoints(container.paths.join('endpoints'))
-await server.start({ port: 3000 })
 
 // after editing endpoints/users.ts on disk (e.g. from a file watcher):
-const reloaded = await server.reloadEndpoint(container.paths.join('endpoints', 'users.ts'))
+fs.ensureFile(file, "export const path = '/users/:id'\nexport async function get(params) { return { id: params.id, v: 2 } }", true)
+const reloaded = await server.reloadEndpoint(file)
 console.log(reloaded ? 'hot-reloaded' : 'not a mounted endpoint')
 ```
 
@@ -179,14 +198,19 @@ const server = container.server('express')
 await server.useEndpointModules([
  {
    path: '/status',
-   get: async () => ({ ok: true, uptime: process.uptime() }),
+   get: async () => ({ ok: true }),
  },
  {
    path: '/echo',
    post: async (params) => ({ received: params }),
  },
 ])
-await server.start({ port: 3000 })
+
+const port = await container.feature('networking').findOpenPort(3480)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.post('/echo', { hello: 'world' }))   // { received: { hello: 'world' } }
+await server.stop()
 ```
 
 
@@ -205,10 +229,17 @@ Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated fr
 
 ```ts
 const server = container.server('express')
-await server.useEndpoints(container.paths.join('endpoints'))
+await server.useEndpointModules([
+ { path: '/status', get: async () => ({ ok: true }) },
+])
 server.serveOpenAPISpec({ title: 'My API', version: '2.0.0' })
-await server.start({ port: 3000 })
-// GET http://localhost:3000/openapi.json -> the generated spec
+
+const port = await container.feature('networking').findOpenPort(3470)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+const spec = await api.get('/openapi.json')
+console.log(spec.info.title, Object.keys(spec.paths))   // My API [ '/status' ]
+await server.stop()
 ```
 
 
@@ -264,26 +295,44 @@ const server = container.server('express', { static: './public' })
 // custom routes on the underlying Express app, before or after start
 server.app.get('/health', (req, res) => res.json({ ok: true }))
 
-// mount a folder of endpoint modules (what `luca serve` does with endpoints/)
-await server.useEndpoints(container.paths.join('endpoints'))
+// mount endpoint modules — useEndpoints(dir) does the same for a folder
+// of endpoint files (that's what `luca serve` does with endpoints/)
+await server.useEndpointModules([
+ { path: '/status', get: async () => ({ ok: true }) },
+])
 
-await server.start({ port: 3000 })
-console.log(server.port)          // 3000
+// grab a free port so the example runs anywhere; a fixed port works too
+const port = await container.feature('networking').findOpenPort(3400)
+await server.start({ port })
+console.log(server.port === port)       // true
+
 const api = container.client('rest', { baseURL: `http://localhost:${server.port}` })
 console.log(await api.get('/health'))   // { ok: true }
 await server.stop()
 ```
 
 ```ts
-// endpoints/status.ts — rate-limited endpoint module, mounted by `luca serve`
-export const path = '/status'
-export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods
-export async function get() { return { ok: true } }
+// endpoints/status.ts — a rate-limited endpoint module, mounted by `luca serve`:
+//   export const path = '/status'
+//   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods
+//   export async function get() { return { ok: true } }
 
 // Custom middleware via the create hook (runs before endpoints mount)
+const seen = []
 const server = container.server('express', {
- create: (app, server) => { app.use(myMiddleware); return app },
+ create: (app, server) => {
+   app.use((req, res, next) => { seen.push(req.path); next() })
+   return app
+ },
 })
+server.app.get('/ping', (req, res) => res.json({ pong: true }))
+
+const port = await container.feature('networking').findOpenPort(3410)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/ping'))   // { pong: true }
+console.log(seen)                     // ['/ping']
+await server.stop()
 ```
 
 
@@ -294,9 +343,12 @@ const server = container.server('express', {
 const server = container.server('express')
 server.app.get('/ping', (req, res) => res.json({ pong: true }))
 
-await server.start({ port: 3000 })
-console.log(server.isListening)   // true
-console.log(server.port)          // 3000 — runtime port wins over options
+// findOpenPort keeps the example collision-free; start({ port: 3000 }) works the same
+const port = await container.feature('networking').findOpenPort(3430)
+await server.start({ port })
+console.log(server.isListening)    // true
+console.log(server.port === port)  // true — runtime port wins over options
+await server.stop()
 ```
 
 
@@ -305,7 +357,8 @@ console.log(server.port)          // 3000 — runtime port wins over options
 
 ```ts
 const server = container.server('express')
-await server.start({ port: 3000 })
+const port = await container.feature('networking').findOpenPort(3440)
+await server.start({ port })
 // ... handle requests ...
 await server.stop()
 console.log(server.isListening)   // false
@@ -316,7 +369,8 @@ console.log(server.isListening)   // false
 **useEndpoint**
 
 ```ts
-import { Endpoint } from 'luca'
+// The Endpoint class is on the endpoints registry — no import needed
+const Endpoint = container.endpoints.baseClass
 
 const server = container.server('express')
 const endpoint = new Endpoint({ path: '/hello' }, container.context)
@@ -325,7 +379,12 @@ await endpoint.load({
  get: async (params) => ({ hello: params.name || 'world' }),
 })
 server.useEndpoint(endpoint)
-await server.start({ port: 3000 })
+
+const port = await container.feature('networking').findOpenPort(3450)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/hello', { name: 'luca' }))   // { hello: 'luca' }
+await server.stop()
 ```
 
 
@@ -333,16 +392,21 @@ await server.start({ port: 3000 })
 **useEndpoints**
 
 ```ts
-// endpoints/users.ts:
-//   export const path = '/users/:id'
-//   export async function get(params, ctx) {
-//     return { id: params.id }        // params merges query + body + route params
-//   }
+// Given an endpoints/users.ts file like this (written here so the example runs):
+const fs = container.feature('fs')
+fs.ensureFile(container.paths.join('endpoints', 'users.ts'), [
+ "export const path = '/users/:id'",
+ "export async function get(params) { return { id: params.id } }",
+].join('\n'))
 
 const server = container.server('express')
 await server.useEndpoints(container.paths.join('endpoints'))
-await server.start({ port: 3000 })
-// GET http://localhost:3000/users/42 -> { "id": "42" }
+
+const port = await container.feature('networking').findOpenPort(3460)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/users/42'))   // { id: '42' } — params merges query + body + route params
+await server.stop()
 ```
 
 
@@ -350,12 +414,16 @@ await server.start({ port: 3000 })
 **reloadEndpoint**
 
 ```ts
+const fs = container.feature('fs')
+const file = container.paths.join('endpoints', 'users.ts')
+fs.ensureFile(file, "export const path = '/users/:id'\nexport async function get(params) { return { id: params.id } }")
+
 const server = container.server('express')
 await server.useEndpoints(container.paths.join('endpoints'))
-await server.start({ port: 3000 })
 
 // after editing endpoints/users.ts on disk (e.g. from a file watcher):
-const reloaded = await server.reloadEndpoint(container.paths.join('endpoints', 'users.ts'))
+fs.ensureFile(file, "export const path = '/users/:id'\nexport async function get(params) { return { id: params.id, v: 2 } }", true)
+const reloaded = await server.reloadEndpoint(file)
 console.log(reloaded ? 'hot-reloaded' : 'not a mounted endpoint')
 ```
 
@@ -368,14 +436,19 @@ const server = container.server('express')
 await server.useEndpointModules([
  {
    path: '/status',
-   get: async () => ({ ok: true, uptime: process.uptime() }),
+   get: async () => ({ ok: true }),
  },
  {
    path: '/echo',
    post: async (params) => ({ received: params }),
  },
 ])
-await server.start({ port: 3000 })
+
+const port = await container.feature('networking').findOpenPort(3480)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.post('/echo', { hello: 'world' }))   // { received: { hello: 'world' } }
+await server.stop()
 ```
 
 
@@ -384,10 +457,17 @@ await server.start({ port: 3000 })
 
 ```ts
 const server = container.server('express')
-await server.useEndpoints(container.paths.join('endpoints'))
+await server.useEndpointModules([
+ { path: '/status', get: async () => ({ ok: true }) },
+])
 server.serveOpenAPISpec({ title: 'My API', version: '2.0.0' })
-await server.start({ port: 3000 })
-// GET http://localhost:3000/openapi.json -> the generated spec
+
+const port = await container.feature('networking').findOpenPort(3470)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+const spec = await api.get('/openapi.json')
+console.log(spec.info.title, Object.keys(spec.paths))   // My API [ '/status' ]
+await server.stop()
 ```
 
 
@@ -410,8 +490,13 @@ console.log(Object.keys(spec.paths))  // ['/status']
 
 ```ts
 const server = container.server('express')
-server.app.get('/health', (req, res) => res.json({ ok: true }))
 server.app.use((req, res, next) => { console.log(req.method, req.path); next() })
-await server.start({ port: 3000 })
+server.app.get('/health', (req, res) => res.json({ ok: true }))
+
+const port = await container.feature('networking').findOpenPort(3420)
+await server.start({ port })
+const api = container.client('rest', { baseURL: `http://localhost:${port}` })
+console.log(await api.get('/health'))   // { ok: true }
+await server.stop()
 ```
 

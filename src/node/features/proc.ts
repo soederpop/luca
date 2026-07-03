@@ -97,18 +97,16 @@ export class ChildProcess extends Feature {
    * 
    * @example
    * ```typescript
-   * // Execute a git command
+   * // Execute a git command — failures are captured, not thrown
    * const result = await proc.execAndCapture('git status --porcelain')
    * if (result.exitCode === 0) {
    *   console.log('Git status:', result.stdout)
    * } else {
    *   console.error('Git error:', result.stderr)
    * }
-   * 
+   *
    * // Execute with options
-   * const result = await proc.execAndCapture('npm list --depth=0', {
-   *   cwd: '/path/to/project'
-   * })
+   * const listing = await proc.execAndCapture('ls -1', { cwd: 'src' })
    *
    * // WRONG: quoted args with spaces get split apart
    * // await proc.execAndCapture('git log --format="%h %ad %s" --date=short')
@@ -151,17 +149,17 @@ export class ChildProcess extends Feature {
    * // Basic usage
    * const result = await proc.spawnAndCapture('node', ['--version'])
    * console.log(`Node version: ${result.stdout}`)
-   * 
+   *
    * // With real-time output monitoring
-   * const result = await proc.spawnAndCapture('npm', ['install'], {
-   *   onOutput: (data) => console.log('📦 ', data.trim()),
-   *   onError: (data) => console.error('❌ ', data.trim()),
+   * const monitored = await proc.spawnAndCapture('bun', ['--version'], {
+   *   onOutput: (data) => console.log('OUT:', data.trim()),
+   *   onError: (data) => console.error('ERR:', data.trim()),
    *   onExit: (code) => console.log(`Process exited with code ${code}`)
    * })
-   * 
-   * // Long-running process with custom working directory
-   * const buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {
-   *   cwd: '/path/to/project',
+   *
+   * // Custom working directory, watching output as it streams
+   * const buildResult = await proc.spawnAndCapture('ls', ['-1'], {
+   *   cwd: 'src',
    *   onOutput: (data) => {
    *     if (data.includes('error')) {
    *       console.error('Build error detected:', data)
@@ -219,10 +217,6 @@ export class ChildProcess extends Feature {
       throw new Error(`Unable to spawn process ${command}`);
     }
 
-    if (typeof childProcess.exitCode === "number") {
-      exitCode = childProcess.exitCode;
-    }
-
     if (typeof childProcess.pid === "number") {
       pid = childProcess.pid;
     }
@@ -230,7 +224,16 @@ export class ChildProcess extends Feature {
     await proc.catch((err: any) => {
       error = err;
     });
-    
+
+    // Read the exit code only after the process has settled — before the await
+    // it is still null and the result would always report 0. On failure the
+    // ChildProcessError also carries it as error.code.
+    if (typeof childProcess.exitCode === "number") {
+      exitCode = childProcess.exitCode;
+    } else if (typeof error?.code === "number") {
+      exitCode = error.code;
+    }
+
     onExit(exitCode)
 
     return {
@@ -315,11 +318,14 @@ export class ChildProcess extends Feature {
    *
    * @example
    * ```typescript
-   * const branch = proc.exec('git branch --show-current')
+   * const greeting = proc.exec('echo "Hello World"')
    * const version = proc.exec('node --version')
    *
    * // Run in a different directory without changing the container's cwd
-   * const listing = proc.exec('ls -1', { cwd: 'packages/app' })
+   * const listing = proc.exec('ls -1', { cwd: 'src' })
+   *
+   * // NOTE: exec throws on a non-zero exit code — commands that can fail
+   * // (e.g. git outside a repository) belong in a try/catch or execAndCapture
    * ```
    */
   exec(command: string, options?: any): string {

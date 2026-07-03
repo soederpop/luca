@@ -359,6 +359,39 @@ describe('SemanticSearch', () => {
 			expect(results[0]!.meta.status).toBe('approved')
 		})
 
+		it('where filter values are parameterized — hostile values cannot inject SQL', async () => {
+			await search.initDb()
+			search.insertDocument(makeTestDoc({ meta: { status: 'approved' } }))
+			search.insertDocument(makeTestDoc({
+				pathId: 'test/doc-2',
+				meta: { status: 'draft' },
+				content: 'Authentication draft document.',
+				sections: [],
+			}))
+
+			// Classic injection payload as a filter VALUE: must match nothing, not everything
+			const hostileValue = await search.search('authentication', {
+				where: { status: "approved' OR '1'='1" },
+			})
+			expect(hostileValue.length).toBe(0)
+
+			// Injection payload as a filter KEY: must match nothing and must not throw
+			const hostileKey = await search.search('authentication', {
+				where: { "status') OR 1=1 --": 'x' },
+			})
+			expect(hostileKey.length).toBe(0)
+
+			// Injection payload as the model filter
+			const hostileModel = await search.search('authentication', {
+				model: "Plan' OR '1'='1",
+			})
+			expect(hostileModel.length).toBe(0)
+
+			// Legit filtering still works after all of the above
+			const legit = await search.search('authentication', { where: { status: 'approved' } })
+			expect(legit.length).toBe(1)
+		})
+
 		it('vector search returns results ranked by similarity', async () => {
 			await search.initDb()
 			search.insertDocument(makeTestDoc())

@@ -27,7 +27,8 @@ Synchronously reads a file and returns its contents as a string. **Binary files:
 
 ```ts
 const content = fs.readFile('README.md')          // string (utf-8)
-const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
+fs.writeFile('logo.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+const buffer = fs.readFile('logo.png', null)      // Buffer — safe for binary data
 ```
 
 
@@ -61,8 +62,8 @@ Asynchronously reads a file and returns its contents as a string.
 **Returns:** `Promise<string | Buffer>`
 
 ```ts
-const content = await fs.readFileAsync('data.txt')
-const buffer = await fs.readFileAsync('image.png', null)
+const content = await fs.readFileAsync('README.md')
+const buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer
 ```
 
 
@@ -80,8 +81,8 @@ Synchronously reads and parses a JSON file.
 **Returns:** `any`
 
 ```ts
-const config = fs.readJson('config.json')
-console.log(config.version)
+const pkg = fs.readJson('package.json')
+console.log(pkg.version)
 ```
 
 
@@ -113,8 +114,8 @@ Asynchronously reads and parses a JSON file.
 **Returns:** `Promise<any>`
 
 ```ts
-const config = await fs.readJsonAsync('config.json')
-console.log(config.version)
+const pkg = await fs.readJsonAsync('package.json')
+console.log(pkg.version)
 ```
 
 
@@ -606,6 +607,7 @@ Asynchronously removes a file.
 **Returns:** `Promise<void>`
 
 ```ts
+fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
 ```
 
@@ -668,7 +670,7 @@ Synchronously copies a file or directory. Auto-detects whether the source is a f
 **Returns:** `void`
 
 ```ts
-fs.copy('src/config.json', 'backup/config.json')
+fs.copy('src/index.ts', 'backup/index.ts')
 fs.copy('src', 'backup/src')
 ```
 
@@ -695,7 +697,7 @@ Asynchronously copies a file or directory. Auto-detects whether the source is a 
 **Returns:** `Promise<void>`
 
 ```ts
-await fs.copyAsync('src/config.json', 'backup/config.json')
+await fs.copyAsync('src/index.ts', 'backup/index.ts')
 await fs.copyAsync('src', 'backup/src')
 ```
 
@@ -715,7 +717,10 @@ Synchronously moves (renames) a file or directory. Falls back to copy + delete f
 **Returns:** `void`
 
 ```ts
+fs.ensureFile('temp/draft.txt', 'work in progress')
 fs.move('temp/draft.txt', 'final/document.txt')
+
+fs.ensureFolder('old-dir')
 fs.move('old-dir', 'new-dir')
 ```
 
@@ -735,7 +740,10 @@ Asynchronously moves (renames) a file or directory. Falls back to copy + delete 
 **Returns:** `Promise<void>`
 
 ```ts
+await fs.ensureFileAsync('temp/draft.txt', 'work in progress')
 await fs.moveAsync('temp/draft.txt', 'final/document.txt')
+
+await fs.ensureFolderAsync('old-dir')
 await fs.moveAsync('old-dir', 'new-dir')
 ```
 
@@ -767,7 +775,9 @@ Recursively walks a directory and returns arrays of file and directory paths. By
 ```ts
 const result = fs.walk('src', { files: true, directories: false })
 const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
-const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }
+
+fs.ensureFile('inbox/contact-1.json', '{}')
+const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }
 ```
 
 
@@ -797,8 +807,10 @@ Asynchronously and recursively walks a directory and returns arrays of file and 
 
 ```ts
 const result = await fs.walkAsync('src', { exclude: ['node_modules'] })
+
+await fs.ensureFileAsync('inbox/contact-1.json', '{}')
 const files = await fs.walkAsync('inbox', { relative: true })
-// files.files => ['contact-1.json', 'subfolder/file.txt', ...]
+// files.files => ['contact-1.json']
 ```
 
 
@@ -883,7 +895,8 @@ fs.copy('src', 'backup/src')
 
 ```ts
 const content = fs.readFile('README.md')          // string (utf-8)
-const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary data
+fs.writeFile('logo.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+const buffer = fs.readFile('logo.png', null)      // Buffer — safe for binary data
 ```
 
 
@@ -891,8 +904,8 @@ const buffer = fs.readFile('image.png', null)     // Buffer — safe for binary 
 **readFileAsync**
 
 ```ts
-const content = await fs.readFileAsync('data.txt')
-const buffer = await fs.readFileAsync('image.png', null)
+const content = await fs.readFileAsync('README.md')
+const buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer
 ```
 
 
@@ -900,8 +913,8 @@ const buffer = await fs.readFileAsync('image.png', null)
 **readJson**
 
 ```ts
-const config = fs.readJson('config.json')
-console.log(config.version)
+const pkg = fs.readJson('package.json')
+console.log(pkg.version)
 ```
 
 
@@ -909,8 +922,8 @@ console.log(config.version)
 **readJsonAsync**
 
 ```ts
-const config = await fs.readJsonAsync('config.json')
-console.log(config.version)
+const pkg = await fs.readJsonAsync('package.json')
+console.log(pkg.version)
 ```
 
 
@@ -1122,6 +1135,7 @@ fs.rmSync('temp/cache.tmp')
 **rm**
 
 ```ts
+fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
 ```
 
@@ -1146,7 +1160,7 @@ await fs.rmdir('temp/cache')
 **copy**
 
 ```ts
-fs.copy('src/config.json', 'backup/config.json')
+fs.copy('src/index.ts', 'backup/index.ts')
 fs.copy('src', 'backup/src')
 ```
 
@@ -1155,7 +1169,7 @@ fs.copy('src', 'backup/src')
 **copyAsync**
 
 ```ts
-await fs.copyAsync('src/config.json', 'backup/config.json')
+await fs.copyAsync('src/index.ts', 'backup/index.ts')
 await fs.copyAsync('src', 'backup/src')
 ```
 
@@ -1164,7 +1178,10 @@ await fs.copyAsync('src', 'backup/src')
 **move**
 
 ```ts
+fs.ensureFile('temp/draft.txt', 'work in progress')
 fs.move('temp/draft.txt', 'final/document.txt')
+
+fs.ensureFolder('old-dir')
 fs.move('old-dir', 'new-dir')
 ```
 
@@ -1173,7 +1190,10 @@ fs.move('old-dir', 'new-dir')
 **moveAsync**
 
 ```ts
+await fs.ensureFileAsync('temp/draft.txt', 'work in progress')
 await fs.moveAsync('temp/draft.txt', 'final/document.txt')
+
+await fs.ensureFolderAsync('old-dir')
 await fs.moveAsync('old-dir', 'new-dir')
 ```
 
@@ -1184,7 +1204,9 @@ await fs.moveAsync('old-dir', 'new-dir')
 ```ts
 const result = fs.walk('src', { files: true, directories: false })
 const filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })
-const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }
+
+fs.ensureFile('inbox/contact-1.json', '{}')
+const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }
 ```
 
 
@@ -1193,8 +1215,10 @@ const relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1
 
 ```ts
 const result = await fs.walkAsync('src', { exclude: ['node_modules'] })
+
+await fs.ensureFileAsync('inbox/contact-1.json', '{}')
 const files = await fs.walkAsync('inbox', { relative: true })
-// files.files => ['contact-1.json', 'subfolder/file.txt', ...]
+// files.files => ['contact-1.json']
 ```
 
 

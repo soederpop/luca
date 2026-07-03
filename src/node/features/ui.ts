@@ -252,6 +252,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * console.log(ui.colors[randomColor]('This text is a random color!'));
    * 
    * // Use in loops for varied output
+   * const items = ['alpha', 'beta', 'gamma'];
    * items.forEach(item => {
    *   const color = ui.randomColor;
    *   console.log(ui.colors[color](`- ${item}`));
@@ -259,10 +260,16 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * ```
    */
   get randomColor(): string | undefined {
-    const colors = Object.keys(this.colors);
-    const index = Math.floor(Math.random() * colors.length);
+    // chalk's style functions are non-enumerable — Object.keys(chalk) only
+    // yields config properties like `level` — so enumerate real color names.
+    const colorNames = [
+      'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray',
+      'redBright', 'greenBright', 'yellowBright', 'blueBright',
+      'magentaBright', 'cyanBright', 'whiteBright',
+    ];
+    const index = Math.floor(Math.random() * colorNames.length);
 
-    return colors[index];
+    return colorNames[index];
   }
 
   /**
@@ -329,6 +336,8 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * 
    * @example
    * ```typescript
+   * // (no-run) interactive — waits for keyboard input
+   *
    * // Basic wizard
    * const answers = await ui.wizard([
    *   {
@@ -396,6 +405,8 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * 
    * @example
    * ```typescript
+   * // (no-run) interactive — opens $EDITOR and waits for the user
+   *
    * // Edit code snippet
    * const code = `function hello() {\n  console.log('Hello');\n}`;
    * const editedCode = await ui.openInEditor(code, '.js');
@@ -619,7 +630,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * );
    * 
    * // Simple two-color transition
-   * const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);
+   * const sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'yellow']);
    * 
    * // Great for short text and ASCII art
    * const art = ui.asciiArt('COOL', 'Big');
@@ -669,8 +680,8 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * 
    * // Sunset effect on ASCII art
    * const banner = ui.asciiArt('SUNSET', 'Big');
-   * const sunset = ui.applyVerticalGradient(banner, 
-   *   ['yellow', 'orange', 'red', 'purple']
+   * const sunset = ui.applyVerticalGradient(banner,
+   *   ['yellow', 'red', 'magenta', 'blue']
    * );
    * 
    * // Ocean waves effect
