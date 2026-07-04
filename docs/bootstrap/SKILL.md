@@ -4,7 +4,7 @@ description: The luca framework, when you see a project with docs/ commands/ fea
 ---
 # Luca: Learning the Container
 
-The Luca framework `luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in `commands/`, `clients/`, `servers/`, `features/`, and `endpoints/` folders.
+The Luca framework `luca` ships a `luca` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. Project helper folders (`commands/`, `endpoints/`, `features/`, `clients/`, `servers/`) are discovered at runtime — but not all of them automatically. See "How Auto-Discovery Works" below before assuming a folder is picked up.
 
 The `luca` cli loads typescript modules in through its VM which injects a `container` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 
@@ -139,7 +139,7 @@ luca scaffold command sync-data --description "Pull data from staging"
 luca describe sync-data            # verify it shows up and reads correctly
 ```
 
-Every scaffolded helper is auto-discovered by the container at runtime.
+Scaffolded **commands** and **endpoints** are picked up automatically (the CLI and `luca serve` discover those folders themselves). Scaffolded **features, clients, and servers are not** — they need `container.helpers.discoverAll()` in `luca.cli.ts`. See "How Auto-Discovery Works" below.
 
 ### When to use each type
 
@@ -208,6 +208,37 @@ The container is a singleton that holds everything your application needs. It or
 const fs = container.feature('fs')
 const rest = container.client('rest')
 const server = container.server('express')
+```
+
+### How Auto-Discovery Works
+
+The framework discovers different helper folders at different times — and some not at all unless you opt in:
+
+| Folder | Discovered by | When |
+|--------|---------------|------|
+| `commands/` | the CLI itself | every `luca` invocation |
+| `endpoints/` | `luca serve` | when the server starts |
+| `features/`, `clients/`, `servers/` | **nothing, by default** | only if you wire it up |
+
+Two things make this easy to get wrong:
+
+1. **`luca eval` calls `discoverAll()` internally** — so your custom feature works in eval, then `container.feature('myThing')` fails inside a command or `luca run` script. That's not a bug in your feature; it was never registered in that process.
+2. **`~/.luca/{features,clients,servers,commands}` (user-level helpers) ARE auto-discovered** on every CLI run — so a helper that "just works" globally may still be missing at the project level.
+
+**The fix:** discover everything at CLI startup via `luca.cli.ts`, which runs before any command dispatches:
+
+```ts
+// luca.cli.ts — at the project root
+export async function main(container) {
+  await container.helpers.discoverAll()
+}
+```
+
+With that in place, every entry point (`luca <command>`, `luca run`, `luca serve`) starts with all project helper folders registered. For selective or plugin-style discovery:
+
+```js
+await container.helpers.discover('features')                        // one type
+await container.helpers.discover('commands', { directory: dir })    // from a custom folder
 ```
 
 ### State
