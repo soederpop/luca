@@ -392,6 +392,15 @@ Footguns: pin esm.sh versions; react-dom must resolve the *same* React (`?deps=r
 
 To let a **server-side assistant drive** such a UI (call its actions as tools, live), the app's methods are exposed as `static tools` and reached over the `containerLink` WebSocket bridge (host `eval`s into the browser, `await`s the result) — same tool-provider pattern as any feature, plus one transport hop. See `references/tutorials/23-assistant-driven-ui.md`.
 
+### Modeling state in markdown (frontmatter vs. body)
+
+When designing a `contentDb` model (`docs/models.ts`), sort every field into one of two drawers — getting this right is what keeps the markdown worth reading:
+
+- **Frontmatter = the index card.** Only what the *system* filters/sorts/joins on: `status` enums, tags, foreign-key slugs, timestamps, machine-written scalars (`lastRanAt`, `costUsd`), small flags. Scalars and short arrays — labels, not content.
+- **Body sections = the substance.** Anything a human writes in sentences, lists, or code. A `section('Heading', { extract, schema })` makes a heading's prose a typed, validated, queryable field (`instance.sections.motivation`) — and a `computed` can turn a readable list into structured data (e.g. an execution DAG from a bulleted list of links). You get human-editable *and* machine-structured from one source.
+
+Litmus test: *would you write it in a sentence? → body. Is it a label you filter on? → frontmatter.* If you're reaching for YAML `|` multi-line strings or nesting objects three deep, that's body content in the wrong drawer — it defeats the purpose of using markdown. Read is split too: `db.query(Model).where('meta.status', …)` on the cheap indexed drawer; `contentDb.getDocument(id, { include: ['Findings'] })` to pull one section. Write: `doc.replaceSectionContent(heading, md)` then `doc.save()` (whole-file atomic — no per-section save). Full walkthrough: `references/tutorials/24-state-in-markdown.md`.
+
 ## Framework Index
 
 A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
@@ -471,6 +480,7 @@ Match your task to the catalog:
 | Cross-process state (which store?) | `cross-process-state-handoff.md` |
 | A daemon, poll loop, or scheduled task | `daemon-command.md` |
 | Search over documents | `semantic-search-content-db.md` |
+| Designing a markdown doc model (what goes in frontmatter vs. body) | `references/tutorials/24-state-in-markdown.md` (the two-drawer rule) |
 | Plugin systems / dynamic registries | `meta-discovery.md` |
 | Lightweight stateful objects with tools | `entity.md` |
 | Structured JSON output from a model | `structured-output-with-assistants.md` |
