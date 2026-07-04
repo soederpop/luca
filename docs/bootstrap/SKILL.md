@@ -390,6 +390,8 @@ You can build a full reactive front-end with **no bundler, no `npm install`, no 
 
 Footguns: pin esm.sh versions; react-dom must resolve the *same* React (`?deps=react@VERSION` or an import map); `emit('changed')` after **every** mutation. Full walkthrough: `references/tutorials/22-reactive-frontend.md`.
 
+To let a **server-side assistant drive** such a UI (call its actions as tools, live), the app's methods are exposed as `static tools` and reached over the `containerLink` WebSocket bridge (host `eval`s into the browser, `await`s the result) — same tool-provider pattern as any feature, plus one transport hop. See `references/tutorials/23-assistant-driven-ui.md`.
+
 ## Framework Index
 
 A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
@@ -462,6 +464,7 @@ Match your task to the catalog:
 | A feature that gives an assistant tools | `feature-as-tool-provider.md`, `assistant-with-process-manager.md` |
 | An HTTP API + client | `full-stack-slice.md`, `server-rest-roundtrip.md` |
 | A reactive browser UI / dashboard (no build step) | `references/tutorials/22-reactive-frontend.md` (feature-as-store, React via esm.sh) |
+| An assistant that drives a browser UI (calls its actions as tools) | `references/tutorials/23-assistant-driven-ui.md` (`containerLink` + `static tools`) |
 | WebSocket messaging / request-reply | `server-client-roundtrip-ws.md`, `websocket-ask-and-reply-example.md` |
 | Event-driven fan-out (in-process → ws → redis) | `event-bus-fanout.md` |
 | A data pipeline or job queue | `data-pipeline-fs-grep-sqlite.md`, `sqlite-job-queue.md` |
