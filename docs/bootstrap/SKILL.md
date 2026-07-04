@@ -107,6 +107,10 @@ luca help scaffold         # help for any command
 
 When your project needs a new helper, scaffold it. The `scaffold` command generates correct boilerplate — you fill in the logic.
 
+### Check the shipped examples first
+
+Before building anything multi-step, look for a runnable composition pattern in `references/examples/` (index below). **A runnable example beats fifty describes** — run it with `luca run <doc.md>` to confirm it works, then adapt the pattern. In a measured comparison, the fastest solution to a websocket task came from finding and running the shipped ask/reply example; the slowest came from scaffolding a custom client from scratch. Don't scaffold what you don't need: if a built-in client or server already speaks the protocol (websocket, rest), use it directly with your message conventions on top.
+
 ### Learn how to build each type
 
 Before creating anything, read the tutorial for that helper type:
@@ -404,8 +408,27 @@ luca eval "container.feature('fs').readFile('package.json')"
 
 The skill directory includes reference material:
 
-- **`references/examples/`** — runnable composition patterns that combine multiple helpers (e.g. `custom-feature-authoring.md`, `full-stack-slice.md`, `daemon-command.md`). For single-feature usage, use `luca describe <name>` instead — every helper's docs include examples.
+- **`references/examples/`** — runnable composition patterns that combine multiple helpers. Every one executes via `luca run <doc.md>` and carries `lastTested`/`lastTestPassed` frontmatter from the test harness. For single-feature usage, use `luca describe <name>` instead — every helper's docs include per-method examples.
 - **`references/tutorials/`** — longer-form guides covering the container, helpers, commands, endpoints, state/events, assistants, and more
+
+Match your task to the catalog:
+
+| You're building... | Run/read |
+|---|---|
+| A custom feature (schemas, state, events, discovery) | `custom-feature-authoring.md`, `testing-a-composed-feature.md` |
+| A feature that gives an assistant tools | `feature-as-tool-provider.md`, `assistant-with-process-manager.md` |
+| An HTTP API + client | `full-stack-slice.md`, `server-rest-roundtrip.md` |
+| WebSocket messaging / request-reply | `server-client-roundtrip-ws.md`, `websocket-ask-and-reply-example.md` |
+| Event-driven fan-out (in-process → ws → redis) | `event-bus-fanout.md` |
+| A data pipeline or job queue | `data-pipeline-fs-grep-sqlite.md`, `sqlite-job-queue.md` |
+| Cross-process state (which store?) | `cross-process-state-handoff.md` |
+| A daemon, poll loop, or scheduled task | `daemon-command.md` |
+| Search over documents | `semantic-search-content-db.md` |
+| Plugin systems / dynamic registries | `meta-discovery.md` |
+| Lightweight stateful objects with tools | `entity.md` |
+| Structured JSON output from a model | `structured-output-with-assistants.md` |
+| Orchestrating Claude Code sessions | `claude-controller-personas.md` |
+| Understanding how errors behave (returned vs thrown) | `error-handling-conventions.md` |
 
 These complement `luca describe` — describe gives you the API surface and per-method examples, the example docs show multi-helper patterns in action, and tutorials walk through building things end to end.
 
