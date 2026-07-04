@@ -378,6 +378,18 @@ process.exit(0)
 
 `vault.secret()` mints a **new random key each process** — encrypt in one command, and the next command can't decrypt unless you persist the key and pass it back: `container.feature('vault', { secret: savedKey })`. (`vault.secretText` is also lazy — undefined until `secret()`/`encrypt()`/`decrypt()` has run once.)
 
+### Reactive browser UIs (no build step)
+
+You can build a full reactive front-end with **no bundler, no `npm install`, no build step** — put `public/index.html`, run `luca serve` (it serves `public/` static + `endpoints/` as a same-origin API, so no CORS). The pattern that scales, framework-agnostic at its core:
+
+- **Import from esm.sh** — React (`https://esm.sh/react@18.3.1`), the web container (`https://esm.sh/luca/web`), anything. Use `React.createElement` (alias `e`) instead of JSX so there's nothing to compile.
+- **A Luca feature *is* your store** — it already has `this.state.get/set` and `emit/on/off`. Mutate state, then `this.emit('changed')`. No Redux/Context needed.
+- **The view subscribes to `changed`** — a ~6-line `useFeatureVersion([feature])` hook (`f.on('changed', forceRerender)`) re-renders React on every change. Plain DOM works too: a `render()` on `changed`. The store never references the view.
+- **Layer as Api → Store → App** for anything real: Api does `fetch`/ws/SSE, Store holds state and emits, App orchestrates and exposes `snapshot()` (one atomic read for the view). Features compose via `this.container.feature('...')`.
+- **Backend half:** `endpoints/*.ts` return JSON; the browser's web container reaches them with `container.client('rest', { baseURL: '/api' })`. Node-only work (`fs`, `sqlite`, `git`) lives behind endpoints — the web container doesn't have it.
+
+Footguns: pin esm.sh versions; react-dom must resolve the *same* React (`?deps=react@VERSION` or an import map); `emit('changed')` after **every** mutation. Full walkthrough: `references/tutorials/22-reactive-frontend.md`.
+
 ## Framework Index
 
 A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
@@ -449,6 +461,7 @@ Match your task to the catalog:
 | A custom feature (schemas, state, events, discovery) | `custom-feature-authoring.md`, `testing-a-composed-feature.md` |
 | A feature that gives an assistant tools | `feature-as-tool-provider.md`, `assistant-with-process-manager.md` |
 | An HTTP API + client | `full-stack-slice.md`, `server-rest-roundtrip.md` |
+| A reactive browser UI / dashboard (no build step) | `references/tutorials/22-reactive-frontend.md` (feature-as-store, React via esm.sh) |
 | WebSocket messaging / request-reply | `server-client-roundtrip-ws.md`, `websocket-ask-and-reply-example.md` |
 | Event-driven fan-out (in-process → ws → redis) | `event-bus-fanout.md` |
 | A data pipeline or job queue | `data-pipeline-fs-grep-sqlite.md`, `sqlite-job-queue.md` |
