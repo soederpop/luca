@@ -475,6 +475,7 @@ Match your task to the catalog:
 | A reactive browser UI / dashboard (no build step) | `references/tutorials/22-reactive-frontend.md` (feature-as-store, React via esm.sh) |
 | An assistant that drives a browser UI (calls its actions as tools) | `references/tutorials/23-assistant-driven-ui.md` (`containerLink` + `static tools`) |
 | WebSocket messaging / request-reply | `server-client-roundtrip-ws.md`, `websocket-ask-and-reply-example.md` |
+| An HTTP API + a WebSocket sidecar (live push from REST) | `references/tutorials/25-express-websocket-sidecar.md` (`luca serve --setup`) |
 | Event-driven fan-out (in-process → ws → redis) | `event-bus-fanout.md` |
 | A data pipeline or job queue | `data-pipeline-fs-grep-sqlite.md`, `sqlite-job-queue.md` |
 | Cross-process state (which store?) | `cross-process-state-handoff.md` |
