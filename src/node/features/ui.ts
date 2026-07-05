@@ -379,6 +379,11 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
    * @returns Promise resolving to the answers object with a `question` key
    */
   askQuestion(question: string): Promise<any> {
+    // Without a TTY there is nobody to answer — inquirer would busy-spin on
+    // the closed stdin forever. Resolve empty so callers take their
+    // no-answer path (they already must handle a blank response).
+    if (!process.stdin.isTTY) return Promise.resolve({ question: '' })
+
     return inquirer.createPromptModule()([{
       type: 'input',
       name: 'question',

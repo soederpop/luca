@@ -36,7 +36,8 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 		const answer = await ui.askQuestion('Project name (folder to create):')
 		target = answer?.question?.trim()
 		if (!target) {
-			ui.print.red('\n  No project name given, aborting.\n')
+			ui.print.red('\n  No project name given, aborting.')
+			ui.print.dim('  Usage: luca bootstrap <name>   (or --output <path>)\n')
 			return
 		}
 	}
@@ -240,5 +241,10 @@ async function checkToolAvailability(ui: any, proc: any) {
 commands.registerHandler('bootstrap', {
 	description: 'Scaffold a new luca project with commands, features, endpoints, docs, and AI assistant configuration',
 	argsSchema,
+	positionals: ['output'],
+	examples: [
+		'luca bootstrap my-project',
+		{ command: 'luca bootstrap --update-skill', description: 'Refresh .claude/skills/luca-framework in the current project' },
+	],
 	handler: bootstrap,
 })

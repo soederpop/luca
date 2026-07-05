@@ -53,15 +53,32 @@ function resolveRuntimeSpec(container: any, requested: string): string {
 	if (requested !== 'auto') return requested
 
 	const fs = container.feature('fs') as any
-	try {
-		const repoRoot = container.paths.resolve(import.meta.dir, '..', '..')
-		const pkgPath = container.paths.resolve(repoRoot, 'package.json')
-		if (fs.existsSync(pkgPath)) {
+
+	const lucaRepoRootFrom = (candidate: string): string | null => {
+		try {
+			const pkgPath = container.paths.resolve(candidate, 'package.json')
+			if (!fs.existsSync(pkgPath)) return null
 			const pkg = JSON.parse(String(fs.readFile(pkgPath)))
-			if (pkg?.name === 'luca') return `file:${repoRoot}`
+			return pkg?.name === 'luca' ? candidate : null
+		} catch {
+			return null
 		}
+	}
+
+	// Dev CLI: import.meta.dir sits inside the checkout.
+	const fromSource = lucaRepoRootFrom(container.paths.resolve(import.meta.dir, '..', '..'))
+	if (fromSource) return `file:${fromSource}`
+
+	// Compiled binary: import.meta points into the executable's virtual
+	// filesystem, but a binary built from a checkout lives at <repo>/dist/luca.
+	// Resolving the executable's real path (through symlinks) and walking up
+	// finds that checkout, so dev-machine bundles never lag behind npm.
+	try {
+		const realExec = fs.realpath(process.execPath)
+		const fromBinary = lucaRepoRootFrom(container.paths.resolve(realExec, '..', '..'))
+		if (fromBinary) return `file:${fromBinary}`
 	} catch {
-		// virtual filesystem or unreadable package.json — fall through to npm
+		// unreadable exec path — fall through to npm
 	}
 
 	return 'luca'
@@ -157,9 +174,12 @@ export async function bundleCommand(
 	fs.ensureFolder(outDir)
 	fs.ensureFolder(buildDir)
 
-	// Built-in luca commands compiled into the binary. Bundling assistants
-	// implies chat + assistant so the binary can actually run its agents.
+	// Built-in luca commands compiled into the binary. The consumer help
+	// screen advertises `<binary> <file>` script execution, so 'run' is always
+	// included. Bundling assistants implies chat + assistant so the binary can
+	// actually run its agents.
 	const builtins = new Set(options.builtins.split(',').map((s: string) => s.trim()).filter(Boolean))
+	builtins.add('run')
 	if (assistants.length > 0) {
 		builtins.add('chat')
 		builtins.add('assistant')
@@ -175,7 +195,23 @@ export async function bundleCommand(
 	const pkgPath = container.paths.resolve(buildDir, 'package.json')
 	const assistantsPath = container.paths.resolve(buildDir, 'generated-consumer-assistants.ts')
 
-	fs.writeFile(manifestPath, generateConsumerManifest({ helperFiles, commandFiles }))
+	// Vendor the project sources into the build dir. Importing them in place
+	// breaks for any project without luca in a reachable node_modules: bun
+	// resolves each file's bare `import 'luca'` by walking up from THAT file,
+	// not from the build dir. Copying them under buildDir/project makes every
+	// bare specifier resolve against the build dir's own install.
+	const vendorFile = (file: string): string => {
+		const rel = container.paths.relative(source, file).split('\\').join('/')
+		const dest = container.paths.resolve(buildDir, 'project', rel)
+		fs.ensureFolder(container.paths.resolve(dest, '..'))
+		fs.writeFile(dest, fs.readFile(file))
+		return `./project/${rel}`
+	}
+
+	const vendoredHelperFiles = helperFiles.map(vendorFile)
+	const vendoredCommandFiles = commandFiles.map(({ file, name }) => ({ file: vendorFile(file), name }))
+
+	fs.writeFile(manifestPath, generateConsumerManifest({ helperFiles: vendoredHelperFiles, commandFiles: vendoredCommandFiles }))
 
 	if (assistants.length > 0) {
 		fs.writeFile(assistantsPath, generateAssistantsModule({
