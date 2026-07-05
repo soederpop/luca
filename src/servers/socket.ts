@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { ServerStateSchema, ServerOptionsSchema, ServerEventsSchema } from '../schemas/base.js'
 import { type StartOptions, Server, type ServerState } from '../server.js';
 import { WebSocketServer as BaseServer } from 'ws'
-import type { PendingRequest } from '../clients/websocket.js'
+import { encodeWireFrame, type PendingRequest } from '../clients/websocket.js'
 
 declare module '../server' {
   interface AvailableServers {
@@ -11,7 +11,7 @@ declare module '../server' {
 }
 
 export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
-  json: z.boolean().optional().describe('When enabled, incoming messages are automatically JSON-parsed before emitting the message event, and outgoing send/broadcast calls JSON-stringify the payload'),
+  json: z.boolean().optional().describe('When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.'),
   server: z.any().optional().describe('Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port.'),
   noServer: z.boolean().optional().describe('Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server\'s "upgrade" event.'),
   path: z.string().optional().describe('Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding.'),
@@ -29,10 +29,15 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
  *
  * Manages WebSocket connections, tracks connected clients, and bridges
  * messages to Luca's event bus. When `json` mode is enabled, incoming
- * messages are automatically JSON-parsed (with `.toString()` for Buffer data)
- * and outgoing messages via `send()` / `broadcast()` are JSON-stringified.
- * When `json` mode is disabled, raw message data is emitted as-is and
- * `send()` / `broadcast()` still JSON-stringify for safety.
+ * messages are automatically JSON-parsed (with `.toString()` for Buffer data);
+ * a binary frame that is not valid JSON is passed through untouched. When
+ * `json` mode is disabled, raw message data is emitted as-is.
+ *
+ * Outgoing `send()` / `broadcast()` frame the payload with
+ * {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/
+ * typed array is sent as a raw binary frame and a `string` as a raw text frame.
+ * So binary transport (audio, protobuf, etc.) is a first-class option — no need
+ * to base64 into JSON or drop to the raw `wss` getter.
  *
  * Supports ask/reply semantics when paired with the Luca WebSocket client.
  * The server can `ask(ws, type, data)` a connected client and await a typed
@@ -136,16 +141,28 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
     connections : Set<any> = new Set()
     _pending = new Map<string, PendingRequest>()
 
+    /**
+     * Send a message to every connected client. Objects are JSON-encoded; a
+     * `Buffer`/`ArrayBuffer`/typed array is broadcast as a raw binary frame and
+     * a `string` as a raw text frame (see {@link encodeWireFrame}). The frame is
+     * encoded once and reused across all connections.
+     */
     async broadcast(message: any): Promise<this> {
+      const frame = encodeWireFrame(message)
       for(const ws of this.connections) {
-        await ws.send(JSON.stringify(message))
+        await ws.send(frame)
       }
-      
+
       return this
     }
-    
+
+    /**
+     * Send a message to one client. Objects are JSON-encoded; a
+     * `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a
+     * `string` as a raw text frame (see {@link encodeWireFrame}).
+     */
     async send(ws: any, message: any): Promise<this> {
-      await ws.send(JSON.stringify(message))
+      await ws.send(encodeWireFrame(message))
       return this
     }
 

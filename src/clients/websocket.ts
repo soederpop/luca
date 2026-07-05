@@ -22,6 +22,27 @@ export interface PendingRequest<T = any> {
 }
 
 /**
+ * Encode a value for a WebSocket frame. Values that are already wire-ready are
+ * passed through untouched so their frame type is preserved:
+ * - `string` → text frame, as-is
+ * - `ArrayBuffer` or any `ArrayBuffer` view (`Buffer`, `Uint8Array`, `DataView`,
+ *   …) → binary frame, as-is
+ *
+ * Everything else (plain objects, arrays, numbers, booleans) is JSON-stringified
+ * into a text frame. This makes binary transport a first-class option — send a
+ * `Buffer` and it stays binary instead of being mangled into
+ * `{"type":"Buffer","data":[…]}` — while the common object-as-JSON case is
+ * unchanged. Shared by the WebSocket server and client so both directions frame
+ * identically.
+ */
+export function encodeWireFrame(message: any): any {
+  if (typeof message === 'string') return message
+  if (message instanceof ArrayBuffer) return message
+  if (ArrayBuffer.isView(message)) return message
+  return JSON.stringify(message)
+}
+
+/**
  * WebSocket client that bridges raw WebSocket events to Luca's Helper event bus,
  * providing a clean interface for sending/receiving messages, tracking connection
  * state (`state.connected`, `state.reconnectAttempts`), and optional
@@ -35,8 +56,10 @@ export interface PendingRequest<T = any> {
  * answer it with `send({ replyTo: requestId, data })`. Asks time out (reject)
  * if no reply arrives within the configurable window.
  *
- * Incoming messages are JSON-parsed when possible; non-JSON payloads are
- * delivered as-is. Outgoing payloads are always `JSON.stringify`'d.
+ * Incoming messages are JSON-parsed when possible; non-JSON payloads (including
+ * binary frames) are delivered as-is. Outgoing payloads are framed by
+ * {@link encodeWireFrame}: objects go out as JSON, but a `Buffer`/`ArrayBuffer`/
+ * typed array is sent as a raw binary frame and a `string` as a raw text frame.
  *
  * Events emitted:
  * - `open` — connection established
@@ -177,10 +200,12 @@ export class WebSocketClient<
   }
 
   /**
-   * Send data over the WebSocket connection. Automatically JSON-serializes
-   * the payload. If not currently connected, attempts to connect first
-   * (so an explicit connect() call beforehand is optional).
-   * @param data - The data to send (will be JSON.stringify'd)
+   * Send data over the WebSocket connection. Objects are JSON-serialized; a
+   * `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a
+   * `string` as a raw text frame (see {@link encodeWireFrame}). If not currently
+   * connected, attempts to connect first (so an explicit connect() call
+   * beforehand is optional).
+   * @param data - The data to send (object → JSON, binary/string → raw frame)
    *
    * @example
    * ```typescript
@@ -215,7 +240,7 @@ export class WebSocketClient<
       throw new Error('WebSocket instance not available')
     }
 
-    this.ws.send(JSON.stringify(data))
+    this.ws.send(encodeWireFrame(data))
   }
 
   /**
