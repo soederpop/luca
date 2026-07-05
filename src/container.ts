@@ -203,6 +203,21 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   z!: typeof z
 
+  /**
+   * The bundled zod (v4) instance — the same one seeded into VM-loaded user
+   * code as the `'zod'` virtual module, so schemas built here and schemas
+   * built in commands/endpoints share one zod identity.
+   *
+   * @example
+   * ```typescript
+   * const schema = container.zod.object({ name: container.zod.string() })
+   * schema.parse({ name: 'luca' }).name // 'luca'
+   * ```
+   */
+  get zod(): typeof z {
+    return this.z
+  }
+
 
   /** The observable state object for this container instance. */
   get state(): State<ContainerState> {

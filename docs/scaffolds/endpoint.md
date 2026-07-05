@@ -66,7 +66,7 @@ Return any object — it's automatically JSON-serialized as the response.
 
 ## Validation Schemas
 
-If `zod` is available (via `luca` dependency or `node_modules`), export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
+zod (v4) is **always available** — the luca runtime seeds it as a virtual module, so `import { z } from 'zod'` works in every endpoint file with zero installs, in binary mode and dev mode alike. Export Zod schemas to validate parameters for each method. Name them `{method}Schema`:
 
 ```ts
 import { z } from 'zod'
@@ -82,7 +82,7 @@ export const postSchema = z.object({
 })
 ```
 
-Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec. If zod is not available, skip schema exports — the endpoint still works, you just lose automatic validation.
+Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec — skipping them costs you both the validation and the free API docs, so don't.
 
 ## Rate Limiting
 

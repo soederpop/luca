@@ -210,4 +210,54 @@ describe('vm.loadModule pipeline', () => {
 			expect(typeof exports.asyncOp).toBe('function')
 		})
 	})
+
+	describe('zod virtual module', () => {
+		/**
+		 * The 'zod' virtual module must support every zod v4 import style user
+		 * code reaches for. Each transpiles to a different access pattern on the
+		 * module object, so the seeded shape has to carry all three.
+		 */
+		it('supports named, namespace, and default import shapes', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			const zodModule = vm.createRequireFor(import.meta.path)('zod')
+
+			// import { z } from 'zod'
+			expect(typeof zodModule.z.string).toBe('function')
+			// import * as z from 'zod'; z.string()
+			expect(typeof zodModule.string).toBe('function')
+			// import z from 'zod'
+			expect(typeof zodModule.default.string).toBe('function')
+
+			const schema = zodModule.z.object({ name: zodModule.z.string() })
+			expect(schema.parse({ name: 'luca' }).name).toBe('luca')
+		})
+
+		it('a VM-loaded module can build and use a zod schema', () => {
+			const c = new NodeContainer()
+			c.helpers.seedVirtualModules()
+			const vm = c.feature('vm')
+			const transpiler = c.feature('transpiler')
+			const { code } = transpiler.transformSync(`
+				import { z } from 'zod'
+				export const schema = z.object({ port: z.number() })
+				export const parsed = schema.parse({ port: 3000 })
+			`, { format: 'cjs' })
+			const sharedExports = {}
+			const { context } = vm.performSync(code, {
+				require: vm.createRequireFor(import.meta.path),
+				exports: sharedExports,
+				module: { exports: sharedExports },
+				console,
+			})
+			expect(context.module.exports.parsed.port).toBe(3000)
+		})
+
+		it('container.zod is the same zod as container.z', () => {
+			const c = new NodeContainer()
+			expect(c.zod).toBe(c.z)
+			expect(typeof c.zod.object).toBe('function')
+		})
+	})
 })

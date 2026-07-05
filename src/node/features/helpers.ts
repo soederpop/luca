@@ -264,7 +264,10 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     vm.defineModule('@soederpop/luca/servers/express', { ExpressServer, default: ExpressServer })
     vm.defineModule('@soederpop/luca/servers/socket', { WebsocketServer, default: WebsocketServer })
 
-    vm.defineModule('zod', { z, default: { z } })
+    // Full namespace so every zod v4 import style works in user code:
+    // `import { z } from 'zod'`, `import * as z from 'zod'` (z.string() etc.),
+    // and `import z from 'zod'` via the default export.
+    vm.defineModule('zod', { ...z, z, default: z })
   }
 
   /**
