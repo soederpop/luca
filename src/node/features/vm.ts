@@ -4,6 +4,7 @@ import { dirname } from 'path'
 import { FeatureStateSchema, FeatureOptionsSchema } from '../../schemas/base.js'
 import vm from 'vm'
 import { Feature } from "../feature.js";
+import { computeNonCodeMask } from './transpiler.js'
 
 export const VMStateSchema = FeatureStateSchema.extend({})
 export type VMState = z.infer<typeof VMStateSchema>
@@ -190,46 +191,127 @@ export class VM<
   
   /**
    * Wrap code containing top-level `await` in an async IIFE, injecting
-   * `return` before the last expression so the value is not lost.
+   * `return` before the final expression so its value is not lost.
    *
-   * If the code does not contain `await`, or is already wrapped in an
-   * async function/arrow, it is returned unchanged.
+   * Resolution order:
+   * 1. No `await` substring, or code already starts with an async wrapper →
+   *    returned unchanged (native `vm.Script` completion-value semantics apply).
+   * 2. Code parses as a plain (non-async) function body via `new Function` →
+   *    the `await` is inside a string, comment, or nested async function, not
+   *    at the top level → returned unchanged.
+   * 3. Otherwise the code is scanned for top-level statement boundaries
+   *    (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and,
+   *    working from the last boundary backwards, the first `head / tail` split
+   *    whose wrapped form parses gets `return (tail)` injected.
+   * 4. If no boundary yields a returnable tail (code ends in a declaration,
+   *    loop, etc.), the whole body is wrapped with no injected return and the
+   *    run resolves `undefined` — matching native completion semantics for
+   *    declaration-final programs.
+   *
+   * `new Function` is used for *parsing only* — it is never invoked. Under bun,
+   * `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.
    */
   wrapTopLevelAwait(code: string): string {
     if (!/\bawait\b/.test(code) || /^\s*\(?\s*async\b/.test(code)) {
       return code
     }
 
-    const lines = code.split('\n')
+    // Parse-first fast path: if the code is a valid plain function body, any
+    // `await` in it is not top-level (string, comment, or nested async fn).
+    // Running it unwrapped preserves its declarations in shared contexts.
+    //
+    // Ambiguity guard: in sloppy mode `await` is a legal IDENTIFIER, so
+    // top-level `await (x)` / `await [x]` / await`x` parse as a call,
+    // subscript, or tagged template on an identifier named `await` — the
+    // plain parse succeeds even though the user meant top-level await. When
+    // an unmasked `await` is followed by `(`, `[`, or a backtick, skip the
+    // fast path and let the wrapping path treat it as the keyword.
+    if (!this._hasAmbiguousAwait(code)) {
+      try {
+        // eslint-disable-next-line no-new-func
+        new Function(code)
+        return code
+      } catch {}
+    }
 
-    // Find the last non-empty line
-    let lastIdx = lines.length - 1
-    while (lastIdx > 0 && !(lines[lastIdx] ?? '').trim()) lastIdx--
-
-    let lastLine = lines[lastIdx] ?? ''
-
-    // Never inject `return` before a line that isn't an expression: statement
-    // keywords, or closing delimiters (`}`, `)`, `]`) that end a multi-line
-    // block. `return }` would parse as a bare `return;` INSIDE the block (ASI),
+    // Never inject `return` before a non-expression: statement keywords, or
+    // pure closing-delimiter tails (`}`, `)`, `]`) that end a multi-line block.
+    // `return }` would parse as a bare `return;` INSIDE the block (ASI),
     // silently exiting the wrapper mid-loop.
     const isNotReturnable = (stmt: string) =>
       /^\s*(var|let|const|if|for|while|switch|try|throw|class|function|return)\b/.test(stmt) ||
       /^[\s}\]);]*$/.test(stmt)
 
-    // For single-line code with semicolons (e.g. CLI eval), split the last line
-    // into statements and only try to return the final statement.
-    const stmts = lastLine.split(';').map(s => s.trim()).filter(Boolean)
-    if (stmts.length > 1) {
-      const finalStmt = stmts[stmts.length - 1]!
-      if (!isNotReturnable(finalStmt)) {
-        stmts[stmts.length - 1] = `return ${finalStmt}`
-      }
-      lines[lastIdx] = stmts.join('; ')
-    } else if (!isNotReturnable(lastLine)) {
-      lines[lastIdx] = `return ${lastLine}`
+    // Tokens that, at the start of a newline-delimited tail, indicate the line
+    // continues the previous expression (ASI hazard): `a\n+ b` must not become
+    // `a\nreturn (+ b)`. Semicolon boundaries are exempt — no ASI ambiguity.
+    const asiContinuation = /^[+\-*/%,.([`?:=<>&|^]/
+
+    const wrap = (head: string, tail: string) =>
+      `(async () => {\n${head}\nreturn (${tail}\n)})()`
+
+    for (const boundary of this._topLevelBoundaries(code).reverse()) {
+      // Strip trailing semicolons — `return (expr;)` never parses, and the
+      // transpiler normalizes final expression statements to end with `;`.
+      const tail = code.slice(boundary.index).trim().replace(/;+\s*$/, '')
+      if (!tail || isNotReturnable(tail)) continue
+      if (boundary.kind === 'newline' && asiContinuation.test(tail)) continue
+
+      const head = code.slice(0, boundary.index)
+      try {
+        // Parse probe only — parenthesized tail rejects multi-statement tails
+        // and disambiguates `{...}` as an object literal.
+        // eslint-disable-next-line no-new-func
+        new Function(`return ${wrap(head, tail)}`)
+        return wrap(head, tail)
+      } catch {}
     }
 
-    return `(async () => {\n${lines.join('\n')}\n})()`
+    // No returnable final expression (declaration/loop-final program, or
+    // nothing parsed) — wrap without injection; the run resolves undefined.
+    return `(async () => {\n${code}\n})()`
+  }
+
+  /**
+   * True when an unmasked (non-string/comment) `await` is immediately followed
+   * by `(`, `[`, or a backtick — the forms where sloppy-mode parsing would
+   * silently treat `await` as an identifier instead of the keyword. Used by
+   * {@link wrapTopLevelAwait} to bypass its parse-first fast path.
+   */
+  private _hasAmbiguousAwait(code: string): boolean {
+    const mask = computeNonCodeMask(code)
+    const re = /\bawait\s*[(\[`]/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(code))) {
+      if (!mask[m.index]) return true
+    }
+    return false
+  }
+
+  /**
+   * Scan `code` for top-level statement boundaries: positions immediately
+   * after a `;` or newline that sits at combined `(){}[]` depth 0 and outside
+   * strings, template literals, and comments. Each boundary is a candidate
+   * split point for `return` injection in {@link wrapTopLevelAwait}.
+   */
+  private _topLevelBoundaries(code: string): Array<{ index: number; kind: 'semi' | 'newline' }> {
+    const mask = computeNonCodeMask(code)
+    // Synthetic start-of-code boundary so single-expression input (no `;` or
+    // newline at all, e.g. `await fetch(url)`) still gets a return candidate.
+    const boundaries: Array<{ index: number; kind: 'semi' | 'newline' }> = [{ index: 0, kind: 'semi' }]
+    let depth = 0
+
+    for (let i = 0; i < code.length; i++) {
+      if (mask[i]) continue
+      const ch = code[i]
+      if (ch === '(' || ch === '{' || ch === '[') depth++
+      else if (ch === ')' || ch === '}' || ch === ']') depth = Math.max(0, depth - 1)
+      else if (depth === 0 && (ch === ';' || ch === '\n')) {
+        boundaries.push({ index: i + 1, kind: ch === ';' ? 'semi' : 'newline' })
+      }
+    }
+
+    return boundaries
   }
 
   /**
