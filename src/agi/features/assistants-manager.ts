@@ -147,12 +147,6 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 	}
 
 	/**
-	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/
-	 * and cwd/assistants/. Each subdirectory containing a CORE.md is an assistant.
-	 *
-	 * @returns {Promise<this>} This instance, for chaining
-	 */
-	/**
 	 * Registers an additional folder to scan during assistant discovery and
 	 * immediately triggers a new discovery pass.
 	 *
@@ -173,6 +167,14 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		return this.discover()
 	}
 
+	/**
+	 * Discovers assistants by listing subdirectories in ~/.luca/assistants/,
+	 * cwd/assistants/, and any folders added via `addDiscoveryFolder()`.
+	 * Each subdirectory containing a CORE.md is an assistant. Earlier locations
+	 * take precedence when the same name appears in multiple folders.
+	 *
+	 * @returns {Promise<this>} This instance, for chaining
+	 */
 	async discover(): Promise<this> {
 		const { fs, paths, os } = this.container
 
@@ -266,6 +268,21 @@ export class AssistantsManager extends Feature<AssistantsManagerState, Assistant
 		})
 	}
 
+	/**
+	 * Alias for `available`.
+	 *
+	 * @returns {string[]} Names of all available assistants
+	 */
+	get availableAssistants() {
+		return this.available
+	}
+
+	/**
+	 * Names of all available assistants — the union of discovered entries
+	 * and runtime-registered factories, deduplicated.
+	 *
+	 * @returns {string[]} Assistant names
+	 */
 	get available() {
 		const entryKeys = Object.keys(this.entries)
 		const factoryKeys = Object.keys(this.factories)
