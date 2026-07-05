@@ -17,27 +17,44 @@ export type VMOptions = z.infer<typeof VMOptionsSchema>
 
 /**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
- * 
+ *
  * This feature wraps Node.js's built-in `vm` module to provide secure code execution
- * in isolated contexts. It's useful for running untrusted code, creating sandboxed
- * environments, or dynamically executing code with controlled access to variables and modules.
- * 
+ * in isolated contexts. It is how ALL user code runs under the luca binary — commands,
+ * endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all
+ * execute through it, which is why a bare folder of .ts files needs no install step.
+ *
+ * Three capabilities compose the module system:
+ * - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the
+ *   final expression's value is returned.
+ * - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is
+ *   transpiled; `export default` becomes `module.exports.default`).
+ * - `defineModule(id, exports)` — register a virtual module that `require()`/`import`
+ *   resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths,
+ *   and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs.
+ *
+ * Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come
+ * free from the realm, and luca injects console, timers, process, Buffer, fetch and
+ * friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.
+ *
  * @example
  * ```typescript
  * const vm = container.feature('vm')
- * 
+ *
  * // Execute simple code
- * const result = vm.run('1 + 2 + 3')
+ * const result = await vm.run('1 + 2 + 3')
  * console.log(result) // 6
- * 
+ *
  * // Execute code with custom context
- * const result2 = vm.run('greeting + " " + name', { 
- *   greeting: 'Hello', 
- *   name: 'World' 
+ * const result2 = await vm.run('greeting + " " + name', {
+ *   greeting: 'Hello',
+ *   name: 'World'
  * })
  * console.log(result2) // 'Hello World'
+ *
+ * // Virtual modules take precedence over native require
+ * vm.defineModule('answers', { magic: 42 })
  * ```
- * 
+ *
  * @extends Feature
  */
 export class VM<
@@ -52,6 +69,9 @@ export class VM<
 
   /** Map of virtual module IDs to their exports, consulted before Node's native require */
   modules: Map<string, any> = new Map()
+
+  /** Map of lazy virtual module IDs to loader functions, invoked on first require */
+  lazyModules: Map<string, () => any> = new Map()
 
   /**
    * Register a virtual module that will be available to `require()` inside VM-executed code.
@@ -77,6 +97,43 @@ export class VM<
   }
 
   /**
+   * Register a virtual module whose exports are produced on first `require()`.
+   *
+   * Like {@link defineModule}, the id is treated as external during bundling and
+   * resolves before Node's native require — but the loader only runs when (and if)
+   * VM-executed code actually requires the module, and its result is cached.
+   *
+   * This is how the runtime bridges `react` and `ink` into user code: registering
+   * them lazily keeps CLI startup free of their import cost, while guaranteeing
+   * that code which does `import React from 'react'` receives the SAME module
+   * instance the container's ink feature renders with. (A second React copy —
+   * e.g. inlined from a stray `node_modules` at bundle time — breaks all ink
+   * hooks with "Invalid hook call" / raw-mode errors.)
+   *
+   * @param id - The module specifier (e.g. `'react'`)
+   * @param loader - Synchronous function returning the module's exports; called once, then cached
+   *
+   * @example
+   * ```typescript
+   * const vm = container.feature('vm')
+   *
+   * let built = 0
+   * vm.defineLazyModule('expensive', () => ({ builds: ++built }))
+   *
+   * // The loader hasn't run yet — only code that requires 'expensive' triggers it
+   * console.log(built) // 0
+   * ```
+   */
+  defineLazyModule(id: string, loader: () => any): void {
+    this.lazyModules.set(id, loader)
+  }
+
+  /** @internal All virtual module ids (eager + lazy) — the external list for bundling. */
+  get virtualModuleIds(): string[] {
+    return [...new Set([...this.modules.keys(), ...this.lazyModules.keys()])]
+  }
+
+  /**
    * Build a require function that resolves from the virtual modules map first,
    * falling back to Node's native `createRequire` for everything else.
    *
@@ -86,9 +143,16 @@ export class VM<
   createRequireFor(filePath: string): ((id: string) => any) & { resolve: RequireResolve } {
     const nodeRequire = createRequire(filePath)
     const modules = this.modules
+    const lazyModules = this.lazyModules
 
     const customRequire = (id: string) => {
       if (modules.has(id)) return modules.get(id)
+      const loader = lazyModules.get(id)
+      if (loader) {
+        const exports = loader()
+        modules.set(id, exports)
+        return exports
+      }
       return nodeRequire(id)
     }
 
@@ -184,6 +248,9 @@ export class VM<
       Request,
       Response,
       fetch,
+      crypto: globalThis.crypto,
+      TextEncoder,
+      TextDecoder,
       ...this.container.context,
       ...ctx
     })
@@ -508,7 +575,7 @@ export class VM<
 
     // If we have virtual modules defined, use bundling to inline all other imports.
     // Virtual module IDs are marked external so they resolve via our custom require.
-    if (this.modules.size > 0) {
+    if (this.modules.size > 0 || this.lazyModules.size > 0) {
       return this._loadModuleBundled(filePath, ctx)
     }
 
@@ -520,7 +587,7 @@ export class VM<
 
   /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
   private _loadModuleBundled(filePath: string, ctx: any): Record<string, any> {
-    const external = [...this.modules.keys()]
+    const external = this.virtualModuleIds
 
     const result = Bun.spawnSync({
       cmd: ['bun', 'build', filePath, '--target=bun', '--format=cjs', ...external.flatMap(e => ['--external', e])],
@@ -576,6 +643,9 @@ export class VM<
       Request,
       Response,
       fetch,
+      crypto: globalThis.crypto,
+      TextEncoder,
+      TextDecoder,
       ...ctx,
     })
 

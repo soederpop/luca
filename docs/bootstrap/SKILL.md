@@ -482,6 +482,7 @@ Match your task to the catalog:
 | A daemon, poll loop, or scheduled task | `daemon-command.md` |
 | Search over documents | `semantic-search-content-db.md` |
 | Designing a markdown doc model (what goes in frontmatter vs. body) | `references/tutorials/24-state-in-markdown.md` (the two-drawer rule) |
+| Understanding how your code executes (VM, virtual modules, globals, entry points) | `references/tutorials/26-the-vm.md` (the execution contract) |
 | Plugin systems / dynamic registries | `meta-discovery.md` |
 | Lightweight stateful objects with tools | `entity.md` |
 | Structured JSON output from a model | `structured-output-with-assistants.md` |

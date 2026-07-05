@@ -327,7 +327,7 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 }
 
 commands.registerHandler('run', {
-	description: 'Run a script or markdown file (.ts, .js, .md)',
+	description: 'Run a script or markdown file (.ts, .js, .md) — top-level code runs with the container in scope, then a default/main export is called as the entry point',
 	argsSchema,
 	handler: run,
 })

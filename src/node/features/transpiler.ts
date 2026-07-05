@@ -194,7 +194,11 @@ export class Transpiler extends Feature {
     const loader = options.loader || 'ts'
     const format = options.format || 'esm'
 
-    const transpiler = new Bun.Transpiler({ loader })
+    // deadCodeElimination would drop a provably-pure final expression
+    // statement (`const a = {...}; a` loses the trailing `a`), destroying
+    // eval/markdown completion values. We transpile to EXECUTE, not to
+    // optimize — never eliminate observable statements.
+    const transpiler = new Bun.Transpiler({ loader, deadCodeElimination: false })
     let result = transpiler.transformSync(code)
 
     if (format === 'cjs') {
@@ -214,7 +218,8 @@ export class Transpiler extends Feature {
     const loader = options.loader || 'ts'
     const format = options.format || 'esm'
 
-    const transpiler = new Bun.Transpiler({ loader })
+    // Keep in lockstep with transformSync: no DCE at runtime.
+    const transpiler = new Bun.Transpiler({ loader, deadCodeElimination: false })
     let result = await transpiler.transform(code)
 
     if (format === 'cjs') {

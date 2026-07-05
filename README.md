@@ -63,7 +63,7 @@ luca console                      # full REPL
 
 This is the core loop: discover what's available, evaluate code against it, build on top of it. Your AI assistant does the same thing.
 
-Full walkthrough: [Getting Started](docs/tutorials/01-getting-started.md). Want the container as a library inside an existing TypeScript app instead? See [Embedding Luca in an Existing Project](docs/tutorials/21-embedding-luca.md).
+Full walkthrough: [Getting Started](docs/tutorials/01-getting-started.md). Want the container as a library inside an existing TypeScript app instead? See [Embedding Luca in an Existing Project](docs/tutorials/21-embedding-luca.md). Curious how `eval`, `run`, and your command files actually execute? See [The VM: How Your Code Actually Runs](docs/tutorials/26-the-vm.md).
 
 ## The Container
 

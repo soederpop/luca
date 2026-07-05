@@ -47,6 +47,25 @@ base + 2
     expect(result.stdout.match(/⇒/g)?.length).toBe(1)
   })
 
+  it('displays a trailing locally-declared identifier (transpiler DCE regression)', () => {
+    // Bun's transpiler dead-code-eliminates provably-pure final expression
+    // statements by default (`const a = {...}; a` lost the `a`), which
+    // silently destroyed block values. deadCodeElimination is now off.
+    writeFileSync(join(dir, 'dce.md'), `
+# DCE
+
+\`\`\`ts
+const total = { count: 7 }
+total
+\`\`\`
+`)
+    const result = runMd(dir, 'dce.md')
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('⇒')
+    expect(result.stdout).toContain('count')
+    expect(result.stdout).toContain('7')
+  })
+
   it('suppresses the value for blocks marked silent', () => {
     writeFileSync(join(dir, 'silent.md'), `
 # Silent
