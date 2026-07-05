@@ -174,6 +174,11 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
   /** Check if contentbase is resolvable via native import from the project root */
   private _canNativeImportContentbase(): boolean {
+    // Inside a compiled binary, disk files (models.ts) can't natively resolve
+    // bare specifiers like 'contentbase' even when node_modules exists — the
+    // VM module loader is the only working path there.
+    if (import.meta.url.includes('$bunfs') || import.meta.url.includes('~BUN')) return false
+
     const cwd = this.container.cwd
     return this.container.fs.exists(this.container.paths.resolve(cwd, 'node_modules', 'contentbase'))
   }

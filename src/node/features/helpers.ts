@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '../../schemas/base.js'
+import * as baseSchemas from '../../schemas/base.js'
 import { Feature } from '../feature.js'
 import { Feature as UniversalFeature } from '../../feature.js'
 import { Client, clients } from '../../client.js'
@@ -128,16 +129,20 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
   /**
    * Whether to use native `import()` for loading project helpers.
-   * True only if `luca` is actually resolvable in `node_modules`.
-   * Warns when `node_modules` exists but the package is missing.
+   * Never inside a compiled binary — a standalone executable cannot resolve
+   * bare `import 'luca'` specifiers from disk files at runtime, so the VM's
+   * virtual modules are the only working path there. In dev (running under
+   * plain bun), native import is used when `luca` is resolvable in
+   * `node_modules` under either package name.
    */
   get useNativeImport(): boolean {
-    const hasNodeModules = existsSync(resolve(this.rootDir, 'node_modules'))
-    const hasLuca = hasNodeModules && existsSync(resolve(this.rootDir, 'node_modules', '@soederpop', 'luca'))
+    // Compiled binaries serve their bundled modules from a virtual filesystem
+    // ($bunfs on posix, ~BUN on windows) — disk files imported natively from
+    // there can't resolve bare package specifiers.
+    if (import.meta.url.includes('$bunfs') || import.meta.url.includes('~BUN')) return false
 
-    // VM bundling handles missing luca gracefully — no warning needed
-
-    return hasLuca
+    const nodeModules = resolve(this.rootDir, 'node_modules')
+    return existsSync(resolve(nodeModules, 'luca')) || existsSync(resolve(nodeModules, '@soederpop', 'luca'))
   }
 
 
@@ -212,21 +217,12 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     }
 
     // Schemas
+    // Every schema from schemas/base — statically imported so the compiled
+    // binary bundles them. (A runtime require() here silently failed in the
+    // binary, leaving CommandOptionsSchema undefined for VM-loaded commands.)
     const schemasModule: Record<string, any> = { CommandOptionsSchema: commands.baseClass?.optionsSchema || z.object({}) }
-    try {
-      // Pull all base schemas from the already-loaded schemas/base module
-      const baseSchemas = require('../../schemas/base.js')
-      Object.assign(lucaExports, baseSchemas)
-      Object.assign(schemasModule, baseSchemas)
-    } catch {
-      // Fallback: provide the essentials
-      lucaExports.FeatureStateSchema = FeatureStateSchema
-      lucaExports.FeatureOptionsSchema = FeatureOptionsSchema
-      lucaExports.FeatureEventsSchema = FeatureEventsSchema
-      schemasModule.FeatureStateSchema = FeatureStateSchema
-      schemasModule.FeatureOptionsSchema = FeatureOptionsSchema
-      schemasModule.FeatureEventsSchema = FeatureEventsSchema
-    }
+    Object.assign(lucaExports, baseSchemas)
+    Object.assign(schemasModule, baseSchemas)
 
     vm.defineModule('luca', lucaExports)
     vm.defineModule('luca/schemas', schemasModule)
