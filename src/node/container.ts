@@ -44,6 +44,7 @@ import "./features/vault";
 import "./features/vm";
 import "./features/yaml-tree";
 import "./features/yaml";
+import "./features/store";
 import "./features/docker";
 import "./features/runpod";
 import "./features/secure-shell";
@@ -97,6 +98,7 @@ import type { Docker } from './features/docker';
 import type { Runpod } from './features/runpod';
 import type { SecureShell } from './features/secure-shell';
 import type { Ink } from './features/ink';
+import type { Store, StoreHandle, StoreHandleOptions } from './features/store';
 import type { Telegram } from './features/telegram';
 import type { Opener } from './features/opener';
 import type { Postgres } from './features/postgres';
@@ -141,6 +143,9 @@ export {
   type Runpod,
   type SecureShell,
   type Ink,
+  type Store,
+  type StoreHandle,
+  type StoreHandleOptions,
   type Telegram,
   type Opener,
   type Postgres,
@@ -211,6 +216,7 @@ export interface NodeFeatures extends AvailableFeatures {
   runpod: typeof Runpod;
   secureShell: typeof SecureShell;
   ink: typeof Ink;
+  store: typeof Store;
   telegram: typeof Telegram;
   opener: typeof Opener;
   postgres: typeof Postgres;
@@ -318,6 +324,8 @@ export class NodeContainer<
   helpers!: Helpers;
   containerLink?: ContainerLink;
   redis?: Redis;
+  /** The enabled store feature instance attaches here (plural — `store()` is the factory method) */
+  stores?: Store;
 
   constructor(options: any = {}) {
     super({ cwd: process.cwd(), ...argv, ...options });
@@ -359,6 +367,34 @@ export class NodeContainer<
   /** Returns the current working directory, from options or process.cwd(). */
   get cwd(): string {
     return this.options.cwd || process.cwd();
+  }
+
+  /**
+   * Open a named cross-process store — durable JSON state shared safely
+   * between separate luca invocations (a server and its sibling CLI commands,
+   * a fleet manager and its `stop` command, etc.).
+   *
+   * Sugar for `container.feature('store').open(name, options)`. The backing
+   * file is plain JSON under `.luca/store/` (project scope by default), and
+   * `update()` does a locked read-modify-write so concurrent processes can't
+   * clobber each other's writes. See `luca describe store` for the full API
+   * and the state-store decision guide.
+   *
+   * @param name - The store's name; becomes the filename `<name>.json`
+   * @param options - Schema, initial value, scope ('project' | 'machine' | 'tmp'), lock tuning
+   * @returns A store handle with `read` / `write` / `update` / `delete`
+   *
+   * @example
+   * ```typescript
+   * const stats = container.store('proxy-stats', {
+   *   schema: z.object({ hits: z.number().default(0) }),
+   * })
+   * await stats.update(s => { s.hits++ })
+   * console.log((await stats.read()).hits)
+   * ```
+   */
+  store<T = any>(name: string, options: StoreHandleOptions<T> = {}): StoreHandle<T> {
+    return (this.feature('store') as Store).open<T>(name, options)
   }
 
   /** Returns the parsed package.json manifest for the current working directory. */

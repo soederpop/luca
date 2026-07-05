@@ -1,7 +1,8 @@
 ---
-title: 'Cross-Process State Handoff: state, diskCache, or sqlite'
+title: 'Cross-Process State Handoff: store, diskCache, or sqlite'
 tags:
   - state
+  - store
   - entity
   - diskCache
   - sqlite
@@ -12,15 +13,16 @@ lastTested: '2026-07-05'
 lastTestPassed: true
 ---
 
-# Cross-Process State Handoff: state, diskCache, or sqlite
+# Cross-Process State Handoff: store, diskCache, or sqlite
 
-Every script eventually asks: *where does this value live?* The container gives you three stores with three different lifetimes, and picking the wrong one is how you end up serializing a database into a cache key. The heuristic:
+Every script eventually asks: *where does this value live?* The container gives you four stores with four different lifetimes, and picking the wrong one is how you end up serializing a database into a cache key. The heuristic:
 
 - **`container.state` / `container.entity`** — in-process, observable, dies with the process.
-- **`diskCache`** — cross-process key-value with optional TTL; fetch by key, no questions asked.
+- **`container.store`** — cross-process *state*: one durable, schema-validated JSON document per name, with locked read-modify-write updates. The default answer for counters, manifests, process lists, small configs.
+- **`diskCache`** — cross-process *cache* with optional TTL; entries are losable by contract. Fetch by key, no questions asked.
 - **`sqlite`** — cross-process *and queryable*; the moment you want to filter, group, or count, it's this one.
 
-This doc exercises all three — including proving the diskCache handoff by reading a value back **from a genuinely fresh process**.
+This doc exercises all four — including proving the handoffs by reading values back **from a genuinely fresh process**.
 
 ## In-process: entities are memoized by id
 
@@ -48,6 +50,52 @@ console.log('one entity, two handles, observed progress values:', JSON.stringify
 ```
 
 The catch: all of it evaporates when the process exits. Entities and feature state are wiring, not storage.
+
+## Cross-process state: container.store
+
+Every `luca <command>` invocation is a separate process — a server and its `--stats` sibling share no memory. `container.store(name)` gives that shared state a home: one JSON document, atomic writes, and the method that matters, **`update()`** — a locked read-modify-write, so two processes bumping the same counter can never overwrite each other (the classic lost-update bug is impossible by construction, not by discipline).
+
+```ts
+statsStore = container.store(`handoff-stats-${Date.now()}`, {
+  scope: 'tmp',   // demo hygiene — real apps default to 'project': <cwd>/.luca/store/<name>.json
+  schema: z.object({ hits: z.number().default(0), misses: z.number().default(0) }),
+})
+
+// A missing file reads as the schema's defaults — no init step, no exists-check dance
+const empty = await statsStore.read()
+if (empty.hits !== 0) throw new Error('schema defaults should apply to a missing file')
+
+// Ten concurrent updates — same-process calls serialize, cross-process calls take a file lock
+await Promise.all(Array.from({ length: 10 }, () => statsStore.update(s => { s.hits++ })))
+
+const after = await statsStore.read()
+if (after.hits !== 10) throw new Error(`lost update! expected 10 hits, got ${after.hits}`)
+console.log('10 concurrent updates, 10 recorded hits:', JSON.stringify(after))
+```
+
+The backing file is ordinary pretty-printed JSON — `cat` it, diff it, commit it:
+
+```ts
+console.log('state lives at:', statsStore.path)
+console.log(String(fs.readFile(statsStore.path)))
+```
+
+### Prove it: a fresh process updates the same store
+
+```ts
+const devCli2 = container.paths.resolve('src', 'cli', 'cli.ts')
+const [cmd2, baseArgs2] = fs.exists(devCli2) ? ['bun', ['run', devCli2, 'eval']] : ['luca', ['eval']]
+
+const storeExpr = `const s = container.store(${JSON.stringify(statsStore.name)}, { scope: 'tmp' }); await s.update(d => { d.misses = (d.misses ?? 0) + 1 }); console.log('CHILD_WROTE')`
+const storeChild = await proc.spawnAndCapture(cmd2, [...baseArgs2, storeExpr])
+
+if (storeChild.error !== null) throw new Error(`child process failed: ${storeChild.stderr.slice(-300)}`)
+const merged = await statsStore.read()
+if (merged.misses !== 1 || merged.hits !== 10) throw new Error(`child write lost or clobbered ours: ${JSON.stringify(merged)}`)
+console.log('fresh process bumped misses without touching our hits:', JSON.stringify(merged))
+```
+
+Scope note: `'project'` (the default) puts files in `<cwd>/.luca/store/` — so `ls .luca/store` (or `container.stores.list()`) answers "what state does this app keep?". `'machine'` (`~/.luca/store/`) is for state shared across projects. And if you're building a job queue on `update()`, you've outgrown it — that's sqlite's job below.
 
 ## Cross-process KV: diskCache
 
@@ -118,7 +166,8 @@ For the full extract → normalize → load → query workflow (bulk inserts ins
 db.close()
 await fs.rm(dbPath)
 await fs.rmdir(cachePath)
-console.log('removed scratch db and cache dir')
+await statsStore.delete()
+console.log('removed scratch db, cache dir, and store')
 ```
 
 ## The decision heuristic
@@ -126,7 +175,8 @@ console.log('removed scratch db and cache dir')
 | The value... | Reach for | Why |
 |---|---|---|
 | Stays inside this process; other modules should react to it | `container.state` / `container.entity` | Observable, memoized by id, zero persistence |
-| Another process (or a later run) fetches it by key | `diskCache` | KV with native TTL (`set(key, value, { ttl })`); remember `get()` throws on a miss |
+| Is *state* other processes read and mutate — counters, manifests, process lists, small configs | `container.store` | One durable JSON doc; `update()` is a locked read-modify-write, so concurrent commands can't lose writes |
+| Is a *cache* — recomputable, fetch-by-key, may expire | `diskCache` | KV with native TTL (`set(key, value, { ttl })`); remember `get()` throws on a miss |
 | You will ask questions of it — filter, count, group, join, claim-one-atomically | `sqlite` | A file path makes it durable and shared; SQL makes it queryable |
 
-When in doubt: if the *access pattern* is a key, cache it; if the access pattern is a question, table it; if nobody outside this process cares, keep it in state.
+When in doubt: if losing the value is a bug, it's a store; if losing it is a cache miss, it's a cache; if the access pattern is a question, table it; if nobody outside this process cares, keep it in state.

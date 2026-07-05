@@ -303,25 +303,27 @@ Recurring shapes that evaluation sessions had to improvise — use these instead
 
 ### State between separate `luca` invocations
 
-Every `luca` command runs in a fresh process with a fresh container — module-level variables and helper registrations do not survive. The blessed handoff is `diskCache` (note: `get()` throws on a missing key — guard with `has()`):
+Every `luca` command runs in a fresh process with a fresh container — module-level variables and helper registrations do not survive. The blessed handoff is `container.store(name)`: one durable JSON document per name (under `.luca/store/`), schema-validated, with atomic writes. Never hand-roll a state dotfile or keep shared counters in memory.
 
 ```js
-// process A (e.g. `luca scout`)
-const cache = container.feature('diskCache')
-await cache.set('scout', { port, pid, startedAt: new Date().toISOString() })
+// process A (e.g. `luca scout`) — update() is a LOCKED read-modify-write:
+// concurrent invocations can never overwrite each other's writes
+const scout = container.store('scout')
+await scout.update(s => { s.port = port; s.pid = process.pid })
 
-// process B (e.g. `luca check`)
-if (cache.has('scout')) { const { port } = await cache.get('scout') }
+// process B (e.g. `luca check`) — read() always re-reads the file
+const { port } = await container.store('scout').read()
 ```
 
-For queryable state use `sqlite`; for simple cases a JSON file via `fs.writeJson`/`readJson` is fine too.
+Pass `schema` (zod, with `.default()`s) and a missing file reads as your defaults — no init step. The file at `store.path` is plain JSON: `cat` it, commit it. Full API: `luca describe store`.
 
 **Which store? The decision heuristic:**
 
 | Need | Use |
 |------|-----|
 | In-process, ephemeral, reactive | `container.state` / feature state |
-| Cross-process handoff of scalars/blobs (config, tokens, PIDs) | `diskCache` (supports `ttl` for expiry) |
+| Cross-process **state** — counters, manifests, PIDs, process lists, small configs | `container.store(name)` (locked `update()`, atomic writes; losing it would be a bug) |
+| Cross-process **cache** — recomputable, may expire | `diskCache` (supports `ttl`; expired = miss; `get()` throws on a miss — guard with `has()`) |
 | Queryable, relational, transactional, durable queues | `sqlite` (see `transaction()` and `UPDATE … RETURNING` for atomic job claims) |
 | Cross-process pub/sub fan-out | `redis` (`publish`/`subscribe`) |
 
@@ -423,7 +425,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 | **Process & Shell** | `proc`, `processManager`, `secureShell` | Run commands, manage long-running processes, SSH |
 | **AI Assistants** | `assistant`, `assistantsManager`, `conversation`, `conversationHistory`, `fileTools` | Build AI assistants, manage conversations, tool calling. `fileTools` composes lower-level features (`fs`, `grep`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see `references/examples/feature-as-tool-provider.md`). |
 | **AI Agent Wrappers** | `claudeCode`, `openaiCodex`, `lucaCoder` | Spawn and manage external AI agent CLIs as subprocesses |
-| **Data & Storage** | `sqlite`, `postgres`, `diskCache`, `contentDb`, `redis` | Databases, caching, document management |
+| **Data & Storage** | `store`, `sqlite`, `postgres`, `diskCache`, `contentDb`, `redis` | Cross-process state, databases, caching, document management |
 | **Networking** | `networking`, `dns` | Network utilities, DNS |
 | **Google Workspace** | `googleAuth`, `googleDrive`, `googleDocs`, `googleSheets`, `googleCalendar`, `googleMail` | OAuth and Google service wrappers |
 | **Dev Tools** | `git`, `docker`, `esbuild`, `vm`, `python`, `packageFinder` | Version control, containers, bundling, sandboxed execution |

@@ -176,6 +176,28 @@ without the managed layer, the primitives live on utils: `container.utils.every(
 (non-overlapping poll loop, returns `stop()`), `container.utils.sleep(ms)`, and
 `container.utils.backoff(fn, { attempts, delay })` for retrying flaky calls.
 
+## State Shared Between Invocations
+
+Every `luca` command is a separate process — a daemon and the sibling commands that
+inspect or control it (`--stats`, `stop`, `status`) share no memory. Give that shared
+state a named store instead of inventing a dotfile:
+
+```ts
+const stats = container.store('{{kebabName}}-stats', {
+  schema: z.object({ processed: z.number().default(0), lastRunAt: z.string().optional() }),
+})
+
+// update() = lock → read → mutate → validate → atomic write.
+// Concurrent invocations can never overwrite each other's writes.
+await stats.update(s => { s.processed++; s.lastRunAt = new Date().toISOString() })
+
+// A sibling process just reads — always fresh from disk
+const { processed } = await stats.read()
+```
+
+The file lives at `.luca/store/{{kebabName}}-stats.json` — plain JSON you can `cat`.
+Full API and the which-store decision guide: `luca describe store`.
+
 ## Conventions
 
 - **File location**: `commands/{{kebabName}}.ts` in the project root. The `luca` CLI discovers these automatically.
