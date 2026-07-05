@@ -36,6 +36,21 @@ export default async function about(options: z.infer<typeof argsSchema>, context
     }
   }
 
+  // Assistants register through the assistantsManager rather than discoverAll —
+  // this also lists assistants embedded in a bundled consumer binary.
+  const assistants = container.feature('assistantsManager').availableAssistants || []
+  if (assistants.length > 0) {
+    ui.print.green(`  assistants (${assistants.length})`)
+    for (const name of assistants) {
+      ui.print(`    • ${name}`)
+    }
+  }
+
+  // In a bundled consumer binary this command runs under that binary's name,
+  // and describe/eval are only present when compiled in via --builtins.
+  const binaryName = (container as any)._binaryName || 'luca'
   const totalBuiltIn = types.reduce((sum: number, t: string) => sum + (container[t]?.available?.length || 0), 0)
-  ui.print.dim(`\n  ${totalBuiltIn} built-in helpers available. Run \`luca describe\` for details.\n`)
+  const inspector = ['describe', 'eval'].find((cmd) => container.commands.has(cmd))
+  const hint = inspector ? ` Run \`${binaryName} ${inspector}\` for details.` : ''
+  ui.print.dim(`\n  ${totalBuiltIn} built-in helpers available.${hint}\n`)
 }

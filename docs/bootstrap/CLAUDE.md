@@ -90,7 +90,7 @@ The container provides more than you might expect. Before importing anything ext
 - **For DELETE endpoint handlers, use `export { del as delete }`** — `delete` is a JS reserved word. Define your function with any name, then re-export it as `delete`.
 - **Bun globals (`Bun.spawn`, `Bun.serve`) are unavailable** in command/endpoint handlers. Use Node's `child_process` for spawning processes, or use `container.feature('proc').exec()`.
 - **`ui.print.*` writes to stdout** — if your command supports `--json`, gate UI output behind `if (!options.json)`.
-- **`ui.print.<color>()` is not a string formatter** — it prints immediately and returns `undefined`, so `` `${ui.print.green('OK')}` `` interpolates `undefined`. To compose colored strings, use `ui.colors.<color>()`, which returns the styled string.
+- **`ui.print.<color>()` is not a string formatter** — it prints immediately and returns `undefined`, so `` `${ui.print.green('OK')}` `` interpolates `undefined`. To compose colored strings, use `ui.colors.<color>()`, which returns the styled string. (`ui.print` mirrors every chalk color/style name that `ui.colors` has — but it always prints.)
 - **Checking whether a PID is alive**: `proc.kill(pid, 0)` sends nothing and returns `false` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
 - **VM contexts start near-empty — and command/endpoint handlers run in that same VM.** JS built-ins (`Promise`, `Date`, `Math`, `JSON`) plus `console`, timers, `process`, `Buffer`, `fetch`, `crypto`, and `TextEncoder`/`TextDecoder` are provided; when you build your own context with `container.feature('vm')`, inject anything beyond that explicitly. zod is always importable (`import { z } from 'zod'`) — export schemas unconditionally. In `luca eval`, `z` and `require` are already in scope — prototype schemas directly.
 - **Long-running commands** (servers, watchers) must hold the process open. The easy path is `await container.feature('scheduler').run()` — it blocks until SIGINT/SIGTERM, then stops all scheduled tasks and runs your `onShutdown` hook. The manual idiom is `await new Promise(() => {})` plus a `process.on('SIGINT', ...)` cleanup handler.
@@ -120,6 +120,35 @@ luca scaffold endpoint users --description "User management API"
 ```
 
 Run `luca scaffold` with no arguments for full usage and examples.
+
+## Assistants
+
+`luca scaffold assistant <name>` creates `assistants/<name>/` — an assistant is just that folder:
+
+- `CORE.md` — injected into the system prompt
+- `tools.ts` — exports a `schemas` object (zod v4, keys = tool names) plus a matching exported function per key. The luca `container` is available as a **global** in tools.ts and hooks.ts (add `declare const container: any` for your editor).
+- `hooks.ts` — exported functions named after assistant lifecycle events
+
+At runtime `assistant.tools.<name>` is `{ handler, parameters, description }` — call `assistant.tools.myTool.handler({...})`, not `assistant.tools.myTool()`. Check what's registered with `container.feature('assistantsManager').availableAssistants`. Chat interactively with `luca chat <name>`.
+
+## Shipping a Binary
+
+`luca bundle <name>` compiles the whole project — features, commands, endpoints, and every `assistants/` folder with a CORE.md — into a standalone consumer binary at `dist/<name>-<platform>`:
+
+```sh
+luca bundle fortune                          # darwin-arm64 by default
+luca bundle fortune --targets darwin-arm64,linux-x64
+luca bundle fortune --builtins eval,describe # opt in to luca built-ins
+```
+
+- **Built-in luca commands are opt-in** via `--builtins` (only `run` is always included, and bundling assistants implies `chat` + `assistant`). If you skip `eval`/`describe`, the binary can't be introspected — you'd have to rebuild.
+- **Verify from the binary itself**, not just the dev CLI:
+  ```sh
+  ./dist/<name>-<platform> <yourCommand>
+  ./dist/<name>-<platform> run scripts/smoke.ts
+  ./dist/<name>-<platform> eval "container.feature('assistantsManager').availableAssistants"   # needs --builtins eval
+  ```
+- Bundled assistants are embedded in the binary and materialized to `~/.luca/bundles/<name>/assistants` on first run — edits to your `assistants/` folder don't reach an already-built binary; rebundle.
 
 ## Git Strategy
 

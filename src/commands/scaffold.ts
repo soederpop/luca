@@ -149,7 +149,8 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 		ui.print.dim(`    tools.ts  — tool functions the assistant can call`)
 		ui.print.dim(`    hooks.ts  — lifecycle event handlers`)
 		ui.print.dim(`    voice.yml — optional voice/TTS config (uncomment to enable)`)
-		ui.print(`\n  Start chatting:  luca chat ${name}\n`)
+		ui.print(`\n  Start chatting:  luca chat ${name}`)
+		ui.print.dim(`  Verify registration:  luca eval "container.feature('assistantsManager').availableAssistants"\n`)
 		return
 	}
 

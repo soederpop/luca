@@ -35,6 +35,19 @@ type Color = keyof typeof colors;
 /** Basic print function signature */
 type PrintFunction = (...args: any[]) => void;
 
+/**
+ * The full set of chalk modifier/color/background style names mirrored onto
+ * `ui.print`. Kept as an explicit list because chalk styles live on the
+ * prototype and aren't reliably enumerable.
+ */
+const CHALK_STYLE_NAMES = [
+  'reset', 'bold', 'dim', 'italic', 'underline', 'inverse', 'hidden', 'strikethrough', 'visible',
+  'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey',
+  'blackBright', 'redBright', 'greenBright', 'yellowBright', 'blueBright', 'magentaBright', 'cyanBright', 'whiteBright',
+  'bgBlack', 'bgRed', 'bgGreen', 'bgYellow', 'bgBlue', 'bgMagenta', 'bgCyan', 'bgWhite', 'bgGray', 'bgGrey',
+  'bgBlackBright', 'bgRedBright', 'bgGreenBright', 'bgYellowBright', 'bgBlueBright', 'bgMagentaBright', 'bgCyanBright', 'bgWhiteBright',
+] as const;
+
 /** Enhanced print function with color methods attached */
 type ColoredPrintFunction = PrintFunction & {
   [color in Color]: (...args: any[]) => void;
@@ -101,24 +114,15 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
     success: (text: string) => console.log(colors.green(text)),
     warn: (text: string) => console.log(colors.yellow(text)),
     warning: (text: string) => console.log(colors.yellow(text)),
-    red: (text: string) => console.log(colors.red(text)),
-    green: (text: string) => console.log(colors.green(text)),
-    blue: (text: string) => console.log(colors.blue(text)),
-    yellow: (text: string) => console.log(colors.yellow(text)),
-    cyan: (text: string) => console.log(colors.cyan(text)),
-    dim: (text: string) => console.log(colors.dim(text)),
-    bold: (text: string) => console.log(colors.bold(text)),
-    italic: (text: string) => console.log(colors.italic(text)),
-    underline: (text: string) => console.log(colors.underline(text)),
-    strikethrough: (text: string) => console.log(colors.strikethrough(text)),
-    inverse: (text: string) => console.log(colors.inverse(text)),
-    bgRed: (text: string) => console.log(colors.bgRed(text)),
-    bgGreen: (text: string) => console.log(colors.bgGreen(text)),
-    bgBlue: (text: string) => console.log(colors.bgBlue(text)),
-    bgYellow: (text: string) => console.log(colors.bgYellow(text)),
-    bgCyan: (text: string) => console.log(colors.bgCyan(text)),
-    bgMagenta: (text: string) => console.log(colors.bgMagenta(text)),
-    bgWhite: (text: string) => console.log(colors.bgWhite(text)),
+    // Every chalk style ui.colors exposes — the ColoredPrintFunction type
+    // promises full parity, so build it rather than hand-listing a subset
+    // (ui.print.magenta used to be a runtime TypeError while the types said
+    // it existed).
+    ...Object.fromEntries(
+      CHALK_STYLE_NAMES
+        .filter((name) => typeof (colors as any)[name] === 'function')
+        .map((name) => [name, (text: string) => console.log((colors as any)[name](text))])
+    ),
   }) as unknown as ColoredPrintFunction
 
   /**

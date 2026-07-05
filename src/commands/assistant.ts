@@ -106,7 +106,8 @@ async function createSub(container: any, ui: any, rest: string[], options: Assis
 	ui.print.dim('    CORE.md   — system prompt')
 	ui.print.dim('    tools.ts  — tool functions the assistant can call')
 	ui.print.dim('    hooks.ts  — lifecycle event handlers')
-	ui.print(`\n  Start chatting:  luca chat ${name}\n`)
+	ui.print(`\n  Start chatting:  luca chat ${name}`)
+	ui.print.dim(`  Verify registration:  luca eval "container.feature('assistantsManager').availableAssistants"\n`)
 }
 
 interface BundleEntry {
