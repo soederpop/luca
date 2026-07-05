@@ -158,6 +158,48 @@ console.log(entries) // ['index.ts', 'utils.ts', 'components']
 
 
 
+### readdirAsync
+
+Asynchronously reads the contents of a directory.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `Promise<string[]>`
+
+
+
+### readDir
+
+Asynchronously reads the contents of a directory (camelCase spelling).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `Promise<string[]>`
+
+
+
+### readDirSync
+
+Synchronously reads the contents of a directory (camelCase spelling).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `string[]`
+
+
+
 ### writeFile
 
 Synchronously writes content to a file.
@@ -175,6 +217,21 @@ Synchronously writes content to a file.
 fs.writeFile('output.txt', 'Hello World')
 fs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))
 ```
+
+
+
+### writeFileSync
+
+Synchronously writes content to a file (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `content` | `Buffer | string` | ✓ | Parameter content |
+
+**Returns:** `void`
 
 
 
@@ -218,6 +275,22 @@ fs.writeJson('config.json', { version: '1.0.0', debug: false })
 
 
 
+### writeJsonSync
+
+Synchronously writes an object to a file as JSON.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `data` | `any` | ✓ | Parameter data |
+| `indent` | `number` |  | Parameter indent |
+
+**Returns:** `void`
+
+
+
 ### writeJsonAsync
 
 Asynchronously writes an object to a file as JSON.
@@ -254,6 +327,21 @@ Synchronously appends content to a file.
 ```ts
 fs.appendFile('log.txt', 'New line\n')
 ```
+
+
+
+### appendFileSync
+
+Synchronously appends content to a file (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `content` | `Buffer | string` | ✓ | Parameter content |
+
+**Returns:** `void`
 
 
 
@@ -370,6 +458,83 @@ fs.mkdirp('deep/nested/path')
 
 
 
+### mkdir
+
+Synchronously creates a directory, including parent directories — always recursive. Node-style options are accepted and ignored (`recursive` is always on).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The directory path to create |
+| `_options` | `{ recursive?: boolean }` |  | Accepted for node compatibility; creation is always recursive |
+
+**Returns:** `string`
+
+```ts
+fs.mkdir('logs/debug')
+```
+
+
+
+### mkdirSync
+
+Synchronously creates a directory, including parent directories — always recursive.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `_options` | `{ recursive?: boolean }` |  | Parameter _options |
+
+**Returns:** `string`
+
+
+
+### mkdirAsync
+
+Asynchronously creates a directory, including parent directories — always recursive.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `_options` | `{ recursive?: boolean }` |  | Parameter _options |
+
+**Returns:** `Promise<string>`
+
+
+
+### ensureDir
+
+Synchronously ensures a directory exists (fs-extra's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `string`
+
+
+
+### ensureDirAsync
+
+Asynchronously ensures a directory exists (fs-extra's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `Promise<string>`
+
+
+
 ### exists
 
 Synchronously checks if a file or directory exists.
@@ -430,6 +595,34 @@ if (await fs.existsAsync('config.json')) {
 
 
 
+### pathExists
+
+Asynchronously checks if a path exists (fs-extra's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `Promise<boolean>`
+
+
+
+### pathExistsSync
+
+Synchronously checks if a path exists (fs-extra's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `boolean`
+
+
+
 ### isSymlink
 
 Checks if a path is a symbolic link.
@@ -474,6 +667,20 @@ Synchronously returns the stat object for a file or directory.
 const info = fs.stat('package.json')
 console.log(info.size, info.mtime)
 ```
+
+
+
+### statSync
+
+Synchronously returns the stat object for a file or directory (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `Stats`
 
 
 
@@ -578,50 +785,69 @@ if (await fs.isDirectoryAsync('src')) {
 
 ### rmSync
 
-Synchronously removes a file.
+Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path of the file to remove |
+| `options` | `{ recursive?: boolean; force?: boolean }` |  | Node-compatible options |
+
+`{ recursive?: boolean; force?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `recursive` | `any` | Remove directories and their contents |
+| `force` | `any` | Don't throw if the path doesn't exist |
 
 **Returns:** `void`
 
 ```ts
 fs.rmSync('temp/cache.tmp')
+fs.rmSync('temp/cache', { recursive: true })
 ```
 
 
 
 ### rm
 
-Asynchronously removes a file.
+Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `path` | `string` | ✓ | The path of the file to remove |
+| `options` | `{ recursive?: boolean; force?: boolean }` |  | Node-compatible options |
+
+`{ recursive?: boolean; force?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `recursive` | `any` | Remove directories and their contents |
+| `force` | `any` | Don't throw if the path doesn't exist |
 
 **Returns:** `Promise<void>`
 
 ```ts
 fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
+await fs.rm('temp/cache', { recursive: true, force: true })
 ```
 
 
 
 ### rmdirSync
 
-Synchronously removes a directory and all its contents.
+Synchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `dirPath` | `string` | ✓ | The path of the directory to remove |
+| `_options` | `{ recursive?: boolean; force?: boolean }` |  | Accepted for node compatibility; removal is always recursive and forced |
 
 **Returns:** `void`
 
@@ -633,19 +859,150 @@ fs.rmdirSync('temp/cache')
 
 ### rmdir
 
-Asynchronously removes a directory and all its contents.
+Asynchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `dirPath` | `string` | ✓ | The path of the directory to remove |
+| `_options` | `{ recursive?: boolean; force?: boolean }` |  | Accepted for node compatibility; removal is always recursive and forced |
 
 **Returns:** `Promise<void>`
 
 ```ts
 await fs.rmdir('temp/cache')
 ```
+
+
+
+### remove
+
+Removes a file or directory recursively — whatever the path is, it's gone (fs-extra's `remove`). No error if the path doesn't exist.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The file or directory to remove |
+
+**Returns:** `Promise<void>`
+
+```ts
+await fs.remove('temp')          // directory
+await fs.remove('temp/file.txt') // or file — both fine
+```
+
+
+
+### removeSync
+
+Synchronously removes a file or directory recursively (fs-extra's `removeSync`). No error if the path doesn't exist.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The file or directory to remove |
+
+**Returns:** `void`
+
+```ts
+fs.removeSync('temp')
+```
+
+
+
+### deleteFile
+
+Synchronously deletes a file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path of the file to delete |
+
+**Returns:** `void`
+
+```ts
+fs.deleteFile('temp/cache.tmp')
+```
+
+
+
+### deleteFileAsync
+
+Asynchronously deletes a file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | The path of the file to delete |
+
+**Returns:** `Promise<void>`
+
+```ts
+await fs.deleteFileAsync('temp/cache.tmp')
+```
+
+
+
+### unlink
+
+Asynchronously removes a file (node's `fs/promises` name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `void`
+
+
+
+### unlinkSync
+
+Synchronously removes a file (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+
+**Returns:** `void`
+
+
+
+### rmAsync
+
+Asynchronously removes a file.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `path` | `string` | ✓ | Parameter path |
+| `options` | `{ recursive?: boolean; force?: boolean }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### rmdirAsync
+
+Asynchronously removes a directory and all its contents.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `dirPath` | `string` | ✓ | Parameter dirPath |
+
+**Returns:** `void`
 
 
 
@@ -673,6 +1030,54 @@ Synchronously copies a file or directory. Auto-detects whether the source is a f
 fs.copy('src/index.ts', 'backup/index.ts')
 fs.copy('src', 'backup/src')
 ```
+
+
+
+### copySync
+
+Synchronously copies a file or directory.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+| `options` | `{ overwrite?: boolean }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### cp
+
+Asynchronously copies a file or directory (node's `fs/promises` name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+| `options` | `{ overwrite?: boolean }` |  | Parameter options |
+
+**Returns:** `void`
+
+
+
+### cpSync
+
+Synchronously copies a file or directory (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+| `options` | `{ overwrite?: boolean }` |  | Parameter options |
+
+**Returns:** `void`
 
 
 
@@ -746,6 +1151,51 @@ await fs.moveAsync('temp/draft.txt', 'final/document.txt')
 await fs.ensureFolderAsync('old-dir')
 await fs.moveAsync('old-dir', 'new-dir')
 ```
+
+
+
+### moveSync
+
+Synchronously moves a file or directory.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+
+**Returns:** `void`
+
+
+
+### rename
+
+Asynchronously moves (renames) a file or directory (node's `fs/promises` name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+
+**Returns:** `void`
+
+
+
+### renameSync
+
+Synchronously moves (renames) a file or directory (node's name).
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `src` | `string` | ✓ | Parameter src |
+| `dest` | `string` | ✓ | Parameter dest |
+
+**Returns:** `void`
 
 
 
@@ -1036,6 +1486,14 @@ fs.mkdirp('deep/nested/path')
 
 
 
+**mkdir**
+
+```ts
+fs.mkdir('logs/debug')
+```
+
+
+
 **exists**
 
 ```ts
@@ -1128,6 +1586,7 @@ if (await fs.isDirectoryAsync('src')) {
 
 ```ts
 fs.rmSync('temp/cache.tmp')
+fs.rmSync('temp/cache', { recursive: true })
 ```
 
 
@@ -1137,6 +1596,7 @@ fs.rmSync('temp/cache.tmp')
 ```ts
 fs.ensureFile('temp/cache.tmp', '')
 await fs.rm('temp/cache.tmp')
+await fs.rm('temp/cache', { recursive: true, force: true })
 ```
 
 
@@ -1153,6 +1613,39 @@ fs.rmdirSync('temp/cache')
 
 ```ts
 await fs.rmdir('temp/cache')
+```
+
+
+
+**remove**
+
+```ts
+await fs.remove('temp')          // directory
+await fs.remove('temp/file.txt') // or file — both fine
+```
+
+
+
+**removeSync**
+
+```ts
+fs.removeSync('temp')
+```
+
+
+
+**deleteFile**
+
+```ts
+fs.deleteFile('temp/cache.tmp')
+```
+
+
+
+**deleteFileAsync**
+
+```ts
+await fs.deleteFileAsync('temp/cache.tmp')
 ```
 
 

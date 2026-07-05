@@ -212,6 +212,30 @@ export class FS extends Feature {
     return await readdir(this.container.paths.resolve(path))
   }
 
+  /**
+   * Asynchronously reads the contents of a directory.
+   * @alias readdir
+   */
+  async readdirAsync(path: string): Promise<string[]> {
+    return this.readdir(path)
+  }
+
+  /**
+   * Asynchronously reads the contents of a directory (camelCase spelling).
+   * @alias readdir
+   */
+  async readDir(path: string): Promise<string[]> {
+    return this.readdir(path)
+  }
+
+  /**
+   * Synchronously reads the contents of a directory (camelCase spelling).
+   * @alias readdirSync
+   */
+  readDirSync(path: string): string[] {
+    return this.readdirSync(path)
+  }
+
   // ---------------------------------------------------------------------------
   // Write
   // ---------------------------------------------------------------------------
@@ -231,6 +255,14 @@ export class FS extends Feature {
    */
   writeFile(path: string, content: Buffer | string): void {
     writeFileSync(this.container.paths.resolve(path), content)
+  }
+
+  /**
+   * Synchronously writes content to a file (node's name).
+   * @alias writeFile
+   */
+  writeFileSync(path: string, content: Buffer | string): void {
+    this.writeFile(path, content)
   }
 
   /**
@@ -269,6 +301,14 @@ export class FS extends Feature {
   }
 
   /**
+   * Synchronously writes an object to a file as JSON.
+   * @alias writeJson
+   */
+  writeJsonSync(path: string, data: any, indent: number = 2): void {
+    this.writeJson(path, data, indent)
+  }
+
+  /**
    * Asynchronously writes an object to a file as JSON.
    *
    * @param {string} path - The file path where the JSON should be written
@@ -299,6 +339,14 @@ export class FS extends Feature {
    */
   appendFile(path: string, content: Buffer | string): void {
     appendFileSync(this.container.paths.resolve(path), content)
+  }
+
+  /**
+   * Synchronously appends content to a file (node's name).
+   * @alias appendFile
+   */
+  appendFileSync(path: string, content: Buffer | string): void {
+    this.appendFile(path, content)
   }
 
   /**
@@ -425,6 +473,56 @@ export class FS extends Feature {
     return this.ensureFolder(folder)
   }
 
+  /**
+   * Synchronously creates a directory, including parent directories — always recursive.
+   * Node-style options are accepted and ignored (`recursive` is always on).
+   * @alias ensureFolder
+   *
+   * @param {string} path - The directory path to create
+   * @param {object} [_options] - Accepted for node compatibility; creation is always recursive
+   * @returns {string} The resolved directory path
+   *
+   * @example
+   * ```typescript
+   * fs.mkdir('logs/debug')
+   * ```
+   */
+  mkdir(path: string, _options: { recursive?: boolean } = {}): string {
+    return this.ensureFolder(path)
+  }
+
+  /**
+   * Synchronously creates a directory, including parent directories — always recursive.
+   * @alias ensureFolder
+   */
+  mkdirSync(path: string, _options: { recursive?: boolean } = {}): string {
+    return this.ensureFolder(path)
+  }
+
+  /**
+   * Asynchronously creates a directory, including parent directories — always recursive.
+   * @alias ensureFolderAsync
+   */
+  async mkdirAsync(path: string, _options: { recursive?: boolean } = {}): Promise<string> {
+    return this.ensureFolderAsync(path)
+  }
+
+  /**
+   * Synchronously ensures a directory exists (fs-extra's name).
+   * @alias ensureFolder
+   */
+  ensureDir(path: string): string {
+    return this.ensureFolder(path)
+  }
+
+  /**
+   * Asynchronously ensures a directory exists (fs-extra's name).
+   * @alias ensureFolderAsync
+   */
+  async ensureDirAsync(path: string): Promise<string> {
+    return this.ensureFolderAsync(path)
+  }
+
   // ---------------------------------------------------------------------------
   // Existence & stat
   // ---------------------------------------------------------------------------
@@ -488,6 +586,22 @@ export class FS extends Feature {
   }
 
   /**
+   * Asynchronously checks if a path exists (fs-extra's name).
+   * @alias existsAsync
+   */
+  async pathExists(path: string): Promise<boolean> {
+    return this.existsAsync(path)
+  }
+
+  /**
+   * Synchronously checks if a path exists (fs-extra's name).
+   * @alias exists
+   */
+  pathExistsSync(path: string): boolean {
+    return this.exists(path)
+  }
+
+  /**
    * Checks if a path is a symbolic link.
    *
    * @param {string} path - The path to check
@@ -524,6 +638,14 @@ export class FS extends Feature {
    */
   stat(path: string): Stats {
     return statSync(this.container.paths.resolve(path))
+  }
+
+  /**
+   * Synchronously returns the stat object for a file or directory (node's name).
+   * @alias stat
+   */
+  statSync(path: string): Stats {
+    return this.stat(path)
   }
 
   /**
@@ -624,41 +746,58 @@ export class FS extends Feature {
   // ---------------------------------------------------------------------------
 
   /**
-   * Synchronously removes a file.
+   * Synchronously removes a file. Accepts node-style `{ recursive, force }` options,
+   * so `fs.rmSync('dir', { recursive: true })` works on directories too.
    *
    * @param {string} path - The path of the file to remove
-   * @throws {Error} Throws an error if the file cannot be removed or doesn't exist
+   * @param {object} [options={}] - Node-compatible options
+   * @param {boolean} [options.recursive=false] - Remove directories and their contents
+   * @param {boolean} [options.force=true] - Don't throw if the path doesn't exist
+   * @throws {Error} Throws an error if the path cannot be removed
    *
    * @example
    * ```typescript
    * fs.rmSync('temp/cache.tmp')
+   * fs.rmSync('temp/cache', { recursive: true })
    * ```
    */
-  rmSync(path: string): void {
-    nodeRmSync(this.container.paths.resolve(path), { force: true })
+  rmSync(path: string, options: { recursive?: boolean; force?: boolean } = {}): void {
+    const { recursive = false, force = true } = options
+    nodeRmSync(this.container.paths.resolve(path), { recursive, force })
   }
 
   /**
-   * Asynchronously removes a file.
+   * Asynchronously removes a file. Accepts node-style `{ recursive, force }` options,
+   * so `await fs.rm('dir', { recursive: true })` works on directories too.
    *
    * @param {string} path - The path of the file to remove
+   * @param {object} [options={}] - Node-compatible options
+   * @param {boolean} [options.recursive=false] - Remove directories and their contents
+   * @param {boolean} [options.force=false] - Don't throw if the path doesn't exist
    * @returns {Promise<void>} A promise that resolves when the file is removed
-   * @throws {Error} Throws an error if the file cannot be removed or doesn't exist
+   * @throws {Error} Throws an error if the path cannot be removed or doesn't exist
    *
    * @example
    * ```typescript
    * fs.ensureFile('temp/cache.tmp', '')
    * await fs.rm('temp/cache.tmp')
+   * await fs.rm('temp/cache', { recursive: true, force: true })
    * ```
    */
-  async rm(path: string) {
-    return await unlink(this.container.paths.resolve(path));
+  async rm(path: string, options: { recursive?: boolean; force?: boolean } = {}) {
+    const resolved = this.container.paths.resolve(path)
+    if (options.recursive || options.force) {
+      return await nodeRm(resolved, { recursive: options.recursive ?? false, force: options.force ?? false })
+    }
+    return await unlink(resolved);
   }
 
   /**
-   * Synchronously removes a directory and all its contents.
+   * Synchronously removes a directory and all its contents. Already recursive —
+   * node-style options are accepted and ignored for compatibility.
    *
    * @param {string} dirPath - The path of the directory to remove
+   * @param {object} [_options] - Accepted for node compatibility; removal is always recursive and forced
    * @throws {Error} Throws an error if the directory cannot be removed
    *
    * @example
@@ -666,14 +805,16 @@ export class FS extends Feature {
    * fs.rmdirSync('temp/cache')
    * ```
    */
-  rmdirSync(dirPath: string): void {
+  rmdirSync(dirPath: string, _options: { recursive?: boolean; force?: boolean } = {}): void {
     nodeRmSync(this.container.paths.resolve(dirPath), { recursive: true, force: true })
   }
 
   /**
-   * Asynchronously removes a directory and all its contents.
+   * Asynchronously removes a directory and all its contents. Already recursive —
+   * node-style options are accepted and ignored for compatibility.
    *
    * @param {string} dirPath - The path of the directory to remove
+   * @param {object} [_options] - Accepted for node compatibility; removal is always recursive and forced
    * @returns {Promise<void>} A promise that resolves when the directory is removed
    * @throws {Error} Throws an error if the directory cannot be removed
    *
@@ -682,8 +823,103 @@ export class FS extends Feature {
    * await fs.rmdir('temp/cache')
    * ```
    */
-  async rmdir(dirPath: string) {
+  async rmdir(dirPath: string, _options: { recursive?: boolean; force?: boolean } = {}) {
     await rimraf(this.container.paths.resolve(dirPath));
+  }
+
+  /**
+   * Removes a file or directory recursively — whatever the path is, it's gone
+   * (fs-extra's `remove`). No error if the path doesn't exist.
+   *
+   * @param {string} path - The file or directory to remove
+   * @returns {Promise<void>} A promise that resolves when the path is removed
+   *
+   * @example
+   * ```typescript
+   * await fs.remove('temp')          // directory
+   * await fs.remove('temp/file.txt') // or file — both fine
+   * ```
+   */
+  async remove(path: string) {
+    await rimraf(this.container.paths.resolve(path))
+  }
+
+  /**
+   * Synchronously removes a file or directory recursively (fs-extra's `removeSync`).
+   * No error if the path doesn't exist.
+   *
+   * @param {string} path - The file or directory to remove
+   *
+   * @example
+   * ```typescript
+   * fs.removeSync('temp')
+   * ```
+   */
+  removeSync(path: string): void {
+    nodeRmSync(this.container.paths.resolve(path), { recursive: true, force: true })
+  }
+
+  /**
+   * Synchronously deletes a file.
+   * @alias rmSync
+   *
+   * @param {string} path - The path of the file to delete
+   *
+   * @example
+   * ```typescript
+   * fs.deleteFile('temp/cache.tmp')
+   * ```
+   */
+  deleteFile(path: string): void {
+    this.rmSync(path)
+  }
+
+  /**
+   * Asynchronously deletes a file.
+   * @alias rm
+   *
+   * @param {string} path - The path of the file to delete
+   * @returns {Promise<void>} A promise that resolves when the file is deleted
+   *
+   * @example
+   * ```typescript
+   * await fs.deleteFileAsync('temp/cache.tmp')
+   * ```
+   */
+  async deleteFileAsync(path: string) {
+    return this.rm(path, { force: true })
+  }
+
+  /**
+   * Asynchronously removes a file (node's `fs/promises` name).
+   * @alias rm
+   */
+  async unlink(path: string) {
+    return this.rm(path)
+  }
+
+  /**
+   * Synchronously removes a file (node's name).
+   * @alias rmSync
+   */
+  unlinkSync(path: string): void {
+    this.rmSync(path)
+  }
+
+  /**
+   * Asynchronously removes a file.
+   * @alias rm
+   */
+  async rmAsync(path: string, options: { recursive?: boolean; force?: boolean } = {}) {
+    return this.rm(path, options)
+  }
+
+  /**
+   * Asynchronously removes a directory and all its contents.
+   * @alias rmdir
+   */
+  async rmdirAsync(dirPath: string) {
+    return this.rmdir(dirPath)
   }
 
   // ---------------------------------------------------------------------------
@@ -711,6 +947,30 @@ export class FS extends Feature {
     const resolvedSrc = this.container.paths.resolve(src)
     const resolvedDest = this.container.paths.resolve(dest)
     cpSync(resolvedSrc, resolvedDest, { recursive: true, force: overwrite })
+  }
+
+  /**
+   * Synchronously copies a file or directory.
+   * @alias copy
+   */
+  copySync(src: string, dest: string, options: { overwrite?: boolean } = {}): void {
+    this.copy(src, dest, options)
+  }
+
+  /**
+   * Asynchronously copies a file or directory (node's `fs/promises` name).
+   * @alias copyAsync
+   */
+  async cp(src: string, dest: string, options: { overwrite?: boolean } = {}) {
+    return this.copyAsync(src, dest, options)
+  }
+
+  /**
+   * Synchronously copies a file or directory (node's name).
+   * @alias copy
+   */
+  cpSync(src: string, dest: string, options: { overwrite?: boolean } = {}): void {
+    this.copy(src, dest, options)
   }
 
   /**
@@ -802,6 +1062,30 @@ export class FS extends Feature {
         throw err
       }
     }
+  }
+
+  /**
+   * Synchronously moves a file or directory.
+   * @alias move
+   */
+  moveSync(src: string, dest: string): void {
+    this.move(src, dest)
+  }
+
+  /**
+   * Asynchronously moves (renames) a file or directory (node's `fs/promises` name).
+   * @alias moveAsync
+   */
+  async rename(src: string, dest: string) {
+    return this.moveAsync(src, dest)
+  }
+
+  /**
+   * Synchronously moves (renames) a file or directory (node's name).
+   * @alias move
+   */
+  renameSync(src: string, dest: string): void {
+    this.move(src, dest)
   }
 
   // ---------------------------------------------------------------------------
