@@ -53,7 +53,7 @@ export async function tryChallenge(options: z.infer<typeof argsSchema>, context:
   container.ui.print(`Time limit: ${timeLimitMinutes} minutes`)
 
   // Bootstrap the attempt folder
-  await container.proc.spawnAndCapture('luca', ['bootstrap'], {
+  await container.proc.spawnAndCapture('luca', ['bootstrap', '.'], {
     cwd: container.paths.resolve(attemptFolder),
     onOutput: (str) => { console.log(str) },
     onError: (str) => { console.error(str) },

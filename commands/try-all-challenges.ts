@@ -65,7 +65,7 @@ function pushActivity(cs: ChallengeState, line: string) {
 // ─── Orchestration ──────────────────────────────────────────────────────────
 
 async function bootstrapFolder(container: any, folder: string) {
-  const result = await container.proc.spawnAndCapture('luca', ['bootstrap'], {
+  const result = await container.proc.spawnAndCapture('luca', ['bootstrap', '.'], {
     cwd: container.paths.resolve(folder),
     onOutput: () => {},
     onError: () => {},
