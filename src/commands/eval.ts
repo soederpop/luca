@@ -38,6 +38,16 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 
 	const vm = container.feature('vm')
 
+	// The command promises TypeScript: strip TS syntax before evaluating.
+	// Valid JS passes through semantically unchanged, and the normalized
+	// output makes the top-level-await boundary scan more reliable.
+	try {
+		code = container.feature('transpiler').transformSync(code, { loader: 'ts' }).code
+	} catch {
+		// Leave the input as written — vm.run will surface the real syntax
+		// error with the user's own code in the message, not the transpiler's.
+	}
+
 	// HACK
 	Array(container.argv.enable).filter(Boolean).map((id) => {
 		container.feature(id, { ...container.argv, enable: true }).enable()
@@ -61,7 +71,7 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 export { displayResult } from '../node/features/display-result.js'
 
 commands.registerHandler('eval', {
-	description: 'Evaluate a JavaScript/TypeScript expression with the container in scope',
+	description: 'Evaluate JS/TS with the container in scope — prints the value of the final expression; top-level await works',
 	argsSchema,
 	handler: evalCommand,
 })
