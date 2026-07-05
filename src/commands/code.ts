@@ -20,7 +20,11 @@ export const argsSchema = CommandOptionsSchema.extend({
 	skills: z.string().optional().describe('Comma-separated list of additional skill names to load'),
 })
 
-export const positionals = ['prompt']
+export const examples = [
+	'luca code',
+	{ command: 'luca code --allowAll', description: 'Fully autonomous — no permission prompts' },
+	{ command: 'luca code --denyWrites --skills reviewer', description: 'Read-only session with an extra skill loaded' },
+]
 
 export default async function code(options: z.infer<typeof argsSchema>, context: ContainerContext<AGIFeatures>) {
 	const container = context.container as AGIContainer
@@ -367,5 +371,6 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 commands.registerHandler('code', {
 	description: 'Autonomous coding assistant with file tools, bash, and permission gating',
 	argsSchema,
+	examples,
 	handler: code,
 })

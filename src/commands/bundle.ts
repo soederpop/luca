@@ -24,6 +24,12 @@ declare module '../command.js' {
 
 export const positionals = ['name']
 
+export const examples = [
+	'luca bundle loopy',
+	{ command: 'luca bundle loopy --targets darwin-arm64,linux-x64', description: 'Build for multiple platforms' },
+	{ command: 'luca bundle loopy --dryRun', description: 'Generate bundle files without running bun install/build' },
+]
+
 export const argsSchema = CommandOptionsSchema.extend({
 	name: z.string().describe('Name of the binary to produce, e.g. loopy'),
 	source: z.string().default('.').describe('Path to the source Luca project (default: cwd)'),
@@ -251,5 +257,6 @@ commands.registerHandler('bundle', {
 	description: 'Compile a Luca project into a standalone consumer binary',
 	argsSchema,
 	positionals,
+	examples,
 	handler: bundleCommand,
 })

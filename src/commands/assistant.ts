@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { commands } from '../command.js'
+import { printCommandHelp } from './help.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import { assistantFiles } from '../scaffolds/generated.js'
@@ -18,9 +19,36 @@ export const argsSchema = CommandOptionsSchema.extend({
 	force: z.boolean().default(false).describe('Overwrite existing files'),
 })
 
+export const subcommands = {
+	create: {
+		args: '<name>',
+		description: 'Scaffold a new assistant folder (same as `luca scaffold assistant <name>`)',
+		examples: ['luca assistant create chief-of-staff'],
+	},
+	bundle: {
+		args: '[path ...]',
+		description: 'Pack assistant folders into a single TS script that registers them at import time',
+		examples: [
+			'luca assistant bundle assistants/researcher assistants/inkbot',
+			{ command: 'luca assistant bundle --all --output assistants.bundle.ts', description: 'Bundle every discovered assistant' },
+		],
+	},
+	export: {
+		args: '<name> [outDir]',
+		description: 'Serialize a runtime assistant (CORE.md, tools.ts, hooks.ts) to disk',
+		examples: ['luca assistant export researcher ./out'],
+	},
+}
+
+export const examples = [
+	'luca assistant create chief-of-staff',
+	'luca assistant bundle --all --output assistants.bundle.ts',
+	'luca assistant export researcher ./out',
+]
+
 type AssistantArgs = z.infer<typeof argsSchema>
 
-const SUBCOMMANDS = ['create', 'bundle', 'export'] as const
+const SUBCOMMANDS = Object.keys(subcommands) as Array<keyof typeof subcommands>
 type Sub = (typeof SUBCOMMANDS)[number]
 
 const CANONICAL_FILES = ['CORE.md', 'tools.ts', 'hooks.ts', 'voice.yml', 'ABOUT.md', 'about.md'] as const
@@ -37,7 +65,7 @@ export default async function assistantCommand(
 	const rest = argv.slice(2)
 
 	if (!sub || !SUBCOMMANDS.includes(sub)) {
-		printHelp(ui)
+		printCommandHelp(container, 'assistant')
 		if (sub) ui.print.yellow(`  "${sub}" is not a valid subcommand.\n`)
 		return
 	}
@@ -47,29 +75,10 @@ export default async function assistantCommand(
 	if (sub === 'export') return exportSub(container, ui, rest, options)
 }
 
-function printHelp(ui: any) {
-	ui.print.cyan('\n  luca assistant — manage assistants\n')
-	ui.print('  Usage:  luca assistant <subcommand> [args] [options]\n')
-	ui.print('  Subcommands:')
-	ui.print.green('    create <name>')
-	ui.print('      Scaffold a new assistant folder (equivalent to `luca scaffold assistant <name>`)\n')
-	ui.print.green('    bundle [path ...] [--all] [--output file.ts]')
-	ui.print('      Pack one or more assistant folders into a single TS script that')
-	ui.print('      registers them via assistantsManager.register at import time.\n')
-	ui.print.green('    export <name> [outDir] [--force]')
-	ui.print('      Serialize a runtime assistant (CORE.md, tools.ts, hooks.ts) to disk.\n')
-	ui.print('  Examples:')
-	ui.print('    luca assistant create chief-of-staff')
-	ui.print('    luca assistant bundle assistants/researcher assistants/inkbot')
-	ui.print('    luca assistant bundle --all --output assistants.bundle.ts')
-	ui.print('    luca assistant export researcher ./out\n')
-}
-
 async function createSub(container: any, ui: any, rest: string[], options: AssistantArgs) {
 	const name = rest[0]
 	if (!name) {
-		ui.print.cyan('\n  luca assistant create <name>\n')
-		ui.print('    Example: luca assistant create chief-of-staff\n')
+		printCommandHelp(container, 'assistant', 'create')
 		return
 	}
 
@@ -226,8 +235,7 @@ function renderBundle(entries: BundleEntry[]): string {
 async function exportSub(container: any, ui: any, rest: string[], options: AssistantArgs) {
 	const name = rest[0]
 	if (!name) {
-		ui.print.cyan('\n  luca assistant export <name> [outDir]\n')
-		ui.print('    Writes CORE.md, tools.ts, hooks.ts for the assistant.\n')
+		printCommandHelp(container, 'assistant', 'export')
 		return
 	}
 
@@ -298,5 +306,7 @@ async function exportSub(container: any, ui: any, rest: string[], options: Assis
 commands.registerHandler('assistant', {
 	description: 'Manage assistants: create, bundle, and export',
 	argsSchema,
+	subcommands,
+	examples,
 	handler: assistantCommand,
 })

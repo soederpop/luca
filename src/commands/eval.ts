@@ -70,8 +70,20 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 
 export { displayResult } from '../node/features/display-result.js'
 
+export const positionals = [
+	{ name: 'expression', description: 'JS/TS code to evaluate — the value of the final expression is printed' },
+]
+
+export const examples = [
+	'luca eval "container.features.available"',
+	{ command: 'luca eval "await container.feature(\'fs\').readFileAsync(\'package.json\')" --json', description: 'Top-level await works; --json serializes the result' },
+	{ command: 'luca eval "diskCache.keys()" --enable diskCache', description: 'Enable a feature before evaluating' },
+]
+
 commands.registerHandler('eval', {
 	description: 'Evaluate JS/TS with the container in scope — prints the value of the final expression; top-level await works',
 	argsSchema,
+	positionals,
+	examples,
 	handler: evalCommand,
 })

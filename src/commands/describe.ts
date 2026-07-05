@@ -249,8 +249,21 @@ function renderResultAsTypeScript(result: { json: any; text: string }, targets: 
 	return result.text
 }
 
+export const positionals = [
+	{ name: 'target', description: 'What to describe: a helper (fs), a member (ui.banner), or a registry (features, clients, servers, commands). Omit to describe the container itself.', required: false },
+]
+
+export const examples = [
+	{ command: 'luca describe features', description: 'Index of all available features' },
+	'luca describe fs',
+	{ command: 'luca describe ui.banner', description: 'Docs for a specific method or getter' },
+	{ command: 'luca describe fs --methods --examples', description: 'Show only selected sections' },
+]
+
 commands.registerHandler('describe', {
 	description: 'Describe the container, registries, or individual helpers',
 	argsSchema,
+	positionals,
+	examples,
 	handler: describe,
 })

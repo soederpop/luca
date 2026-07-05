@@ -11,7 +11,7 @@ const RESERVED_EXPORTS = new Set([
 	'description', 'envVars',
 	'stateSchema', 'optionsSchema', 'eventsSchema',
 	'args', 'argsSchema',
-	'positionals',
+	'positionals', 'subcommands', 'examples',
 	'getters',
 	'run', 'handler',
 	'cacheKey', 'cacheable',
@@ -51,6 +51,8 @@ export function isNativeHelperClass(candidate: unknown, BaseClass: typeof Helper
  *   envVars       → static envVars
  *   argsSchema    → static argsSchema (Command scope; also aliased from `args`)
  *   positionals   → static positionals (Command scope; stored for CLI dispatch mapping)
+ *   subcommands   → static subcommands (Command scope; declarative help metadata)
+ *   examples      → static examples (Command scope; usage examples for help output)
  *   getters       → Object.defineProperty(proto, key, { get })  per key
  *   run           → override run() for Command scope (receives named args + context)
  *   handler       → legacy: wired through parseArgs() for backward compat
@@ -94,6 +96,12 @@ export function graftModule<T extends typeof Helper>(
 		statics.commandDescription = moduleExports.description ?? ''
 		if (moduleExports.positionals) {
 			statics.positionals = moduleExports.positionals
+		}
+		if (moduleExports.subcommands) {
+			statics.subcommands = moduleExports.subcommands
+		}
+		if (moduleExports.examples) {
+			statics.examples = moduleExports.examples
 		}
 	}
 

@@ -26,6 +26,41 @@ export interface CommandsInterface {
 export type CommandHandler<T = any> = (options: T, context: ContainerContext) => Promise<void>
 
 /**
+ * A positional argument declaration. Plain strings map argv positions to named
+ * fields; the object form additionally carries help metadata when there is no
+ * matching argsSchema field to describe it.
+ */
+export type PositionalSpec = string | {
+	name: string
+	description?: string
+	required?: boolean
+}
+
+/**
+ * A single usage example shown in `--help` output. The object form adds a
+ * one-line description rendered above the command.
+ */
+export type CommandExample = string | { command: string, description?: string }
+
+/**
+ * Declarative metadata for one subcommand, rendered by the help system and
+ * used for focused help (`luca <cmd> <sub> --help`).
+ */
+export interface SubcommandSpec {
+	/** One-line description of what the subcommand does */
+	description: string
+	/** Positional signature shown in help, e.g. '<name> [outDir]' */
+	args?: string
+	/** Usage examples specific to this subcommand */
+	examples?: CommandExample[]
+}
+
+/** Extract the field names from a positionals declaration. */
+export function positionalNames(positionals: PositionalSpec[]): string[] {
+	return positionals.map((p) => (typeof p === 'string' ? p : p.name))
+}
+
+/**
  * Type helper for module-augmentation of AvailableCommands when using the
  * SimpleCommand (module-based) pattern instead of a full class.
  *
@@ -40,7 +75,9 @@ export type CommandHandler<T = any> = (options: T, context: ContainerContext) =>
  */
 export type SimpleCommand<Schema extends z.ZodType = z.ZodType> = typeof Command & {
 	argsSchema: Schema
-	positionals: string[]
+	positionals: PositionalSpec[]
+	subcommands?: Record<string, SubcommandSpec>
+	examples?: CommandExample[]
 }
 
 export class Command<
@@ -55,7 +92,17 @@ export class Command<
 
 	static commandDescription: string = ''
 	static argsSchema: z.ZodType = CommandOptionsSchema
-	static positionals: string[] = []
+	static positionals: PositionalSpec[] = []
+
+	/**
+	 * Declarative subcommand metadata, keyed by subcommand name. Rendered in
+	 * `--help` output; `luca <cmd> <sub> --help` shows focused help for one entry.
+	 * Dispatch is still up to the handler (read the subcommand from a positional).
+	 */
+	static subcommands: Record<string, SubcommandSpec> = {}
+
+	/** Usage examples rendered at the bottom of `--help` output. */
+	static examples: CommandExample[] = []
 
 	/** Self-register a Command subclass from a static initialization block. */
 	static register: (SubClass: typeof Command, id?: string) => typeof Command
@@ -101,7 +148,12 @@ export class Command<
 			const ui = (this.container as any).feature('ui')
 			const name = Cls.shortcut?.replace('commands.', '') || 'unknown'
 			const binaryName = (this.container as any)._binaryName || 'luca'
-			console.log(formatCommandHelp(name, this.constructor, ui.colors, { binaryName }))
+			// `luca <cmd> <sub> --help` → focused help for that subcommand
+			const firstPositional = ((this.container as any).argv?._ || [])[1]
+			const subcommand = firstPositional && Cls.subcommands?.[firstPositional]
+				? firstPositional
+				: undefined
+			console.log(formatCommandHelp(name, this.constructor, ui.colors, { binaryName, subcommand }))
 			return
 		}
 
@@ -176,7 +228,7 @@ export class Command<
 		if (source !== 'cli') return raw
 
 		const Cls = this.constructor as typeof Command
-		const positionals = Cls.positionals
+		const positionals = positionalNames(Cls.positionals)
 		if (!positionals.length) return raw
 
 		const result = { ...raw }
@@ -377,7 +429,9 @@ export class CommandsRegistry extends Registry<Command<any>> {
 		opts: {
 			description?: string
 			argsSchema?: z.ZodType
-			positionals?: string[]
+			positionals?: PositionalSpec[]
+			subcommands?: Record<string, SubcommandSpec>
+			examples?: CommandExample[]
 			handler: CommandHandler<T>
 		},
 	) {
@@ -387,6 +441,8 @@ export class CommandsRegistry extends Registry<Command<any>> {
 				description: opts.description,
 				argsSchema: opts.argsSchema,
 				positionals: opts.positionals,
+				subcommands: opts.subcommands,
+				examples: opts.examples,
 				handler: opts.handler,
 			},
 			name,
@@ -443,6 +499,8 @@ export class CommandsRegistry extends Registry<Command<any>> {
 					description: commandModule.description,
 					argsSchema: commandModule.argsSchema,
 					positionals: commandModule.positionals ?? mod.positionals,
+					subcommands: commandModule.subcommands ?? mod.subcommands,
+					examples: commandModule.examples ?? mod.examples,
 					handler: commandModule.handler,
 				}, name, 'commands')
 				this.register(name, Grafted as any)
@@ -455,6 +513,8 @@ export class CommandsRegistry extends Registry<Command<any>> {
 					description: mod.description || '',
 					argsSchema: mod.argsSchema,
 					positionals: mod.positionals,
+					subcommands: mod.subcommands,
+					examples: mod.examples,
 					handler: mod.default,
 				}, name, 'commands')
 				this.register(name, Grafted as any)

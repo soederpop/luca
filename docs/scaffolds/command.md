@@ -23,6 +23,42 @@ Export a `positionals` array to map CLI positional args into named options field
 export const positionals = ['target']
 ```
 
+Positionals show up in `--help` as an `Arguments:` section. The description comes from the matching `argsSchema` field. When a positional has no schema field, use the object form to describe it inline:
+
+```ts
+export const positionals = [
+  { name: 'target', description: 'The file or folder to operate on', required: false },
+]
+```
+
+## Rich Help: Subcommands and Examples
+
+Commands are how you teach other developers (and agents) to use your project's tooling — `--help` should tell the whole story. Two more exports feed the help system:
+
+```ts
+// Renders a Subcommands: section, and gives each subcommand focused help:
+// `luca {{kebabName}} sync --help` shows just that entry with its examples.
+export const subcommands = {
+  sync: {
+    args: '<source>',
+    description: 'Pull the latest data from a source',
+    examples: ['luca {{kebabName}} sync ./data'],
+  },
+  status: {
+    description: 'Show what would change without applying it',
+  },
+}
+
+// Renders an Examples: section at the bottom of --help.
+// Plain strings, or { command, description } to add a one-line comment.
+export const examples = [
+  'luca {{kebabName}} sync ./data',
+  { command: 'luca {{kebabName}} status --json', description: 'Machine-readable output' },
+]
+```
+
+Subcommand *dispatch* stays in your handler — read the subcommand from a positional (`export const positionals = ['subcommand']`, then branch on `options.subcommand`). The `subcommands` export is the declarative help metadata that makes it discoverable. Fields named in `positionals` are automatically excluded from the `Options:` listing so they aren't documented twice.
+
 ## Args Schema
 
 Define your command's arguments and flags with Zod. Each field becomes a `--flag` on the CLI. Fields named in `positionals` also accept positional args.
@@ -147,4 +183,4 @@ without the managed layer, the primitives live on utils: `container.utils.every(
 - **Use the container**: Never import `fs`, `path`, `child_process` directly. Use `container.feature('fs')`, `container.paths`, `container.feature('proc')`.
 - **Positional args**: Export `positionals = ['name1', 'name2']` to map CLI positional args into named options fields. For raw access, use `container.argv._` where `_[0]` is the command name.
 - **Exit codes**: Return nothing for success. Throw for errors — the CLI catches and reports them.
-- **Help text**: Use `.describe()` on every schema field — it powers `luca {{kebabName}} --help`.
+- **Help text**: Use `.describe()` on every schema field — it powers `luca {{kebabName}} --help`. Export `examples` (and `subcommands` when you branch on a verb) so `--help` teaches real usage, not just flags.

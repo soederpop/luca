@@ -326,8 +326,21 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 	}
 }
 
+export const positionals = [
+	{ name: 'file', description: 'Script or markdown file to run (.ts, .js, .md)' },
+]
+
+export const examples = [
+	'luca run scripts/migrate.ts',
+	{ command: 'luca run docs/examples/full-stack-slice.md', description: 'Markdown files run their fenced code blocks in order' },
+	{ command: 'luca run notes.md --onlySections "Setup,Seed Data"', description: 'Run only specific markdown sections' },
+	{ command: 'luca run notes.md --console', description: 'Drop into a REPL with the accumulated context afterwards' },
+]
+
 commands.registerHandler('run', {
 	description: 'Run a script or markdown file (.ts, .js, .md) — top-level code runs with the container in scope, then a default/main export is called as the entry point',
 	argsSchema,
+	positionals,
+	examples,
 	handler: run,
 })

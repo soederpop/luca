@@ -92,8 +92,19 @@ export default async function selectCommand(options: z.infer<typeof argsSchema>,
 	}
 }
 
+export const positionals = [
+	{ name: 'selector', description: 'Name of the selector to run (discovered from selectors/)' },
+]
+
+export const examples = [
+	'luca select package-info',
+	{ command: 'luca select package-info --json --noCache', description: 'Force a fresh run and print raw JSON' },
+]
+
 commands.registerHandler('select', {
 	description: 'Run a selector and display its cached or fresh data',
 	argsSchema,
+	positionals,
+	examples,
 	handler: selectCommand,
 })

@@ -1007,8 +1007,23 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 	}
 }
 
+export const positionals = [
+	{ name: 'target', description: 'Which agent to use: claude, codex, or an assistant name. Omit it and pass just a file to use the project default coding assistant.', required: false },
+	{ name: 'files', description: 'One or more prompt markdown files to send', required: false },
+]
+
+export const examples = [
+	'luca prompt claude ./prompts/refactor.md',
+	{ command: 'luca prompt ./prompts/refactor.md', description: 'Bare file defaults to the project coding assistant (manifest luca.codingAssistant, else claude)' },
+	{ command: 'luca prompt claude a.md b.md --parallel', description: 'Run multiple prompts side by side (max 4)' },
+	{ command: 'luca prompt researcher ./question.md --out-file session.md', description: 'Send to a local assistant and save the session' },
+	{ command: 'luca prompt claude ./task.md --dry-run', description: 'Preview the resolved prompt without running' },
+]
+
 commands.registerHandler('prompt', {
 	description: 'Send a prompt file to an assistant, Claude Code, or OpenAI Codex',
 	argsSchema,
+	positionals,
+	examples,
 	handler: prompt,
 })

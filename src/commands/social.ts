@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { commands } from '../command'
+import { printCommandHelp } from './help.js'
 import { CommandOptionsSchema } from '../schemas/base'
 import type { ContainerContext } from '../container'
 
@@ -7,7 +8,7 @@ export const argsSchema = CommandOptionsSchema.extend({
   name: z.string().default('luca-agent').describe('Agent name / identity to use'),
   bootstrap: z.string().optional().describe('JSON NodeAddr from another agent — enables immediate gossip connectivity'),
   file: z.string().optional().describe('Path to a file to send as a blob attachment'),
-  mesh: z.string().optional().describe('Private mesh ID — all agents must use the same value to communicate'),
+  mesh: z.string().optional().describe('Private mesh ID — all agents must use the same value to communicate. Omit to use the public Cipher topic (interop with the Cipher desktop app).'),
   subcommand: z.string().optional().describe('Subcommand: whoami | listen | send'),
   arg1: z.string().optional().describe('First positional argument'),
   arg2: z.string().optional().describe('Second positional argument'),
@@ -15,17 +16,31 @@ export const argsSchema = CommandOptionsSchema.extend({
 
 export const positionals = ['subcommand', 'arg1', 'arg2']
 
-const USAGE = `
-Usage:
-  luca social whoami [--name <name>] [--mesh <id>]                                  Print this agent's identity
-  luca social listen [--name <name>] [--mesh <id>]                                  Join the mesh and print incoming messages
-  luca social send <pubkey> <msg> [--name <name>] [--mesh <id>]                     Send an encrypted message
-  luca social send <pubkey> --file <path> [--name <name>] [--mesh <id>]             Send a file
-  luca social send <pubkey> --file <path> <caption> [--name <name>] [--mesh <id>]   Send a file with caption
+export const subcommands = {
+  whoami: {
+    description: "Print this agent's identity (name, public key, data dir)",
+    examples: ['luca social whoami --name my-agent'],
+  },
+  listen: {
+    description: 'Join the mesh and print incoming messages until interrupted',
+    examples: ['luca social listen --name my-agent --mesh team-mesh'],
+  },
+  send: {
+    args: '<pubkey> [message]',
+    description: 'Send an encrypted message (or a file via --file) to another agent',
+    examples: [
+      "luca social send <pubkey> 'hello there'",
+      { command: 'luca social send <pubkey> --file ./photo.jpg', description: 'Send a file as a blob attachment' },
+      { command: "luca social send <pubkey> --file ./photo.jpg 'check this out'", description: 'Send a file with a caption' },
+    ],
+  },
+}
 
-  --mesh <id>   Private mesh ID. All agents must use the same value.
-                Omit to use the public Cipher topic (interop with Cipher desktop app).
-`.trim()
+export const examples = [
+  'luca social whoami',
+  { command: 'luca social listen --mesh team-mesh', description: 'Omit --mesh to use the public Cipher topic (interop with the Cipher desktop app)' },
+  "luca social send <pubkey> 'hello' --bootstrap '<nodeAddrJson>'",
+]
 
 export async function social(options: z.infer<typeof argsSchema>, context: ContainerContext) {
   const container = context.container as any
@@ -33,7 +48,7 @@ export async function social(options: z.infer<typeof argsSchema>, context: Conta
   const subcommand = options.subcommand
 
   if (!subcommand || subcommand === 'help') {
-    ui.print(USAGE)
+    printCommandHelp(container, 'social')
     return
   }
 
@@ -128,11 +143,14 @@ export async function social(options: z.infer<typeof argsSchema>, context: Conta
   }
 
   ui.print(`Unknown subcommand: ${subcommand}`)
-  ui.print(USAGE)
+  printCommandHelp(container, 'social')
 }
 
 commands.registerHandler('social', {
   description: 'Encrypted P2P messaging between Luca agents via the Cipher social network.',
   argsSchema,
+  positionals,
+  subcommands,
+  examples,
   handler: social,
 })

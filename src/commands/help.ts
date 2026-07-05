@@ -56,68 +56,182 @@ function extractOptions(schema: any): Array<{ flag: string; description: string;
 	return options
 }
 
+/** Normalize a positionals declaration into { name, description?, required? } objects. */
+function normalizePositionals(positionals: any[]): Array<{ name: string; description?: string; required?: boolean }> {
+	return (positionals || []).map((p) => (typeof p === 'string' ? { name: p } : p))
+}
+
+/** Look up a field's description on a Zod object schema, if present. */
+function schemaFieldDescription(schema: any, field: string): string {
+	return schema?.shape?.[field]?.description || ''
+}
+
+/** True when the schema field has no optional/default wrapper (or doesn't exist). */
+function schemaFieldRequired(schema: any, field: string): boolean {
+	let current = schema?.shape?.[field]
+	if (!current) return true
+	while (current) {
+		const defType = current._def?.type || current.type
+		if (defType === 'optional' || defType === 'default') return false
+		current = current._def?.innerType
+	}
+	return true
+}
+
+/** Normalize an examples declaration into { command, description? } objects. */
+function normalizeExamples(examples: any[]): Array<{ command: string; description?: string }> {
+	return (examples || []).map((e) => (typeof e === 'string' ? { command: e } : e))
+}
+
 /**
  * Format CLI-oriented help text for a single command.
  * Exported so other commands (like describe) can reuse it.
+ *
+ * Renders everything a command declares: positional Arguments (described via
+ * matching argsSchema fields or inline `{ name, description }` specs),
+ * Subcommands, Options/Flags from the argsSchema, and Examples. Pass
+ * `subcommand` to render focused help for one declared subcommand
+ * (`luca <cmd> <sub> --help`).
  */
 export function formatCommandHelp(
 	name: string,
 	Cmd: any,
 	colors: any,
-	options: { binaryName?: string } = {},
+	options: { binaryName?: string; subcommand?: string } = {},
 ): string {
 	const binaryName = options.binaryName || 'luca'
 	const desc = Cmd.commandDescription || ''
 	const schema = Cmd.argsSchema
+	const positionals = normalizePositionals(Cmd.positionals)
+	const subcommands: Record<string, any> = Cmd.subcommands || {}
+	const subNames = Object.keys(subcommands)
+	const hasSubs = subNames.length > 0
 	const lines: string[] = []
 
-	lines.push('')
-	lines.push(`  ${colors.cyan.bold(`${binaryName} ${name}`)}  ${desc ? `${colors.dim('—')} ${desc}` : ''}`)
-	lines.push('')
+	const focused = options.subcommand && subcommands[options.subcommand]
+		? { name: options.subcommand!, ...subcommands[options.subcommand] }
+		: null
 
-	const opts = extractOptions(schema)
+	// Positional fields are documented in the Arguments/Subcommands sections —
+	// keep them out of the Options/Flags listing
+	const positionalFieldNames = new Set(positionals.map((p) => p.name))
+	const opts = extractOptions(schema).filter((o) => !positionalFieldNames.has(o.flag))
+	const booleans = opts.filter((o) => o.type === 'boolean')
+	const valued = opts.filter((o) => o.type !== 'boolean')
 
-	if (opts.length === 0) {
-		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`${binaryName} ${name}`)}`)
+	// Header
+	lines.push('')
+	if (focused) {
+		lines.push(`  ${colors.cyan.bold(`${binaryName} ${name} ${focused.name}`)}  ${colors.dim('—')} ${focused.description}`)
 	} else {
-		const booleans = opts.filter((o) => o.type === 'boolean')
-		const valued = opts.filter((o) => o.type !== 'boolean')
+		lines.push(`  ${colors.cyan.bold(`${binaryName} ${name}`)}  ${desc ? `${colors.dim('—')} ${desc}` : ''}`)
+	}
+	lines.push('')
 
-		lines.push(`  ${colors.white('Usage:')} ${colors.cyan(`${binaryName} ${name}`)} ${colors.dim('[options]')}`)
-		lines.push('')
-
-		if (valued.length > 0) {
-			lines.push(`  ${colors.white('Options:')}`)
-			lines.push('')
-			const maxLen = Math.max(...valued.map((o) => `--${o.flag} <${o.type}>`.length))
-			for (const opt of valued) {
-				const flag = `--${opt.flag} <${opt.type}>`
-				let line = `    ${colors.green(flag.padEnd(maxLen + 2))} ${opt.description}`
-				if (opt.defaultValue !== undefined && opt.defaultValue !== false) {
-					line += ` ${colors.dim(`(default: ${opt.defaultValue})`)}`
-				}
-				lines.push(line)
-			}
-			lines.push('')
+	// Usage line
+	let usage = `${binaryName} ${name}`
+	if (focused) {
+		usage += ` ${focused.name}${focused.args ? ` ${focused.args}` : ''}`
+	} else if (hasSubs) {
+		usage += ' <subcommand>'
+	} else if (positionals.length > 0) {
+		for (const p of positionals) {
+			const required = p.required ?? schemaFieldRequired(schema, p.name)
+			usage += required ? ` <${p.name}>` : ` [${p.name}]`
 		}
+	}
+	const optsSuffix = opts.length > 0 ? ` ${colors.dim('[options]')}` : ''
+	lines.push(`  ${colors.white('Usage:')} ${colors.cyan(usage)}${optsSuffix}`)
+	lines.push('')
 
-		if (booleans.length > 0) {
-			lines.push(`  ${colors.white('Flags:')}`)
+	// Subcommands
+	if (hasSubs && !focused) {
+		lines.push(`  ${colors.white('Subcommands:')}`)
+		lines.push('')
+		const signatures = subNames.map((s) => `${s}${subcommands[s].args ? ` ${subcommands[s].args}` : ''}`)
+		const maxLen = Math.max(...signatures.map((s) => s.length))
+		subNames.forEach((s, i) => {
+			lines.push(`    ${colors.green(signatures[i]!.padEnd(maxLen + 2))} ${subcommands[s].description}`)
+		})
+		lines.push('')
+	}
+
+	// Positional arguments (skipped when subcommands own the positional slots)
+	if (positionals.length > 0 && !hasSubs) {
+		const described = positionals.map((p) => ({
+			name: p.name,
+			description: p.description || schemaFieldDescription(schema, p.name),
+		}))
+		if (described.some((p) => p.description)) {
+			lines.push(`  ${colors.white('Arguments:')}`)
 			lines.push('')
-			const maxLen = Math.max(...booleans.map((o) => `--${o.flag}`.length))
-			for (const opt of booleans) {
-				const flag = `--${opt.flag}`
-				let line = `    ${colors.green(flag.padEnd(maxLen + 2))} ${opt.description}`
-				if (opt.defaultValue === true) {
-					line += ` ${colors.dim('(default: true)')}`
-				}
-				lines.push(line)
+			const maxLen = Math.max(...described.map((p) => p.name.length))
+			for (const p of described) {
+				lines.push(`    ${colors.green(p.name.padEnd(maxLen + 2))} ${p.description}`)
 			}
 			lines.push('')
 		}
 	}
 
+	if (valued.length > 0) {
+		lines.push(`  ${colors.white('Options:')}`)
+		lines.push('')
+		const maxLen = Math.max(...valued.map((o) => `--${o.flag} <${o.type}>`.length))
+		for (const opt of valued) {
+			const flag = `--${opt.flag} <${opt.type}>`
+			let line = `    ${colors.green(flag.padEnd(maxLen + 2))} ${opt.description}`
+			if (opt.defaultValue !== undefined && opt.defaultValue !== false) {
+				line += ` ${colors.dim(`(default: ${opt.defaultValue})`)}`
+			}
+			lines.push(line)
+		}
+		lines.push('')
+	}
+
+	if (booleans.length > 0) {
+		lines.push(`  ${colors.white('Flags:')}`)
+		lines.push('')
+		const maxLen = Math.max(...booleans.map((o) => `--${o.flag}`.length))
+		for (const opt of booleans) {
+			const flag = `--${opt.flag}`
+			let line = `    ${colors.green(flag.padEnd(maxLen + 2))} ${opt.description}`
+			if (opt.defaultValue === true) {
+				line += ` ${colors.dim('(default: true)')}`
+			}
+			lines.push(line)
+		}
+		lines.push('')
+	}
+
+	// Examples — command-level, or the focused subcommand's own
+	const examples = normalizeExamples(focused ? focused.examples : Cmd.examples)
+	if (examples.length > 0) {
+		lines.push(`  ${colors.white('Examples:')}`)
+		lines.push('')
+		for (const ex of examples) {
+			if (ex.description) lines.push(`    ${colors.dim(`# ${ex.description}`)}`)
+			lines.push(`    ${colors.cyan(ex.command)}`)
+		}
+		lines.push('')
+	}
+
+	if (hasSubs && !focused) {
+		lines.push(`  ${colors.dim('Run')} ${colors.cyan(`${binaryName} ${name} <subcommand> --help`)} ${colors.dim('for details on a subcommand.')}`)
+		lines.push('')
+	}
+
 	return lines.join('\n')
+}
+
+/**
+ * Print rich help for a registered command. Convenience for command handlers
+ * that want to show their own help (e.g. when invoked with no subcommand).
+ */
+export function printCommandHelp(container: any, name: string, subcommand?: string) {
+	const ui = container.feature('ui')
+	const Cmd = container.commands.lookup(name)
+	const binaryName = container._binaryName || 'luca'
+	console.log(formatCommandHelp(name, Cmd, ui.colors, { binaryName, subcommand }))
 }
 
 /** Strip ANSI escape codes for visible width calculation. */

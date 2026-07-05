@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { commands } from '../command.js'
+import { printCommandHelp } from './help.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import { scaffolds, assistantFiles } from '../scaffolds/generated.js'
@@ -58,6 +59,37 @@ const TYPE_INFO: Record<string, { what: string; where: string; run: string }> = 
 	},
 }
 
+/** Representative example invocations per scaffold type, shown in help output. */
+const TYPE_EXAMPLES: Record<string, string[]> = {
+	feature: ['luca scaffold feature diskCache --description "File-backed cache"'],
+	client: ['luca scaffold client github --description "GitHub API client"'],
+	server: ['luca scaffold server grpc --description "gRPC server"'],
+	command: ['luca scaffold command deploy --description "Deploy to production"'],
+	endpoint: ['luca scaffold endpoint users --description "User management API"'],
+	selector: ['luca scaffold selector package-info --description "Returns parsed package.json data"'],
+	assistant: ['luca scaffold assistant chief-of-staff'],
+}
+
+export const subcommands = Object.fromEntries(
+	Object.entries(TYPE_INFO).map(([type, info]) => [
+		type,
+		{
+			args: '<name>',
+			description: `${info.what} → ${info.where}`,
+			examples: [
+				...(TYPE_EXAMPLES[type] || []).map((command) => ({ command, description: `Writes ${info.where} — use via ${info.run}` })),
+				{ command: `luca scaffold ${type} --tutorial`, description: 'Full guide with patterns and conventions' },
+			],
+		},
+	]),
+)
+
+export const examples = [
+	{ command: 'luca scaffold command deploy --description "Deploy to production"', description: 'Generate a command (writes to commands/deploy.ts)' },
+	{ command: 'luca scaffold endpoint users --print', description: 'Print to stdout instead of writing' },
+	{ command: 'luca scaffold feature --tutorial', description: 'Read the full tutorial for a type' },
+]
+
 export default async function scaffoldCommand(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as any
 	const args = container.argv._ as string[]
@@ -69,39 +101,8 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 
 	// ── No type or invalid type: show full help ──────────────────
 	if (!type || !validTypes.includes(type)) {
-		ui.print.cyan('\n  luca scaffold — generate boilerplate for luca helpers\n')
-		ui.print('  Usage:  luca scaffold <type> <name> [options]\n')
-		ui.print('  Options:')
-		ui.print('    --description "..."   Brief description (shows in help text and docs)')
-		ui.print('    --output <path>       Override the default output file path')
-		ui.print('    --print               Print to stdout instead of writing a file')
-		ui.print('    --tutorial            Show the full guide for a type instead of generating code\n')
-
-		ui.print('  Types:\n')
-		for (const [t, info] of Object.entries(TYPE_INFO)) {
-			ui.print.green(`    ${t}`)
-			ui.print(`      ${info.what}`)
-			ui.print.dim(`      File: ${info.where}  →  Run: ${info.run}`)
-			ui.print('')
-		}
-
-		ui.print('  Examples:\n')
-		ui.print('    # Generate a command (writes to commands/deploy.ts)')
-		ui.print('    luca scaffold command deploy --description "Deploy to production"\n')
-		ui.print('    # Generate a feature (writes to features/disk-cache.ts)')
-		ui.print('    luca scaffold feature disk-cache --description "File-backed key-value cache"\n')
-		ui.print('    # Print to stdout instead of writing')
-		ui.print('    luca scaffold endpoint users --print\n')
-		ui.print('    # Read the full tutorial for a type')
-		ui.print('    luca scaffold feature --tutorial')
-		ui.print('    luca scaffold endpoint --tutorial\n')
-
-		ui.print('  Workflow:\n')
-		ui.print('    1. luca scaffold <type> <name>    Generate the file')
-		ui.print('    2. Edit the generated file — add your logic')
-		ui.print('    3. luca about                     Verify it was discovered')
-		ui.print('    4. luca describe <name>           See the generated docs\n')
-
+		printCommandHelp(container, 'scaffold')
+		ui.print('  Workflow: scaffold → edit the file → luca about (verify discovery) → luca describe <name>\n')
 		if (type && !validTypes.includes(type)) {
 			ui.print.yellow(`  "${type}" is not a valid type. Available: ${validTypes.join(', ')}\n`)
 		}
@@ -121,33 +122,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 
 	// ── Missing name ─────────────────────────────────────────────
 	if (!name) {
-		const info = TYPE_INFO[type]
-		ui.print.cyan(`\n  luca scaffold ${type} <name> [options]\n`)
-		ui.print(`  ${info?.what || ''}\n`)
-		ui.print('  Examples:')
-		if (type === 'feature') {
-			ui.print(`    luca scaffold feature diskCache --description "File-backed cache"`)
-			ui.print(`    luca scaffold feature diskCache --output features/diskCache.ts`)
-		} else if (type === 'client') {
-			ui.print(`    luca scaffold client github --description "GitHub API client"`)
-			ui.print(`    luca scaffold client github --output clients/github.ts`)
-		} else if (type === 'server') {
-			ui.print(`    luca scaffold server grpc --description "gRPC server"`)
-			ui.print(`    luca scaffold server grpc --output servers/grpc.ts`)
-		} else if (type === 'command') {
-			ui.print(`    luca scaffold command deploy --description "Deploy to production"`)
-			ui.print(`    luca scaffold command deploy --output commands/deploy.ts`)
-		} else if (type === 'endpoint') {
-			ui.print(`    luca scaffold endpoint users --description "User management API"`)
-			ui.print(`    luca scaffold endpoint users --output endpoints/users.ts`)
-		} else if (type === 'selector') {
-			ui.print(`    luca scaffold selector package-info --description "Returns parsed package.json data"`)
-			ui.print(`    luca scaffold selector package-info --output selectors/package-info.ts`)
-		} else if (type === 'assistant') {
-			ui.print(`    luca scaffold assistant chief-of-staff`)
-			ui.print(`    luca scaffold assistant chief-of-staff --output assistants/chief-of-staff`)
-		}
-		ui.print(`\n    luca scaffold ${type} --tutorial    Full guide with patterns and conventions\n`)
+		printCommandHelp(container, 'scaffold', type)
 		return
 	}
 
@@ -222,5 +197,7 @@ export default async function scaffoldCommand(options: z.infer<typeof argsSchema
 commands.registerHandler('scaffold', {
 	description: 'Generate boilerplate for a new luca feature, client, server, command, endpoint, or assistant',
 	argsSchema,
+	subcommands,
+	examples,
 	handler: scaffoldCommand,
 })

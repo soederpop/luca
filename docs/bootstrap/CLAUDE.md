@@ -59,6 +59,14 @@ export const argsSchema = z.object({
 })
 ```
 
+## Command Help
+
+`luca <cmd> --help` is generated from what the command declares — make it teach:
+- **`.describe()` every argsSchema field** — powers the Options/Flags listing.
+- **`positionals`** render as an `Arguments:` section (described via the matching schema field, or use the object form `{ name, description, required }` when there is no schema field).
+- **`export const examples = [...]`** — strings or `{ command, description }` objects, rendered as an `Examples:` section.
+- **`export const subcommands = { verb: { args: '<name>', description, examples } }`** — renders a `Subcommands:` section, and `luca <cmd> <verb> --help` shows focused help for that verb. Dispatch is still yours: map the verb via `positionals` and branch on it in the handler.
+
 ## What's Available
 
 The container provides more than you might expect. Before importing anything external, check here:

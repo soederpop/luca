@@ -335,6 +335,16 @@ export const argsSchema = z.object({
   action: z.enum(['add', 'list', 'wipe']).describe('What to do'),
   text: z.string().optional().describe('Note text (for add)'),
 })
+
+// Declarative help metadata: renders a Subcommands: section in --help,
+// and `luca note add --help` shows focused help for just that verb.
+export const subcommands = {
+  add: { args: '<text>', description: 'Save a note', examples: ['luca note add "call the vet"'] },
+  list: { description: 'Print all saved notes' },
+  wipe: { description: 'Delete all notes' },
+}
+
+export const examples = ['luca note add "call the vet"', 'luca note list']
 ```
 
 ### Supervising background workers across invocations

@@ -302,8 +302,21 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 	}
 }
 
+export const positionals = [
+	{ name: 'assistant', description: 'Name of the assistant to chat with (discovered from assistants/). Omit to use the default assistant.', required: false },
+]
+
+export const examples = [
+	'luca chat researcher',
+	{ command: 'luca chat --list', description: 'List recent conversations' },
+	{ command: 'luca chat researcher --resume <threadId>', description: 'Resume a previous conversation' },
+	{ command: 'luca chat researcher --use "contentDb:rootPath=./docs"', description: 'Inject a feature into the assistant' },
+]
+
 commands.registerHandler('chat', {
 	description: 'Start an interactive chat session with a local assistant',
 	argsSchema,
+	positionals,
+	examples,
 	handler: chat,
 })
