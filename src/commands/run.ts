@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
+import { displayResult } from '../node/features/display-result.js'
 import type { ContainerContext } from '../container.js'
 
 declare module '../command.js' {
@@ -171,7 +172,18 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 				code = transformed
 			}
 
-			await vm.run(code, shared)
+			const result = await vm.run(code, shared)
+
+			// Literate-eval contract: a block's final expression value is shown
+			// beneath it, so tutorial docs demonstrate their own output. Blocks
+			// ending in declarations/loops resolve undefined and print nothing;
+			// a `silent` meta (```ts silent) suppresses the print for noisy
+			// setup blocks.
+			const isSilent = meta && typeof meta === 'string' && meta.toLowerCase().includes('silent')
+			if (result !== undefined && !isSilent) {
+				process.stdout.write(container.ui.colors.dim('⇒ '))
+				displayResult(result)
+			}
 
 			// if we enabled any features, they will be in the context object
 			Object.assign(shared, container.context)
@@ -222,10 +234,15 @@ async function runScript(scriptPath: string, context: ContainerContext, options:
 
 	const { code } = transpiler.transformSync(raw, { format: 'cjs' })
 
+	// exports and module.exports must be the SAME object: esmToCjs writes
+	// named exports to `exports` and default exports to `module.exports`, so
+	// split objects would give a torn view of the script's exports.
+	const sharedExports: Record<string, any> = {}
+
 	const ctx = {
 		require: vm.createRequireFor(scriptPath),
-		exports: {},
-		module: { exports: {} },
+		exports: sharedExports,
+		module: { exports: sharedExports },
 		console,
 		setTimeout, setInterval, clearTimeout, clearInterval,
 		process, Buffer, URL, URLSearchParams,
@@ -234,7 +251,24 @@ async function runScript(scriptPath: string, context: ContainerContext, options:
 		...container.context,
 	}
 
-	await vm.run(code, ctx)
+	// Module evaluation: top-level code runs first, with the container in scope.
+	const vmContext = vm.createContext(ctx)
+	await vm.run(code, vmContext)
+
+	// Entry point: a `default` export (or named `main`) that is a function is
+	// called with the ContainerContext — export default async function main({ container }) {}.
+	// Previously these transpiled to module.exports assignments that were
+	// silently discarded, making such scripts a confusing no-op.
+	const exported = vmContext.module?.exports ?? {}
+	const entry = exported.default ?? exported.main
+
+	if (typeof entry === 'function') {
+		const value = await entry(context)
+		if (value !== undefined) displayResult(value)
+	} else if (exported.default !== undefined) {
+		// A non-function default export is a data module — print its value.
+		displayResult(exported.default)
+	}
 }
 
 async function diagnoseError(_scriptPath: string, error: Error, _context: ContainerContext) {
