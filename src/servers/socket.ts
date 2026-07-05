@@ -12,12 +12,16 @@ declare module '../server' {
 
 export const SocketServerOptionsSchema = ServerOptionsSchema.extend({
   json: z.boolean().optional().describe('When enabled, incoming messages are automatically JSON-parsed before emitting the message event, and outgoing send/broadcast calls JSON-stringify the payload'),
+  server: z.any().optional().describe('Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port.'),
+  noServer: z.boolean().optional().describe('Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server\'s "upgrade" event.'),
+  path: z.string().optional().describe('Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding.'),
 })
 export type SocketServerOptions = z.infer<typeof SocketServerOptionsSchema>
 
 export const SocketServerEventsSchema = ServerEventsSchema.extend({
   connection: z.tuple([z.any().describe('The raw WebSocket client instance from the ws library')]).describe('Fires when a new client connects'),
   message: z.tuple([z.any().describe('The message data (JSON-parsed object when json option is enabled, raw Buffer/string otherwise)'), z.any().describe('The WebSocket client that sent the message — use with server.send(ws, data) to reply')]).describe('Fires when a message is received from a client. Handler signature: (data, ws)'),
+  attached: z.tuple([z.any().describe('The Node http.Server the WebSocket server attached to')]).describe('Fires when a deferred attachment completes — i.e. an express server passed as the `server` option has started listening and the WebSocket is now sharing its port'),
 }).describe('WebSocket server events')
 
 /**
@@ -76,15 +80,56 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
 
     static { Server.register(this, 'websocket') }
     
-    _wss?: BaseServer 
+    _wss?: BaseServer
 
+    /**
+     * The underlying `ws` WebSocketServer, built lazily on first access. The
+     * construction mode is chosen from options: `noServer` builds a manual
+     * server (drive it with {@link handleUpgrade}); an attached `server`
+     * (raw http.Server, or an already-listening express server) shares that
+     * server's port via the Upgrade handshake; otherwise it binds its own
+     * `port`. A `path` option, when set, is applied in every mode.
+     */
     get wss(): BaseServer {
       if (this._wss) {
         return this._wss
       }
-      
-      return this._wss = new BaseServer({ 
-        port: this.port 
+
+      const pathOpt = this.options.path ? { path: this.options.path } : {}
+
+      if (this.options.noServer) {
+        return this._wss = new BaseServer({ noServer: true, ...pathOpt })
+      }
+
+      const httpServer = this._attachedHttpServer()
+      if (httpServer) {
+        return this._wss = new BaseServer({ server: httpServer, ...pathOpt })
+      }
+
+      return this._wss = new BaseServer({ port: this.port, ...pathOpt })
+    }
+
+    /**
+     * Resolve the HTTP server to attach to, if any. Returns the raw Node
+     * http.Server for a raw `server` option, the express server's live
+     * `httpServer` when it is already listening, or `undefined` when there is
+     * nothing to attach to yet (including an express server that hasn't started).
+     */
+    private _attachedHttpServer(): any | undefined {
+      const target = this.options.server
+      if (!target) return undefined
+      if (target instanceof Server) return (target as any).httpServer
+      return target
+    }
+
+    /**
+     * Feed an HTTP `upgrade` event to this server. Only meaningful in `noServer`
+     * mode — wire it from your own http.Server:
+     * `httpServer.on('upgrade', (req, socket, head) => wsServer.handleUpgrade(req, socket, head))`.
+     */
+    handleUpgrade(request: any, socket: any, head: any): void {
+      this.wss.handleUpgrade(request, socket, head, (ws) => {
+        this.wss.emit('connection', ws, request)
       })
     }
 
@@ -192,24 +237,66 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
 
       await this._drainPendingPlugins()
 
-      // Apply runtime port to state before configure/wss touches it
-      if (options?.port) {
+      const attaching = !!this.options.server
+      const manual = !!this.options.noServer
+
+      // Attaching to an express server that hasn't started yet: defer wiring
+      // until it begins listening, then share its port via the Upgrade handshake.
+      if (attaching && this.options.server instanceof Server && !this._attachedHttpServer()) {
+        this._deferAttach(this.options.server as Server)
+        this.state.set('listening', true)
+        return this
+      }
+
+      // Own-port mode honors a runtime port override; attach/noServer bind no port.
+      if (options?.port && !attaching && !manual) {
         this.state.set('port', options.port)
         // Reset cached wss so it rebinds to the new port
         this._wss = undefined
       }
 
-      if(!this.isConfigured || options?.port) {
+      // configure() finds an open port — only relevant when binding our own.
+      if (!attaching && !manual && (!this.isConfigured || options?.port)) {
         await this.configure()
       }
 
-      const { wss } = this
-      
+      this._bindConnectionHandlers(this.wss)
+      this.state.set('listening', true)
+
+      return this
+    }
+
+    /** Attach to a Luca server (e.g. express) once it is listening, sharing its port. */
+    private _deferAttach(lucaServer: Server): void {
+      const attach = () => {
+        const httpServer = (lucaServer as any).httpServer
+        if (!httpServer || this._wss) return
+        const pathOpt = this.options.path ? { path: this.options.path } : {}
+        this._wss = new BaseServer({ server: httpServer, ...pathOpt })
+        this._bindConnectionHandlers(this._wss)
+        this.emit('attached', httpServer)
+      }
+
+      if ((lucaServer as any).isListening) {
+        attach()
+        return
+      }
+
+      const off = lucaServer.state.observe((_type: any, key: any, value: any) => {
+        if (key === 'listening' && value) {
+          off?.()
+          attach()
+        }
+      })
+    }
+
+    /** Wire connection + message handling (including ask/reply plumbing) onto a ws server. */
+    private _bindConnectionHandlers(wss: BaseServer): void {
       wss.on('connection', (ws) => {
         this.connections.add(ws)
         this.emit('connection', ws)
 
-        ws.on('message', (raw) => {
+        ws.on('message', (raw: any) => {
           let data: any = raw
           if (this.options.json) {
             try {
@@ -230,10 +317,6 @@ export class WebsocketServer<T extends ServerState = ServerState, K extends Sock
           this.emit('message', data, ws)
         })
       })
-      
-      this.state.set('listening', true)
-
-      return this
     }
 
     override async stop(): Promise<this> {

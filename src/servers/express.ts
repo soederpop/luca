@@ -116,6 +116,16 @@ export class ExpressServer<T extends ServerState = ServerState, K extends Expres
       return express
     }
 
+    /**
+     * The underlying Node http.Server, available once the app is listening
+     * (`undefined` before `start()`). Pass it — or this express server itself —
+     * to `container.server('websocket', { server })` to run a WebSocket on the
+     * same port via the Upgrade handshake.
+     */
+    get httpServer(): any {
+      return this._listener
+    }
+
     /** The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops. */
     get hooks(): { create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any } {
       const { create = defaultCreate, beforeStart = () => {} } = this.options  
