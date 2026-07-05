@@ -53,8 +53,17 @@ export default async function evalCommand(options: z.infer<typeof argsSchema>, c
 		container.feature(id, { ...container.argv, enable: true }).enable()
 	})
 
-	// Build context with container and all enabled feature instances
-	const ctx: Record<string, any> = { container }
+	// Build context with container and all enabled feature instances.
+	// `z` is in scope like it is in runnable markdown blocks — eval is where
+	// schemas get prototyped (container.store, argsSchema, tool schemas).
+	// `require` resolves virtual modules first ('luca', 'zod', 'react', …),
+	// matching what commands and scripts see.
+	container.helpers.seedVirtualModules()
+	const ctx: Record<string, any> = {
+		container,
+		z,
+		require: vm.createRequireFor(container.paths.resolve('__eval__.ts')),
+	}
 	for (const [name, instance] of Object.entries(container.enabledFeatures ?? {})) {
 		ctx[name] = instance
 	}
@@ -78,6 +87,7 @@ export const examples = [
 	'luca eval "container.features.available"',
 	{ command: 'luca eval "await container.feature(\'fs\').readFileAsync(\'package.json\')" --json', description: 'Top-level await works; --json serializes the result' },
 	{ command: 'luca eval "diskCache.keys()" --enable diskCache', description: 'Enable a feature before evaluating' },
+	{ command: 'luca eval "z.object({ port: z.number() }).parse({ port: 3000 })"', description: 'z (zod) is in scope — prototype schemas directly' },
 ]
 
 commands.registerHandler('eval', {
