@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). Supports ask/reply semantics when paired with the Luca WebSocket server (`container.server('websocket')`). The client can `ask(type, data)` the server and await a typed response. In the other direction, an ask from the server arrives as a normal `message` event whose payload carries a `requestId`; answer it with `send({ replyTo: requestId, data })`. Asks time out (reject) if no reply arrives within the configurable window. Incoming messages are JSON-parsed when possible; non-JSON payloads are delivered as-is. Outgoing payloads are always `JSON.stringify`'d. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number) **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live WebSocket (and any reconnect timers) keep the event loop running. Call `await ws.disconnect()` when finished, and if the process still lingers (other handles or pending timers), end with `process.exit(0)`.
+WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). Supports ask/reply semantics when paired with the Luca WebSocket server (`container.server('websocket')`). The client can `ask(type, data)` the server and await a typed response. In the other direction, an ask from the server arrives as a normal `message` event whose payload carries a `requestId`; answer it with `send({ replyTo: requestId, data })`. Asks time out (reject) if no reply arrives within the configurable window. Incoming messages are JSON-parsed when possible; non-JSON payloads (including binary frames) are delivered as-is. Outgoing payloads are framed by {@link encodeWireFrame}: objects go out as JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number) **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live WebSocket (and any reconnect timers) keep the event loop running. Call `await ws.disconnect()` when finished, and if the process still lingers (other handles or pending timers), end with `process.exit(0)`.
 
 ## Usage
 
@@ -59,13 +59,13 @@ await server.stop()
 
 ### send
 
-Send data over the WebSocket connection. Automatically JSON-serializes the payload. If not currently connected, attempts to connect first (so an explicit connect() call beforehand is optional).
+Send data over the WebSocket connection. Objects are JSON-serialized; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). If not currently connected, attempts to connect first (so an explicit connect() call beforehand is optional).
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `data` | `any` | ✓ | The data to send (will be JSON.stringify'd) |
+| `data` | `any` | ✓ | The data to send (object → JSON, binary/string → raw frame) |
 
 **Returns:** `Promise<void>`
 

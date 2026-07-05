@@ -268,6 +268,31 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // `import { z } from 'zod'`, `import * as z from 'zod'` (z.string() etc.),
     // and `import z from 'zod'` via the default export.
     vm.defineModule('zod', { ...z, z, default: z })
+
+    // React + ink must resolve to the binary's OWN copies. Without these,
+    // the VM's bundling step inlines whatever react/ink it finds in a nearby
+    // node_modules, and the ink feature's renderer and the user's components
+    // end up on two different React instances — every hook then fails with
+    // "Invalid hook call" / `isRawModeSupported === undefined`. Lazy so CLI
+    // startup doesn't pay the react/ink import cost.
+    vm.defineLazyModule('react', () => require('react'))
+    vm.defineLazyModule('react/jsx-runtime', () => require('react/jsx-runtime'))
+    vm.defineLazyModule('react/jsx-dev-runtime', () => require('react/jsx-dev-runtime'))
+    // ink is async-only (top-level await in its dependency graph), so it can't
+    // be required synchronously — the bridge hands out the ink feature's
+    // already-loaded module. loadModuleExports() pre-loads it whenever a file
+    // imports 'ink' directly, so this loader normally finds it ready.
+    vm.defineLazyModule('ink', () => {
+      const ink = this.container.feature('ink', { enable: true }) as any
+      if (!ink.module) {
+        throw new Error(
+          "The 'ink' module loads asynchronously and isn't ready yet. " +
+          "Run `await container.feature('ink', { enable: true }).loadModules()` before requiring 'ink', " +
+          "or use the feature API directly (ink.components / ink.hooks / ink.render)."
+        )
+      }
+      return ink.module
+    })
   }
 
   /**
@@ -533,6 +558,19 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     this.seedVirtualModules()
     const vm = this.container.feature('vm') as unknown as VM
+
+    // Direct `import ... from 'ink'` resolves through the lazy 'ink' virtual
+    // module, which can only hand out an already-loaded instance (ink can't be
+    // required synchronously). Pre-load it when the source references it.
+    try {
+      const src = String(this.container.fs.readFile(absPath) ?? '')
+      if (/(from\s*['"]ink['"]|require\(\s*['"]ink['"]\s*\)|import\(\s*['"]ink['"]\s*\))/.test(src)) {
+        await (this.container.feature('ink', { enable: true }) as any).loadModules()
+      }
+    } catch {
+      // sniffing is best-effort — loadModule reports real read errors itself
+    }
+
     return vm.loadModule(absPath)
   }
 

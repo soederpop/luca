@@ -142,6 +142,18 @@ export class Ink extends Feature<InkState, InkOptions> {
   }
 
   /**
+   * The raw ink module namespace, or `null` if not yet loaded.
+   *
+   * Used by the VM virtual-module bridge so user code that does
+   * `import { Text } from 'ink'` receives the SAME ink instance the feature
+   * renders with — a second ink/react copy breaks every hook with React
+   * context mismatches ("Invalid hook call", `isRawModeSupported === undefined`).
+   */
+  get module(): typeof import('ink') | null {
+    return this._inkModule
+  }
+
+  /**
    * Pre-load ink + react modules so the sync getters work.
    * Called automatically by render(), but you can call it early.
    *

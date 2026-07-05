@@ -273,6 +273,7 @@ console.log(Object.keys(spec.paths))  // ['/status']
 | Property | Type | Description |
 |----------|------|-------------|
 | `express` | `typeof express` | The raw express module itself — handy for `server.express.static(...)`, `server.express.Router()`, etc. |
+| `httpServer` | `any` | The underlying Node http.Server, available once the app is listening (`undefined` before `start()`). Pass it — or this express server itself — to `container.server('websocket', { server })` to run a WebSocket on the same port via the Upgrade handshake. |
 | `hooks` | `{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }` | The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops. |
 | `app` | `Express` | The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly. |
 

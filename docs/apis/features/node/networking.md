@@ -71,6 +71,46 @@ if (isAvailable) {
 
 
 
+### waitForPort
+
+Waits until something is LISTENING on a port, polling with TCP connection probes. Resolves `true` as soon as a connection succeeds, or `false` when the timeout elapses without one — it never throws. Note the difference from `isPortOpen`, which asks whether a port is FREE for your own server to bind. `waitForPort` asks the opposite question: has a server come up on this port yet? It is the blessed way to smoke-test a server you just started, replacing hand-rolled poll loops.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `port` | `number` | ✓ | The port to wait on |
+| `options` | `{ host?: string; timeout?: number; interval?: number }` |  | Wait options |
+
+`{ host?: string; timeout?: number; interval?: number }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `host` | `any` | Host to probe |
+| `timeout` | `any` | Total time to keep trying, in milliseconds |
+| `interval` | `any` | Delay between probes, in milliseconds |
+
+**Returns:** `Promise<boolean>`
+
+```ts
+// Smoke-test a server you just started (the agent-harness pattern):
+const port = await networking.findOpenPort(4000)
+const server = container.server('express')
+server.app.get('/health', (req, res) => res.json({ ok: true }))
+await server.start({ port })
+
+const up = await networking.waitForPort(port, { timeout: 5000 })
+console.log(up) // true — safe to hit it with a rest client now
+
+// Fail fast when a dependency never comes up:
+const ready = await networking.waitForPort(9999, { timeout: 500 })
+console.log(ready) // false — nothing is listening on 9999
+
+await server.stop()
+```
+
+
+
 ### getLocalNetworks
 
 Returns local external IPv4 interfaces and their CIDR ranges.
@@ -321,5 +361,26 @@ if (isAvailable) {
 } else {
  console.log('Port 8080 is already in use')
 }
+```
+
+
+
+**waitForPort**
+
+```ts
+// Smoke-test a server you just started (the agent-harness pattern):
+const port = await networking.findOpenPort(4000)
+const server = container.server('express')
+server.app.get('/health', (req, res) => res.json({ ok: true }))
+await server.start({ port })
+
+const up = await networking.waitForPort(port, { timeout: 5000 })
+console.log(up) // true — safe to hit it with a rest client now
+
+// Fail fast when a dependency never comes up:
+const ready = await networking.waitForPort(9999, { timeout: 500 })
+console.log(ready) // false — nothing is listening on 9999
+
+await server.stop()
 ```
 

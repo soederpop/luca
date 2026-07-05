@@ -2,7 +2,7 @@
 
 > Stability: `stable`
 
-WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
+WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.
 
 ## Usage
 
@@ -12,8 +12,14 @@ container.server('websocket', {
   port,
   // Hostname or IP address to bind to
   host,
-  // When enabled, incoming messages are automatically JSON-parsed before emitting the message event, and outgoing send/broadcast calls JSON-stringify the payload
+  // When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing.
   json,
+  // Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port.
+  server,
+  // Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server's "upgrade" event.
+  noServer,
+  // Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding.
+  path,
 })
 ```
 
@@ -23,11 +29,32 @@ container.server('websocket', {
 |----------|------|-------------|
 | `port` | `number` | Port number to listen on |
 | `host` | `string` | Hostname or IP address to bind to |
-| `json` | `boolean` | When enabled, incoming messages are automatically JSON-parsed before emitting the message event, and outgoing send/broadcast calls JSON-stringify the payload |
+| `json` | `boolean` | When enabled, incoming messages are automatically JSON-parsed before emitting the message event (binary frames that are not valid JSON are passed through untouched). Note: outgoing send/broadcast always frame objects as JSON regardless of this flag — this option only controls inbound parsing. |
+| `server` | `any` | Attach to an existing HTTP server via the WebSocket Upgrade handshake instead of binding a port. Accepts a Node http.Server or a Luca express server. When it is an express server that has not started yet, attachment is deferred until it begins listening — so a WebSocket and an HTTP API can share one port. |
+| `noServer` | `boolean` | Create the server in noServer mode: it binds no port and performs no upgrade handling of its own. Drive it manually by calling handleUpgrade(request, socket, head) from your own HTTP server's "upgrade" event. |
+| `path` | `string` | Only accept WebSocket connections whose request path matches this value (e.g. "/ws"). Lets HTTP routes and WebSocket connections coexist on one shared port without colliding. |
 
 ## Methods
 
+### handleUpgrade
+
+Feed an HTTP `upgrade` event to this server. Only meaningful in `noServer` mode — wire it from your own http.Server: `httpServer.on('upgrade', (req, socket, head) => wsServer.handleUpgrade(req, socket, head))`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `request` | `any` | ✓ | Parameter request |
+| `socket` | `any` | ✓ | Parameter socket |
+| `head` | `any` | ✓ | Parameter head |
+
+**Returns:** `void`
+
+
+
 ### broadcast
+
+Send a message to every connected client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is broadcast as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). The frame is encoded once and reused across all connections.
 
 **Parameters:**
 
@@ -40,6 +67,8 @@ container.server('websocket', {
 
 
 ### send
+
+Send a message to one client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}).
 
 **Parameters:**
 
@@ -114,10 +143,22 @@ Start the WebSocket server. A runtime `port` overrides the constructor option an
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `wss` | `BaseServer` |  |
+| `wss` | `BaseServer` | The underlying `ws` WebSocketServer, built lazily on first access. The construction mode is chosen from options: `noServer` builds a manual server (drive it with {@link handleUpgrade}); an attached `server` (raw http.Server, or an already-listening express server) shares that server's port via the Upgrade handshake; otherwise it binds its own `port`. A `path` option, when set, is applied in every mode. |
 | `port` | `number` | The port this server will bind to. Defaults to 8081 if not set via constructor options or start(). |
 
 ## Events (Zod v4 schema)
+
+### attached
+
+Fires when a deferred attachment completes — i.e. an express server passed as the `server` option has started listening and the WebSocket is now sharing its port
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The Node http.Server the WebSocket server attached to |
+
+
 
 ### connection
 

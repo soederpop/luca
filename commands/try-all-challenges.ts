@@ -248,13 +248,77 @@ Be specific and actionable. Reference concrete file paths, APIs, and patterns. T
   })
 }
 
-// ─── Ink Dashboard ──────────────────────────────────────────────────────────
+// ─── Orchestration loop (runs independently of any UI) ─────────────────────
 
-async function renderDashboard(
+interface Progress {
+  currentBatchIndex: number
+  numBatches: number
+  allDone: boolean
+}
+
+async function orchestrateBatches(
   challenges: ChallengeState[],
   container: any,
   sessionFolder: string,
   batchSize: number,
+  abortSignal: { aborted: boolean },
+  progress: Progress,
+): Promise<void> {
+  try {
+    for (let b = 0; b < progress.numBatches; b++) {
+      if (abortSignal.aborted) break
+      progress.currentBatchIndex = b
+      const start = b * batchSize
+      const batch = challenges.slice(start, start + batchSize)
+      await runBatch(batch, container, sessionFolder, abortSignal)
+    }
+  } finally {
+    progress.allDone = true
+  }
+}
+
+// ─── Headless progress (non-TTY fallback) ──────────────────────────────────
+
+async function headlessProgress(
+  challenges: ChallengeState[],
+  container: any,
+  progress: Progress,
+): Promise<void> {
+  const statusLine = () => {
+    const done = challenges.filter(c => c.status === 'done').length
+    const failed = challenges.filter(c => c.status === 'failed' || c.status === 'timeout').length
+    const running = challenges.filter(c => c.status === 'running' || c.status === 'bootstrapping').length
+    const queued = challenges.filter(c => c.status === 'queued').length
+    return `[batch ${progress.currentBatchIndex + 1}/${progress.numBatches}] ${done} done, ${failed} failed, ${running} running, ${queued} queued`
+  }
+
+  const lastStatus = new Map<string, ChallengeStatus>(challenges.map(c => [c.id, c.status]))
+  let lastSummary = ''
+
+  while (!progress.allDone) {
+    for (const cs of challenges) {
+      if (lastStatus.get(cs.id) !== cs.status) {
+        lastStatus.set(cs.id, cs.status)
+        container.ui.print(`  ${cs.slug}: ${cs.status}${cs.error ? ` (${cs.error})` : ''}`)
+      }
+    }
+    const summary = statusLine()
+    if (summary !== lastSummary) {
+      lastSummary = summary
+      container.ui.print(summary)
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000))
+  }
+  container.ui.print(statusLine())
+}
+
+// ─── Ink Dashboard (TTY only) ───────────────────────────────────────────────
+
+async function renderDashboard(
+  challenges: ChallengeState[],
+  container: any,
+  abortSignal: { aborted: boolean },
+  progress: Progress,
 ): Promise<boolean> {
   const ink = container.feature('ink', { enable: true })
   await ink.loadModules()
@@ -265,25 +329,7 @@ async function renderDashboard(
   const { useApp, useInput, useStdout } = ink.hooks
   const { useState, useEffect } = React
 
-  const numBatches = Math.ceil(challenges.length / batchSize)
-  let currentBatchIndex = 0
-  let allBatchesDone = false
   let userAborted = false
-  const abortSignal = { aborted: false }
-
-  // Run batches in sequence outside React
-  const orchestrate = async () => {
-    for (let b = 0; b < numBatches; b++) {
-      if (abortSignal.aborted) break
-      currentBatchIndex = b
-      const start = b * batchSize
-      const batch = challenges.slice(start, start + batchSize)
-      await runBatch(batch, container, sessionFolder, abortSignal)
-    }
-    allBatchesDone = true
-  }
-
-  const orchestrationPromise = orchestrate().catch(() => { allBatchesDone = true })
 
   function App() {
     const { exit } = useApp()
@@ -300,7 +346,7 @@ async function renderDashboard(
     }, [])
 
     useEffect(() => {
-      if (allBatchesDone) {
+      if (progress.allDone) {
         setTimeout(() => exit(), 600)
       }
     }, [tick])
@@ -344,7 +390,7 @@ async function renderDashboard(
       h(Box, { paddingX: 1, marginBottom: 1, justifyContent: 'space-between' },
         h(Text, { bold: true, color: '#61dafb' }, 'LUCA CHALLENGES'),
         h(Text, null,
-          h(Text, { dimColor: true }, `Batch ${currentBatchIndex + 1}/${numBatches}  `),
+          h(Text, { dimColor: true }, `Batch ${progress.currentBatchIndex + 1}/${progress.numBatches}  `),
           h(Text, { color: 'cyan' }, bar),
           h(Text, { dimColor: true }, `  ${done + failed}/${challenges.length}`),
         ),
@@ -433,10 +479,7 @@ async function renderDashboard(
   await ink.render(h(App))
   await ink.waitUntilExit()
 
-  if (userAborted) return false
-
-  await orchestrationPromise
-  return true
+  return !userAborted
 }
 
 // ─── Main Handler ───────────────────────────────────────────────────────────
@@ -495,8 +538,40 @@ export async function tryAllChallenges(options: z.infer<typeof argsSchema>, cont
   container.ui.print(`Session: ${sessionFolder}`)
   container.ui.print(`${allChallenges.length} challenges, ${numBatches} batches of ${batchSize}\n`)
 
-  // Run dashboard
-  const completed = await renderDashboard(challengeStates, container, sessionFolder, batchSize)
+  // Orchestration runs independently of any UI: a dead dashboard must never
+  // take the batch loop (or the synthesis step) down with it.
+  const abortSignal = { aborted: false }
+  const progress: Progress = { currentBatchIndex: 0, numBatches, allDone: false }
+  const orchestration = orchestrateBatches(
+    challengeStates, container, sessionFolder, batchSize, abortSignal, progress,
+  )
+
+  const killActiveChildren = () => {
+    abortSignal.aborted = true
+    for (const cp of activeChildProcesses) {
+      try { cp.kill?.('SIGTERM') } catch {}
+    }
+    activeChildProcesses.clear()
+  }
+  process.once('SIGINT', killActiveChildren)
+  process.once('SIGTERM', killActiveChildren)
+
+  // The ink dashboard needs a real terminal (raw-mode stdin) — fall back to
+  // plain status logs when piped/backgrounded.
+  const interactive = Boolean(process.stdout.isTTY && process.stdin.isTTY)
+  let completed = true
+  try {
+    if (interactive) {
+      completed = await renderDashboard(challengeStates, container, abortSignal, progress)
+    } else {
+      await headlessProgress(challengeStates, container, progress)
+    }
+  } catch (err: any) {
+    container.ui.print(`Dashboard failed (${err?.message || err}) — continuing without UI.`)
+  } finally {
+    // Whatever happened to the UI, let the batches finish before summarizing.
+    await orchestration.catch(() => {})
+  }
 
   if (!completed) {
     container.ui.print('\nAborted by user.')
