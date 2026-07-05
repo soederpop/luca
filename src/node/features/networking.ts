@@ -316,7 +316,61 @@ export class Networking extends Feature<NetworkingState, NetworkingOptions> {
    */
   async isPortOpen(checkPort = 0) {
     const nextPort = await detectPort(Number(checkPort))
-    return nextPort && nextPort === Number(checkPort)    
+    return nextPort && nextPort === Number(checkPort)
+  }
+
+  /**
+   * Waits until something is LISTENING on a port, polling with TCP connection
+   * probes. Resolves `true` as soon as a connection succeeds, or `false` when
+   * the timeout elapses without one — it never throws.
+   *
+   * Note the difference from `isPortOpen`, which asks whether a port is FREE
+   * for your own server to bind. `waitForPort` asks the opposite question:
+   * has a server come up on this port yet? It is the blessed way to smoke-test
+   * a server you just started, replacing hand-rolled poll loops.
+   *
+   * @param {number} port - The port to wait on
+   * @param {object} [options] - Wait options
+   * @param {string} [options.host='localhost'] - Host to probe
+   * @param {number} [options.timeout=30000] - Total time to keep trying, in milliseconds
+   * @param {number} [options.interval=250] - Delay between probes, in milliseconds
+   * @returns {Promise<boolean>} true once the port accepts a connection, false on timeout
+   *
+   * @example
+   * ```typescript
+   * // Smoke-test a server you just started (the agent-harness pattern):
+   * const port = await networking.findOpenPort(4000)
+   * const server = container.server('express')
+   * server.app.get('/health', (req, res) => res.json({ ok: true }))
+   * await server.start({ port })
+   *
+   * const up = await networking.waitForPort(port, { timeout: 5000 })
+   * console.log(up) // true — safe to hit it with a rest client now
+   *
+   * // Fail fast when a dependency never comes up:
+   * const ready = await networking.waitForPort(9999, { timeout: 500 })
+   * console.log(ready) // false — nothing is listening on 9999
+   *
+   * await server.stop()
+   * ```
+   */
+  async waitForPort(port: number, options: { host?: string; timeout?: number; interval?: number } = {}): Promise<boolean> {
+    const host = options.host ?? 'localhost'
+    const timeout = options.timeout ?? 30_000
+    const interval = options.interval ?? 250
+    const started = Date.now()
+
+    while (true) {
+      const remaining = timeout - (Date.now() - started)
+      if (remaining <= 0) return false
+
+      const probeTimeout = Math.max(1, Math.min(interval * 4, remaining))
+      const { status } = await this.probeTcpPort(host, Number(port), probeTimeout, false)
+      if (status === 'open') return true
+
+      if (timeout - (Date.now() - started) <= 0) return false
+      await new Promise((resolve) => setTimeout(resolve, interval))
+    }
   }
 
   /**

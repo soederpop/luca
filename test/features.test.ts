@@ -144,6 +144,43 @@ describe('Features', () => {
       const port = await c.networking.findOpenPort(30000)
       expect(port).toBeGreaterThanOrEqual(30000)
     })
+
+    it('waitForPort resolves true against a live listener', async () => {
+      const net = await import('net')
+      const c = new NodeContainer()
+      const port = await c.networking.findOpenPort(31000)
+      const server = net.createServer()
+      await new Promise<void>((resolve) => server.listen(port, resolve))
+      try {
+        expect(await c.networking.waitForPort(port, { timeout: 3000 })).toBe(true)
+      } finally {
+        await new Promise((resolve) => server.close(resolve))
+      }
+    })
+
+    it('waitForPort returns false quickly for a dead port', async () => {
+      const c = new NodeContainer()
+      const port = await c.networking.findOpenPort(32000)
+      const started = Date.now()
+      expect(await c.networking.waitForPort(port, { timeout: 400, interval: 100 })).toBe(false)
+      expect(Date.now() - started).toBeLessThan(3000)
+    })
+
+    it('waitForPort resolves true when the server starts listening mid-wait', async () => {
+      const net = await import('net')
+      const c = new NodeContainer()
+      const port = await c.networking.findOpenPort(33000)
+      const server = net.createServer()
+      const listenLater = new Promise<void>((resolve) =>
+        setTimeout(() => server.listen(port, resolve), 200)
+      )
+      try {
+        expect(await c.networking.waitForPort(port, { timeout: 5000, interval: 50 })).toBe(true)
+        await listenLater
+      } finally {
+        await new Promise((resolve) => server.close(resolve))
+      }
+    })
   })
 
   describe('YAML feature', () => {
