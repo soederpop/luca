@@ -1,3 +1,7 @@
+---
+difficulty: easy
+maxTime: 10
+---
 # YAML Config System
 
 Build a command suite for managing project configuration stored in `luca.config.yaml`:

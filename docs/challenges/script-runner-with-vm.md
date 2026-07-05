@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 10
+---
 # Script Runner with VM
 
 Create a `scripts/` folder with a few `.ts` files that each export a `run()` function. These scripts should do simple things — format a date, generate a UUID, compute a hash of some input.

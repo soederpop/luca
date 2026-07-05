@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 10
+---
 # Build a File Watcher Pipeline
 
 Watch a folder called `inbox/` for new `.json` files. When a new file appears, validate that it has a `name` and `email` field. Move valid files to `inbox/valid/` and invalid files to `inbox/invalid/`.

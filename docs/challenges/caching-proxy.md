@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 15
+---
 # Build a Caching Proxy
 
 Create `luca proxy` that starts a local HTTP server which proxies incoming requests to a configurable upstream URL, caching responses with a configurable TTL (default 60 seconds).

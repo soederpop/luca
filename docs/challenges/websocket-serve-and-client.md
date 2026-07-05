@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 10
+---
 # Build a websocket server with a matching websocket client
 
 Use the luca framework to build a websocket server you can start with a `luca start` command.

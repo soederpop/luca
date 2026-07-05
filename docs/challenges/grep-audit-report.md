@@ -1,3 +1,7 @@
+---
+difficulty: easy
+maxTime: 10
+---
 # Grep Audit Report
 
 Build `luca audit <path>` that scans a codebase at the given path and finds:

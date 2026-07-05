@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 15
+---
 # Build a Multi-Feature Dashboard
 
 Create a `luca dashboard` command that displays a live-updating terminal UI showing:

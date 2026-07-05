@@ -1,4 +1,6 @@
 ---
+difficulty: easy
+maxTime: 10
 lastRanAt: 1773554828927
 durationMs: 601701
 outputTokens: 1646

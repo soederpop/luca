@@ -1,3 +1,7 @@
+---
+difficulty: easy
+maxTime: 5
+---
 # Build a custom command
 
 Build a custom command with luca called `hello`

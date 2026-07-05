@@ -1,3 +1,7 @@
+---
+difficulty: medium
+maxTime: 10
+---
 # Build a REST server with a matching REST Client
 
 Create a command `luca start` which will use a custom luca express server you build and start it.
