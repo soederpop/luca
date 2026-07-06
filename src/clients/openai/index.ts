@@ -18,6 +18,7 @@ export type OpenAIClientState = z.infer<typeof OpenAIClientStateSchema>
 
 export const OpenAIClientOptionsSchema = ClientOptionsSchema.extend({
   apiKey: z.string().optional().describe('OpenAI API key (falls back to OPENAI_API_KEY env var)'),
+  baseURL: z.string().optional().describe('API base URL (falls back to OPENAI_BASE_URL env var, then the official OpenAI API)'),
   organization: z.string().optional().describe('OpenAI organization ID'),
   project: z.string().optional().describe('OpenAI project ID'),
   dangerouslyAllowBrowser: z.boolean().optional().describe('Allow usage in browser environments'),
@@ -53,7 +54,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
 
   static override shortcut = "clients.openai" as const
   static override stability = 'core' as const
-  static override envVars = ['OPENAI_API_KEY', 'OPENAI_DEFAULT_MODEL']
+  static override envVars = ['OPENAI_API_KEY', 'OPENAI_DEFAULT_MODEL', 'OPENAI_BASE_URL']
   static override stateSchema = OpenAIClientStateSchema
   static override optionsSchema = OpenAIClientOptionsSchema
   static override eventsSchema = OpenAIClientEventsSchema
@@ -87,7 +88,7 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
       dangerouslyAllowBrowser: this.options.dangerouslyAllowBrowser,
       timeout: this.options.timeout,
       maxRetries: this.options.maxRetries,
-      baseURL: this.options.baseURL,
+      baseURL: this.options.baseURL || process.env.OPENAI_BASE_URL,
     });
   }
 
