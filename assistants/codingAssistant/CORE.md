@@ -1,5 +1,5 @@
 ---
-model: qwen/qwen-3.6-27b
+model: qwen36 
 clientOptions:
   baseURL: http://chief:1234/v1
   apiKey: sk-local

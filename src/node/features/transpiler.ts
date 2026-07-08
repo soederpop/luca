@@ -198,7 +198,16 @@ export class Transpiler extends Feature {
     // statement (`const a = {...}; a` loses the trailing `a`), destroying
     // eval/markdown completion values. We transpile to EXECUTE, not to
     // optimize — never eliminate observable statements.
-    const transpiler = new Bun.Transpiler({ loader, deadCodeElimination: false })
+    // Classic JSX (React.createElement) for tsx/jsx: Bun's default automatic
+    // runtime emits hashed helper refs (jsxDEV_xxx) without importing them,
+    // which crashes in the vm. Classic pairs with a React in scope.
+    const transpiler = new Bun.Transpiler({
+      loader,
+      deadCodeElimination: false,
+      ...(loader === 'tsx' || loader === 'jsx'
+        ? { tsconfig: JSON.stringify({ compilerOptions: { jsx: 'react' } }) }
+        : {}),
+    })
     let result = transpiler.transformSync(code)
 
     if (format === 'cjs') {
@@ -218,8 +227,14 @@ export class Transpiler extends Feature {
     const loader = options.loader || 'ts'
     const format = options.format || 'esm'
 
-    // Keep in lockstep with transformSync: no DCE at runtime.
-    const transpiler = new Bun.Transpiler({ loader, deadCodeElimination: false })
+    // Keep in lockstep with transformSync: no DCE at runtime, classic JSX.
+    const transpiler = new Bun.Transpiler({
+      loader,
+      deadCodeElimination: false,
+      ...(loader === 'tsx' || loader === 'jsx'
+        ? { tsconfig: JSON.stringify({ compilerOptions: { jsx: 'react' } }) }
+        : {}),
+    })
     let result = await transpiler.transform(code)
 
     if (format === 'cjs') {
