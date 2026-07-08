@@ -7,6 +7,8 @@ import { realpathSync } from 'node:fs'
 import type { GrepOptions } from './grep.js'
 import type { Helper } from '../../helper.js'
 
+const { defineModel } = contentbaseExports
+
 export const ContentDbStateSchema = FeatureStateSchema.extend({
   loaded: z.boolean().default(false).describe('Whether the content collection has been loaded and parsed'),
   tableOfContents: z.string().default('').describe('Generated table of contents string for the collection'),
@@ -171,6 +173,19 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     return this._collection = new Collection(opts)
   }
+ 
+  /** The contentbase library instance. */
+  get contentbase() {
+    return contentbaseExports
+  }
+  
+  /** Define a model in the collection at runtime.  Usually models are defined in the docs/models.ts file but this allows you to do it at runtime for dynamic model definitions. */
+  defineModel(name: string, config: any): ModelDefinition {
+    const { collection } = this
+    const def = defineModel(name, config)
+    collection.register(def)
+    return def
+  }
 
   /** Check if contentbase is resolvable via native import from the project root */
   private _canNativeImportContentbase(): boolean {
@@ -198,6 +213,9 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     // Register contentbase barrel — everything the library exports
     vm.defineModule('contentbase', contentbaseExports)
+    
+    // register the luca container
+    vm.defineModule('luca', this.container)
 
     // Common deps that models.ts files tend to use
     try { vm.defineModule('js-yaml', require('js-yaml')) } catch {}

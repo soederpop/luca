@@ -24,9 +24,9 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 
 ## The `luca` CLI
 
-- in dev, `bun run src/cli/cli.ts` is the same as `luca`
+The `luca` binary on this system is the compiled binary in `dist/luca`.  The system aliases / paths this to be the compiled binary and makes it available system wide.  This is mimicking what a user who downloads the luca binary would have.  Consider this the "production" environment. 
 
-- in prod, or educational material, `luca` refers to the binary build.  In this mode, it can work in any project, and load `commands/` and `endpoints/` through its VM and therefore allows folders of these modules which don't depend on anything from NPM to extend the CLI and be used in commands like `luca serve` to run a local express server
+The `lucadev` shell alias on this system is the equivalent to running `bun run src/cli/cli.ts` in this project.  Use this to test your live code changes without compiling.  
 
 - The `luca` cli is an extremely helpful tool.
 	- it runs code `luca eval "container.features.available"`
@@ -38,8 +38,6 @@ On the frontend the browser container is perfect for highly reactive, stateful w
 		- the arguments to describe are pretty forgiving and permissive
 	- `luca chat` — start an interactive chat session with an assistant
 	- `luca scaffold assistant <name>` — generate boilerplate for a new assistant
-
-**IMPORTANT NOTE** When trying to investigate features, clients, servers, etc, see if these tools can help you first instead of searching for files and reading them that way.  If youw ant to understand what they do, vs how theyre actually implemented
 
 ## OpenAI Tool Schemas (Zod → JSON Schema)
 
