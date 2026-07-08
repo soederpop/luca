@@ -14,3 +14,8 @@ tmp/
 docs/
 test/
 test-integration/
+attempts/
+datasets/
+.venv
+.contentbase
+.claude

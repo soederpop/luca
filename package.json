@@ -226,9 +226,6 @@
   "optionalDependencies": {
     "node-llama-cpp": "3.17.1"
   },
-  "overrides": {
-    "luca": "."
-  },
   "luca": {
     "aliases": [
       "luca",
