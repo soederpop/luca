@@ -265,6 +265,26 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // and `import z from 'zod'` via the default export.
     vm.defineModule('zod', { ...z, z, default: z })
 
+    // lodash-es — luca's own code already depends on it, so it's in the
+    // binary. Expose it so VM-loaded project files (contentDb models,
+    // docs/models.ts, luca run scripts) can `import { debounce } from 'lodash-es'`
+    // without a local install.
+    try {
+      const lodash = require('lodash-es')
+      vm.defineModule('lodash-es', { ...lodash, default: lodash })
+      vm.defineModule('lodash', { ...lodash, default: lodash })
+    } catch {}
+
+    // luca/web — the browser barrel. Only useful for isomorphic code paths
+    // (schemas, WebContainer type references) since the VM runs in node, but
+    // registering it lets `import { WebContainer } from 'luca/web'` resolve
+    // without a node_modules install.
+    try {
+      const webModule = require('../../web/container.js')
+      vm.defineModule('luca/web', webModule)
+      vm.defineModule('@soederpop/luca/web', webModule)
+    } catch {}
+
     // React + ink must resolve to the binary's OWN copies. Without these,
     // the VM's bundling step inlines whatever react/ink it finds in a nearby
     // node_modules, and the ink feature's renderer and the user's components
