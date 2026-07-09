@@ -173,4 +173,44 @@ container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
 })
 
+// Seed the VM's virtual module map with the agi barrel so VM-executed project
+// code can `import`/`require('luca/agi')`. Inside the compiled binary the
+// virtual modules are the only working resolution path (see
+// helpers.useNativeImport), and the node-layer seeding in
+// features/helpers.ts covers 'luca' and its node-level subpaths but cannot
+// reference this layer.
+try {
+	const vm = container.feature('vm') as any
+	const agiExports: Record<string, any> = {
+		ClaudeCode,
+		ClaudeController,
+		ClaudeSessionController,
+		OpenAICodex,
+		Conversation,
+		ConversationV2,
+		ModelProviders,
+		ConversationHistory,
+		Assistant,
+		AssistantsManager,
+		DocsReader,
+		SkillsLibrary,
+		BrowserUse,
+		FileTools,
+		LucaCoder,
+		Memory,
+		CodingTools,
+		McpBridge,
+		VoiceMode,
+		SemanticSearch,
+		ContentDb,
+		NodeContainer,
+		OpenAIClient,
+		ElevenLabsClient,
+		AGIContainer,
+		default: container,
+	}
+	vm.defineModule('luca/agi', agiExports)
+	vm.defineModule('@soederpop/luca/agi', agiExports)
+} catch {}
+
 export default container
