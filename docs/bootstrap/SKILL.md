@@ -89,15 +89,21 @@ luca describe              # overview of the container
 luca describe self         # same thing
 ```
 
-### Get help on any command
+### Learn how to run a CLI command → `--help`, not `describe`
+
+`luca describe` documents the **programmatic API** of helpers (features, clients, servers) — the methods, getters, and events you call in code. It is the wrong tool for learning how to *invoke a CLI command*. For that, use the command's own `--help`, which renders its arguments, positionals, flags, subcommands, and examples:
 
 ```shell
-luca                       # list all available commands
-luca describe --help       # full flag reference for describe
-luca help scaffold         # help for any command
+luca                       # list every available command
+luca serve --help          # how to run the serve command
+luca scaffold --help       # arguments, flags, and examples for scaffold
+luca bundle --help         # ...for any command
+luca help scaffold         # equivalent to `luca scaffold --help`
 ```
 
-**Use `luca describe` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (`ui.banner`, `fs.readFile`) when you need docs on just one method or getter. Use `--ts` when you need type information for writing code.
+Rule of thumb: **helper → `luca describe <name>`; command → `luca <command> --help`.** (Describing a command still works, but it shows the command class's internals, not its usage — `describe` will warn you and point you at `--help`.)
+
+**Use `luca describe` liberally for helpers.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (`ui.banner`, `fs.readFile`) when you need docs on just one method or getter. Use `--ts` when you need type information for writing code.
 
 > **NOTE:** The `luca` binary is compiled and bundles all introspection data. `luca describe` reflects what actually ships in the binary — source files for built-in helpers may not exist in your project. Reading source can add context when it's available, but `luca describe` and `luca eval` are always the authority.
 
@@ -136,7 +142,7 @@ The workflow after scaffolding:
 ```shell
 luca scaffold command sync-data --description "Pull data from staging"
 # edit commands/sync-data.ts — add your logic
-luca describe sync-data            # verify it shows up and reads correctly
+luca sync-data --help              # verify it shows up and its args/flags read correctly
 ```
 
 Scaffolded **commands** and **endpoints** are picked up automatically (the CLI and `luca serve` discover those folders themselves). Scaffolded **features, clients, and servers are not** — they need `container.helpers.discoverAll()` in `luca.cli.ts`. See "How Auto-Discovery Works" below.

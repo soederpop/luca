@@ -127,6 +127,26 @@ function shouldIncludeBrowser(platform: string): boolean {
 	return platform === 'browser' || platform === 'web' || platform === 'all'
 }
 
+/** Normalize a name for fuzzy matching (strip extension, dashes/underscores, lowercase). */
+function normalizeName(name: string): string {
+	return name.replace(/\.[tj]sx?$/, '').replace(/[-_]/g, '').toLowerCase()
+}
+
+/** Resolve a target to its canonical command name, or undefined if it isn't a command. */
+function resolveCommandName(container: any, target: string): string | undefined {
+	// Member access (e.g. "fs.readFile") is never a command.
+	if (target.includes('.')) return undefined
+	const commands = container.commands
+	if (!commands) return undefined
+	if (commands.has(target)) return target
+	const norm = normalizeName(target)
+	return (commands.available as string[]).find((id) => normalizeName(id) === norm)
+}
+
+function isCommandTarget(container: any, target: string): boolean {
+	return resolveCommandName(container, target) !== undefined
+}
+
 // --- Command handler ---
 
 export default async function describe(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -143,6 +163,21 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 		const Cmd = container.commands.lookup('describe')
 		console.log(formatCommandHelp('describe', Cmd, ui.colors))
 		return
+	}
+
+	// Steer users away from describing CLI commands. `describe` documents a
+	// helper's programmatic API (methods, getters, events) — for a command that's
+	// rarely what you want. You want to know how to *invoke* it, which lives in
+	// the command's own `--help`. Warn before rendering, don't block.
+	const commandTargets = targets.filter((t) => isCommandTarget(container, t))
+	if (commandTargets.length > 0) {
+		const ui = container.feature('ui') as any
+		for (const cmd of commandTargets) {
+			const resolved = resolveCommandName(container, cmd)
+			const msg = `⚠️  "${cmd}" is a CLI command. \`luca describe\` shows its programmatic internals, not how to run it.\n    To learn its arguments, flags, and usage, run:  luca ${resolved} --help`
+			console.error(ui?.colors ? ui.colors.yellow(msg) : msg)
+		}
+		console.error('')
 	}
 
 	// Build-time hack: load browser features into the describer if needed
