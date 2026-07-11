@@ -275,40 +275,12 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
       vm.defineModule('lodash', { ...lodash, default: lodash })
     } catch {}
 
-    // luca/web — the browser barrel. Only useful for isomorphic code paths
-    // (schemas, WebContainer type references) since the VM runs in node, but
-    // registering it lets `import { WebContainer } from 'luca/web'` resolve
-    // without a node_modules install.
-    //
-    // Importing the web barrel executes the web features' static
+    // Note: 'luca/web' is deliberately NOT seeded. The VM runs in node, and
+    // importing the web barrel executes the web features' static
     // Feature.register blocks, which write into the same global registries as
-    // the node layer and would clobber the node classes for shared ids
-    // ('helpers', 'vm', 'esbuild', ...) — every container created afterwards
-    // would resolve browser features in a node process. Snapshot the
-    // registries and restore anything the import changed.
-    try {
-      const restores = [this.container.features, clients, servers].map(registry => {
-        const before = new Map((registry as Registry<any>).available.map(id => [id, (registry as Registry<any>).lookup(id)]))
-        return () => {
-          for (const id of (registry as Registry<any>).available) {
-            if (!before.has(id)) (registry as Registry<any>).unregister(id)
-          }
-          for (const [id, cls] of before) {
-            if ((registry as Registry<any>).lookup(id) !== cls) (registry as Registry<any>).register(id, cls)
-          }
-        }
-      })
-
-      let webModule: any
-      try {
-        webModule = require('../../web/container.js')
-      } finally {
-        for (const restore of restores) restore()
-      }
-
-      vm.defineModule('luca/web', webModule)
-      vm.defineModule('@soederpop/luca/web', webModule)
-    } catch {}
+    // the node layer and clobber the node classes for shared ids ('helpers',
+    // 'vm', 'esbuild', ...). Browser code should import luca/web via a real
+    // bundler or esm.sh instead (see docs/tutorials/20-browser-esm.md).
 
     // React + ink must resolve to the binary's OWN copies. Without these,
     // the VM's bundling step inlines whatever react/ink it finds in a nearby
