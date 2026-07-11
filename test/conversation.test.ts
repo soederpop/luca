@@ -116,6 +116,103 @@ describe('Conversation', () => {
 		})
 	})
 
+	describe('modelProviders transport routing', () => {
+		function makeContainerAndConversation(opts: Record<string, any> = {}) {
+			const container = new AGIContainer()
+			const providers = container.feature('modelProviders')
+			const conv = container.feature('conversation', { model: 'gpt-5', ...opts }) as Conversation
+			return { container, providers, conv }
+		}
+
+		it('routes chat-mode asks through the openai-chat-completions transport', async () => {
+			const { providers, conv } = makeContainerAndConversation({ api: 'chat' })
+			const requests: any[] = []
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any) {
+					requests.push(request)
+					yield { type: 'chunk', text: 'hel' } as const
+					yield { type: 'chunk', text: 'lo' } as const
+					yield { type: 'response', response: { content: 'hello', toolCalls: [], usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } } } as const
+				},
+			})
+
+			const chunks: string[] = []
+			conv.on('chunk', (delta: string) => chunks.push(delta))
+
+			const answer = await conv.ask('Ping')
+
+			expect(answer).toBe('hello')
+			expect(chunks).toEqual(['hel', 'lo'])
+			expect(requests[0].messages.at(-1)).toMatchObject({ role: 'user', content: 'Ping' })
+			expect(conv.messages.at(-1)).toEqual({ role: 'assistant', content: 'hello' })
+			expect(conv.state.get('tokenUsage')).toMatchObject({ prompt: 5, completion: 2, total: 7 })
+		})
+
+		it('executes tool calls returned by the transport and loops to a final answer', async () => {
+			const { providers, conv } = makeContainerAndConversation({ api: 'chat' })
+			const requests: any[] = []
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any) {
+					requests.push(request)
+					if (requests.length === 1) {
+						yield {
+							type: 'response',
+							response: { content: '', toolCalls: [{ id: 'call_1', name: 'lookup', arguments: { id: 42 }, rawArguments: '{"id":42}' }] },
+						} as const
+						return
+					}
+					yield { type: 'chunk', text: 'found it' } as const
+					yield { type: 'response', response: { content: 'found it', toolCalls: [] } } as const
+				},
+			})
+
+			const toolArgs: any[] = []
+			conv.addTool('lookup', {
+				description: 'Lookup a value',
+				parameters: { type: 'object', properties: { id: { type: 'number' } } },
+				handler: async (args: any) => { toolArgs.push(args); return { ok: true } },
+			})
+
+			const answer = await conv.ask('Use the tool')
+
+			expect(answer).toBe('found it')
+			expect(toolArgs).toEqual([{ id: 42 }])
+			expect(requests.length).toBe(2)
+			// The message history keeps the OpenAI tool_calls wire format
+			const assistantWithTools = conv.messages.find(m => (m as any).tool_calls) as any
+			expect(assistantWithTools.tool_calls).toEqual([
+				{ id: 'call_1', type: 'function', function: { name: 'lookup', arguments: '{"id":42}' } },
+			])
+			expect(conv.messages.find(m => m.role === 'tool')).toMatchObject({ tool_call_id: 'call_1' })
+		})
+
+		it('routes responses-mode asks through the openai-responses transport', async () => {
+			const { providers, conv } = makeContainerAndConversation()
+			const requests: any[] = []
+			providers.registerTransport('openai-responses', {
+				apiMode: 'openai-responses',
+				async *stream(request: any) {
+					requests.push(request)
+					yield { type: 'rawEvent', event: { type: 'response.output_text.delta', delta: 'hi there' } } as const
+					yield { type: 'chunk', text: 'hi there' } as const
+					const response = { id: 'resp_1', output: [], output_text: 'hi there', usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } }
+					yield { type: 'rawEvent', event: { type: 'response.completed', response } } as const
+					yield { type: 'response', response: { content: 'hi there', toolCalls: [], usage: response.usage, providerData: { responseId: 'resp_1', response } } } as const
+				},
+			})
+
+			const answer = await conv.ask('Hello')
+
+			expect(answer).toBe('hi there')
+			expect(conv.state.get('lastResponseId')).toBe('resp_1')
+			expect(conv.messages.at(-1)).toEqual({ role: 'assistant', content: 'hi there' })
+			expect(conv.state.get('tokenUsage')).toMatchObject({ prompt: 3, completion: 2, total: 5 })
+			expect(requests[0].providerOptions.input).toBeDefined()
+		})
+	})
+
 	describe('stub()', () => {
 		it('exact string match returns the stub response', async () => {
 			const conv = makeConversation()

@@ -6,6 +6,7 @@ import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
 import { countMessageTokens, getContextWindow, calculateCost } from '../lib/token-counter.js';
+import { toResponsesUserMessage, messagesToResponsesInput, type ModelTool, type ModelToolCall, type ResolvedModelProvider } from './model-providers';
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -589,7 +590,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			})
 			.join('\n\n')
 
-		const response = await this.openai.raw.chat.completions.create({
+		const provider = await this.resolveTransportProvider('openai-chat-completions')
+
+		let summary = ''
+		for await (const event of provider.transport.stream({
 			model: this.model,
 			messages: [
 				{
@@ -598,10 +602,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 				},
 				{ role: 'user', content: transcript },
 			],
-			stream: false,
-		})
+		}, provider)) {
+			if (event.type === 'response') summary = event.response.content || ''
+		}
 
-		const summary = (response as any).choices?.[0]?.message?.content || ''
 		this.emit('summarizeEnd', summary)
 		return summary
 	}
@@ -661,49 +665,6 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.emit('compactEnd', { summary, removedCount, estimatedTokens, compactionCount: this.state.get('compactionCount') })
 
 		return { summary, removedCount, estimatedTokens }
-	}
-
-	/**
-	 * Get the OpenAI-formatted tools array from the registered tools.
-	 *
-	 * @returns {OpenAI.Chat.Completions.ChatCompletionTool[]} The tools formatted for OpenAI
-	 */
-	private get openaiTools(): OpenAI.Chat.Completions.ChatCompletionTool[] {
-		return Object.entries(this.tools).map(([name, tool]) => ({
-			type: 'function' as const,
-			function: {
-				name,
-				description: tool.description,
-				parameters: tool.parameters
-			}
-		}))
-	}
-
-	/**
-	 * Get the OpenAI Responses-formatted tools array from local function tools
-	 * plus configured remote MCP servers.
-	 */
-	private get responseTools(): OpenAI.Responses.Tool[] {
-		const functionTools = Object.entries(this.tools).map(([name, tool]) => ({
-			type: 'function' as const,
-			name,
-			description: tool.description,
-			parameters: { ...tool.parameters, additionalProperties: false },
-			strict: true,
-		}))
-
-		const mcpTools = Object.entries(this.mcpServers)
-			.filter(([, server]) => !!server?.url)
-			.map(([serverLabel, server]) => ({
-				type: 'mcp' as const,
-				server_label: serverLabel,
-				server_url: server.url,
-				...(server.headers ? { headers: server.headers } : {}),
-				...(server.allowedTools ? { allowed_tools: server.allowedTools } : {}),
-				...(server.requireApproval ? { require_approval: server.requireApproval } : {}),
-			}))
-
-		return [...functionTools, ...mcpTools]
 	}
 
 	/** Returns the first system/developer text message to use as Responses instructions. */
@@ -770,11 +731,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 				if (previousResponseId) {
 					// Can chain via previous_response_id — only send the new user message
-					input = [this.toResponsesUserMessage(content)]
+					input = [toResponsesUserMessage(content)]
 				} else {
 					// No previous response ID (first call, resumed from disk, or maxInputTokens active).
 					// Convert (possibly trimmed) message history to Responses API input.
-					input = this.messagesToResponsesInput(this.getMessagesWithinBudget())
+					input = messagesToResponsesInput(this.getMessagesWithinBudget() as any)
 				}
 
 				raw = await this.runResponsesLoop({
@@ -818,88 +779,6 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}
 	}
 
-	/** Convert user content into a Responses API input message item. */
-	private toResponsesUserMessage(content: string | ContentPart[]): OpenAI.Responses.ResponseInputItem.Message {
-		if (typeof content === 'string') {
-			return {
-				type: 'message',
-				role: 'user',
-				content: [{ type: 'input_text', text: content }]
-			}
-		}
-
-		const parts = content.map((part) => {
-			if (part.type === 'text') {
-				return { type: 'input_text' as const, text: part.text }
-			}
-			if (part.type === 'input_audio') {
-				return { type: 'input_audio' as const, data: part.data, format: part.format }
-			}
-			if (part.type === 'input_file') {
-				return { type: 'input_file' as const, file_data: part.file_data, filename: part.filename }
-			}
-
-			return {
-				type: 'input_image' as const,
-				image_url: part.image_url.url,
-				detail: part.image_url.detail || 'auto',
-			}
-		}) as OpenAI.Responses.ResponseInputMessageContentList
-
-		return {
-			type: 'message',
-			role: 'user',
-			content: parts,
-		}
-	}
-
-	/**
-	 * Convert the full Chat Completions message history into Responses API input items.
-	 * Used when resuming a conversation without a previous_response_id.
-	 */
-	private messagesToResponsesInput(messages?: Message[]): OpenAI.Responses.ResponseInput {
-		const input: OpenAI.Responses.ResponseInput = []
-
-		for (const msg of (messages || this.messages)) {
-			if (msg.role === 'system' || msg.role === 'developer') {
-				// System/developer messages are handled via the instructions parameter
-				continue
-			}
-
-			if (msg.role === 'user') {
-				if (typeof msg.content === 'string') {
-					input.push({
-						type: 'message',
-						role: 'user',
-						content: [{ type: 'input_text', text: msg.content }],
-					})
-				} else if (Array.isArray(msg.content)) {
-					input.push(this.toResponsesUserMessage(msg.content as ContentPart[]))
-				}
-				continue
-			}
-
-			if (msg.role === 'assistant') {
-				const content = typeof msg.content === 'string' ? msg.content : (msg.content || []).map((p: any) => p.text || '').join('')
-				if (content) {
-					input.push({
-						type: 'message',
-						role: 'assistant',
-						content: [{ type: 'output_text', text: content, annotations: [] }],
-						id: `msg_replay-${input.length}`,
-						status: 'completed',
-					} as any)
-				}
-				continue
-			}
-
-			// Tool results — skip in the replay since the assistant's tool_calls won't have matching IDs
-			// The model will still understand context from the assistant messages that followed
-		}
-
-		return input
-	}
-
 	/**
 	 * Build the OpenAI response_format / text.format config from the active Zod schema.
 	 * Returns undefined when no schema is active.
@@ -935,6 +814,38 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			...this.options.clientOptions,
 			...(baseURL ? { baseURL } : {}),
 		}) as OpenAIClient
+	}
+
+	/**
+	 * Resolve a model provider for the given API mode through the modelProviders
+	 * feature. The conversation's own OpenAI client (which already encodes
+	 * clientOptions, local mode, and auth) is injected as the transport client so
+	 * connection behavior is unchanged — modelProviders supplies the transport.
+	 */
+	private resolveTransportProvider(apiMode: 'openai-responses' | 'openai-chat-completions'): Promise<ResolvedModelProvider> {
+		return this.container.feature('modelProviders').resolve({
+			provider: { id: `conversation-${apiMode}`, apiMode, auth: 'none' },
+			model: this.model,
+			providerOptions: {
+				// Lazy so replacement transports that bring their own connection
+				// never force construction of the OpenAI client (and its API key).
+				clientFactory: () => this.openai.raw,
+				...(apiMode === 'openai-chat-completions' ? { maxTokensParam: this.maxTokensParam } : {}),
+				...(Object.keys(this.mcpServers).length ? { mcpServers: this.mcpServers } : {}),
+			},
+		})
+	}
+
+	/** The registered tools in normalized ModelTool form for provider transports. */
+	private get modelTools(): ModelTool[] {
+		return Object.entries(this.tools).map(([name, tool]) => ({
+			type: 'function' as const,
+			function: {
+				name,
+				description: tool.description,
+				parameters: tool.parameters,
+			},
+		}))
 	}
 
 	/** Returns the conversationHistory feature for persistence. */
@@ -1090,55 +1001,57 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		let turnContent = ''
 		let finalResponse: OpenAI.Responses.Response | undefined
 
-		const toolsParam = this.responseTools.length > 0 ? this.responseTools : undefined
+		const provider = await this.resolveTransportProvider('openai-responses')
+		const tools = this.modelTools
 
 		this.state.set('streaming', true)
 		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
 
-		const textFormat = this.structuredOutputConfig
-			? { text: { format: { type: 'json_schema' as const, ...this.structuredOutputConfig } } }
-			: {}
-
 		try {
-			const stream = await this.openai.raw.responses.create({
-				model: this.model as OpenAI.Responses.ResponseCreateParams['model'],
-				input: context.input,
+			const stream = provider.transport.stream({
+				model: this.model,
+				messages: [],
+				tools: tools.length ? tools : undefined,
+				maxTokens: this.maxTokens,
+				temperature: this.state.get('temperature') ?? undefined,
+				topP: this.state.get('topP') ?? undefined,
+				topK: this.state.get('topK') ?? undefined,
+				frequencyPenalty: this.state.get('frequencyPenalty') ?? undefined,
+				presencePenalty: this.state.get('presencePenalty') ?? undefined,
+				stop: this.state.get('stop') ?? undefined,
+				responseFormat: this.structuredOutputConfig,
+				signal: this._abortController?.signal,
 				stream: true,
-				previous_response_id: context.previousResponseId,
-				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto', parallel_tool_calls: true } : {}),
-				...(this.responsesInstructions ? { instructions: this.responsesInstructions } : {}),
-				...(this.maxTokens ? { max_output_tokens: this.maxTokens } : {}),
-				...(this.state.get('temperature') != null ? { temperature: this.state.get('temperature') } : {}),
-				...(this.state.get('topP') != null ? { top_p: this.state.get('topP') } : {}),
-				...(this.state.get('topK') != null ? { top_k: this.state.get('topK') } : {}),
-				...(this.state.get('frequencyPenalty') != null ? { frequency_penalty: this.state.get('frequencyPenalty') } : {}),
-				...(this.state.get('presencePenalty') != null ? { presence_penalty: this.state.get('presencePenalty') } : {}),
-				...(this.state.get('stop') ? { stop: this.state.get('stop') } : {}),
-				...textFormat,
-			}, { signal: this._abortController?.signal })
+				providerOptions: {
+					input: context.input,
+					previousResponseId: context.previousResponseId,
+					instructions: this.responsesInstructions,
+				},
+			}, provider)
 
-			for await (const event of stream) {
-				this.emit('rawEvent', event)
-				if ((event as any).type?.startsWith?.('response.mcp_')) {
-					this.emit('mcpEvent', event)
-				}
-				if (((event as any).type === 'response.output_item.added' || (event as any).type === 'response.output_item.done')
-					&& (event as any).item?.type?.startsWith?.('mcp_')) {
-					this.emit('mcpEvent', event)
-				}
-
-				if (event.type === 'response.output_text.delta') {
-					const delta = event.delta || ''
+			for await (const transportEvent of stream) {
+				if (transportEvent.type === 'rawEvent') {
+					const event = transportEvent.event
+					this.emit('rawEvent', event)
+					if (event.type?.startsWith?.('response.mcp_')) {
+						this.emit('mcpEvent', event)
+					}
+					if ((event.type === 'response.output_item.added' || event.type === 'response.output_item.done')
+						&& event.item?.type?.startsWith?.('mcp_')) {
+						this.emit('mcpEvent', event)
+					}
+					if (event.type === 'response.completed') {
+						this.emit('responseCompleted', event.response)
+					}
+				} else if (transportEvent.type === 'chunk') {
+					const delta = transportEvent.text
 					turnContent += delta
 					accumulated += delta
 					this.state.set('lastResponse', accumulated)
 					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
-				}
-
-				if (event.type === 'response.completed') {
-					finalResponse = event.response
-					this.emit('responseCompleted', event.response)
+				} else if (transportEvent.type === 'response') {
+					finalResponse = (transportEvent.response.providerData?.response ?? finalResponse) as OpenAI.Responses.Response | undefined
 				}
 			}
 		} finally {
@@ -1254,8 +1167,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const { turn } = context
 		let accumulated = context.accumulated
 
-		const hasTools = Object.keys(this.tools).length > 0
-		const toolsParam = hasTools ? this.openaiTools : undefined
+		const tools = this.modelTools
+		const provider = await this.resolveTransportProvider('openai-chat-completions')
 
 		this.state.set('streaming', true)
 		this.emit('turnStart', { turn, isFollowUp: turn > 1 })
@@ -1263,68 +1176,66 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		let turnContent = ''
 		let toolCalls: Array<{ id: string; function: { name: string; arguments: string }; type: 'function' }> = []
 
-		const responseFormat = this.structuredOutputConfig
-			? { response_format: { type: 'json_schema' as const, json_schema: this.structuredOutputConfig } }
-			: {}
-
 		try {
-			const stream = await this.openai.raw.chat.completions.create({
+			const stream = provider.transport.stream({
 				model: this.model,
-				messages: this.sanitizeMessages(this.getMessagesWithinBudget()),
+				messages: this.sanitizeMessages(this.getMessagesWithinBudget()) as any,
+				tools: tools.length ? tools : undefined,
+				maxTokens: this.maxTokens,
+				temperature: this.state.get('temperature') ?? undefined,
+				topP: this.state.get('topP') ?? undefined,
+				topK: this.state.get('topK') ?? undefined,
+				frequencyPenalty: this.state.get('frequencyPenalty') ?? undefined,
+				presencePenalty: this.state.get('presencePenalty') ?? undefined,
+				stop: this.state.get('stop') ?? undefined,
+				responseFormat: this.structuredOutputConfig,
+				signal: this._abortController?.signal,
 				stream: true,
-				...(toolsParam ? { tools: toolsParam, tool_choice: 'auto' } : {}),
-				...(this.maxTokens ? { [this.maxTokensParam]: this.maxTokens } : {}),
-				...(this.state.get('temperature') != null ? { temperature: this.state.get('temperature') } : {}),
-				...(this.state.get('topP') != null ? { top_p: this.state.get('topP') } : {}),
-				...(this.state.get('topK') != null ? { top_k: this.state.get('topK') } : {}),
-				...(this.state.get('frequencyPenalty') != null ? { frequency_penalty: this.state.get('frequencyPenalty') } : {}),
-				...(this.state.get('presencePenalty') != null ? { presence_penalty: this.state.get('presencePenalty') } : {}),
-				...(this.state.get('stop') ? { stop: this.state.get('stop') } : {}),
-				...responseFormat,
-			}, { signal: this._abortController?.signal })
+			}, provider)
 
-			for await (const chunk of stream) {
-				const delta = chunk.choices[0]?.delta
-
-				if (delta?.content) {
-					turnContent += delta.content
-					accumulated += delta.content
+			for await (const transportEvent of stream) {
+				if (transportEvent.type === 'chunk') {
+					const delta = transportEvent.text
+					turnContent += delta
+					accumulated += delta
 					this.state.set('lastResponse', accumulated)
-					this.emit('chunk', delta.content)
+					this.emit('chunk', delta)
 					this.emit('preview', accumulated)
-				}
+				} else if (transportEvent.type === 'response') {
+					const response = transportEvent.response
 
-				if (delta?.tool_calls) {
-					for (const tc of delta.tool_calls) {
-						if (!toolCalls[tc.index]) {
-							toolCalls[tc.index] = {
-								id: tc.id || '',
-								type: 'function',
-								function: { name: '', arguments: '' }
-							}
-						}
-						if (tc.id) {
-							toolCalls[tc.index]!.id = tc.id
-						}
-						if (tc.function?.name) {
-							toolCalls[tc.index]!.function.name += tc.function.name
-						}
-						if (tc.function?.arguments) {
-							toolCalls[tc.index]!.function.arguments += tc.function.arguments
-						}
+					// Fallback for transports that don't stream chunks (content arrives whole)
+					if (response.content && !turnContent) {
+						turnContent = response.content
+						accumulated += response.content
+						this.state.set('lastResponse', accumulated)
+						this.emit('chunk', response.content)
+						this.emit('preview', accumulated)
 					}
-				}
 
-				if (chunk.usage) {
-					const prev = this.state.get('tokenUsage')!
-					this.state.set('tokenUsage', {
-						prompt: prev.prompt + (chunk.usage.prompt_tokens || 0),
-						completion: prev.completion + (chunk.usage.completion_tokens || 0),
-						total: prev.total + (chunk.usage.total_tokens || 0),
-						cachedTokens: prev.cachedTokens + (chunk.usage.prompt_tokens_details?.cached_tokens || 0),
-						reasoningTokens: prev.reasoningTokens + (chunk.usage.completion_tokens_details?.reasoning_tokens || 0),
-					})
-					this.updateCost()
+					// Reconstruct the OpenAI tool_calls shape — it is part of the message
+					// history format and the toolCallsStart event payload contract.
+					toolCalls = (response.toolCalls ?? []).map((call: ModelToolCall) => ({
+						id: call.id || '',
+						type: 'function' as const,
+						function: {
+							name: call.name,
+							arguments: call.rawArguments ?? JSON.stringify(call.arguments ?? {}),
+						},
+					}))
+
+					if (response.usage) {
+						const usage = response.usage
+						const prev = this.state.get('tokenUsage')!
+						this.state.set('tokenUsage', {
+							prompt: prev.prompt + (usage.prompt_tokens || 0),
+							completion: prev.completion + (usage.completion_tokens || 0),
+							total: prev.total + (usage.total_tokens || 0),
+							cachedTokens: prev.cachedTokens + (usage.prompt_tokens_details?.cached_tokens || 0),
+							reasoningTokens: prev.reasoningTokens + (usage.completion_tokens_details?.reasoning_tokens || 0),
+						})
+						this.updateCost()
+					}
 				}
 			}
 		} finally {

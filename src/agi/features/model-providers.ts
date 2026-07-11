@@ -62,6 +62,8 @@ export interface ModelToolCall {
   id?: string
   name: string
   arguments: Record<string, any>
+  /** The raw, unparsed arguments string from the model — preserved so callers can surface JSON parse errors themselves. */
+  rawArguments?: string
 }
 
 export interface ModelTool {
@@ -79,6 +81,17 @@ export interface ModelRequest {
   tools?: ModelTool[]
   temperature?: number
   maxTokens?: number
+  topP?: number
+  topK?: number
+  frequencyPenalty?: number
+  presencePenalty?: number
+  stop?: string[]
+  /** OpenAI structured-output config ({ name, schema, strict }) — mapped to response_format / text.format by transports that support it. */
+  responseFormat?: { name: string; schema: Record<string, any>; strict: true }
+  /** Abort signal forwarded to the underlying network request. */
+  signal?: AbortSignal
+  /** When true, transports that support incremental streaming from the underlying API should stream (emitting chunk events per delta). */
+  stream?: boolean
   providerOptions?: Record<string, any>
 }
 
@@ -111,6 +124,15 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     id: 'openai',
     label: 'OpenAI',
     apiMode: 'openai-chat-completions',
+    auth: 'apiKey',
+    baseURL: 'https://api.openai.com/v1',
+    apiKeyEnv: 'OPENAI_API_KEY',
+    defaultModel: 'gpt-5',
+  },
+  {
+    id: 'openai-responses',
+    label: 'OpenAI Responses API',
+    apiMode: 'openai-responses',
     auth: 'apiKey',
     baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
@@ -181,6 +203,115 @@ function cloneProfile(profile: ModelProviderProfile): ModelProviderProfile {
   }
 }
 
+/** Parse a tool-call arguments string, returning {} instead of throwing on malformed JSON. */
+function safeParseArguments(raw: any): Record<string, any> {
+  if (raw == null) return {}
+  if (typeof raw !== 'string') return raw
+  try {
+    return JSON.parse(raw || '{}')
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Returns the correct parameter name for limiting output tokens on OpenAI-style
+ * chat completions. Newer OpenAI models require max_completion_tokens; local and
+ * legacy models use max_tokens.
+ */
+export function resolveMaxTokensParam(model: string): 'max_tokens' | 'max_completion_tokens' {
+  const needsCompletionTokens = ['gpt-4o', 'gpt-4.1', 'gpt-5', 'o1', 'o3', 'o4']
+  return needsCompletionTokens.some((prefix) => model.startsWith(prefix)) ? 'max_completion_tokens' : 'max_tokens'
+}
+
+/** Convert user content (string or content parts) into a Responses API input message item. */
+export function toResponsesUserMessage(content: string | any[]): OpenAI.Responses.ResponseInputItem.Message {
+  if (typeof content === 'string') {
+    return {
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: content }],
+    }
+  }
+
+  const parts = content.map((part: any) => {
+    if (part.type === 'text') {
+      return { type: 'input_text' as const, text: part.text }
+    }
+    if (part.type === 'input_audio') {
+      return { type: 'input_audio' as const, data: part.data, format: part.format }
+    }
+    if (part.type === 'input_file') {
+      return { type: 'input_file' as const, file_data: part.file_data, filename: part.filename }
+    }
+
+    return {
+      type: 'input_image' as const,
+      image_url: part.image_url?.url ?? part.image_url,
+      detail: part.image_url?.detail || 'auto',
+    }
+  }) as OpenAI.Responses.ResponseInputMessageContentList
+
+  return {
+    type: 'message',
+    role: 'user',
+    content: parts,
+  }
+}
+
+/**
+ * Convert Chat Completions-style message history into Responses API input items.
+ * System/developer messages are skipped (they travel via the instructions param),
+ * and tool results are skipped since replayed assistant tool_calls won't have
+ * matching server-side IDs.
+ */
+export function messagesToResponsesInput(messages: ModelMessage[]): OpenAI.Responses.ResponseInput {
+  const input: OpenAI.Responses.ResponseInput = []
+
+  for (const msg of messages) {
+    if (msg.role === 'system' || msg.role === 'developer') continue
+
+    if (msg.role === 'user') {
+      if (typeof msg.content === 'string') {
+        input.push({
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: msg.content }],
+        })
+      } else if (Array.isArray(msg.content)) {
+        input.push(toResponsesUserMessage(msg.content))
+      }
+      continue
+    }
+
+    if (msg.role === 'assistant') {
+      const content = typeof msg.content === 'string' ? msg.content : (msg.content || []).map((p: any) => p.text || '').join('')
+      if (content) {
+        input.push({
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: content, annotations: [] }],
+          id: `msg_replay-${input.length}`,
+          status: 'completed',
+        } as any)
+      }
+      continue
+    }
+  }
+
+  return input
+}
+
+/** Extract system/developer message text to use as Responses API instructions. */
+function responsesInstructionsFrom(messages: ModelMessage[]): string | undefined {
+  for (const message of messages) {
+    if ((message.role === 'system' || message.role === 'developer') && typeof message.content === 'string') {
+      return message.content
+    }
+  }
+  return undefined
+}
+
 class NotImplementedTransport implements ModelTransport {
   constructor(public apiMode: ModelProviderApiMode) {}
   async *stream(): AsyncIterable<ModelStreamEvent> {
@@ -191,24 +322,53 @@ class NotImplementedTransport implements ModelTransport {
 export class OpenAIChatCompletionsTransport implements ModelTransport {
   apiMode = 'openai-chat-completions'
 
-  async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
+  private resolveClient(request: ModelRequest, provider: ResolvedModelProvider): OpenAI {
+    const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
+    const injected = providerOptions.client ?? providerOptions.clientFactory?.()
+    if (injected) return injected
+
     if (!provider.baseURL) throw new Error(`Provider ${provider.id} requires baseURL for chat completions`)
     if (provider.auth !== 'none' && !provider.apiKey) throw new Error(`Provider ${provider.id} requires an API key`)
 
-    const client = provider.providerOptions?.client ?? new OpenAI({
+    return new OpenAI({
       apiKey: provider.apiKey ?? 'not-needed',
       baseURL: provider.baseURL,
       defaultHeaders: provider.headers,
     })
+  }
 
-    const json = await client.chat.completions.create({
-      model: request.model ?? provider.model,
+  private buildParams(request: ModelRequest, provider: ResolvedModelProvider): Record<string, any> {
+    const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
+    const model = request.model ?? provider.model
+    const maxTokensParam = providerOptions.maxTokensParam ?? resolveMaxTokensParam(model)
+
+    return {
+      model,
       messages: request.messages,
       tools: request.tools?.length ? request.tools : undefined,
+      ...(request.tools?.length ? { tool_choice: 'auto' } : {}),
       temperature: request.temperature,
-      max_tokens: request.maxTokens,
-      stream: false,
-    }) as any
+      ...(request.maxTokens != null ? { [maxTokensParam]: request.maxTokens } : {}),
+      ...(request.topP != null ? { top_p: request.topP } : {}),
+      ...(request.topK != null ? { top_k: request.topK } : {}),
+      ...(request.frequencyPenalty != null ? { frequency_penalty: request.frequencyPenalty } : {}),
+      ...(request.presencePenalty != null ? { presence_penalty: request.presencePenalty } : {}),
+      ...(request.stop ? { stop: request.stop } : {}),
+      ...(request.responseFormat ? { response_format: { type: 'json_schema', json_schema: request.responseFormat } } : {}),
+    }
+  }
+
+  async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
+    const client = this.resolveClient(request, provider)
+    const params = this.buildParams(request, provider)
+    const requestOptions = request.signal ? { signal: request.signal } : undefined
+
+    if (request.stream) {
+      yield* this.streamCompletion(client, params, requestOptions)
+      return
+    }
+
+    const json = await client.chat.completions.create({ ...params, stream: false } as any, requestOptions) as any
     yield { type: 'rawEvent', event: json }
     const choice = json.choices?.[0]
     const message = choice?.message ?? {}
@@ -221,13 +381,192 @@ export class OpenAIChatCompletionsTransport implements ModelTransport {
         toolCalls: (message.tool_calls ?? []).map((call: any) => ({
           id: call.id,
           name: call.function?.name,
-          arguments: typeof call.function?.arguments === 'string'
-            ? JSON.parse(call.function.arguments || '{}')
-            : (call.function?.arguments ?? {}),
+          arguments: safeParseArguments(call.function?.arguments),
+          rawArguments: typeof call.function?.arguments === 'string' ? call.function.arguments : JSON.stringify(call.function?.arguments ?? {}),
         })).filter((call: ModelToolCall) => !!call.name),
         usage: json.usage,
         finishReason: choice?.finish_reason,
         providerData: { id: json.id, model: json.model },
+      },
+    }
+  }
+
+  private async *streamCompletion(client: OpenAI, params: Record<string, any>, requestOptions?: { signal?: AbortSignal }): AsyncIterable<ModelStreamEvent> {
+    const stream = await client.chat.completions.create({ ...params, stream: true } as any, requestOptions) as any
+
+    let content = ''
+    let finishReason: string | undefined
+    let usage: Record<string, any> | undefined
+    let responseId: string | undefined
+    let responseModel: string | undefined
+    const toolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = []
+
+    for await (const chunk of stream) {
+      yield { type: 'rawEvent', event: chunk }
+
+      const choice = chunk.choices?.[0]
+      const delta = choice?.delta
+
+      if (delta?.content) {
+        content += delta.content
+        yield { type: 'chunk', text: delta.content }
+      }
+
+      if (delta?.tool_calls) {
+        for (const tc of delta.tool_calls) {
+          if (!toolCalls[tc.index]) {
+            toolCalls[tc.index] = { id: tc.id || '', function: { name: '', arguments: '' } }
+          }
+          if (tc.id) toolCalls[tc.index]!.id = tc.id
+          if (tc.function?.name) toolCalls[tc.index]!.function.name += tc.function.name
+          if (tc.function?.arguments) toolCalls[tc.index]!.function.arguments += tc.function.arguments
+        }
+      }
+
+      if (choice?.finish_reason) finishReason = choice.finish_reason
+      if (chunk.id) responseId = chunk.id
+      if (chunk.model) responseModel = chunk.model
+
+      if (chunk.usage) {
+        usage = {
+          prompt_tokens: (usage?.prompt_tokens ?? 0) + (chunk.usage.prompt_tokens || 0),
+          completion_tokens: (usage?.completion_tokens ?? 0) + (chunk.usage.completion_tokens || 0),
+          total_tokens: (usage?.total_tokens ?? 0) + (chunk.usage.total_tokens || 0),
+          prompt_tokens_details: {
+            cached_tokens: (usage?.prompt_tokens_details?.cached_tokens ?? 0) + (chunk.usage.prompt_tokens_details?.cached_tokens || 0),
+          },
+          completion_tokens_details: {
+            reasoning_tokens: (usage?.completion_tokens_details?.reasoning_tokens ?? 0) + (chunk.usage.completion_tokens_details?.reasoning_tokens || 0),
+          },
+        }
+      }
+    }
+
+    yield {
+      type: 'response',
+      response: {
+        content,
+        toolCalls: toolCalls
+          .filter(call => !!call?.function?.name)
+          .map(call => ({
+            id: call.id,
+            name: call.function.name,
+            arguments: safeParseArguments(call.function.arguments),
+            rawArguments: call.function.arguments || '{}',
+          })),
+        usage,
+        finishReason,
+        providerData: { id: responseId, model: responseModel },
+      },
+    }
+  }
+}
+
+export class OpenAIResponsesTransport implements ModelTransport {
+  apiMode = 'openai-responses'
+
+  private resolveClient(providerOptions: Record<string, any>, provider: ResolvedModelProvider): OpenAI {
+    const injected = providerOptions.client ?? providerOptions.clientFactory?.()
+    if (injected) return injected
+    if (provider.auth !== 'none' && !provider.apiKey) throw new Error(`Provider ${provider.id} requires an API key`)
+
+    return new OpenAI({
+      apiKey: provider.apiKey ?? 'not-needed',
+      baseURL: provider.baseURL ?? 'https://api.openai.com/v1',
+      defaultHeaders: provider.headers,
+    })
+  }
+
+  /**
+   * Build the Responses API tools array: local function tools from the request
+   * (strict mode, additionalProperties: false) plus remote MCP servers from
+   * providerOptions.mcpServers keyed by server label.
+   */
+  private buildTools(request: ModelRequest, providerOptions: Record<string, any>): OpenAI.Responses.Tool[] {
+    const functionTools = (request.tools ?? []).map(tool => ({
+      type: 'function' as const,
+      name: tool.function.name,
+      description: tool.function.description,
+      parameters: { ...(tool.function.parameters ?? { type: 'object', properties: {} }), additionalProperties: false },
+      strict: true,
+    }))
+
+    const mcpTools = Object.entries((providerOptions.mcpServers ?? {}) as Record<string, any>)
+      .filter(([, server]) => !!server?.url)
+      .map(([serverLabel, server]) => ({
+        type: 'mcp' as const,
+        server_label: serverLabel,
+        server_url: server.url,
+        ...(server.headers ? { headers: server.headers } : {}),
+        ...(server.allowedTools ? { allowed_tools: server.allowedTools } : {}),
+        ...(server.requireApproval ? { require_approval: server.requireApproval } : {}),
+      }))
+
+    return [...functionTools, ...mcpTools] as OpenAI.Responses.Tool[]
+  }
+
+  async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
+    const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
+    const client = this.resolveClient(providerOptions, provider)
+
+    const tools = this.buildTools(request, providerOptions)
+    const instructions = providerOptions.instructions ?? responsesInstructionsFrom(request.messages)
+    const input: OpenAI.Responses.ResponseInput = providerOptions.input ?? messagesToResponsesInput(request.messages)
+    const previousResponseId = providerOptions.previousResponseId ?? providerOptions.previousProviderData?.responseId
+
+    const stream: AsyncIterable<any> = await (client.responses.create as any)({
+      model: (request.model ?? provider.model) as OpenAI.Responses.ResponseCreateParams['model'],
+      input,
+      stream: true,
+      previous_response_id: previousResponseId,
+      ...(tools.length ? { tools, tool_choice: 'auto' as const, parallel_tool_calls: true } : {}),
+      ...(instructions ? { instructions } : {}),
+      ...(request.maxTokens != null ? { max_output_tokens: request.maxTokens } : {}),
+      ...(request.temperature != null ? { temperature: request.temperature } : {}),
+      ...(request.topP != null ? { top_p: request.topP } : {}),
+      ...(request.topK != null ? { top_k: request.topK } : {}),
+      ...(request.frequencyPenalty != null ? { frequency_penalty: request.frequencyPenalty } : {}),
+      ...(request.presencePenalty != null ? { presence_penalty: request.presencePenalty } : {}),
+      ...(request.stop ? { stop: request.stop } : {}),
+      ...(request.responseFormat ? { text: { format: { type: 'json_schema' as const, ...request.responseFormat } } } : {}),
+    }, request.signal ? { signal: request.signal } : undefined)
+
+    let content = ''
+    let finalResponse: OpenAI.Responses.Response | undefined
+
+    for await (const event of stream) {
+      yield { type: 'rawEvent', event }
+
+      if (event.type === 'response.output_text.delta') {
+        const delta = event.delta || ''
+        content += delta
+        yield { type: 'chunk', text: delta }
+      }
+
+      if (event.type === 'response.completed') {
+        finalResponse = event.response
+      }
+    }
+
+    if (!finalResponse) {
+      throw new Error('Responses stream ended without a completed response')
+    }
+
+    const functionCalls = (finalResponse.output || []).filter((item) => item.type === 'function_call') as OpenAI.Responses.ResponseFunctionToolCall[]
+
+    yield {
+      type: 'response',
+      response: {
+        content: content || finalResponse.output_text || '',
+        toolCalls: functionCalls.map(call => ({
+          id: call.call_id,
+          name: call.name,
+          arguments: safeParseArguments(call.arguments),
+          rawArguments: call.arguments || '{}',
+        })),
+        usage: finalResponse.usage as Record<string, any> | undefined,
+        finishReason: finalResponse.status,
+        providerData: { responseId: finalResponse.id, response: finalResponse },
       },
     }
   }
@@ -453,6 +792,7 @@ export class ModelProviders extends Feature {
     super(options, context)
     for (const profile of BUILTIN_PROFILES) this.registerProfile(profile)
     this.registerTransport('openai-chat-completions', new OpenAIChatCompletionsTransport())
+    this.registerTransport('openai-responses', new OpenAIResponsesTransport())
     this.registerTransport('openai-codex', new OpenAICodexTransport(this.container))
     this.registerTransport('claude-session', new ClaudeSessionTransport(this.container))
   }

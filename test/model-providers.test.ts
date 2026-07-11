@@ -118,12 +118,122 @@ describe('ModelProviders', () => {
       type: 'response',
       response: {
         content: 'sdk hello',
-        toolCalls: [{ id: 'call_1', name: 'lookup', arguments: { id: 42 } }],
+        toolCalls: [{ id: 'call_1', name: 'lookup', arguments: { id: 42 }, rawArguments: '{"id":42}' }],
         usage: { total_tokens: 7 },
         finishReason: 'tool_calls',
         providerData: { id: undefined, model: undefined },
       },
     })
+  })
+
+  it('streams chat completions when request.stream is true', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const calls: any[] = []
+    const fakeClient = {
+      chat: {
+        completions: {
+          create: async (request: any) => {
+            calls.push(request)
+            async function* chunks() {
+              yield { id: 'chatcmpl_1', model: 'local-model', choices: [{ delta: { content: 'hel' } }] }
+              yield { id: 'chatcmpl_1', model: 'local-model', choices: [{ delta: { content: 'lo' } }] }
+              yield {
+                id: 'chatcmpl_1',
+                model: 'local-model',
+                choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1', function: { name: 'lookup', arguments: '{"id":' } }] } }],
+              }
+              yield {
+                id: 'chatcmpl_1',
+                model: 'local-model',
+                choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '42}' } }] }, finish_reason: 'tool_calls' }],
+                usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
+              }
+            }
+            return chunks()
+          },
+        },
+      },
+    }
+
+    providers.registerProfile({
+      id: 'sdk-streaming',
+      apiMode: 'openai-chat-completions',
+      auth: 'none',
+      baseURL: 'http://localhost:9999/v1',
+      defaultModel: 'local-model',
+      providerOptions: { client: fakeClient },
+    })
+
+    const resolved = await providers.resolve({ provider: 'sdk-streaming' })
+    const events = []
+    for await (const event of resolved.transport.stream({
+      model: resolved.model,
+      messages: [{ role: 'user', content: 'hi' }],
+      stream: true,
+    }, resolved)) {
+      events.push(event)
+    }
+
+    expect(calls[0].stream).toBe(true)
+    expect(events.filter(e => e.type === 'chunk').map((e: any) => e.text)).toEqual(['hel', 'lo'])
+    const response = (events.at(-1) as any).response
+    expect(response.content).toBe('hello')
+    expect(response.toolCalls).toEqual([{ id: 'call_1', name: 'lookup', arguments: { id: 42 }, rawArguments: '{"id":42}' }])
+    expect(response.finishReason).toBe('tool_calls')
+    expect(response.usage).toMatchObject({ prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 })
+  })
+
+  it('routes the openai-responses api mode through a Responses SDK style client', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const calls: any[] = []
+    const finalResponse = {
+      id: 'resp_1',
+      output: [{ type: 'function_call', call_id: 'call_9', name: 'lookup', arguments: '{"id":7}' }],
+      output_text: 'partial text',
+      usage: { input_tokens: 4, output_tokens: 2, total_tokens: 6 },
+      status: 'completed',
+    }
+    const fakeClient = {
+      responses: {
+        create: async (request: any) => {
+          calls.push(request)
+          async function* events() {
+            yield { type: 'response.output_text.delta', delta: 'partial ' }
+            yield { type: 'response.output_text.delta', delta: 'text' }
+            yield { type: 'response.completed', response: finalResponse }
+          }
+          return events()
+        },
+      },
+    }
+
+    const resolved = await providers.resolve({
+      provider: 'openai-responses',
+      model: 'gpt-5',
+      providerOptions: { client: fakeClient, instructions: 'Be terse.', mcpServers: { docs: { url: 'https://mcp.example.com' } } },
+    })
+
+    const events = []
+    for await (const event of resolved.transport.stream({
+      model: 'gpt-5',
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [{ function: { name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {} } } }],
+      stream: true,
+    }, resolved)) {
+      events.push(event)
+    }
+
+    expect(calls[0].instructions).toBe('Be terse.')
+    expect(calls[0].input).toEqual([{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] }])
+    expect(calls[0].tools).toEqual([
+      { type: 'function', name: 'lookup', description: 'Lookup', parameters: { type: 'object', properties: {}, additionalProperties: false }, strict: true },
+      { type: 'mcp', server_label: 'docs', server_url: 'https://mcp.example.com' },
+    ])
+    expect(events.filter(e => e.type === 'chunk').map((e: any) => e.text)).toEqual(['partial ', 'text'])
+    const response = (events.at(-1) as any).response
+    expect(response.content).toBe('partial text')
+    expect(response.toolCalls).toEqual([{ id: 'call_9', name: 'lookup', arguments: { id: 7 }, rawArguments: '{"id":7}' }])
+    expect(response.providerData.responseId).toBe('resp_1')
   })
 
   it('routes openai-codex through the openaiCodex feature', async () => {
