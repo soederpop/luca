@@ -279,8 +279,33 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
     // (schemas, WebContainer type references) since the VM runs in node, but
     // registering it lets `import { WebContainer } from 'luca/web'` resolve
     // without a node_modules install.
+    //
+    // Importing the web barrel executes the web features' static
+    // Feature.register blocks, which write into the same global registries as
+    // the node layer and would clobber the node classes for shared ids
+    // ('helpers', 'vm', 'esbuild', ...) — every container created afterwards
+    // would resolve browser features in a node process. Snapshot the
+    // registries and restore anything the import changed.
     try {
-      const webModule = require('../../web/container.js')
+      const restores = [this.container.features, clients, servers].map(registry => {
+        const before = new Map((registry as Registry<any>).available.map(id => [id, (registry as Registry<any>).lookup(id)]))
+        return () => {
+          for (const id of (registry as Registry<any>).available) {
+            if (!before.has(id)) (registry as Registry<any>).unregister(id)
+          }
+          for (const [id, cls] of before) {
+            if ((registry as Registry<any>).lookup(id) !== cls) (registry as Registry<any>).register(id, cls)
+          }
+        }
+      })
+
+      let webModule: any
+      try {
+        webModule = require('../../web/container.js')
+      } finally {
+        for (const restore of restores) restore()
+      }
+
       vm.defineModule('luca/web', webModule)
       vm.defineModule('@soederpop/luca/web', webModule)
     } catch {}
