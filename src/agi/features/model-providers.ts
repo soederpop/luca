@@ -1,6 +1,5 @@
 import { Feature, features } from '../feature'
 import OpenAI from 'openai'
-import type { ClaudeSessionController } from './claude-session-controller'
 
 declare module 'luca/feature' {
   interface AvailableFeatures {
@@ -580,7 +579,8 @@ export class OpenAIResponsesTransport implements ModelTransport {
 }
 
 export interface ClaudeSessionTransportOptions {
-  controllerClass?: typeof ClaudeSessionController
+  /** Inject a claudeCode-like backend (with a `run()` method) — used by tests. */
+  claudeCode?: { run: (prompt: string, options?: any) => Promise<any> }
 }
 
 export class OpenAICodexTransport implements ModelTransport {
@@ -663,71 +663,71 @@ export class OpenAICodexTransport implements ModelTransport {
 
 export class ClaudeSessionTransport implements ModelTransport {
   apiMode = 'claude-session'
-  private controllers = new Map<string, any>()
 
   constructor(private container: any, private options: ClaudeSessionTransportOptions = {}) {}
 
+  /**
+   * Drive the claude-code backend headlessly via `claudeCode.run()` (which runs
+   * `claude -p --output-format stream-json`). Claude runs its own agentic loop
+   * with its own tools/MCP, so it returns a final text answer — no tool calls
+   * are surfaced to the conversation loop. Multi-turn continuity is handled by
+   * resuming claude's own session id, captured as providerData.
+   */
   async *stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent> {
     const providerOptions = { ...(provider.providerOptions ?? {}), ...(request.providerOptions ?? {}) }
-    const key = providerOptions.id ?? providerOptions.name ?? 'main'
-    const controller = await this.controllerFor(key, providerOptions)
-    const prompt = this.promptFromMessages(request.messages)
-    const response = await controller.ask(prompt, providerOptions.askOptions ?? {})
-    const snapshot = controller.snapshot ?? (typeof response === 'object' ? response : undefined) ?? (typeof controller.refresh === 'function' ? await controller.refresh() : undefined)
-    const content = this.contentFromControllerResponse(response, snapshot)
+    const claudeCode = this.options.claudeCode ?? (this.container.feature('claudeCode') as any)
 
+    const prompt = this.promptFromMessages(request.messages)
+    const previousSessionId = providerOptions.previousProviderData?.claudeSessionId
+    const systemText = this.systemInstructions(request.messages)
+    const mcpServers = this.resolveMcpServers(providerOptions)
+
+    // provider.defaultModel is the 'claude-code' placeholder — don't pass that
+    // as --model. Only forward a real model name when one was explicitly set.
+    const requestedModel = request.model ?? provider.model
+    const model = requestedModel && requestedModel !== 'claude-code' ? requestedModel : undefined
+
+    const runOptions: Record<string, any> = {
+      cwd: providerOptions.cwd ?? this.container.cwd ?? process.cwd(),
+      ...(model ? { model } : {}),
+      // The system prompt only needs to go over on the first turn; resuming a
+      // session carries it (and the history) server-side.
+      ...(systemText && !previousSessionId ? { appendSystemPrompt: systemText } : {}),
+      ...(Object.keys(mcpServers).length ? { mcpServers } : {}),
+      ...(previousSessionId ? { resumeSessionId: previousSessionId } : {}),
+      ...(providerOptions.permissionMode ? { permissionMode: providerOptions.permissionMode } : {}),
+      ...(providerOptions.allowedTools ? { allowedTools: providerOptions.allowedTools } : {}),
+      ...(providerOptions.runOptions ?? {}),
+    }
+
+    const session = await claudeCode.run(prompt, runOptions)
+
+    if (session?.status === 'error') {
+      throw new Error(`claude session failed: ${session.error ?? session.result ?? 'unknown error'}`)
+    }
+
+    const content = typeof session?.result === 'string' ? session.result : ''
     if (content) yield { type: 'chunk', text: content }
     yield {
       type: 'response',
       response: {
         content,
         toolCalls: [],
-        providerData: { snapshot },
+        usage: { costUsd: session?.costUsd, turns: session?.turns },
+        providerData: { claudeSessionId: session?.sessionId },
       },
     }
   }
 
-  private async controllerFor(key: string, providerOptions: Record<string, any>) {
-    if (providerOptions.controller) return providerOptions.controller
-    if (this.controllers.has(key)) return this.controllers.get(key)
-
-    const args = await this.resolveClaudeArgs(providerOptions)
-
-    const Controller = this.options.controllerClass ?? (await import('./claude-session-controller')).ClaudeSessionController
-    const controller = new Controller({
-      container: this.container,
-      id: key,
-      cwd: providerOptions.cwd ?? this.container.cwd ?? process.cwd(),
-      name: providerOptions.name,
-      command: providerOptions.command,
-      args,
-      width: providerOptions.width,
-      height: providerOptions.height,
-      reuse: providerOptions.reuse ?? true,
-      settleMs: providerOptions.settleMs,
-      claudePath: providerOptions.claudePath,
-      sessionPrefix: providerOptions.sessionPrefix,
-    })
-    this.controllers.set(key, controller)
-    if (typeof controller.start === 'function') await controller.start()
-    return controller
-  }
-
   /**
-   * Build the args list for the Claude CLI, bootstrapping an MCP config when
-   * providerOptions.assistant is set so the spawned Claude process can call
-   * back into a `luca mcp --assistant <name>` subprocess for tool execution.
-   * Honors `providerOptions.mcpServers` for extra MCP servers, `lucaBin` for
-   * the luca binary path, `askOnly` for `--ask-only`, `mcpServerName` for the
-   * server label, and `strictMcp` (default true) for `--strict-mcp-config`.
+   * Build the MCP servers map for the claude run. When providerOptions.assistant
+   * is a name, register a `luca mcp --assistant <name>` stdio server so the
+   * spawned Claude can call back into luca for tool execution. Honors
+   * `mcpServers` (extra servers), `lucaBin`, `askOnly`, and `mcpServerName`.
    */
-  private async resolveClaudeArgs(providerOptions: Record<string, any>): Promise<string[]> {
-    const args = [...(providerOptions.args ?? [])]
+  private resolveMcpServers(providerOptions: Record<string, any>): Record<string, any> {
+    const servers: Record<string, any> = { ...(providerOptions.mcpServers ?? {}) }
     const assistant = providerOptions.assistant
-    const extraServers = providerOptions.mcpServers as Record<string, any> | undefined
-    if ((!assistant || assistant === false) && !extraServers) return args
-
-    const servers: Record<string, any> = { ...(extraServers ?? {}) }
 
     if (typeof assistant === 'string' && assistant.length > 0) {
       const lucaBin = providerOptions.lucaBin ?? 'luca'
@@ -737,52 +737,27 @@ export class ClaudeSessionTransport implements ModelTransport {
       servers[serverName] = { command: lucaBin, args: mcpArgs }
     }
 
-    if (Object.keys(servers).length === 0) return args
-
-    const claudeCode = this.container.feature('claudeCode') as any
-    const configPath = await claudeCode.writeMcpConfig(servers)
-    args.push('--mcp-config', configPath)
-    if (providerOptions.strictMcp !== false) args.push('--strict-mcp-config')
-    return args
+    return servers
   }
 
-  private contentFromControllerResponse(response: any, snapshot: any): string {
-    if (typeof response === 'string') return response
-    const direct = response?.response ?? response?.text ?? response?.content
-    if (typeof direct === 'string') return direct
-    return this.latestAssistantText(snapshot?.history ?? response?.history ?? [])
+  private systemInstructions(messages: ModelMessage[]): string {
+    return messages
+      .filter(message => message.role === 'system' || message.role === 'developer')
+      .map(message => this.contentToText(message.content))
+      .filter(Boolean)
+      .join('\n\n')
   }
 
-  private latestAssistantText(history: any[]): string {
-    for (let i = history.length - 1; i >= 0; i--) {
-      const entry = history[i]
-      const role = entry?.role ?? entry?.message?.role ?? entry?.type
-      if (role !== 'assistant') continue
-      const text = this.textFromClaudeContent(entry?.content ?? entry?.message?.content ?? entry?.text)
-      if (text) return text
-    }
-    return ''
-  }
-
-  private textFromClaudeContent(content: any): string {
+  private contentToText(content: any): string {
     if (typeof content === 'string') return content
-    if (Array.isArray(content)) {
-      return content
-        .map(part => typeof part === 'string' ? part : part?.text ?? part?.content ?? '')
-        .filter(Boolean)
-        .join('\n')
-    }
-    return content == null ? '' : String(content)
+    if (Array.isArray(content)) return content.map(part => typeof part === 'string' ? part : part?.text ?? part?.content ?? '').filter(Boolean).join('\n')
+    return String(content ?? '')
   }
 
   private promptFromMessages(messages: ModelMessage[]): string {
     const lastUser = [...messages].reverse().find(message => message.role === 'user')
     const content = lastUser?.content ?? messages[messages.length - 1]?.content ?? ''
-    if (typeof content === 'string') return content
-    if (Array.isArray(content)) {
-      return content.map(part => typeof part === 'string' ? part : part.text ?? part.content ?? '').filter(Boolean).join('\n')
-    }
-    return String(content ?? '')
+    return this.contentToText(content)
   }
 }
 

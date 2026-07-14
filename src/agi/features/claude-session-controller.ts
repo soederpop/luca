@@ -43,6 +43,8 @@ export class ClaudeSessionController {
   private claudePath?: string
   private handle?: TmuxSession
   private latest?: ClaudeControllerSnapshot
+  /** Session ids that already existed in the cwd when this controller started, so refresh() can tell its own new session apart from pre-existing transcripts. */
+  private baselineSessionIds?: Set<string>
 
   constructor(options: ClaudeSessionControllerOptions) {
     this.container = options.container
@@ -87,6 +89,17 @@ export class ClaudeSessionController {
     const tmux = await this.tmux()
     if (this.reuse === false && await tmux.hasSession(this.tmuxSession)) {
       await tmux.killSession(this.tmuxSession)
+    }
+
+    // Record which Claude sessions already exist for this cwd. The interactive
+    // process we spawn creates a brand new session; capturing the baseline lets
+    // refresh() select that new session instead of the largest pre-existing
+    // transcript (which would surface stale answers in a busy directory).
+    try {
+      const existing = await this.container.feature('claudeCode').listSessionsForCwd(this.cwd)
+      this.baselineSessionIds = new Set(existing.map((s: any) => s.sessionId))
+    } catch {
+      this.baselineSessionIds = new Set()
     }
 
     this.handle = await tmux.session(this.tmuxSession, {
@@ -144,6 +157,16 @@ export class ClaudeSessionController {
   private async resolveSessionInfo(preferredSessionId?: string): Promise<{ sessionId: string; filePath: string; messageCount: number } | undefined> {
     const sessions = await this.container.feature('claudeCode').listSessionsForCwd(this.cwd)
     if (sessions.length === 0) return undefined
+
+    // Prefer the session this controller created after start() — the one not in
+    // the baseline. This is the source of truth even if an older, larger
+    // transcript exists (or if a stale preferredSessionId was pinned before our
+    // session's file appeared).
+    if (this.baselineSessionIds) {
+      const fresh = sessions.filter((s: any) => !this.baselineSessionIds!.has(s.sessionId))
+      if (fresh.length) return fresh.sort((a: any, b: any) => b.messageCount - a.messageCount)[0]
+    }
+
     if (preferredSessionId) {
       const exact = sessions.find((s: any) => s.sessionId === preferredSessionId)
       if (exact) return exact

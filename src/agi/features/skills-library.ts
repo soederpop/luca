@@ -545,13 +545,34 @@ User query: ${userQuery}
 Return only the skill names that are directly relevant. Return an empty array if none apply. Do not load skills speculatively — only include ones that would materially help answer this specific query.`)
 			
 			const fork = assistant.conversation.fork()
-			const result = await fork.ask(prompt, { schema: responseSchema }) as unknown as { skills: string[] }
+			const result = await fork.ask(prompt, { schema: responseSchema })
 
-			const found = result.skills.filter(name => this.find(name) !== undefined)
-			
+			// Providers with structured output return a parsed { skills } object;
+			// providers without it (e.g. claude-code) return text, so recover the
+			// names from an embedded JSON blob and fall back to none on failure.
+			const found = this.extractSkillNames(result).filter(name => this.find(name) !== undefined)
+
 			this.emit('foundSkills', found, assistant, userQuery)
-			
+
 			return found
+	}
+
+	/** Pull skill names out of a structured object or a free-text/JSON response. */
+	private extractSkillNames(result: any): string[] {
+		if (Array.isArray(result?.skills)) return result.skills
+		if (Array.isArray(result)) return result
+		if (typeof result === 'string') {
+			try {
+				const match = result.match(/\{[\s\S]*\}/)
+				if (match) {
+					const parsed = JSON.parse(match[0])
+					if (Array.isArray(parsed?.skills)) return parsed.skills
+				}
+			} catch {
+				// Not JSON — treat as no skills selected.
+			}
+		}
+		return []
 	}
 }
 

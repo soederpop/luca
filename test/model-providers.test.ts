@@ -275,94 +275,80 @@ describe('ModelProviders', () => {
     expect((events.at(-1) as any).response.content).toBe('codex answer')
   })
 
-  it('bootstraps an MCP server for claude-session when providerOptions.assistant is set', async () => {
+  it('runs claude headlessly and wires a luca MCP server when providerOptions.assistant is set', async () => {
     const c = new AGIContainer()
     const providers = c.feature('modelProviders')
 
-    const constructed: any[] = []
-    const writtenConfigs: any[] = []
-    class FakeController {
-      args: string[]
-      constructor(options: any) {
-        this.args = options.args ?? []
-        constructed.push(options)
-      }
-      ask = async () => 'mcp-wired response'
-      get snapshot() { return undefined }
+    const runs: any[] = []
+    const fakeClaudeCode = {
+      run: async (prompt: string, options: any) => {
+        runs.push({ prompt, options })
+        return { status: 'completed', result: 'mcp-wired response', sessionId: 'claude-sess-1', costUsd: 0.01, turns: 1 }
+      },
     }
 
-    const claudeCode = c.feature('claudeCode') as any
-    claudeCode.writeMcpConfig = async (servers: Record<string, any>) => {
-      writtenConfigs.push(servers)
-      return '/tmp/luca-mcp-fake.json'
-    }
-
-    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { controllerClass: FakeController as any }))
+    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { claudeCode: fakeClaudeCode }))
 
     const resolved = await providers.resolve({
       provider: 'claude-code',
-      providerOptions: { id: 'reviewer', cwd: '/tmp/repo', assistant: 'reviewer', lucaBin: '/usr/local/bin/luca' },
+      providerOptions: { id: 'reviewer', cwd: '/tmp/repo', assistant: 'reviewer', lucaBin: '/usr/local/bin/luca', permissionMode: 'bypassPermissions' },
     })
 
     const events = []
     for await (const event of resolved.transport.stream({
       model: 'claude-code',
-      messages: [{ role: 'user', content: 'review the diff' }],
+      messages: [{ role: 'system', content: 'Be terse.' }, { role: 'user', content: 'review the diff' }],
     }, resolved)) {
       events.push(event)
     }
 
-    expect(constructed.length).toBe(1)
-    const args: string[] = constructed[0].args
-    expect(args).toContain('--mcp-config')
-    expect(args).toContain('/tmp/luca-mcp-fake.json')
-    expect(args).toContain('--strict-mcp-config')
-
-    expect(writtenConfigs.length).toBe(1)
-    const server = writtenConfigs[0]['luca-reviewer']
+    expect(runs.length).toBe(1)
+    expect(runs[0].prompt).toBe('review the diff')
+    expect(runs[0].options.cwd).toBe('/tmp/repo')
+    // 'claude-code' is the placeholder default model — it must not be forwarded.
+    expect(runs[0].options.model).toBeUndefined()
+    expect(runs[0].options.appendSystemPrompt).toBe('Be terse.')
+    expect(runs[0].options.permissionMode).toBe('bypassPermissions')
+    const server = runs[0].options.mcpServers['luca-reviewer']
     expect(server.command).toBe('/usr/local/bin/luca')
     expect(server.args).toEqual(['mcp', '--assistant', 'reviewer', '--transport', 'stdio'])
 
-    expect((events.at(-1) as any).response.content).toBe('mcp-wired response')
+    const final = events.at(-1) as any
+    expect(final.response.content).toBe('mcp-wired response')
+    expect(final.response.providerData).toEqual({ claudeSessionId: 'claude-sess-1' })
   })
 
-  it('skips MCP wiring when providerOptions.assistant is false', async () => {
+  it('resumes claude session across turns and skips MCP wiring when assistant is false', async () => {
     const c = new AGIContainer()
     const providers = c.feature('modelProviders')
 
-    const constructed: any[] = []
-    class FakeController {
-      args: string[]
-      constructor(options: any) {
-        this.args = options.args ?? []
-        constructed.push(options)
-      }
-      ask = async () => 'plain response'
-      get snapshot() { return undefined }
+    const runs: any[] = []
+    const fakeClaudeCode = {
+      run: async (prompt: string, options: any) => {
+        runs.push({ prompt, options })
+        return { status: 'completed', result: `turn ${runs.length}`, sessionId: 'sess-abc' }
+      },
     }
 
-    let writeCalled = false
-    const claudeCode = c.feature('claudeCode') as any
-    claudeCode.writeMcpConfig = async () => {
-      writeCalled = true
-      return '/tmp/should-not-be-used.json'
-    }
-
-    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { controllerClass: FakeController as any }))
+    providers.registerTransport('claude-session', new ClaudeSessionTransport(c, { claudeCode: fakeClaudeCode }))
 
     const resolved = await providers.resolve({
       provider: 'claude-code',
       providerOptions: { id: 'plain', assistant: false },
     })
 
-    for await (const _event of resolved.transport.stream({
+    // First turn — no resume, no MCP wiring.
+    for await (const _e of resolved.transport.stream({ model: 'claude-code', messages: [{ role: 'user', content: 'hi' }] }, resolved)) { /* drain */ }
+    // Second turn — carry the captured session id back in as previousProviderData.
+    for await (const _e of resolved.transport.stream({
       model: 'claude-code',
-      messages: [{ role: 'user', content: 'hi' }],
-    }, resolved)) {
-      // drain
-    }
+      messages: [{ role: 'user', content: 'again' }],
+      providerOptions: { previousProviderData: { claudeSessionId: 'sess-abc' } },
+    }, resolved)) { /* drain */ }
 
-    expect(writeCalled).toBe(false)
-    expect(constructed[0].args).toEqual([])
+    expect(runs.length).toBe(2)
+    expect(runs[0].options.mcpServers).toBeUndefined()
+    expect(runs[0].options.resumeSessionId).toBeUndefined()
+    expect(runs[1].options.resumeSessionId).toBe('sess-abc')
   })
 })
