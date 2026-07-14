@@ -30,6 +30,25 @@ describe('setup command', () => {
 		const cmd = container.command('setup' as any)
 		await cmd.dispatch({}, 'headless')
 	})
+
+	it('does not throw when the native addon install fails (e.g. no package manager)', async () => {
+		// Point LUCA_HOME somewhere writable but force the install to have no pkg manager
+		// by clearing PATH for the child — selectInstallCommand returns null → clean skip, no crash.
+		const prevHome = process.env.LUCA_HOME
+		const prevPath = process.env.PATH
+		const home = mkdtempSync(join(tmpdir(), 'luca-home-nopm-'))
+		try {
+			process.env.LUCA_HOME = home
+			process.env.PATH = ''
+			const cmd = container.command('setup' as any)
+			// Must resolve, not reject — the missing-pkg-manager error is caught and reported
+			await cmd.dispatch({ 'skip-models': true }, 'headless')
+		} finally {
+			if (prevHome === undefined) delete process.env.LUCA_HOME
+			else process.env.LUCA_HOME = prevHome
+			process.env.PATH = prevPath
+		}
+	})
 })
 
 describe('setup paths', () => {

@@ -152,18 +152,29 @@ async function setup(options: z.infer<typeof argsSchema>, context: ContainerCont
 	const done: string[] = []
 	const skipped: string[] = []
 
+	let addonFailed = false
 	if (doAddon && !state.addonReady) {
 		ui.print(`\n  Installing ${NATIVE_MODULE}@${SemanticSearch.PINNED_LLAMA_VERSION} into ${state.home} ...`)
-		const modulePath = await installSharedModule(`${NATIVE_MODULE}@${SemanticSearch.PINNED_LLAMA_VERSION}`)
-		ui.print.green(`  ✓ Native addon installed and verified at ${modulePath}`)
-		done.push('native addon')
+		try {
+			const modulePath = await installSharedModule(`${NATIVE_MODULE}@${SemanticSearch.PINNED_LLAMA_VERSION}`)
+			ui.print.green(`  ✓ Native addon installed and verified at ${modulePath}`)
+			done.push('native addon')
+		} catch (err: any) {
+			addonFailed = true
+			ui.print.red(`\n  ✗ Could not install the native addon:`)
+			ui.print.yellow(`    ${(err?.message ?? String(err)).split('\n').join('\n    ')}`)
+			skipped.push('native addon (install failed — see above)')
+		}
 	} else if (state.addonReady) {
 		skipped.push('native addon (already installed)')
 	} else {
 		skipped.push('native addon — enable later with `luca setup --local-embeddings`')
 	}
 
-	if (doWeights && !state.weightsReady) {
+	// The weights are useless without the addon — don't download 300MB if the install just failed
+	if (doWeights && !state.weightsReady && addonFailed) {
+		skipped.push('model weights (skipped — native addon is not installed)')
+	} else if (doWeights && !state.weightsReady) {
 		ui.print(`\n  Downloading ${DEFAULT_LOCAL_MODEL} weights (~300MB, one time) ...`)
 		const semanticSearch = container.feature('semanticSearch')
 		const path = await semanticSearch.downloadModelWeights(DEFAULT_LOCAL_MODEL)
