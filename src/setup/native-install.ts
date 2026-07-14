@@ -99,17 +99,64 @@ export async function installSharedModule(pkgSpec: string, home: string = lucaHo
 		? pkgSpec.split('@').slice(0, 2).join('@')
 		: (pkgSpec.split('@')[0] ?? pkgSpec)
 	const modulePath = sharedModulePath(moduleName, home)
-	try {
-		await import(modulePath)
-	} catch (err: any) {
-		throw new Error(
-			`${moduleName} was installed but failed to load from ${modulePath}.\n` +
-			'This usually means a native addon ABI mismatch.\n' +
-			`Error: ${err?.message ?? err}`
-		)
+
+	await verifySharedModule(moduleName, modulePath, home, available)
+	return modulePath
+}
+
+/**
+ * Confirm an installed shared module can actually load.
+ *
+ * The compiled luca binary's module resolver is rooted at $bunfs and can't reach
+ * ~/.luca/node_modules, so a native `import()` here would always false-fail. When
+ * bun is available we verify in a real `bun -e` process (the same runtime that
+ * will host it at use time); otherwise we fall back to an on-disk sanity check and
+ * let the actual consumer surface any load error.
+ */
+async function verifySharedModule(
+	moduleName: string,
+	modulePath: string,
+	home: string,
+	available: PackageManagerAvailability,
+): Promise<void> {
+	if (!existsSync(modulePath)) {
+		throw new Error(`${moduleName} was installed but is not present at ${modulePath}.`)
 	}
 
-	return modulePath
+	const inCompiledBinary = import.meta.url.includes('$bunfs') || import.meta.url.includes('~BUN')
+
+	// Preferred: load it in a real bun process (works in dev and compiled binary alike)
+	if (available.bun) {
+		const { execSync } = await import('node:child_process')
+		try {
+			execSync(`bun -e ${JSON.stringify(`await import(${JSON.stringify(moduleName)})`)}`, {
+				cwd: home,
+				stdio: 'pipe',
+				timeout: 60_000,
+			})
+			return
+		} catch (err: any) {
+			throw new Error(
+				`${moduleName} was installed but failed to load from ${modulePath}.\n` +
+				'This usually means a native addon ABI mismatch.\n' +
+				`Error: ${(err?.stderr?.toString() || err?.message || err).toString().split('\n')[0]}`
+			)
+		}
+	}
+
+	// No bun: only native import is available, and that can't work from a compiled
+	// binary. In dev, verify natively; in the binary, trust the on-disk check above.
+	if (!inCompiledBinary) {
+		try {
+			await import(modulePath)
+		} catch (err: any) {
+			throw new Error(
+				`${moduleName} was installed but failed to load from ${modulePath}.\n` +
+				'This usually means a native addon ABI mismatch.\n' +
+				`Error: ${err?.message ?? err}`
+			)
+		}
+	}
 }
 
 export { lucaHome, lucaHomeNodeModules }

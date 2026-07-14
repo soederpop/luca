@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, existsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
-import { installSharedModule, sharedModulePath } from '../../setup/native-install.js'
+import { installSharedModule } from '../../setup/native-install.js'
+import { embedViaDaemon, ensureDaemon, disposeEmbeddingClients } from '../../embeddings/client.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -316,10 +317,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	static { Feature.register(this, 'semanticSearch') }
 
 	private _db: Database | null = null
-	private _llamaContext: any = null
-	private _llamaModel: any = null
-	private _llamaInstance: any = null
-	private _idleTimer: ReturnType<typeof setTimeout> | null = null
+	private _daemonReady = false
 	private _dimensions: number
 
 
@@ -558,26 +556,8 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	private async _embedLocal(texts: string[]): Promise<number[][]> {
-		const ctx = await this._ensureLocalModel()
-		const results: number[][] = []
-
-		for (const text of texts) {
-			try {
-				const embedding = await ctx.getEmbeddingFor(text)
-				results.push(Array.from(new Float32Array(embedding.vector)))
-			} catch {
-				const truncated = text.split(/\s+/).slice(0, 300).join(' ')
-				try {
-					const embedding = await ctx.getEmbeddingFor(truncated)
-					results.push(Array.from(new Float32Array(embedding.vector)))
-				} catch {
-					results.push(new Array(this._dimensions).fill(0))
-				}
-			}
-		}
-
-		this._resetIdleTimer()
-		return results
+		const modelPath = await this._ensureLocalModel()
+		return embedViaDaemon(this.embeddingModel, modelPath, texts)
 	}
 
 	private async _embedOpenAI(texts: string[]): Promise<number[][]> {
@@ -606,37 +586,15 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		}
 	}
 
-	private async _ensureLocalModel(): Promise<any> {
-		if (this._llamaContext) return this._llamaContext
-
-		let getLlama: any
-		// The addon can live in the project's node_modules, in the per-machine
-		// ~/.luca/node_modules (installed by `luca setup`), or be resolvable as
-		// a bare import when running uncompiled — try in that order.
-		const candidates = [
-			join(process.cwd(), 'node_modules', 'node-llama-cpp'),
-			sharedModulePath('node-llama-cpp'),
-			'node-llama-cpp',
-		]
-		for (const candidate of candidates) {
-			try {
-				;({ getLlama } = await import(candidate))
-				break
-			} catch {
-				continue
-			}
-		}
-		if (!getLlama) {
-			throw new Error(
-				'Local embeddings need the "node-llama-cpp" native addon, which is not installed.\n' +
-				"It's a platform-specific native dependency that isn't bundled into the compiled luca binary. Fix it one of these ways:\n" +
-				'  1. Run: luca setup --local-embeddings  — installs the addon once per machine into ~/.luca and downloads the model weights\n' +
-				'  2. Use OpenAI embeddings instead (default): set embeddingProvider to "openai"\n' +
-				'  3. Turnkey helper from code (same as luca setup): await semanticSearch.installLocalEmbeddings()'
-			)
-		}
-		this._llamaInstance = await getLlama()
-
+	/**
+	 * Ensure the local embedding daemon is up and return the model weights path.
+	 *
+	 * node-llama-cpp can't be loaded by the compiled luca binary (its $bunfs
+	 * resolver can't reach ~/.luca/node_modules), so embeddings run in a resident
+	 * `bun` worker daemon spawned on demand. This verifies the weights exist
+	 * (fast, clear error) then ensures the daemon is serving.
+	 */
+	private async _ensureLocalModel(): Promise<string> {
 		const modelPath = resolveModelPath(this.embeddingModel)
 		if (!existsSync(modelPath)) {
 			const source = MODEL_SOURCES[this.embeddingModel]
@@ -650,35 +608,19 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 			)
 		}
 
-		this._llamaModel = await this._llamaInstance.loadModel({ modelPath })
-		this._llamaContext = await this._llamaModel.createEmbeddingContext({ contextSize: 2048 })
-
-		this.emit('modelLoaded')
-		return this._llamaContext
-	}
-
-	private _resetIdleTimer(): void {
-		if (this._idleTimer) clearTimeout(this._idleTimer)
-		this._idleTimer = setTimeout(() => this.disposeModel(), 5 * 60 * 1000)
+		if (!this._daemonReady) {
+			await ensureDaemon({ model: this.embeddingModel, modelPath })
+			this._daemonReady = true
+			this.emit('modelLoaded')
+		}
+		return modelPath
 	}
 
 	async disposeModel(): Promise<void> {
-		if (this._idleTimer) {
-			clearTimeout(this._idleTimer)
-			this._idleTimer = null
-		}
-		if (this._llamaContext) {
-			await this._llamaContext.dispose()
-			this._llamaContext = null
-		}
-		if (this._llamaModel) {
-			await this._llamaModel.dispose()
-			this._llamaModel = null
-		}
-		if (this._llamaInstance) {
-			await this._llamaInstance.dispose()
-			this._llamaInstance = null
-		}
+		// The resident daemon is shared machine-wide and idles out on its own;
+		// here we only drop this process's cached connection to it.
+		disposeEmbeddingClients()
+		this._daemonReady = false
 		this.emit('modelDisposed')
 	}
 
