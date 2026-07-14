@@ -5,7 +5,12 @@ import { x25519 } from '@noble/curves/ed25519.js'
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js'
 import { blake3 } from '@noble/hashes/blake3.js'
 import { randomBytes } from '@noble/hashes/utils.js'
-import { Iroh, SetTagOption, BlobDownloadOptions } from '@number0/iroh'
+// `@number0/iroh` is an optional native addon (a platform-specific `.node`). It's loaded
+// lazily at call time (see loadIroh) so (a) importing this feature at startup stays cheap —
+// the heavy native init is deferred to the first connect() — and (b) luca-as-a-library /
+// from-source consumers get a clear install hint when it isn't present. The compiled binary
+// carries an embedded copy, so the bare-specifier import there resolves without any install.
+// Only the TYPES are imported here — `import type` is erased at runtime.
 import type { NodeAddr, BlobFormat } from '@number0/iroh'
 
 export interface BlobMeta {
@@ -18,6 +23,9 @@ export interface BlobMeta {
 
 // Default topic — matches Cipher's public topic_to_id() Rust implementation
 const DEFAULT_TOPIC_BYTES = Array.from(blake3(new TextEncoder().encode('cipher/content/v1')))
+
+// Pinned iroh version — surfaced in the install instructions when the addon is missing.
+const PINNED_IROH_VERSION = '0.35.0'
 
 export const CipherOptionsSchema = FeatureOptionsSchema.extend({
   /** Name for this agent — used as display name and to namespace stored identity */
@@ -95,7 +103,10 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
   static override eventsSchema = CipherEventsSchema
   static { Feature.register(this, 'cipherSocial') }
 
-  private _iroh: Awaited<ReturnType<typeof Iroh.persistent>> | null = null
+  // Typed `any` — the iroh node's runtime API is dynamic and its types are only
+  // available when the optional `@number0/iroh` addon is installed.
+  private _iroh: any = null
+  private _irohModule: { Iroh: any; SetTagOption: any; BlobDownloadOptions: any } | null = null
   private _sender: any = null
   private _privateKey: Uint8Array | null = null
   private _publicKey: Uint8Array | null = null
@@ -119,8 +130,58 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
     return this.container.paths.resolve(this.dataDir, 'iroh')
   }
 
+  /**
+   * Instructive error thrown when `@number0/iroh` can't be loaded — tells the user
+   * exactly how to make the cipherSocial feature work.
+   */
+  private irohMissingError(detail: string): Error {
+    return new Error(
+      `The cipherSocial feature needs the "@number0/iroh" native addon, which couldn't be loaded.\n` +
+      `It's an optional native dependency. Install it in your project's node_modules, then\n` +
+      `re-run from the project root:\n` +
+      `  bun add @number0/iroh@${PINNED_IROH_VERSION}\n\n` +
+      `(${detail})`,
+    )
+  }
+
+  /**
+   * Lazily load the `@number0/iroh` native addon at call time.
+   *
+   * Resolves it at runtime — trying the absolute `cwd/node_modules` path first (so a
+   * project-local install resolves against the real filesystem) and falling back to a bare
+   * import, which the compiled binary satisfies from its embedded copy. When it can't be
+   * loaded at all (e.g. luca used as a library with iroh not installed) we throw an
+   * instructive error. The result is cached so the heavy native init happens once.
+   */
+  private async loadIroh(): Promise<{ Iroh: any; SetTagOption: any; BlobDownloadOptions: any }> {
+    if (this._irohModule) return this._irohModule
+
+    let mod: any
+    try {
+      const cwdModulePath = this.container.paths.resolve(this.container.cwd, 'node_modules', '@number0', 'iroh')
+      try {
+        mod = await import(cwdModulePath)
+      } catch {
+        mod = await import('@number0/iroh')
+      }
+    } catch (err: any) {
+      throw this.irohMissingError(`native loader error: ${err?.message ?? err}`)
+    }
+
+    // CJS interop: named exports may sit on the namespace or its default.
+    const resolved = mod?.Iroh ? mod : (mod?.default ?? mod)
+    const { Iroh, SetTagOption, BlobDownloadOptions } = resolved
+    if (!Iroh || !SetTagOption || !BlobDownloadOptions) {
+      throw this.irohMissingError('the package loaded but did not expose the expected Iroh API')
+    }
+
+    this._irohModule = { Iroh, SetTagOption, BlobDownloadOptions }
+    return this._irohModule
+  }
+
   /** Connect to the Cipher gossip mesh. Generates identity on first run. */
   async connect(): Promise<void> {
+    const { Iroh } = await this.loadIroh()
     await this.loadOrGenerateKeypair()
 
     this.fs.ensureFolder(this.irohDataDir)
@@ -251,6 +312,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
    */
   async storeFile(filePath: string): Promise<BlobMeta> {
     if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const { SetTagOption } = await this.loadIroh()
     const absolutePath = this.container.paths.resolve(filePath)
     const filename = absolutePath.split('/').pop() ?? filePath
 
@@ -294,6 +356,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
    */
   async fetchBlob(hash: string, senderNodeAddr: NodeAddr): Promise<Buffer> {
     if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const { SetTagOption, BlobDownloadOptions } = await this.loadIroh()
     await this._iroh.net.addNodeAddr(senderNodeAddr)
     const opts = new BlobDownloadOptions('Raw' as BlobFormat, [senderNodeAddr], SetTagOption.auto())
 
@@ -315,6 +378,7 @@ export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
    */
   async fetchBlobToFile(hash: string, senderNodeAddr: NodeAddr, outputPath: string): Promise<void> {
     if (!this._iroh) throw new Error('Not connected — call connect() first')
+    const { SetTagOption, BlobDownloadOptions } = await this.loadIroh()
     const absolutePath = this.container.paths.resolve(outputPath)
     const dir = absolutePath.split('/').slice(0, -1).join('/')
     this.fs.ensureFolder(dir)
