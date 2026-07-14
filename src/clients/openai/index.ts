@@ -81,14 +81,25 @@ export class OpenAIClient extends Client<OpenAIClientState, OpenAIClientOptions>
   }
 
   private initializeOpenAI() {
+    const baseURL = this.options.baseURL || process.env.OPENAI_BASE_URL;
+
+    // A custom baseURL means a local / self-hosted / OpenAI-compatible endpoint,
+    // which typically needs no credential. The OpenAI SDK still throws if apiKey
+    // is undefined, so fall back to a stub key when a baseURL is configured but
+    // no real key is available. Without a baseURL we leave it undefined so the
+    // SDK surfaces its "missing OPENAI_API_KEY" error for the real API.
+    const apiKey = this.options.apiKey
+      || process.env.OPENAI_API_KEY
+      || (baseURL ? 'not-needed' : undefined);
+
     this.openai = new OpenAI({
-      apiKey: this.options.apiKey || process.env.OPENAI_API_KEY,
+      apiKey,
       organization: this.options.organization,
       project: this.options.project,
       dangerouslyAllowBrowser: this.options.dangerouslyAllowBrowser,
       timeout: this.options.timeout,
       maxRetries: this.options.maxRetries,
-      baseURL: this.options.baseURL || process.env.OPENAI_BASE_URL,
+      baseURL,
     });
   }
 
