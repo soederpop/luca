@@ -345,13 +345,13 @@ await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if miss
 
 ### installLocalEmbeddings
 
-Install node-llama-cpp into the user's project for local embedding support, then download the embedding model weights so local embeddings work turnkey. Detects package manager from lockfile presence and verifies the native addon loads.
+Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `cwd` | `string` | ✓ | Parameter cwd |
+| `_cwd` | `string` |  | unused, accepted for backward compatibility (older versions installed into the project's node_modules) |
 
 **Returns:** `Promise<void>`
 
