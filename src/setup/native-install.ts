@@ -55,7 +55,16 @@ export function sharedModulePath(moduleName: string, home: string = lucaHome()):
 	return join(home, 'node_modules', moduleName)
 }
 
-/** True when the module can actually be imported from the shared node_modules (catches ABI mismatches). */
+/**
+ * True when the shared module appears installed and usable.
+ *
+ * In dev (plain bun) this verifies via a real import. In the compiled luca binary
+ * a native import() can't reach ~/.luca/node_modules at all (the $bunfs resolver
+ * limitation this whole subsystem exists for), so a successful-import can't be the
+ * signal — we fall back to an on-disk presence check. This is a status probe, so
+ * it stays side-effect-free (no process spawn); the deep load-verify runs at
+ * install time in installSharedModule.
+ */
 export async function sharedModuleLoads(moduleName: string, home: string = lucaHome()): Promise<boolean> {
 	const modulePath = sharedModulePath(moduleName, home)
 	if (!existsSync(modulePath)) return false
@@ -63,7 +72,9 @@ export async function sharedModuleLoads(moduleName: string, home: string = lucaH
 		await import(modulePath)
 		return true
 	} catch {
-		return false
+		const inCompiledBinary = import.meta.url.includes('$bunfs') || import.meta.url.includes('~BUN')
+		// Native import always fails in the compiled binary — trust on-disk presence there.
+		return inCompiledBinary && existsSync(join(modulePath, 'package.json'))
 	}
 }
 
