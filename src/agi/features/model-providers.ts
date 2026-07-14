@@ -178,6 +178,13 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     defaultModel: 'gpt-5-codex',
   },
   {
+    id: 'codex',
+    label: 'OpenAI Codex auth',
+    apiMode: 'openai-codex',
+    auth: 'codex',
+    defaultModel: 'gpt-5-codex',
+  },
+  {
     id: 'anthropic',
     label: 'Anthropic',
     apiMode: 'anthropic-messages',

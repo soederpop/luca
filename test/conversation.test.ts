@@ -211,6 +211,68 @@ describe('Conversation', () => {
 			expect(conv.state.get('tokenUsage')).toMatchObject({ prompt: 3, completion: 2, total: 5 })
 			expect(requests[0].providerOptions.input).toBeDefined()
 		})
+
+		it('routes a non-OpenAI provider through the generic transport loop', async () => {
+			const { providers, conv } = makeContainerAndConversation({ provider: 'generic-fake', model: undefined })
+			const requests: any[] = []
+			providers.registerProfile({ id: 'generic-fake', apiMode: 'generic-fake', auth: 'none', defaultModel: 'generic-model' })
+			providers.registerTransport('generic-fake', {
+				apiMode: 'generic-fake',
+				async *stream(request: any) {
+					requests.push(request)
+					yield { type: 'chunk', text: 'gen ' } as const
+					yield { type: 'chunk', text: 'answer' } as const
+					yield { type: 'response', response: { content: 'gen answer', toolCalls: [], providerData: { sessionId: 'sess_1' } } } as const
+				},
+			})
+
+			const answer = await conv.ask('Ping')
+
+			expect(answer).toBe('gen answer')
+			// No explicit model → provider default wins in the generic loop.
+			expect(requests[0].model).toBe('generic-model')
+			expect(conv.messages.at(-1)).toEqual({ role: 'assistant', content: 'gen answer' })
+			// Continuation data is captured and threaded into the next ask.
+			expect(conv.state.get('lastProviderData')).toEqual({ sessionId: 'sess_1' })
+			await conv.ask('Again')
+			expect(requests[1].providerOptions.previousProviderData).toEqual({ sessionId: 'sess_1' })
+		})
+
+		it('runs the generic loop tool cycle and preserves OpenAI wire format in history', async () => {
+			const { providers, conv } = makeContainerAndConversation({ provider: 'generic-tools' })
+			const requests: any[] = []
+			providers.registerProfile({ id: 'generic-tools', apiMode: 'generic-tools', auth: 'none', defaultModel: 'gm' })
+			providers.registerTransport('generic-tools', {
+				apiMode: 'generic-tools',
+				async *stream(request: any) {
+					requests.push(request)
+					if (requests.length === 1) {
+						yield { type: 'toolCall', toolCall: { id: 'call_7', name: 'lookup', arguments: { id: 9 }, rawArguments: '{"id":9}' } } as const
+						yield { type: 'response', response: { content: '', toolCalls: [{ id: 'call_7', name: 'lookup', arguments: { id: 9 }, rawArguments: '{"id":9}' }] } } as const
+						return
+					}
+					yield { type: 'response', response: { content: 'done', toolCalls: [] } } as const
+				},
+			})
+
+			const seen: any[] = []
+			conv.addTool('lookup', {
+				description: 'Lookup',
+				parameters: { type: 'object', properties: { id: { type: 'number' } } },
+				handler: async (args: any) => { seen.push(args); return { ok: true } },
+			})
+
+			const answer = await conv.ask('Use it')
+
+			expect(answer).toBe('done')
+			expect(seen).toEqual([{ id: 9 }])
+			expect(requests.length).toBe(2)
+			const assistantWithTools = conv.messages.find(m => (m as any).tool_calls) as any
+			expect(assistantWithTools.tool_calls).toEqual([
+				{ id: 'call_7', type: 'function', function: { name: 'lookup', arguments: '{"id":9}' } },
+			])
+			expect(conv.messages.find(m => m.role === 'tool')).toMatchObject({ tool_call_id: 'call_7' })
+		})
 	})
 
 	describe('stub()', () => {

@@ -24,6 +24,12 @@ container.feature('conversation', {
   mcpServers,
   // Completion API mode. auto uses Responses unless local=true
   api,
+  // Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior
+  provider,
+  // Provider-specific transport options passed to the resolved provider
+  providerOptions,
+  // Maximum provider/tool turns for non-OpenAI providers (default 8)
+  maxTurns,
   // Tags for categorizing and searching this conversation
   tags,
   // Arbitrary metadata to attach to this conversation
@@ -71,6 +77,9 @@ container.feature('conversation', {
 | `tools` | `object` | Tools the model can call during conversation |
 | `mcpServers` | `object` | Remote MCP servers keyed by server label |
 | `api` | `string` | Completion API mode. auto uses Responses unless local=true |
+| `provider` | `any` | Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior |
+| `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
+| `maxTurns` | `number` | Maximum provider/tool turns for non-OpenAI providers (default 8) |
 | `tags` | `array` | Tags for categorizing and searching this conversation |
 | `metadata` | `object` | Arbitrary metadata to attach to this conversation |
 | `clientOptions` | `object` | Options for the OpenAI client |
@@ -400,6 +409,98 @@ Fired when the conversation is aborted mid-response
 
 
 
+### turnStart
+
+Fired at the start of each completion turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `turn` | `number` |  |
+| `isFollowUp` | `boolean` |  |
+
+
+
+### chunk
+
+Fired for each streaming text delta
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Text delta from the stream |
+
+
+
+### preview
+
+Fired after each chunk with the full accumulated text
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Accumulated text so far |
+
+
+
+### rawEvent
+
+Fired for every raw event from the Responses API stream
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Raw stream event from the API |
+
+
+
+### turnEnd
+
+Fired at the end of each completion turn
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `turn` | `number` |  |
+| `hasToolCalls` | `boolean` |  |
+
+
+
+### toolCallsStart
+
+Fired when the model begins a batch of tool calls
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | Array of tool call objects from the model |
+
+
+
+### toolCallsEnd
+
+Fired after all tool calls in a turn have been executed
+
+
+
+### response
+
+Fired when the final text response is produced
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `string` | Final accumulated response text |
+
+
+
 ### toolError
 
 Fired when a tool handler throws or the tool is unknown
@@ -439,80 +540,6 @@ Fired after a tool handler returns successfully
 
 
 
-### turnStart
-
-Fired at the start of each completion turn
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `turn` | `number` |  |
-| `isFollowUp` | `boolean` |  |
-
-
-
-### chunk
-
-Fired for each streaming text delta
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Text delta from the stream |
-
-
-
-### preview
-
-Fired after each chunk with the full accumulated text
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Accumulated text so far |
-
-
-
-### turnEnd
-
-Fired at the end of each completion turn
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `turn` | `number` |  |
-| `hasToolCalls` | `boolean` |  |
-
-
-
-### response
-
-Fired when the final text response is produced
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `string` | Final accumulated response text |
-
-
-
-### rawEvent
-
-Fired for every raw event from the Responses API stream
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `any` | Raw stream event from the API |
-
-
-
 ### mcpEvent
 
 Fired for MCP-related events from the Responses API
@@ -537,24 +564,6 @@ Fired when the Responses API stream completes
 
 
 
-### toolCallsStart
-
-Fired when the model begins a batch of tool calls
-
-**Event Arguments:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg0` | `any` | Array of tool call objects from the model |
-
-
-
-### toolCallsEnd
-
-Fired after all tool calls in a turn have been executed
-
-
-
 ## State (Zod v4 schema)
 
 | Property | Type | Description |
@@ -569,6 +578,7 @@ Fired after all tool calls in a turn have been executed
 | `toolCalls` | `number` | Total number of tool calls made in this conversation |
 | `api` | `string` | Which completion API is active for this conversation |
 | `lastResponseId` | `any` | Most recent OpenAI Responses API response ID for continuing conversation state |
+| `lastProviderData` | `any` | Provider-specific continuation data from the most recent response (e.g. codex/claude-session ids for resume) |
 | `tokenUsage` | `object` | Cumulative token usage statistics including detail breakdowns from the API |
 | `cost` | `object` | Running cost estimate based on cumulative token usage and model pricing |
 | `estimatedInputTokens` | `number` | Estimated input token count for the current messages array |

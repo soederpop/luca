@@ -24,11 +24,9 @@ container.feature('assistant', {
   tools,
   // Override or extend schemas whose keys match tool names
   schemas,
-  // Use the provider-backed ConversationV2 implementation
-  v2,
-  // Model provider preset or inline provider config for ConversationV2
+  // Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior
   provider,
-  // Provider-specific transport options for ConversationV2
+  // Provider-specific transport options passed to the resolved provider
   providerOptions,
   // OpenAI model to use
   model,
@@ -75,9 +73,8 @@ container.feature('assistant', {
 | `about` | `string` | Human-readable description of the assistant. Falls back to about.md in the assistant folder. |
 | `tools` | `object` | Override or extend the tools loaded from tools.ts |
 | `schemas` | `object` | Override or extend schemas whose keys match tool names |
-| `v2` | `boolean` | Use the provider-backed ConversationV2 implementation |
-| `provider` | `any` | Model provider preset or inline provider config for ConversationV2 |
-| `providerOptions` | `object` | Provider-specific transport options for ConversationV2 |
+| `provider` | `any` | Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior |
+| `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
 | `temperature` | `number` | Sampling temperature (0-2) |
@@ -455,7 +452,7 @@ const answer = await researcher.ask('Find all usages of container.feature("fs")'
 | `voiceConfig` | `Record<string, any> | undefined` | Parsed voice configuration from voice.yml, or undefined if not present. |
 | `resolvedDocsFolder` | `any` |  |
 | `contentDb` | `ContentDb` | Returns an instance of a ContentDb feature for the resolved docs folder |
-| `conversation` | `Conversation | ConversationV2` |  |
+| `conversation` | `Conversation` |  |
 | `availableTools` | `any` |  |
 | `messages` | `any` |  |
 | `isStarted` | `boolean` | Whether the assistant has been started and is ready to receive questions. |

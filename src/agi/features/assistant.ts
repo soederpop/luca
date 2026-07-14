@@ -3,7 +3,6 @@ import { FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from '.
 import { type AvailableFeatures } from 'luca/feature'
 import { Feature } from '../feature.js'
 import type { Conversation, ConversationTool, ContentPart, AskOptions, ForkOptions, Message } from './conversation'
-import type { ConversationV2 } from './conversation-v2'
 import type { ContentDb } from 'luca/node'
 import type { ConversationHistory, ConversationMeta } from './conversation-history'
 import hashObject from '../../hash-object.js'
@@ -80,14 +79,12 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Override or extend the schemas loaded from tools.ts */
 
 	schemas: z.record(z.string(), z.any()).optional().describe('Override or extend schemas whose keys match tool names'),
-	/** Use the provider-backed ConversationV2 implementation instead of the legacy conversation feature. */
-	v2: z.boolean().default(false).describe('Use the provider-backed ConversationV2 implementation'),
 
-	/** Model provider preset or inline provider config for ConversationV2. */
-	provider: z.any().optional().describe('Model provider preset or inline provider config for ConversationV2'),
+	/** Model provider preset id or inline provider config. Omit for the default OpenAI-compatible behavior; set to 'codex' or 'claude-code' to route through those backends. */
+	provider: z.any().optional().describe("Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior"),
 
-	/** Provider-specific transport options for ConversationV2. */
-	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options for ConversationV2'),
+	/** Provider-specific transport options (e.g. cwd, askOptions, assistant for claude-session). */
+	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options passed to the resolved provider'),
 
 	/** OpenAI model to use for the conversation */
 
@@ -387,44 +384,40 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		}, 1)
 	}
 
-	get conversation(): Conversation | ConversationV2 {
-		let conv = this.state.get('conversation') as Conversation | ConversationV2 | null
+	get conversation(): Conversation {
+		let conv = this.state.get('conversation') as Conversation | null
 		if (!conv) {
-			if (this.effectiveOptions.v2) {
-				const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
-				conv = this.container.feature('conversationv2', {
-					provider: this.effectiveOptions.provider,
+			const provider = this.effectiveOptions.provider
+			const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
+			conv = this.container.feature('conversation', {
+				// Only default the model for the OpenAI path; when a provider is
+				// configured, leave it unset so the provider's default model wins.
+				model: this.effectiveOptions.model || (provider ? undefined : 'gpt-5.4'),
+				local: !!this.effectiveOptions.local,
+				tools: this.tools,
+				api: 'chat',
+				// When a provider is configured, thread it through. The `assistant`
+				// providerOption drives claude-session's MCP tool wiring; default it
+				// to this assistant's name so tools work without extra config.
+				...(provider ? {
+					provider,
 					providerOptions: {
 						...callerProviderOptions,
 						assistant: callerProviderOptions.assistant ?? this.name,
 					},
-					model: this.effectiveOptions.model,
-					tools: this.tools,
-					...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
-					...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
-					history: [
-						{ role: 'system', content: this.effectiveSystemPrompt },
-					],
-				})
-			} else {
-				conv = this.container.feature('conversation', {
-					model: this.effectiveOptions.model || 'gpt-5.4',
-					local: !!this.effectiveOptions.local,
-					tools: this.tools,
-					api: 'chat',
-					...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
-					...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
-					...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
-					...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),
-					...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
-					...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
-					...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
-					...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
-					history: [
-						{ role: 'system', content: this.effectiveSystemPrompt },
-					],
-				})
-			}
+				} : {}),
+				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+				...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
+				...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
+				...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),
+				...(this.effectiveOptions.frequencyPenalty != null ? { frequencyPenalty: this.effectiveOptions.frequencyPenalty } : {}),
+				...(this.effectiveOptions.presencePenalty != null ? { presencePenalty: this.effectiveOptions.presencePenalty } : {}),
+				...(this.effectiveOptions.stop ? { stop: this.effectiveOptions.stop } : {}),
+				...(this.effectiveOptions.clientOptions ? { clientOptions: this.effectiveOptions.clientOptions } : {}),
+				history: [
+					{ role: 'system', content: this.effectiveSystemPrompt },
+				],
+			})
 			this.state.set('conversation', conv)
 		}
 		return conv

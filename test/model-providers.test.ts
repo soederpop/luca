@@ -38,6 +38,14 @@ describe('ModelProviders', () => {
     expect(resolved.apiKey).toBeUndefined()
   })
 
+  it('exposes a `codex` alias for the openai-codex provider', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const codex = await providers.resolve({ provider: 'codex' })
+    expect(codex.id).toBe('codex')
+    expect(codex.apiMode).toBe('openai-codex')
+    expect(codex.model).toBe('gpt-5-codex')
+  })
+
   it('resolves claude-code as a public provider backed by claude-session api mode', async () => {
     const providers = new AGIContainer().feature('modelProviders')
     const resolved = await providers.resolve({ provider: 'claude-code', providerOptions: { id: 'reviewer', cwd: '/tmp/repo' } })

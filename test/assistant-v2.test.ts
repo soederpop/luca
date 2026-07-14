@@ -3,19 +3,22 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AGIContainer } from '../src/agi/container.server'
-import { ConversationV2 } from '../src/agi/features/conversation-v2'
+import { Conversation } from '../src/agi/features/conversation'
 
-describe('Assistant conversation v2 wiring', () => {
-  it('keeps the existing v1 conversation backend by default', async () => {
+describe('Assistant provider wiring', () => {
+  it('uses the OpenAI conversation loops by default (no provider)', async () => {
     const c = new AGIContainer()
     const assistant = c.feature('assistant', { systemPrompt: 'You are concise.' })
 
     await assistant.start()
 
-    expect(assistant.conversation).not.toBeInstanceOf(ConversationV2)
+    // Always the unified Conversation feature now.
+    expect(assistant.conversation).toBeInstanceOf(Conversation)
+    // With no provider configured, turns run through the OpenAI chat loop.
+    expect((assistant.conversation as any).usesGenericTransportLoop).toBe(false)
   })
 
-  it('opts into ConversationV2 and routes asks through modelProviders', async () => {
+  it('routes asks through modelProviders when a non-OpenAI provider is configured', async () => {
     const c = new AGIContainer()
     const providers = c.feature('modelProviders')
     const requests: any[] = []
@@ -32,16 +35,16 @@ describe('Assistant conversation v2 wiring', () => {
 
     const assistant = c.feature('assistant', {
       systemPrompt: 'You are concise.',
-      v2: true,
       provider: 'assistant-fake',
     } as any)
 
     await assistant.start()
-    expect(assistant.conversation).toBeInstanceOf(ConversationV2)
+    expect((assistant.conversation as any).usesGenericTransportLoop).toBe(true)
 
     const answer = await assistant.ask('Ping')
 
     expect(answer).toBe('v2 answer')
+    // No explicit model → the provider's default model wins.
     expect(requests[0].model).toBe('assistant-model')
     expect(requests[0].messages).toEqual([
       { role: 'system', content: 'You are concise.' },
@@ -50,8 +53,8 @@ describe('Assistant conversation v2 wiring', () => {
     expect(assistant.state.get('lastResponse')).toBe('v2 answer')
   })
 
-  it('passes CORE.md content as the system prompt when using ConversationV2', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'luca-assistant-core-v2-'))
+  it('passes CORE.md content as the system prompt through the provider', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'luca-assistant-core-provider-'))
     const folder = join(root, 'assistant')
     mkdirSync(folder, { recursive: true })
     writeFileSync(join(folder, 'CORE.md'), [
@@ -76,7 +79,6 @@ describe('Assistant conversation v2 wiring', () => {
 
     const assistant = c.feature('assistant', {
       folder,
-      v2: true,
       provider: 'core-fake',
     } as any)
 
@@ -90,5 +92,41 @@ describe('Assistant conversation v2 wiring', () => {
       { role: 'system', content: 'You are reading this from CORE.md.\nAlways answer with CORE_CONTEXT_OK.' },
       { role: 'user', content: 'Ping' },
     ])
+  })
+
+  it('configures CORE.md frontmatter provider + providerOptions (claude-code style)', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'luca-assistant-fm-provider-'))
+    const folder = join(root, 'assistant')
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(join(folder, 'CORE.md'), [
+      '---',
+      'provider: fm-fake',
+      'providerOptions:',
+      '  cwd: /tmp/repo',
+      '---',
+      'System from frontmatter.',
+    ].join('\n'))
+
+    const c = new AGIContainer()
+    const providers = c.feature('modelProviders')
+    const requests: any[] = []
+    providers.registerProfile({ id: 'fm-fake', apiMode: 'fm-fake', auth: 'none', defaultModel: 'fm-model' })
+    providers.registerTransport('fm-fake', {
+      apiMode: 'fm-fake',
+      async *stream(request) {
+        requests.push(request)
+        yield { type: 'response', response: { content: 'fm ok', toolCalls: [] } } as const
+      },
+    })
+
+    const assistant = c.feature('assistant', { folder } as any)
+    await assistant.start()
+    const answer = await assistant.ask('Ping')
+
+    expect(answer).toBe('fm ok')
+    // providerOptions from frontmatter reached the transport; the assistant name
+    // is injected as the default `assistant` providerOption for MCP wiring.
+    expect(requests[0].providerOptions.cwd).toBe('/tmp/repo')
+    expect(requests[0].providerOptions.assistant).toBe(assistant.name)
   })
 })

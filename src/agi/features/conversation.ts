@@ -69,6 +69,13 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	mcpServers: z.record(z.string(), z.any()).optional().describe('Remote MCP servers keyed by server label'),
 	/** Which OpenAI API to use for completions */
 	api: z.enum(['auto', 'responses', 'chat']).optional().describe('Completion API mode. auto uses Responses unless local=true'),
+
+	/** Model provider preset id or inline provider config, resolved through the modelProviders feature. Omit for the default OpenAI-compatible behavior. Set to 'codex' or 'claude-code' to route turns through those backends. */
+	provider: z.any().optional().describe("Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior"),
+	/** Provider-specific transport options (e.g. cwd, askOptions, assistant for claude-session). */
+	providerOptions: z.record(z.string(), z.any()).optional().describe('Provider-specific transport options passed to the resolved provider'),
+	/** Maximum provider/tool turns before the generic (non-OpenAI) transport loop aborts. */
+	maxTurns: z.number().optional().describe('Maximum provider/tool turns for non-OpenAI providers (default 8)'),
 	/** Tags for categorizing and searching this conversation */
 	tags: z.array(z.string()).optional().describe('Tags for categorizing and searching this conversation'),
 	/** Arbitrary metadata to attach to this conversation */
@@ -120,6 +127,7 @@ export const ConversationStateSchema = FeatureStateSchema.extend({
 	toolCalls: z.number().describe('Total number of tool calls made in this conversation'),
 	api: z.enum(['responses', 'chat']).describe('Which completion API is active for this conversation'),
 	lastResponseId: z.string().nullable().describe('Most recent OpenAI Responses API response ID for continuing conversation state'),
+	lastProviderData: z.any().optional().describe('Provider-specific continuation data from the most recent response (e.g. codex/claude-session ids for resume)'),
 	tokenUsage: z.object({
 		prompt: z.number().describe('Total prompt tokens consumed'),
 		completion: z.number().describe('Total completion tokens consumed'),
@@ -296,6 +304,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			toolCalls: 0,
 			api: this.apiMode,
 			lastResponseId: null,
+			lastProviderData: undefined,
 			tokenUsage: { prompt: 0, completion: 0, total: 0, cachedTokens: 0, reasoningTokens: 0 },
 			cost: { inputCost: 0, outputCost: 0, totalCost: 0 },
 			estimatedInputTokens: 0,
@@ -510,9 +519,44 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Returns the active completion API mode after resolving auto/local behavior. */
 	get apiMode(): 'responses' | 'chat' {
+		// An explicitly configured OpenAI-family provider selects the dialect.
+		const configured = this.configuredProviderApiMode
+		if (configured === 'openai-responses') return 'responses'
+		if (configured === 'openai-chat-completions') return 'chat'
+
 		const mode = this.options.api || 'auto'
 		if (mode === 'chat' || mode === 'responses') return mode
 		return this.options.local ? 'chat' : 'responses'
+	}
+
+	/**
+	 * The apiMode of the explicitly configured `provider` option, resolved
+	 * synchronously through the modelProviders profile registry. Undefined when
+	 * no provider is configured (the default OpenAI-compatible behavior).
+	 */
+	private get configuredProviderApiMode(): string | undefined {
+		const provider = this.options.provider
+		if (!provider) return undefined
+		if (typeof provider === 'string') {
+			return this.container.feature('modelProviders').get(provider)?.apiMode
+		}
+		if (typeof provider === 'object') {
+			if (provider.apiMode) return provider.apiMode
+			if (provider.preset) return this.container.feature('modelProviders').get(provider.preset)?.apiMode
+			// Inline provider objects with a baseURL are OpenAI-compatible by default.
+			return 'openai-chat-completions'
+		}
+		return undefined
+	}
+
+	/**
+	 * Whether turns are handled by the generic transport loop. True only when a
+	 * provider is configured whose apiMode is not an OpenAI HTTP dialect — i.e.
+	 * the codex and claude-code backends. Everything else uses the OpenAI loops.
+	 */
+	private get usesGenericTransportLoop(): boolean {
+		const mode = this.configuredProviderApiMode
+		return !!mode && mode !== 'openai-responses' && mode !== 'openai-chat-completions'
 	}
 
 	/** Whether a streaming response is currently in progress. */
@@ -655,9 +699,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		this.state.set('messages', newMessages)
 		this.state.set('compactionCount', (this.state.get('compactionCount') || 0) + 1)
 
-		// Responses API: clear continuation chain since message history changed
+		// Clear server-side continuation chains since the message history changed.
 		if (this.apiMode === 'responses') {
 			this.state.set('lastResponseId', null)
+		}
+		if (this.usesGenericTransportLoop) {
+			this.state.set('lastProviderData', undefined)
 		}
 
 		const estimatedTokens = this.estimateTokens()
@@ -721,7 +768,11 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 			let raw: string
 
-			if (this.apiMode === 'responses') {
+			if (this.usesGenericTransportLoop) {
+				// Non-OpenAI providers (codex, claude-code) run through the
+				// provider-agnostic turn loop driven by ModelStreamEvents.
+				raw = await this.runGenericTransportLoop()
+			} else if (this.apiMode === 'responses') {
 				// When maxInputTokens is set, skip previous_response_id continuation
 				// so we control exactly how many tokens the API processes (server-side
 				// context from previous_response_id would accumulate unbounded).
@@ -848,6 +899,148 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}))
 	}
 
+	/**
+	 * Resolve the explicitly configured `provider` through the modelProviders
+	 * feature, threading through providerOptions and any continuation data
+	 * (codex/claude-session ids) captured from the previous response.
+	 */
+	private resolveConfiguredProvider(): Promise<ResolvedModelProvider> {
+		const previousProviderData = this.state.get('lastProviderData')
+		return this.container.feature('modelProviders').resolve({
+			provider: this.options.provider,
+			model: this.options.model,
+			providerOptions: {
+				...(this.options.providerOptions ?? {}),
+				...(previousProviderData ? { previousProviderData } : {}),
+			},
+		})
+	}
+
+	/**
+	 * Provider-agnostic turn loop for non-OpenAI backends (codex, claude-code).
+	 * Drives the resolved transport purely through ModelStreamEvents and uses
+	 * provider-supplied continuation data to resume sessions across turns. The
+	 * user message has already been pushed by ask() before this runs.
+	 *
+	 * Feature-lighter than the OpenAI loops by design: no structured-output
+	 * parsing and no maxInputTokens trimming, but tool calls, streaming events,
+	 * cost accounting (when usage is returned), and history are all preserved.
+	 */
+	private async runGenericTransportLoop(): Promise<string> {
+		const provider = await this.resolveConfiguredProvider()
+		const tools = this.modelTools
+		const maxTurns = this.options.maxTurns ?? 8
+		let accumulated = ''
+		let finalProviderData: any = undefined
+
+		for (let turn = 1; turn <= maxTurns; turn++) {
+			this.state.set('streaming', true)
+			this.emit('turnStart', { turn, isFollowUp: turn > 1 })
+
+			let turnContent = ''
+			let toolCalls: ModelToolCall[] = []
+
+			try {
+				const stream = provider.transport.stream({
+					// provider.model already honors options.model ?? profile default,
+					// so codex/claude-code fall back to their own default model.
+					model: provider.model,
+					messages: this.messages as any,
+					tools: tools.length ? tools : undefined,
+					maxTokens: this.maxTokens,
+					temperature: this.state.get('temperature') ?? undefined,
+					signal: this._abortController?.signal,
+					providerOptions: provider.providerOptions,
+				}, provider)
+
+				for await (const event of stream) {
+					if (event.type === 'chunk') {
+						turnContent += event.text
+						accumulated += event.text
+						this.state.set('lastResponse', accumulated)
+						this.emit('chunk', event.text)
+						this.emit('preview', accumulated)
+					} else if (event.type === 'toolCall') {
+						toolCalls.push(event.toolCall)
+					} else if (event.type === 'rawEvent') {
+						this.emit('rawEvent', event.event)
+					} else if (event.type === 'response') {
+						// Transports that don't stream deltas deliver content whole here.
+						if (event.response.content && !turnContent) {
+							turnContent = event.response.content
+							accumulated += event.response.content
+							this.state.set('lastResponse', accumulated)
+							this.emit('chunk', event.response.content)
+							this.emit('preview', accumulated)
+						}
+						if (event.response.toolCalls?.length) toolCalls = event.response.toolCalls
+						if (event.response.providerData !== undefined) finalProviderData = event.response.providerData
+						if (event.response.usage) this.applyGenericUsage(event.response.usage)
+					}
+				}
+			} finally {
+				this.state.set('streaming', false)
+			}
+
+			// Persist the assistant turn in the same wire format the OpenAI loops
+			// use, so save()/history and inspection stay consistent.
+			const assistantMessage: OpenAI.Chat.Completions.ChatCompletionAssistantMessageParam = {
+				role: 'assistant',
+				content: turnContent || null,
+				...(toolCalls.length ? {
+					tool_calls: toolCalls.map((call) => ({
+						id: call.id || '',
+						type: 'function' as const,
+						function: { name: call.name, arguments: call.rawArguments ?? JSON.stringify(call.arguments ?? {}) },
+					})),
+				} : {}),
+			}
+			this.pushMessage(assistantMessage)
+			this.emit('turnEnd', { turn, hasToolCalls: toolCalls.length > 0 })
+
+			if (!toolCalls.length) break
+
+			this.emit('toolCallsStart', toolCalls)
+			for (const call of toolCalls) {
+				if (this._abortController?.signal.aborted) {
+					throw new ConversationAbortError(accumulated)
+				}
+				const result = await this.executeTool(call.name, call.rawArguments ?? JSON.stringify(call.arguments ?? {}))
+				this.pushMessage({ role: 'tool', tool_call_id: call.id || '', content: result })
+			}
+			this.emit('toolCallsEnd')
+		}
+
+		if (finalProviderData !== undefined) {
+			this.state.set('lastProviderData', finalProviderData)
+		}
+		this.state.set('lastResponse', accumulated)
+		this.emit('response', accumulated)
+		return accumulated
+	}
+
+	/**
+	 * Apply usage from a generic provider response to the running token/cost
+	 * counters. Handles both OpenAI (prompt/completion) and Responses-style
+	 * (input/output) usage shapes.
+	 */
+	private applyGenericUsage(usage: Record<string, any>) {
+		const prompt = usage.prompt_tokens ?? usage.input_tokens ?? 0
+		const completion = usage.completion_tokens ?? usage.output_tokens ?? 0
+		const total = usage.total_tokens ?? (prompt + completion)
+		const cached = usage.prompt_tokens_details?.cached_tokens ?? usage.input_tokens_details?.cached_tokens ?? 0
+		const reasoning = usage.completion_tokens_details?.reasoning_tokens ?? usage.output_tokens_details?.reasoning_tokens ?? 0
+		const prev = this.state.get('tokenUsage')!
+		this.state.set('tokenUsage', {
+			prompt: prev.prompt + prompt,
+			completion: prev.completion + completion,
+			total: prev.total + total,
+			cachedTokens: prev.cachedTokens + cached,
+			reasoningTokens: prev.reasoningTokens + reasoning,
+		})
+		this.updateCost()
+	}
+
 	/** Returns the conversationHistory feature for persistence. */
 	get history(): ConversationHistory {
 		return this.container.feature('conversationHistory') as ConversationHistory
@@ -865,9 +1058,14 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		const id = this.state.get('id')!
 		const existing = await this.history.load(id)
 
-		// Persist lastResponseId so the Responses API can continue the chain on resume
+		// Persist continuation data so the chain can resume: lastResponseId for the
+		// Responses API, lastProviderData for codex/claude-session backends.
 		const lastResponseId = this.state.get('lastResponseId')
-		const responseMeta = lastResponseId ? { lastResponseId } : {}
+		const lastProviderData = this.state.get('lastProviderData')
+		const responseMeta = {
+			...(lastResponseId ? { lastResponseId } : {}),
+			...(lastProviderData ? { lastProviderData } : {}),
+		}
 
 		// Grab the live token usage and cost from state
 		const tokenUsage = this.state.get('tokenUsage')!
