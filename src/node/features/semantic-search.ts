@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, existsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
+import { installSharedModule, sharedModulePath } from '../../setup/native-install.js'
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -133,7 +134,10 @@ const MODEL_SOURCES: Record<string, string> = {
 
 const VALID_LOCAL_MODELS = Object.keys(MODEL_FILENAMES)
 
-function resolveModelPath(modelName: string): string {
+/** The default local embedding model, exported for `luca setup` and other tooling. */
+export const DEFAULT_LOCAL_MODEL = PROVIDER_DEFAULT_MODELS.local
+
+export function resolveModelPath(modelName: string): string {
 	const filename = MODEL_FILENAMES[modelName] ?? `${modelName}.gguf`
 	const cacheBase = process.env.XDG_CACHE_HOME || join(homedir(), '.cache')
 	const lucaCache = join(cacheBase, 'luca', 'models', filename)
@@ -606,22 +610,29 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		if (this._llamaContext) return this._llamaContext
 
 		let getLlama: any
-		try {
-			// Try resolving from the project's node_modules first (for compiled binary),
-			// then fall back to regular dynamic import
-			const cwdModulePath = join(process.cwd(), 'node_modules', 'node-llama-cpp')
+		// The addon can live in the project's node_modules, in the per-machine
+		// ~/.luca/node_modules (installed by `luca setup`), or be resolvable as
+		// a bare import when running uncompiled — try in that order.
+		const candidates = [
+			join(process.cwd(), 'node_modules', 'node-llama-cpp'),
+			sharedModulePath('node-llama-cpp'),
+			'node-llama-cpp',
+		]
+		for (const candidate of candidates) {
 			try {
-				;({ getLlama } = await import(cwdModulePath))
+				;({ getLlama } = await import(candidate))
+				break
 			} catch {
-				;({ getLlama } = await import('node-llama-cpp'))
+				continue
 			}
-		} catch {
+		}
+		if (!getLlama) {
 			throw new Error(
-				'Local embeddings require node-llama-cpp which is not installed.\n' +
-				'Either:\n' +
-				'  1. Use OpenAI embeddings (default): set embeddingProvider to "openai"\n' +
-				'  2. Install node-llama-cpp: bun add --optional node-llama-cpp@3.17.1\n' +
-				'  3. Use the helper: await semanticSearch.installLocalEmbeddings(process.cwd())'
+				'Local embeddings need the "node-llama-cpp" native addon, which is not installed.\n' +
+				"It's a platform-specific native dependency that isn't bundled into the compiled luca binary. Fix it one of these ways:\n" +
+				'  1. Run: luca setup --local-embeddings  — installs the addon once per machine into ~/.luca and downloads the model weights\n' +
+				'  2. Use OpenAI embeddings instead (default): set embeddingProvider to "openai"\n' +
+				'  3. Turnkey helper from code (same as luca setup): await semanticSearch.installLocalEmbeddings()'
 			)
 		}
 		this._llamaInstance = await getLlama()
@@ -633,7 +644,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 				`Local embedding model "${this.embeddingModel}" weights not found at ${modelPath}.\n` +
 				`Valid local models: ${VALID_LOCAL_MODELS.join(', ')}.\n` +
 				`To fix, either:\n` +
-				`  1. Run: await semanticSearch.installLocalEmbeddings(process.cwd()) — installs the addon AND downloads the weights\n` +
+				`  1. Run: luca setup --local-embeddings — installs the addon and downloads the weights\n` +
 				`  2. Run: await semanticSearch.downloadModelWeights() — downloads just the weights\n` +
 				(source ? `  3. Download manually: curl -L "${source}" -o "${modelPath}"\n` : '')
 			)
@@ -977,47 +988,16 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	/**
-	 * Install node-llama-cpp into the user's project for local embedding support,
-	 * then download the embedding model weights so local embeddings work turnkey.
-	 * Detects package manager from lockfile presence and verifies the native addon loads.
+	 * Install node-llama-cpp into the per-machine `~/.luca/node_modules` for
+	 * local embedding support, then download the embedding model weights so
+	 * local embeddings work turnkey. Runs once per machine, never touches the
+	 * project. Same as `luca setup --local-embeddings`.
+	 *
+	 * @param _cwd - unused, accepted for backward compatibility (older versions installed into the project's node_modules)
 	 */
-	async installLocalEmbeddings(cwd: string): Promise<void> {
-		const { execSync } = await import('node:child_process')
+	async installLocalEmbeddings(_cwd?: string): Promise<void> {
 		const pkg = `node-llama-cpp@${SemanticSearch.PINNED_LLAMA_VERSION}`
-
-		let cmd: string
-		if (existsSync(join(cwd, 'bun.lockb')) || existsSync(join(cwd, 'bun.lock'))) {
-			cmd = `bun add --optional ${pkg}`
-		} else if (existsSync(join(cwd, 'pnpm-lock.yaml'))) {
-			cmd = `pnpm add --save-optional ${pkg}`
-		} else if (existsSync(join(cwd, 'yarn.lock'))) {
-			cmd = `yarn add --optional ${pkg}`
-		} else {
-			cmd = `npm install --save-optional ${pkg}`
-		}
-
-		try {
-			execSync(cmd, { cwd, stdio: 'pipe', timeout: 120_000 })
-		} catch (err: any) {
-			const stderr = err?.stderr?.toString() ?? ''
-			throw new Error(
-				`Failed to install ${pkg} via: ${cmd}\n` +
-				(stderr ? `stderr: ${stderr}\n` : '') +
-				`If this is an ABI mismatch, ensure your Node/Bun version matches the prebuilt binary.`
-			)
-		}
-
-		// Verify the native addon actually loads
-		const modulePath = join(cwd, 'node_modules', 'node-llama-cpp')
-		try {
-			await import(modulePath)
-		} catch (err: any) {
-			throw new Error(
-				`node-llama-cpp was installed but failed to load from ${modulePath}.\n` +
-				`This usually means a native addon ABI mismatch.\n` +
-				`Error: ${err?.message ?? err}`
-			)
-		}
+		await installSharedModule(pkg)
 
 		// The addon alone is not enough — fetch the model weights too
 		const localModel = this.options.embeddingProvider === 'local'

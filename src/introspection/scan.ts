@@ -1238,8 +1238,9 @@ export class IntrospectionScannerFeature extends Feature<IntrospectionScannerSta
       }).join('\n\n');
     }
 
-    const exportStatement = `\nexport const introspectionData = ${JSON.stringify(sortedResults, null, 2)};\n`;
-    const containerExport = hasContainers ? `\nexport const containerIntrospectionData = ${JSON.stringify(sortedContainers, null, 2)};\n` : '';
+    // Explicit annotations keep tsc from serializing the huge inferred literal types (TS7056)
+    const exportStatement = `\nexport const introspectionData: Record<string, any>[] = ${JSON.stringify(sortedResults, null, 2)};\n`;
+    const containerExport = hasContainers ? `\nexport const containerIntrospectionData: Record<string, any>[] = ${JSON.stringify(sortedContainers, null, 2)};\n` : '';
 
     return `${imports}// Auto-generated introspection registry data\n\n${registrations}${containerRegistrations}${exportStatement}${containerExport}`;
   }

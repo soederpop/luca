@@ -5,6 +5,7 @@ import type { ContainerContext } from '../container.js'
 import type { NodeContainer } from '../node/container.js'
 import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials } from '../bootstrap/generated.js'
 import { generateScaffold } from '../scaffolds/template.js'
+import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -54,10 +55,13 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	// ── 1. .env (only if missing) ──────────────────────────────────
 	const envPath = mkPath('.env')
 	if (!fs.exists(envPath)) {
-		await writeFile(fs, ui, envPath, '', '.env')
+		await writeFile(fs, ui, envPath, DEFAULT_ENV, '.env')
 	} else {
 		ui.print.dim('  .env already exists, skipping')
 	}
+
+	// ── 1b. .gitignore (create, or append missing entries) ─────────
+	await ensureGitignore(fs, ui, mkPath('.gitignore'))
 
 	// ── 2. CLAUDE.md ───────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('CLAUDE.md'), bootstrapFiles['CLAUDE'] || '', 'CLAUDE.md')
@@ -106,6 +110,15 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 
 	// ── 9. RUNME.md ────────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('RUNME.md'), bootstrapTemplates['runme'] || '', 'RUNME.md')
+
+	// ── 9b. TypeScript declarations + tsconfig.json ────────────────
+	const typesResult = await writeProjectTypes(fs, outputDir)
+	ui.print.cyan(`  Writing ${typesResult.filesWritten} type declaration files to ${TYPES_DIR}/ ...`)
+	if (typesResult.tsconfigWritten) {
+		ui.print.cyan('  Writing tsconfig.json...')
+	} else {
+		ui.print.dim('  tsconfig.json already exists, skipping')
+	}
 
 	// ── 10. .claude/settings.json (permissions for AI coding tools) ──
 	const settingsPath = mkPath('.claude', 'settings.json')
@@ -157,6 +170,9 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print('')
 	ui.print.dim('    Run luca scaffold <type> --tutorial for a full guide on any type')
 	ui.print('')
+	ui.print('  Want local semantic search? Run luca setup — a guided, once-per-machine')
+	ui.print('  install of the native addon and embedding model.')
+	ui.print('')
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -194,6 +210,27 @@ async function updateSkill(container: any, fs: any, ui: any) {
 async function writeFile(fs: any, ui: any, path: string, content: string, label: string) {
 	ui.print.cyan(`  Writing ${label}...`)
 	await fs.writeFileAsync(path, content)
+}
+
+export const DEFAULT_ENV = 'OPENAI_API_KEY=set-your-own\n'
+
+export const GITIGNORE_ENTRIES = ['.env', 'tmp', '*.log', 'node_modules', '.luca']
+
+/** Create .gitignore with the standard entries, or append only the ones missing from an existing file. */
+export async function ensureGitignore(fs: any, ui: any, path: string) {
+	if (!fs.exists(path)) {
+		await writeFile(fs, ui, path, GITIGNORE_ENTRIES.join('\n') + '\n', '.gitignore')
+		return
+	}
+	const existing = fs.readFile(path) as string
+	const lines = new Set(existing.split('\n').map((l: string) => l.trim()))
+	const missing = GITIGNORE_ENTRIES.filter(e => !lines.has(e))
+	if (missing.length === 0) {
+		ui.print.dim('  .gitignore already covers luca entries, skipping')
+		return
+	}
+	const content = existing.replace(/\n*$/, '\n') + missing.join('\n') + '\n'
+	await writeFile(fs, ui, path, content, '.gitignore (merged)')
 }
 
 async function checkToolAvailability(ui: any, proc: any) {
