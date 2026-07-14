@@ -24,6 +24,8 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
 	'dry-run': z.boolean().default(false).describe('Display the resolved prompt and options without running the assistant'),
 	'local': z.boolean().default(false).describe('Use local models (sets ANTHROPIC_BASE_URL and model for claudeCode, or local flag for assistants)'),
+	'base-url': z.string().optional().describe('Override ANTHROPIC_BASE_URL for the claudeCode CLI subprocess (point at a custom/network endpoint)'),
+	'auth-token': z.string().optional().describe('Override ANTHROPIC_AUTH_TOKEN for the claudeCode CLI subprocess'),
 })
 
 function normalizeTarget(raw: string): string {
@@ -96,13 +98,18 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	}
 
 	let outputTokens = 0
+	const seenToolIds = new Set<string>()
 
 	// Stream text via deltas for real-time output
 	feature.on('session:delta', ({ text }: { text: string }) => {
 		process.stdout.write(text)
 	})
 
-	// Render complete messages — only tool_use blocks and final text (markdown formatted)
+	// Render tool_use blocks as they appear. Don't gate this on stop_reason —
+	// some non-Anthropic backends (custom base URLs) never populate it on the
+	// message carrying the tool call, so the print would silently never fire.
+	// Dedupe by block id instead, since partial streaming snapshots repeat
+	// already-seen blocks verbatim until the turn completes.
 	feature.on('session:message', ({ message }: { message: any }) => {
 		const role = message?.message?.role ?? message?.role
 		if (role && role !== 'assistant') return
@@ -113,12 +120,11 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		const usage = message?.message?.usage ?? message?.usage
 		if (usage?.output_tokens) outputTokens += usage.output_tokens
 
-		// Skip partial messages — text is already rendered via session:delta
-		const stopReason = message?.message?.stop_reason ?? message?.stop_reason
-		if (!stopReason) return
-
 		for (const block of content) {
 			if (block.type === 'tool_use') {
+				const toolId = block.id ?? `${block.name}:${JSON.stringify(block.input)}`
+				if (seenToolIds.has(toolId)) continue
+				seenToolIds.add(toolId)
 				const argsStr = JSON.stringify(block.input).slice(0, 120)
 				process.stdout.write(ui.colors.dim(`\n  ⟳ ${block.name}`) + ui.colors.dim(`(${argsStr})\n`))
 			}
@@ -150,6 +156,12 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 		runOptions.permissionMode = options['permission-mode']
 		if (options.chrome) runOptions.chrome = true
 		if (options.local) runOptions.local = true
+		if (options['base-url']) {
+			runOptions.baseURL = options['base-url']
+			runOptions.authToken = options['auth-token'] || 'sk-local'
+		} else if (options['auth-token']) {
+			runOptions.authToken = options['auth-token']
+		}
 	}
 
 	// CLI flags override agentOptions from frontmatter
@@ -312,6 +324,12 @@ async function runParallel(
 			runOptions.permissionMode = options['permission-mode']
 			if (options.chrome) runOptions.chrome = true
 			if (options.local) runOptions.local = true
+			if (options['base-url']) {
+				runOptions.baseURL = options['base-url']
+				runOptions.authToken = options['auth-token'] || 'sk-local'
+			} else if (options['auth-token']) {
+				runOptions.authToken = options['auth-token']
+			}
 		}
 
 		feature.on('session:message', ({ sessionId, message }: { sessionId: string; message: any }) => {
@@ -971,6 +989,15 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 		if (CLI_TARGETS.has(target)) {
 			runOptions.permissionMode = options['permission-mode']
 			if (options.chrome) runOptions.chrome = true
+		}
+		if (target === 'claude') {
+			if (options.local) runOptions.local = true
+			if (options['base-url']) {
+				runOptions.baseURL = options['base-url']
+				runOptions.authToken = options['auth-token'] || 'sk-local'
+			} else if (options['auth-token']) {
+				runOptions.authToken = options['auth-token']
+			}
 		}
 
 		console.log(ui.colors.bold('\n── Dry Run ──\n'))
