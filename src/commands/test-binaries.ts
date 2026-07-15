@@ -174,7 +174,6 @@ function checkMagic(buf: Buffer, kind: CompileTarget['magic']): boolean {
 async function prebuild(container: any) {
 	const proc = container.feature('proc')
 	const steps: Array<[string, string[]]> = [
-		['bash', ['scripts/stamp-build.sh']],
 		['bun', ['run', 'build:introspection']],
 		['bun', ['run', 'build:scaffolds']],
 		['bun', ['run', 'build:bootstrap']],
@@ -240,9 +239,11 @@ export default async function testBinaries(options: z.infer<typeof argsSchema>, 
 		const out = container.paths.resolve(distDir, t.outfile)
 		process.stdout.write(`  ${t.name.padEnd(14)} `)
 
+		// compile-binary.sh wraps bun build --compile and bakes in the build
+		// stamp (SHA/branch/date) via --define — same path the release uses.
 		const res = await proc.spawnAndCapture(
-			'bun',
-			['build', './src/cli/cli.ts', '--compile', `--target=${t.target}`, '--outfile', out, '--external', 'node-llama-cpp'],
+			'bash',
+			['scripts/compile-binary.sh', `--target=${t.target}`, '--outfile', out],
 			{ cwd: container.cwd },
 		)
 

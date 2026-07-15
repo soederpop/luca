@@ -621,7 +621,16 @@ export class CommandsRegistry extends Registry<Command<any>> {
 			const name = file.replace(/\.ts$/, '')
 			if (this.has(name)) continue
 
-			const mod = await import(join(options.directory, file))
+			// A project command that fails to load (bad import, syntax error,
+			// platform-specific resolution quirk) must not take down the CLI —
+			// warn and keep discovering, same as the helpers gateway.
+			let mod: any
+			try {
+				mod = await import(join(options.directory, file))
+			} catch (err: any) {
+				console.warn(`commands.discover: failed to load ${file}: ${err?.message ?? err}`)
+				continue
+			}
 
 			// 1. Class-based: default export extends Command
 			if (isNativeHelperClass(mod.default, Command)) {

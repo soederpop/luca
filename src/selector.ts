@@ -283,7 +283,14 @@ export class SelectorsRegistry extends Registry<Selector<any>> {
 			const name = file.replace(/\.ts$/, '')
 			if (this.has(name)) continue
 
-			const mod = await import(join(options.directory, file))
+			// Mirror commands.discover: a broken selector file warns, never crashes.
+			let mod: any
+			try {
+				mod = await import(join(options.directory, file))
+			} catch (err: any) {
+				console.warn(`selectors.discover: failed to load ${file}: ${err?.message ?? err}`)
+				continue
+			}
 
 			// 1. Class-based: default export extends Selector
 			if (isNativeHelperClass(mod.default, Selector)) {
