@@ -156,7 +156,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       .set('registries', ['features'])
       .set('factories', ['feature'])
       
-    this._hide('options', '_state', '_events', 'uuid', '_plugins', 'z')
+    this._hide('options', '_state', '_events', 'uuid', '_plugins', '_pluginLoads', 'z')
     
     this.on('featureEnabled', (featureId: string, feature: any) => {
       const featureKey = featureId.replace(/^features\./,'')
@@ -986,6 +986,24 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   _plugins: (() => void)[] = []
 
+  /** Pending directory-plugin loads started via use('pluginName') */
+  _pluginLoads: Promise<any>[] = []
+
+  /**
+   * Await any asynchronous plugin-directory loads started via `use('pluginName')`.
+   * Resolves immediately when no plugins are loading.
+   *
+   * @example
+   * ```ts
+   * container.use('agentic-loop')
+   * await container.pluginsReady()
+   * ```
+   */
+  async pluginsReady(): Promise<this> {
+    await Promise.all(this._pluginLoads)
+    return this
+  }
+
   /**
    * Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method
    * that extend the container with new registries, factories, or capabilities.
@@ -1002,6 +1020,12 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * // Attach a plugin class (e.g. Client, Server, or custom)
    * container.use(Client)    // registers the clients registry + client() factory
    * container.use(Server)    // registers the servers registry + server() factory
+   *
+   * // Load a plugin directory by name (~/.luca/plugins/<name>) or path.
+   * // Loading is asynchronous — await container.pluginsReady() before relying
+   * // on the plugin's helpers, or call container.helpers.usePlugin() directly.
+   * container.use('agentic-loop')
+   * await container.pluginsReady()
    * ```
    */
   use<T = {}>(plugin: Extension<T>, options: any = {}) : this & T {
@@ -1013,8 +1037,19 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
         ...options,
         enable: true
       })
-    } else if (typeof plugin === 'string' && !features.has(plugin)) { 
-      throw new Error(`Feature ${plugin} is not available.`)
+    } else if (typeof plugin === 'string' && !features.has(plugin)) {
+      // Not a registered feature — maybe a plugin directory (~/.luca/plugins/<name>
+      // or a path). Plugin loading is async; track the promise for pluginsReady().
+      const helpers: any = features.has('helpers') ? this.feature('helpers' as any) : null
+      const pluginDir = helpers?.resolvePluginDir?.(plugin)
+
+      if (!pluginDir) {
+        throw new Error(`Feature ${plugin} is not available.`)
+      }
+
+      const load = helpers.usePlugin(plugin, options)
+      this._pluginLoads.push(load)
+      load.catch((err: any) => console.warn(`Failed to load plugin ${plugin}: ${err.message}`))
     } else if ((typeof plugin === 'object' || typeof plugin === 'function') && typeof plugin?.attach === 'function') {
       // This is like using a Helper or Feature subclass which declares a static attach method
       plugin.attach(container as this & T, options)  

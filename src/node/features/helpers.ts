@@ -19,8 +19,9 @@ import { Selector, selectors } from '../../selector.js'
 import type { Registry } from '../../registry.js'
 import type { FileManager } from './file-manager.js'
 import type { VM } from './vm.js'
-import { resolve, parse } from 'path'
+import { resolve, parse, isAbsolute } from 'path'
 import { existsSync } from 'fs'
+import { homedir } from 'os'
 
 export const HelpersStateSchema = FeatureStateSchema.extend({
   discovered: z.record(z.string(), z.boolean()).default({}).describe('Which registry types have been discovered'),
@@ -49,7 +50,12 @@ export const HelpersEventsSchema = FeatureEventsSchema.extend({
 
 type RegistryType = 'features' | 'clients' | 'servers' | 'commands' | 'endpoints' | 'selectors'
 
+const ALL_TYPES: RegistryType[] = ['features', 'clients', 'servers', 'commands', 'endpoints', 'selectors']
+
 const CLASS_BASED: RegistryType[] = ['features', 'clients', 'servers']
+
+/** Entry-module filenames a plugin directory may provide, tried in order. */
+const PLUGIN_ENTRY_CANDIDATES = ['luca.plugin.ts', 'plugin.ts']
 
 /**
  * The Helpers feature is a unified gateway for discovering and registering
@@ -511,6 +517,116 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
 
     for (const type of ['features', 'clients', 'servers', 'commands', 'endpoints', 'selectors'] as RegistryType[]) {
       results[type] = await this.discover(type)
+    }
+
+    return results
+  }
+
+  /** In-flight or completed plugin loads, keyed by resolved plugin directory */
+  private _pluginLoads: Map<string, Promise<Record<string, string[]>>> = new Map()
+
+  /**
+   * Resolve a plugin name or path to an existing plugin directory.
+   *
+   * Resolution order:
+   * 1. Anything that looks like a path (absolute, `./relative`, `~/...`, or containing a slash)
+   *    is resolved directly (relative paths against the container cwd)
+   * 2. A bare name resolves to the `~/.luca/plugins/<name>` convention
+   *
+   * @param nameOrPath - Plugin name (looked up in ~/.luca/plugins) or a directory path
+   * @returns The absolute plugin directory path, or null when no directory exists
+   *
+   * @example
+   * ```typescript
+   * container.helpers.resolvePluginDir('agentic-loop') // ~/.luca/plugins/agentic-loop (if it exists)
+   * ```
+   */
+  resolvePluginDir(nameOrPath: string): string | null {
+    if (!nameOrPath || typeof nameOrPath !== 'string') return null
+
+    const expanded = nameOrPath.startsWith('~/')
+      ? resolve(homedir(), nameOrPath.slice(2))
+      : nameOrPath
+
+    const looksLikePath = isAbsolute(expanded) || expanded.startsWith('.') || expanded.includes('/')
+    const dir = looksLikePath
+      ? resolve(this.container.cwd, expanded)
+      : resolve(homedir(), '.luca', 'plugins', expanded)
+
+    return existsSync(dir) ? dir : null
+  }
+
+  /**
+   * Load a plugin directory into the container. A plugin is any folder that follows
+   * the standard luca project layout — its `features/`, `clients/`, `servers/`,
+   * `commands/`, `endpoints/`, and `selectors/` subfolders are discovered and
+   * registered, exactly as if they lived in the current project.
+   *
+   * If the plugin provides an entry module (`luca.plugin.ts` or `plugin.ts`), it is
+   * loaded after discovery and its `attach(container, context)` (or `main(container,
+   * context)`) export is called with `context.pluginDir` set to the plugin's absolute
+   * directory — the hook for anything beyond the standard folders (assistants,
+   * workflows, contexts, ...).
+   *
+   * Idempotent per resolved directory: concurrent and repeated calls coalesce on the
+   * same load. Bare names resolve through the `~/.luca/plugins/<name>` convention
+   * (see resolvePluginDir); the `LUCA_PLUGINS` env var and `container.use('<name>')`
+   * both route here.
+   *
+   * @param nameOrPath - Plugin name (in ~/.luca/plugins) or a directory path
+   * @param options - Extra options passed through to the plugin's entry module context
+   * @returns Map of registry type to helper names discovered from the plugin
+   *
+   * @example
+   * ```typescript
+   * // ~/.luca/plugins/agentic-loop is a checkout (or symlink) of a luca project
+   * await container.helpers.usePlugin('agentic-loop')
+   * container.commands.available // now includes the plugin's commands
+   * ```
+   */
+  async usePlugin(nameOrPath: string, options: any = {}): Promise<Record<string, string[]>> {
+    const dir = this.resolvePluginDir(nameOrPath)
+
+    if (!dir) {
+      throw new Error(
+        `Plugin '${nameOrPath}' not found. Expected a directory at ~/.luca/plugins/${nameOrPath} or a valid path.`
+      )
+    }
+
+    if (this._pluginLoads.has(dir)) {
+      return this._pluginLoads.get(dir)!
+    }
+
+    const load = this._doUsePlugin(nameOrPath, dir, options)
+    this._pluginLoads.set(dir, load)
+    return load
+  }
+
+  /** Internal: performs the actual plugin load for a resolved directory. */
+  private async _doUsePlugin(name: string, dir: string, options: any): Promise<Record<string, string[]>> {
+    const results: Record<string, string[]> = {}
+
+    for (const type of ALL_TYPES) {
+      results[type] = await this.discover(type, { directory: resolve(dir, type) })
+    }
+
+    for (const candidate of PLUGIN_ENTRY_CANDIDATES) {
+      const entryPath = resolve(dir, candidate)
+      if (!existsSync(entryPath)) continue
+
+      const mod = await this.loadModuleExports(entryPath)
+      const exports = (mod?.default && (typeof mod.default.attach === 'function' || typeof mod.default.main === 'function'))
+        ? mod.default
+        : mod
+
+      const context = { ...options, pluginName: name, pluginDir: dir, discovered: results }
+
+      if (typeof exports?.attach === 'function') {
+        await exports.attach(this.container, context)
+      } else if (typeof exports?.main === 'function') {
+        await exports.main(this.container, context)
+      }
+      break
     }
 
     return results

@@ -12891,6 +12891,48 @@ setBuildTimeData('features.helpers', {
         }
       ]
     },
+    "resolvePluginDir": {
+      "description": "Resolve a plugin name or path to an existing plugin directory. Resolution order: 1. Anything that looks like a path (absolute, `./relative`, `~/...`, or containing a slash) is resolved directly (relative paths against the container cwd) 2. A bare name resolves to the `~/.luca/plugins/<name>` convention",
+      "parameters": {
+        "nameOrPath": {
+          "type": "string",
+          "description": "Plugin name (looked up in ~/.luca/plugins) or a directory path"
+        }
+      },
+      "required": [
+        "nameOrPath"
+      ],
+      "returns": "string | null",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.helpers.resolvePluginDir('agentic-loop') // ~/.luca/plugins/agentic-loop (if it exists)"
+        }
+      ]
+    },
+    "usePlugin": {
+      "description": "Load a plugin directory into the container. A plugin is any folder that follows the standard luca project layout — its `features/`, `clients/`, `servers/`, `commands/`, `endpoints/`, and `selectors/` subfolders are discovered and registered, exactly as if they lived in the current project. If the plugin provides an entry module (`luca.plugin.ts` or `plugin.ts`), it is loaded after discovery and its `attach(container, context)` (or `main(container, context)`) export is called with `context.pluginDir` set to the plugin's absolute directory — the hook for anything beyond the standard folders (assistants, workflows, contexts, ...). Idempotent per resolved directory: concurrent and repeated calls coalesce on the same load. Bare names resolve through the `~/.luca/plugins/<name>` convention (see resolvePluginDir); the `LUCA_PLUGINS` env var and `container.use('<name>')` both route here.",
+      "parameters": {
+        "nameOrPath": {
+          "type": "string",
+          "description": "Plugin name (in ~/.luca/plugins) or a directory path"
+        },
+        "options": {
+          "type": "any",
+          "description": "Extra options passed through to the plugin's entry module context"
+        }
+      },
+      "required": [
+        "nameOrPath"
+      ],
+      "returns": "Promise<Record<string, string[]>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// ~/.luca/plugins/agentic-loop is a checkout (or symlink) of a luca project\nawait container.helpers.usePlugin('agentic-loop')\ncontainer.commands.available // now includes the plugin's commands"
+        }
+      ]
+    },
     "lookup": {
       "description": "Look up a helper class by type and name.",
       "parameters": {
@@ -23928,6 +23970,18 @@ setContainerBuildTimeData('Container', {
       "required": [],
       "returns": "Promise<this>"
     },
+    "pluginsReady": {
+      "description": "Await any asynchronous plugin-directory loads started via `use('pluginName')`. Resolves immediately when no plugins are loading.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.use('agentic-loop')\nawait container.pluginsReady()"
+        }
+      ]
+    },
     "use": {
       "description": "Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method that extend the container with new registries, factories, or capabilities.",
       "parameters": {
@@ -23947,7 +24001,7 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory"
+          "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory\n\n// Load a plugin directory by name (~/.luca/plugins/<name>) or path.\n// Loading is asynchronous — await container.pluginsReady() before relying\n// on the plugin's helpers, or call container.helpers.usePlugin() directly.\ncontainer.use('agentic-loop')\nawait container.pluginsReady()"
         }
       ]
     }
@@ -36975,6 +37029,48 @@ export const introspectionData: Record<string, any>[] = [
           }
         ]
       },
+      "resolvePluginDir": {
+        "description": "Resolve a plugin name or path to an existing plugin directory. Resolution order: 1. Anything that looks like a path (absolute, `./relative`, `~/...`, or containing a slash) is resolved directly (relative paths against the container cwd) 2. A bare name resolves to the `~/.luca/plugins/<name>` convention",
+        "parameters": {
+          "nameOrPath": {
+            "type": "string",
+            "description": "Plugin name (looked up in ~/.luca/plugins) or a directory path"
+          }
+        },
+        "required": [
+          "nameOrPath"
+        ],
+        "returns": "string | null",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.helpers.resolvePluginDir('agentic-loop') // ~/.luca/plugins/agentic-loop (if it exists)"
+          }
+        ]
+      },
+      "usePlugin": {
+        "description": "Load a plugin directory into the container. A plugin is any folder that follows the standard luca project layout — its `features/`, `clients/`, `servers/`, `commands/`, `endpoints/`, and `selectors/` subfolders are discovered and registered, exactly as if they lived in the current project. If the plugin provides an entry module (`luca.plugin.ts` or `plugin.ts`), it is loaded after discovery and its `attach(container, context)` (or `main(container, context)`) export is called with `context.pluginDir` set to the plugin's absolute directory — the hook for anything beyond the standard folders (assistants, workflows, contexts, ...). Idempotent per resolved directory: concurrent and repeated calls coalesce on the same load. Bare names resolve through the `~/.luca/plugins/<name>` convention (see resolvePluginDir); the `LUCA_PLUGINS` env var and `container.use('<name>')` both route here.",
+        "parameters": {
+          "nameOrPath": {
+            "type": "string",
+            "description": "Plugin name (in ~/.luca/plugins) or a directory path"
+          },
+          "options": {
+            "type": "any",
+            "description": "Extra options passed through to the plugin's entry module context"
+          }
+        },
+        "required": [
+          "nameOrPath"
+        ],
+        "returns": "Promise<Record<string, string[]>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// ~/.luca/plugins/agentic-loop is a checkout (or symlink) of a luca project\nawait container.helpers.usePlugin('agentic-loop')\ncontainer.commands.available // now includes the plugin's commands"
+          }
+        ]
+      },
       "lookup": {
         "description": "Look up a helper class by type and name.",
         "parameters": {
@@ -47970,6 +48066,18 @@ export const containerIntrospectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<this>"
       },
+      "pluginsReady": {
+        "description": "Await any asynchronous plugin-directory loads started via `use('pluginName')`. Resolves immediately when no plugins are loading.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.use('agentic-loop')\nawait container.pluginsReady()"
+          }
+        ]
+      },
       "use": {
         "description": "Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method that extend the container with new registries, factories, or capabilities.",
         "parameters": {
@@ -47989,7 +48097,7 @@ export const containerIntrospectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory"
+            "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory\n\n// Load a plugin directory by name (~/.luca/plugins/<name>) or path.\n// Loading is asynchronous — await container.pluginsReady() before relying\n// on the plugin's helpers, or call container.helpers.usePlugin() directly.\ncontainer.use('agentic-loop')\nawait container.pluginsReady()"
           }
         ]
       }

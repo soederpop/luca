@@ -1026,6 +1026,18 @@ setContainerBuildTimeData('Container', {
       "required": [],
       "returns": "Promise<this>"
     },
+    "pluginsReady": {
+      "description": "Await any asynchronous plugin-directory loads started via `use('pluginName')`. Resolves immediately when no plugins are loading.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.use('agentic-loop')\nawait container.pluginsReady()"
+        }
+      ]
+    },
     "use": {
       "description": "Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method that extend the container with new registries, factories, or capabilities.",
       "parameters": {
@@ -1045,7 +1057,7 @@ setContainerBuildTimeData('Container', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory"
+          "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory\n\n// Load a plugin directory by name (~/.luca/plugins/<name>) or path.\n// Loading is asynchronous — await container.pluginsReady() before relying\n// on the plugin's helpers, or call container.helpers.usePlugin() directly.\ncontainer.use('agentic-loop')\nawait container.pluginsReady()"
         }
       ]
     }
@@ -2189,6 +2201,18 @@ export const containerIntrospectionData: Record<string, any>[] = [
         "required": [],
         "returns": "Promise<this>"
       },
+      "pluginsReady": {
+        "description": "Await any asynchronous plugin-directory loads started via `use('pluginName')`. Resolves immediately when no plugins are loading.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.use('agentic-loop')\nawait container.pluginsReady()"
+          }
+        ]
+      },
       "use": {
         "description": "Apply a plugin or enable a feature by string name. Plugins are classes with a static `attach(container)` method that extend the container with new registries, factories, or capabilities.",
         "parameters": {
@@ -2208,7 +2232,7 @@ export const containerIntrospectionData: Record<string, any>[] = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory"
+            "code": "// Enable a feature by name\ncontainer.use('contentDb')\n\n// Attach a plugin class (e.g. Client, Server, or custom)\ncontainer.use(Client)    // registers the clients registry + client() factory\ncontainer.use(Server)    // registers the servers registry + server() factory\n\n// Load a plugin directory by name (~/.luca/plugins/<name>) or path.\n// Loading is asynchronous — await container.pluginsReady() before relying\n// on the plugin's helpers, or call container.helpers.usePlugin() directly.\ncontainer.use('agentic-loop')\nawait container.pluginsReady()"
           }
         ]
       }

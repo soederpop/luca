@@ -248,6 +248,22 @@ await container.helpers.discover('features')                        // one type
 await container.helpers.discover('commands', { directory: dir })    // from a custom folder (plugins)
 ```
 
+### Plugins
+
+Any folder with the standard project layout (`features/`, `commands/`, `endpoints/`, ...) can be loaded as a plugin. Drop (or symlink) it into `~/.luca/plugins/<name>`, then either:
+
+```sh
+# .env — the CLI loads these automatically before your luca.cli.ts runs
+LUCA_PLUGINS=my-plugin,other-plugin
+```
+
+```js
+await container.helpers.usePlugin('my-plugin')   // by name (~/.luca/plugins) or path
+container.use('my-plugin'); await container.pluginsReady()  // sync call sites
+```
+
+If the plugin has a `luca.plugin.ts` (or `plugin.ts`) entry, its `attach(container, { pluginDir })` export runs after discovery — the hook for assets beyond the standard folders (assistants, workflows, contexts).
+
 ### State
 
 Every helper and the container itself have observable state:
@@ -459,6 +475,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 | Server | Purpose |
 |--------|---------|
 | `express` | Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. |
+| `llmProxy` | Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a docker container, exposing every configured backend — local GPU boxes running OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic — behind a single OpenAI-compatible endpoint on `http://localhost:<port>/v1`. |
 | `mcp` | MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. |
 | `websocket` | WebSocket server built on the `ws` library with optional JSON message framing. |
 <!-- END:GENERATED helper-tables -->

@@ -89,6 +89,27 @@ export function applySchemaAwareArgv(container: any, CommandClass: any) {
   }
 }
 
+/**
+ * Load plugins named in the LUCA_PLUGINS env var (comma-separated names or paths).
+ * Each entry resolves via helpers.resolvePluginDir — bare names against
+ * ~/.luca/plugins/<name>, paths as-is. A failing plugin warns but never
+ * blocks the CLI.
+ */
+export async function loadEnvPlugins(container: any) {
+  const names = (process.env.LUCA_PLUGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  for (const name of names) {
+    try {
+      await container.feature('helpers').usePlugin(name)
+    } catch (err: any) {
+      console.warn(`luca: failed to load plugin '${name}' from LUCA_PLUGINS: ${err.message}`)
+    }
+  }
+}
+
 const DISCOVERABLE_USER_TYPES = ['features', 'clients', 'servers', 'commands', 'selectors'] as const
 
 export async function discoverUserHelpers(container: any) {
@@ -136,6 +157,11 @@ export async function runCli(container: any, options: RunCliOptions = {}) {
   if (shouldLoadGlobalCli) {
     await loadCliModule(container, join(homedir(), '.luca', 'luca.cli.ts'))
   }
+
+  // Bun already loaded .env from cwd at process start, so LUCA_PLUGINS may come
+  // from the project's .env. Plugins load before the project's luca.cli.ts so
+  // the project can build on the helpers they register.
+  await loadEnvPlugins(container)
 
   await loadCliModule(container, container.paths.resolve('luca.cli.ts'))
 

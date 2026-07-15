@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.3.9"
+export const typesBundleVersion = "3.4.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -2352,8 +2352,8 @@ export declare const ClaudeCodeStateSchema: z.ZodObject<{
     claudeVersion: z.ZodOptional<z.ZodString>;
 }, z.core.$loose>;
 export declare const FileLogLevelSchema: z.ZodEnum<{
-    minimal: "minimal";
     verbose: "verbose";
+    minimal: "minimal";
     normal: "normal";
 }>;
 export type FileLogLevel = z.infer<typeof FileLogLevelSchema>;
@@ -2382,8 +2382,8 @@ export declare const ClaudeCodeOptionsSchema: z.ZodObject<{
     mcpServers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     fileLogPath: z.ZodOptional<z.ZodString>;
     fileLogLevel: z.ZodOptional<z.ZodEnum<{
-        minimal: "minimal";
         verbose: "verbose";
+        minimal: "minimal";
         normal: "normal";
     }>>;
     effort: z.ZodOptional<z.ZodEnum<{
@@ -2588,8 +2588,8 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
         mcpServers: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         fileLogPath: z.ZodOptional<z.ZodString>;
         fileLogLevel: z.ZodOptional<z.ZodEnum<{
-            minimal: "minimal";
             verbose: "verbose";
+            minimal: "minimal";
             normal: "normal";
         }>>;
         effort: z.ZodOptional<z.ZodEnum<{
@@ -6557,7 +6557,24 @@ export interface RunCliOptions {
 export declare function classifyCommandSources(builtinCommands: Set<string>, afterProject: Set<string>, afterUser: Set<string>): CommandSources;
 export declare function resolveScriptCandidate(ref: string, container: any): string | null;
 export declare function loadCliModule(container: any, modulePath: string): Promise<void>;
-export declare function discoverProjectCommands(container: any): Promise<void>;
+export declare function discoverProjectCommands(container: any, options?: {
+    commandsOnly?: boolean;
+}): Promise<void>;
+/**
+ * Re-parse process.argv with minimist options derived from the resolved
+ * command's argsSchema, updating container.argv in place. This makes flag
+ * parsing agree with the schema: boolean flags never consume a following
+ * positional, and string-typed fields (including positionals) keep
+ * numeric-looking values as strings.
+ */
+export declare function applySchemaAwareArgv(container: any, CommandClass: any): void;
+/**
+ * Load plugins named in the LUCA_PLUGINS env var (comma-separated names or paths).
+ * Each entry resolves via helpers.resolvePluginDir — bare names against
+ * ~/.luca/plugins/<name>, paths as-is. A failing plugin warns but never
+ * blocks the CLI.
+ */
+export declare function loadEnvPlugins(container: any): Promise<void>;
 export declare function discoverUserHelpers(container: any): Promise<void>;
 export declare function runCli(container: any, options?: RunCliOptions): Promise<void>;
 //# sourceMappingURL=runner.d.ts.map`,
@@ -8927,8 +8944,34 @@ export interface SubcommandSpec {
     /** Usage examples specific to this subcommand */
     examples?: CommandExample[];
 }
-/** Extract the field names from a positionals declaration. */
+/** Extract the field names from a positionals declaration (variadic \`...\` prefix stripped). */
 export declare function positionalNames(positionals: PositionalSpec[]): string[];
+/**
+ * Handler options type for module-based commands: the inferred argsSchema
+ * fields plus the raw positional array (\`_[0]\` is the command name).
+ *
+ * @example
+ * \`\`\`typescript
+ * export default async function myCmd(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+ *   options._ // string[] — raw positionals, typed
+ * }
+ * \`\`\`
+ */
+export type CommandArgs<S extends z.ZodType> = z.infer<S> & {
+    _: string[];
+};
+/**
+ * Derive minimist parser options from a command's argsSchema so flag parsing
+ * agrees with the schema: boolean flags never consume a following positional,
+ * and string-typed flags keep numeric-looking values as strings.
+ *
+ * \`--help\` and \`--verbose\` are always treated as booleans unless the schema
+ * declares them otherwise. Kebab-case aliases are included for camelCase fields.
+ */
+export declare function minimistOptionsFor(schema?: z.ZodType): {
+    boolean: string[];
+    string: string[];
+};
 /**
  * Type helper for module-augmentation of AvailableCommands when using the
  * SimpleCommand (module-based) pattern instead of a full class.
@@ -9007,6 +9050,11 @@ export declare class Command<T extends CommandState = CommandState, K extends Co
      */
     execute(rawInput?: Record<string, any>, source?: DispatchSource): Promise<CommandRunResult | void>;
     /**
+     * Build the context passed to command handlers: the container context plus
+     * command-dispatch conveniences like \`runUntilShutdown\` for daemon commands.
+     */
+    private _commandContext;
+    /**
      * The public entry point for dispatching a command.
      * Called by the CLI and other dispatch surfaces.
      */
@@ -9016,6 +9064,13 @@ export declare class Command<T extends CommandState = CommandState, K extends Co
      * For non-CLI dispatch, args are already named — pass through.
      */
     private _normalizeInput;
+    /**
+     * Coerce a positional value to the primitive its schema field expects.
+     * Positionals arrive as strings (or minimist-coerced numbers/booleans from
+     * older parses) — align them so \`z.string()\` positionals accept \`8080\` and
+     * \`z.number()\` positionals accept \`'8080'\`.
+     */
+    private _coercePositional;
     /**
      * Check whether a Zod schema expects an array type for a given field.
      * Unwraps ZodObject → ZodOptional/ZodDefault/ZodNullable → ZodArray.
@@ -9153,6 +9208,7 @@ export declare const argsSchema: z.ZodObject<{
     }>>;
     output: z.ZodDefault<z.ZodString>;
     'update-skill': z.ZodDefault<z.ZodBoolean>;
+    setup: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export declare const DEFAULT_ENV = "OPENAI_API_KEY=set-your-own\\n";
 export declare const GITIGNORE_ENTRIES: string[];
@@ -9746,6 +9802,7 @@ export declare const argsSchema: z.ZodObject<{
 export default function serve(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 //# sourceMappingURL=serve.d.ts.map`,
   "commands/setup.d.ts": `import { z } from 'zod';
+import type { ContainerContext } from '../container.js';
 declare module '../command.js' {
     interface AvailableCommands {
         setup: ReturnType<typeof commands.registerHandler>;
@@ -9766,6 +9823,7 @@ export declare const argsSchema: z.ZodObject<{
     'skip-models': z.ZodDefault<z.ZodBoolean>;
     types: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
+export declare function setup(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 //# sourceMappingURL=setup.d.ts.map`,
   "commands/social.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container';
@@ -10539,6 +10597,19 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
     /** Sleep for the specified number of milliseconds. Useful for scripting and sequencing. */
     sleep(ms?: number): Promise<this>;
     _plugins: (() => void)[];
+    /** Pending directory-plugin loads started via use('pluginName') */
+    _pluginLoads: Promise<any>[];
+    /**
+     * Await any asynchronous plugin-directory loads started via \`use('pluginName')\`.
+     * Resolves immediately when no plugins are loading.
+     *
+     * @example
+     * \`\`\`ts
+     * container.use('agentic-loop')
+     * await container.pluginsReady()
+     * \`\`\`
+     */
+    pluginsReady(): Promise<this>;
     /**
      * Apply a plugin or enable a feature by string name. Plugins are classes with a static \`attach(container)\` method
      * that extend the container with new registries, factories, or capabilities.
@@ -10555,6 +10626,12 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
      * // Attach a plugin class (e.g. Client, Server, or custom)
      * container.use(Client)    // registers the clients registry + client() factory
      * container.use(Server)    // registers the servers registry + server() factory
+     *
+     * // Load a plugin directory by name (~/.luca/plugins/<name>) or path.
+     * // Loading is asynchronous — await container.pluginsReady() before relying
+     * // on the plugin's helpers, or call container.helpers.usePlugin() directly.
+     * container.use('agentic-loop')
+     * await container.pluginsReady()
      * \`\`\`
      */
     use<T = {}>(plugin: Extension<T>, options?: any): this & T;
@@ -11576,7 +11653,7 @@ export { ExpressServer } from './servers/express';
 export { WebsocketServer } from './servers/socket';
 export type { ContainerContext, ContainerArgv, Plugin, Extension } from './container';
 export type { AvailableClients } from './client';
-export type { AvailableCommands, CommandHandler } from './command';
+export type { AvailableCommands, CommandHandler, CommandArgs } from './command';
 export type { AvailableEndpoints, EndpointContext } from './endpoint';
 export type { AvailableSelectors, SelectorsInterface, SelectorRunResult, SimpleSelector } from './selector';
 export type { AvailableFeatures, FeatureOptions, FeatureState } from './feature';
@@ -11604,6 +11681,7 @@ import { type ServersInterface } from "../server";
 import "../servers/express";
 import "../servers/socket";
 import "../servers/mcp";
+import "../servers/llm-proxy";
 import { type CommandsInterface } from "../command";
 import { type EndpointsInterface } from "../endpoint";
 import { type SelectorsInterface } from "../selector";
@@ -11869,6 +11947,29 @@ export declare class NodeContainer<Features extends NodeFeatures = NodeFeatures,
     get argv(): Record<string, any> & {
         _: string[];
     };
+    /** @internal shared shutdown promise + cleanup stack for runUntilShutdown */
+    private _shutdownState?;
+    /**
+     * Keep the process alive until SIGINT/SIGTERM, then run cleanup and exit 0.
+     *
+     * The blessed pattern for long-running commands (servers, watchers, daemons):
+     * call it as the last statement of your handler instead of hand-rolling
+     * \`await new Promise(() => {})\` plus signal wiring. Multiple calls share one
+     * shutdown promise; cleanups run LIFO with a 5s guard, and a second signal
+     * exits immediately.
+     *
+     * Command handlers receive it on their context: \`context.runUntilShutdown(cleanup)\`.
+     *
+     * @param cleanup - Optional async cleanup to run on shutdown (close servers, remove state files)
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express', { port: 4000 })
+     * await server.start()
+     * await container.runUntilShutdown(async () => { await server.stop() })
+     * \`\`\`
+     */
+    runUntilShutdown(cleanup?: () => void | Promise<void>): Promise<void>;
     /** Returns URL utility functions for parsing URIs. */
     get urlUtils(): {
         parse: (uri: string) => url.UrlWithStringQuery;
@@ -13799,6 +13900,8 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
      * @param options.entrypoint - Override the default entrypoint
      * @param options.network - Connect the container to a network
      * @param options.restart - Restart policy (e.g. 'always', 'on-failure')
+     * @param options.envFile - Path to an env file passed via --env-file (keeps secrets out of process args)
+     * @param options.addHostGateway - Make host.docker.internal resolve to the host from inside the container (adds --add-host on Linux engines; Docker Desktop resolves it natively)
      * @returns Promise resolving to the container ID
      * @throws Error if the container cannot be started
      * @example
@@ -13838,6 +13941,10 @@ export declare class Docker extends Feature<DockerState, DockerOptions> {
         network?: string;
         /** Restart policy (e.g. 'always', 'on-failure') */
         restart?: string;
+        /** Path to an env file passed via --env-file */
+        envFile?: string;
+        /** Make host.docker.internal resolve to the host from inside the container */
+        addHostGateway?: boolean;
     }): Promise<string>;
     /**
      * Execute a command inside a running container.
@@ -17416,6 +17523,56 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
     discoverAll(): Promise<Record<string, string[]>>;
     /** Internal: performs the actual discoverAll work. */
     private _doDiscoverAll;
+    /** In-flight or completed plugin loads, keyed by resolved plugin directory */
+    private _pluginLoads;
+    /**
+     * Resolve a plugin name or path to an existing plugin directory.
+     *
+     * Resolution order:
+     * 1. Anything that looks like a path (absolute, \`./relative\`, \`~/...\`, or containing a slash)
+     *    is resolved directly (relative paths against the container cwd)
+     * 2. A bare name resolves to the \`~/.luca/plugins/<name>\` convention
+     *
+     * @param nameOrPath - Plugin name (looked up in ~/.luca/plugins) or a directory path
+     * @returns The absolute plugin directory path, or null when no directory exists
+     *
+     * @example
+     * \`\`\`typescript
+     * container.helpers.resolvePluginDir('agentic-loop') // ~/.luca/plugins/agentic-loop (if it exists)
+     * \`\`\`
+     */
+    resolvePluginDir(nameOrPath: string): string | null;
+    /**
+     * Load a plugin directory into the container. A plugin is any folder that follows
+     * the standard luca project layout — its \`features/\`, \`clients/\`, \`servers/\`,
+     * \`commands/\`, \`endpoints/\`, and \`selectors/\` subfolders are discovered and
+     * registered, exactly as if they lived in the current project.
+     *
+     * If the plugin provides an entry module (\`luca.plugin.ts\` or \`plugin.ts\`), it is
+     * loaded after discovery and its \`attach(container, context)\` (or \`main(container,
+     * context)\`) export is called with \`context.pluginDir\` set to the plugin's absolute
+     * directory — the hook for anything beyond the standard folders (assistants,
+     * workflows, contexts, ...).
+     *
+     * Idempotent per resolved directory: concurrent and repeated calls coalesce on the
+     * same load. Bare names resolve through the \`~/.luca/plugins/<name>\` convention
+     * (see resolvePluginDir); the \`LUCA_PLUGINS\` env var and \`container.use('<name>')\`
+     * both route here.
+     *
+     * @param nameOrPath - Plugin name (in ~/.luca/plugins) or a directory path
+     * @param options - Extra options passed through to the plugin's entry module context
+     * @returns Map of registry type to helper names discovered from the plugin
+     *
+     * @example
+     * \`\`\`typescript
+     * // ~/.luca/plugins/agentic-loop is a checkout (or symlink) of a luca project
+     * await container.helpers.usePlugin('agentic-loop')
+     * container.commands.available // now includes the plugin's commands
+     * \`\`\`
+     */
+    usePlugin(nameOrPath: string, options?: any): Promise<Record<string, string[]>>;
+    /** Internal: performs the actual plugin load for a resolved directory. */
+    private _doUsePlugin;
     /**
      * Look up a helper class by type and name.
      *
@@ -27566,6 +27723,207 @@ export declare class ExpressServer<T extends ServerState = ServerState, K extend
 }
 export default ExpressServer;
 //# sourceMappingURL=express.d.ts.map`,
+  "servers/llm-proxy.d.ts": `import { z } from 'zod';
+import { type StartOptions, Server } from '../server.js';
+declare module '../server' {
+    interface AvailableServers {
+        llmProxy: typeof LlmProxyServer;
+    }
+}
+export declare const LlmProxyModelSchema: z.ZodObject<{
+    modelName: z.ZodString;
+    provider: z.ZodOptional<z.ZodString>;
+    model: z.ZodOptional<z.ZodString>;
+    apiBase: z.ZodOptional<z.ZodString>;
+    apiKey: z.ZodOptional<z.ZodString>;
+    extraParams: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+}, z.core.$strip>;
+export declare const LlmProxyOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    host: z.ZodOptional<z.ZodString>;
+    image: z.ZodOptional<z.ZodString>;
+    masterKey: z.ZodOptional<z.ZodString>;
+    models: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        modelName: z.ZodString;
+        provider: z.ZodOptional<z.ZodString>;
+        model: z.ZodOptional<z.ZodString>;
+        apiBase: z.ZodOptional<z.ZodString>;
+        apiKey: z.ZodOptional<z.ZodString>;
+        extraParams: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, z.core.$strip>>>;
+    litellmSettings: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    containerName: z.ZodOptional<z.ZodString>;
+    hostGatewayOverride: z.ZodOptional<z.ZodString>;
+    healthCheckTimeoutMs: z.ZodOptional<z.ZodNumber>;
+    configDir: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type LlmProxyOptions = z.infer<typeof LlmProxyOptionsSchema>;
+export declare const LlmProxyStateSchema: z.ZodObject<{
+    port: z.ZodOptional<z.ZodNumber>;
+    listening: z.ZodDefault<z.ZodBoolean>;
+    configured: z.ZodDefault<z.ZodBoolean>;
+    stopped: z.ZodDefault<z.ZodBoolean>;
+    containerId: z.ZodOptional<z.ZodString>;
+    containerName: z.ZodOptional<z.ZodString>;
+    configPath: z.ZodOptional<z.ZodString>;
+    healthy: z.ZodOptional<z.ZodBoolean>;
+}, z.core.$loose>;
+export type LlmProxyState = z.infer<typeof LlmProxyStateSchema>;
+/**
+ * Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a
+ * docker container, exposing every configured backend — local GPU boxes running
+ * OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic —
+ * behind a single OpenAI-compatible endpoint on \`http://localhost:<port>/v1\`.
+ *
+ * \`start()\` generates a LiteLLM \`config.yaml\` from the \`models\` option into a
+ * tmp directory, injects API keys through a 0600 env file (keys are referenced
+ * in the config as \`os.environ/...\` and never written into it), and runs the
+ * LiteLLM image with the config volume-mounted and the port published. It then
+ * polls \`/health/liveliness\` until the proxy is up. \`stop()\` stops and removes
+ * the container and deletes the env file.
+ *
+ * **Host networking:** the proxy runs inside a container, so a backend on the
+ * host (e.g. LM Studio at \`http://localhost:1234/v1\`) is not reachable as
+ * \`localhost\`. Any localhost \`apiBase\` is rewritten automatically to the host
+ * gateway (\`host.docker.internal\` by default; override with
+ * \`hostGatewayOverride\`, e.g. \`192.168.64.1\` for Apple's container runtime).
+ *
+ * Requires the docker CLI. Restarting always removes any stale
+ * \`luca-llm-proxy-<port>\` container first, so the running config deterministically
+ * matches the options you passed.
+ *
+ * @extends Server
+ *
+ * @example
+ * \`\`\`typescript
+ * // (no-run) requires docker and live backends
+ * const proxy = container.server('llmProxy', {
+ *   port: 4000,
+ *   masterKey: 'sk-luca-dev',
+ *   models: [
+ *     // LM Studio on this machine — localhost is rewritten to the host gateway
+ *     { modelName: 'local-qwen', provider: 'openai', model: 'qwen2.5-32b', apiBase: 'http://localhost:1234/v1', apiKey: 'lm-studio' },
+ *     // A DGX box on the LAN serving an OpenAI-compatible endpoint
+ *     { modelName: 'dgx-llama', provider: 'openai', model: 'llama-3.3-70b', apiBase: 'http://192.168.1.50:8000/v1', apiKey: 'none' },
+ *     // A paid API
+ *     { modelName: 'claude', provider: 'anthropic', model: 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY },
+ *   ],
+ * })
+ * await proxy.start()
+ *
+ * // one OpenAI-compatible endpoint for everything
+ * const client = container.client('rest', { baseURL: proxy.baseURL })
+ * const models = await client.get('/v1/models', { headers: { Authorization: 'Bearer sk-luca-dev' } })
+ *
+ * await proxy.stop()
+ * \`\`\`
+ */
+export declare class LlmProxyServer extends Server<LlmProxyState, LlmProxyOptions> {
+    static shortcut: "servers.llmProxy";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    static stateSchema: z.ZodObject<{
+        port: z.ZodOptional<z.ZodNumber>;
+        listening: z.ZodDefault<z.ZodBoolean>;
+        configured: z.ZodDefault<z.ZodBoolean>;
+        stopped: z.ZodDefault<z.ZodBoolean>;
+        containerId: z.ZodOptional<z.ZodString>;
+        containerName: z.ZodOptional<z.ZodString>;
+        configPath: z.ZodOptional<z.ZodString>;
+        healthy: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        port: z.ZodOptional<z.ZodNumber>;
+        host: z.ZodOptional<z.ZodString>;
+        image: z.ZodOptional<z.ZodString>;
+        masterKey: z.ZodOptional<z.ZodString>;
+        models: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            modelName: z.ZodString;
+            provider: z.ZodOptional<z.ZodString>;
+            model: z.ZodOptional<z.ZodString>;
+            apiBase: z.ZodOptional<z.ZodString>;
+            apiKey: z.ZodOptional<z.ZodString>;
+            extraParams: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        }, z.core.$strip>>>;
+        litellmSettings: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+        containerName: z.ZodOptional<z.ZodString>;
+        hostGatewayOverride: z.ZodOptional<z.ZodString>;
+        healthCheckTimeoutMs: z.ZodOptional<z.ZodNumber>;
+        configDir: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    /** The docker feature used to run and manage the LiteLLM container. */
+    get docker(): import("../node.js").Docker;
+    get yaml(): import("../node/features/yaml.js").YAML;
+    get fs(): import("../node.js").FS;
+    get os(): import("../node.js").OS;
+    /** The OpenAI-compatible base URL of the running proxy, e.g. http://localhost:4000 */
+    get baseURL(): string;
+    /** The port the proxy publishes on the host. Defaults to 4000. */
+    get port(): number;
+    get options(): LlmProxyOptions;
+    get initialState(): LlmProxyState;
+    /** LiteLLM docker image, ghcr.io/berriai/litellm:main-stable by default. */
+    get image(): string;
+    /** Deterministic container name so restarts can reclaim stale containers. */
+    get containerName(): string;
+    /** Hostname containers use to reach the host machine. */
+    get hostGateway(): string;
+    /** Directory the generated config.yaml and env file live in. */
+    get configDir(): string;
+    /**
+     * Rewrite a localhost/127.0.0.1/0.0.0.0 apiBase to the host gateway, since
+     * inside the container localhost refers to the container itself, not the
+     * machine running backends like LM Studio.
+     */
+    rewriteApiBase(apiBase: string): string;
+    /**
+     * Generate the LiteLLM config.yaml and the 0600 env file holding the actual
+     * API key values. The config references keys as os.environ/LUCA_LLM_KEY_<n>
+     * so secrets never appear in the YAML.
+     *
+     * @returns The absolute path of the written config.yaml
+     */
+    writeConfig(): Promise<string>;
+    /** Path of the env file holding the injected secrets. */
+    get envFilePath(): string;
+    /**
+     * Check the proxy's /health/liveliness endpoint.
+     * @returns true when the proxy responds with a 2xx status
+     */
+    checkHealth(): Promise<boolean>;
+    /**
+     * Start the LiteLLM proxy container.
+     *
+     * Verifies a container runtime is available, reclaims any stale container
+     * with the same name, writes the config + env file, runs the image with the
+     * port published and config mounted, then polls /health/liveliness until
+     * healthy or \`healthCheckTimeoutMs\` elapses (failing with the container's
+     * recent log output embedded in the error).
+     */
+    start(options?: StartOptions): Promise<this>;
+    /**
+     * Stop and remove the LiteLLM container and delete the env file holding
+     * injected secrets. Tolerates the container already being gone.
+     */
+    stop(): Promise<this>;
+    /**
+     * Fetch logs from the LiteLLM container.
+     *
+     * @param options - Passed through to docker getLogs (follow, tail, since, timestamps)
+     */
+    logs(options?: {
+        follow?: boolean;
+        tail?: number;
+        since?: string;
+        timestamps?: boolean;
+    }): Promise<string>;
+}
+export default LlmProxyServer;
+//# sourceMappingURL=llm-proxy.d.ts.map`,
   "servers/mcp.d.ts": `import type { NodeContainer } from '../node/container.js';
 import { z } from 'zod';
 import { MCPServerStateSchema, MCPServerOptionsSchema } from '../schemas/base.js';
