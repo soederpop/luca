@@ -10429,15 +10429,17 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
      */
     getHelperByUUID(uuid: string): Helper | undefined;
     /**
-     * Start the container. Emits the 'started' event and sets \`state.started\` to true.
-     * Plugins and features can listen for this event to perform initialization.
+     * Start the container. Awaits any pending plugin-directory loads started via
+     * \`use('pluginName')\`, then emits the 'started' event and sets \`state.started\`
+     * to true. Plugins and features can listen for this event to perform initialization.
      *
      * @returns The container instance
      *
      * @example
      * \`\`\`ts
+     * container.use('agentic-loop')
      * container.on('started', () => console.log('Ready'))
-     * await container.start()
+     * await container.start() // plugin helpers are registered by now
      * \`\`\`
     */
     start(): Promise<this>;
@@ -10597,19 +10599,8 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
     /** Sleep for the specified number of milliseconds. Useful for scripting and sequencing. */
     sleep(ms?: number): Promise<this>;
     _plugins: (() => void)[];
-    /** Pending directory-plugin loads started via use('pluginName') */
+    /** Pending directory-plugin loads started via use('pluginName'); awaited by start() */
     _pluginLoads: Promise<any>[];
-    /**
-     * Await any asynchronous plugin-directory loads started via \`use('pluginName')\`.
-     * Resolves immediately when no plugins are loading.
-     *
-     * @example
-     * \`\`\`ts
-     * container.use('agentic-loop')
-     * await container.pluginsReady()
-     * \`\`\`
-     */
-    pluginsReady(): Promise<this>;
     /**
      * Apply a plugin or enable a feature by string name. Plugins are classes with a static \`attach(container)\` method
      * that extend the container with new registries, factories, or capabilities.
@@ -10628,10 +10619,10 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
      * container.use(Server)    // registers the servers registry + server() factory
      *
      * // Load a plugin directory by name (~/.luca/plugins/<name>) or path.
-     * // Loading is asynchronous — await container.pluginsReady() before relying
-     * // on the plugin's helpers, or call container.helpers.usePlugin() directly.
+     * // Loading is asynchronous — await container.start() before relying on
+     * // the plugin's helpers, or call container.helpers.usePlugin() directly.
      * container.use('agentic-loop')
-     * await container.pluginsReady()
+     * await container.start()
      * \`\`\`
      */
     use<T = {}>(plugin: Extension<T>, options?: any): this & T;
@@ -28331,7 +28322,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.3.9";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

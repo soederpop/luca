@@ -255,6 +255,22 @@ await container.helpers.discover('features')                        // one type
 await container.helpers.discover('commands', { directory: dir })    // from a custom folder (plugins)
 \`\`\`
 
+### Plugins
+
+Any folder with the standard project layout (\`features/\`, \`commands/\`, \`endpoints/\`, ...) can be loaded as a plugin. Drop (or symlink) it into \`~/.luca/plugins/<name>\`, then either:
+
+\`\`\`sh
+# .env — the CLI loads these automatically before your luca.cli.ts runs
+LUCA_PLUGINS=my-plugin,other-plugin
+\`\`\`
+
+\`\`\`js
+await container.helpers.usePlugin('my-plugin')   // by name (~/.luca/plugins) or path
+container.use('my-plugin'); await container.start()  // sync call sites — start() awaits plugin loads
+\`\`\`
+
+If the plugin has a \`luca.plugin.ts\` (or \`plugin.ts\`) entry, its \`attach(container, { pluginDir })\` export runs after discovery — the hook for assets beyond the standard folders (assistants, workflows, contexts).
+
 ### State
 
 Every helper and the container itself have observable state:

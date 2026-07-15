@@ -259,7 +259,7 @@ LUCA_PLUGINS=my-plugin,other-plugin
 
 ```js
 await container.helpers.usePlugin('my-plugin')   // by name (~/.luca/plugins) or path
-container.use('my-plugin'); await container.pluginsReady()  // sync call sites
+container.use('my-plugin'); await container.start()  // sync call sites — start() awaits plugin loads
 ```
 
 If the plugin has a `luca.plugin.ts` (or `plugin.ts`) entry, its `attach(container, { pluginDir })` export runs after discovery — the hook for assets beyond the standard folders (assistants, workflows, contexts).

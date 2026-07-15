@@ -49,12 +49,12 @@ describe('helpers.usePlugin', () => {
 })
 
 describe('container.use with a plugin directory path', () => {
-  it('loads the plugin asynchronously and pluginsReady() awaits it', async () => {
+  it('loads the plugin asynchronously and start() awaits it', async () => {
     const dir = makePluginDir('gamma')
     const container = new NodeContainer()
 
     container.use(dir as any)
-    await container.pluginsReady()
+    await container.start()
 
     expect(container.commands.available).toContain('gamma-hello')
   })
