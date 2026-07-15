@@ -85,6 +85,7 @@ export const InkEventsSchema = FeatureEventsSchema.extend({
 export class Ink extends Feature<InkState, InkOptions> {
   static override shortcut = 'features.ink' as const
   static override stability = 'stable' as const
+  static override category = 'ui-output' as const
   static override stateSchema = InkStateSchema
   static override optionsSchema = InkOptionsSchema
   static override eventsSchema = InkEventsSchema

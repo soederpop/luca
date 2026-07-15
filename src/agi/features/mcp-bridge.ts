@@ -110,6 +110,7 @@ function matchesAnyPattern(name: string, patterns: string[]): boolean {
 export class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & FeatureOptions> {
 	static override shortcut = 'features.mcpBridge' as const
 	static override stability = 'stable' as const
+	static override category = 'ai-assistants' as const
 	static override optionsSchema = McpBridgeOptionsSchema
 	static override stateSchema = McpBridgeStateSchema
 	static override eventsSchema = McpBridgeEventsSchema

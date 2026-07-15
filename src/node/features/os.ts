@@ -35,6 +35,7 @@ export interface DisplayInfo {
 export class OS extends Feature {
   static override shortcut = 'features.os' as const
   static override stability = 'core' as const
+  static override category = 'system' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'os') }

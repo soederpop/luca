@@ -149,6 +149,7 @@ export class IpcSocket<T extends IpcState = IpcState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ipcSocket" as const
   static override stability = 'stable' as const
+  static override category = 'networking' as const
   static override stateSchema = IpcStateSchema
   static override eventsSchema = IpcEventsSchema
 

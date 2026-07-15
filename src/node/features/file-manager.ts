@@ -94,6 +94,7 @@ export class FileManager<
 
   static override shortcut = 'features.fileManager' as const
   static override stability = 'core' as const
+  static override category = 'filesystem' as const
   static override stateSchema = FileManagerStateSchema
   static override optionsSchema = FileManagerOptionsSchema
   static override eventsSchema = FileManagerEventsSchema

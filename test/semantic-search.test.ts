@@ -523,6 +523,33 @@ describe('SemanticSearch', () => {
 			expect(status.dbSizeBytes).toBeGreaterThan(0)
 		})
 
+		it('indexDocuments replaces chunks on re-index instead of accumulating', async () => {
+			await search.initDb()
+			search.embed = async (texts: string[]) => texts.map((_, i) => Array.from(fakeEmbedding(768, i + 1)))
+
+			const doc = makeTestDoc()
+			await search.indexDocuments([doc])
+			const firstCount = (search.db.query('SELECT COUNT(*) as c FROM chunks WHERE path_id = ?').get(doc.pathId) as any).c
+			expect(firstCount).toBeGreaterThan(0)
+
+			// Re-index the identical doc — chunk count must not grow
+			await search.indexDocuments([doc])
+			const secondCount = (search.db.query('SELECT COUNT(*) as c FROM chunks WHERE path_id = ?').get(doc.pathId) as any).c
+			expect(secondCount).toBe(firstCount)
+
+			// Re-index a mutated doc — old chunk hashes replaced with new ones
+			const changed = makeTestDoc({
+				sections: [
+					{ heading: 'Overview', headingPath: 'Overview', content: 'Rewritten section about token rotation.', level: 2 },
+				],
+			})
+			await search.indexDocuments([changed])
+			const rows = search.db.query('SELECT content_hash FROM chunks WHERE path_id = ?').all(doc.pathId) as any[]
+			expect(rows.length).toBe(1)
+			const newHashes = search.chunkDocument(changed).map(c => c.contentHash)
+			expect(rows.map(r => r.content_hash).sort()).toEqual(newHashes.sort())
+		})
+
 		it('reindex clears all data when called without args', async () => {
 			await search.initDb()
 			search.insertDocument(makeTestDoc())

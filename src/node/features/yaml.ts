@@ -55,6 +55,7 @@ import { NodeContainer } from '../container.js'
 export class YAML extends Feature {
   static override shortcut = 'features.yaml' as const
   static override stability = 'core' as const
+  static override category = 'ui-output' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   static { Feature.register(this, 'yaml') }

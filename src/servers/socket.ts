@@ -79,6 +79,7 @@ export const SocketServerEventsSchema = ServerEventsSchema.extend({
 export class WebsocketServer<T extends ServerState = ServerState, K extends SocketServerOptions = SocketServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.websocket' as const
     static override stability = 'stable' as const
+    static override category = 'networking' as const
     static override stateSchema = ServerStateSchema
     static override optionsSchema = SocketServerOptionsSchema
     static override eventsSchema = SocketServerEventsSchema

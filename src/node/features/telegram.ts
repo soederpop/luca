@@ -102,6 +102,7 @@ export const TelegramEventsSchema = FeatureEventsSchema.extend({
 export class Telegram extends Feature<TelegramState, TelegramOptions> {
   static override shortcut = 'features.telegram' as const
   static override stability = 'stable' as const
+  static override category = 'media-browser' as const
   static override envVars = ['TELEGRAM_BOT_TOKEN']
   static override stateSchema = TelegramStateSchema
   static override optionsSchema = TelegramOptionsSchema

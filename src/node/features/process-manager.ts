@@ -456,6 +456,7 @@ export class SpawnHandler {
 export class ProcessManager extends Feature {
   static override shortcut = 'features.processManager' as const
   static override stability = 'stable' as const
+  static override category = 'process' as const
   static override stateSchema = ProcessManagerStateSchema
   static override optionsSchema = ProcessManagerOptionsSchema
   static override eventsSchema = ProcessManagerEventsSchema

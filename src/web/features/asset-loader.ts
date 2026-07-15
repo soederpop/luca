@@ -22,6 +22,7 @@ export class AssetLoader extends Feature {
   static override optionsSchema = FeatureOptionsSchema
   static override shortcut = "features.assetLoader" as const
   static override stability = 'stable' as const
+  static override category = 'dev-tools' as const
 
   static { Feature.register(this, 'assetLoader') }
 

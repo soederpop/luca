@@ -61,6 +61,7 @@ export class VoiceRecognition<T extends VoiceRecognitionState = VoiceRecognition
   static override eventsSchema = VoiceRecognitionEventsSchema
   static override shortcut = "features.voice" as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
 
   static { Feature.register(this as any, 'voice') }
 

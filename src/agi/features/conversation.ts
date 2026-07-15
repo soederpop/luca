@@ -267,6 +267,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	static override eventsSchema = ConversationEventsSchema
 	static override shortcut = 'features.conversation' as const
 	static override stability = 'stable' as const
+	static override category = 'ai-assistants' as const
 
 	static { Feature.register(this, 'conversation') }
 

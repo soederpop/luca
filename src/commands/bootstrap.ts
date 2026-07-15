@@ -3,7 +3,7 @@ import { commands } from '../command.js'
 import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import type { NodeContainer } from '../node/container.js'
-import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials } from '../bootstrap/generated.js'
+import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials, bootstrapReferences } from '../bootstrap/generated.js'
 import { generateScaffold } from '../scaffolds/template.js'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 
@@ -85,6 +85,13 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 		await fs.writeFileAsync(container.paths.resolve(tutorialsDir, filename), content)
 	}
 	ui.print.cyan(`  Writing ${Object.keys(bootstrapTutorials).length} tutorial docs...`)
+
+	// ── 3c. generated reference docs (helper-index.md, …) ─────────
+	const referencesDir = container.paths.resolve(skillDir, 'references')
+	for (const [filename, content] of Object.entries(bootstrapReferences)) {
+		await fs.writeFileAsync(container.paths.resolve(referencesDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapReferences).length} reference docs...`)
 
 	// ── 4. docs/ folder ────────────────────────────────────────────
 	await fs.ensureFolder(mkPath('docs'))
@@ -201,6 +208,12 @@ async function updateSkill(container: any, fs: any, ui: any) {
 		await fs.writeFileAsync(container.paths.resolve(tutorialsDir, filename), content)
 	}
 	ui.print.cyan(`  Writing ${Object.keys(bootstrapTutorials).length} tutorial docs...`)
+
+	const referencesDir = container.paths.resolve(skillDir, 'references')
+	for (const [filename, content] of Object.entries(bootstrapReferences)) {
+		await fs.writeFileAsync(container.paths.resolve(referencesDir, filename), content)
+	}
+	ui.print.cyan(`  Writing ${Object.keys(bootstrapReferences).length} reference docs...`)
 
 	ui.print('')
 	ui.print.green('  ✓ Skill updated!')

@@ -109,6 +109,7 @@ export const GoogleCalendarEventsSchema = FeatureEventsSchema.extend({
 export class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarOptions> {
   static override shortcut = 'features.googleCalendar' as const
   static override stability = 'stable' as const
+  static override category = 'google-workspace' as const
   static override stateSchema = GoogleCalendarStateSchema
   static override optionsSchema = GoogleCalendarOptionsSchema
   static override eventsSchema = GoogleCalendarEventsSchema

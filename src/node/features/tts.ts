@@ -82,6 +82,7 @@ export const TTSEventsSchema = FeatureEventsSchema.extend({
 export class TTS extends Feature<TTSState, TTSOptions> {
   static override shortcut = 'features.tts' as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
   static override envVars = ['RUNPOD_API_KEY']
   static override stateSchema = TTSStateSchema
   static override optionsSchema = TTSOptionsSchema

@@ -123,6 +123,7 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 
 		let totalWarnings = 0
 		const missingStability = new Map<string, string>()
+		const missingCategory = new Map<string, string>()
 
 		for (const target of targets) {
 			console.log(`\nGenerating ${target.name} introspection data...`)
@@ -154,6 +155,9 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 				if (!result.stability) {
 					missingStability.set(result.id, result.className || result.id)
 				}
+				if (!result.category) {
+					missingCategory.set(result.id, result.className || result.id)
+				}
 			}
 
 			if (options.lint) {
@@ -166,6 +170,15 @@ async function introspect(options: z.infer<typeof argsSchema>, context: Containe
 			console.error(`\nERROR: ${missingStability.size} helper(s) missing a stability declaration.`)
 			console.error(`Every built-in helper must declare \`static override stability = 'core' | 'stable' | 'experimental'\`:\n`)
 			for (const [id, className] of missingStability) {
+				console.error(`  - ${className} (${id})`)
+			}
+			process.exit(1)
+		}
+
+		if (missingCategory.size > 0) {
+			console.error(`\nERROR: ${missingCategory.size} helper(s) missing a category declaration.`)
+			console.error(`Every built-in helper must declare \`static override category = '<slug>' as const\` (see HELPER_CATEGORIES in src/introspection/categories.ts):\n`)
+			for (const [id, className] of missingCategory) {
 				console.error(`  - ${className} (${id})`)
 			}
 			process.exit(1)

@@ -66,6 +66,7 @@ export interface MemorySearchResult extends MemoryRecord {
 export class Memory extends Feature<MemoryState, MemoryOptions> {
   static override shortcut = 'features.memory' as const
   static override stability = 'stable' as const
+  static override category = 'ai-assistants' as const
   static override stateSchema = MemoryStateSchema
   static override optionsSchema = MemoryOptionsSchema
   static override eventsSchema = MemoryEventsSchema

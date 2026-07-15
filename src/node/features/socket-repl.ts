@@ -54,6 +54,7 @@ export class SocketRepl<
 > extends Feature<T, K> {
   static override shortcut = "features.socketRepl" as const
   static override stability = 'stable' as const
+  static override category = 'system' as const
   static override stateSchema = SocketReplStateSchema
   static override optionsSchema = SocketReplOptionsSchema
   static override eventsSchema = SocketReplEventsSchema

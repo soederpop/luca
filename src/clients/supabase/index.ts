@@ -132,6 +132,7 @@ export class SupabaseClient extends Client<
 > {
   static override shortcut = "clients.supabase" as const;
   static override stability = 'stable' as const;
+  static override category = 'data-storage' as const;
   static override description =
     "Supabase client wrapping the official SDK with typed state, events, and realtime channel management";
 

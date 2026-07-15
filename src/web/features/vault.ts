@@ -36,6 +36,7 @@ export class WebVault extends Feature<WebVaultState, WebVaultOptions> {
   static override optionsSchema = WebVaultOptionsSchema
   static override shortcut = "features.vault" as const
   static override stability = 'stable' as const
+  static override category = 'system' as const
 
   static { Feature.register(this, 'vault') }
   

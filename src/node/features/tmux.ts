@@ -485,6 +485,7 @@ export class TmuxSession {
 export class Tmux extends Feature<TmuxState, TmuxOptions> {
   static override shortcut = 'features.tmux' as const
   static override stability = 'stable' as const
+  static override category = 'process' as const
   static override stateSchema = TmuxStateSchema
   static override optionsSchema = TmuxOptionsSchema
   static { Feature.register(this, 'tmux') }

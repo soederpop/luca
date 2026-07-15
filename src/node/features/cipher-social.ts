@@ -98,6 +98,7 @@ export const CipherEventsSchema = FeatureEventsSchema.extend({
 export class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
   static override shortcut = 'features.cipherSocial' as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
   static override stateSchema = CipherStateSchema
   static override optionsSchema = CipherOptionsSchema
   static override eventsSchema = CipherEventsSchema

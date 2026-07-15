@@ -1,4 +1,5 @@
 import type { IntrospectionSection, MethodIntrospection, GetterIntrospection, HelperIntrospection } from './introspection/index.js'
+import { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from './introspection/categories.js'
 import { presentIntrospectionAsMarkdown } from './helper.js'
 import { z } from 'zod'
 
@@ -747,39 +748,69 @@ Use these tools whenever you are unsure what helpers are available, what a helpe
 					return 0
 				})
 
+				// Group helpers by category (canonical HELPER_CATEGORIES order),
+				// uncategorized (e.g. project-local) helpers under "Other" at the end.
+				const grouped = new Map<string, string[]>()
 				for (const id of sorted) {
 					const Ctor = registry.lookup(id)
 					const introspection = Ctor.introspect?.()
-					const description = introspection?.description || Ctor.description || 'No description provided'
-					const summary = this.extractSummary(description)
-					const featureGetters = Object.keys(introspection?.getters || {}).sort()
-					const featureMethods = Object.keys(introspection?.methods || {}).sort()
-					const intermediate = this.findIntermediateParent(Ctor, baseClassRef)
+					const category: string = introspection?.category || (Ctor as any).category || ''
+					if (!grouped.has(category)) grouped.set(category, [])
+					grouped.get(category)!.push(id)
+				}
+				const knownOrder = HELPER_CATEGORIES.filter(c => grouped.has(c)) as string[]
+				const unknownKeys = [...grouped.keys()].filter(c => !(HELPER_CATEGORIES as readonly string[]).includes(c))
+				const categoryOrder = [...knownOrder, ...unknownKeys]
+				// Only use category headers when at least one helper is categorized
+				const useGroups = knownOrder.length > 0
+				const hEntry = useGroups ? '#'.repeat(headingDepth + 2) : hSub
 
-					const platformTag = includeBrowser && collidingIds.has(id) ? ' (node)' : ''
-					const stability = introspection?.stability || (Ctor as any).stability
-					const stabilityTag = stability ? ` \`${stability}\`` : ''
-
-					const entryJson: Record<string, any> = { description: summary, methods: featureMethods, getters: featureGetters }
-					if (stability) entryJson.stability = stability
-					if (intermediate) {
-						entryJson.extends = intermediate.name
-						entryJson.inheritedMethods = intermediate.methods
-						entryJson.inheritedGetters = intermediate.getters
+				for (const categoryKey of categoryOrder) {
+					if (useGroups) {
+						const label = isHelperCategory(categoryKey)
+							? CATEGORY_LABELS[categoryKey].label
+							: 'Other'
+						const categoryDescription = isHelperCategory(categoryKey)
+							? ` — ${CATEGORY_LABELS[categoryKey].description}`
+							: ''
+						textParts.push(`${hSub} ${label}${categoryDescription}\n`)
 					}
-					if (platformTag) entryJson.platform = 'node'
-					jsonResult[id + (platformTag ? ':node' : '')] = entryJson
 
-					const extendsLine = intermediate ? `\n> extends ${intermediate.name}\n` : ''
-					const memberLines: string[] = []
-					if (featureGetters.length) memberLines.push(`  getters: ${featureGetters.join(', ')}`)
-					if (featureMethods.length) memberLines.push(`  methods: ${featureMethods.map(m => m + '()').join(', ')}`)
-					if (intermediate) {
-						if (intermediate.getters.length) memberLines.push(`  inherited getters: ${intermediate.getters.join(', ')}`)
-						if (intermediate.methods.length) memberLines.push(`  inherited methods: ${intermediate.methods.map(m => m + '()').join(', ')}`)
+					for (const id of grouped.get(categoryKey)!) {
+						const Ctor = registry.lookup(id)
+						const introspection = Ctor.introspect?.()
+						const description = introspection?.description || Ctor.description || 'No description provided'
+						const summary = this.extractSummary(description)
+						const featureGetters = Object.keys(introspection?.getters || {}).sort()
+						const featureMethods = Object.keys(introspection?.methods || {}).sort()
+						const intermediate = this.findIntermediateParent(Ctor, baseClassRef)
+
+						const platformTag = includeBrowser && collidingIds.has(id) ? ' (node)' : ''
+						const stability = introspection?.stability || (Ctor as any).stability
+						const stabilityTag = stability ? ` \`${stability}\`` : ''
+
+						const entryJson: Record<string, any> = { description: summary, methods: featureMethods, getters: featureGetters }
+						if (categoryKey) entryJson.category = categoryKey
+						if (stability) entryJson.stability = stability
+						if (intermediate) {
+							entryJson.extends = intermediate.name
+							entryJson.inheritedMethods = intermediate.methods
+							entryJson.inheritedGetters = intermediate.getters
+						}
+						if (platformTag) entryJson.platform = 'node'
+						jsonResult[id + (platformTag ? ':node' : '')] = entryJson
+
+						const extendsLine = intermediate ? `\n> extends ${intermediate.name}\n` : ''
+						const memberLines: string[] = []
+						if (featureGetters.length) memberLines.push(`  getters: ${featureGetters.join(', ')}`)
+						if (featureMethods.length) memberLines.push(`  methods: ${featureMethods.map(m => m + '()').join(', ')}`)
+						if (intermediate) {
+							if (intermediate.getters.length) memberLines.push(`  inherited getters: ${intermediate.getters.join(', ')}`)
+							if (intermediate.methods.length) memberLines.push(`  inherited methods: ${intermediate.methods.map(m => m + '()').join(', ')}`)
+						}
+						const memberBlock = memberLines.length ? '\n' + memberLines.join('\n') + '\n' : ''
+						textParts.push(`${hEntry} ${id}${platformTag}${stabilityTag}${extendsLine}\n${summary}\n${memberBlock}`)
 					}
-					const memberBlock = memberLines.length ? '\n' + memberLines.join('\n') + '\n' : ''
-					textParts.push(`${hSub} ${id}${platformTag}${stabilityTag}${extendsLine}\n${summary}\n${memberBlock}`)
 				}
 			}
 

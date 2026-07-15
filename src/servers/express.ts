@@ -102,6 +102,7 @@ const defaultCreate = (app: Express, server: Server) => app
 export class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T,K> {
     static override shortcut = 'servers.express' as const
     static override stability = 'core' as const
+    static override category = 'networking' as const
     static override stateSchema = ServerStateSchema
     static override optionsSchema = ExpressServerOptionsSchema
 

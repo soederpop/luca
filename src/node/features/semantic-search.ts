@@ -78,6 +78,8 @@ export interface SearchOptions {
 export interface HybridSearchOptions extends SearchOptions {
 	ftsWeight?: number
 	vecWeight?: number
+	/** Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query. */
+	ftsQuery?: string
 }
 
 export interface IndexStatus {
@@ -314,6 +316,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	static override eventsSchema = SemanticSearchEventsSchema
 	static override shortcut = 'features.semanticSearch' as const
 	static override stability = 'experimental' as const
+	static override category = 'content-nlp' as const
 	static { Feature.register(this, 'semanticSearch') }
 
 	private _db: Database | null = null
@@ -730,7 +733,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		const fetchLimit = Math.max(limit * 2, 20)
 
 		const [bm25Results, vecResults] = await Promise.all([
-			this.search(query, { ...options, limit: fetchLimit }).catch(() => [] as SearchResult[]),
+			this.search(options.ftsQuery ?? query, { ...options, limit: fetchLimit }).catch(() => [] as SearchResult[]),
 			this.vectorSearch(query, { ...options, limit: fetchLimit }),
 		])
 
@@ -828,8 +831,13 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		const texts = allChunks.map(c => c.content)
 		const embeddings = await this.embed(texts)
 
-		// Insert chunks + vectors in a transaction
+		// Insert chunks + vectors in a transaction. Clear each doc's old chunks
+		// first — insertDocument REPLACEs the document row but chunks would
+		// otherwise accumulate duplicates on every re-index.
 		const insertTx = this.db.transaction(() => {
+			for (const doc of docs) {
+				this.db.prepare('DELETE FROM chunks WHERE path_id = ?').run(doc.pathId)
+			}
 			for (let i = 0; i < allChunks.length; i++) {
 				this.insertChunk(allChunks[i]!, new Float32Array(embeddings[i]!))
 			}

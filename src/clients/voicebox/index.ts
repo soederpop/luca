@@ -74,6 +74,7 @@ export type SynthesizeOptions = {
 export class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClientOptions> {
   static override shortcut = "clients.voicebox" as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
   static override envVars = ['VOICEBOX_URL']
   static override stateSchema = VoiceBoxClientStateSchema
   static override optionsSchema = VoiceBoxClientOptionsSchema

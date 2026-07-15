@@ -112,6 +112,7 @@ export class WebSocketClient<
 
   static override shortcut = "clients.websocket" as const
   static override stability = 'stable' as const
+  static override category = 'networking' as const
   static override stateSchema = WebSocketClientStateSchema
   static override optionsSchema = WebSocketClientOptionsSchema
   static override eventsSchema = WebSocketClientEventsSchema

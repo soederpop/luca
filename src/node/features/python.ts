@@ -133,6 +133,7 @@ export class Python<
 > extends Feature<T, K> {
   static override shortcut = "features.python" as const
   static override stability = 'stable' as const
+  static override category = 'dev-tools' as const
   static override stateSchema = PythonStateSchema
   static override optionsSchema = PythonOptionsSchema
   static override eventsSchema = PythonEventsSchema

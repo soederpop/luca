@@ -54,6 +54,7 @@ export class YamlTree<T extends YamlTreeState = YamlTreeState> extends Feature<T
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.yamlTree" as const
   static override stability = 'stable' as const
+  static override category = 'content-nlp' as const
   static override stateSchema = YamlTreeStateSchema
   static override optionsSchema = FeatureOptionsSchema
 

@@ -72,6 +72,7 @@ interface RawSpawnOptions {
 export class ChildProcess extends Feature {
   static override shortcut = "features.proc" as const
   static override stability = 'core' as const
+  static override category = 'process' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = FeatureOptionsSchema
   // @ts-ignore TODO: fix this

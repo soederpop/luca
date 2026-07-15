@@ -42,6 +42,9 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'only-envvars': z.boolean().default(false).describe('Show only the envVars section'),
 	'only-examples': z.boolean().default(false).describe('Show only the examples section'),
 	platform: z.enum(['browser', 'web', 'server', 'node', 'all']).default('all').describe('Which platform features to show: browser/web, server/node, or all'),
+	query: z.string().optional().describe('Search helpers, examples, and tutorials by meaning or keywords (e.g. --query "how do I build a rest server?")'),
+	'calculate-embeddings': z.boolean().default(false).describe('Build/refresh the local embedding index used by --query for semantic ranking (requires `luca setup --local-embeddings`)'),
+	limit: z.number().default(8).describe('Maximum results for --query'),
 })
 
 // --- Browser feature loading (build-time concern, lives here not in ContainerDescriber) ---
@@ -156,6 +159,18 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	const args = container.argv._ as string[]
 	const targets = args.slice(1)
 
+	// --calculate-embeddings: build/refresh the embedding index for --query
+	if (options['calculate-embeddings']) {
+		await calculateEmbeddings(container, options)
+		return
+	}
+
+	// --query: semantic/keyword search over helpers, examples, and tutorials
+	if (options.query) {
+		await runQuery(container, options)
+		return
+	}
+
 	// No targets: show help screen
 	if (targets.length === 0) {
 		const { formatCommandHelp } = await import('./help.js')
@@ -227,6 +242,92 @@ export default async function describe(options: z.infer<typeof argsSchema>, cont
 	}
 }
 
+// --- --query / --calculate-embeddings handlers ---
+
+/** Strip the FTS5 snippet highlight markers and collapse whitespace. */
+function normalizeSnippet(snippet: string): string {
+	return (snippet || '').replace(/>>>|<<</g, '').replace(/\s+/g, ' ').trim()
+}
+
+async function runQuery(container: any, options: z.infer<typeof argsSchema>) {
+	const { queryDescribeIndex } = await import('../describe-search.js')
+	const outcome = await queryDescribeIndex(container, options.query!, { limit: options.limit })
+
+	if (options.json) {
+		console.log(JSON.stringify({
+			query: options.query,
+			mode: outcome.mode,
+			results: outcome.results.map(r => ({
+				id: r.pathId,
+				kind: r.meta?.kind ?? r.model,
+				name: r.meta?.name ?? r.title,
+				...(r.meta?.category ? { category: r.meta.category } : {}),
+				...(r.meta?.stability ? { stability: r.meta.stability } : {}),
+				score: r.score,
+				snippet: normalizeSnippet(r.snippet),
+				describe: r.meta?.ref ?? '',
+			})),
+			...(outcome.hint ? { hint: outcome.hint } : {}),
+		}, null, 2))
+		return
+	}
+
+	const ui = container.feature('ui') as any
+	if (outcome.results.length === 0) {
+		console.log(`No matches for "${options.query}". Try different keywords, or browse with: luca describe features`)
+	} else {
+		for (let i = 0; i < outcome.results.length; i++) {
+			const r = outcome.results[i]!
+			const kind = r.meta?.kind ?? r.model ?? ''
+			const category = r.meta?.category ? `, ${r.meta.category}` : ''
+			const label = kind === 'feature' || kind === 'client' || kind === 'server'
+				? `${r.meta?.name ?? r.title} (${kind}${category})`
+				: `${r.title} (${kind})`
+			const snippet = normalizeSnippet(r.snippet)
+			console.log(`${i + 1}. ${label}${snippet ? ` — ${snippet}` : ''}`)
+			if (r.meta?.ref) console.log(`   → ${r.meta.ref}`)
+		}
+	}
+
+	// Hint goes to stderr so piped stdout stays clean
+	if (outcome.hint) {
+		console.error(ui?.colors ? ui.colors.dim(outcome.hint) : outcome.hint)
+	}
+}
+
+async function calculateEmbeddings(container: any, options: z.infer<typeof argsSchema>) {
+	const { buildDescribeEmbeddings, localEmbeddingReadiness } = await import('../describe-search.js')
+
+	if (await localEmbeddingReadiness() === 'deps-missing') {
+		console.error('Local embeddings are not installed. Run: luca setup --local-embeddings, then re-run: luca describe --calculate-embeddings')
+		process.exitCode = 1
+		return
+	}
+
+	try {
+		if (!options.json) {
+			console.log('Building the describe search index (the first run may take a minute while the embedding daemon starts)...')
+		}
+		const result = await buildDescribeEmbeddings(container, {
+			onProgress: options.json ? undefined : (indexed, total) => {
+				process.stdout.write(`\r  embedded ${indexed}/${total} documents`)
+			},
+		})
+		if (options.json) {
+			console.log(JSON.stringify(result))
+		} else if (result.indexed === 0) {
+			console.log(`Index already up to date (${result.total} documents).`)
+		} else {
+			console.log(`\nDone — embedded ${result.indexed} of ${result.total} documents. Try: luca describe --query "how do I build a rest server?"`)
+		}
+	} catch (err: any) {
+		// e.g. weights removed between the readiness check and embedding —
+		// the feature's error already says how to fix it; no stack needed.
+		console.error(err?.message || String(err))
+		process.exitCode = 1
+	}
+}
+
 /**
  * Renders the describe result as TypeScript interface declarations.
  * Handles single helpers, arrays of helpers (registry describes), and the container.
@@ -289,10 +390,12 @@ export const positionals = [
 ]
 
 export const examples = [
-	{ command: 'luca describe features', description: 'Index of all available features' },
+	{ command: 'luca describe features', description: 'Index of all available features, grouped by category' },
 	'luca describe fs',
 	{ command: 'luca describe ui.banner', description: 'Docs for a specific method or getter' },
 	{ command: 'luca describe fs --methods --examples', description: 'Show only selected sections' },
+	{ command: 'luca describe --query "how do I build a rest server?"', description: 'Search helpers, examples, and tutorials by meaning' },
+	{ command: 'luca describe --calculate-embeddings', description: 'Build the local embedding index for semantic --query ranking' },
 ]
 
 commands.registerHandler('describe', {

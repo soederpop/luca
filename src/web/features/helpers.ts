@@ -78,6 +78,7 @@ export class Helpers extends Feature<HelpersState, HelpersOptions> {
   static override shortcut = 'features.helpers' as const
   static override description = 'Unified gateway for discovering and registering project-level helpers via HTTP manifest'
   static override stability = 'core' as const
+  static override category = 'system' as const
   static override stateSchema = HelpersStateSchema
   static override optionsSchema = HelpersOptionsSchema
   static override eventsSchema = HelpersEventsSchema

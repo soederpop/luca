@@ -74,6 +74,7 @@ export class ClaudeController extends Feature<ClaudeControllerState, ClaudeContr
   static override eventsSchema = ClaudeControllerEventsSchema
   static override shortcut = 'features.claudeController' as const
   static override stability = 'stable' as const
+  static override category = 'agent-wrappers' as const
   static { Feature.register(this, 'claudeController') }
 
   private sessions = new Map<string, ClaudeSessionController>()

@@ -66,6 +66,7 @@ export class UI<T extends UIState = UIState> extends Feature<T> {
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.ui" as const
   static override stability = 'core' as const
+  static override category = 'ui-output' as const
   static override stateSchema = UIStateSchema
   
   /**

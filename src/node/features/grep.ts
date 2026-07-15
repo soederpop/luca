@@ -76,6 +76,7 @@ export type GrepOptions = {
 export class Grep extends Feature {
     static override shortcut = 'features.grep' as const
     static override stability = 'core' as const
+    static override category = 'filesystem' as const
     static override stateSchema = FeatureStateSchema
     static override optionsSchema = FeatureOptionsSchema
     static { Feature.register(this, 'grep') }

@@ -51,6 +51,7 @@ export class Speech<
   static override optionsSchema = SpeechOptionsSchema
   static override shortcut = "features.speech" as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
 
   static { Feature.register(this as any, 'speech') }
   

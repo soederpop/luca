@@ -3,7 +3,7 @@ import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js'
 import uuid from 'node-uuid'
 import { get } from 'lodash-es'
-import { introspect, type HelperIntrospection, type IntrospectionSection, type ExampleIntrospection, type HelperStability } from "./introspection/index.js";
+import { introspect, type HelperIntrospection, type IntrospectionSection, type ExampleIntrospection, type HelperStability, type HelperCategory } from "./introspection/index.js";
 import { z } from 'zod'
 import { HelperStateSchema, HelperOptionsSchema, HelperEventsSchema } from './schemas/base.js'
 
@@ -39,6 +39,13 @@ export abstract class Helper<T extends HelperState = HelperState, K extends Help
    * declare its own — the introspection build enforces this.
    */
   static stability?: HelperStability
+
+  /**
+   * Category slug for grouping this helper in `luca describe` output and
+   * the framework index (see HELPER_CATEGORIES). Every built-in helper must
+   * declare its own — the introspection build enforces this.
+   */
+  static category?: HelperCategory
 
   static stateSchema: z.ZodType = HelperStateSchema
   static optionsSchema: z.ZodType = HelperOptionsSchema

@@ -44,6 +44,7 @@ export const ContentDbEventsSchema = FeatureEventsSchema.extend({
 export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   static override shortcut = 'features.contentDb' as const
   static override stability = 'core' as const
+  static override category = 'data-storage' as const
   static override stateSchema = ContentDbStateSchema
   static override optionsSchema = ContentDbOptionsSchema
   static override eventsSchema = ContentDbEventsSchema

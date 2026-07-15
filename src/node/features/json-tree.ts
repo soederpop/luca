@@ -68,6 +68,7 @@ export class JsonTree<T extends JsonTreeState = JsonTreeState> extends Feature<T
   /** The shortcut path for accessing this feature */
   static override shortcut = "features.jsonTree" as const
   static override stability = 'stable' as const
+  static override category = 'content-nlp' as const
   static override stateSchema = JsonTreeStateSchema
   static override optionsSchema = FeatureOptionsSchema
 

@@ -35,6 +35,9 @@ export type ExampleIntrospection = { language: string; code: string }
  */
 export type HelperStability = 'core' | 'stable' | 'experimental'
 
+export { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from './categories.js'
+export type { HelperCategory } from './categories.js'
+
 export type MethodIntrospection = {
 	description: string
 	parameters: Record<string, { type: string, description: string, properties?: Record<string, { type: string, description: string }> }>
@@ -71,6 +74,8 @@ export type HelperIntrospection = {
 	className?: string;
 	// stability index: core | stable | experimental
 	stability?: HelperStability;
+	// category slug for grouping (see HELPER_CATEGORIES in ./categories)
+	category?: string;
 	// a map of method names to their introspection
 	methods: Record<string, MethodIntrospection>
 	// a map of getter names to their introspection
@@ -213,6 +218,7 @@ export function setBuildTimeData(key: string, data: HelperIntrospection) {
 		// preserve runtime-derived className/state/options if registration already happened
 		className: data.className || existing?.className,
 		stability: existing?.stability || data.stability,
+		category: existing?.category || data.category,
 		state: existing?.state || data.state || {},
 		options: existing?.options || data.options || {},
 		events: mergedEvents,
@@ -267,6 +273,7 @@ export function interceptRegistration(registry: any, helperConstructor: any) {
 		shortcut: helperConstructor.shortcut,
 		className: helperConstructor.name || existing?.className,
 		stability: helperConstructor.stability || existing?.stability,
+		category: helperConstructor.category || existing?.category,
 		// preserve build-time AST data if generated file already loaded
 		methods: existing?.methods || {},
 		getters: existing?.getters || {},

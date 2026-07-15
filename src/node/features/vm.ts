@@ -15,6 +15,17 @@ export const VMOptionsSchema = FeatureOptionsSchema.extend({
 })
 export type VMOptions = z.infer<typeof VMOptionsSchema>
 
+/** Per-run options accepted by `run`, `runSync`, `perform`, `performSync`, and `runCaptured`. */
+export interface VMRunOptions {
+  /**
+   * The file the code came from, used as the referrer for dynamic `import()`:
+   * relative specifiers resolve against its directory, and bare specifiers
+   * fall back to its `node_modules` resolution. Defaults to a synthetic file
+   * in `container.cwd`, so eval-style snippets resolve relative to the cwd.
+   */
+  filePath?: string
+}
+
 /**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
  *
@@ -63,6 +74,7 @@ export class VM<
 > extends Feature<T, K> {
   static override shortcut = "features.vm" as const
   static override stability = 'core' as const
+  static override category = 'dev-tools' as const
   static override stateSchema = VMStateSchema
   static override optionsSchema = VMOptionsSchema
   static { Feature.register(this, 'vm') }
@@ -158,6 +170,75 @@ export class VM<
 
     customRequire.resolve = nodeRequire.resolve.bind(nodeRequire)
     return customRequire
+  }
+
+  /**
+   * @internal Convert a virtual module's exports into an import-namespace-shaped
+   * object. Property descriptors are copied (preserving getters and member
+   * identity — critical for modules like React where hook identity matters),
+   * and `default` points at the original exports object when it isn't already
+   * defined, matching how `require('x').default ?? require('x')` behaves in
+   * the static-import rewrite.
+   */
+  private _toNamespace(exports: any): any {
+    if (exports === null || (typeof exports !== 'object' && typeof exports !== 'function')) {
+      return { default: exports }
+    }
+    if ('default' in exports) return exports
+    const ns = Object.create(null)
+    Object.defineProperties(ns, Object.getOwnPropertyDescriptors(exports))
+    ns.default = exports
+    return ns
+  }
+
+  /**
+   * @internal Referrer path for dynamic import resolution. Falls back to a
+   * synthetic file directly inside `container.cwd` so `dirname()` of it is
+   * the cwd — eval snippets then resolve `./x` relative to the project.
+   */
+  private _referrerPath(filePath?: string): string {
+    return filePath ?? this.container.paths.resolve(this.container.cwd, '__vm_eval__.ts')
+  }
+
+  /**
+   * @internal Build the `importModuleDynamically` callback for a script.
+   *
+   * Mirrors {@link createRequireFor} resolution order so `await import(x)`
+   * and `require(x)` see the same module graph:
+   * 1. virtual modules (eager, then lazy — lazy results are cached)
+   * 2. relative/absolute specifiers, resolved against the referrer's directory
+   * 3. native `import()`, falling back to the referrer's `node_modules`
+   *    resolution when the host realm can't resolve the bare specifier
+   *    (the compiled binary's own realm has no user node_modules).
+   */
+  private _createImportModuleDynamically(filePath: string): (specifier: string) => Promise<any> {
+    return async (specifier: string) => {
+      if (this.modules.has(specifier)) return this._toNamespace(this.modules.get(specifier))
+
+      const loader = this.lazyModules.get(specifier)
+      if (loader) {
+        const exports = loader()
+        this.modules.set(specifier, exports)
+        return this._toNamespace(exports)
+      }
+
+      if (specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/')) {
+        return import(this.container.paths.resolve(dirname(filePath), specifier))
+      }
+
+      try {
+        return await import(specifier)
+      } catch (err) {
+        return import(createRequire(filePath).resolve(specifier))
+      }
+    }
+  }
+
+  /** @internal Script options carrying the dynamic-import callback for the given run options. */
+  private _scriptOptions(opts: VMRunOptions = {}): vm.ScriptOptions {
+    return {
+      importModuleDynamically: this._createImportModuleDynamically(this._referrerPath(opts.filePath)),
+    } as vm.ScriptOptions
   }
 
   /**
@@ -388,11 +469,16 @@ export class VM<
    * with the specified variables, and runs the code. Code containing top-level `await`
    * is automatically wrapped in an async IIFE so the final expression's value is returned.
    *
+   * Dynamic `import()` is supported: virtual modules resolve first (same as `require`),
+   * relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted),
+   * and everything else falls through to native import.
+   *
    * Errors thrown by the evaluated code propagate to the caller — wrap the call in
    * try/catch if the snippet might throw.
    *
    * @param {string} code - The JavaScript code to execute
    * @param {any} [ctx={}] - Context variables to make available to the executing code
+   * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer `filePath` for dynamic imports
    * @returns {Promise<any>} A promise resolving to the result of the code execution
    *
    * @example
@@ -419,9 +505,9 @@ export class VM<
    * }
    * ```
    */
-  async run<T extends any>(code: string, ctx: any = {}): Promise<T> {
+  async run<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<T> {
     const wrapped = this.wrapTopLevelAwait(code)
-    const script = this.createScript(wrapped)
+    const script = this.createScript(wrapped, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return (await script.runInContext(context)) as T
@@ -435,6 +521,7 @@ export class VM<
    *
    * @param code - The JavaScript code to execute
    * @param ctx - Context variables to make available to the executing code
+   * @param opts - Run options, e.g. the referrer `filePath` for dynamic imports
    * @returns The result, an array of captured console calls, and the context
    *
    * @example
@@ -445,7 +532,7 @@ export class VM<
    * // calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]
    * ```
    */
-  async runCaptured<T extends any>(code: string, ctx: any = {}): Promise<{
+  async runCaptured<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<{
     result: T
     console: Array<{ method: string, args: any[] }>
     context: vm.Context
@@ -467,7 +554,7 @@ export class VM<
     if (isExisting) ctx.console = captureConsole
 
     const wrapped = this.wrapTopLevelAwait(code)
-    const script = this.createScript(wrapped)
+    const script = this.createScript(wrapped, this._scriptOptions(opts))
     try {
       const result = (await script.runInContext(context)) as T
       return { result, console: calls, context }
@@ -481,6 +568,7 @@ export class VM<
    *
    * @param code - The JavaScript code to execute
    * @param ctx - Context variables to make available to the executing code
+   * @param opts - Run options, e.g. the referrer `filePath` for dynamic imports
    * @returns The result of the code execution
    *
    * @example
@@ -489,8 +577,8 @@ export class VM<
    * console.log(sum) // 5
    * ```
    */
-  runSync<T extends any = any>(code: string, ctx: any = {}): T {
-    const script = this.createScript(code)
+  runSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): T {
+    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return script.runInContext(context) as T
@@ -504,6 +592,7 @@ export class VM<
    *
    * @param code - The JavaScript code to execute
    * @param ctx - Context variables to make available to the executing code
+   * @param opts - Run options, e.g. the referrer `filePath` for dynamic imports
    * @returns The execution result and the context object
    *
    * @example
@@ -513,8 +602,8 @@ export class VM<
    * console.log(context.x)  // 42
    * ```
    */
-  async perform<T extends any>(code: string, ctx: any = {}): Promise<{ result: T, context: vm.Context }> {
-    const script = this.createScript(code)
+  async perform<T extends any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): Promise<{ result: T, context: vm.Context }> {
+    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return { result: (await script.runInContext(context)) as T, context }
@@ -529,6 +618,7 @@ export class VM<
    *
    * @param {string} code - The JavaScript code to execute
    * @param {any} [ctx={}] - Context variables to make available to the executing code
+   * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer `filePath` for dynamic imports
    * @returns {{ result: T, context: vm.Context }} The execution result and the context object
    *
    * @example
@@ -542,8 +632,8 @@ export class VM<
    * console.log(moduleExports.double(21)) // 42
    * ```
    */
-  performSync<T extends any = any>(code: string, ctx: any = {}): { result: T, context: vm.Context } {
-    const script = this.createScript(code)
+  performSync<T extends any = any>(code: string, ctx: any = {}, opts: VMRunOptions = {}): { result: T, context: vm.Context } {
+    const script = this.createScript(code, this._scriptOptions(opts))
     const context = this.isContext(ctx) ? ctx : this.createContext(ctx)
 
     return { result: script.runInContext(context) as T, context }
@@ -647,7 +737,7 @@ export class VM<
       TextEncoder,
       TextDecoder,
       ...ctx,
-    })
+    }, { filePath })
 
     return context.module?.exports || context.exports || {}
   }

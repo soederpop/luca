@@ -130,6 +130,7 @@ function stripTags(text: string): string {
 export class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
 	static override shortcut = 'features.voiceMode' as const
 	static override stability = 'experimental' as const
+	static override category = 'ai-assistants' as const
 	static override optionsSchema = VoiceModeOptionsSchema
 	static override stateSchema = VoiceModeStateSchema
 

@@ -175,6 +175,7 @@ interface CronSpec {
 export class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
   static override shortcut = 'features.scheduler' as const
   static override stability = 'stable' as const
+  static override category = 'process' as const
   static override stateSchema = SchedulerStateSchema
   static override optionsSchema = SchedulerOptionsSchema
   static override eventsSchema = SchedulerEventsSchema

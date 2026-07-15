@@ -23,10 +23,22 @@ This is your primary tool. The `luca` binary is a compiled artifact that bundles
 ### See what's available
 
 ```shell
-luca describe features     # index of all available features
+luca describe features     # index of all available features, grouped by category
 luca describe clients      # index of all available clients
 luca describe servers      # index of all available servers
 ```
+
+### Search by meaning when you don't know the name
+
+When you know what you want to *do* but not what it's called, ask in plain language — it searches every helper, example, and tutorial and returns ranked pointers:
+
+```shell
+luca describe --query "how do I build a rest server?"
+luca describe --query "watch files for changes"
+luca describe --query "run a command over ssh" --json   # machine-readable results
+```
+
+Each result tells you the follow-up move (`luca describe <name>`, or a references/ doc to read). Keyword search always works; for semantic ranking build the index once with `luca describe --calculate-embeddings` (needs `luca setup --local-embeddings`). There's also a flat lookup table of every helper in `references/helper-index.md`.
 
 You can even learn about features in the browser container, or a specific platform (server, node are the same, browser,web are the same)
 
@@ -421,43 +433,48 @@ Litmus test: *would you write it in a sentence? → body. Is it a label you filt
 
 ## Framework Index
 
-A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
+A table of contents for the container. **Run `luca describe <name>` for full docs on any item.** Use `luca describe <name> --ts` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority. For a flat, per-helper lookup table (name, category, stability, one-liner) see `references/helper-index.md`; to search by meaning use `luca describe --query "..."`.
 
+<!-- BEGIN:GENERATED helper-tables (luca build-bootstrap regenerates this block from introspection — do not edit by hand) -->
 ### Features by Category
 
 | Category | Features | What they do |
 |----------|----------|--------------|
-| **File System & Code** | `fs`, `grep`, `fileManager` | Read/write files, search code, watch for changes |
-| **Process & Shell** | `proc`, `processManager`, `secureShell` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | `assistant`, `assistantsManager`, `conversation`, `conversationHistory`, `fileTools` | Build AI assistants, manage conversations, tool calling. `fileTools` composes lower-level features (`fs`, `grep`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see `references/examples/feature-as-tool-provider.md`). |
-| **AI Agent Wrappers** | `claudeCode`, `openaiCodex`, `lucaCoder` | Spawn and manage external AI agent CLIs as subprocesses |
-| **Data & Storage** | `store`, `sqlite`, `postgres`, `diskCache`, `contentDb`, `redis` | Cross-process state, databases, caching, document management |
-| **Networking** | `networking`, `dns` | Network utilities, DNS |
-| **Google Workspace** | `googleAuth`, `googleDrive`, `googleDocs`, `googleSheets`, `googleCalendar`, `googleMail` | OAuth and Google service wrappers |
-| **Dev Tools** | `git`, `docker`, `esbuild`, `vm`, `python`, `packageFinder` | Version control, containers, bundling, sandboxed execution |
-| **Content & NLP** | `docsReader`, `nlp`, `semanticSearch`, `skillsLibrary`, `jsonTree`, `yamlTree` | Document Q&A, text analysis, semantic search, skills, structured file ingestion |
-| **UI & Output** | `ui`, `ink`, `yaml` | Terminal UI, colors, ascii art, structured data display |
-| **Media & Browser** | `browserUse`, `tts`, `downloader`, `opener`, `telegram` | Browser automation, text-to-speech, downloads, messaging |
-| **System** | `os`, `vault`, `helpers`, `introspectionScanner`, `containerLink`, `repl`, `runpod` | OS info, secrets, runtime introspection, remote container linking |
+| **File System & Code** | `fileManager`, `fs`, `grep` | Read/write files, search code, watch for changes |
+| **Process & Shell** | `proc`, `processManager`, `scheduler`, `secureShell`, `tmux` | Run commands, manage long-running processes, SSH |
+| **AI Assistants** | `assistant`, `assistantsManager`, `codingTools`, `conversation`, `conversationHistory`, `fileTools`, `mcpBridge`, `memory`, `modelProviders`, `telnyxAssistantConnector`, `voiceMode` | Build AI assistants, manage conversations, tool calling |
+| **AI Agent Wrappers** | `claudeCode`, `claudeController`, `lucaCoder`, `openaiCodex` | Spawn and manage external AI agent CLIs as subprocesses |
+| **Data & Storage** | `contentDb`, `diskCache`, `postgres`, `redis`, `sqlite`, `store` | Cross-process state, databases, caching, document management |
+| **Networking** | `dns`, `ipcSocket`, `networking` | HTTP clients and servers, sockets, DNS, network utilities |
+| **Google Workspace** | `googleAuth`, `googleCalendar`, `googleDocs`, `googleDrive`, `googleMail`, `googleSheets` | OAuth and Google service wrappers |
+| **Dev Tools** | `docker`, `git`, `packageFinder`, `python`, `transpiler`, `vm` | Version control, containers, bundling, sandboxed execution |
+| **Content & NLP** | `docsReader`, `jsonTree`, `nlp`, `semanticSearch`, `skillsLibrary`, `yamlTree` | Document Q&A, text analysis, semantic search, structured file ingestion |
+| **UI & Output** | `ink`, `ui`, `yaml` | Terminal UI, colors, ascii art, structured data display |
+| **Media & Browser** | `browserUse`, `cipherSocial`, `downloader`, `opener`, `telegram`, `tts` | Browser automation, text-to-speech, downloads, messaging |
+| **System** | `containerLink`, `helpers`, `introspectionScanner`, `os`, `repl`, `runpod`, `socketRepl`, `vault` | OS info, secrets, runtime introspection, remote container linking |
 
 ### Clients
 
 | Client | Purpose |
 |--------|---------|
-| `openai` | Chat completions, embeddings, image generation |
-| `rest` | Generic HTTP client (GET/POST/PUT/PATCH/DELETE) |
-| `websocket` | WebSocket connections |
-| `elevenlabs` | Text-to-speech synthesis |
-| `graph` | GraphQL queries and mutations |
+| `elevenlabs` | ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. |
+| `graph` | GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. |
+| `openai` | OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. |
+| `rest` | HTTP REST client built on top of axios. |
+| `socketio` | Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. |
+| `voicebox` | VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). |
+| `websocket` | WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). |
 
 ### Servers
 
 | Server | Purpose |
 |--------|---------|
-| `express` | HTTP server with file-based endpoint routing |
-| `mcp` | Model Context Protocol server for AI tool exposure |
-| `websocket` | WebSocket server with JSON framing |
-| `ipcSocket` | Local IPC socket server for inter-process communication |
+| `express` | Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. |
+| `mcp` | MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. |
+| `websocket` | WebSocket server built on the `ws` library with optional JSON message framing. |
+<!-- END:GENERATED helper-tables -->
+
+`fileTools` composes lower-level features (`fs`, `grep`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see `references/examples/feature-as-tool-provider.md`).
 
 ### Type Discovery
 

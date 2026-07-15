@@ -39,6 +39,7 @@ export class CivitaiClient<T extends CivitaiClientState> extends RestClient<T> {
   static override stateSchema = CivitaiClientStateSchema;
 
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
   static { Client.register(this, 'civitai') }
 
   constructor(options: ClientOptions, context: ContainerContext) {

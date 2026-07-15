@@ -82,6 +82,7 @@ export const GoogleSheetsEventsSchema = FeatureEventsSchema.extend({
 export class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions> {
   static override shortcut = 'features.googleSheets' as const
   static override stability = 'stable' as const
+  static override category = 'google-workspace' as const
   static override stateSchema = GoogleSheetsStateSchema
   static override optionsSchema = GoogleSheetsOptionsSchema
   static override eventsSchema = GoogleSheetsEventsSchema

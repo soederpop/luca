@@ -266,6 +266,7 @@ export class StoreHandle<T = any> {
 export class Store extends Feature<z.infer<typeof FeatureStateSchema>, StoreFeatureOptions> {
   static override shortcut = 'features.store' as const
   static override stability = 'stable' as const
+  static override category = 'data-storage' as const
   static override stateSchema = FeatureStateSchema
   static override optionsSchema = StoreOptionsSchema
   static override eventsSchema = StoreEventsSchema

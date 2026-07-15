@@ -70,6 +70,7 @@ export type SynthesizeOptions = {
 export class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLabsClientOptions> {
   static override shortcut = "clients.elevenlabs" as const
   static override stability = 'experimental' as const
+  static override category = 'media-browser' as const
   static override envVars = ['ELEVENLABS_API_KEY']
   static override stateSchema = ElevenLabsClientStateSchema
   static override optionsSchema = ElevenLabsClientOptionsSchema

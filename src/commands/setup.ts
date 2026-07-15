@@ -7,6 +7,7 @@ import { lucaHome } from '../setup/paths.js'
 import { installSharedModule, sharedModuleLoads } from '../setup/native-install.js'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
 import { SemanticSearch, resolveModelPath, DEFAULT_LOCAL_MODEL } from '../node/features/semantic-search.js'
+import { hasDescribeEmbeddings, buildDescribeEmbeddings } from '../describe-search.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -28,6 +29,7 @@ interface SetupState {
 	addonReady: boolean
 	weightsPath: string
 	weightsReady: boolean
+	describeIndexReady: boolean
 	projectRoot: string
 	isProject: boolean
 	tsconfigPresent: boolean
@@ -43,6 +45,7 @@ async function scanState(container: NodeContainer, fs: any): Promise<SetupState>
 		addonReady: await sharedModuleLoads(NATIVE_MODULE, home),
 		weightsPath,
 		weightsReady: fs.exists(weightsPath),
+		describeIndexReady: hasDescribeEmbeddings(),
 		projectRoot,
 		isProject: ['luca.cli.ts', 'commands', 'features', 'endpoints'].some(p => fs.exists(container.paths.resolve(projectRoot, p))),
 		tsconfigPresent: fs.exists(container.paths.resolve(projectRoot, 'tsconfig.json')),
@@ -55,6 +58,7 @@ function printStateReport(ui: any, state: SetupState) {
 	ui.print('  Current state:\n')
 	ui.print(`    ${mark(state.addonReady)} native addon (${NATIVE_MODULE}) in ${state.home}/node_modules`)
 	ui.print(`    ${mark(state.weightsReady)} local embedding model weights (${DEFAULT_LOCAL_MODEL})`)
+	ui.print(`    ${mark(state.describeIndexReady)} \`luca describe --query\` search index`)
 	if (state.isProject) {
 		ui.print(`    ${mark(state.typesPresent)} TypeScript declarations in ${TYPES_DIR}/`)
 		ui.print(`    ${mark(state.tsconfigPresent)} tsconfig.json`)
@@ -83,6 +87,7 @@ async function setup(options: z.infer<typeof argsSchema>, context: ContainerCont
 	let doAddon: boolean
 	let doWeights: boolean
 	let doTypes: boolean
+	let doDescribeIndex = false
 
 	if (flagged) {
 		if (options.types) {
@@ -94,6 +99,7 @@ async function setup(options: z.infer<typeof argsSchema>, context: ContainerCont
 			doWeights = options.yes || options['local-embeddings']
 			doTypes = (options.yes || options['skip-models']) && state.isProject
 			if (options['skip-models']) doWeights = false
+			doDescribeIndex = (options.yes || options['local-embeddings']) && !state.describeIndexReady
 		}
 	} else if (process.stdin.isTTY) {
 		// ── Guided walkthrough ───────────────────────────────────────
@@ -123,6 +129,18 @@ async function setup(options: z.infer<typeof argsSchema>, context: ContainerCont
 			ui.print('')
 			doWeights = await confirm(ui, 'Download the model weights now (~300MB)?', doAddon || state.addonReady)
 			if (!doWeights) ui.print.dim('  Skipped — run `luca setup --local-embeddings` any time.\n')
+		}
+
+		if (state.describeIndexReady) {
+			ui.print.green('  ✓ `luca describe --query` search index already built — skipping')
+		} else if ((doAddon || state.addonReady) && (doWeights || state.weightsReady)) {
+			ui.print('')
+			ui.print('  With embeddings installed, `luca describe --query "..."` can search')
+			ui.print('  every helper, example, and tutorial by meaning. Building its index')
+			ui.print('  takes a minute the first time.')
+			ui.print('')
+			doDescribeIndex = await confirm(ui, 'Build the describe search index now?', true)
+			if (!doDescribeIndex) ui.print.dim('  Skipped — run `luca describe --calculate-embeddings` any time.\n')
 		}
 
 		if (state.isProject) {
@@ -184,6 +202,31 @@ async function setup(options: z.infer<typeof argsSchema>, context: ContainerCont
 		skipped.push('model weights (already downloaded)')
 	} else {
 		skipped.push('model weights — download later with `luca setup --local-embeddings`')
+	}
+
+	// ── Describe search index (needs addon + weights) ────────────────
+	const addonNowReady = state.addonReady || (doAddon && !addonFailed)
+	const weightsNowReady = state.weightsReady || (doWeights && !addonFailed)
+	if (doDescribeIndex && addonNowReady && weightsNowReady) {
+		ui.print('\n  Building the `luca describe --query` search index ...')
+		try {
+			const result = await buildDescribeEmbeddings(container, {
+				onProgress: (indexed: number, total: number) => {
+					process.stdout.write(`\r  embedded ${indexed}/${total} documents`)
+				},
+			})
+			ui.print('')
+			ui.print.green(`  ✓ Describe search index ready (${result.total} documents)`)
+			done.push('describe search index')
+		} catch (err: any) {
+			ui.print.red('\n  ✗ Could not build the describe search index:')
+			ui.print.yellow(`    ${(err?.message ?? String(err)).split('\n').join('\n    ')}`)
+			skipped.push('describe search index (build failed — run `luca describe --calculate-embeddings` to retry)')
+		}
+	} else if (doDescribeIndex) {
+		skipped.push('describe search index (needs the native addon and model weights)')
+	} else if (!state.describeIndexReady && !options.types) {
+		skipped.push('describe search index — build later with `luca describe --calculate-embeddings`')
 	}
 
 	if (doTypes) {

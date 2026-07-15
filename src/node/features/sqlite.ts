@@ -74,6 +74,7 @@ export const SqliteEventsSchema = FeatureEventsSchema.extend({
 export class Sqlite extends Feature<SqliteState, SqliteOptions> {
   static override shortcut = 'features.sqlite' as const
   static override stability = 'core' as const
+  static override category = 'data-storage' as const
   static override stateSchema = SqliteStateSchema
   static override optionsSchema = SqliteOptionsSchema
   static override eventsSchema = SqliteEventsSchema
