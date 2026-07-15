@@ -20123,12 +20123,28 @@ setBuildTimeData('features.skillsLibrary', {
         "locationPath": {
           "type": "string",
           "description": "Path to a directory containing skill subfolders with SKILL.md"
+        },
+        "options": {
+          "type": "{ persist?: boolean }",
+          "description": "Optional settings",
+          "properties": {
+            "persist": {
+              "type": "any",
+              "description": "When false, the location applies to this process only and"
+            }
+          }
         }
       },
       "required": [
         "locationPath"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// A plugin lending its skills for this run only\nawait lib.addLocation(`${pluginDir}/skills`, { persist: false })"
+        }
+      ]
     },
     "removeLocation": {
       "description": "Remove a skill location and its skills from the library.",
@@ -44225,12 +44241,28 @@ export const introspectionData: Record<string, any>[] = [
           "locationPath": {
             "type": "string",
             "description": "Path to a directory containing skill subfolders with SKILL.md"
+          },
+          "options": {
+            "type": "{ persist?: boolean }",
+            "description": "Optional settings",
+            "properties": {
+              "persist": {
+                "type": "any",
+                "description": "When false, the location applies to this process only and"
+              }
+            }
           }
         },
         "required": [
           "locationPath"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// A plugin lending its skills for this run only\nawait lib.addLocation(`${pluginDir}/skills`, { persist: false })"
+          }
+        ]
       },
       "removeLocation": {
         "description": "Remove a skill location and its skills from the library.",

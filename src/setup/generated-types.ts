@@ -6054,8 +6054,20 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
      * Add a new skill location folder and scan it for skills.
      *
      * @param locationPath - Path to a directory containing skill subfolders with SKILL.md
+     * @param options - Optional settings
+     * @param options.persist - When false, the location applies to this process only and
+     *   is not written to ~/.luca/skills.json. Use for plugin-provided skill folders that
+     *   should only be active when the plugin is loaded.
+     *
+     * @example
+     * \`\`\`typescript
+     * // A plugin lending its skills for this run only
+     * await lib.addLocation(\`\${pluginDir}/skills\`, { persist: false })
+     * \`\`\`
      */
-    addLocation(locationPath: string): Promise<void>;
+    addLocation(locationPath: string, options?: {
+        persist?: boolean;
+    }): Promise<void>;
     /**
      * Remove a skill location and its skills from the library.
      *

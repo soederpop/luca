@@ -307,10 +307,15 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 			agentsFolders.push(...candidates)
 		}
 
+		// Locations already registered on this instance (e.g. a plugin's
+		// non-persisted addLocation before start) survive the rebuild.
+		const preStartLocations = (this.state.get('locations') as string[]) || []
+
 		const allLocations = uniq([
 			...configLocations,
 			...instanceLocations,
 			...agentsFolders,
+			...preStartLocations,
 		]).filter(Boolean).filter(l => (this.container as any).fs.exists(l))
 		this.state.set('locations', allLocations)
 
@@ -329,8 +334,19 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 	 * Add a new skill location folder and scan it for skills.
 	 *
 	 * @param locationPath - Path to a directory containing skill subfolders with SKILL.md
+	 * @param options - Optional settings
+	 * @param options.persist - When false, the location applies to this process only and
+	 *   is not written to ~/.luca/skills.json. Use for plugin-provided skill folders that
+	 *   should only be active when the plugin is loaded.
+	 *
+	 * @example
+	 * ```typescript
+	 * // A plugin lending its skills for this run only
+	 * await lib.addLocation(`${pluginDir}/skills`, { persist: false })
+	 * ```
 	 */
-	async addLocation(locationPath: string): Promise<void> {
+	async addLocation(locationPath: string, options: { persist?: boolean } = {}): Promise<void> {
+		const { persist = true } = options
 		const resolved = this.expandHome(locationPath)
 		const current = this.state.get('locations') as string[]
 
@@ -340,10 +356,12 @@ export class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLibraryOpti
 		this.state.set('locations', updated)
 
 		// Persist — store the original (unexpanded) path for portability
-		const config = this.readConfig()
-		if (!config.locations.includes(locationPath)) {
-			config.locations.push(locationPath)
-			this.writeConfig(config)
+		if (persist) {
+			const config = this.readConfig()
+			if (!config.locations.includes(locationPath)) {
+				config.locations.push(locationPath)
+				this.writeConfig(config)
+			}
 		}
 
 		await this.scanLocation(resolved)
