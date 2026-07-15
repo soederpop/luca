@@ -214,9 +214,14 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
 
     // Register contentbase barrel — everything the library exports
     vm.defineModule('contentbase', contentbaseExports)
-    
-    // register the luca container
-    vm.defineModule('luca', this.container)
+
+    // Ensure 'luca' resolves for models.ts — but never clobber the full barrel
+    // helpers.seedVirtualModules() registers (schemas, classes, registries).
+    // Overwriting it with the bare container broke every later VM feature load
+    // that did `import { FeatureStateSchema } from 'luca'`.
+    if (!vm.modules.has('luca')) {
+      vm.defineModule('luca', this.container)
+    }
 
     // Common deps that models.ts files tend to use
     try { vm.defineModule('js-yaml', require('js-yaml')) } catch {}
