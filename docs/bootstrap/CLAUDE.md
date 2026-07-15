@@ -38,7 +38,7 @@ The `luca` binary is available in the path. Key commands:
 
 - `commands/` — custom CLI commands, run via `luca <commandName>` (auto-discovered)
 - `endpoints/` — file-based HTTP routes, served via `luca serve` (auto-discovered)
-- `features/`, `clients/`, `servers/` — custom container helpers. **NOT auto-discovered** — add `await container.helpers.discoverAll()` to `luca.cli.ts` `main()` so every entry point registers them. (`luca eval` discovers them on its own, which can mislead: works in eval ≠ registered in your command.)
+- `features/`, `clients/`, `servers/` — custom container helpers, auto-discovered before any `luca <command>` dispatch (so commands can use project features directly). Opt out with `LUCA_COMMAND_DISCOVERY=commands-only`; for non-CLI entry points (scripts, embedded containers), call `await container.helpers.discoverAll()` yourself.
 - `docs/` — content documents managed by the `contentDb` feature (`container.docs`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
 - `luca.cli.ts` — optional project-level CLI customization (runs before any command)
 
@@ -47,7 +47,7 @@ The `luca` binary is available in the path. Key commands:
 Command handlers receive `(options, context)`. The `options` object contains:
 - **Named flags** from `argsSchema`: `--verbose` → `options.verbose`
 - **Positional args** mapped via `positionals` export: `luca cmd ./src` → `options.target`
-- **Raw positionals** in `options._`: array where `_[0]` is the command name, `_[1+]` are positional args
+- **Raw positionals** in `options._`: array where `_[0]` is the command name, `_[1+]` are positional args. Type the handler's options as `CommandArgs<typeof argsSchema>` (from `'luca'`) to get `_` typed.
 
 To accept positional arguments, export a `positionals` array that maps them to named fields in `argsSchema`:
 
@@ -58,6 +58,10 @@ export const argsSchema = z.object({
   verbose: z.boolean().default(false).describe('Enable verbose output'),
 })
 ```
+
+A trailing `'...rest'` positional (or a trailing `z.array(...)` field) collects all remaining args as an array: `positionals = ['action', '...files']`.
+
+Parsing agrees with the schema — boolean flags never consume a following positional (`luca cmd --json foo` keeps `foo` positional), and positionals arrive as strings coerced to what the field expects (`z.string()` accepts `8080`, `z.number()` accepts `'8080'` — no `z.union` workarounds needed).
 
 ## Command Help
 
@@ -93,7 +97,7 @@ The container provides more than you might expect. Before importing anything ext
 - **`ui.print.<color>()` is not a string formatter** — it prints immediately and returns `undefined`, so `` `${ui.print.green('OK')}` `` interpolates `undefined`. To compose colored strings, use `ui.colors.<color>()`, which returns the styled string. (`ui.print` mirrors every chalk color/style name that `ui.colors` has — but it always prints.)
 - **Checking whether a PID is alive**: `proc.kill(pid, 0)` sends nothing and returns `false` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
 - **VM contexts start near-empty — and command/endpoint handlers run in that same VM.** JS built-ins (`Promise`, `Date`, `Math`, `JSON`) plus `console`, timers, `process`, `Buffer`, `fetch`, `crypto`, and `TextEncoder`/`TextDecoder` are provided; when you build your own context with `container.feature('vm')`, inject anything beyond that explicitly. zod is always importable (`import { z } from 'zod'`) — export schemas unconditionally. In `luca eval`, `z` and `require` are already in scope — prototype schemas directly.
-- **Long-running commands** (servers, watchers) must hold the process open. The easy path is `await container.feature('scheduler').run()` — it blocks until SIGINT/SIGTERM, then stops all scheduled tasks and runs your `onShutdown` hook. The manual idiom is `await new Promise(() => {})` plus a `process.on('SIGINT', ...)` cleanup handler.
+- **Long-running commands** (servers, watchers) end with `await context.runUntilShutdown(async () => { /* cleanup */ })` — it holds the process open, wires SIGINT/SIGTERM, runs the cleanup (5s guard, second Ctrl-C exits immediately), and exits 0. Also on the container (`container.runUntilShutdown`) for `luca run` scripts. For recurring tasks, `await container.feature('scheduler').run({ onShutdown })` layers named intervals/cron on the same lifecycle.
 - **Shared state between endpoints**: use `ctx.request.app.locals` to share data across endpoint files.
 - **Database init**: use `luca.cli.ts` `main()` hook for table creation and seeding — it runs before any command or server starts.
 - **Which store for cross-process state?** Every `luca <command>` is a separate process — never keep shared state in memory. In-process/ephemeral → `container.state`; **cross-process state → `container.store(name)`** (durable JSON document; `update(fn)` is a locked read-modify-write, so concurrent siblings can't clobber each other — never hand-roll a state dotfile); caches with TTL → `diskCache` (entries are losable by contract — not for state); queryable/relational/durable queues → `sqlite` (use `transaction()` and `UPDATE … RETURNING` for atomic job claims); cross-process pub/sub → `redis`.

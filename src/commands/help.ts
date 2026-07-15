@@ -56,9 +56,16 @@ function extractOptions(schema: any): Array<{ flag: string; description: string;
 	return options
 }
 
-/** Normalize a positionals declaration into { name, description?, required? } objects. */
-function normalizePositionals(positionals: any[]): Array<{ name: string; description?: string; required?: boolean }> {
-	return (positionals || []).map((p) => (typeof p === 'string' ? { name: p } : p))
+/** Normalize a positionals declaration into { name, description?, required?, variadic? } objects. A `...` prefix marks a rest positional. */
+function normalizePositionals(positionals: any[]): Array<{ name: string; description?: string; required?: boolean; variadic?: boolean }> {
+	return (positionals || []).map((p) => {
+		const spec = typeof p === 'string' ? { name: p } : { ...p }
+		if (spec.name?.startsWith('...')) {
+			spec.name = spec.name.slice(3)
+			spec.variadic = true
+		}
+		return spec
+	})
 }
 
 /** Look up a field's description on a Zod object schema, if present. */
@@ -137,7 +144,8 @@ export function formatCommandHelp(
 	} else if (positionals.length > 0) {
 		for (const p of positionals) {
 			const required = p.required ?? schemaFieldRequired(schema, p.name)
-			usage += required ? ` <${p.name}>` : ` [${p.name}]`
+			const label = p.variadic ? `...${p.name}` : p.name
+			usage += required ? ` <${label}>` : ` [${label}]`
 		}
 	}
 	const optsSuffix = opts.length > 0 ? ` ${colors.dim('[options]')}` : ''

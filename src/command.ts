@@ -55,9 +55,100 @@ export interface SubcommandSpec {
 	examples?: CommandExample[]
 }
 
-/** Extract the field names from a positionals declaration. */
+/** Extract the field names from a positionals declaration (variadic `...` prefix stripped). */
 export function positionalNames(positionals: PositionalSpec[]): string[] {
-	return positionals.map((p) => (typeof p === 'string' ? p : p.name))
+	return positionals.map((p) => (typeof p === 'string' ? p : p.name).replace(/^\.\.\./, ''))
+}
+
+/**
+ * Handler options type for module-based commands: the inferred argsSchema
+ * fields plus the raw positional array (`_[0]` is the command name).
+ *
+ * @example
+ * ```typescript
+ * export default async function myCmd(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+ *   options._ // string[] — raw positionals, typed
+ * }
+ * ```
+ */
+export type CommandArgs<S extends z.ZodType> = z.infer<S> & { _: string[] }
+
+/** Get the field shape of a Zod object schema, tolerating Zod v4 internals. Returns null for non-object schemas. */
+function schemaShape(schema: any): Record<string, any> | null {
+	try {
+		const shape = typeof schema?._def?.shape === 'function' ? schema._def.shape() : schema?._def?.shape
+		return shape || null
+	} catch {
+		return null
+	}
+}
+
+/** Walk through Zod wrapper types (optional/default/nullable/...) to the base type name ('string', 'boolean', 'number', 'array', 'enum', ...). */
+function zodBaseType(field: any): string | undefined {
+	let current = field
+	for (let i = 0; current && i < 12; i++) {
+		const t = current._def?.type || current.type
+		if (t === 'optional' || t === 'default' || t === 'nullable' || t === 'readonly' || t === 'catch') {
+			current = current._def?.innerType
+			continue
+		}
+		if (t === 'pipe') {
+			current = current._def?.in
+			continue
+		}
+		return t
+	}
+	return undefined
+}
+
+/** Unwrap to the ZodArray element schema for a field, or undefined when the field isn't an array. */
+function zodArrayElement(field: any): any {
+	let current = field
+	for (let i = 0; current && i < 12; i++) {
+		const t = current._def?.type || current.type
+		if (t === 'array') return current._def?.element ?? current.element
+		current = current._def?.innerType ?? current._def?.schema
+	}
+	return undefined
+}
+
+const kebabCase = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+
+/**
+ * Derive minimist parser options from a command's argsSchema so flag parsing
+ * agrees with the schema: boolean flags never consume a following positional,
+ * and string-typed flags keep numeric-looking values as strings.
+ *
+ * `--help` and `--verbose` are always treated as booleans unless the schema
+ * declares them otherwise. Kebab-case aliases are included for camelCase fields.
+ */
+export function minimistOptionsFor(schema?: z.ZodType): { boolean: string[]; string: string[] } {
+	const boolean = new Set<string>(['help', 'verbose'])
+	const string = new Set<string>()
+	const shape = schemaShape(schema)
+
+	if (shape) {
+		for (const [key, field] of Object.entries(shape)) {
+			if (key === '_') continue
+			const t = zodBaseType(field)
+			if (t === 'boolean') {
+				boolean.add(key)
+			} else {
+				boolean.delete(key)
+				if (t === 'string' || t === 'enum') string.add(key)
+			}
+		}
+	}
+
+	// Users type kebab-case flags for camelCase schema fields — alias both spellings
+	for (const set of [boolean, string]) {
+		for (const key of [...set]) {
+			const kebab = kebabCase(key)
+			if (kebab !== key) set.add(kebab)
+		}
+	}
+
+	return { boolean: [...boolean], string: [...string] }
 }
 
 /**
@@ -200,7 +291,7 @@ export class Command<
 		this.emit('started')
 
 		try {
-			await this.run(parsed, this.context)
+			await this.run(parsed, this._commandContext())
 			this.state.set('running', false)
 			this.state.set('exitCode', 0)
 			this.emit('completed', 0)
@@ -208,8 +299,39 @@ export class Command<
 			this.state.set('running', false)
 			this.state.set('exitCode', 1)
 			this.emit('failed', err)
-			throw err
+
+			// Clean CLI error surface: message + hint, stack only on request.
+			// Re-throwing here would dump an uncaught-rejection stack for every
+			// user-facing error, so we report and set the exit code instead.
+			const argv = (this.container as any).argv || {}
+			const showStack = Boolean(argv.verbose || process.env.DEBUG)
+			try {
+				const ui = (this.container as any).feature('ui')
+				console.error(ui.colors.red(`\n  Error: ${err?.message || err}`))
+				if (showStack && err?.stack) {
+					console.error(ui.colors.dim(err.stack) + '\n')
+				} else {
+					console.error(ui.colors.dim('  Run with --verbose (or DEBUG=1) for a stack trace.\n'))
+				}
+			} catch {
+				console.error(`Error: ${err?.message || err}`)
+				if (showStack && err?.stack) console.error(err.stack)
+			}
+			process.exitCode = 1
 		}
+	}
+
+	/**
+	 * Build the context passed to command handlers: the container context plus
+	 * command-dispatch conveniences like `runUntilShutdown` for daemon commands.
+	 */
+	private _commandContext(): ContainerContext {
+		const context = this.context as any
+		const container = this.container as any
+		if (typeof container.runUntilShutdown === 'function' && typeof context.runUntilShutdown !== 'function') {
+			context.runUntilShutdown = (cleanup?: () => void | Promise<void>) => container.runUntilShutdown(cleanup)
+		}
+		return context
 	}
 
 	/**
@@ -227,32 +349,62 @@ export class Command<
 	private _normalizeInput(raw: Record<string, any>, source: DispatchSource): Record<string, any> {
 		if (source !== 'cli') return raw
 
-		const Cls = this.constructor as typeof Command
-		const positionals = positionalNames(Cls.positionals)
-		if (!positionals.length) return raw
-
 		const result = { ...raw }
+		// Positionals are strings on a real command line — normalize programmatic
+		// CLI dispatches (tests, tooling) the same way before schema validation.
+		if (Array.isArray(raw._)) result._ = raw._.map(String)
 
-		// Map raw._[1], raw._[2], etc. (skipping _[0] which is command name) to named fields
-		const posArgs: string[] = (raw._ || []).slice(1)
-		for (let i = 0; i < positionals.length; i++) {
-			const name = positionals[i]!
+		const Cls = this.constructor as typeof Command
+		const specs = Cls.positionals || []
+		if (!specs.length) return result
+
+		// Map _[1], _[2], etc. (skipping _[0] which is command name) to named fields
+		const posArgs: any[] = (result._ || []).slice(1)
+		for (let i = 0; i < specs.length; i++) {
+			const spec = specs[i]!
+			const rawName = typeof spec === 'string' ? spec : spec.name
+			const variadic = rawName.startsWith('...')
+			const name = variadic ? rawName.slice(3) : rawName
 			if (result[name] !== undefined) continue
-			if (posArgs[i] === undefined) continue
 
-			// Last positional collects all remaining args if the schema expects an array
-			if (i === positionals.length - 1 && posArgs.length > positionals.length) {
-				const isArray = this._schemaExpectsArray(Cls.argsSchema, name)
-				if (isArray) {
-					result[name] = posArgs.slice(i)
-					continue
-				}
+			// A trailing '...rest' positional (or array-typed schema field) collects all remaining args
+			if (i === specs.length - 1 && (variadic || this._schemaExpectsArray(Cls.argsSchema, name))) {
+				const rest = posArgs.slice(i)
+				if (rest.length === 0) continue // let schema defaults / required errors apply
+				const elementSchema = zodArrayElement(schemaShape(Cls.argsSchema)?.[name])
+				result[name] = rest.map((v) => this._coercePositional(elementSchema, v))
+				continue
 			}
 
-			result[name] = posArgs[i]
+			if (posArgs[i] === undefined) continue
+			result[name] = this._coercePositional(schemaShape(Cls.argsSchema)?.[name], posArgs[i])
 		}
 
 		return result
+	}
+
+	/**
+	 * Coerce a positional value to the primitive its schema field expects.
+	 * Positionals arrive as strings (or minimist-coerced numbers/booleans from
+	 * older parses) — align them so `z.string()` positionals accept `8080` and
+	 * `z.number()` positionals accept `'8080'`.
+	 */
+	private _coercePositional(fieldSchema: any, value: any): any {
+		if (!fieldSchema) return value
+		const t = zodBaseType(fieldSchema)
+		if (t === 'string' || t === 'enum') return typeof value === 'string' ? value : String(value)
+		if (t === 'number') {
+			if (typeof value === 'number') return value
+			const n = Number(value)
+			return Number.isNaN(n) ? value : n
+		}
+		if (t === 'boolean') {
+			if (typeof value === 'boolean') return value
+			if (value === 'true') return true
+			if (value === 'false') return false
+			return value
+		}
+		return value
 	}
 
 	/**
@@ -298,7 +450,7 @@ export class Command<
 		try {
 			this.state.set('running', true)
 			this.emit('started')
-			await this.run(args, this.context)
+			await this.run(args, this._commandContext())
 			this.state.set('exitCode', 0)
 			this.emit('completed', 0)
 		} catch (err: any) {

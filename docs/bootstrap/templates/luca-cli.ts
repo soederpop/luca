@@ -20,8 +20,9 @@
  */
 
 export async function main(container: any) {
-  // Discover project-level helpers (commands/, features/, endpoints/)
-  await container.helpers.discoverAll()
+  // Project helpers (commands/, features/, clients/, servers/, endpoints/) are
+  // auto-discovered by the CLI before dispatch — no discoverAll() needed here.
+  // (Opt out with LUCA_COMMAND_DISCOVERY=commands-only.)
 
   // Handle unknown commands gracefully instead of silently failing
   container.onMissingCommand(async ({ phrase }: { phrase: string }) => {

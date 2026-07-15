@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'bun:test'
-import { Command, commands } from '../src/command'
+import { describe, it, expect, spyOn } from 'bun:test'
+import { Command, commands, minimistOptionsFor } from '../src/command'
 import { graftModule, isNativeHelperClass } from '../src/graft'
 import { NodeContainer } from '../src/node/container'
 import { z } from 'zod'
@@ -235,6 +235,211 @@ describe('Command.dispatch', () => {
 		expect(result).toBeDefined()
 		expect(result!.exitCode).toBe(1)
 		expect(result!.stderr).toContain('boom')
+	})
+})
+
+describe('minimistOptionsFor', () => {
+	it('derives boolean and string flag lists from the argsSchema', () => {
+		const schema = CommandOptionsSchema.extend({
+			json: z.boolean().default(false),
+			dryRun: z.boolean().optional(),
+			port: z.string(),
+			count: z.number().optional(),
+		})
+
+		const opts = minimistOptionsFor(schema)
+		expect(opts.boolean).toContain('json')
+		expect(opts.boolean).toContain('dryRun')
+		expect(opts.boolean).toContain('dry-run') // kebab alias
+		expect(opts.string).toContain('port')
+		expect(opts.boolean).not.toContain('count')
+		expect(opts.string).not.toContain('count')
+	})
+
+	it('always treats --help and --verbose as booleans', () => {
+		const opts = minimistOptionsFor(CommandOptionsSchema.extend({}))
+		expect(opts.boolean).toContain('help')
+		expect(opts.boolean).toContain('verbose')
+	})
+
+	it('lets the schema override the default help/verbose booleans', () => {
+		const schema = CommandOptionsSchema.extend({ verbose: z.string() })
+		const opts = minimistOptionsFor(schema)
+		expect(opts.boolean).not.toContain('verbose')
+		expect(opts.string).toContain('verbose')
+	})
+})
+
+describe('positional coercion', () => {
+	it('coerces numeric-looking positionals to string when the schema expects a string', async () => {
+		let received: any = null
+
+		const argsSchema = CommandOptionsSchema.extend({
+			key: z.string(),
+			value: z.string(),
+		})
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema,
+			positionals: ['key', 'value'],
+			run: async (args: any) => { received = args },
+		}, 'coerce-string-test', 'commands')
+
+		commands.register('coerce-string-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('coerce-string-test' as any)
+
+		// Simulate: luca config set server.port 8080 — old minimist coerces 8080 to a number
+		await cmd.dispatch({ _: ['coerce-string-test', 'server.port', 8080] }, 'cli')
+
+		expect(received).toBeDefined()
+		expect(received.key).toBe('server.port')
+		expect(received.value).toBe('8080')
+	})
+
+	it('coerces string positionals to number when the schema expects a number', async () => {
+		let received: any = null
+
+		const argsSchema = CommandOptionsSchema.extend({
+			port: z.number(),
+		})
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema,
+			positionals: ['port'],
+			run: async (args: any) => { received = args },
+		}, 'coerce-number-test', 'commands')
+
+		commands.register('coerce-number-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('coerce-number-test' as any)
+
+		await cmd.dispatch({ _: ['coerce-number-test', '4000'] }, 'cli')
+
+		expect(received.port).toBe(4000)
+	})
+})
+
+describe('variadic positionals', () => {
+	it("collects remaining positionals with the '...' prefix", async () => {
+		let received: any = null
+
+		const argsSchema = CommandOptionsSchema.extend({
+			request: z.string(),
+			numbers: z.array(z.number()).default([]),
+		})
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema,
+			positionals: ['request', '...numbers'],
+			run: async (args: any) => { received = args },
+		}, 'variadic-test', 'commands')
+
+		commands.register('variadic-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('variadic-test' as any)
+
+		// Simulate: luca variadic-test sum 1 2 3 — elements coerced to the array's element type
+		await cmd.dispatch({ _: ['variadic-test', 'sum', '1', '2', '3'] }, 'cli')
+
+		expect(received.request).toBe('sum')
+		expect(received.numbers).toEqual([1, 2, 3])
+	})
+
+	it('collects a single trailing arg into an array for an array-typed last positional', async () => {
+		let received: any = null
+
+		const argsSchema = CommandOptionsSchema.extend({
+			action: z.string(),
+			files: z.array(z.string()),
+		})
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema,
+			positionals: ['action', 'files'],
+			run: async (args: any) => { received = args },
+		}, 'single-array-test', 'commands')
+
+		commands.register('single-array-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('single-array-test' as any)
+
+		// Exactly one file — previously assigned as a scalar and failed z.array()
+		await cmd.dispatch({ _: ['single-array-test', 'process', 'foo.md'] }, 'cli')
+
+		expect(received.files).toEqual(['foo.md'])
+	})
+})
+
+describe('CLI error handling', () => {
+	it('reports handler errors cleanly instead of re-throwing', async () => {
+		const Grafted = graftModule(Command as any, {
+			argsSchema: CommandOptionsSchema.extend({}),
+			run: async () => { throw new Error('user-facing failure') },
+		}, 'cli-error-test', 'commands')
+
+		commands.register('cli-error-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('cli-error-test' as any)
+
+		const errSpy = spyOn(console, 'error').mockImplementation(() => {})
+		const prevExitCode = process.exitCode
+
+		try {
+			// Must not throw — the CLI path reports and sets the exit code
+			await cmd.dispatch({ _: ['cli-error-test'] }, 'cli')
+
+			expect(process.exitCode).toBe(1)
+			expect((cmd as any).state.get('exitCode')).toBe(1)
+			const output = errSpy.mock.calls.map((c) => c.join(' ')).join('\n')
+			expect(output).toContain('user-facing failure')
+		} finally {
+			process.exitCode = prevExitCode
+			errSpy.mockRestore()
+		}
+	})
+})
+
+describe('context.runUntilShutdown', () => {
+	it('is exposed on the context passed to command handlers', async () => {
+		let receivedContext: any = null
+
+		const Grafted = graftModule(Command as any, {
+			argsSchema: CommandOptionsSchema.extend({}),
+			run: async (_args: any, ctx: any) => { receivedContext = ctx },
+		}, 'shutdown-context-test', 'commands')
+
+		commands.register('shutdown-context-test', Grafted as any)
+		const container = new NodeContainer()
+		const cmd = container.command('shutdown-context-test' as any)
+
+		await cmd.dispatch({ _: ['shutdown-context-test'] }, 'cli')
+
+		expect(typeof receivedContext.runUntilShutdown).toBe('function')
+	})
+
+	it('runs cleanups LIFO on SIGINT and exits 0', async () => {
+		const container = new NodeContainer()
+		const order: string[] = []
+
+		let exitCode: number | undefined
+		const exitSpy = spyOn(process, 'exit').mockImplementation(((code?: number) => {
+			exitCode = code
+		}) as any)
+
+		try {
+			container.runUntilShutdown(async () => { order.push('first') })
+			container.runUntilShutdown(() => { order.push('second') })
+
+			process.emit('SIGINT' as any)
+			// Signal handler is async — let it run
+			await new Promise((resolve) => setTimeout(resolve, 20))
+
+			expect(order).toEqual(['second', 'first'])
+			expect(exitCode).toBe(0)
+		} finally {
+			exitSpy.mockRestore()
+		}
 	})
 })
 

@@ -58,7 +58,7 @@ export { WebsocketServer } from './servers/socket'
 // Types
 export type { ContainerContext, ContainerArgv, Plugin, Extension } from './container'
 export type { AvailableClients } from './client'
-export type { AvailableCommands, CommandHandler } from './command'
+export type { AvailableCommands, CommandHandler, CommandArgs } from './command'
 export type { AvailableEndpoints, EndpointContext } from './endpoint'
 export type { AvailableSelectors, SelectorsInterface, SelectorRunResult, SimpleSelector } from './selector'
 export type { AvailableFeatures, FeatureOptions, FeatureState } from './feature'

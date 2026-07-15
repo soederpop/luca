@@ -423,6 +423,62 @@ export class NodeContainer<
     return this.options as any;
   }
 
+  /** @internal shared shutdown promise + cleanup stack for runUntilShutdown */
+  private _shutdownState?: { promise: Promise<void>; cleanups: Array<() => void | Promise<void>> };
+
+  /**
+   * Keep the process alive until SIGINT/SIGTERM, then run cleanup and exit 0.
+   *
+   * The blessed pattern for long-running commands (servers, watchers, daemons):
+   * call it as the last statement of your handler instead of hand-rolling
+   * `await new Promise(() => {})` plus signal wiring. Multiple calls share one
+   * shutdown promise; cleanups run LIFO with a 5s guard, and a second signal
+   * exits immediately.
+   *
+   * Command handlers receive it on their context: `context.runUntilShutdown(cleanup)`.
+   *
+   * @param cleanup - Optional async cleanup to run on shutdown (close servers, remove state files)
+   *
+   * @example
+   * ```typescript
+   * const server = container.server('express', { port: 4000 })
+   * await server.start()
+   * await container.runUntilShutdown(async () => { await server.stop() })
+   * ```
+   */
+  runUntilShutdown(cleanup?: () => void | Promise<void>): Promise<void> {
+    if (!this._shutdownState) {
+      const cleanups: Array<() => void | Promise<void>> = [];
+      const promise = new Promise<void>(() => {}); // held open until a signal exits the process
+
+      let shuttingDown = false;
+      const onSignal = async () => {
+        if (shuttingDown) process.exit(1); // second signal: exit immediately
+        shuttingDown = true;
+
+        const timer = setTimeout(() => process.exit(0), 5000);
+        // LIFO — later-registered cleanups depend on earlier-started resources
+        for (const fn of [...cleanups].reverse()) {
+          try {
+            await fn();
+          } catch (err: any) {
+            console.error(`Cleanup error: ${err?.message || err}`);
+          }
+        }
+        clearTimeout(timer);
+        process.exit(0);
+      };
+
+      process.on("SIGINT", onSignal);
+      process.on("SIGTERM", onSignal);
+
+      this._shutdownState = { promise, cleanups };
+    }
+
+    if (cleanup) this._shutdownState.cleanups.push(cleanup);
+    return this._shutdownState.promise;
+  }
+
   /** Returns URL utility functions for parsing URIs. */
   get urlUtils(): { parse: (uri: string) => url.UrlWithStringQuery } {
     return {
