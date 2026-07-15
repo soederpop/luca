@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
-import { CommandOptionsSchema } from 'luca/schemas'
+import type { ContainerContext } from '../src/node'
+import { CommandOptionsSchema } from '../src/schemas/base'
 import { AGIContainer } from '../src/agi/container.server.js'
 import { __INTROSPECTION__ } from '../src/introspection/index.js'
 import { presentIntrospectionAsMarkdown } from '../src/helper.js'

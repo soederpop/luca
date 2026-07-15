@@ -157,14 +157,16 @@ jobs:
         run: |
           xcrun stapler staple dist/release/luca-darwin-x64 || true
           xcrun stapler staple dist/release/luca-darwin-arm64 || true
+          # The zips were only notarization submission vehicles — drop them so
+          # they don't end up as release assets (upload-artifact has no
+          # `exclude` input; it gets silently ignored).
+          rm -f dist/release/*.zip
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-binaries
           path: dist/release/luca-darwin-*
-          exclude: |
-            dist/release/*.zip
 
   create-release:
     needs: [build-linux, build-windows, build-macos]

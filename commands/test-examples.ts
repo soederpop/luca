@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
-import { CommandOptionsSchema } from 'luca/schemas'
+import type { ContainerContext } from '../src/node'
+import { CommandOptionsSchema } from '../src/schemas/base'
 import { spawn } from 'child_process'
 
 export const positionals = ['only']

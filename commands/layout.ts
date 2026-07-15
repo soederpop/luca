@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { CommandOptionsSchema } from 'luca'
-import type { ContainerContext } from 'luca'
+import { CommandOptionsSchema } from '../src/node'
+import type { ContainerContext } from '../src/node'
 
 export const argsSchema = CommandOptionsSchema.extend({
   _: z.array(z.union([z.string(), z.number()])).default([]),

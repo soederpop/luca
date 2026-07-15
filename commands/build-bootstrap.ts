@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
-import { CommandOptionsSchema } from 'luca/schemas'
-import { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from 'luca/introspection'
+import type { ContainerContext } from '../src/node'
+import { CommandOptionsSchema } from '../src/schemas/base'
+import { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from '../src/introspection/index'
 
 export const argsSchema = CommandOptionsSchema.extend({})
 
