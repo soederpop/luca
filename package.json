@@ -113,7 +113,7 @@
     "clean": "rm -rf dist build package",
     "build:web": "bun run scripts/build-web.ts",
     "build:introspection": "bun run src/cli/cli.ts introspect",
-    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge && bun run build:embedding-worker && bun run build:types-bundle && bash scripts/stamp-build.sh && bun build ./src/cli/cli.ts --compile --outfile dist/luca --external node-llama-cpp",
+    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge && bun run build:embedding-worker && bun run build:types-bundle && bash scripts/compile-binary.sh",
     "build:types": "tsc -p tsconfig.build.json",
     "build:types-bundle": "bun run build:types && bun run src/cli/cli.ts build-types-bundle",
     "typecheck": "tsc -p tsconfig.json --noEmit",

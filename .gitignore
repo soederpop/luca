@@ -52,9 +52,6 @@ playground/
 # claude
 .claude/settings.local.json
 
-# build-info.ts is stamped at compile time — not committed
-src/cli/build-info.ts
-
 # generated bundle workspaces (bundle-consumer-project output)
 src/cli/bundles/
 
@@ -65,3 +62,6 @@ docs/sessions
 # for training a lora on luca philosophy
 datasets/
 
+
+# luca setup output (types written by `luca setup` for editor support)
+.luca/

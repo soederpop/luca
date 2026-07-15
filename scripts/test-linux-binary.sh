@@ -23,9 +23,7 @@ bun run build:introspection
 bun run build:scaffolds
 bun run build:bootstrap
 bun run build:python-bridge
-bash scripts/stamp-build.sh
-
-bun build ./src/cli/cli.ts --compile --target=bun-linux-arm64 --outfile "$LINUX_BINARY" --external node-llama-cpp
+bash scripts/compile-binary.sh --target=bun-linux-arm64 --outfile "$LINUX_BINARY"
 
 echo ""
 echo "=== Built: $(file "$LINUX_BINARY") ==="
