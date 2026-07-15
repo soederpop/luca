@@ -14,6 +14,7 @@ import { Server, type ServersInterface } from "../server";
 import "../servers/express";
 import "../servers/socket";
 import "../servers/mcp";
+import "../servers/llm-proxy";
 import { Command, type CommandsInterface } from "../command";
 import { Endpoint, type EndpointsInterface } from "../endpoint";
 import { Selector, type SelectorsInterface } from "../selector";

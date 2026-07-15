@@ -247,6 +247,7 @@ setBuildTimeData('clients.comfyui', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -495,6 +496,7 @@ setBuildTimeData('clients.elevenlabs', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -636,6 +638,7 @@ setBuildTimeData('clients.graph', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
@@ -905,6 +908,7 @@ setBuildTimeData('clients.openai', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "ai-assistants",
   "examples": [
     {
       "language": "ts",
@@ -915,7 +919,7 @@ setBuildTimeData('clients.openai', {
 
 setBuildTimeData('clients.rest', {
   "id": "clients.rest",
-  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission.",
+  "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
   "shortcut": "clients.rest",
   "className": "RestClient",
   "methods": {
@@ -926,7 +930,7 @@ setBuildTimeData('clients.rest', {
       "returns": "Promise<void>"
     },
     "patch": {
-      "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+      "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
       "parameters": {
         "url": {
           "type": "string",
@@ -934,20 +938,26 @@ setBuildTimeData('clients.rest', {
         },
         "data": {
           "type": "any",
-          "description": "Request body"
+          "description": "Request body (the partial update)"
         },
         "options": {
           "type": "AxiosRequestConfig",
-          "description": "Additional axios request config"
+          "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst patched = await api.patch('/users/42', { role: 'viewer' })\nif (patched?.name === 'AxiosError') console.error(patched.status, patched.message)"
+        }
+      ]
     },
     "put": {
-      "description": "Send a PUT request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+      "description": "Send a PUT request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
       "parameters": {
         "url": {
           "type": "string",
@@ -955,20 +965,26 @@ setBuildTimeData('clients.rest', {
         },
         "data": {
           "type": "any",
-          "description": "Request body"
+          "description": "Request body (the full replacement representation)"
         },
         "options": {
           "type": "AxiosRequestConfig",
-          "description": "Additional axios request config"
+          "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst updated = await api.put('/users/42', { name: 'Alice', role: 'admin' })\nconsole.log(updated)   // the parsed response body"
+        }
+      ]
     },
     "post": {
-      "description": "Send a POST request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+      "description": "Send a POST request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
       "parameters": {
         "url": {
           "type": "string",
@@ -976,20 +992,26 @@ setBuildTimeData('clients.rest', {
         },
         "data": {
           "type": "any",
-          "description": "Request body"
+          "description": "Request body (JSON-encoded when the `json` option is set)"
         },
         "options": {
           "type": "AxiosRequestConfig",
-          "description": "Additional axios request config"
+          "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\nconst created = await api.post('/users', { name: 'Alice', role: 'admin' })\n\nif (created?.name === 'AxiosError') {\n console.error('create failed:', created.status, created.message)   // e.g. 422\n} else {\n console.log('created user', created.id)\n}"
+        }
+      ]
     },
     "delete": {
-      "description": "Send a DELETE request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+      "description": "Send a DELETE request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch. Note the second argument is query params (like get), not a request body.",
       "parameters": {
         "url": {
           "type": "string",
@@ -997,20 +1019,26 @@ setBuildTimeData('clients.rest', {
         },
         "params": {
           "type": "any",
-          "description": "Query parameters"
+          "description": "Query parameters (serialized into the query string)"
         },
         "options": {
           "type": "AxiosRequestConfig",
-          "description": "Additional axios request config"
+          "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\n// second arg is query params: DELETE /users/42?soft=true\nconst result = await api.delete('/users/42', { soft: true })\nif (result?.name === 'AxiosError') console.error('delete failed:', result.status)"
+        }
+      ]
     },
     "get": {
-      "description": "Send a GET request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+      "description": "Send a GET request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
       "parameters": {
         "url": {
           "type": "string",
@@ -1018,17 +1046,23 @@ setBuildTimeData('clients.rest', {
         },
         "params": {
           "type": "any",
-          "description": "Query parameters"
+          "description": "Query parameters (serialized into the query string)"
         },
         "options": {
           "type": "AxiosRequestConfig",
-          "description": "Additional axios request config"
+          "description": "Additional axios request config (headers, timeout, etc.)"
         }
       },
       "required": [
         "url"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\n// second arg is query params: GET /search?q=luca&limit=10\nconst results = await api.get('/search', { q: 'luca', limit: 10 })\n\n// per-request headers via the third arg\nconst token = 'my-jwt'\nconst me = await api.get('/me', {}, { headers: { Authorization: `Bearer ${token}` } })\n\n// errors come back as a plain object, not a throw\nif (me?.name === 'AxiosError') console.error(me.status, me.message)"
+        }
+      ]
     },
     "handleError": {
       "description": "Handle an axios error by emitting 'failure' and returning the error as JSON.",
@@ -1065,10 +1099,11 @@ setBuildTimeData('clients.rest', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
-      "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')\nawait api.post('/users', { name: 'Alice' })"
+      "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')                 // parsed body, no .data unwrapping\nawait api.post('/users', { name: 'Alice' })\n\n// Health check: distinguish an up server from a down one by inspecting the result\nconst local = container.client('rest', { baseURL: 'http://localhost:4000' })\nconst result = await local.get('/health')\nif (result?.code || result?.name === 'AxiosError') {\n console.log('server is DOWN:', result.message)   // error, returned not thrown\n} else {\n console.log('server is UP:', result)             // parsed response body\n}"
     }
   ]
 });
@@ -1192,6 +1227,7 @@ setBuildTimeData('clients.socketio', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
@@ -1389,6 +1425,7 @@ setBuildTimeData('clients.supabase', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
@@ -1693,6 +1730,7 @@ setBuildTimeData('clients.voicebox', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -1784,31 +1822,43 @@ setBuildTimeData('clients.voicebox', {
 
 setBuildTimeData('clients.websocket', {
   "id": "clients.websocket",
-  "description": "WebSocketClient helper",
+  "description": "WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). Supports ask/reply semantics when paired with the Luca WebSocket server (`container.server('websocket')`). The client can `ask(type, data)` the server and await a typed response. In the other direction, an ask from the server arrives as a normal `message` event whose payload carries a `requestId`; answer it with `send({ replyTo: requestId, data })`. Asks time out (reject) if no reply arrives within the configurable window. Incoming messages are JSON-parsed when possible; non-JSON payloads (including binary frames) are delivered as-is. Outgoing payloads are framed by {@link encodeWireFrame}: objects go out as JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number) **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live WebSocket (and any reconnect timers) keep the event loop running. Call `await ws.disconnect()` when finished, and if the process still lingers (other handles or pending timers), end with `process.exit(0)`.",
   "shortcut": "clients.websocket",
   "className": "WebSocketClient",
   "methods": {
     "connect": {
-      "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error.",
+      "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// a local server to connect to (any ws endpoint works)\nconst port = await container.feature('networking').findOpenPort(8210)\nconst server = container.server('websocket')\nawait server.start({ port })\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nws.on('open', () => console.log('connected'))\nws.on('close', (code, reason) => console.log('closed', code, reason))\nawait ws.connect()\nconsole.log(ws.state.get('connected'))   // true\n\nawait ws.disconnect()   // an open socket keeps the process alive\nawait server.stop()"
+        }
+      ]
     },
     "send": {
-      "description": "Send data over the WebSocket connection. Automatically JSON-serializes the payload. If not currently connected, attempts to connect first.",
+      "description": "Send data over the WebSocket connection. Objects are JSON-serialized; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). If not currently connected, attempts to connect first (so an explicit connect() call beforehand is optional).",
       "parameters": {
         "data": {
           "type": "any",
-          "description": "The data to send (will be JSON.stringify'd)"
+          "description": "The data to send (object → JSON, binary/string → raw frame)"
         }
       },
       "required": [
         "data"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const port = await container.feature('networking').findOpenPort(8220)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects\n\n// Answering an ask from the server: its message carries a requestId —\n// reply by echoing it back as replyTo\nws.on('message', async (msg) => {\n if (msg?.requestId) {\n   await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n }\n})\nconst socket = await firstConnection\nconsole.log(await server.ask(socket, 'identify'))   // { name: 'my-client' }\n\nawait ws.disconnect()\nawait server.stop()"
+        }
+      ]
     },
     "ask": {
-      "description": "Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID.",
+      "description": "Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID. Rejects if the reply carries an `error` field, or with a timeout Error if no reply arrives in time — so unlike the rest client, ask() failures DO throw and should be try/caught.",
       "parameters": {
         "type": {
           "type": "string",
@@ -1830,15 +1880,21 @@ setBuildTimeData('clients.websocket', {
       "examples": [
         {
           "language": "ts",
-          "code": "const result = await ws.ask('getUser', { id: 42 })"
+          "code": "// Server side (container.server('websocket', { json: true })): messages\n// with a requestId arrive with reply helpers attached\nconst port = await container.feature('networking').findOpenPort(8230)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nserver.on('message', (msg) => {\n if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })\n})\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.connect()\n\ntry {\n const user = await ws.ask('getUser', { id: 42 }, 5000)\n console.log(user)   // { id: 42, name: 'Alice' }\n} catch (err) {\n // reply carried an error field, or no reply within 5s\n console.error(err.message)   // e.g. 'ask(\"getUser\") timed out after 5000ms'\n}\n\nawait ws.disconnect()\nawait server.stop()"
         }
       ]
     },
     "disconnect": {
-      "description": "Gracefully close the WebSocket connection. Suppresses auto-reconnect and updates connection state to disconnected.",
+      "description": "Gracefully close the WebSocket connection. Suppresses auto-reconnect, rejects any in-flight ask() promises with a 'WebSocket disconnected' error, and updates connection state to disconnected. Always call this at the end of CLI commands — an open socket keeps the process's event loop alive and the command will hang without it.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const port = await container.feature('networking').findOpenPort(8240)\nconst server = container.server('websocket')\nawait server.start({ port })\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.connect()\nawait ws.send({ type: 'goodbye' })\nawait ws.disconnect()\nconsole.log(ws.state.get('connected'))   // false\nawait server.stop()"
+        }
+      ]
     }
   },
   "getters": {
@@ -1877,7 +1933,14 @@ setBuildTimeData('clients.websocket', {
   "state": {},
   "options": {},
   "envVars": [],
-  "stability": "stable"
+  "stability": "stable",
+  "category": "networking",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// pair it with the Luca websocket server so the example is self-contained\nconst port = await container.feature('networking').findOpenPort(8200)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nserver.on('message', (msg) => {\n if (msg?.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })\n})\n\nconst ws = container.client('websocket', {\n baseURL: `ws://localhost:${port}`,\n reconnect: true,\n maxReconnectAttempts: 5\n})\nws.on('message', (data) => console.log('Received:', data))\nawait ws.connect()\nawait ws.send({ type: 'hello' })\n\n// ask/reply: request data from the server and await its answer\nconst result = await ws.ask('getUser', { id: 42 })\nconsole.log(result)   // { id: 42, name: 'Alice' }\n\n// done — close the socket so the process can exit\nawait ws.disconnect()\nawait server.stop()"
+    }
+  ]
 });
 
 setBuildTimeData('features.cipherSocial', {
@@ -2070,6 +2133,7 @@ setBuildTimeData('features.cipherSocial', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -2281,6 +2345,7 @@ setBuildTimeData('features.containerLink', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -2373,6 +2438,24 @@ setBuildTimeData('features.contentDb', {
       ],
       "returns": "void"
     },
+    "defineModel": {
+      "description": "Define a model in the collection at runtime.  Usually models are defined in the docs/models.ts file but this allows you to do it at runtime for dynamic model definitions.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Parameter name"
+        },
+        "config": {
+          "type": "any",
+          "description": "Parameter config"
+        }
+      },
+      "required": [
+        "name",
+        "config"
+      ],
+      "returns": "ModelDefinition"
+    },
     "renderTree": {
       "description": "Render a tree view of the collection directory structure. Built with container.fs so it works without the `tree` binary.",
       "parameters": {
@@ -2412,7 +2495,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
+          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()\n// Each result has an id (derived from the file path) and parsed frontmatter meta\narticles.forEach(doc => console.log(doc.id, doc.meta?.title))"
         }
       ]
     },
@@ -2431,7 +2514,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs')\nawait fs.writeFileAsync('docs/getting-started.md', '---\\ntitle: Getting Started\\ntags: [intro]\\n---\\n\\n# Getting Started\\n\\nWelcome!\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.meta?.title, doc.meta?.tags)\nconsole.log(doc.content)"
         }
       ]
     },
@@ -2464,7 +2547,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "// By collection document ID\nconst doc = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst doc = await contentDb.document({ path: '/absolute/path/to/file.md' })\n\n// In-memory from a markdown string\nconst doc = contentDb.document({ content: '# Hello\\n\\nworld' })"
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', '# Intro\\n\\nWelcome.\\n')\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\n\n// By collection document ID (relative to the collection rootPath)\nconst byId = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst byPath = await contentDb.document({ path: './docs/guides/intro.md' })\n\n// In-memory from a markdown string\nconst inline = await contentDb.document({ content: '# Hello\\n\\nworld' })\nconsole.log(inline.title) // 'Hello'"
         }
       ]
     },
@@ -2523,7 +2606,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "await contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', [\n '---', 'title: Intro', '---', '',\n '# Intro', '', 'Welcome.', '',\n '## Installation', '', 'bun add luca', '',\n '## Usage', '', 'Use it.', '',\n '## API', '', 'See reference.', '',\n '## Changelog', '', '- 1.0', '',\n].join('\\n'))\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
         }
       ]
     },
@@ -2552,7 +2635,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "await contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
+          "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', '# Intro\\n\\nWelcome.\\n\\n## Overview\\n\\nThe big picture.\\n')\nawait fs.writeFileAsync('docs/guides/setup.md', '# Setup\\n\\nInstall it.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
         }
       ]
     },
@@ -2742,6 +2825,10 @@ setBuildTimeData('features.contentDb', {
       "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
       "returns": "Collection"
     },
+    "contentbase": {
+      "description": "The contentbase library instance.",
+      "returns": "any"
+    },
     "collectionPath": {
       "description": "Returns the absolute resolved path to the collection root directory.",
       "returns": "string"
@@ -2776,7 +2863,7 @@ setBuildTimeData('features.contentDb', {
       "examples": [
         {
           "language": "ts",
-          "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstTask = await contentDb.queries.task.first()"
+          "code": "// Given a collection whose models.ts defines an Article model:\nconst fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ title: z.string().optional() }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '---\\ntitle: First\\n---\\n\\n# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\n// Keys are the lowercased model names, singular and plural\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstArticle = await contentDb.queries.article.first()\nconsole.log(allArticles.map(doc => doc.id)) // ['articles/first']"
         }
       ]
     }
@@ -2792,6 +2879,7 @@ setBuildTimeData('features.contentDb', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
@@ -2802,7 +2890,7 @@ setBuildTimeData('features.contentDb', {
 
 setBuildTimeData('features.diskCache', {
   "id": "features.diskCache",
-  "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
+  "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses. The cache directory (from the `path` option, or a default under the OS cache dir) is created automatically on first use — no setup step is required.",
   "shortcut": "features.diskCache",
   "className": "DiskCache",
   "methods": {
@@ -2830,7 +2918,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
+          "code": "await diskCache.set('myFile', 'file contents')\nawait diskCache.saveFile('myFile', './file.txt')\n\n// Base64-encoded entries (e.g. images) are decoded before writing\nawait diskCache.set('encodedImage', Buffer.from('binary data').toString('base64'))\nawait diskCache.saveFile('encodedImage', './photo.jpg', true)"
         }
       ]
     },
@@ -2854,7 +2942,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
+          "code": "const defaultConfig = { theme: 'dark', retries: 3 }\nawait diskCache.ensure('config', JSON.stringify(defaultConfig))"
         }
       ]
     },
@@ -2882,7 +2970,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
+          "code": "await diskCache.set('original', 'important data')\nawait diskCache.set('file1', 'v1')\nawait diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
         }
       ]
     },
@@ -2910,7 +2998,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
+          "code": "await diskCache.set('temp', 'work in progress')\nawait diskCache.set('old_key', 'legacy value')\nawait diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
         }
       ]
     },
@@ -2952,7 +3040,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
+          "code": "await diskCache.set('myText', 'Hello World')\nawait diskCache.set('myData', { count: 42 })\nconst text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
         }
       ]
     },
@@ -2969,7 +3057,7 @@ setBuildTimeData('features.diskCache', {
         },
         "meta": {
           "type": "any",
-          "description": "Optional metadata to associate with the cached item"
+          "description": "Optional metadata to associate with the cached item. `meta.ttl`"
         }
       },
       "required": [
@@ -2980,7 +3068,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
+          "code": "const content = Buffer.from('binary data').toString('base64')\nconst jwt = 'header.payload.signature'\nawait diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })\nawait diskCache.set('token', jwt, { ttl: 900 }) // expires in 15 minutes"
         }
       ]
     },
@@ -3057,7 +3145,7 @@ setBuildTimeData('features.diskCache', {
       "examples": [
         {
           "language": "ts",
-          "code": "const customCache = diskCache.create('/custom/cache/path')"
+          "code": "const cachePath = container.paths.resolve(container.feature('os').tmpdir, 'my-cache')\nconst customCache = diskCache.create(cachePath)"
         }
       ]
     }
@@ -3069,11 +3157,11 @@ setBuildTimeData('features.diskCache', {
     },
     "securely": {
       "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
-      "returns": "{ set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> }",
+      "returns": "{ set(name: string, payload: any, meta?: any, expiresAt?: number): Promise<any>; get(name: string): Promise<any> }",
       "examples": [
         {
           "language": "ts",
-          "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
+          "code": "// Initialize with encryption (secret must be a 32-byte key for AES-256)\nconst cache = container.feature('diskCache', {\n encrypt: true,\n secret: Buffer.alloc(32, 'my-secret-key')\n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
         }
       ]
     }
@@ -3083,10 +3171,15 @@ setBuildTimeData('features.diskCache', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
       "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
+    },
+    {
+      "language": "ts",
+      "code": "// TTL: entries expire and read as cache misses afterwards\nconst cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour\nconst token = 'abc123'\nconst data = { symbol: 'LUCA', price: 42 }\nawait cache.set('session', token)                  // expires in 1 hour\nawait cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds"
     }
   ]
 });
@@ -3656,6 +3749,7 @@ setBuildTimeData('features.dns', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
@@ -3811,14 +3905,14 @@ setBuildTimeData('features.docker', {
       ]
     },
     "runContainer": {
-      "description": "Create and run a new container from the given image.",
+      "description": "Create and run a new container from the given image. With `detach: true` the container runs in the background and the returned string is the new container's ID. Without it, the call blocks until the container exits and the return value is the container's stdout.",
       "parameters": {
         "image": {
           "type": "string",
           "description": "Docker image to run (e.g. 'nginx:latest')"
         },
         "options": {
-          "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n    }",
+          "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n      /** Path to an env file passed via --env-file */\n      envFile?: string\n      /** Make host.docker.internal resolve to the host from inside the container */\n      addHostGateway?: boolean\n    }",
           "description": "Container run options",
           "properties": {
             "name": {
@@ -3872,6 +3966,14 @@ setBuildTimeData('features.docker', {
             "restart": {
               "type": "any",
               "description": "Restart policy (e.g. 'always', 'on-failure')"
+            },
+            "envFile": {
+              "type": "any",
+              "description": "Path to an env file passed via --env-file (keeps secrets out of process args)"
+            },
+            "addHostGateway": {
+              "type": "any",
+              "description": "Make host.docker.internal resolve to the host from inside the container (adds --add-host on Linux engines; Docker Desktop resolves it natively)"
             }
           }
         }
@@ -3960,7 +4062,13 @@ setBuildTimeData('features.docker', {
       "required": [
         "containerIdOrName"
       ],
-      "returns": "Promise<DockerShell>"
+      "returns": "Promise<DockerShell>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires the docker daemon\nconst docker = container.feature('docker')\nconst shell = await docker.createShell('web-server', { workdir: '/app' })\nawait shell.run('ls -la')\nconsole.log(shell.last.stdout)\nawait shell.run('cat package.json')\nconsole.log(shell.last.stdout)\nawait shell.destroy() // clean up any helper container created for volume mounts"
+        }
+      ]
     },
     "pullImage": {
       "description": "Pull an image from a registry.",
@@ -4178,6 +4286,7 @@ setBuildTimeData('features.docker', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -4203,12 +4312,12 @@ setBuildTimeData('features.docker', {
 
 setBuildTimeData('features.downloader', {
   "id": "features.downloader",
-  "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
+  "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically. Use it when you need to programmatically pull remote assets — images, documents, data files — into your project. When you call `download()`: (1) the URL is fetched, (2) the response body is buffered fully into memory, (3) the buffer is written to the target path, which is resolved relative to the container's working directory. The resolved absolute path is returned.",
   "shortcut": "features.downloader",
   "className": "Downloader",
   "methods": {
     "download": {
-      "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, converts it to a buffer, and writes it to the filesystem at the target path. The target path is resolved relative to the container's configured paths.",
+      "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). Note: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains. Only network-level failures (DNS, refused connection, invalid URL) reject. Check the URL is correct before trusting the downloaded file.",
       "parameters": {
         "url": {
           "type": "string",
@@ -4227,7 +4336,7 @@ setBuildTimeData('features.downloader', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+          "code": "// (no-run) fetches from the network\n// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
         }
       ]
     }
@@ -4238,17 +4347,18 @@ setBuildTimeData('features.downloader', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
-      "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
+      "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\n// Download a file — target path is resolved relative to container.cwd\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`) // absolute path to the saved file"
     }
   ]
 });
 
 setBuildTimeData('features.fileManager', {
   "id": "features.fileManager",
-  "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
+  "description": "The FileManager feature creates a database-like, in-memory index of all of the files in the project, provides metadata about these files, and can watch for changes to them. Think of it as a fast, queryable snapshot of your file tree — useful for code analysis tools, documentation generators, or any script that needs to reason about project structure. After `start()` completes, every file is indexed under its project-relative path (its \"file ID\"). The scan skips common build/dependency folders (node_modules, dist, out) by default; pass `exclude` patterns to skip more. In a git repo the index is also cached on disk keyed by the current commit SHA and directory mtimes, so repeat scans of a clean repo are nearly instant. Each indexed file carries metadata: `relativePath`, `absolutePath`, `name`, `extension` (with leading dot, e.g. `.ts`), `dirname`, `relativeDirname`, `size`, `modifiedAt`, and `createdAt`.",
   "shortcut": "features.fileManager",
   "className": "FileManager",
   "methods": {
@@ -4415,10 +4525,11 @@ setBuildTimeData('features.fileManager', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "filesystem",
   "examples": [
     {
       "language": "ts",
-      "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
+      "code": "const fm = container.feature('fileManager')\nawait fm.start()\nconsole.log('Scan complete:', fm.isStarted)\nconsole.log('Total files indexed:', fm.fileIds.length)\n\n// Glob matching returns relative paths...\nconst tsFiles = fm.match('**' + '/*.ts')\nconsole.log('TypeScript files:', tsFiles.length)\n\n// ...or full metadata objects\nfor (const f of fm.matchFiles('package.json')) {\n console.log(f?.relativePath, f?.extension, f?.size)\n}\n\n// Understand the project at a glance\nconsole.log('Extensions:', fm.uniqueExtensions.join(', ')) // e.g. .ts, .md, .json\nconsole.log('Directories:', fm.directoryIds.length)"
     }
   ],
   "types": {
@@ -4473,7 +4584,7 @@ setBuildTimeData('features.fs', {
   "className": "FS",
   "methods": {
     "readFile": {
-      "description": "Synchronously reads a file and returns its contents as a string.",
+      "description": "Synchronously reads a file and returns its contents as a string. **Binary files: pass `null` as the encoding to get a raw Buffer.** The default encoding is utf-8, which silently corrupts binary content (images, zips, PDFs, compiled binaries) — invalid byte sequences are replaced and the data cannot be round-tripped. `fs.readFile('image.png')` returns garbage; `fs.readFile('image.png', null)` returns the real bytes.",
       "parameters": {
         "path": {
           "type": "string",
@@ -4481,7 +4592,7 @@ setBuildTimeData('features.fs', {
         },
         "encoding": {
           "type": "BufferEncoding | null",
-          "description": "The encoding to use. Pass null to get a raw Buffer."
+          "description": "The encoding to use. Pass null to get a raw Buffer (required for binary files)."
         }
       },
       "required": [
@@ -4491,7 +4602,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const content = fs.readFile('README.md')\nconst buffer = fs.readFile('image.png', null)"
+          "code": "const content = fs.readFile('README.md')          // string (utf-8)\nfs.writeFile('logo.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))\nconst buffer = fs.readFile('logo.png', null)      // Buffer — safe for binary data"
         }
       ]
     },
@@ -4531,7 +4642,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const content = await fs.readFileAsync('data.txt')\nconst buffer = await fs.readFileAsync('image.png', null)"
+          "code": "const content = await fs.readFileAsync('README.md')\nconst buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer"
         }
       ]
     },
@@ -4550,7 +4661,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
+          "code": "const pkg = fs.readJson('package.json')\nconsole.log(pkg.version)"
         }
       ]
     },
@@ -4582,7 +4693,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const config = await fs.readJsonAsync('config.json')\nconsole.log(config.version)"
+          "code": "const pkg = await fs.readJsonAsync('package.json')\nconsole.log(pkg.version)"
         }
       ]
     },
@@ -4624,6 +4735,45 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "readdirAsync": {
+      "description": "Asynchronously reads the contents of a directory.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string[]>"
+    },
+    "readDir": {
+      "description": "Asynchronously reads the contents of a directory (camelCase spelling).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string[]>"
+    },
+    "readDirSync": {
+      "description": "Synchronously reads the contents of a directory (camelCase spelling).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "string[]"
+    },
     "writeFile": {
       "description": "Synchronously writes content to a file.",
       "parameters": {
@@ -4647,6 +4797,24 @@ setBuildTimeData('features.fs', {
           "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
         }
       ]
+    },
+    "writeFileSync": {
+      "description": "Synchronously writes content to a file (node's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "Parameter content"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void"
     },
     "writeFileAsync": {
       "description": "Asynchronously writes content to a file.",
@@ -4700,6 +4868,28 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "writeJsonSync": {
+      "description": "Synchronously writes an object to a file as JSON.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "data": {
+          "type": "any",
+          "description": "Parameter data"
+        },
+        "indent": {
+          "type": "number",
+          "description": "Parameter indent"
+        }
+      },
+      "required": [
+        "path",
+        "data"
+      ],
+      "returns": "void"
+    },
     "writeJsonAsync": {
       "description": "Asynchronously writes an object to a file as JSON.",
       "parameters": {
@@ -4751,6 +4941,24 @@ setBuildTimeData('features.fs', {
           "code": "fs.appendFile('log.txt', 'New line\\n')"
         }
       ]
+    },
+    "appendFileSync": {
+      "description": "Synchronously appends content to a file (node's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "content": {
+          "type": "Buffer | string",
+          "description": "Parameter content"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ],
+      "returns": "void"
     },
     "appendFileAsync": {
       "description": "Asynchronously appends content to a file.",
@@ -4889,6 +5097,89 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "mkdir": {
+      "description": "Synchronously creates a directory, including parent directories — always recursive. Node-style options are accepted and ignored (`recursive` is always on).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The directory path to create"
+        },
+        "_options": {
+          "type": "{ recursive?: boolean }",
+          "description": "Accepted for node compatibility; creation is always recursive"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.mkdir('logs/debug')"
+        }
+      ]
+    },
+    "mkdirSync": {
+      "description": "Synchronously creates a directory, including parent directories — always recursive.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "_options": {
+          "type": "{ recursive?: boolean }",
+          "description": "Parameter _options"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "string"
+    },
+    "mkdirAsync": {
+      "description": "Asynchronously creates a directory, including parent directories — always recursive.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "_options": {
+          "type": "{ recursive?: boolean }",
+          "description": "Parameter _options"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string>"
+    },
+    "ensureDir": {
+      "description": "Synchronously ensures a directory exists (fs-extra's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "string"
+    },
+    "ensureDirAsync": {
+      "description": "Asynchronously ensures a directory exists (fs-extra's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<string>"
+    },
     "exists": {
       "description": "Synchronously checks if a file or directory exists.",
       "parameters": {
@@ -4946,6 +5237,32 @@ setBuildTimeData('features.fs', {
         }
       ]
     },
+    "pathExists": {
+      "description": "Asynchronously checks if a path exists (fs-extra's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<boolean>"
+    },
+    "pathExistsSync": {
+      "description": "Synchronously checks if a path exists (fs-extra's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "boolean"
+    },
     "isSymlink": {
       "description": "Checks if a path is a symbolic link.",
       "parameters": {
@@ -4990,6 +5307,19 @@ setBuildTimeData('features.fs', {
           "code": "const info = fs.stat('package.json')\nconsole.log(info.size, info.mtime)"
         }
       ]
+    },
+    "statSync": {
+      "description": "Synchronously returns the stat object for a file or directory (node's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Stats"
     },
     "statAsync": {
       "description": "Asynchronously returns the stat object for a file or directory.",
@@ -5087,11 +5417,25 @@ setBuildTimeData('features.fs', {
       ]
     },
     "rmSync": {
-      "description": "Synchronously removes a file.",
+      "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.",
       "parameters": {
         "path": {
           "type": "string",
           "description": "The path of the file to remove"
+        },
+        "options": {
+          "type": "{ recursive?: boolean; force?: boolean }",
+          "description": "Node-compatible options",
+          "properties": {
+            "recursive": {
+              "type": "any",
+              "description": "Remove directories and their contents"
+            },
+            "force": {
+              "type": "any",
+              "description": "Don't throw if the path doesn't exist"
+            }
+          }
         }
       },
       "required": [
@@ -5101,16 +5445,30 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.rmSync('temp/cache.tmp')"
+          "code": "fs.rmSync('temp/cache.tmp')\nfs.rmSync('temp/cache', { recursive: true })"
         }
       ]
     },
     "rm": {
-      "description": "Asynchronously removes a file.",
+      "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.",
       "parameters": {
         "path": {
           "type": "string",
           "description": "The path of the file to remove"
+        },
+        "options": {
+          "type": "{ recursive?: boolean; force?: boolean }",
+          "description": "Node-compatible options",
+          "properties": {
+            "recursive": {
+              "type": "any",
+              "description": "Remove directories and their contents"
+            },
+            "force": {
+              "type": "any",
+              "description": "Don't throw if the path doesn't exist"
+            }
+          }
         }
       },
       "required": [
@@ -5120,16 +5478,20 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "await fs.rm('temp/cache.tmp')"
+          "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/cache', { recursive: true, force: true })"
         }
       ]
     },
     "rmdirSync": {
-      "description": "Synchronously removes a directory and all its contents.",
+      "description": "Synchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.",
       "parameters": {
         "dirPath": {
           "type": "string",
           "description": "The path of the directory to remove"
+        },
+        "_options": {
+          "type": "{ recursive?: boolean; force?: boolean }",
+          "description": "Accepted for node compatibility; removal is always recursive and forced"
         }
       },
       "required": [
@@ -5144,11 +5506,15 @@ setBuildTimeData('features.fs', {
       ]
     },
     "rmdir": {
-      "description": "Asynchronously removes a directory and all its contents.",
+      "description": "Asynchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.",
       "parameters": {
         "dirPath": {
           "type": "string",
           "description": "The path of the directory to remove"
+        },
+        "_options": {
+          "type": "{ recursive?: boolean; force?: boolean }",
+          "description": "Accepted for node compatibility; removal is always recursive and forced"
         }
       },
       "required": [
@@ -5161,6 +5527,138 @@ setBuildTimeData('features.fs', {
           "code": "await fs.rmdir('temp/cache')"
         }
       ]
+    },
+    "remove": {
+      "description": "Removes a file or directory recursively — whatever the path is, it's gone (fs-extra's `remove`). No error if the path doesn't exist.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file or directory to remove"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.remove('temp')          // directory\nawait fs.remove('temp/file.txt') // or file — both fine"
+        }
+      ]
+    },
+    "removeSync": {
+      "description": "Synchronously removes a file or directory recursively (fs-extra's `removeSync`). No error if the path doesn't exist.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The file or directory to remove"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.removeSync('temp')"
+        }
+      ]
+    },
+    "deleteFile": {
+      "description": "Synchronously deletes a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The path of the file to delete"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "fs.deleteFile('temp/cache.tmp')"
+        }
+      ]
+    },
+    "deleteFileAsync": {
+      "description": "Asynchronously deletes a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "The path of the file to delete"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await fs.deleteFileAsync('temp/cache.tmp')"
+        }
+      ]
+    },
+    "unlink": {
+      "description": "Asynchronously removes a file (node's `fs/promises` name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    },
+    "unlinkSync": {
+      "description": "Synchronously removes a file (node's name).",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    },
+    "rmAsync": {
+      "description": "Asynchronously removes a file.",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Parameter path"
+        },
+        "options": {
+          "type": "{ recursive?: boolean; force?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "returns": "void"
+    },
+    "rmdirAsync": {
+      "description": "Asynchronously removes a directory and all its contents.",
+      "parameters": {
+        "dirPath": {
+          "type": "string",
+          "description": "Parameter dirPath"
+        }
+      },
+      "required": [
+        "dirPath"
+      ],
+      "returns": "void"
     },
     "copy": {
       "description": "Synchronously copies a file or directory. Auto-detects whether the source is a file or directory and handles each appropriately (recursive for directories).",
@@ -5192,9 +5690,75 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.copy('src/config.json', 'backup/config.json')\nfs.copy('src', 'backup/src')"
+          "code": "fs.copy('src/index.ts', 'backup/index.ts')\nfs.copy('src', 'backup/src')"
         }
       ]
+    },
+    "copySync": {
+      "description": "Synchronously copies a file or directory.",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        },
+        "options": {
+          "type": "{ overwrite?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
+    },
+    "cp": {
+      "description": "Asynchronously copies a file or directory (node's `fs/promises` name).",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        },
+        "options": {
+          "type": "{ overwrite?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
+    },
+    "cpSync": {
+      "description": "Synchronously copies a file or directory (node's name).",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        },
+        "options": {
+          "type": "{ overwrite?: boolean }",
+          "description": "Parameter options"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
     },
     "copyAsync": {
       "description": "Asynchronously copies a file or directory. Auto-detects whether the source is a file or directory and handles each appropriately (recursive for directories).",
@@ -5226,7 +5790,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "await fs.copyAsync('src/config.json', 'backup/config.json')\nawait fs.copyAsync('src', 'backup/src')"
+          "code": "await fs.copyAsync('src/index.ts', 'backup/index.ts')\nawait fs.copyAsync('src', 'backup/src')"
         }
       ]
     },
@@ -5250,7 +5814,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "fs.move('temp/draft.txt', 'final/document.txt')\nfs.move('old-dir', 'new-dir')"
+          "code": "fs.ensureFile('temp/draft.txt', 'work in progress')\nfs.move('temp/draft.txt', 'final/document.txt')\n\nfs.ensureFolder('old-dir')\nfs.move('old-dir', 'new-dir')"
         }
       ]
     },
@@ -5274,9 +5838,63 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "await fs.moveAsync('temp/draft.txt', 'final/document.txt')\nawait fs.moveAsync('old-dir', 'new-dir')"
+          "code": "await fs.ensureFileAsync('temp/draft.txt', 'work in progress')\nawait fs.moveAsync('temp/draft.txt', 'final/document.txt')\n\nawait fs.ensureFolderAsync('old-dir')\nawait fs.moveAsync('old-dir', 'new-dir')"
         }
       ]
+    },
+    "moveSync": {
+      "description": "Synchronously moves a file or directory.",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
+    },
+    "rename": {
+      "description": "Asynchronously moves (renames) a file or directory (node's `fs/promises` name).",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
+    },
+    "renameSync": {
+      "description": "Synchronously moves (renames) a file or directory (node's name).",
+      "parameters": {
+        "src": {
+          "type": "string",
+          "description": "Parameter src"
+        },
+        "dest": {
+          "type": "string",
+          "description": "Parameter dest"
+        }
+      },
+      "required": [
+        "src",
+        "dest"
+      ],
+      "returns": "void"
     },
     "walk": {
       "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns.",
@@ -5319,7 +5937,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }"
+          "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
         }
       ]
     },
@@ -5364,7 +5982,7 @@ setBuildTimeData('features.fs', {
       "examples": [
         {
           "language": "ts",
-          "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconst files = await fs.walkAsync('inbox', { relative: true })\n// files.files => ['contact-1.json', 'subfolder/file.txt', ...]"
+          "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\n\nawait fs.ensureFileAsync('inbox/contact-1.json', '{}')\nconst files = await fs.walkAsync('inbox', { relative: true })\n// files.files => ['contact-1.json']"
         }
       ]
     },
@@ -5437,6 +6055,7 @@ setBuildTimeData('features.fs', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "filesystem",
   "examples": [
     {
       "language": "ts",
@@ -5534,7 +6153,7 @@ setBuildTimeData('features.git', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
+          "code": "// ls-files needs a repository — guard with isRepo when the cwd might not be one\nif (git.isRepo) {\n // Get all tracked files\n const allFiles = await git.lsFiles()\n\n // Get only modified files\n const modified = await git.lsFiles({ modified: true })\n\n // Get untracked files excluding certain patterns\n const untracked = await git.lsFiles({\n   others: true,\n   exclude: ['*.log', 'node_modules']\n })\n\n // Scope the listing to a subdirectory\n const srcFiles = await git.lsFiles({ baseDir: 'src' })\n}"
         }
       ]
     },
@@ -5570,7 +6189,7 @@ setBuildTimeData('features.git', {
       "examples": [
         {
           "language": "ts",
-          "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
+          "code": "const log = git.fileLog('package.json')\nconst multiFileLog = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
         }
       ]
     },
@@ -5598,7 +6217,7 @@ setBuildTimeData('features.git', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
+          "code": "// Diff package.json between HEAD and a specific commit\nconst fromHead = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst betweenBranches = git.diff('src/index.ts', 'feature-branch', 'main')"
         }
       ]
     },
@@ -5644,7 +6263,7 @@ setBuildTimeData('features.git', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Extract a subfolder\nawait git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })\n\n// Specific branch\nawait git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })\n\n// Full GitHub URL\nawait git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })"
+          "code": "// (no-run) downloads tarballs from GitHub — requires network access\n\n// Extract a subfolder\nawait git.extractFolder({ source: 'soederpop/luca/docs/examples', destination: './examples' })\n\n// Specific branch\nawait git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'master' })\n\n// Full GitHub URL\nawait git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/docs/examples', destination: './examples' })"
         }
       ]
     },
@@ -5663,7 +6282,7 @@ setBuildTimeData('features.git', {
       "examples": [
         {
           "language": "ts",
-          "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
+          "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')"
         }
       ]
     }
@@ -5729,6 +6348,7 @@ setBuildTimeData('features.git', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -5791,7 +6411,7 @@ setBuildTimeData('features.git', {
 
 setBuildTimeData('features.googleAuth', {
   "id": "features.googleAuth",
-  "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
+  "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Two modes: - **oauth2** (default) — opens a browser for user consent. Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars (or `clientId` / `clientSecret` options). The refresh token is cached in diskCache, so subsequent runs restore authentication without a browser. - **service-account** — non-interactive, uses a JSON key file. Auto-selected when `serviceAccountKeyPath`, `serviceAccountKey`, or the `GOOGLE_SERVICE_ACCOUNT_KEY` env var is set. Ideal for automation, CI/CD, and background services. Note: a service account can only see files, sheets, and calendars that have been shared with its `client_email`. If no scopes are passed, `defaultScopes` is used — read-only access to Drive, Sheets, Calendar, Docs, and Gmail. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')` — authenticate once and every Google feature picks it up automatically.",
   "shortcut": "features.googleAuth",
   "className": "GoogleAuth",
   "methods": {
@@ -5802,13 +6422,19 @@ setBuildTimeData('features.googleAuth', {
       "returns": "OAuth2Client"
     },
     "getAuthClient": {
-      "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2. For service accounts, returns the JWT auth client.",
+      "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2 (refreshes when the access token is within a minute of expiry, emitting `tokenRefreshed`). For service accounts, returns the JWT auth client. If not yet authenticated, attempts to restore cached tokens first and throws if that fails.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>"
+      "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth')\n// Tries cached tokens automatically; throws if never authorized\nconst client = await auth.getAuthClient()\n// Pass to any googleapis constructor\n// google.drive({ version: 'v3', auth: client })"
+        }
+      ]
     },
     "authorize": {
-      "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server",
+      "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server Emits `authorizationRequired` with the consent URL, then `authenticated` on success. Times out after 5 minutes if the user never completes consent.",
       "parameters": {
         "scopes": {
           "type": "string[]",
@@ -5816,25 +6442,49 @@ setBuildTimeData('features.googleAuth', {
         }
       },
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\nconsole.log(auth.isAuthenticated)         // true\nconsole.log(auth.state.get('scopes'))     // the authorized scopes\n// The refresh token is now cached — future runs won't need the browser"
+        }
+      ]
     },
     "authenticateServiceAccount": {
-      "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var.",
+      "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var. Non-interactive — ideal for automation, CI/CD, and background services. Remember to share the Drive files, Sheets, or Calendars you need with the service account's client_email.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/service-account-key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()\nconsole.log(auth.state.get('email'))  // service account email"
+        }
+      ]
     },
     "tryRestoreTokens": {
-      "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated.",
+      "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated. In service-account mode, this simply re-authenticates with the key file.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<boolean>"
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\n// Restore-or-authorize pattern for scripts\nconst auth = container.feature('googleAuth')\nconst restored = await auth.tryRestoreTokens()\nif (!restored) {\n await auth.authorize()  // falls back to the browser flow\n}"
+        }
+      ]
     },
     "revoke": {
-      "description": "Revoke the current credentials and clear cached tokens.",
+      "description": "Revoke the current credentials and clear the cached refresh token from diskCache.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth')\nawait auth.revoke()\nconsole.log(auth.isAuthenticated)  // false — next run will need authorize() again"
+        }
+      ]
     }
   },
   "getters": {
@@ -5893,28 +6543,39 @@ setBuildTimeData('features.googleAuth', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
-      "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
+      "code": "// (no-run) requires Google OAuth credentials\n// OAuth2 flow — reads GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from env,\n// opens a browser for consent, caches the refresh token in diskCache\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\nconsole.log(auth.isAuthenticated)        // true\nconsole.log(auth.state.get('email'))     // your Google email\n\n// Other Google features use the same auth automatically\nconst drive = container.feature('googleDrive')\nconst { files } = await drive.listFiles()"
+    },
+    {
+      "language": "ts",
+      "code": "// (no-run) requires Google OAuth credentials\n// Service account flow — no browser needed\nconst sa = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/service-account-key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait sa.authenticateServiceAccount()\nconsole.log(sa.state.get('email'))       // the service account's client_email"
     }
   ]
 });
 
 setBuildTimeData('features.googleCalendar', {
   "id": "features.googleCalendar",
-  "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
+  "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication (requires Google OAuth2 credentials or a service account with Calendar access, e.g. the `calendar.readonly` scope). Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days alongside the full `listEvents()` for custom time ranges. Event `start` and `end` are objects: timed events have `dateTime`, all-day events have `date`. Pass a `timeZone` option (e.g. \"America/Chicago\") to control the timezone used when rendering event times in queries.",
   "shortcut": "features.googleCalendar",
   "className": "GoogleCalendar",
   "methods": {
     "listCalendars": {
-      "description": "List all calendars accessible to the authenticated user.",
+      "description": "List all calendars accessible to the authenticated user. Returns calendar metadata including id, summary, timeZone, and accessRole — use the id to target specific calendars in the other methods.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<CalendarInfo[]>"
+      "returns": "Promise<CalendarInfo[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst calendars = await calendar.listCalendars()\ncalendars.forEach(c => console.log(`${c.primary ? '*' : ' '} ${c.summary} (${c.id})`))"
+        }
+      ]
     },
     "listEvents": {
-      "description": "List events from a calendar within a time range.",
+      "description": "List events from a calendar within a time range. Defaults: maxResults 250, orderBy 'startTime', singleEvents true (recurring events are expanded into instances). Paginate via the returned nextPageToken.",
       "parameters": {
         "options": {
           "type": "ListEventsOptions",
@@ -5956,10 +6617,16 @@ setBuildTimeData('features.googleCalendar', {
         }
       },
       "required": [],
-      "returns": "Promise<CalendarEventList>"
+      "returns": "Promise<CalendarEventList>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst { events, nextPageToken } = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n maxResults: 50,\n orderBy: 'startTime',\n})\nconsole.log(`March events: ${events.length}`)"
+        }
+      ]
     },
     "getToday": {
-      "description": "Get today's events from a calendar.",
+      "description": "Get today's events from a calendar — midnight to midnight in the server's local time.",
       "parameters": {
         "calendarId": {
           "type": "string",
@@ -5967,10 +6634,16 @@ setBuildTimeData('features.googleCalendar', {
         }
       },
       "required": [],
-      "returns": "Promise<CalendarEvent[]>"
+      "returns": "Promise<CalendarEvent[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst today = await calendar.getToday()\ntoday.forEach(e => {\n const time = e.start.dateTime\n   ? new Date(e.start.dateTime).toLocaleTimeString()\n   : 'All day'\n console.log(`${time} - ${e.summary}`)\n})"
+        }
+      ]
     },
     "getUpcoming": {
-      "description": "Get upcoming events for the next N days.",
+      "description": "Get upcoming events for the next N days, starting from now.",
       "parameters": {
         "days": {
           "type": "number",
@@ -5982,7 +6655,13 @@ setBuildTimeData('features.googleCalendar', {
         }
       },
       "required": [],
-      "returns": "Promise<CalendarEvent[]>"
+      "returns": "Promise<CalendarEvent[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst week = await calendar.getUpcoming(7)\nconst month = await calendar.getUpcoming(30)\nconst work = await calendar.getUpcoming(7, 'work-calendar-id')\nconsole.log(`Next 7 days: ${week.length} events`)"
+        }
+      ]
     },
     "getEvent": {
       "description": "Get a single event by ID.",
@@ -6002,7 +6681,7 @@ setBuildTimeData('features.googleCalendar', {
       "returns": "Promise<CalendarEvent>"
     },
     "searchEvents": {
-      "description": "Search events by text query across event summaries, descriptions, and locations.",
+      "description": "Search events by text query across event summaries, descriptions, and locations. Combine with timeMin/timeMax options for more precise results.",
       "parameters": {
         "query": {
           "type": "string",
@@ -6050,7 +6729,13 @@ setBuildTimeData('features.googleCalendar', {
       "required": [
         "query"
       ],
-      "returns": "Promise<CalendarEvent[]>"
+      "returns": "Promise<CalendarEvent[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst standups = await calendar.searchEvents('standup')\nconst reviews = await calendar.searchEvents('review', {\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})\nconsole.log(`Found ${standups.length} standup events`)"
+        }
+      ]
     }
   },
   "getters": {
@@ -6079,10 +6764,11 @@ setBuildTimeData('features.googleCalendar', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
-      "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
+      "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/calendar.readonly'],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst calendar = container.feature('googleCalendar', {\n defaultCalendarId: 'primary',\n timeZone: 'America/Chicago',\n})\n\n// Today's events — start.dateTime for timed events, start.date for all-day\nconst today = await calendar.getToday()\ntoday.forEach(e => console.log(e.start.dateTime || e.start.date, e.summary))\n\n// Next 7 days\nconst upcoming = await calendar.getUpcoming(7)"
     }
   ],
   "types": {
@@ -6250,12 +6936,12 @@ setBuildTimeData('features.googleCalendar', {
 
 setBuildTimeData('features.googleDocs', {
   "id": "features.googleDocs",
-  "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
+  "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication (requires Google OAuth2 credentials or a service account with Docs access, e.g. the `documents.readonly` scope) and uses googleDrive for listing and searching docs (which needs Drive access too). The standout capability is Markdown conversion: the converter handles headings (H1-H6), bold/italic/strikethrough, links, code spans (Courier/monospace fonts), ordered and unordered lists with nesting, tables (pipe format), images, and section breaks. Also supports plain text extraction and raw Docs API structure. The document ID is in the doc URL: `https://docs.google.com/document/d/{DOCUMENT_ID}/edit`",
   "shortcut": "features.googleDocs",
   "className": "GoogleDocs",
   "methods": {
     "getDocument": {
-      "description": "Get the raw document structure from the Docs API.",
+      "description": "Get the raw document structure from the Docs API. Use this when you need the full Docs API structure for custom processing.",
       "parameters": {
         "documentId": {
           "type": "string",
@@ -6265,10 +6951,16 @@ setBuildTimeData('features.googleDocs', {
       "required": [
         "documentId"
       ],
-      "returns": "Promise<docs_v1.Schema$Document>"
+      "returns": "Promise<docs_v1.Schema$Document>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst rawDoc = await docs.getDocument('1abc_document_id')\nconsole.log(rawDoc.title)\nconsole.log(rawDoc.body?.content?.length)  // structural elements\nconsole.log(rawDoc.inlineObjects)          // embedded images"
+        }
+      ]
     },
     "getAsMarkdown": {
-      "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks.",
+      "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks. This is the primary method for extracting document content.",
       "parameters": {
         "documentId": {
           "type": "string",
@@ -6278,10 +6970,16 @@ setBuildTimeData('features.googleDocs', {
       "required": [
         "documentId"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\nconsole.log(markdown)"
+        }
+      ]
     },
     "getAsText": {
-      "description": "Read a Google Doc as plain text (strips all formatting).",
+      "description": "Read a Google Doc as plain text (strips all formatting). Use this when you only need the words without any Markdown syntax.",
       "parameters": {
         "documentId": {
           "type": "string",
@@ -6291,10 +6989,16 @@ setBuildTimeData('features.googleDocs', {
       "required": [
         "documentId"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst text = await docs.getAsText('1abc_document_id')\nconsole.log('Plain text length:', text.length)"
+        }
+      ]
     },
     "saveAsMarkdown": {
-      "description": "Download a Google Doc as Markdown and save to a local file.",
+      "description": "Download a Google Doc as Markdown and save to a local file in one step.",
       "parameters": {
         "documentId": {
           "type": "string",
@@ -6309,14 +7013,20 @@ setBuildTimeData('features.googleDocs', {
         "documentId",
         "localPath"
       ],
-      "returns": "Promise<string>"
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst path = await docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\nconsole.log('Saved to:', path)  // absolute path"
+        }
+      ]
     },
     "listDocs": {
-      "description": "List Google Docs in Drive (filters by Docs MIME type).",
+      "description": "List Google Docs in Drive (filters by the Docs MIME type, excludes trashed files). Passing a query filters by document name.",
       "parameters": {
         "query": {
           "type": "string",
-          "description": "Optional additional Drive search query"
+          "description": "Optional name filter (matches \"name contains\" in Drive)"
         },
         "options": {
           "type": "{ pageSize?: number; pageToken?: string }",
@@ -6324,10 +7034,16 @@ setBuildTimeData('features.googleDocs', {
         }
       },
       "required": [],
-      "returns": "Promise<DriveFile[]>"
+      "returns": "Promise<DriveFile[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst allDocs = await docs.listDocs()\nconsole.log(`Found ${allDocs.length} Google Docs`)\n\n// Filter by name\nconst reports = await docs.listDocs('report')"
+        }
+      ]
     },
     "searchDocs": {
-      "description": "Search for Google Docs by name or content.",
+      "description": "Search for Google Docs by name or content (full-text search via Drive, filtered to the Google Docs MIME type).",
       "parameters": {
         "term": {
           "type": "string",
@@ -6337,7 +7053,13 @@ setBuildTimeData('features.googleDocs', {
       "required": [
         "term"
       ],
-      "returns": "Promise<DriveFile[]>"
+      "returns": "Promise<DriveFile[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst results = await docs.searchDocs('quarterly earnings')\nresults.forEach(d => console.log(d.name, d.id))"
+        }
+      ]
     }
   },
   "getters": {
@@ -6366,22 +7088,23 @@ setBuildTimeData('features.googleDocs', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
-      "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
+      "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: [\n   'https://www.googleapis.com/auth/documents.readonly',\n   'https://www.googleapis.com/auth/drive.readonly',\n ],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst docs = container.feature('googleDocs')\n\n// Convert a doc to clean Markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Find docs by name or content (via Drive)\nconst results = await docs.searchDocs('meeting notes')\nresults.forEach(d => console.log(d.name, d.id))"
     }
   ]
 });
 
 setBuildTimeData('features.googleDrive', {
   "id": "features.googleDrive",
-  "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
+  "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication (requires Google OAuth2 credentials or a service account with Drive access, e.g. the `drive.readonly` scope). Creates a Drive v3 API client lazily and passes the auth client from googleAuth — authenticate once via googleAuth and this feature picks it up. Use `download()`/`downloadTo()` for binary files and `exportFile()` to convert Google Workspace documents (Docs, Sheets, Slides) to formats like PDF, CSV, or plain text. Listing defaults: 100 results per page, ordered by modifiedTime desc.",
   "shortcut": "features.googleDrive",
   "className": "GoogleDrive",
   "methods": {
     "listFiles": {
-      "description": "List files in the user's Drive with an optional query filter.",
+      "description": "List files in the user's Drive with an optional query filter. Defaults to 100 results ordered by modifiedTime desc. Paginate via the returned nextPageToken. Pass `corpora: 'allDrives'` to include shared drives.",
       "parameters": {
         "query": {
           "type": "string",
@@ -6415,7 +7138,13 @@ setBuildTimeData('features.googleDrive', {
         }
       },
       "required": [],
-      "returns": "Promise<DriveFileList>"
+      "returns": "Promise<DriveFileList>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\n\n// Recent files\nconst { files } = await drive.listFiles()\n\n// With a Drive query filter\nconst { files: pdfs } = await drive.listFiles(\"mimeType = 'application/pdf'\")\n\n// Paginate\nconst page1 = await drive.listFiles(undefined, { pageSize: 10 })\nconst page2 = await drive.listFiles(undefined, { pageSize: 10, pageToken: page1.nextPageToken })"
+        }
+      ]
     },
     "listFolder": {
       "description": "List files within a specific folder.",
@@ -6457,7 +7186,7 @@ setBuildTimeData('features.googleDrive', {
       "returns": "Promise<DriveFileList>"
     },
     "browse": {
-      "description": "Browse a folder's contents, separating files from subfolders.",
+      "description": "Browse a folder's contents, separating files from subfolders for easy navigation.",
       "parameters": {
         "folderId": {
           "type": "string",
@@ -6465,10 +7194,16 @@ setBuildTimeData('features.googleDrive', {
         }
       },
       "required": [],
-      "returns": "Promise<DriveBrowseResult>"
+      "returns": "Promise<DriveBrowseResult>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\nconst root = await drive.browse()  // defaults to the root folder\nroot.folders.forEach(f => console.log(`[dir]  ${f.name}`))\nroot.files.forEach(f => console.log(`[file] ${f.name}`))\n\nconst sub = await drive.browse('folder-id-here')"
+        }
+      ]
     },
     "search": {
-      "description": "Search files by name, content, or MIME type.",
+      "description": "Search files by name, content, or MIME type (full-text search, trashed files excluded). A simpler interface than raw Drive query strings on `listFiles()`.",
       "parameters": {
         "term": {
           "type": "string",
@@ -6482,7 +7217,13 @@ setBuildTimeData('features.googleDrive', {
       "required": [
         "term"
       ],
-      "returns": "Promise<DriveFileList>"
+      "returns": "Promise<DriveFileList>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\n\n// Search by name and content\nconst { files } = await drive.search('quarterly report')\n\n// Filter by MIME type, or restrict to a folder\nconst { files: pdfs } = await drive.search('report', { mimeType: 'application/pdf' })\nconst { files: notes } = await drive.search('notes', { inFolder: 'folder-id-here' })"
+        }
+      ]
     },
     "getFile": {
       "description": "Get file metadata by file ID.",
@@ -6584,10 +7325,11 @@ setBuildTimeData('features.googleDrive', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
-      "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
+      "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\nfiles.forEach(f => console.log(f.name, f.mimeType))\n\n// Search, then download a match to disk\nconst { files: pdfs } = await drive.search('quarterly report', {\n mimeType: 'application/pdf',\n})\nawait drive.downloadTo(pdfs[0].id, './downloads/report.pdf')"
     }
   ],
   "types": {
@@ -6891,6 +7633,7 @@ setBuildTimeData('features.googleMail', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
@@ -7114,7 +7857,7 @@ setBuildTimeData('features.googleMail', {
 
 setBuildTimeData('features.googleSheets', {
   "id": "features.googleSheets",
-  "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
+  "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication (OAuth2 credentials or a service account with Sheets access). Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data. Set `defaultSpreadsheetId` once to avoid passing the ID on every call. Numeric cell values come through as strings by default.",
   "shortcut": "features.googleSheets",
   "className": "GoogleSheets",
   "methods": {
@@ -7252,10 +7995,11 @@ setBuildTimeData('features.googleSheets', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "google-workspace",
   "examples": [
     {
       "language": "ts",
-      "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
+      "code": "// (no-run) requires Google OAuth credentials\nconst sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Inspect structure before reading\nconst meta = await sheets.getSpreadsheet()\nconst tabs = await sheets.listSheets()\n// => [{ title: 'Sheet1', rowCount: 100, ... }]\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range (A1 notation, returns a 2D string array)\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file (path resolved relative to the container cwd; returns the resolved path)\nawait sheets.saveAsJson('./data/export.json')"
     }
   ],
   "types": {
@@ -7391,7 +8135,7 @@ setBuildTimeData('features.grep', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
+          "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst withContext = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})\n\n// Cap the number of results\nconst firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })"
         }
       ]
     },
@@ -7465,7 +8209,7 @@ setBuildTimeData('features.grep', {
       ]
     },
     "todos": {
-      "description": "Find TODO, FIXME, HACK, and XXX comments.",
+      "description": "Find lines containing TODO, FIXME, HACK, or XXX. NOTE: this is a plain substring/regex match against the whole line — it does NOT parse comments. Any occurrence of these words matches, including inside string literals, markdown prose, and documentation. In particular, a command or script that generates a report about TODOs will match its own source (e.g. `console.log('TODO report')`), so filter out the reporting file itself or exclude string-literal matches when post-processing results.",
       "parameters": {
         "options": {
           "type": "Omit<GrepOptions, 'pattern'>",
@@ -7477,7 +8221,7 @@ setBuildTimeData('features.grep', {
       "examples": [
         {
           "language": "ts",
-          "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
+          "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })\n\n// A report generator should exclude itself from the results\nconst filtered = todos.filter(m => !m.file.endsWith('commands/todo-report.ts'))"
         }
       ]
     },
@@ -7547,6 +8291,7 @@ setBuildTimeData('features.grep', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "filesystem",
   "examples": [
     {
       "language": "ts",
@@ -7660,7 +8405,7 @@ setBuildTimeData('features.grep', {
 
 setBuildTimeData('features.helpers', {
   "id": "features.helpers",
-  "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/, selectors/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms",
+  "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/, selectors/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms This is also the composition point for building your own plugin/registry systems (\"meta-discovery\"): call `discover(type, { directory })` once per plugin folder to load helpers from anywhere, not just the conventional locations. A missing directory simply yields no helpers. See `assistantsManager` for a production example. Note: registries (`container.commands`, `container.features`, ...) are class instances — enumerate them with `.available`, not `Object.keys()`.",
   "shortcut": "features.helpers",
   "className": "Helpers",
   "methods": {
@@ -7694,7 +8439,7 @@ setBuildTimeData('features.helpers', {
           "properties": {
             "directory": {
               "type": "any",
-              "description": "Override the directory to scan"
+              "description": "Override the directory to scan. A missing directory"
             }
           }
         }
@@ -7707,6 +8452,10 @@ setBuildTimeData('features.helpers', {
         {
           "language": "ts",
           "code": "const names = await container.helpers.discover('features')\nconsole.log(names) // ['myCustomFeature']"
+        },
+        {
+          "language": "ts",
+          "code": "// Meta-discovery: build a plugin system by scanning each plugin's folders.\n// To enumerate a registry afterwards use `.available` — registries are class\n// instances, so `Object.keys(container.commands)` will NOT list helper names.\nconst pluginDirs = [container.paths.resolve(container.feature('os').tmpdir, 'my-plugin')]\nfor (const plugin of pluginDirs) {\n await container.helpers.discover('commands', { directory: `${plugin}/commands` })\n}\nconsole.log(container.commands.available)"
         }
       ]
     },
@@ -7765,7 +8514,7 @@ setBuildTimeData('features.helpers', {
       "returns": "string"
     },
     "loadModuleExports": {
-      "description": "Load a module either via native `import()` or the VM's virtual module system. Uses the same `useNativeImport` check as discovery to decide the loading strategy.",
+      "description": "Load a module either via native `import()` or the VM's virtual module system. Uses the same `useNativeImport` check as discovery to decide the loading strategy. Prefer this over a raw dynamic `import()` when loading project files: it works both in dev and inside the compiled `luca` binary (where project modules must go through the VM), so plugin loaders built on it don't break in production.",
       "parameters": {
         "absPath": {
           "type": "string",
@@ -7785,7 +8534,13 @@ setBuildTimeData('features.helpers', {
       "required": [
         "absPath"
       ],
-      "returns": "Promise<Record<string, any>>"
+      "returns": "Promise<Record<string, any>>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const mod = await container.helpers.loadModuleExports('/abs/path/to/plugin.ts')"
+        }
+      ]
     }
   },
   "getters": {
@@ -7794,7 +8549,7 @@ setBuildTimeData('features.helpers', {
       "returns": "string"
     },
     "useNativeImport": {
-      "description": "Whether to use native `import()` for loading project helpers. True only if `luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
+      "description": "Whether to use native `import()` for loading project helpers. Never inside a compiled binary — a standalone executable cannot resolve bare `import 'luca'` specifiers from disk files at runtime, so the VM's virtual modules are the only working path there. In dev (running under plain bun), native import is used when `luca` is resolvable in `node_modules` under either package name.",
       "returns": "boolean"
     },
     "available": {
@@ -7813,17 +8568,22 @@ setBuildTimeData('features.helpers', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
       "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+    },
+    {
+      "language": "ts",
+      "code": "// Meta-discovery: load each plugin's commands from its own folder\nfor (const dir of ['./plugins/analytics/commands', './plugins/billing/commands']) {\n await container.helpers.discover('commands', { directory: dir })\n}\nconsole.log(container.commands.available) // all registered command names"
     }
   ]
 });
 
 setBuildTimeData('features.ink', {
   "id": "features.ink",
-  "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
+  "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit - `ink.registerBlock()` / `ink.renderBlock()` / `ink.renderBlockAsync()` — a named block registry for rendering components inline in document flow (\"poor man's MDX\", used by `luca run` for markdown files with a `## Blocks` section) **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
   "shortcut": "features.ink",
   "className": "Ink",
   "methods": {
@@ -7883,7 +8643,7 @@ setBuildTimeData('features.ink', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
+          "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
         }
       ]
     },
@@ -7895,7 +8655,7 @@ setBuildTimeData('features.ink', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+          "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'working...'))\n// something must eventually unmount the app or the promise never settles —\n// here a timer stands in for user input / app completion\nsetTimeout(() => ink.unmount(), 100)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
         }
       ]
     },
@@ -7907,12 +8667,12 @@ setBuildTimeData('features.ink', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
+          "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'temporary output'))\n// ... later, wipe the screen\nink.clear()\nink.unmount()"
         }
       ]
     },
     "registerBlock": {
-      "description": "Register a named React function component as a renderable block.",
+      "description": "Register a named React function component as a renderable block. Blocks power the \"poor man's MDX\" pattern used by `luca run` on markdown files: any `tsx`/`jsx` code fence under a `## Blocks` heading has its top-level function components auto-registered as blocks, and the plain `ts` code blocks in the rest of the document get `render(name, props)` and `renderAsync(name, props)` globals that map to `renderBlock()` and `renderBlockAsync()` — so rich terminal UI renders inline with the document flow.",
       "parameters": {
         "name": {
           "type": "string",
@@ -7954,7 +8714,7 @@ setBuildTimeData('features.ink', {
       "examples": [
         {
           "language": "ts",
-          "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+          "code": "const { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)\nawait ink.renderBlock('Greeting', { name: 'Jon' })"
         }
       ]
     },
@@ -7981,7 +8741,7 @@ setBuildTimeData('features.ink', {
       "examples": [
         {
           "language": "tsx",
-          "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+          "code": "// (no-run) demonstrates the ## Blocks convention inside runnable markdown docs\n// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
         }
       ]
     }
@@ -7991,13 +8751,23 @@ setBuildTimeData('features.ink', {
       "description": "The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import.",
       "returns": "typeof import('react')"
     },
+    "module": {
+      "description": "The raw ink module namespace, or `null` if not yet loaded. Used by the VM virtual-module bridge so user code that does `import { Text } from 'ink'` receives the SAME ink instance the feature renders with — a second ink/react copy breaks every hook with React context mismatches (\"Invalid hook call\", `isRawModeSupported === undefined`).",
+      "returns": "typeof import('ink') | null"
+    },
     "components": {
       "description": "All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ```",
       "returns": "{ Box: typeof import('ink').Box; Text: typeof import('ink').Text; Static: typeof import('ink').Static; Transform: typeof import('ink').Transform; Newline: typeof import('ink').Newline; Spacer: typeof import('ink').Spacer }"
     },
     "hooks": {
-      "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ```",
-      "returns": "{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }"
+      "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` Hooks work inside functional components passed to `render()`.",
+      "returns": "{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) interactive — waits for a keypress\nconst ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\nconst { Text } = ink.components\nconst { React } = ink\nconst { useInput, useApp } = ink.hooks\n\nfunction App() {\n const { exit } = useApp()\n useInput((input, key) => {\n   if (input === 'q') exit()\n })\n return React.createElement(Text, null, 'Press q to quit')\n}\n\nawait ink.render(React.createElement(App))\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+        }
+      ]
     },
     "measureElement": {
       "description": "The Ink measureElement utility.",
@@ -8031,12 +8801,13 @@ setBuildTimeData('features.ink', {
   "state": {},
   "options": {},
   "envVars": [],
-  "stability": "stable"
+  "stability": "stable",
+  "category": "ui-output"
 });
 
 setBuildTimeData('features.ipcSocket', {
   "id": "features.ipcSocket",
-  "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Reply to sender, or ask and wait ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
+  "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live socket (and reconnect timers, when `reconnect: true`) keep the event loop running. Call `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished, and if the process still lingers, end with `process.exit(0)`. **Mode locking:** a single IpcSocket instance is locked to one role — the first `listen()` locks it into server mode and the first `connect()` locks it into client mode (attempting the other call afterwards throws). To act as both server and client within one process, create two distinct instances by giving each a different `name` option (instances are memoized per schema-validated options, so the differentiating key must be a real option): `container.feature('ipcSocket', { name: 'hub' })` and `container.feature('ipcSocket', { name: 'spoke' })`. **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Incoming ask() requests carry a requestId — reply to complete them if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId); // Or fire-and-forget back to the sender else ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply: ask the server and await its reply const answer = await ipc.ask({ type: 'question' }); // Answer asks initiated by the server ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
   "shortcut": "features.ipcSocket",
   "className": "IpcSocket",
   "methods": {
@@ -8059,7 +8830,7 @@ setBuildTimeData('features.ipcSocket', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
+          "code": "const sock = `/tmp/myapp-${process.pid}.sock`\n\n// `true` removes a stale socket file first (probes it; throws if a live\n// process is already listening on the path)\nconst server = await ipc.listen(sock, true);\n\n// Handle connections and messages — both events include the client ID\nipc.on('connection', (clientId, socket) => {\n console.log('New client connected:', clientId);\n});\n\nipc.on('message', (data, clientId) => {\n console.log(`Received from ${clientId}:`, data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});\n\n// An open server holds the event loop — stop it when your command is done\nawait ipc.stopServer();"
         }
       ]
     },
@@ -8076,7 +8847,7 @@ setBuildTimeData('features.ipcSocket', {
       ]
     },
     "broadcast": {
-      "description": "Broadcasts a message to all connected clients (server mode only).",
+      "description": "Broadcasts a message to all connected clients (server mode only). Each connected client receives the broadcast as a `message` event. Messages are JSON-encoded in an envelope carrying a UUID for correlation. Clients whose sockets are no longer writable are silently skipped.",
       "parameters": {
         "message": {
           "type": "any",
@@ -8090,7 +8861,13 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "message"
       ],
-      "returns": "this"
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "ipc.broadcast({\n type: 'notification',\n message: 'Deployment starting',\n timestamp: Date.now()\n})"
+        }
+      ]
     },
     "sendTo": {
       "description": "Sends a message to a specific client by ID (server mode only).",
@@ -8108,10 +8885,16 @@ setBuildTimeData('features.ipcSocket', {
         "clientId",
         "message"
       ],
-      "returns": "boolean"
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Reply directly to the sender of an incoming message\nipc.on('message', (data, clientId) => {\n if (clientId) ipc.sendTo(clientId, { ack: true })\n})"
+        }
+      ]
     },
     "send": {
-      "description": "Fire-and-forget: sends a message to the server (client mode only). For server→client, use sendTo() or broadcast().",
+      "description": "Fire-and-forget: sends a message to the server (client mode only). For server→client, use sendTo() or broadcast(). When you need a correlated response, use ask() instead.",
       "parameters": {
         "message": {
           "type": "any",
@@ -8121,10 +8904,16 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "message"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// A live hub to talk to (in real projects it runs in another process)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/send-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\nhub.on('message', (data, clientId) => console.log('hub received:', data))\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\nawait ipc.send({ type: 'status', ready: true })\n\nawait container.utils.sleep(100)  // let the message arrive\nipc.disconnect(); await hub.stopServer()"
+        }
+      ]
     },
     "ask": {
-      "description": "Sends a message and waits for a correlated reply. Works in both client and server mode. The recipient should call `reply(requestId, response)` to respond.",
+      "description": "Sends a message and waits for a correlated reply. Works in both client and server mode. On the receiving side the message is delivered via the 'message' event with a `requestId` property merged onto the payload; the recipient should call `reply(requestId, response)` (plus the sender's clientId when replying from a server) to resolve this promise.",
       "parameters": {
         "message": {
           "type": "any",
@@ -8138,10 +8927,16 @@ setBuildTimeData('features.ipcSocket', {
       "required": [
         "message"
       ],
-      "returns": "Promise<any>"
+      "returns": "Promise<any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Full roundtrip: hub answers a spoke's ask (distinct `name` options\n// yield two independent instances — see the class example)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/ask-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\nhub.on('message', (data, clientId) => {\n if (data.requestId) hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)\n})\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\nconst answer = await ipc.ask({ type: 'sum', numbers: [1, 2, 3] })\nconsole.log(answer) // { sum: 6 }\n\n// Server → client works too: ipc.ask(msg, { clientId, timeoutMs: 2000 })\nipc.disconnect(); await hub.stopServer()"
+        }
+      ]
     },
     "reply": {
-      "description": "Sends a reply to a previous ask() call, correlated by requestId.",
+      "description": "Sends a reply to a previous ask() call, correlated by requestId. Incoming ask() requests surface their `requestId` on the payload delivered to the 'message' event, so a handler can correlate the reply: ```typescript // Server side — the 'message' handler receives (data, clientId) ipc.on('message', (data, clientId) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId) }) ```",
       "parameters": {
         "requestId": {
           "type": "string",
@@ -8153,7 +8948,7 @@ setBuildTimeData('features.ipcSocket', {
         },
         "clientId": {
           "type": "string",
-          "description": "Target client (server mode; for client mode, omit)"
+          "description": "Target client (required in server mode; omit in client mode)"
         }
       },
       "required": [
@@ -8171,32 +8966,50 @@ setBuildTimeData('features.ipcSocket', {
         },
         "options": {
           "type": "{ reconnect?: boolean; name?: string }",
-          "description": "Optional: reconnect (enable auto-reconnect), name (identify this client)"
+          "description": "Optional: reconnect (enable auto-reconnect with exponential backoff), name (identify this client to the server)"
         }
       },
       "required": [
         "socketPath"
       ],
-      "returns": "Promise<Socket>"
+      "returns": "Promise<Socket>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// A live hub to connect to (in real projects it runs in another process)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/connect-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock, { reconnect: false, name: 'worker-1' })\n\nipc.on('message', (data) => {\n console.log('From server:', data)\n})\n\n// The server assigns this client an ID on connect\nconsole.log('My client id:', ipc.clientId)\n\nipc.disconnect(); await hub.stopServer()"
+        }
+      ]
     },
     "disconnect": {
-      "description": "Disconnects the client and stops any reconnection attempts.",
+      "description": "Disconnects the client and stops any reconnection attempts. Call this when a CLI command finishes its work — an open socket (and any reconnect timers) keeps the event loop alive, so a command that skips disconnect() will hang instead of exiting.",
       "parameters": {},
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/disconnect-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\n\n// ...do your work, then:\nipc.disconnect() // let the process exit cleanly\nawait hub.stopServer()"
+        }
+      ]
     },
     "probeSocket": {
-      "description": "Probe an existing socket to see if a live listener is behind it. Attempts a quick connect — if it succeeds, someone is listening.",
+      "description": "Probe an existing socket to see if a live listener is behind it. Attempts a quick connect (500ms timeout) — if it succeeds, someone is listening. Used internally by listen(socketPath, true) to distinguish a stale socket file (safe to remove) from one owned by a live process.",
       "parameters": {
         "socketPath": {
           "type": "string",
-          "description": "Parameter socketPath"
+          "description": "Path to the socket file to probe"
         }
       },
       "required": [
         "socketPath"
       ],
-      "returns": "Promise<boolean>"
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sock = `/tmp/probe-demo-${process.pid}.sock`\n\nconsole.log(await ipc.probeSocket(sock)) // false — nothing listening\n\nawait ipc.listen(sock, true)\n// Probing from any process now reports a live listener\nconst other = container.feature('ipcSocket', { name: 'prober' })\nconsole.log(await other.probeSocket(sock)) // true\n\nawait ipc.stopServer()"
+        }
+      ]
     }
   },
   "getters": {
@@ -8241,12 +9054,19 @@ setBuildTimeData('features.ipcSocket', {
   "state": {},
   "options": {},
   "envVars": [],
-  "stability": "stable"
+  "stability": "stable",
+  "category": "networking",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// Complete request/reply roundtrip in a single process.\n// Distinct `name` options yield two independent instances,\n// one locked into server mode and one into client mode.\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst spoke = container.feature('ipcSocket', { name: 'spoke' })\n\nconst sock = `/tmp/ipc-example-${process.pid}.sock`\nawait hub.listen(sock, true) // `true` removes a stale socket file before binding\n\n// Server side: ask() requests arrive on the 'message' event with a requestId —\n// reply with it (plus the sender's clientId when replying from the server).\nhub.on('message', (data, clientId) => {\n if (data.requestId && data.type === 'sum') {\n   hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)\n }\n})\n\nawait spoke.connect(sock, { name: 'worker-1' })\nconst answer = await spoke.ask({ type: 'sum', numbers: [1, 2, 3] })\nconsole.log(answer) // { sum: 6 }\n\n// Fire-and-forget alternatives: send() (client→server), sendTo()/broadcast() (server→clients)\n\nspoke.disconnect()\nawait hub.stopServer()\n// In real projects the hub and spoke live in different processes —\n// the API is identical; only the socket path is shared."
+    }
+  ]
 });
 
 setBuildTimeData('features.jsonTree', {
   "id": "features.jsonTree",
-  "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
+  "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects This feature is on-demand: enable it explicitly before use. The tree starts empty and stays empty until you call `loadTree`. The `tree` getter returns a clean view of your loaded data — it filters out the internal `enabled` state property, so you only ever see JSON you loaded, never framework bookkeeping. **Usage Example:** ```typescript // On-demand: enable it explicitly first. const jsonTree = container.feature('jsonTree', { enable: true }); console.log(jsonTree.state.enabled);       // true console.log(jsonTree.tree);                 // {} — empty until loaded console.log('enabled' in jsonTree.tree);    // false — getter is clean // Scan a directory of JSON files. Paths become camelCased property paths: //   data/users/profiles.json  -> tree.appData.users.profiles //   data/user-profiles.json   -> tree.appData.userProfiles await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
   "shortcut": "features.jsonTree",
   "className": "JsonTree",
   "methods": {
@@ -8269,7 +9089,7 @@ setBuildTimeData('features.jsonTree', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
+          "code": "// Given a directory of JSON files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('settings/database')\nfs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))\n\n// Load all JSON files from the 'settings' directory into state.settings\nawait jsonTree.loadTree('settings');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = jsonTree.tree.settings.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load the same folder again under a custom key\nawait jsonTree.loadTree('settings', 'configuration');"
         }
       ]
     }
@@ -8290,12 +9110,13 @@ setBuildTimeData('features.jsonTree', {
   "state": {},
   "options": {},
   "envVars": [],
-  "stability": "stable"
+  "stability": "stable",
+  "category": "content-nlp"
 });
 
 setBuildTimeData('features.networking', {
   "id": "features.networking",
-  "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
+  "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services. Use `findOpenPort` before starting a server to avoid port conflicts, and `isPortOpen` to test a specific port without claiming it. It also offers heavier LAN tooling — host discovery, TCP port scanning, and an optional nmap wrapper — for inspecting the local network.",
   "shortcut": "features.networking",
   "className": "Networking",
   "methods": {
@@ -8330,6 +9151,43 @@ setBuildTimeData('features.networking', {
         {
           "language": "ts",
           "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
+        }
+      ]
+    },
+    "waitForPort": {
+      "description": "Waits until something is LISTENING on a port, polling with TCP connection probes. Resolves `true` as soon as a connection succeeds, or `false` when the timeout elapses without one — it never throws. Note the difference from `isPortOpen`, which asks whether a port is FREE for your own server to bind. `waitForPort` asks the opposite question: has a server come up on this port yet? It is the blessed way to smoke-test a server you just started, replacing hand-rolled poll loops.",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "The port to wait on"
+        },
+        "options": {
+          "type": "{ host?: string; timeout?: number; interval?: number }",
+          "description": "Wait options",
+          "properties": {
+            "host": {
+              "type": "any",
+              "description": "Host to probe"
+            },
+            "timeout": {
+              "type": "any",
+              "description": "Total time to keep trying, in milliseconds"
+            },
+            "interval": {
+              "type": "any",
+              "description": "Delay between probes, in milliseconds"
+            }
+          }
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "returns": "Promise<boolean>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Smoke-test a server you just started (the agent-harness pattern):\nconst port = await networking.findOpenPort(4000)\nconst server = container.server('express')\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\nawait server.start({ port })\n\nconst up = await networking.waitForPort(port, { timeout: 5000 })\nconsole.log(up) // true — safe to hit it with a rest client now\n\n// Fail fast when a dependency never comes up:\nconst ready = await networking.waitForPort(9999, { timeout: 500 })\nconsole.log(ready) // false — nothing is listening on 9999\n\nawait server.stop()"
         }
       ]
     },
@@ -8529,10 +9387,11 @@ setBuildTimeData('features.networking', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
-      "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
+      "code": "const networking = container.feature('networking')\n\n// Find the next available port starting at 3000. If 3000 is free you get\n// 3000 back; otherwise you get the next open port above it.\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check whether a specific port is free without claiming it.\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}\n\n// Allocate several non-conflicting ports for a multi-service setup —\n// each call independently finds the next open port from its start point.\nconst apiPort = await networking.findOpenPort(8080)\nconst wsPort = await networking.findOpenPort(8090)\nconst devPort = await networking.findOpenPort(5173)"
     }
   ],
   "types": {
@@ -8691,7 +9550,7 @@ setBuildTimeData('features.nlp', {
   "className": "NLP",
   "methods": {
     "parse": {
-      "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
+      "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers. Prepositional phrases (\"of\", \"about\", \"for\", \"with\") are pulled out as the `subject`, while the direct object becomes the `target`. This method is fast and lightweight (compromise only, no wink model load), so it is well suited to batch-processing large lists of voice commands.",
       "parameters": {
         "text": {
           "type": "string",
@@ -8705,7 +9564,7 @@ setBuildTimeData('features.nlp', {
       "examples": [
         {
           "language": "ts",
-          "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
+          "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\n// Fast enough to batch-process many commands at once:\nconst commands = [\"deploy the app to production\", \"restart the database server\"]\nfor (const raw of commands) {\n const { intent, target } = nlp.parse(raw)\n console.log(`${intent} -> ${target}`)\n}"
         }
       ]
     },
@@ -8754,6 +9613,7 @@ setBuildTimeData('features.nlp', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "content-nlp",
   "examples": [
     {
       "language": "ts",
@@ -8764,12 +9624,12 @@ setBuildTimeData('features.nlp', {
 
 setBuildTimeData('features.opener', {
   "id": "features.opener",
-  "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+  "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders). Under the hood it delegates to platform-appropriate commands (`open` on macOS, `start` on Windows, `xdg-open` / direct binary invocation on Linux). Every method triggers a side effect on the host — launching an application or browser — so treat all of these as no-run in automated/headless contexts.",
   "shortcut": "features.opener",
   "className": "Opener",
   "methods": {
     "open": {
-      "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
+      "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome (on Linux it tries `google-chrome`, then `chromium`, then falls back to `xdg-open`). Everything else is opened with the system default handler (`open` on macOS, `start` on Windows, `xdg-open` on Linux).",
       "parameters": {
         "target": {
           "type": "string",
@@ -8779,10 +9639,16 @@ setBuildTimeData('features.opener', {
       "required": [
         "target"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) opens applications on the host\nawait opener.open('https://github.com/soederpop/luca') // opens in Chrome\nawait opener.open('/Users/jon/screenshots/diagram.png') // default handler (Preview on macOS)"
+        }
+      ]
     },
     "app": {
-      "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
+      "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app — the application name should match what appears in `/Applications`. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
       "parameters": {
         "name": {
           "type": "string",
@@ -8792,10 +9658,16 @@ setBuildTimeData('features.opener', {
       "required": [
         "name"
       ],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) opens applications on the host\nawait opener.app('Slack')\nawait opener.app('Finder')"
+        }
+      ]
     },
     "code": {
-      "description": "Opens VS Code at the specified path. Uses the `code` CLI command. Falls back to `open -a \"Visual Studio Code\"` on macOS.",
+      "description": "Opens VS Code at the specified path. Uses the `code` CLI command if it is found in PATH. Falls back to `open -a \"Visual Studio Code\"` on macOS; on other platforms a missing CLI throws with install instructions.",
       "parameters": {
         "path": {
           "type": "string",
@@ -8803,10 +9675,16 @@ setBuildTimeData('features.opener', {
         }
       },
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) opens applications on the host\nawait opener.code('/Users/jon/projects/my-app')"
+        }
+      ]
     },
     "cursor": {
-      "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to `open -a \"Cursor\"` on macOS.",
+      "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command if it is found in PATH. Falls back to `open -a \"Cursor\"` on macOS; on other platforms a missing CLI throws with install instructions.",
       "parameters": {
         "path": {
           "type": "string",
@@ -8814,7 +9692,13 @@ setBuildTimeData('features.opener', {
         }
       },
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) opens applications on the host\nawait opener.cursor('/Users/jon/projects/my-app/src/index.ts')"
+        }
+      ]
     }
   },
   "getters": {},
@@ -8823,10 +9707,11 @@ setBuildTimeData('features.opener', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
-      "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
+      "code": "// (no-run) opens applications on the host\nconst opener = container.feature('opener')\n\n// Open a URL in Chrome (the default browser for HTTP/HTTPS targets)\nawait opener.open('https://github.com/soederpop/luca')\n\n// Open a file with the system default handler (e.g. Preview for a .png on macOS)\nawait opener.open('/Users/jon/screenshots/diagram.png')\n\n// Launch a desktop application by name\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a specific file\nawait opener.cursor('/Users/jon/projects/my-app/src/index.ts')"
     }
   ]
 });
@@ -8986,7 +9871,7 @@ setBuildTimeData('features.os', {
       "examples": [
         {
           "language": "ts",
-          "code": "// spawn a shell command cross-platform\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])"
+          "code": "// spawn a shell command cross-platform\nconst proc = container.feature('proc')\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])"
         }
       ]
     },
@@ -8996,7 +9881,7 @@ setBuildTimeData('features.os', {
       "examples": [
         {
           "language": "ts",
-          "code": "await proc.spawnAndCapture(os.shell, [os.shellFlag, command])"
+          "code": "const proc = container.feature('proc')\nconst command = 'echo hello'\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, command])"
         }
       ]
     },
@@ -9036,6 +9921,7 @@ setBuildTimeData('features.os', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -9341,6 +10227,7 @@ setBuildTimeData('features.packageFinder', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "dev-tools",
   "types": {
     "PartialManifest": {
       "description": "Partial representation of a package.json manifest file. Contains the most commonly used fields for package analysis and dependency management.",
@@ -9385,7 +10272,7 @@ setBuildTimeData('features.packageFinder', {
 
 setBuildTimeData('features.postgres', {
   "id": "features.postgres",
-  "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+  "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Requires a running PostgreSQL server and a connection URL — `options.url` is required (the constructor throws without it). In production, read the URL from an environment variable rather than hardcoding credentials.",
   "shortcut": "features.postgres",
   "className": "Postgres",
   "methods": {
@@ -9504,6 +10391,7 @@ setBuildTimeData('features.postgres', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
@@ -9519,7 +10407,7 @@ setBuildTimeData('features.proc', {
   "className": "ChildProcess",
   "methods": {
     "execAndCapture": {
-      "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.",
+      "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution. **WARNING: the command string is split naively on spaces** — there is no shell quoting or escaping. Quoted arguments containing spaces (paths like `\"/My Documents/file.txt\"`, format strings like `--format=\"%h %s\"`) get mangled into multiple arguments, quotes included. If any argument contains spaces or quotes, use `spawnAndCapture(command, argsArray)` instead and pass each argument as its own array element.",
       "parameters": {
         "cmd": {
           "type": "string",
@@ -9537,7 +10425,7 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
+          "code": "// Execute a git command — failures are captured, not thrown\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst listing = await proc.execAndCapture('ls -1', { cwd: 'src' })\n\n// WRONG: quoted args with spaces get split apart\n// await proc.execAndCapture('git log --format=\"%h %ad %s\" --date=short')\n// RIGHT: use spawnAndCapture with an args array\nconst log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--date=short'])"
         }
       ]
     },
@@ -9603,24 +10491,24 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+          "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory, watching output as it streams\nconst buildResult = await proc.spawnAndCapture('ls', ['-1'], {\n cwd: 'src',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
         }
       ]
     },
     "spawn": {
-      "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).",
+      "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()). Pass `detached: true` to run the child in its own process group so it can outlive the parent. When detached, stdio defaults to 'ignore' (piped stdio would tie the child to the parent and keep the parent's event loop alive) — call `.unref()` on the returned handle to let the parent exit.",
       "parameters": {
         "command": {
           "type": "string",
-          "description": "Parameter command"
+          "description": "The executable to run"
         },
         "args": {
           "type": "string[]",
-          "description": "Parameter args"
+          "description": "Arguments to pass to the command"
         },
         "options": {
           "type": "RawSpawnOptions",
-          "description": "Parameter options",
+          "description": "Spawn options",
           "properties": {
             "cwd": {
               "type": "string",
@@ -9641,6 +10529,10 @@ setBuildTimeData('features.proc', {
             "stderr": {
               "type": "\"pipe\" | \"inherit\" | \"ignore\"",
               "description": "Stderr mode for the child process"
+            },
+            "detached": {
+              "type": "boolean",
+              "description": "Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore')"
             }
           }
         }
@@ -9648,7 +10540,13 @@ setBuildTimeData('features.proc', {
       "required": [
         "command"
       ],
-      "returns": "import('child_process').ChildProcess"
+      "returns": "import('child_process').ChildProcess",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Streaming access with lifecycle control\nconst child = proc.spawn('bun', ['run', 'dev'])\nchild.stdout?.on('data', (buf) => console.log(buf.toString()))\n\n// Background worker that outlives the CLI process\nconst worker = proc.spawn('bun', ['worker.ts'], {\n detached: true,   // own process group — not reaped when the CLI exits\n stdout: 'ignore', // no pipes back to the parent\n stderr: 'ignore',\n})\nworker.unref()      // let the parent event loop exit\nconsole.log('worker pid:', worker.pid)"
+        }
+      ]
     },
     "exec": {
       "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
@@ -9669,7 +10567,7 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
+          "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch or execAndCapture"
         }
       ]
     },
@@ -9728,7 +10626,7 @@ setBuildTimeData('features.proc', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
+          "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')\n\n// Liveness check (supervisor pattern): signal 0 sends nothing but\n// returns false if the PID is dead/recycled — it does not throw.\n// Perfect for checking a PID persisted via diskCache from an earlier run.\nconst cache = container.feature('diskCache')\nif (await cache.has('worker')) {\n const { pid } = await cache.get('worker')\n const alive = proc.kill(pid, 0)   // true = still running, false = gone\n}"
         }
       ]
     },
@@ -9795,6 +10693,7 @@ setBuildTimeData('features.proc', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "process",
   "examples": [
     {
       "language": "ts",
@@ -9879,6 +10778,11 @@ setBuildTimeData('features.proc', {
           "type": "\"pipe\" | \"inherit\" | \"ignore\"",
           "description": "Stderr mode for the child process",
           "optional": true
+        },
+        "detached": {
+          "type": "boolean",
+          "description": "Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore')",
+          "optional": true
         }
       }
     }
@@ -9887,7 +10791,7 @@ setBuildTimeData('features.proc', {
 
 setBuildTimeData('features.processManager', {
   "id": "features.processManager",
-  "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.",
+  "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded. SCOPE: tracking is in-memory and per-process. ProcessManager supervises children of the *current* process only — its registry does not survive the CLI exiting, so it is the wrong tool for cross-invocation supervision (a `start` command spawning a worker that a later `stop` command must find). For that, use the detached spawn pattern: `proc.spawn(cmd, args, { detached: true })` + persist the PID via `diskCache`, and check liveness with `proc.kill(pid, 0)`. EVENT NAMING: handler-level events are singular (`exit`, `crash`, `killed` on the SpawnHandler) while feature-level events are past tense (`exited`, `crashed`, `killed`, `spawned`, `allStopped` on the ProcessManager itself). Subscribe on the right object for the name you want. The feature also keeps observable bookkeeping state: `pm.state.get('totalSpawned')` counts every spawn since the feature was created, and `pm.state.get('processes')` maps process IDs to metadata records (command, args, pid, status, exit code, timestamps). With `autoCleanup: true` (the default) exit/SIGINT/SIGTERM handlers are registered on first spawn so tracked children die with the parent.",
   "shortcut": "features.processManager",
   "className": "ProcessManager",
   "methods": {
@@ -10007,7 +10911,13 @@ setBuildTimeData('features.processManager', {
       "required": [
         "command"
       ],
-      "returns": "SpawnHandler"
+      "returns": "SpawnHandler",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const pm = container.feature('processManager', { enable: true })\n\n// Returns immediately — the handle carries state, events, and lifecycle methods\nconst handle = pm.spawn('echo', ['hello from process manager'], { tag: 'greeter' })\nhandle.on('stdout', (data) => console.log(data))\n\n// Wait for completion when you need the result\nconst exitCode = await handle.await()"
+        }
+      ]
     },
     "get": {
       "description": "Get a SpawnHandler by its unique ID.",
@@ -10033,16 +10943,28 @@ setBuildTimeData('features.processManager', {
       "required": [
         "tag"
       ],
-      "returns": "SpawnHandler | undefined"
+      "returns": "SpawnHandler | undefined",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "pm.spawn('sleep', ['5'], { tag: 'napper' })\nconst found = pm.getByTag('napper')\nconsole.log('Found by tag:', found ? found.status : 'no')"
+        }
+      ]
     },
     "list": {
-      "description": "List all tracked SpawnHandlers (running and finished).",
+      "description": "List all tracked SpawnHandlers (running and finished). Finished processes stay in the registry until removed with `remove(id)`, so the list is a full history of everything spawned by this feature instance.",
       "parameters": {},
       "required": [],
-      "returns": "SpawnHandler[]"
+      "returns": "SpawnHandler[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const all = pm.list()\nconst running = all.filter(h => h.isRunning)\nconsole.log(`${running.length} running of ${all.length} tracked`)"
+        }
+      ]
     },
     "killAll": {
-      "description": "Kill all running processes.",
+      "description": "Kill all running processes. Already-finished handlers are skipped; they remain in the registry for inspection. Use `stop()` instead when you also want the process exit handlers removed.",
       "parameters": {
         "signal": {
           "type": "NodeJS.Signals | number",
@@ -10050,13 +10972,25 @@ setBuildTimeData('features.processManager', {
         }
       },
       "required": [],
-      "returns": "void"
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "pm.killAll()\npm.list().filter(h => h.isRunning).length // => 0"
+        }
+      ]
     },
     "stop": {
-      "description": "Stop the process manager: kill all running processes and remove cleanup handlers.",
+      "description": "Stop the process manager: kill all running processes and remove cleanup handlers. This is the full teardown — unlike `killAll()` it also unregisters the exit/SIGINT/SIGTERM handlers installed by `autoCleanup`, so call it when a long-running command is shutting down and should leave no listeners behind.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<void>"
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "await pm.stop() // killAll + remove process exit handlers"
+        }
+      ]
     },
     "remove": {
       "description": "Remove a finished handler from tracking.",
@@ -10137,10 +11071,11 @@ setBuildTimeData('features.processManager', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "process",
   "examples": [
     {
       "language": "ts",
-      "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Peek at buffered output\nconst { head, tail } = server.peek()\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
+      "code": "// Enable with auto-cleanup so tracked processes die when the parent exits\nconst pm = container.feature('processManager', { enable: true, autoCleanup: true })\n\n// spawn() returns a SpawnHandler immediately — it never blocks\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Peek at buffered output (first 20 + last 50 lines)\nconst { head, tail } = server.peek()\n\n// List and lookup tracked processes (running and finished)\npm.list()                          // SpawnHandler[]\npm.getByTag('api')                 // SpawnHandler | undefined\npm.state.get('totalSpawned')       // number of processes spawned so far\n\n// Spawn something long-lived and terminate it\nconst sleeper = pm.spawn('sleep', ['10'], { tag: 'sleeper' })\nsleeper.kill()                     // status becomes 'killed'\n\n// Kill everything still running, then full teardown\npm.killAll()\npm.list().filter(h => h.isRunning).length // => 0\nawait pm.stop()                    // killAll + remove exit handlers"
     }
   ],
   "types": {
@@ -10184,7 +11119,7 @@ setBuildTimeData('features.processManager', {
 
 setBuildTimeData('features.python', {
   "id": "features.python",
-  "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
+  "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Requires a Python interpreter to be installed on the host. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
   "shortcut": "features.python",
   "className": "Python",
   "methods": {
@@ -10212,7 +11147,7 @@ setBuildTimeData('features.python', {
       ]
     },
     "installDependencies": {
-      "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
+      "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type — e.g. `uv sync` for uv, `conda env update` for conda, `pip install -r requirements.txt` or `pip install -e .` for venv/system. If a custom installCommand is provided in options, it will use that instead.",
       "parameters": {},
       "required": [],
       "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
@@ -10328,7 +11263,7 @@ setBuildTimeData('features.python', {
       "examples": [
         {
           "language": "ts",
-          "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'"
+          "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'\n\n// Errors don't crash the session — they come back on the result\nconst bad = await python.run('raise ValueError(\"oops\")')\nconsole.log(bad.ok)    // false\nconsole.log(bad.error) // 'oops'\nconst alive = await python.run('print(\"still here\")') // session keeps working"
         }
       ]
     },
@@ -10501,6 +11436,7 @@ setBuildTimeData('features.python', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -10837,6 +11773,7 @@ setBuildTimeData('features.redis', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
@@ -10847,12 +11784,12 @@ setBuildTimeData('features.redis', {
 
 setBuildTimeData('features.repl', {
   "id": "features.repl",
-  "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
+  "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers (the same globals as `container.context` — `container`, `fs`, `git`, `proc`, `grep`, `os`, `ui`, and friends — plus anything you pass via `context`). Supports tab completion for dot-notation property access, per-project command history persistence, and top-level await. The last evaluated result is bound to `_` inside the session. Type `.exit` or `exit` to quit. Because `start()` blocks waiting for interactive input, it is not suitable for scripts or markdown-runner contexts — you can enable the feature and inspect its state without starting it. The typical workflow is the `--console` flag on `luca run`: ``` luca run setup.md --console ``` This executes all of the markdown's code blocks first, then drops into a REPL that inherits the accumulated context — every variable, enabled feature, and loaded piece of data from the preceding blocks carries over. Define your setup and data loading in code blocks, then explore the results interactively. History defaults to a per-project file keyed by a hash of the cwd (`~/.cache/luca/repl-{cwdHash}.history`); override it with the `historyPath` option.",
   "shortcut": "features.repl",
   "className": "Repl",
   "methods": {
     "start": {
-      "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
+      "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await, and binds the last evaluated result to `_`. The prompt string comes from the feature's `prompt` option (default: `\"> \"`). Calling `start()` again on an already-started REPL resumes with a fresh readline but reuses the existing VM context, merging in any new `context` variables — accumulated session state survives.",
       "parameters": {
         "options": {
           "type": "{ historyPath?: string, context?: any }",
@@ -10864,7 +11801,7 @@ setBuildTimeData('features.repl', {
             },
             "context": {
               "type": "any",
-              "description": "Additional variables to inject into the VM context"
+              "description": "Additional variables to inject into the VM context as globals"
             }
           }
         }
@@ -10874,7 +11811,7 @@ setBuildTimeData('features.repl', {
       "examples": [
         {
           "language": "ts",
-          "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
+          "code": "const repl = container.feature('repl', { enable: true, prompt: 'luca> ' })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})\n// Inside the session: `db`, `container`, `fs`, etc. are all in scope,\n// tab completion works on dot paths, and `await` works at the top level."
         }
       ]
     }
@@ -10894,10 +11831,11 @@ setBuildTimeData('features.repl', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
-      "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
+      "code": "// Enable without starting — safe in non-interactive contexts\nconst repl = container.feature('repl', { enable: true })\nconsole.log('started:', repl.isStarted) // false until start() is called\n\n// Start interactively (blocks until the user types .exit or exit).\n// Variables passed as `context` become globals in the session.\nawait repl.start({ context: { myVar: 42 } })"
     }
   ]
 });
@@ -11032,7 +11970,7 @@ setBuildTimeData('features.runpod', {
       ]
     },
     "stopPod": {
-      "description": "Stop a running pod.",
+      "description": "Stop a running pod. Stopping preserves the pod's disk and data — restart it later with `startPod()`. Use `removePod()` to delete a pod permanently.",
       "parameters": {
         "podId": {
           "type": "string",
@@ -11197,7 +12135,7 @@ setBuildTimeData('features.runpod', {
       ]
     },
     "createVolume": {
-      "description": "Create a new network storage volume.",
+      "description": "Create a new network storage volume. Network volumes persist independently of pods — attach one to a pod via the `networkVolumeId` option of `createPod()`.",
       "parameters": {
         "options": {
           "type": "CreateVolumeOptions",
@@ -11424,6 +12362,7 @@ setBuildTimeData('features.runpod', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -11747,9 +12686,379 @@ setBuildTimeData('features.runpod', {
   }
 });
 
+setBuildTimeData('features.scheduler', {
+  "id": "features.scheduler",
+  "description": "In-process task scheduler: recurring intervals, cron expressions, and one-shot timers as named, observable, stoppable tasks — plus the daemon lifecycle (`run()`) that keeps a long-running command alive until SIGINT/SIGTERM. This is the managed layer above `container.utils.sleep/backoff/every`. Reach for the utils when you need a bare poll loop inside other code; reach for the scheduler when tasks should have names, run history, error tracking, and a single shutdown path. Intervals accept milliseconds or duration strings (`'30s'`, `'5m'`, `'1h30m'`). Cron expressions use standard 5-field syntax (minute hour day-of-month month day-of-week) with lists, ranges, steps, names (`mon`, `jan`), and aliases (`@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly`). Cron dates evaluate in local time. A task's next run is never scheduled until the previous run finishes, so slow ticks don't overlap. A run that throws is recorded and emitted as `task:error`, and the task stays on schedule.",
+  "shortcut": "features.scheduler",
+  "className": "Scheduler",
+  "methods": {
+    "parseDuration": {
+      "description": "Parse a duration into milliseconds. Accepts a number (passed through), a numeric string (`'250'`), or a duration string combining units: `ms`, `s`, `m`, `h`, `d`, `w` — e.g. `'30s'`, `'5m'`, `'1h30m'`, `'2d'`.",
+      "parameters": {
+        "input": {
+          "type": "string | number",
+          "description": "The duration to parse"
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "returns": "number",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "scheduler.parseDuration('1h30m') // 5400000\nscheduler.parseDuration(250)     // 250"
+        }
+      ]
+    },
+    "every": {
+      "description": "Run a function on a recurring interval as a named task. Uses the recursive-setTimeout idiom: the next run is scheduled only after the previous one finishes, so runs never overlap.",
+      "parameters": {
+        "interval": {
+          "type": "string | number",
+          "description": "Milliseconds or a duration string ('30s', '5m', '1h30m')"
+        },
+        "fn": {
+          "type": "() => any | Promise<any>",
+          "description": "The function to run (sync or async)"
+        },
+        "options": {
+          "type": "EveryTaskOptions",
+          "description": "Task name, immediate first run, and error handler",
+          "properties": {
+            "immediate": {
+              "type": "boolean",
+              "description": "Run the task immediately instead of waiting for the first interval (default: false)"
+            }
+          }
+        }
+      },
+      "required": [
+        "interval",
+        "fn"
+      ],
+      "returns": "TaskHandle",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const poll = scheduler.every('30s', async () => { await syncOnce() }, {\n name: 'sync',\n immediate: true,\n})\n// later\npoll.stop() // or scheduler.stop('sync')"
+        }
+      ]
+    },
+    "cron": {
+      "description": "Run a function on a cron schedule as a named task. Standard 5-field syntax (minute hour day-of-month month day-of-week) with lists (`1,15`), ranges (`mon-fri`), steps (`0-59/15`, and star-with-step), month/day names, and `@hourly`-style aliases. Day-of-month and day-of-week follow the standard rule: when both are restricted, the task runs when either matches. Times are local. Invalid expressions throw immediately with the reason — before the task is registered.",
+      "parameters": {
+        "expression": {
+          "type": "string",
+          "description": "A 5-field cron expression or alias like '@daily'"
+        },
+        "fn": {
+          "type": "() => any | Promise<any>",
+          "description": "The function to run (sync or async)"
+        },
+        "options": {
+          "type": "ScheduleTaskOptions",
+          "description": "Task name and error handler",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+            },
+            "onError": {
+              "type": "(error: unknown) => void",
+              "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+            }
+          }
+        }
+      },
+      "required": [
+        "expression",
+        "fn"
+      ],
+      "returns": "TaskHandle",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const rotateLogs = async () => console.log('rotating logs')\nconst digest = async () => console.log('sending digest')\nconst cleanup = () => console.log('cleaning up')\n\nscheduler.cron('0-59/15 * * * *', rotateLogs)           // every 15 minutes\nscheduler.cron('0 9 * * mon-fri', digest, { name: 'digest' }) // weekdays at 9am\nscheduler.cron('@daily', cleanup)\n\nscheduler.stopAll() // release the pending cron timers when done"
+        }
+      ]
+    },
+    "at": {
+      "description": "Run a function once at a specific time. One-shots deactivate after they fire (`active` becomes false) but stay visible in scheduler.tasks.",
+      "parameters": {
+        "when": {
+          "type": "Date | string | number",
+          "description": "A Date, a timestamp in ms, or an ISO date string"
+        },
+        "fn": {
+          "type": "() => any | Promise<any>",
+          "description": "The function to run (sync or async)"
+        },
+        "options": {
+          "type": "ScheduleTaskOptions",
+          "description": "Task name and error handler",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+            },
+            "onError": {
+              "type": "(error: unknown) => void",
+              "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+            }
+          }
+        }
+      },
+      "required": [
+        "when",
+        "fn"
+      ],
+      "returns": "TaskHandle",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sendReminder = () => console.log('time for standup')\nconst handle = scheduler.at(new Date(Date.now() + 60_000), sendReminder)\nconsole.log(handle.info.nextRun) // ~one minute from now\nhandle.stop() // cancel it (a pending one-shot holds a timer until it fires)"
+        }
+      ]
+    },
+    "in": {
+      "description": "Run a function once after a delay. Sugar for at(Date.now() + duration).",
+      "parameters": {
+        "delay": {
+          "type": "string | number",
+          "description": "Milliseconds or a duration string ('30s', '5m')"
+        },
+        "fn": {
+          "type": "() => any | Promise<any>",
+          "description": "The function to run (sync or async)"
+        },
+        "options": {
+          "type": "ScheduleTaskOptions",
+          "description": "Task name and error handler",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+            },
+            "onError": {
+              "type": "(error: unknown) => void",
+              "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+            }
+          }
+        }
+      },
+      "required": [
+        "delay",
+        "fn"
+      ],
+      "returns": "TaskHandle",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const handle = scheduler.in('150ms', () => console.log('a moment later'))\nawait container.utils.sleep(300)      // let the one-shot fire\nconsole.log(handle.info.runs)         // 1 — fired and deactivated"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop a task by name. Safe to call for unknown or already-stopped tasks.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The task name (from the handle or scheduler.tasks)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "boolean",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "scheduler.stop('sync')"
+        }
+      ]
+    },
+    "stopAll": {
+      "description": "Stop every active task. Called automatically when run() receives a shutdown signal.",
+      "parameters": {},
+      "required": [],
+      "returns": "number",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "scheduler.stopAll()"
+        }
+      ]
+    },
+    "run": {
+      "description": "Keep the process alive until a shutdown signal arrives, then stop all tasks and resolve. This is the daemon lifecycle for long-running commands — no `await new Promise(() => {})` needed.",
+      "parameters": {
+        "options": {
+          "type": "SchedulerRunOptions",
+          "description": "Signals to listen for (default SIGINT/SIGTERM) and an onShutdown cleanup hook",
+          "properties": {
+            "signals": {
+              "type": "NodeJS.Signals[]",
+              "description": "Signals that trigger shutdown (default: SIGINT and SIGTERM)"
+            },
+            "onShutdown": {
+              "type": "(signal: string) => void | Promise<void>",
+              "description": "Awaited after tasks stop, before run() resolves — put cleanup here"
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) blocks until SIGINT/SIGTERM arrives\nconst poll = async () => console.log('polling')\nconst flushBuffers = async () => console.log('flushing')\n\nscheduler.every('1m', poll, { name: 'poller', immediate: true })\nconst signal = await scheduler.run({\n onShutdown: async () => { await flushBuffers() },\n})\nconsole.log(`shut down on ${signal}`)"
+        }
+      ]
+    },
+    "nextCronDate": {
+      "description": "Compute the next date a cron expression fires, in local time. Useful for showing \"next run\" without scheduling anything.",
+      "parameters": {
+        "expression": {
+          "type": "string",
+          "description": "A 5-field cron expression or alias like '@daily'"
+        },
+        "from": {
+          "type": "Date",
+          "description": "The reference time (default: now). The result is strictly after this."
+        }
+      },
+      "required": [
+        "expression"
+      ],
+      "returns": "Date",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "scheduler.nextCronDate('0 9 * * mon') // next Monday 09:00 local time"
+        }
+      ]
+    }
+  },
+  "getters": {
+    "tasks": {
+      "description": "Snapshots of every task this scheduler knows about, including finished one-shots and stopped tasks (check `active`).",
+      "returns": "ScheduledTaskInfo[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stuck = scheduler.tasks.filter(t => t.active && t.errors > 0)"
+        }
+      ]
+    }
+  },
+  "events": {
+    "task:stopped": {
+      "name": "task:stopped",
+      "description": "Event emitted by Scheduler",
+      "arguments": {}
+    },
+    "shutdown": {
+      "name": "shutdown",
+      "description": "Event emitted by Scheduler",
+      "arguments": {}
+    },
+    "task:added": {
+      "name": "task:added",
+      "description": "Event emitted by Scheduler",
+      "arguments": {}
+    },
+    "task:error": {
+      "name": "task:error",
+      "description": "Event emitted by Scheduler",
+      "arguments": {}
+    },
+    "task:run": {
+      "name": "task:run",
+      "description": "Event emitted by Scheduler",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "stable",
+  "category": "process",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const scheduler = container.feature('scheduler')\n\nconst syncOnce = async () => console.log('syncing...')\nconst sendDigest = async () => console.log('sending digest')\nconst warmCache = () => console.log('warming cache')\n\nscheduler.every('5m', syncOnce, { name: 'sync', immediate: true })\nscheduler.cron('0 9 * * mon-fri', sendDigest, { name: 'digest' })\nscheduler.in('30s', warmCache)\n\nconsole.log(scheduler.tasks.map(t => t.name)) // ['sync', 'digest', ...]\nscheduler.stopAll() // release the pending timers\n// In a long-running command you'd instead: await scheduler.run()\n// — it blocks until SIGINT/SIGTERM and stops all tasks for you."
+    },
+    {
+      "language": "ts",
+      "code": "// Observability: every task has a name, run counts, and error history\nconst pollQueue = async () => console.log('polling the queue')\nconst handle = scheduler.every('10s', pollQueue)\nconsole.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }\nconsole.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]\nhandle.stop()"
+    }
+  ],
+  "types": {
+    "EveryTaskOptions": {
+      "description": "Options accepted by every() only.",
+      "properties": {
+        "immediate": {
+          "type": "boolean",
+          "description": "Run the task immediately instead of waiting for the first interval (default: false)",
+          "optional": true
+        }
+      }
+    },
+    "TaskHandle": {
+      "description": "Handle returned by every(), cron(), at(), and in().",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The task's unique name — pass to scheduler.stop() or find it in scheduler.tasks"
+        },
+        "stop": {
+          "type": "() => void",
+          "description": "Cancel the task. Safe to call more than once."
+        },
+        "info": {
+          "type": "ScheduledTaskInfo",
+          "description": "Live snapshot of the task's schedule and run history"
+        }
+      }
+    },
+    "ScheduleTaskOptions": {
+      "description": "Options accepted by every(), cron(), at(), and in().",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws.",
+          "optional": true
+        },
+        "onError": {
+          "type": "(error: unknown) => void",
+          "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'.",
+          "optional": true
+        }
+      }
+    },
+    "SchedulerRunOptions": {
+      "description": "Options accepted by run().",
+      "properties": {
+        "signals": {
+          "type": "NodeJS.Signals[]",
+          "description": "Signals that trigger shutdown (default: SIGINT and SIGTERM)",
+          "optional": true
+        },
+        "onShutdown": {
+          "type": "(signal: string) => void | Promise<void>",
+          "description": "Awaited after tasks stop, before run() resolves — put cleanup here",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.secureShell', {
   "id": "features.secureShell",
-  "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
+  "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, or an already-loaded ssh-agent identity. (A `password` option exists in the schema but is not wired into the ssh/scp command line — BatchMode suppresses password prompts.) Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected` based on whether the remote host responded.",
   "shortcut": "features.secureShell",
   "className": "SecureShell",
   "methods": {
@@ -11761,7 +13070,7 @@ setBuildTimeData('features.secureShell', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')\nconsole.log('state connected:', ssh.state.get('connected'))"
         }
       ]
     },
@@ -11780,12 +13089,12 @@ setBuildTimeData('features.secureShell', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
         }
       ]
     },
     "download": {
-      "description": "Downloads a file from the remote host via SCP.",
+      "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
       "parameters": {
         "source": {
           "type": "string",
@@ -11804,12 +13113,12 @@ setBuildTimeData('features.secureShell', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
         }
       ]
     },
     "upload": {
-      "description": "Uploads a file to the remote host via SCP.",
+      "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
       "parameters": {
         "source": {
           "type": "string",
@@ -11828,7 +13137,7 @@ setBuildTimeData('features.secureShell', {
       "examples": [
         {
           "language": "ts",
-          "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
+          "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
         }
       ]
     }
@@ -11848,17 +13157,18 @@ setBuildTimeData('features.secureShell', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "process",
   "examples": [
     {
       "language": "ts",
-      "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
+      "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n port: 22,                  // default: 22\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\n// Verify reachability before doing real work — never throws\nif (await ssh.testConnection()) {\n console.log('connected:', ssh.state.get('connected')) // true\n\n // exec() returns the command's trimmed stdout\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n\n // SCP round-trip. Remote paths are absolute, or relative to\n // the remote user's home directory.\n await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\n await ssh.download('/var/log/app.log', './logs/app.log')\n}"
     }
   ]
 });
 
 setBuildTimeData('features.semanticSearch', {
   "id": "features.semanticSearch",
-  "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.",
+  "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.",
   "shortcut": "features.semanticSearch",
   "className": "SemanticSearch",
   "methods": {
@@ -12132,6 +13442,10 @@ setBuildTimeData('features.semanticSearch', {
             "vecWeight": {
               "type": "number",
               "description": ""
+            },
+            "ftsQuery": {
+              "type": "string",
+              "description": "Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query."
             }
           }
         }
@@ -12288,17 +13602,32 @@ setBuildTimeData('features.semanticSearch', {
       "required": [],
       "returns": "IndexStatus"
     },
-    "installLocalEmbeddings": {
-      "description": "Install node-llama-cpp into the user's project for local embedding support. Detects package manager from lockfile presence and verifies the native addon loads.",
+    "downloadModelWeights": {
+      "description": "Download the .gguf weights for a supported local embedding model into ~/.cache/luca/models/. Skips the download when the weights already exist. Downloads to a temp file first, then renames atomically.",
       "parameters": {
-        "cwd": {
+        "modelName": {
           "type": "string",
-          "description": "Parameter cwd"
+          "description": "Local model to fetch (default: the resolved embeddingModel)"
         }
       },
-      "required": [
-        "cwd"
-      ],
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const search = container.feature('semanticSearch', { embeddingProvider: 'local' })\nawait search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing"
+        }
+      ]
+    },
+    "installLocalEmbeddings": {
+      "description": "Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
+      "parameters": {
+        "_cwd": {
+          "type": "string",
+          "description": "unused, accepted for backward compatibility (older versions installed into the project's node_modules)"
+        }
+      },
+      "required": [],
       "returns": "Promise<void>"
     },
     "close": {
@@ -12309,6 +13638,10 @@ setBuildTimeData('features.semanticSearch', {
     }
   },
   "getters": {
+    "embeddingModel": {
+      "description": "The embedding model in effect, resolved per provider when no explicit embeddingModel option was given (openai → text-embedding-3-small, local → embedding-gemma-300M-Q8_0).",
+      "returns": "string"
+    },
     "db": {
       "description": "",
       "returns": "Database"
@@ -12344,10 +13677,11 @@ setBuildTimeData('features.semanticSearch', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "content-nlp",
   "examples": [
     {
       "language": "ts",
-      "code": "const search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
+      "code": "// Offline/local embeddings — one-time setup, then fully local\nconst search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.installLocalEmbeddings(process.cwd()) // installs addon + downloads weights\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
     }
   ],
   "types": {
@@ -12528,6 +13862,11 @@ setBuildTimeData('features.semanticSearch', {
           "type": "number",
           "description": "",
           "optional": true
+        },
+        "ftsQuery": {
+          "type": "string",
+          "description": "Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query.",
+          "optional": true
         }
       }
     }
@@ -12619,6 +13958,7 @@ setBuildTimeData('features.socketRepl', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -12629,7 +13969,7 @@ setBuildTimeData('features.socketRepl', {
 
 setBuildTimeData('features.sqlite', {
   "id": "features.sqlite",
-  "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+  "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Pass `{ path: ':memory:' }` (the default when no path is given) for an ephemeral in-memory database with zero setup, or a file path to persist to disk.",
   "shortcut": "features.sqlite",
   "className": "Sqlite",
   "methods": {
@@ -12652,7 +13992,7 @@ setBuildTimeData('features.sqlite', {
       "examples": [
         {
           "language": "ts",
-          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)')\nawait db.execute('INSERT INTO users (email, active) VALUES (?, ?)', ['hello@example.com', 1])\n\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)\nconsole.log(users) // [{ id: 1, email: 'hello@example.com' }]"
         }
       ]
     },
@@ -12675,7 +14015,7 @@ setBuildTimeData('features.sqlite', {
       "examples": [
         {
           "language": "ts",
-          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')\n\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
         }
       ]
     },
@@ -12699,7 +14039,26 @@ setBuildTimeData('features.sqlite', {
       "examples": [
         {
           "language": "ts",
-          "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\nawait db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\n\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`\nconsole.log(rows) // [{ id: 1 }]"
+        }
+      ]
+    },
+    "transaction": {
+      "description": "Runs a function inside a database transaction. Delegates to Bun's native `db.transaction()` — the transaction commits when the function returns and rolls back if it throws. The function must be synchronous (bun:sqlite transactions do not span awaits); use the raw `db` getter's prepared statements inside it for speed. Combined with `UPDATE ... RETURNING`, this gives you atomic job-claiming for durable queues and workers.",
+      "parameters": {
+        "fn": {
+          "type": "() => T",
+          "description": "Synchronous function containing the transactional work"
+        }
+      },
+      "required": [
+        "fn"
+      ],
+      "returns": "T",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute(`CREATE TABLE jobs (id INTEGER PRIMARY KEY, payload TEXT, status TEXT DEFAULT 'pending', claimed_at TEXT)`)\nawait db.execute(`CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER)`)\nawait db.execute(`INSERT INTO jobs (payload) VALUES ('build'), ('deploy')`)\nawait db.execute(`INSERT INTO accounts (balance) VALUES (500), (500)`)\n\n// Atomically claim the next pending job (single statement — no explicit\n// transaction needed thanks to UPDATE ... RETURNING)\nconst [job] = await db.query(`\n UPDATE jobs SET status = 'running', claimed_at = datetime('now')\n WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)\n RETURNING id, payload\n`)\nconsole.log(job) // { id: 1, payload: 'build' }\n\n// Multi-statement atomic work: all-or-nothing\ndb.transaction(() => {\n db.db.query('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(100, 1)\n db.db.query('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(100, 2)\n})"
         }
       ]
     },
@@ -12748,17 +14107,123 @@ setBuildTimeData('features.sqlite', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "data-storage",
   "examples": [
     {
       "language": "ts",
-      "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
+      "code": "// In-memory by default; pass { path: 'app.db' } to persist to disk\n// (the parent folder of a file path must already exist)\nconst sqlite = container.feature('sqlite')\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`\nconsole.log(users) // [{ id: 1, email: 'hello@example.com' }]"
     }
   ]
 });
 
+setBuildTimeData('features.store', {
+  "id": "features.store",
+  "description": "Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to \"two luca processes need to share state.\" Every `luca <command>` invocation is a separate process: a server and its `--stats` sibling, a fleet manager and its `stop` command, a watcher and a reporter — none of them share memory. This feature gives each piece of shared state a named, schema-validated JSON document with atomic writes and a read-modify-write `update()` that takes a file lock, so concurrent invocations can't clobber each other. **Reach for it via the container sugar:** ```ts const stats = container.store('proxy-stats', { schema: z.object({ hits: z.number().default(0), misses: z.number().default(0) }), }) await stats.update(s => { s.hits++ })     // lock → read → mutate → validate → atomic write const { hits } = await stats.read()       // always re-reads — sees sibling processes' writes console.log(stats.path)                   // .luca/store/proxy-stats.json — cat it, commit it ``` **Which store when?** (the full spectrum) - `container.state` / `container.entity` — in-process, observable, dies with the process - **`container.store` (this)** — cross-process, durable, one JSON document per name; counters, manifests, process lists, small configs - `sqlite` — the moment you want to query, filter, or run a real queue under contention - `diskCache` — caches only: TTL expiry means entries are *losable by contract* - `redis` — cross-process pub/sub and shared state across machines If you're building a job queue on `update()`, you've outgrown this feature — use `sqlite` (`transaction()` + `UPDATE … RETURNING`). **Scopes:** `project` (default) puts files in `<cwd>/.luca/store/`, so `ls .luca/store` answers \"what state does this app keep?\"; `machine` uses `~/.luca/store/` for state shared across projects; `tmp` for scratch.",
+  "shortcut": "features.store",
+  "className": "Store",
+  "methods": {
+    "open": {
+      "description": "Open (or reuse) a named store handle. Handles are cached per `scope:name` within the process; the schema and options from the most recent open win. Prefer the container sugar `container.store(name, opts)` — it calls this.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The store's name; becomes the filename `<name>.json`"
+        },
+        "opts": {
+          "type": "StoreHandleOptions<T>",
+          "description": "Schema, initial value, scope, and lock tuning"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "StoreHandle<T>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stores = container.feature('store')\nconst flags = stores.open(`flags-${Date.now()}`, {\n scope: 'tmp',\n schema: z.object({ darkMode: z.boolean().default(false) }),\n})\n\nconst initial = await flags.read()\nconsole.log(initial.darkMode) // false — schema defaults apply to a missing file\n\nawait flags.update(f => { f.darkMode = true })\nconsole.log((await flags.read()).darkMode) // true\nawait flags.delete()"
+        }
+      ]
+    },
+    "list": {
+      "description": "List the store names that exist in a scope (files in its directory). The discovery story: `container.stores.list()` (or `ls .luca/store`) answers \"what state does this app keep on disk?\"",
+      "parameters": {
+        "scope": {
+          "type": "StoreScope",
+          "description": "Which scope's directory to list (default 'project')"
+        }
+      },
+      "required": [],
+      "returns": "string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stores = container.feature('store')\nconst name = `inventory-${Date.now()}`\nconst inv = stores.open(name, { scope: 'tmp' })\nawait inv.write({ widgets: 12 })\n\nconsole.log(stores.list('tmp').includes(name)) // true\nawait inv.delete()"
+        }
+      ]
+    },
+    "dirFor": {
+      "description": "The directory a scope's store files live in.",
+      "parameters": {
+        "scope": {
+          "type": "StoreScope",
+          "description": "Parameter scope"
+        }
+      },
+      "required": [],
+      "returns": "string"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "stable",
+  "category": "data-storage",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const stores = container.feature('store')\n\nconst counter = stores.open(`demo-${Date.now()}`, { scope: 'tmp' })\nawait counter.update(s => { s.count = (s.count ?? 0) + 1 })\nawait counter.update(s => { s.count++ })\nconst { count } = await counter.read()\nconsole.log(count) // 2\nawait counter.delete()"
+    }
+  ],
+  "types": {
+    "StoreHandleOptions": {
+      "description": "Options accepted by `container.store(name, opts)` / `stores.open(name, opts)`.",
+      "properties": {
+        "schema": {
+          "type": "z.ZodType<T>",
+          "description": "Zod schema applied on every read AND before every write. Give fields `.default()`s and a missing file parses cleanly.",
+          "optional": true
+        },
+        "initial": {
+          "type": "T",
+          "description": "Value a missing file reads as (before schema validation). Defaults to `{}`.",
+          "optional": true
+        },
+        "scope": {
+          "type": "StoreScope",
+          "description": "'project' → `<cwd>/.luca/store/<name>.json` (default), 'machine' → `~/.luca/store/<name>.json`, 'tmp' → `<os.tmpdir>/luca-store/<name>.json`",
+          "optional": true
+        },
+        "lockTimeout": {
+          "type": "number",
+          "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
+          "optional": true
+        },
+        "lockStale": {
+          "type": "number",
+          "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
+          "optional": true
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.telegram', {
   "id": "features.telegram",
-  "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
+  "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly (via `.bot`) for full API access while bridging Telegram events to Luca's event bus — `started`, `stopped`, `command`, `webhook_ready`, and `error` all fire as container events, so other features can react to bot activity. Requires a bot token from @BotFather: set the `TELEGRAM_BOT_TOKEN` environment variable (read automatically) or pass `token` explicitly as an option.",
   "shortcut": "features.telegram",
   "className": "Telegram",
   "methods": {
@@ -12774,10 +14239,16 @@ setBuildTimeData('features.telegram', {
       "returns": "Promise<this>"
     },
     "start": {
-      "description": "Start the bot in the configured mode (polling or webhook).",
+      "description": "Start the bot in the configured mode (polling or webhook). In polling mode the bot continuously fetches updates from Telegram until you call `stop()`. The `started` event fires on the Luca event bus with `{ mode }`. Calling `start()` while already running is a no-op.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\nawait tg.start()\nconsole.log(tg.isRunning) // true\nconsole.log(tg.mode)      // 'polling' (or 'webhook')"
+        }
+      ]
     },
     "stop": {
       "description": "Stop the bot gracefully.",
@@ -12786,7 +14257,7 @@ setBuildTimeData('features.telegram', {
       "returns": "Promise<this>"
     },
     "command": {
-      "description": "Register a command handler. Also emits 'command' on the Luca event bus.",
+      "description": "Register a command handler. Also emits 'command' on the Luca event bus, and tracks the command name in `state.get('commandsRegistered')`.",
       "parameters": {
         "name": {
           "type": "string",
@@ -12801,10 +14272,16 @@ setBuildTimeData('features.telegram', {
         "name",
         "handler"
       ],
-      "returns": "this"
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\ntg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))\ntg.command('ping', (ctx) => ctx.reply('Pong!'))\nconsole.log(tg.state.get('commandsRegistered')) // ['start', 'ping']"
+        }
+      ]
     },
     "handle": {
-      "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method.",
+      "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method. Maps directly to grammY's `bot.on()` and supports all grammY filter queries, e.g. `message:text`, `message:photo`, `edited_message`, `callback_query:data`.",
       "parameters": {
         "filter": {
           "type": "Parameters<Bot['on']>[0]",
@@ -12823,7 +14300,7 @@ setBuildTimeData('features.telegram', {
       "examples": [
         {
           "language": "ts",
-          "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
+          "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Button clicked!'))"
         }
       ]
     },
@@ -12934,10 +14411,11 @@ setBuildTimeData('features.telegram', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
-      "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
+      "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\nconst tg = container.feature('telegram', {\n mode: 'polling',            // or 'webhook'\n dropPendingUpdates: true,   // skip updates queued while offline\n})\n\n// Register bot commands — each also emits a 'command' event on the Luca event bus\ntg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))\ntg.command('help', (ctx) => ctx.reply('Available: /start, /help, /ping'))\ntg.command('ping', (ctx) => ctx.reply('Pong!'))\n\n// Handle any grammY filter query (message:text, message:photo, callback_query:data, ...)\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))\n\n// Start receiving updates; in polling mode this fetches continuously\nawait tg.start()\nconsole.log('Bot is running:', tg.isRunning)   // true\nconsole.log('Mode:', tg.mode)                  // 'polling'\nconsole.log('Commands:', tg.state.get('commandsRegistered')) // ['start', 'help', 'ping']\n\n// ... later, shut down gracefully (fires the 'stopped' event)\nawait tg.stop()"
     }
   ]
 });
@@ -13365,6 +14843,7 @@ setBuildTimeData('features.telnyxAssistantConnector', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "ai-assistants",
   "examples": [
     {
       "language": "ts",
@@ -13400,7 +14879,7 @@ setBuildTimeData('features.tmux', {
       "examples": [
         {
           "language": "ts",
-          "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])"
+          "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])\n\n// Read the stdout of any tmux query, e.g. pane dimensions\nconst info = await tmux.run(['display-message', '-t', 'myapp', '-p', '#{pane_width}x#{pane_height}'])\nconsole.log('pane dimensions:', info.stdout.trim())"
         }
       ]
     },
@@ -13479,7 +14958,13 @@ setBuildTimeData('features.tmux', {
       "description": "List all active tmux sessions.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<SessionInfo[]>"
+      "returns": "Promise<SessionInfo[]>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const sessions = await tmux.listSessions()\nsessions.forEach(s => console.log(s.name, '— windows:', s.windows))"
+        }
+      ]
     },
     "killSession": {
       "description": "Kill a named session by name.",
@@ -13510,6 +14995,7 @@ setBuildTimeData('features.tmux', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "process",
   "examples": [
     {
       "language": "ts",
@@ -13629,6 +15115,7 @@ setBuildTimeData('features.transpiler', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -13678,12 +15165,12 @@ setBuildTimeData('features.transpiler', {
 
 setBuildTimeData('features.tts', {
   "id": "features.tts",
-  "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
+  "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL. Requires a `RUNPOD_API_KEY` environment variable or an `apiKey` option. Three output formats are supported: `wav` (default, uncompressed), `flac` (lossless compressed), and `ogg` (lossy compressed). Generated files are saved to `outputDir` (defaults to `~/.luca/tts-cache`) with hash-based filenames, and the `synthesized` event fires on the Luca event bus when generation completes.",
   "shortcut": "features.tts",
   "className": "TTS",
   "methods": {
     "synthesize": {
-      "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
+      "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, waits for generation, downloads the resulting audio, and saves it to the output directory. On completion the file path is recorded in state (`lastFile`) and the `synthesized` event fires with `(text, filePath, voice, durationMs)`. If `voiceUrl` is given it takes precedence over any preset `voice` — the reference audio should be a clear recording of the voice you want to clone. Defaults: voice `'lucy'`, format `'wav'`. Throws if no RunPod API key is configured.",
       "parameters": {
         "text": {
           "type": "string",
@@ -13701,7 +15188,7 @@ setBuildTimeData('features.tts', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
+          "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\n// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\nconsole.log('Audio saved to:', path)\n\n// Clone a voice from a reference audio URL\nconst clonedPath = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})\n\n// Choose an output format per call: wav (uncompressed, default),\n// flac (lossless), or ogg (lossy)\nconst ogg = await tts.synthesize('OGG format', { format: 'ogg' })"
         }
       ]
     }
@@ -13716,8 +15203,14 @@ setBuildTimeData('features.tts', {
       "returns": "string"
     },
     "voices": {
-      "description": "The 20 preset voice names available in Chatterbox Turbo.",
-      "returns": "readonly string[]"
+      "description": "The 20 preset voice names available in Chatterbox Turbo. Safe to read without an API key — this is a static list, no network call.",
+      "returns": "readonly string[]",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const tts = container.feature('tts')\nconsole.log('Available voices:', tts.voices.join(', '))\n// aaron, abigail, anaya, andy, archer, brian, chloe, dylan, emmanuel, ethan, ..."
+        }
+      ]
     }
   },
   "events": {
@@ -13736,10 +15229,11 @@ setBuildTimeData('features.tts', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
-      "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
+      "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\nconst tts = container.feature('tts', {\n voice: 'lucy',            // default preset voice\n format: 'wav',            // 'wav' | 'flac' | 'ogg'\n outputDir: '/tmp/tts-output'\n})\n\n// List the 20 preset voice names (safe — no API call)\nconsole.log('Available voices:', tts.voices.join(', '))\n\n// Synthesize with a preset voice\nconst path = await tts.synthesize('Good morning! Here is your daily briefing.', {\n voice: 'ethan'\n})\nconsole.log('Audio saved to:', path)\nconsole.log('Last generated file:', tts.state.get('lastFile'))\n\n// Clone any voice from a reference audio URL instead of a preset\nconst cloned = await tts.synthesize('Hello world, this is a cloned voice.', {\n voiceUrl: 'https://example.com/reference-voice.wav'\n})"
     }
   ]
 });
@@ -13750,8 +15244,25 @@ setBuildTimeData('features.ui', {
   "shortcut": "features.ui",
   "className": "UI",
   "methods": {
+    "print": {
+      "description": "Enhanced print function with color methods for convenient terminal output. Call it directly like console.log, or use the attached color/style methods (red, green, blue, yellow, cyan, dim, bold, italic, underline, bg* variants) and semantic helpers (error, info, success, warn). NOTE: `ui.print.<color>(text)` is NOT a string formatter — it writes the colored text to stdout immediately and returns `undefined`. To compose a colored string (e.g. to embed inside a larger message), use `ui.colors.<color>(text)`, which returns the styled string.",
+      "parameters": {
+        "args": {
+          "type": "any[]",
+          "description": "Parameter args"
+        }
+      },
+      "required": [],
+      "returns": "ColoredPrintFunction",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\nui.print('plain text')\nui.print.cyan('cyan text')\nui.print.error('printed in red')\nui.print.success('printed in green')\n\n// Composing strings: use ui.colors, not ui.print\nui.print(`Status: ${ui.colors.green('OK')}`)   // correct\nui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints \"OK\" on its own line, interpolates \"undefined\""
+        }
+      ]
+    },
     "markdown": {
-      "description": "Parse markdown text and render it for terminal display using marked-terminal.",
+      "description": "Parse markdown text and render it for terminal display using marked-terminal. Headings, bold text, inline code, lists, and other markdown constructs come back styled for the terminal.",
       "parameters": {
         "text": {
           "type": "string",
@@ -13761,7 +15272,13 @@ setBuildTimeData('features.ui', {
       "required": [
         "text"
       ],
-      "returns": "string | Promise<string>"
+      "returns": "string | Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const ui = container.feature('ui')\nconst rendered = ui.markdown('## Features\\n\\n- **Bold** text\\n- `inline code`\\n- Regular paragraph text\\n')\nconsole.log(rendered)"
+        }
+      ]
     },
     "assignColor": {
       "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
@@ -13801,7 +15318,7 @@ setBuildTimeData('features.ui', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
+          "code": "// (no-run) interactive — waits for keyboard input\n\n// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
         }
       ]
     },
@@ -13837,7 +15354,7 @@ setBuildTimeData('features.ui', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
+          "code": "// (no-run) interactive — opens $EDITOR and waits for the user\n\n// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
         }
       ]
     },
@@ -13866,7 +15383,7 @@ setBuildTimeData('features.ui', {
       ]
     },
     "banner": {
-      "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation",
+      "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation NOTE: the gradient colors rely on chalk, which auto-disables ANSI codes when stdout is not a TTY (pipes, command substitution, CI, sandboxes) — in those contexts the banner renders as plain ASCII art with no color. Not a bug; set `FORCE_COLOR=1` to force color codes into non-TTY output.",
       "parameters": {
         "text": {
           "type": "string",
@@ -13957,7 +15474,7 @@ setBuildTimeData('features.ui', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
+          "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'yellow']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
         }
       ]
     },
@@ -13980,7 +15497,7 @@ setBuildTimeData('features.ui', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
+          "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner,\n ['yellow', 'red', 'magenta', 'blue']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
         }
       ]
     },
@@ -14043,7 +15560,7 @@ setBuildTimeData('features.ui', {
   },
   "getters": {
     "colors": {
-      "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
+      "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. NOTE: chalk auto-detects color support and DISABLES all ANSI codes when stdout is not a TTY — piped output, `$(...)` capture, CI, and sandboxed environments all produce plain uncolored text. This is expected behavior, not a bug. To verify that output actually contains ANSI codes (or to force color through a pipe), set `FORCE_COLOR=1` in the environment.",
       "returns": "typeof colors",
       "examples": [
         {
@@ -14062,7 +15579,7 @@ setBuildTimeData('features.ui', {
       "examples": [
         {
           "language": "ts",
-          "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
+          "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nconst items = ['alpha', 'beta', 'gamma'];\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
         }
       ]
     },
@@ -14081,17 +15598,18 @@ setBuildTimeData('features.ui', {
   "state": {},
   "options": {},
   "envVars": [],
-  "stability": "core"
+  "stability": "core",
+  "category": "ui-output"
 });
 
 setBuildTimeData('features.vault', {
   "id": "features.vault",
-  "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
+  "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations. **Keys are NOT persisted.** Unless you pass a `secret` option, the vault mints a brand-new random key the first time one is needed, and that key lives only in process memory. Every `luca` invocation (every process) gets a fresh key, so data encrypted in one run CANNOT be decrypted in a later run unless you save the key yourself and pass it back via `container.feature('vault', { secret })`.",
   "shortcut": "features.vault",
   "className": "Vault",
   "methods": {
     "secret": {
-      "description": "Gets or generates a secret key for encryption operations.",
+      "description": "Gets or generates a secret key for encryption operations. If no key exists yet, this mints a NEW cryptographically random 32-byte key — it is not derived from anything and is never written to disk. Each process therefore gets its own key: data encrypted with it is undecryptable in any other `luca` invocation unless you persist the key (see `secretText`) and pass it back via `container.feature('vault', { secret })`.",
       "parameters": {
         "{ refresh = false, set = true }": {
           "type": "any",
@@ -14102,7 +15620,7 @@ setBuildTimeData('features.vault', {
       "returns": "Buffer"
     },
     "decrypt": {
-      "description": "Decrypts an encrypted payload that was created by the encrypt method.",
+      "description": "Decrypts an encrypted payload that was created by the encrypt method. Because AES-256-GCM is authenticated encryption, decryption verifies the auth tag — a tampered or truncated payload, or the wrong key, throws rather than silently returning garbage.",
       "parameters": {
         "payload": {
           "type": "string",
@@ -14112,10 +15630,16 @@ setBuildTimeData('features.vault', {
       "required": [
         "payload"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const vault = container.feature('vault')\nconst encrypted = vault.encrypt('my-database-password-12345')\n\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted)                                    // 'my-database-password-12345'\nconsole.log(decrypted === 'my-database-password-12345')   // true — exact round-trip"
+        }
+      ]
     },
     "encrypt": {
-      "description": "Encrypts a plaintext string using AES-256-GCM encryption.",
+      "description": "Encrypts a plaintext string using AES-256-GCM encryption. The output is an opaque text payload — three base64 segments (IV, ciphertext, auth tag) joined by a delimiter — safe to store in config files or databases. A fresh random IV is generated on every call, so encrypting the same input twice produces different ciphertexts (semantic security): an attacker cannot tell whether two payloads contain the same plaintext. Both still decrypt to the same value.",
       "parameters": {
         "payload": {
           "type": "string",
@@ -14125,12 +15649,18 @@ setBuildTimeData('features.vault', {
       "required": [
         "payload"
       ],
-      "returns": "string"
+      "returns": "string",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const vault = container.feature('vault')\n\n// Same input, unique ciphertext every time — a fresh IV is used per call\nconst a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                   // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip"
+        }
+      ]
     }
   },
   "getters": {
     "secretText": {
-      "description": "Gets the secret key as a base64-encoded string.",
+      "description": "Gets the secret key as a base64-encoded string. Lazily populated: unless a `secret` option was passed at construction, this is `undefined` until something forces key generation — i.e. until `secret()`, `encrypt()`, or `decrypt()` has run. Call `vault.secret()` first if you want to read `secretText` before encrypting anything.",
       "returns": "string | undefined"
     }
   },
@@ -14139,17 +15669,18 @@ setBuildTimeData('features.vault', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
-      "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
+      "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data (same process — the in-memory key is still around)\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'\n\n// ── Cross-invocation decryption: persist the key and pass it back ──\n// Run 1: encrypt and save the base64 key alongside (or apart from) the data\nconst v1 = container.feature('vault')\nconst payload = v1.encrypt('remember me')\nawait container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key\nawait container.fs.writeFileAsync('payload.enc', payload)\n\n// Run 2 (a NEW process): restore the key via the `secret` option\nconst key = container.fs.readFile('secret.key') as string\nconst v2 = container.feature('vault', { secret: key })            // base64 string or Buffer\nv2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'"
     }
   ]
 });
 
 setBuildTimeData('features.vm', {
   "id": "features.vm",
-  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
+  "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.",
   "shortcut": "features.vm",
   "className": "VM",
   "methods": {
@@ -14173,7 +15704,31 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const vm = container.feature('vm')\nvm.defineModule('luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from 'luca'  → works"
+          "code": "const vm = container.feature('vm')\n\n// Expose container helpers (or anything else) under a virtual module id\nvm.defineModule('luca', { fs: container.fs, proc: container.feature('proc') })\nvm.defineModule('answers', { magic: 42 })\n\n// Now loadModule can resolve these in user code:\n// const { magic } = require('answers')  → works"
+        }
+      ]
+    },
+    "defineLazyModule": {
+      "description": "Register a virtual module whose exports are produced on first `require()`. Like {@link defineModule}, the id is treated as external during bundling and resolves before Node's native require — but the loader only runs when (and if) VM-executed code actually requires the module, and its result is cached. This is how the runtime bridges `react` and `ink` into user code: registering them lazily keeps CLI startup free of their import cost, while guaranteeing that code which does `import React from 'react'` receives the SAME module instance the container's ink feature renders with. (A second React copy — e.g. inlined from a stray `node_modules` at bundle time — breaks all ink hooks with \"Invalid hook call\" / raw-mode errors.)",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The module specifier (e.g. `'react'`)"
+        },
+        "loader": {
+          "type": "() => any",
+          "description": "Synchronous function returning the module's exports; called once, then cached"
+        }
+      },
+      "required": [
+        "id",
+        "loader"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const vm = container.feature('vm')\n\nlet built = 0\nvm.defineLazyModule('expensive', () => ({ builds: ++built }))\n\n// The loader hasn't run yet — only code that requires 'expensive' triggers it\nconsole.log(built) // 0"
         }
       ]
     },
@@ -14245,12 +15800,12 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
+          "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)\n\n// Reuse the same context to share state across runs — variables accumulate\nconst ctx = vm.createContext({ counter: 0 })\nvm.runSync('counter += 1', ctx)\nvm.runSync('counter += 10', ctx)\nvm.runSync('counter', ctx) // 11"
         }
       ]
     },
     "wrapTopLevelAwait": {
-      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the last expression so the value is not lost. If the code does not contain `await`, or is already wrapped in an async function/arrow, it is returned unchanged.",
+      "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
       "parameters": {
         "code": {
           "type": "string",
@@ -14263,21 +15818,37 @@ setBuildTimeData('features.vm', {
       "returns": "string"
     },
     "run": {
-      "description": "",
+      "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
       "parameters": {
         "code": {
           "type": "string",
-          "description": "Parameter code"
+          "description": "The JavaScript code to execute"
         },
         "ctx": {
           "type": "any",
-          "description": "Parameter ctx"
+          "description": "Context variables to make available to the executing code"
+        },
+        "opts": {
+          "type": "VMRunOptions",
+          "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+            }
+          }
         }
       },
       "required": [
         "code"
       ],
-      "returns": "Promise<T>"
+      "returns": "Promise<T>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Simple calculation\nconst result = await vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = await vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations — any JS value can be passed through the context\nconst sum = await vm.run('numbers.reduce((a, b) => a + b, 0)', {\n numbers: [10, 20, 30, 40]\n})\nconsole.log(sum) // 100\n\n// Error handling — a throwing snippet rejects, so catch it\ntry {\n await vm.run('undefinedFunction()')\n} catch (err) {\n console.log('Execution failed:', err.message)\n}"
+        }
+      ]
     },
     "runCaptured": {
       "description": "Execute code and capture all console output as structured JSON. Returns both the execution result and an array of every `console.*` call made during execution, each entry recording the method name and arguments.",
@@ -14289,6 +15860,16 @@ setBuildTimeData('features.vm', {
         "ctx": {
           "type": "any",
           "description": "Context variables to make available to the executing code"
+        },
+        "opts": {
+          "type": "VMRunOptions",
+          "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+            }
+          }
         }
       },
       "required": [
@@ -14298,7 +15879,7 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const { result, console: calls } = await vm.runCaptured('console.log(\"hi\"); console.warn(\"oh\"); 42')\n// result === 42\n// calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]"
+          "code": "const snippet = 'console.log(\"hi\")\\nconsole.warn(\"oh\")\\n42'\nconst { result, console: calls } = await vm.runCaptured(snippet)\n// result === 42\n// calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]"
         }
       ]
     },
@@ -14312,6 +15893,16 @@ setBuildTimeData('features.vm', {
         "ctx": {
           "type": "any",
           "description": "Context variables to make available to the executing code"
+        },
+        "opts": {
+          "type": "VMRunOptions",
+          "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+            }
+          }
         }
       },
       "required": [
@@ -14335,6 +15926,16 @@ setBuildTimeData('features.vm', {
         "ctx": {
           "type": "any",
           "description": "Context variables to make available to the executing code"
+        },
+        "opts": {
+          "type": "VMRunOptions",
+          "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+            }
+          }
         }
       },
       "required": [
@@ -14358,6 +15959,16 @@ setBuildTimeData('features.vm', {
         "ctx": {
           "type": "any",
           "description": "Context variables to make available to the executing code"
+        },
+        "opts": {
+          "type": "VMRunOptions",
+          "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+            }
+          }
         }
       },
       "required": [
@@ -14367,7 +15978,7 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
+          "code": "const code = 'module.exports = { double: (n) => n * 2 }'\nconst { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports\nconsole.log(moduleExports.double(21)) // 42"
         }
       ]
     },
@@ -14390,7 +16001,7 @@ setBuildTimeData('features.vm', {
       "examples": [
         {
           "language": "ts",
-          "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
+          "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
         }
       ]
     }
@@ -14401,22 +16012,35 @@ setBuildTimeData('features.vm', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
-      "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
+      "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = await vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = await vm.run('greeting + \" \" + name', {\n greeting: 'Hello',\n name: 'World'\n})\nconsole.log(result2) // 'Hello World'\n\n// Virtual modules take precedence over native require\nvm.defineModule('answers', { magic: 42 })"
     }
-  ]
+  ],
+  "types": {
+    "VMRunOptions": {
+      "description": "Per-run options accepted by `run`, `runSync`, `perform`, `performSync`, and `runCaptured`.",
+      "properties": {
+        "filePath": {
+          "type": "string",
+          "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd.",
+          "optional": true
+        }
+      }
+    }
+  }
 });
 
 setBuildTimeData('features.yaml', {
   "id": "features.yaml",
-  "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+  "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access. The API is two methods: `parse()` (YAML string → object) and `stringify()` (object → YAML string). The parser handles nested objects, arrays, numbers, and booleans automatically, and nulls serialize cleanly on the way back out. A parse → modify → stringify round-trip preserves data intact, which makes this the standard tool for reading a config file, mutating a value, and writing it back.",
   "shortcut": "features.yaml",
   "className": "YAML",
   "methods": {
     "stringify": {
-      "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
+      "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files. Deeply nested and mixed-type structures serialize cleanly — nulls, booleans, numbers, and nested arrays of objects all round-trip without special handling.",
       "parameters": {
         "data": {
           "type": "any",
@@ -14460,17 +16084,18 @@ setBuildTimeData('features.yaml', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "ui-output",
   "examples": [
     {
       "language": "ts",
-      "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
+      "code": "const yml = container.feature('yaml')\n\n// Parse YAML string to object — nested objects, arrays, numbers,\n// and booleans are all handled automatically.\nconst config = yml.parse(`\n name: my-app\n version: 2.1.0\n database:\n   host: localhost\n   port: 5432\n features:\n   - auth\n   - logging\n`)\nconsole.log(config.database.host) // 'localhost'\nconsole.log(config.features)      // ['auth', 'logging']\n\n// Convert an object back to a human-readable YAML string.\nconst output = yml.stringify({\n server: { host: '0.0.0.0', port: 3000 },\n cors: { origins: ['https://example.com'] },\n})\n\n// Round-trip: parse → modify → stringify preserves data intact.\nconst parsed = yml.parse('replicas: 3\\nmemory: 256Mi\\n')\nparsed.replicas = 5\nconst updated = yml.stringify(parsed)\nconst reparsed = yml.parse(updated)\nconsole.log(reparsed.replicas) // 5 — survives the cycle"
     }
   ]
 });
 
 setBuildTimeData('features.yamlTree', {
   "id": "features.yamlTree",
-  "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
+  "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions This is the YAML counterpart to the `jsonTree` feature — same design in every respect (recursive scan, camelCased property paths, a `tree` getter, a custom key for namespacing). The only differences are the extensions it looks for (`.yml`/`.yaml` vs `.json`) and the parser it uses (the `yaml` feature vs `JSON.parse`). It is on-demand, so you must enable it before use, and the tree starts empty until you load a directory into it.",
   "shortcut": "features.yamlTree",
   "className": "YamlTree",
   "methods": {
@@ -14493,7 +16118,7 @@ setBuildTimeData('features.yamlTree', {
       "examples": [
         {
           "language": "ts",
-          "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
+          "code": "// Given a directory of YAML files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('config/database')\nfs.writeFile('config/database/production.yml', 'host: db.example.com\\nport: 5432\\n')\n\n// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = yamlTree.tree.config.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load a different folder under a custom key\nawait yamlTree.loadTree('config', 'appSettings');"
         }
       ]
     }
@@ -14515,36 +16140,49 @@ setBuildTimeData('features.yamlTree', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "content-nlp",
   "examples": [
     {
       "language": "ts",
-      "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
+      "code": "// On-demand: enable it explicitly first.\nconst yamlTree = container.feature('yamlTree', { enable: true });\nconsole.log(yamlTree.state.enabled);          // true\nconsole.log(yamlTree.tree);                    // {} — empty until loaded\n\n// Scan a directory of YAML files. Paths become camelCased property paths:\n//   config/database/production.yml -> tree.appConfig.database.production\n//   config/app-settings.yaml       -> tree.appConfig.appSettings\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
     }
   ]
 });
 
 setBuildTimeData('servers.express', {
   "id": "servers.express",
-  "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.",
+  "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoint modules (files exporting `path` plus `get`/`post`/`put`/`patch`/`delete` handlers) are mounted as routes — this is what `luca serve` does with your project's `endpoints/` folder via `useEndpoints(dir)`. Supports static file serving, CORS, and single-page app history fallback out of the box.",
   "shortcut": "servers.express",
   "className": "ExpressServer",
   "methods": {
     "start": {
-      "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality.",
+      "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op.",
       "parameters": {
         "options": {
           "type": "StartOptions",
-          "description": "Optional runtime overrides for port and host"
+          "description": "Optional runtime overrides for port and host (host defaults to '0.0.0.0')"
         }
       },
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\n// findOpenPort keeps the example collision-free; start({ port: 3000 }) works the same\nconst port = await container.feature('networking').findOpenPort(3430)\nawait server.start({ port })\nconsole.log(server.isListening)    // true\nconsole.log(server.port === port)  // true — runtime port wins over options\nawait server.stop()"
+        }
+      ]
     },
     "stop": {
-      "description": "",
+      "description": "Stop the HTTP listener. Waits up to 500ms for the underlying server to close (open keep-alive connections can hold it), then marks the server stopped either way — so stop() never hangs a CLI command.",
       "parameters": {},
       "required": [],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nconst port = await container.feature('networking').findOpenPort(3440)\nawait server.start({ port })\n// ... handle requests ...\nawait server.stop()\nconsole.log(server.isListening)   // false"
+        }
+      ]
     },
     "configure": {
       "description": "",
@@ -14553,30 +16191,42 @@ setBuildTimeData('servers.express', {
       "returns": "Promise<this>"
     },
     "useEndpoint": {
-      "description": "",
+      "description": "Mount an already-constructed Endpoint instance onto the Express app and track it (mounted endpoints power reloadEndpoint and the OpenAPI spec). Most callers want useEndpoints(dir) or useEndpointModules(mods) instead, which build the Endpoint for you.",
       "parameters": {
         "endpoint": {
           "type": "Endpoint",
-          "description": "Parameter endpoint"
+          "description": "A loaded Endpoint instance"
         }
       },
       "required": [
         "endpoint"
       ],
-      "returns": "this"
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// The Endpoint class is on the endpoints registry — no import needed\nconst Endpoint = container.endpoints.baseClass\n\nconst server = container.server('express')\nconst endpoint = new Endpoint({ path: '/hello' }, container.context)\nawait endpoint.load({\n path: '/hello',\n get: async (params) => ({ hello: params.name || 'world' }),\n})\nserver.useEndpoint(endpoint)\n\nconst port = await container.feature('networking').findOpenPort(3450)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/hello', { name: 'luca' }))   // { hello: 'luca' }\nawait server.stop()"
+        }
+      ]
     },
     "useEndpoints": {
-      "description": "",
+      "description": "Discover and mount every endpoint module in a directory (recursive `**\\/*.ts` scan). This is how `luca serve` wires up a project's `endpoints/` folder. Each file must export a `path` string (files without one are silently skipped) plus handler functions named after HTTP methods. Modules are loaded through the helpers feature's VM-aware loader, so this works from the compiled binary too. A file that fails to load logs an error and is skipped — it does not abort the others.",
       "parameters": {
         "dir": {
           "type": "string",
-          "description": "Parameter dir"
+          "description": "Absolute path to the directory containing endpoint modules"
         }
       },
       "required": [
         "dir"
       ],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// Given an endpoints/users.ts file like this (written here so the example runs):\nconst fs = container.feature('fs')\nfs.ensureFile(container.paths.join('endpoints', 'users.ts'), [\n \"export const path = '/users/:id'\",\n \"export async function get(params) { return { id: params.id } }\",\n].join('\\n'))\n\nconst server = container.server('express')\nawait server.useEndpoints(container.paths.join('endpoints'))\n\nconst port = await container.feature('networking').findOpenPort(3460)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/users/42'))   // { id: '42' } — params merges query + body + route params\nawait server.stop()"
+        }
+      ]
     },
     "reloadEndpoint": {
       "description": "Reload a mounted endpoint by its file path. Re-reads the module through the helpers VM loader so the next request picks up the new handlers.",
@@ -14589,56 +16239,90 @@ setBuildTimeData('servers.express', {
       "required": [
         "filePath"
       ],
-      "returns": "Promise<Endpoint | null>"
+      "returns": "Promise<Endpoint | null>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const fs = container.feature('fs')\nconst file = container.paths.join('endpoints', 'users.ts')\nfs.ensureFile(file, \"export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id } }\")\n\nconst server = container.server('express')\nawait server.useEndpoints(container.paths.join('endpoints'))\n\n// after editing endpoints/users.ts on disk (e.g. from a file watcher):\nfs.ensureFile(file, \"export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id, v: 2 } }\", true)\nconst reloaded = await server.reloadEndpoint(file)\nconsole.log(reloaded ? 'hot-reloaded' : 'not a mounted endpoint')"
+        }
+      ]
     },
     "useEndpointModules": {
-      "description": "",
+      "description": "Mount endpoint modules you already have in memory (imported or inline objects) instead of scanning a directory. Same module contract as useEndpoints: each needs a `path` plus HTTP-method handlers; modules without a `path` are skipped, and a module that fails to load logs an error without aborting the rest.",
       "parameters": {
         "modules": {
           "type": "EndpointModule[]",
-          "description": "Parameter modules"
+          "description": "Array of endpoint modules (or their `import()` results)"
         }
       },
       "required": [
         "modules"
       ],
-      "returns": "Promise<this>"
+      "returns": "Promise<this>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nawait server.useEndpointModules([\n {\n   path: '/status',\n   get: async () => ({ ok: true }),\n },\n {\n   path: '/echo',\n   post: async (params) => ({ received: params }),\n },\n])\n\nconst port = await container.feature('networking').findOpenPort(3480)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.post('/echo', { hello: 'world' }))   // { received: { hello: 'world' } }\nawait server.stop()"
+        }
+      ]
     },
     "serveOpenAPISpec": {
-      "description": "",
+      "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
       "parameters": {
         "options": {
           "type": "{ title?: string; version?: string; description?: string }",
-          "description": "Parameter options"
+          "description": "Optional info-block overrides (title, version, description)"
         }
       },
       "required": [],
-      "returns": "this"
+      "returns": "this",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\nserver.serveOpenAPISpec({ title: 'My API', version: '2.0.0' })\n\nconst port = await container.feature('networking').findOpenPort(3470)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconst spec = await api.get('/openapi.json')\nconsole.log(spec.info.title, Object.keys(spec.paths))   // My API [ '/status' ]\nawait server.stop()"
+        }
+      ]
     },
     "generateOpenAPISpec": {
-      "description": "",
+      "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
       "parameters": {
         "options": {
           "type": "{ title?: string; version?: string; description?: string }",
-          "description": "Parameter options"
+          "description": "Optional info-block overrides (title, version, description)"
         }
       },
       "required": [],
-      "returns": "Record<string, any>"
+      "returns": "Record<string, any>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\nconst spec = server.generateOpenAPISpec({ title: 'My API' })\nconsole.log(spec.info.title)          // 'My API'\nconsole.log(Object.keys(spec.paths))  // ['/status']"
+        }
+      ]
     }
   },
   "getters": {
     "express": {
-      "description": "",
+      "description": "The raw express module itself — handy for `server.express.static(...)`, `server.express.Router()`, etc.",
       "returns": "typeof express"
     },
+    "httpServer": {
+      "description": "The underlying Node http.Server, available once the app is listening (`undefined` before `start()`). Pass it — or this express server itself — to `container.server('websocket', { server })` to run a WebSocket on the same port via the Upgrade handshake.",
+      "returns": "any"
+    },
     "hooks": {
-      "description": "",
+      "description": "The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops.",
       "returns": "{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
     },
     "app": {
-      "description": "",
-      "returns": "Express"
+      "description": "The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly.",
+      "returns": "Express",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express')\nserver.app.use((req, res, next) => { console.log(req.method, req.path); next() })\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\n\nconst port = await container.feature('networking').findOpenPort(3420)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/health'))   // { ok: true }\nawait server.stop()"
+        }
+      ]
     }
   },
   "events": {},
@@ -14646,10 +16330,135 @@ setBuildTimeData('servers.express', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
-      "code": "const server = container.server('express', { cors: true, static: './public' })\nawait server.start({ port: 3000 })\n\n// Mount endpoints programmatically\nserver.mount(myEndpoint)\n\n// Access the underlying Express app\nserver.app.get('/health', (req, res) => res.json({ ok: true }))"
+      "code": "const server = container.server('express', { static: './public' })\n\n// custom routes on the underlying Express app, before or after start\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\n\n// mount endpoint modules — useEndpoints(dir) does the same for a folder\n// of endpoint files (that's what `luca serve` does with endpoints/)\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\n\n// grab a free port so the example runs anywhere; a fixed port works too\nconst port = await container.feature('networking').findOpenPort(3400)\nawait server.start({ port })\nconsole.log(server.port === port)       // true\n\nconst api = container.client('rest', { baseURL: `http://localhost:${server.port}` })\nconsole.log(await api.get('/health'))   // { ok: true }\nawait server.stop()"
+    },
+    {
+      "language": "ts",
+      "code": "// endpoints/status.ts — a rate-limited endpoint module, mounted by `luca serve`:\n//   export const path = '/status'\n//   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods\n//   export async function get() { return { ok: true } }\n\n// Custom middleware via the create hook (runs before endpoints mount)\nconst seen = []\nconst server = container.server('express', {\n create: (app, server) => {\n   app.use((req, res, next) => { seen.push(req.path); next() })\n   return app\n },\n})\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\nconst port = await container.feature('networking').findOpenPort(3410)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/ping'))   // { pong: true }\nconsole.log(seen)                     // ['/ping']\nawait server.stop()"
+    }
+  ]
+});
+
+setBuildTimeData('servers.llmProxy', {
+  "id": "servers.llmProxy",
+  "description": "Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a docker container, exposing every configured backend — local GPU boxes running OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic — behind a single OpenAI-compatible endpoint on `http://localhost:<port>/v1`. `start()` generates a LiteLLM `config.yaml` from the `models` option into a tmp directory, injects API keys through a 0600 env file (keys are referenced in the config as `os.environ/...` and never written into it), and runs the LiteLLM image with the config volume-mounted and the port published. It then polls `/health/liveliness` until the proxy is up. `stop()` stops and removes the container and deletes the env file. **Host networking:** the proxy runs inside a container, so a backend on the host (e.g. LM Studio at `http://localhost:1234/v1`) is not reachable as `localhost`. Any localhost `apiBase` is rewritten automatically to the host gateway (`host.docker.internal` by default; override with `hostGatewayOverride`, e.g. `192.168.64.1` for Apple's container runtime). Requires the docker CLI. Restarting always removes any stale `luca-llm-proxy-<port>` container first, so the running config deterministically matches the options you passed.",
+  "shortcut": "servers.llmProxy",
+  "className": "LlmProxyServer",
+  "methods": {
+    "rewriteApiBase": {
+      "description": "Rewrite a localhost/127.0.0.1/0.0.0.0 apiBase to the host gateway, since inside the container localhost refers to the container itself, not the machine running backends like LM Studio.",
+      "parameters": {
+        "apiBase": {
+          "type": "string",
+          "description": "Parameter apiBase"
+        }
+      },
+      "required": [
+        "apiBase"
+      ],
+      "returns": "string"
+    },
+    "writeConfig": {
+      "description": "Generate the LiteLLM config.yaml and the 0600 env file holding the actual API key values. The config references keys as os.environ/LUCA_LLM_KEY_<n> so secrets never appear in the YAML.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "checkHealth": {
+      "description": "Check the proxy's /health/liveliness endpoint.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<boolean>"
+    },
+    "start": {
+      "description": "Start the LiteLLM proxy container. Verifies a container runtime is available, reclaims any stale container with the same name, writes the config + env file, runs the image with the port published and config mounted, then polls /health/liveliness until healthy or `healthCheckTimeoutMs` elapses (failing with the container's recent log output embedded in the error).",
+      "parameters": {
+        "options": {
+          "type": "StartOptions",
+          "description": "Parameter options"
+        }
+      },
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "stop": {
+      "description": "Stop and remove the LiteLLM container and delete the env file holding injected secrets. Tolerates the container already being gone.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<this>"
+    },
+    "logs": {
+      "description": "Fetch logs from the LiteLLM container.",
+      "parameters": {
+        "options": {
+          "type": "{ follow?: boolean; tail?: number; since?: string; timestamps?: boolean }",
+          "description": "Passed through to docker getLogs (follow, tail, since, timestamps)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>"
+    }
+  },
+  "getters": {
+    "docker": {
+      "description": "The docker feature used to run and manage the LiteLLM container.",
+      "returns": "any"
+    },
+    "yaml": {
+      "description": "",
+      "returns": "any"
+    },
+    "fs": {
+      "description": "",
+      "returns": "any"
+    },
+    "os": {
+      "description": "",
+      "returns": "any"
+    },
+    "baseURL": {
+      "description": "The OpenAI-compatible base URL of the running proxy, e.g. http://localhost:4000",
+      "returns": "string"
+    },
+    "port": {
+      "description": "The port the proxy publishes on the host. Defaults to 4000.",
+      "returns": "number"
+    },
+    "image": {
+      "description": "LiteLLM docker image, ghcr.io/berriai/litellm:main-stable by default.",
+      "returns": "string"
+    },
+    "containerName": {
+      "description": "Deterministic container name so restarts can reclaim stale containers.",
+      "returns": "string"
+    },
+    "hostGateway": {
+      "description": "Hostname containers use to reach the host machine.",
+      "returns": "string"
+    },
+    "configDir": {
+      "description": "Directory the generated config.yaml and env file live in.",
+      "returns": "string"
+    },
+    "envFilePath": {
+      "description": "Path of the env file holding the injected secrets.",
+      "returns": "string"
+    }
+  },
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "// (no-run) requires docker and live backends\nconst proxy = container.server('llmProxy', {\n port: 4000,\n masterKey: 'sk-luca-dev',\n models: [\n   // LM Studio on this machine — localhost is rewritten to the host gateway\n   { modelName: 'local-qwen', provider: 'openai', model: 'qwen2.5-32b', apiBase: 'http://localhost:1234/v1', apiKey: 'lm-studio' },\n   // A DGX box on the LAN serving an OpenAI-compatible endpoint\n   { modelName: 'dgx-llama', provider: 'openai', model: 'llama-3.3-70b', apiBase: 'http://192.168.1.50:8000/v1', apiKey: 'none' },\n   // A paid API\n   { modelName: 'claude', provider: 'anthropic', model: 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY },\n ],\n})\nawait proxy.start()\n\n// one OpenAI-compatible endpoint for everything\nconst client = container.client('rest', { baseURL: proxy.baseURL })\nconst models = await client.get('/v1/models', { headers: { Authorization: 'Bearer sk-luca-dev' } })\n\nawait proxy.stop()"
     }
   ]
 });
@@ -14812,6 +16621,7 @@ setBuildTimeData('servers.mcp', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "ai-assistants",
   "examples": [
     {
       "language": "ts",
@@ -14909,12 +16719,35 @@ setBuildTimeData('servers.mcp', {
 
 setBuildTimeData('servers.websocket', {
   "id": "servers.websocket",
-  "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
+  "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
   "shortcut": "servers.websocket",
   "className": "WebsocketServer",
   "methods": {
+    "handleUpgrade": {
+      "description": "Feed an HTTP `upgrade` event to this server. Only meaningful in `noServer` mode — wire it from your own http.Server: `httpServer.on('upgrade', (req, socket, head) => wsServer.handleUpgrade(req, socket, head))`.",
+      "parameters": {
+        "request": {
+          "type": "any",
+          "description": "Parameter request"
+        },
+        "socket": {
+          "type": "any",
+          "description": "Parameter socket"
+        },
+        "head": {
+          "type": "any",
+          "description": "Parameter head"
+        }
+      },
+      "required": [
+        "request",
+        "socket",
+        "head"
+      ],
+      "returns": "void"
+    },
     "broadcast": {
-      "description": "",
+      "description": "Send a message to every connected client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is broadcast as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). The frame is encoded once and reused across all connections.",
       "parameters": {
         "message": {
           "type": "any",
@@ -14927,7 +16760,7 @@ setBuildTimeData('servers.websocket', {
       "returns": "Promise<this>"
     },
     "send": {
-      "description": "",
+      "description": "Send a message to one client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}).",
       "parameters": {
         "ws": {
           "type": "any",
@@ -14972,7 +16805,7 @@ setBuildTimeData('servers.websocket', {
       "examples": [
         {
           "language": "ts",
-          "code": "ws.on('connection', async (client) => {\n const info = await ws.ask(client, 'identify')\n console.log('Client says:', info)\n})"
+          "code": "const server = container.server('websocket', { json: true })\nconst port = await container.feature('networking').findOpenPort(8190)\nawait server.start({ port })\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\n\n// a connected Luca websocket client replies by echoing requestId as replyTo\nconst client = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nclient.on('message', (msg) => {\n if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n})\nawait client.connect()\n\nconst socket = await firstConnection\nconst info = await server.ask(socket, 'identify')\nconsole.log('Client says:', info)   // { name: 'my-client' }\n\nawait client.disconnect()\nawait server.stop()"
         }
       ]
     },
@@ -14996,7 +16829,7 @@ setBuildTimeData('servers.websocket', {
   },
   "getters": {
     "wss": {
-      "description": "",
+      "description": "The underlying `ws` WebSocketServer, built lazily on first access. The construction mode is chosen from options: `noServer` builds a manual server (drive it with {@link handleUpgrade}); an attached `server` (raw http.Server, or an already-listening express server) shares that server's port via the Upgrade handshake; otherwise it binds its own `port`. A `path` option, when set, is applied in every mode.",
       "returns": "BaseServer"
     },
     "port": {
@@ -15005,6 +16838,11 @@ setBuildTimeData('servers.websocket', {
     }
   },
   "events": {
+    "attached": {
+      "name": "attached",
+      "description": "Event emitted by WebsocketServer",
+      "arguments": {}
+    },
     "connection": {
       "name": "connection",
       "description": "Event emitted by WebsocketServer",
@@ -15020,10 +16858,11 @@ setBuildTimeData('servers.websocket', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
-      "code": "const ws = container.server('websocket', { json: true })\nawait ws.start({ port: 8080 })\n\nws.on('message', (data, client) => {\n console.log('Received:', data)\n ws.broadcast({ echo: data })\n})\n\n// ask/reply: request info from a connected client\nws.on('connection', async (client) => {\n const info = await ws.ask(client, 'identify')\n console.log('Client says:', info)\n})"
+      "code": "const server = container.server('websocket', { json: true })\nconst port = await container.feature('networking').findOpenPort(8180)\nawait server.start({ port })\n\nserver.on('message', (data, client) => {\n console.log('Received:', data)\n})\n\n// a Luca websocket client on the other end — it answers asks from the\n// server by echoing the requestId back as replyTo\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\nconst client = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nclient.on('message', (msg) => {\n if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n})\nawait client.connect()\nawait client.send({ type: 'hello' })      // -> Received: { type: 'hello' }\n\n// ask/reply: request info from a connected client and await its answer\nconst socket = await firstConnection\nconst info = await server.ask(socket, 'identify')\nconsole.log('Client says:', info)         // { name: 'my-client' }\n\nawait client.disconnect()\nawait server.stop()"
     }
   ]
 });
@@ -15392,6 +17231,16 @@ setContainerBuildTimeData('Container', {
     }
   },
   "getters": {
+    "zod": {
+      "description": "The bundled zod (v4) instance — the same one seeded into VM-loaded user code as the `'zod'` virtual module, so schemas built here and schemas built in commands/endpoints share one zod identity.",
+      "returns": "typeof z",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const schema = container.zod.object({ name: container.zod.string() })\nschema.parse({ name: 'luca' }).name // 'luca'"
+        }
+      ]
+    },
     "state": {
       "description": "The observable state object for this container instance.",
       "returns": "State<ContainerState>"
@@ -15405,12 +17254,16 @@ setContainerBuildTimeData('Container', {
       "returns": "Partial<AvailableInstanceTypes<Features>>"
     },
     "utils": {
-      "description": "Common utilities available on every container. Provides UUID generation, object hashing, string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
+      "description": "Common utilities available on every container. Provides UUID generation, object hashing, timing helpers (sleep, backoff, every), string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.sleep(ms)` — resolve after ms milliseconds - `utils.backoff(fn, opts)` — retry an async fn with exponential backoff - `utils.every(ms, fn, opts)` — poll loop with no overlapping runs; returns a stop() function - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
       "returns": "ContainerUtils",
       "examples": [
         {
           "language": "ts",
           "code": "const id = container.utils.uuid()\nconst hash = container.utils.hashObject({ foo: 'bar' })\nconst name = container.utils.stringUtils.camelCase('my-feature')\nconst unique = container.utils.lodash.uniq([1, 2, 2, 3])"
+        },
+        {
+          "language": "ts",
+          "code": "// Retry a flaky call: 5 attempts, 200ms → 400ms → 800ms → 1600ms between them\nconst data = await container.utils.backoff(() => api.get('/status'), {\n attempts: 5, delay: 200,\n onRetry: (err, attempt) => console.log(`attempt ${attempt} failed`)\n})\n\n// Poll every 30s until stopped — the next run never starts before the previous finishes\nconst stop = container.utils.every(30_000, async () => { await syncOnce() })\nprocess.on('SIGINT', () => { stop(); process.exit(0) })"
         }
       ]
     },
@@ -15481,7 +17334,48 @@ setContainerBuildTimeData('Container', {
 setContainerBuildTimeData('NodeContainer', {
   "className": "NodeContainer",
   "description": "Server-side container for Node.js and Bun environments. Extends the base Container with file system access, process management, git integration, and other server-side capabilities. Auto-enables core features on construction: fs, proc, git, grep, os, networking, ui, vm, transpiler, helpers. Also attaches Client, Server, Command, Endpoint, and Selector helper types, providing `container.client()`, `container.server()`, `container.command()`, etc. factory methods.",
-  "methods": {},
+  "methods": {
+    "store": {
+      "description": "Open a named cross-process store — durable JSON state shared safely between separate luca invocations (a server and its sibling CLI commands, a fleet manager and its `stop` command, etc.). Sugar for `container.feature('store').open(name, options)`. The backing file is plain JSON under `.luca/store/` (project scope by default), and `update()` does a locked read-modify-write so concurrent processes can't clobber each other's writes. See `luca describe store` for the full API and the state-store decision guide.",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "The store's name; becomes the filename `<name>.json`"
+        },
+        "options": {
+          "type": "StoreHandleOptions<T>",
+          "description": "Schema, initial value, scope ('project' | 'machine' | 'tmp'), lock tuning"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "returns": "StoreHandle<T>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const stats = container.store('proxy-stats', {\n schema: z.object({ hits: z.number().default(0) }),\n})\nawait stats.update(s => { s.hits++ })\nconsole.log((await stats.read()).hits)"
+        }
+      ]
+    },
+    "runUntilShutdown": {
+      "description": "Keep the process alive until SIGINT/SIGTERM, then run cleanup and exit 0. The blessed pattern for long-running commands (servers, watchers, daemons): call it as the last statement of your handler instead of hand-rolling `await new Promise(() => {})` plus signal wiring. Multiple calls share one shutdown promise; cleanups run LIFO with a 5s guard, and a second signal exits immediately. Command handlers receive it on their context: `context.runUntilShutdown(cleanup)`.",
+      "parameters": {
+        "cleanup": {
+          "type": "() => void | Promise<void>",
+          "description": "Optional async cleanup to run on shutdown (close servers, remove state files)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<void>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const server = container.server('express', { port: 4000 })\nawait server.start()\nawait container.runUntilShutdown(async () => { await server.stop() })"
+        }
+      ]
+    }
+  },
   "getters": {
     "cwd": {
       "description": "Returns the current working directory, from options or process.cwd().",
@@ -15506,7 +17400,7 @@ setContainerBuildTimeData('NodeContainer', {
   },
   "events": {}
 });
-export const introspectionData = [
+export const introspectionData: Record<string, any>[] = [
   {
     "id": "clients.comfyui",
     "description": "ComfyUI client — execute Stable Diffusion workflows via the ComfyUI API. Connects to a ComfyUI instance to queue prompts, track execution via WebSocket or polling, and download generated images. Supports both UI-format and API-format workflows with automatic conversion.",
@@ -15752,6 +17646,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -15999,6 +17894,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -16139,6 +18035,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
@@ -16407,6 +18304,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "ai-assistants",
     "examples": [
       {
         "language": "ts",
@@ -16416,7 +18314,7 @@ export const introspectionData = [
   },
   {
     "id": "clients.rest",
-    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission.",
+    "description": "HTTP REST client built on top of axios. Provides convenience methods for GET, POST, PUT, PATCH, and DELETE requests with automatic JSON handling, configurable base URL, and error event emission. All request methods return the **parsed response body directly** — there is no `{ data, status, headers }` wrapper. `await api.get('/users')` IS the users payload, not an axios Response. **Errors are returned, not thrown.** This applies to HTTP error statuses (4xx/5xx) AND to connection-level failures (connection refused, DNS failures, timeouts). In both cases the request methods resolve with the error serialized as JSON (via `error.toJSON()`) instead of rejecting, and a `failure` event is emitted on the client. The returned value is a **plain object** with `message` and `code`/`status` fields — NOT an Error instance, so `result instanceof Error` is false. A try/catch around `api.get(...)` will NOT catch a down server or a 404 — inspect the returned value's shape instead. HTTP errors come back as `name: 'AxiosError'` with a numeric `status`; connection errors carry a `code` whose exact string depends on the runtime (`'ConnectionRefused'` under Bun, `'ECONNREFUSED'` under Node). Configure once via options: `baseURL` prefixes every request path, and `json: true` sets `Content-Type: application/json` + `Accept: application/json` default headers. Per-request headers and any other axios config go in the last argument of each method. The underlying axios instance is available as `api.axios` for anything beyond that (interceptors, etc.).",
     "shortcut": "clients.rest",
     "className": "RestClient",
     "methods": {
@@ -16427,7 +18325,7 @@ export const introspectionData = [
         "returns": "Promise<void>"
       },
       "patch": {
-        "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+        "description": "Send a PATCH request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
         "parameters": {
           "url": {
             "type": "string",
@@ -16435,20 +18333,26 @@ export const introspectionData = [
           },
           "data": {
             "type": "any",
-            "description": "Request body"
+            "description": "Request body (the partial update)"
           },
           "options": {
             "type": "AxiosRequestConfig",
-            "description": "Additional axios request config"
+            "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst patched = await api.patch('/users/42', { role: 'viewer' })\nif (patched?.name === 'AxiosError') console.error(patched.status, patched.message)"
+          }
+        ]
       },
       "put": {
-        "description": "Send a PUT request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+        "description": "Send a PUT request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
         "parameters": {
           "url": {
             "type": "string",
@@ -16456,20 +18360,26 @@ export const introspectionData = [
           },
           "data": {
             "type": "any",
-            "description": "Request body"
+            "description": "Request body (the full replacement representation)"
           },
           "options": {
             "type": "AxiosRequestConfig",
-            "description": "Additional axios request config"
+            "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst updated = await api.put('/users/42', { name: 'Alice', role: 'admin' })\nconsole.log(updated)   // the parsed response body"
+          }
+        ]
       },
       "post": {
-        "description": "Send a POST request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+        "description": "Send a POST request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
         "parameters": {
           "url": {
             "type": "string",
@@ -16477,20 +18387,26 @@ export const introspectionData = [
           },
           "data": {
             "type": "any",
-            "description": "Request body"
+            "description": "Request body (JSON-encoded when the `json` option is set)"
           },
           "options": {
             "type": "AxiosRequestConfig",
-            "description": "Additional axios request config"
+            "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\nconst created = await api.post('/users', { name: 'Alice', role: 'admin' })\n\nif (created?.name === 'AxiosError') {\n console.error('create failed:', created.status, created.message)   // e.g. 422\n} else {\n console.log('created user', created.id)\n}"
+          }
+        ]
       },
       "delete": {
-        "description": "Send a DELETE request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+        "description": "Send a DELETE request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch. Note the second argument is query params (like get), not a request body.",
         "parameters": {
           "url": {
             "type": "string",
@@ -16498,20 +18414,26 @@ export const introspectionData = [
           },
           "params": {
             "type": "any",
-            "description": "Query parameters"
+            "description": "Query parameters (serialized into the query string)"
           },
           "options": {
             "type": "AxiosRequestConfig",
-            "description": "Additional axios request config"
+            "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\n// second arg is query params: DELETE /users/42?soft=true\nconst result = await api.delete('/users/42', { soft: true })\nif (result?.name === 'AxiosError') console.error('delete failed:', result.status)"
+          }
+        ]
       },
       "get": {
-        "description": "Send a GET request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing.",
+        "description": "Send a GET request. Returns the parsed response body directly (not an axios Response wrapper). On HTTP errors, returns the error as JSON instead of throwing — check the result's shape, don't try/catch.",
         "parameters": {
           "url": {
             "type": "string",
@@ -16519,17 +18441,23 @@ export const introspectionData = [
           },
           "params": {
             "type": "any",
-            "description": "Query parameters"
+            "description": "Query parameters (serialized into the query string)"
           },
           "options": {
             "type": "AxiosRequestConfig",
-            "description": "Additional axios request config"
+            "description": "Additional axios request config (headers, timeout, etc.)"
           }
         },
         "required": [
           "url"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\n\n// second arg is query params: GET /search?q=luca&limit=10\nconst results = await api.get('/search', { q: 'luca', limit: 10 })\n\n// per-request headers via the third arg\nconst token = 'my-jwt'\nconst me = await api.get('/me', {}, { headers: { Authorization: `Bearer ${token}` } })\n\n// errors come back as a plain object, not a throw\nif (me?.name === 'AxiosError') console.error(me.status, me.message)"
+          }
+        ]
       },
       "handleError": {
         "description": "Handle an axios error by emitting 'failure' and returning the error as JSON.",
@@ -16566,10 +18494,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
-        "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')\nawait api.post('/users', { name: 'Alice' })"
+        "code": "const api = container.client('rest', { baseURL: 'https://api.example.com', json: true })\nconst users = await api.get('/users')                 // parsed body, no .data unwrapping\nawait api.post('/users', { name: 'Alice' })\n\n// Health check: distinguish an up server from a down one by inspecting the result\nconst local = container.client('rest', { baseURL: 'http://localhost:4000' })\nconst result = await local.get('/health')\nif (result?.code || result?.name === 'AxiosError') {\n console.log('server is DOWN:', result.message)   // error, returned not thrown\n} else {\n console.log('server is UP:', result)             // parsed response body\n}"
       }
     ]
   },
@@ -16692,6 +18621,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
@@ -16888,6 +18818,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
@@ -17191,6 +19122,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -17281,31 +19213,43 @@ export const introspectionData = [
   },
   {
     "id": "clients.websocket",
-    "description": "WebSocketClient helper",
+    "description": "WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (`state.connected`, `state.reconnectAttempts`), and optional auto-reconnection with exponential backoff (base `reconnectInterval`, doubled per attempt, capped at 30s, up to `maxReconnectAttempts`). Supports ask/reply semantics when paired with the Luca WebSocket server (`container.server('websocket')`). The client can `ask(type, data)` the server and await a typed response. In the other direction, an ask from the server arrives as a normal `message` event whose payload carries a `requestId`; answer it with `send({ replyTo: requestId, data })`. Asks time out (reject) if no reply arrives within the configurable window. Incoming messages are JSON-parsed when possible; non-JSON payloads (including binary frames) are delivered as-is. Outgoing payloads are framed by {@link encodeWireFrame}: objects go out as JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. Events emitted: - `open` — connection established - `message` — message received (JSON-parsed when possible) - `close` — connection closed (with code and reason) - `error` — connection error - `reconnecting` — attempting reconnection (with attempt number) **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live WebSocket (and any reconnect timers) keep the event loop running. Call `await ws.disconnect()` when finished, and if the process still lingers (other handles or pending timers), end with `process.exit(0)`.",
     "shortcut": "clients.websocket",
     "className": "WebSocketClient",
     "methods": {
       "connect": {
-        "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error.",
+        "description": "Establish a WebSocket connection to the configured baseURL. Wires all raw WebSocket events (open, message, close, error) to the Helper event bus and updates connection state accordingly. Resolves once the connection is open; rejects on error. Calling connect() while already connected is a no-op that resolves immediately.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// a local server to connect to (any ws endpoint works)\nconst port = await container.feature('networking').findOpenPort(8210)\nconst server = container.server('websocket')\nawait server.start({ port })\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nws.on('open', () => console.log('connected'))\nws.on('close', (code, reason) => console.log('closed', code, reason))\nawait ws.connect()\nconsole.log(ws.state.get('connected'))   // true\n\nawait ws.disconnect()   // an open socket keeps the process alive\nawait server.stop()"
+          }
+        ]
       },
       "send": {
-        "description": "Send data over the WebSocket connection. Automatically JSON-serializes the payload. If not currently connected, attempts to connect first.",
+        "description": "Send data over the WebSocket connection. Objects are JSON-serialized; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). If not currently connected, attempts to connect first (so an explicit connect() call beforehand is optional).",
         "parameters": {
           "data": {
             "type": "any",
-            "description": "The data to send (will be JSON.stringify'd)"
+            "description": "The data to send (object → JSON, binary/string → raw frame)"
           }
         },
         "required": [
           "data"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const port = await container.feature('networking').findOpenPort(8220)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.send({ type: 'hello', payload: { name: 'luca' } })  // auto-connects\n\n// Answering an ask from the server: its message carries a requestId —\n// reply by echoing it back as replyTo\nws.on('message', async (msg) => {\n if (msg?.requestId) {\n   await ws.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n }\n})\nconst socket = await firstConnection\nconsole.log(await server.ask(socket, 'identify'))   // { name: 'my-client' }\n\nawait ws.disconnect()\nawait server.stop()"
+          }
+        ]
       },
       "ask": {
-        "description": "Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID.",
+        "description": "Send a request and wait for a correlated response. The message is sent with a unique `requestId`; the remote side is expected to reply with a message containing `replyTo` set to that same ID. Rejects if the reply carries an `error` field, or with a timeout Error if no reply arrives in time — so unlike the rest client, ask() failures DO throw and should be try/caught.",
         "parameters": {
           "type": {
             "type": "string",
@@ -17327,15 +19271,21 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const result = await ws.ask('getUser', { id: 42 })"
+            "code": "// Server side (container.server('websocket', { json: true })): messages\n// with a requestId arrive with reply helpers attached\nconst port = await container.feature('networking').findOpenPort(8230)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nserver.on('message', (msg) => {\n if (msg.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })\n})\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.connect()\n\ntry {\n const user = await ws.ask('getUser', { id: 42 }, 5000)\n console.log(user)   // { id: 42, name: 'Alice' }\n} catch (err) {\n // reply carried an error field, or no reply within 5s\n console.error(err.message)   // e.g. 'ask(\"getUser\") timed out after 5000ms'\n}\n\nawait ws.disconnect()\nawait server.stop()"
           }
         ]
       },
       "disconnect": {
-        "description": "Gracefully close the WebSocket connection. Suppresses auto-reconnect and updates connection state to disconnected.",
+        "description": "Gracefully close the WebSocket connection. Suppresses auto-reconnect, rejects any in-flight ask() promises with a 'WebSocket disconnected' error, and updates connection state to disconnected. Always call this at the end of CLI commands — an open socket keeps the process's event loop alive and the command will hang without it.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const port = await container.feature('networking').findOpenPort(8240)\nconst server = container.server('websocket')\nawait server.start({ port })\n\nconst ws = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nawait ws.connect()\nawait ws.send({ type: 'goodbye' })\nawait ws.disconnect()\nconsole.log(ws.state.get('connected'))   // false\nawait server.stop()"
+          }
+        ]
       }
     },
     "getters": {
@@ -17374,7 +19324,14 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
-    "stability": "stable"
+    "stability": "stable",
+    "category": "networking",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// pair it with the Luca websocket server so the example is self-contained\nconst port = await container.feature('networking').findOpenPort(8200)\nconst server = container.server('websocket', { json: true })\nawait server.start({ port })\nserver.on('message', (msg) => {\n if (msg?.type === 'getUser') msg.reply({ id: msg.data.id, name: 'Alice' })\n})\n\nconst ws = container.client('websocket', {\n baseURL: `ws://localhost:${port}`,\n reconnect: true,\n maxReconnectAttempts: 5\n})\nws.on('message', (data) => console.log('Received:', data))\nawait ws.connect()\nawait ws.send({ type: 'hello' })\n\n// ask/reply: request data from the server and await its answer\nconst result = await ws.ask('getUser', { id: 42 })\nconsole.log(result)   // { id: 42, name: 'Alice' }\n\n// done — close the socket so the process can exit\nawait ws.disconnect()\nawait server.stop()"
+      }
+    ]
   },
   {
     "id": "features.cipherSocial",
@@ -17566,6 +19523,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -17776,6 +19734,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -17867,6 +19826,24 @@ export const introspectionData = [
         ],
         "returns": "void"
       },
+      "defineModel": {
+        "description": "Define a model in the collection at runtime.  Usually models are defined in the docs/models.ts file but this allows you to do it at runtime for dynamic model definitions.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "Parameter name"
+          },
+          "config": {
+            "type": "any",
+            "description": "Parameter config"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ],
+        "returns": "ModelDefinition"
+      },
       "renderTree": {
         "description": "Render a tree view of the collection directory structure. Built with container.fs so it works without the `tree` binary.",
         "parameters": {
@@ -17906,7 +19883,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()"
+            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst articles = await contentDb.query(contentDb.models.Article).fetchAll()\n// Each result has an id (derived from the file path) and parsed frontmatter meta\narticles.forEach(doc => console.log(doc.id, doc.meta?.title))"
           }
         ]
       },
@@ -17925,7 +19902,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const doc = contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.frontmatter, doc.content)"
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs')\nawait fs.writeFileAsync('docs/getting-started.md', '---\\ntitle: Getting Started\\ntags: [intro]\\n---\\n\\n# Getting Started\\n\\nWelcome!\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nconst doc = await contentDb.parseMarkdownAtPath('./docs/getting-started.md')\nconsole.log(doc.meta?.title, doc.meta?.tags)\nconsole.log(doc.content)"
           }
         ]
       },
@@ -17958,7 +19935,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// By collection document ID\nconst doc = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst doc = await contentDb.document({ path: '/absolute/path/to/file.md' })\n\n// In-memory from a markdown string\nconst doc = contentDb.document({ content: '# Hello\\n\\nworld' })"
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', '# Intro\\n\\nWelcome.\\n')\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\n\n// By collection document ID (relative to the collection rootPath)\nconst byId = await contentDb.document({ id: 'guides/intro' })\n\n// By file path\nconst byPath = await contentDb.document({ path: './docs/guides/intro.md' })\n\n// In-memory from a markdown string\nconst inline = await contentDb.document({ content: '# Hello\\n\\nworld' })\nconsole.log(inline.title) // 'Hello'"
           }
         ]
       },
@@ -18017,7 +19994,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', [\n '---', 'title: Intro', '---', '',\n '# Intro', '', 'Welcome.', '',\n '## Installation', '', 'bun add luca', '',\n '## Usage', '', 'Use it.', '',\n '## API', '', 'See reference.', '',\n '## Changelog', '', '- 1.0', '',\n].join('\\n'))\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.read('guides/intro')\nawait contentDb.read('guides/intro', { include: ['Installation', 'Usage'] })\nawait contentDb.read('guides/intro', { exclude: ['Changelog'], meta: true })\nawait contentDb.read('guides/intro', { include: ['API'], leadingContent: false })"
           }
         ]
       },
@@ -18046,7 +20023,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
+            "code": "const fs = container.feature('fs')\nawait fs.ensureFolder('docs/guides')\nawait fs.writeFileAsync('docs/guides/intro.md', '# Intro\\n\\nWelcome.\\n\\n## Overview\\n\\nThe big picture.\\n')\nawait fs.writeFileAsync('docs/guides/setup.md', '# Setup\\n\\nInstall it.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.readMultiple(['guides/intro', 'guides/setup'])\nawait contentDb.readMultiple([{ id: 'guides/intro' }], { include: ['Overview'], dividers: false })"
           }
         ]
       },
@@ -18236,6 +20213,10 @@ export const introspectionData = [
         "description": "Returns the lazily-initialized Collection instance for the configured rootPath.",
         "returns": "Collection"
       },
+      "contentbase": {
+        "description": "The contentbase library instance.",
+        "returns": "any"
+      },
       "collectionPath": {
         "description": "Returns the absolute resolved path to the collection root directory.",
         "returns": "string"
@@ -18270,7 +20251,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstTask = await contentDb.queries.task.first()"
+            "code": "// Given a collection whose models.ts defines an Article model:\nconst fs = container.feature('fs')\nawait fs.ensureFolder('docs/articles')\nawait fs.writeFileAsync('docs/models.ts', [\n \"import { defineModel, z } from 'contentbase'\",\n \"export const Article = defineModel('Article', {\",\n \"  prefix: 'articles',\",\n \"  description: 'A published article',\",\n \"  meta: z.object({ title: z.string().optional() }),\",\n \"})\",\n].join('\\n'))\nawait fs.writeFileAsync('docs/articles/first.md', '---\\ntitle: First\\n---\\n\\n# First\\n\\nHello.\\n')\n\nconst contentDb = container.feature('contentDb', { rootPath: './docs' })\nawait contentDb.load()\n// Keys are the lowercased model names, singular and plural\nconst allArticles = await contentDb.queries.articles.fetchAll()\nconst firstArticle = await contentDb.queries.article.first()\nconsole.log(allArticles.map(doc => doc.id)) // ['articles/first']"
           }
         ]
       }
@@ -18286,6 +20267,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
@@ -18295,7 +20277,7 @@ export const introspectionData = [
   },
   {
     "id": "features.diskCache",
-    "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support.",
+    "description": "File-backed key-value cache built on top of the cacache library (the same store that powers npm). Suitable for persisting arbitrary data including very large blobs when necessary, with optional encryption support. Supports time-to-live expiry: pass `ttl` (seconds) in the feature options as a default for every entry, or per entry via `meta.ttl` on `set()`. Expired entries are removed on access and behave exactly like cache misses. The cache directory (from the `path` option, or a default under the OS cache dir) is created automatically on first use — no setup step is required.",
     "shortcut": "features.diskCache",
     "className": "DiskCache",
     "methods": {
@@ -18323,7 +20305,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await diskCache.saveFile('myFile', './output/file.txt')\nawait diskCache.saveFile('encodedImage', './images/photo.jpg', true)"
+            "code": "await diskCache.set('myFile', 'file contents')\nawait diskCache.saveFile('myFile', './file.txt')\n\n// Base64-encoded entries (e.g. images) are decoded before writing\nawait diskCache.set('encodedImage', Buffer.from('binary data').toString('base64'))\nawait diskCache.saveFile('encodedImage', './photo.jpg', true)"
           }
         ]
       },
@@ -18347,7 +20329,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await diskCache.ensure('config', JSON.stringify(defaultConfig))"
+            "code": "const defaultConfig = { theme: 'dark', retries: 3 }\nawait diskCache.ensure('config', JSON.stringify(defaultConfig))"
           }
         ]
       },
@@ -18375,7 +20357,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
+            "code": "await diskCache.set('original', 'important data')\nawait diskCache.set('file1', 'v1')\nawait diskCache.copy('original', 'backup')\nawait diskCache.copy('file1', 'file2', true) // force overwrite"
           }
         ]
       },
@@ -18403,7 +20385,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
+            "code": "await diskCache.set('temp', 'work in progress')\nawait diskCache.set('old_key', 'legacy value')\nawait diskCache.move('temp', 'permanent')\nawait diskCache.move('old_key', 'new_key', true) // force overwrite"
           }
         ]
       },
@@ -18445,7 +20427,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
+            "code": "await diskCache.set('myText', 'Hello World')\nawait diskCache.set('myData', { count: 42 })\nconst text = await diskCache.get('myText')\nconst data = await diskCache.get('myData', true) // parse as JSON"
           }
         ]
       },
@@ -18462,7 +20444,7 @@ export const introspectionData = [
           },
           "meta": {
             "type": "any",
-            "description": "Optional metadata to associate with the cached item"
+            "description": "Optional metadata to associate with the cached item. `meta.ttl`"
           }
         },
         "required": [
@@ -18473,7 +20455,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })"
+            "code": "const content = Buffer.from('binary data').toString('base64')\nconst jwt = 'header.payload.signature'\nawait diskCache.set('myKey', 'Hello World')\nawait diskCache.set('userData', { name: 'John', age: 30 })\nawait diskCache.set('file', content, { size: 1024, type: 'image' })\nawait diskCache.set('token', jwt, { ttl: 900 }) // expires in 15 minutes"
           }
         ]
       },
@@ -18550,7 +20532,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const customCache = diskCache.create('/custom/cache/path')"
+            "code": "const cachePath = container.paths.resolve(container.feature('os').tmpdir, 'my-cache')\nconst customCache = diskCache.create(cachePath)"
           }
         ]
       }
@@ -18562,11 +20544,11 @@ export const introspectionData = [
       },
       "securely": {
         "description": "Get encrypted cache operations interface Requires encryption to be enabled and a secret to be provided",
-        "returns": "{ set(name: string, payload: any, meta?: any): Promise<any>; get(name: string): Promise<any> }",
+        "returns": "{ set(name: string, payload: any, meta?: any, expiresAt?: number): Promise<any>; get(name: string): Promise<any> }",
         "examples": [
           {
             "language": "ts",
-            "code": "// Initialize with encryption\nconst cache = container.feature('diskCache', { \n encrypt: true, \n secret: Buffer.from('my-secret-key') \n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
+            "code": "// Initialize with encryption (secret must be a 32-byte key for AES-256)\nconst cache = container.feature('diskCache', {\n encrypt: true,\n secret: Buffer.alloc(32, 'my-secret-key')\n})\n\n// Use encrypted operations\nawait cache.securely.set('sensitive', 'secret data')\nconst decrypted = await cache.securely.get('sensitive')"
           }
         ]
       }
@@ -18576,10 +20558,15 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
         "code": "const diskCache = container.feature('diskCache', { path: '/tmp/cache' })\nawait diskCache.set('greeting', 'Hello World')\nconst value = await diskCache.get('greeting')"
+      },
+      {
+        "language": "ts",
+        "code": "// TTL: entries expire and read as cache misses afterwards\nconst cache = container.feature('diskCache', { ttl: 3600 }) // default: 1 hour\nconst token = 'abc123'\nconst data = { symbol: 'LUCA', price: 42 }\nawait cache.set('session', token)                  // expires in 1 hour\nawait cache.set('quote', data, { ttl: 60 })        // per-entry override: 60 seconds"
       }
     ]
   },
@@ -19148,6 +21135,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
@@ -19302,14 +21290,14 @@ export const introspectionData = [
         ]
       },
       "runContainer": {
-        "description": "Create and run a new container from the given image.",
+        "description": "Create and run a new container from the given image. With `detach: true` the container runs in the background and the returned string is the new container's ID. Without it, the call blocks until the container exits and the return value is the container's stdout.",
         "parameters": {
           "image": {
             "type": "string",
             "description": "Docker image to run (e.g. 'nginx:latest')"
           },
           "options": {
-            "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n    }",
+            "type": "{\n      /** Assign a name to the container */\n      name?: string\n      /** Port mappings in 'host:container' format */\n      ports?: string[]\n      /** Volume mounts in 'host:container' format */\n      volumes?: string[]\n      /** Environment variables as key-value pairs */\n      environment?: Record<string, string>\n      /** Run the container in the background */\n      detach?: boolean\n      /** Keep STDIN open */\n      interactive?: boolean\n      /** Allocate a pseudo-TTY */\n      tty?: boolean\n      /** Command and arguments to run inside the container */\n      command?: string[]\n      /** Working directory inside the container */\n      workdir?: string\n      /** Username or UID to run as */\n      user?: string\n      /** Override the default entrypoint */\n      entrypoint?: string\n      /** Connect the container to a network */\n      network?: string\n      /** Restart policy (e.g. 'always', 'on-failure') */\n      restart?: string\n      /** Path to an env file passed via --env-file */\n      envFile?: string\n      /** Make host.docker.internal resolve to the host from inside the container */\n      addHostGateway?: boolean\n    }",
             "description": "Container run options",
             "properties": {
               "name": {
@@ -19363,6 +21351,14 @@ export const introspectionData = [
               "restart": {
                 "type": "any",
                 "description": "Restart policy (e.g. 'always', 'on-failure')"
+              },
+              "envFile": {
+                "type": "any",
+                "description": "Path to an env file passed via --env-file (keeps secrets out of process args)"
+              },
+              "addHostGateway": {
+                "type": "any",
+                "description": "Make host.docker.internal resolve to the host from inside the container (adds --add-host on Linux engines; Docker Desktop resolves it natively)"
               }
             }
           }
@@ -19451,7 +21447,13 @@ export const introspectionData = [
         "required": [
           "containerIdOrName"
         ],
-        "returns": "Promise<DockerShell>"
+        "returns": "Promise<DockerShell>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires the docker daemon\nconst docker = container.feature('docker')\nconst shell = await docker.createShell('web-server', { workdir: '/app' })\nawait shell.run('ls -la')\nconsole.log(shell.last.stdout)\nawait shell.run('cat package.json')\nconsole.log(shell.last.stdout)\nawait shell.destroy() // clean up any helper container created for volume mounts"
+          }
+        ]
       },
       "pullImage": {
         "description": "Pull an image from a registry.",
@@ -19669,6 +21671,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -19693,12 +21696,12 @@ export const introspectionData = [
   },
   {
     "id": "features.downloader",
-    "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically.",
+    "description": "A feature that provides file downloading capabilities from URLs. The Downloader feature allows you to fetch files from remote URLs and save them to the local filesystem. It handles the network request, buffering, and file writing operations automatically. Use it when you need to programmatically pull remote assets — images, documents, data files — into your project. When you call `download()`: (1) the URL is fetched, (2) the response body is buffered fully into memory, (3) the buffer is written to the target path, which is resolved relative to the container's working directory. The resolved absolute path is returned.",
     "shortcut": "features.downloader",
     "className": "Downloader",
     "methods": {
       "download": {
-        "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, converts it to a buffer, and writes it to the filesystem at the target path. The target path is resolved relative to the container's configured paths.",
+        "description": "Downloads a file from a URL and saves it to the specified local path. This method fetches the file from the provided URL, buffers the entire response body in memory, and writes it to the filesystem at the target path. The target path is resolved relative to the container's working directory (`container.paths.resolve(targetPath)`). Note: HTTP error statuses (404, 500, ...) do NOT throw — the response body is written as-is, whatever it contains. Only network-level failures (DNS, refused connection, invalid URL) reject. Check the URL is correct before trusting the downloaded file.",
         "parameters": {
           "url": {
             "type": "string",
@@ -19717,7 +21720,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
+            "code": "// (no-run) fetches from the network\n// Download an image file\nconst imagePath = await downloader.download(\n 'https://example.com/photo.jpg',\n 'images/downloaded-photo.jpg'\n)\n\n// Download a document\nconst docPath = await downloader.download(\n 'https://api.example.com/files/document.pdf',\n 'documents/report.pdf'\n)"
           }
         ]
       }
@@ -19728,16 +21731,17 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
-        "code": "// Enable the downloader feature\nconst downloader = container.feature('downloader')\n\n// Download a file\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`)"
+        "code": "// (no-run) fetches from the network\nconst downloader = container.feature('downloader')\n\n// Download a file — target path is resolved relative to container.cwd\nconst localPath = await downloader.download(\n 'https://example.com/image.jpg',\n 'downloads/image.jpg'\n)\nconsole.log(`File saved to: ${localPath}`) // absolute path to the saved file"
       }
     ]
   },
   {
     "id": "features.fileManager",
-    "description": "The FileManager feature creates a database like index of all of the files in the project, and provides metadata about these files, and also provides a way to watch for changes to the files.",
+    "description": "The FileManager feature creates a database-like, in-memory index of all of the files in the project, provides metadata about these files, and can watch for changes to them. Think of it as a fast, queryable snapshot of your file tree — useful for code analysis tools, documentation generators, or any script that needs to reason about project structure. After `start()` completes, every file is indexed under its project-relative path (its \"file ID\"). The scan skips common build/dependency folders (node_modules, dist, out) by default; pass `exclude` patterns to skip more. In a git repo the index is also cached on disk keyed by the current commit SHA and directory mtimes, so repeat scans of a clean repo are nearly instant. Each indexed file carries metadata: `relativePath`, `absolutePath`, `name`, `extension` (with leading dot, e.g. `.ts`), `dirname`, `relativeDirname`, `size`, `modifiedAt`, and `createdAt`.",
     "shortcut": "features.fileManager",
     "className": "FileManager",
     "methods": {
@@ -19904,10 +21908,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "filesystem",
     "examples": [
       {
         "language": "ts",
-        "code": "const fileManager = container.feature('fileManager')\nawait fileManager.start()\n\nconst fileIds = fileManager.fileIds\nconst typescriptFiles = fileManager.matchFiles(\"**ts\")"
+        "code": "const fm = container.feature('fileManager')\nawait fm.start()\nconsole.log('Scan complete:', fm.isStarted)\nconsole.log('Total files indexed:', fm.fileIds.length)\n\n// Glob matching returns relative paths...\nconst tsFiles = fm.match('**' + '/*.ts')\nconsole.log('TypeScript files:', tsFiles.length)\n\n// ...or full metadata objects\nfor (const f of fm.matchFiles('package.json')) {\n console.log(f?.relativePath, f?.extension, f?.size)\n}\n\n// Understand the project at a glance\nconsole.log('Extensions:', fm.uniqueExtensions.join(', ')) // e.g. .ts, .md, .json\nconsole.log('Directories:', fm.directoryIds.length)"
       }
     ],
     "types": {
@@ -19961,7 +21966,7 @@ export const introspectionData = [
     "className": "FS",
     "methods": {
       "readFile": {
-        "description": "Synchronously reads a file and returns its contents as a string.",
+        "description": "Synchronously reads a file and returns its contents as a string. **Binary files: pass `null` as the encoding to get a raw Buffer.** The default encoding is utf-8, which silently corrupts binary content (images, zips, PDFs, compiled binaries) — invalid byte sequences are replaced and the data cannot be round-tripped. `fs.readFile('image.png')` returns garbage; `fs.readFile('image.png', null)` returns the real bytes.",
         "parameters": {
           "path": {
             "type": "string",
@@ -19969,7 +21974,7 @@ export const introspectionData = [
           },
           "encoding": {
             "type": "BufferEncoding | null",
-            "description": "The encoding to use. Pass null to get a raw Buffer."
+            "description": "The encoding to use. Pass null to get a raw Buffer (required for binary files)."
           }
         },
         "required": [
@@ -19979,7 +21984,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const content = fs.readFile('README.md')\nconst buffer = fs.readFile('image.png', null)"
+            "code": "const content = fs.readFile('README.md')          // string (utf-8)\nfs.writeFile('logo.png', Buffer.from([0x89, 0x50, 0x4e, 0x47]))\nconst buffer = fs.readFile('logo.png', null)      // Buffer — safe for binary data"
           }
         ]
       },
@@ -20019,7 +22024,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const content = await fs.readFileAsync('data.txt')\nconst buffer = await fs.readFileAsync('image.png', null)"
+            "code": "const content = await fs.readFileAsync('README.md')\nconst buffer = await fs.readFileAsync('data.json', null) // pass null for a raw Buffer"
           }
         ]
       },
@@ -20038,7 +22043,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const config = fs.readJson('config.json')\nconsole.log(config.version)"
+            "code": "const pkg = fs.readJson('package.json')\nconsole.log(pkg.version)"
           }
         ]
       },
@@ -20070,7 +22075,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const config = await fs.readJsonAsync('config.json')\nconsole.log(config.version)"
+            "code": "const pkg = await fs.readJsonAsync('package.json')\nconsole.log(pkg.version)"
           }
         ]
       },
@@ -20112,6 +22117,45 @@ export const introspectionData = [
           }
         ]
       },
+      "readdirAsync": {
+        "description": "Asynchronously reads the contents of a directory.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string[]>"
+      },
+      "readDir": {
+        "description": "Asynchronously reads the contents of a directory (camelCase spelling).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string[]>"
+      },
+      "readDirSync": {
+        "description": "Synchronously reads the contents of a directory (camelCase spelling).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "string[]"
+      },
       "writeFile": {
         "description": "Synchronously writes content to a file.",
         "parameters": {
@@ -20135,6 +22179,24 @@ export const introspectionData = [
             "code": "fs.writeFile('output.txt', 'Hello World')\nfs.writeFile('data.bin', Buffer.from([1, 2, 3, 4]))"
           }
         ]
+      },
+      "writeFileSync": {
+        "description": "Synchronously writes content to a file (node's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "Parameter content"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void"
       },
       "writeFileAsync": {
         "description": "Asynchronously writes content to a file.",
@@ -20188,6 +22250,28 @@ export const introspectionData = [
           }
         ]
       },
+      "writeJsonSync": {
+        "description": "Synchronously writes an object to a file as JSON.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "data": {
+            "type": "any",
+            "description": "Parameter data"
+          },
+          "indent": {
+            "type": "number",
+            "description": "Parameter indent"
+          }
+        },
+        "required": [
+          "path",
+          "data"
+        ],
+        "returns": "void"
+      },
       "writeJsonAsync": {
         "description": "Asynchronously writes an object to a file as JSON.",
         "parameters": {
@@ -20239,6 +22323,24 @@ export const introspectionData = [
             "code": "fs.appendFile('log.txt', 'New line\\n')"
           }
         ]
+      },
+      "appendFileSync": {
+        "description": "Synchronously appends content to a file (node's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "content": {
+            "type": "Buffer | string",
+            "description": "Parameter content"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "returns": "void"
       },
       "appendFileAsync": {
         "description": "Asynchronously appends content to a file.",
@@ -20377,6 +22479,89 @@ export const introspectionData = [
           }
         ]
       },
+      "mkdir": {
+        "description": "Synchronously creates a directory, including parent directories — always recursive. Node-style options are accepted and ignored (`recursive` is always on).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The directory path to create"
+          },
+          "_options": {
+            "type": "{ recursive?: boolean }",
+            "description": "Accepted for node compatibility; creation is always recursive"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.mkdir('logs/debug')"
+          }
+        ]
+      },
+      "mkdirSync": {
+        "description": "Synchronously creates a directory, including parent directories — always recursive.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "_options": {
+            "type": "{ recursive?: boolean }",
+            "description": "Parameter _options"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "string"
+      },
+      "mkdirAsync": {
+        "description": "Asynchronously creates a directory, including parent directories — always recursive.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "_options": {
+            "type": "{ recursive?: boolean }",
+            "description": "Parameter _options"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string>"
+      },
+      "ensureDir": {
+        "description": "Synchronously ensures a directory exists (fs-extra's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "string"
+      },
+      "ensureDirAsync": {
+        "description": "Asynchronously ensures a directory exists (fs-extra's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<string>"
+      },
       "exists": {
         "description": "Synchronously checks if a file or directory exists.",
         "parameters": {
@@ -20434,6 +22619,32 @@ export const introspectionData = [
           }
         ]
       },
+      "pathExists": {
+        "description": "Asynchronously checks if a path exists (fs-extra's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<boolean>"
+      },
+      "pathExistsSync": {
+        "description": "Synchronously checks if a path exists (fs-extra's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "boolean"
+      },
       "isSymlink": {
         "description": "Checks if a path is a symbolic link.",
         "parameters": {
@@ -20478,6 +22689,19 @@ export const introspectionData = [
             "code": "const info = fs.stat('package.json')\nconsole.log(info.size, info.mtime)"
           }
         ]
+      },
+      "statSync": {
+        "description": "Synchronously returns the stat object for a file or directory (node's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Stats"
       },
       "statAsync": {
         "description": "Asynchronously returns the stat object for a file or directory.",
@@ -20575,11 +22799,25 @@ export const introspectionData = [
         ]
       },
       "rmSync": {
-        "description": "Synchronously removes a file.",
+        "description": "Synchronously removes a file. Accepts node-style `{ recursive, force }` options, so `fs.rmSync('dir', { recursive: true })` works on directories too.",
         "parameters": {
           "path": {
             "type": "string",
             "description": "The path of the file to remove"
+          },
+          "options": {
+            "type": "{ recursive?: boolean; force?: boolean }",
+            "description": "Node-compatible options",
+            "properties": {
+              "recursive": {
+                "type": "any",
+                "description": "Remove directories and their contents"
+              },
+              "force": {
+                "type": "any",
+                "description": "Don't throw if the path doesn't exist"
+              }
+            }
           }
         },
         "required": [
@@ -20589,16 +22827,30 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.rmSync('temp/cache.tmp')"
+            "code": "fs.rmSync('temp/cache.tmp')\nfs.rmSync('temp/cache', { recursive: true })"
           }
         ]
       },
       "rm": {
-        "description": "Asynchronously removes a file.",
+        "description": "Asynchronously removes a file. Accepts node-style `{ recursive, force }` options, so `await fs.rm('dir', { recursive: true })` works on directories too.",
         "parameters": {
           "path": {
             "type": "string",
             "description": "The path of the file to remove"
+          },
+          "options": {
+            "type": "{ recursive?: boolean; force?: boolean }",
+            "description": "Node-compatible options",
+            "properties": {
+              "recursive": {
+                "type": "any",
+                "description": "Remove directories and their contents"
+              },
+              "force": {
+                "type": "any",
+                "description": "Don't throw if the path doesn't exist"
+              }
+            }
           }
         },
         "required": [
@@ -20608,16 +22860,20 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await fs.rm('temp/cache.tmp')"
+            "code": "fs.ensureFile('temp/cache.tmp', '')\nawait fs.rm('temp/cache.tmp')\nawait fs.rm('temp/cache', { recursive: true, force: true })"
           }
         ]
       },
       "rmdirSync": {
-        "description": "Synchronously removes a directory and all its contents.",
+        "description": "Synchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.",
         "parameters": {
           "dirPath": {
             "type": "string",
             "description": "The path of the directory to remove"
+          },
+          "_options": {
+            "type": "{ recursive?: boolean; force?: boolean }",
+            "description": "Accepted for node compatibility; removal is always recursive and forced"
           }
         },
         "required": [
@@ -20632,11 +22888,15 @@ export const introspectionData = [
         ]
       },
       "rmdir": {
-        "description": "Asynchronously removes a directory and all its contents.",
+        "description": "Asynchronously removes a directory and all its contents. Already recursive — node-style options are accepted and ignored for compatibility.",
         "parameters": {
           "dirPath": {
             "type": "string",
             "description": "The path of the directory to remove"
+          },
+          "_options": {
+            "type": "{ recursive?: boolean; force?: boolean }",
+            "description": "Accepted for node compatibility; removal is always recursive and forced"
           }
         },
         "required": [
@@ -20649,6 +22909,138 @@ export const introspectionData = [
             "code": "await fs.rmdir('temp/cache')"
           }
         ]
+      },
+      "remove": {
+        "description": "Removes a file or directory recursively — whatever the path is, it's gone (fs-extra's `remove`). No error if the path doesn't exist.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file or directory to remove"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.remove('temp')          // directory\nawait fs.remove('temp/file.txt') // or file — both fine"
+          }
+        ]
+      },
+      "removeSync": {
+        "description": "Synchronously removes a file or directory recursively (fs-extra's `removeSync`). No error if the path doesn't exist.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The file or directory to remove"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.removeSync('temp')"
+          }
+        ]
+      },
+      "deleteFile": {
+        "description": "Synchronously deletes a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The path of the file to delete"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "fs.deleteFile('temp/cache.tmp')"
+          }
+        ]
+      },
+      "deleteFileAsync": {
+        "description": "Asynchronously deletes a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "The path of the file to delete"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await fs.deleteFileAsync('temp/cache.tmp')"
+          }
+        ]
+      },
+      "unlink": {
+        "description": "Asynchronously removes a file (node's `fs/promises` name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      },
+      "unlinkSync": {
+        "description": "Synchronously removes a file (node's name).",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      },
+      "rmAsync": {
+        "description": "Asynchronously removes a file.",
+        "parameters": {
+          "path": {
+            "type": "string",
+            "description": "Parameter path"
+          },
+          "options": {
+            "type": "{ recursive?: boolean; force?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "returns": "void"
+      },
+      "rmdirAsync": {
+        "description": "Asynchronously removes a directory and all its contents.",
+        "parameters": {
+          "dirPath": {
+            "type": "string",
+            "description": "Parameter dirPath"
+          }
+        },
+        "required": [
+          "dirPath"
+        ],
+        "returns": "void"
       },
       "copy": {
         "description": "Synchronously copies a file or directory. Auto-detects whether the source is a file or directory and handles each appropriately (recursive for directories).",
@@ -20680,9 +23072,75 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.copy('src/config.json', 'backup/config.json')\nfs.copy('src', 'backup/src')"
+            "code": "fs.copy('src/index.ts', 'backup/index.ts')\nfs.copy('src', 'backup/src')"
           }
         ]
+      },
+      "copySync": {
+        "description": "Synchronously copies a file or directory.",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          },
+          "options": {
+            "type": "{ overwrite?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
+      },
+      "cp": {
+        "description": "Asynchronously copies a file or directory (node's `fs/promises` name).",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          },
+          "options": {
+            "type": "{ overwrite?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
+      },
+      "cpSync": {
+        "description": "Synchronously copies a file or directory (node's name).",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          },
+          "options": {
+            "type": "{ overwrite?: boolean }",
+            "description": "Parameter options"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
       },
       "copyAsync": {
         "description": "Asynchronously copies a file or directory. Auto-detects whether the source is a file or directory and handles each appropriately (recursive for directories).",
@@ -20714,7 +23172,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await fs.copyAsync('src/config.json', 'backup/config.json')\nawait fs.copyAsync('src', 'backup/src')"
+            "code": "await fs.copyAsync('src/index.ts', 'backup/index.ts')\nawait fs.copyAsync('src', 'backup/src')"
           }
         ]
       },
@@ -20738,7 +23196,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "fs.move('temp/draft.txt', 'final/document.txt')\nfs.move('old-dir', 'new-dir')"
+            "code": "fs.ensureFile('temp/draft.txt', 'work in progress')\nfs.move('temp/draft.txt', 'final/document.txt')\n\nfs.ensureFolder('old-dir')\nfs.move('old-dir', 'new-dir')"
           }
         ]
       },
@@ -20762,9 +23220,63 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await fs.moveAsync('temp/draft.txt', 'final/document.txt')\nawait fs.moveAsync('old-dir', 'new-dir')"
+            "code": "await fs.ensureFileAsync('temp/draft.txt', 'work in progress')\nawait fs.moveAsync('temp/draft.txt', 'final/document.txt')\n\nawait fs.ensureFolderAsync('old-dir')\nawait fs.moveAsync('old-dir', 'new-dir')"
           }
         ]
+      },
+      "moveSync": {
+        "description": "Synchronously moves a file or directory.",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
+      },
+      "rename": {
+        "description": "Asynchronously moves (renames) a file or directory (node's `fs/promises` name).",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
+      },
+      "renameSync": {
+        "description": "Synchronously moves (renames) a file or directory (node's name).",
+        "parameters": {
+          "src": {
+            "type": "string",
+            "description": "Parameter src"
+          },
+          "dest": {
+            "type": "string",
+            "description": "Parameter dest"
+          }
+        },
+        "required": [
+          "src",
+          "dest"
+        ],
+        "returns": "void"
       },
       "walk": {
         "description": "Recursively walks a directory and returns arrays of file and directory paths. By default paths are absolute. Pass `relative: true` to get paths relative to `basePath`. Supports filtering with exclude and include glob patterns.",
@@ -20807,7 +23319,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json', ...] }"
+            "code": "const result = fs.walk('src', { files: true, directories: false })\nconst filtered = fs.walk('.', { exclude: ['node_modules', '.git'], include: ['*.ts'] })\n\nfs.ensureFile('inbox/contact-1.json', '{}')\nconst relative = fs.walk('inbox', { relative: true }) // => { files: ['contact-1.json'] }"
           }
         ]
       },
@@ -20852,7 +23364,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\nconst files = await fs.walkAsync('inbox', { relative: true })\n// files.files => ['contact-1.json', 'subfolder/file.txt', ...]"
+            "code": "const result = await fs.walkAsync('src', { exclude: ['node_modules'] })\n\nawait fs.ensureFileAsync('inbox/contact-1.json', '{}')\nconst files = await fs.walkAsync('inbox', { relative: true })\n// files.files => ['contact-1.json']"
           }
         ]
       },
@@ -20925,6 +23437,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "filesystem",
     "examples": [
       {
         "language": "ts",
@@ -21021,7 +23534,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Get all tracked files\nconst allFiles = await git.lsFiles()\n\n// Get only modified files\nconst modified = await git.lsFiles({ modified: true })\n\n// Get untracked files excluding certain patterns\nconst untracked = await git.lsFiles({ \n others: true, \n exclude: ['*.log', 'node_modules'] \n})"
+            "code": "// ls-files needs a repository — guard with isRepo when the cwd might not be one\nif (git.isRepo) {\n // Get all tracked files\n const allFiles = await git.lsFiles()\n\n // Get only modified files\n const modified = await git.lsFiles({ modified: true })\n\n // Get untracked files excluding certain patterns\n const untracked = await git.lsFiles({\n   others: true,\n   exclude: ['*.log', 'node_modules']\n })\n\n // Scope the listing to a subdirectory\n const srcFiles = await git.lsFiles({ baseDir: 'src' })\n}"
           }
         ]
       },
@@ -21057,7 +23570,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const log = git.fileLog('package.json')\nconst log = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
+            "code": "const log = git.fileLog('package.json')\nconst multiFileLog = git.fileLog('src/index.ts', 'src/helper.ts')\nfor (const entry of log) {\n console.log(`${entry.sha.slice(0, 8)} ${entry.message}`)\n}"
           }
         ]
       },
@@ -21085,7 +23598,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Diff package.json between HEAD and a specific commit\nconst d = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst d = git.diff('src/index.ts', 'feature-branch', 'main')"
+            "code": "// Diff package.json between HEAD and a specific commit\nconst fromHead = git.diff('package.json', 'abc1234')\n\n// Diff between two branches\nconst betweenBranches = git.diff('src/index.ts', 'feature-branch', 'main')"
           }
         ]
       },
@@ -21131,7 +23644,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Extract a subfolder\nawait git.extractFolder({ source: 'soederpop/luca/src/assistants', destination: './my-assistants' })\n\n// Specific branch\nawait git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'main' })\n\n// Full GitHub URL\nawait git.extractFolder({ source: 'https://github.com/user/repo/tree/main/examples', destination: './examples' })"
+            "code": "// (no-run) downloads tarballs from GitHub — requires network access\n\n// Extract a subfolder\nawait git.extractFolder({ source: 'soederpop/luca/docs/examples', destination: './examples' })\n\n// Specific branch\nawait git.extractFolder({ source: 'sveltejs/template', destination: './my-app', branch: 'master' })\n\n// Full GitHub URL\nawait git.extractFolder({ source: 'https://github.com/soederpop/luca/tree/main/docs/examples', destination: './examples' })"
           }
         ]
       },
@@ -21150,7 +23663,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst history = git.getChangeHistoryForFiles('src/node/features/*.ts')"
+            "code": "const history = git.getChangeHistoryForFiles('src/container.ts', 'src/helper.ts')\nconst globHistory = git.getChangeHistoryForFiles('src/node/features/*.ts')"
           }
         ]
       }
@@ -21216,6 +23729,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -21277,7 +23791,7 @@ export const introspectionData = [
   },
   {
     "id": "features.googleAuth",
-    "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')`.",
+    "description": "Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle: authorization URL generation, local callback server, token exchange, refresh token storage (via diskCache), and automatic token refresh. Also supports non-interactive service account authentication via JSON key files. Two modes: - **oauth2** (default) — opens a browser for user consent. Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars (or `clientId` / `clientSecret` options). The refresh token is cached in diskCache, so subsequent runs restore authentication without a browser. - **service-account** — non-interactive, uses a JSON key file. Auto-selected when `serviceAccountKeyPath`, `serviceAccountKey`, or the `GOOGLE_SERVICE_ACCOUNT_KEY` env var is set. Ideal for automation, CI/CD, and background services. Note: a service account can only see files, sheets, and calendars that have been shared with its `client_email`. If no scopes are passed, `defaultScopes` is used — read-only access to Drive, Sheets, Calendar, Docs, and Gmail. Other Google features (drive, sheets, calendar, docs) depend on this feature and access it lazily via `container.feature('googleAuth')` — authenticate once and every Google feature picks it up automatically.",
     "shortcut": "features.googleAuth",
     "className": "GoogleAuth",
     "methods": {
@@ -21288,13 +23802,19 @@ export const introspectionData = [
         "returns": "OAuth2Client"
       },
       "getAuthClient": {
-        "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2. For service accounts, returns the JWT auth client.",
+        "description": "Get the authenticated auth client for passing to googleapis service constructors. Handles token refresh automatically for OAuth2 (refreshes when the access token is within a minute of expiry, emitting `tokenRefreshed`). For service accounts, returns the JWT auth client. If not yet authenticated, attempts to restore cached tokens first and throws if that fails.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>"
+        "returns": "Promise<OAuth2Client | ReturnType<typeof google.auth.fromJSON>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth')\n// Tries cached tokens automatically; throws if never authorized\nconst client = await auth.getAuthClient()\n// Pass to any googleapis constructor\n// google.drive({ version: 'v3', auth: client })"
+          }
+        ]
       },
       "authorize": {
-        "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server",
+        "description": "Start the OAuth2 authorization flow. 1. Spins up a temporary Express callback server on a free port 2. Generates the Google authorization URL 3. Opens the browser to the consent page 4. Waits for the callback with the authorization code 5. Exchanges the code for access + refresh tokens 6. Stores the refresh token in diskCache 7. Shuts down the callback server Emits `authorizationRequired` with the consent URL, then `authenticated` on success. Times out after 5 minutes if the user never completes consent.",
         "parameters": {
           "scopes": {
             "type": "string[]",
@@ -21302,25 +23822,49 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\nconsole.log(auth.isAuthenticated)         // true\nconsole.log(auth.state.get('scopes'))     // the authorized scopes\n// The refresh token is now cached — future runs won't need the browser"
+          }
+        ]
       },
       "authenticateServiceAccount": {
-        "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var.",
+        "description": "Authenticate using a service account JSON key file. Reads the key from options.serviceAccountKeyPath, options.serviceAccountKey, or the GOOGLE_SERVICE_ACCOUNT_KEY env var. Non-interactive — ideal for automation, CI/CD, and background services. Remember to share the Drive files, Sheets, or Calendars you need with the service account's client_email.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/service-account-key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()\nconsole.log(auth.state.get('email'))  // service account email"
+          }
+        ]
       },
       "tryRestoreTokens": {
-        "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated.",
+        "description": "Attempt to restore authentication from a cached refresh token. Called automatically by getAuthClient() if not yet authenticated. In service-account mode, this simply re-authenticates with the key file.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<boolean>"
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\n// Restore-or-authorize pattern for scripts\nconst auth = container.feature('googleAuth')\nconst restored = await auth.tryRestoreTokens()\nif (!restored) {\n await auth.authorize()  // falls back to the browser flow\n}"
+          }
+        ]
       },
       "revoke": {
-        "description": "Revoke the current credentials and clear cached tokens.",
+        "description": "Revoke the current credentials and clear the cached refresh token from diskCache.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst auth = container.feature('googleAuth')\nawait auth.revoke()\nconsole.log(auth.isAuthenticated)  // false — next run will need authorize() again"
+          }
+        ]
       }
     },
     "getters": {
@@ -21379,27 +23923,38 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
-        "code": "// OAuth2 flow — opens browser for consent\nconst auth = container.feature('googleAuth', {\n clientId: 'your-client-id.apps.googleusercontent.com',\n clientSecret: 'your-secret',\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\n\n// Service account flow — no browser needed\nconst auth = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait auth.authenticateServiceAccount()"
+        "code": "// (no-run) requires Google OAuth credentials\n// OAuth2 flow — reads GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from env,\n// opens a browser for consent, caches the refresh token in diskCache\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nawait auth.authorize()\nconsole.log(auth.isAuthenticated)        // true\nconsole.log(auth.state.get('email'))     // your Google email\n\n// Other Google features use the same auth automatically\nconst drive = container.feature('googleDrive')\nconst { files } = await drive.listFiles()"
+      },
+      {
+        "language": "ts",
+        "code": "// (no-run) requires Google OAuth credentials\n// Service account flow — no browser needed\nconst sa = container.feature('googleAuth', {\n serviceAccountKeyPath: '/path/to/service-account-key.json',\n scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],\n})\nawait sa.authenticateServiceAccount()\nconsole.log(sa.state.get('email'))       // the service account's client_email"
       }
     ]
   },
   {
     "id": "features.googleCalendar",
-    "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication. Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days.",
+    "description": "Google Calendar feature for listing calendars and reading events. Depends on the googleAuth feature for authentication (requires Google OAuth2 credentials or a service account with Calendar access, e.g. the `calendar.readonly` scope). Creates a Calendar v3 API client lazily. Provides convenience methods for today's events and upcoming days alongside the full `listEvents()` for custom time ranges. Event `start` and `end` are objects: timed events have `dateTime`, all-day events have `date`. Pass a `timeZone` option (e.g. \"America/Chicago\") to control the timezone used when rendering event times in queries.",
     "shortcut": "features.googleCalendar",
     "className": "GoogleCalendar",
     "methods": {
       "listCalendars": {
-        "description": "List all calendars accessible to the authenticated user.",
+        "description": "List all calendars accessible to the authenticated user. Returns calendar metadata including id, summary, timeZone, and accessRole — use the id to target specific calendars in the other methods.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<CalendarInfo[]>"
+        "returns": "Promise<CalendarInfo[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst calendars = await calendar.listCalendars()\ncalendars.forEach(c => console.log(`${c.primary ? '*' : ' '} ${c.summary} (${c.id})`))"
+          }
+        ]
       },
       "listEvents": {
-        "description": "List events from a calendar within a time range.",
+        "description": "List events from a calendar within a time range. Defaults: maxResults 250, orderBy 'startTime', singleEvents true (recurring events are expanded into instances). Paginate via the returned nextPageToken.",
         "parameters": {
           "options": {
             "type": "ListEventsOptions",
@@ -21441,10 +23996,16 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<CalendarEventList>"
+        "returns": "Promise<CalendarEventList>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst { events, nextPageToken } = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n maxResults: 50,\n orderBy: 'startTime',\n})\nconsole.log(`March events: ${events.length}`)"
+          }
+        ]
       },
       "getToday": {
-        "description": "Get today's events from a calendar.",
+        "description": "Get today's events from a calendar — midnight to midnight in the server's local time.",
         "parameters": {
           "calendarId": {
             "type": "string",
@@ -21452,10 +24013,16 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<CalendarEvent[]>"
+        "returns": "Promise<CalendarEvent[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst today = await calendar.getToday()\ntoday.forEach(e => {\n const time = e.start.dateTime\n   ? new Date(e.start.dateTime).toLocaleTimeString()\n   : 'All day'\n console.log(`${time} - ${e.summary}`)\n})"
+          }
+        ]
       },
       "getUpcoming": {
-        "description": "Get upcoming events for the next N days.",
+        "description": "Get upcoming events for the next N days, starting from now.",
         "parameters": {
           "days": {
             "type": "number",
@@ -21467,7 +24034,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<CalendarEvent[]>"
+        "returns": "Promise<CalendarEvent[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst week = await calendar.getUpcoming(7)\nconst month = await calendar.getUpcoming(30)\nconst work = await calendar.getUpcoming(7, 'work-calendar-id')\nconsole.log(`Next 7 days: ${week.length} events`)"
+          }
+        ]
       },
       "getEvent": {
         "description": "Get a single event by ID.",
@@ -21487,7 +24060,7 @@ export const introspectionData = [
         "returns": "Promise<CalendarEvent>"
       },
       "searchEvents": {
-        "description": "Search events by text query across event summaries, descriptions, and locations.",
+        "description": "Search events by text query across event summaries, descriptions, and locations. Combine with timeMin/timeMax options for more precise results.",
         "parameters": {
           "query": {
             "type": "string",
@@ -21535,7 +24108,13 @@ export const introspectionData = [
         "required": [
           "query"
         ],
-        "returns": "Promise<CalendarEvent[]>"
+        "returns": "Promise<CalendarEvent[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst calendar = container.feature('googleCalendar')\nconst standups = await calendar.searchEvents('standup')\nconst reviews = await calendar.searchEvents('review', {\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})\nconsole.log(`Found ${standups.length} standup events`)"
+          }
+        ]
       }
     },
     "getters": {
@@ -21564,10 +24143,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
-        "code": "const calendar = container.feature('googleCalendar')\n\n// List all calendars\nconst calendars = await calendar.listCalendars()\n\n// Get today's events\nconst today = await calendar.getToday()\n\n// Get next 7 days of events\nconst upcoming = await calendar.getUpcoming(7)\n\n// Search events\nconst meetings = await calendar.searchEvents('standup')\n\n// List events in a time range\nconst events = await calendar.listEvents({\n timeMin: '2026-03-01T00:00:00Z',\n timeMax: '2026-03-31T23:59:59Z',\n})"
+        "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/calendar.readonly'],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst calendar = container.feature('googleCalendar', {\n defaultCalendarId: 'primary',\n timeZone: 'America/Chicago',\n})\n\n// Today's events — start.dateTime for timed events, start.date for all-day\nconst today = await calendar.getToday()\ntoday.forEach(e => console.log(e.start.dateTime || e.start.date, e.summary))\n\n// Next 7 days\nconst upcoming = await calendar.getUpcoming(7)"
       }
     ],
     "types": {
@@ -21734,12 +24314,12 @@ export const introspectionData = [
   },
   {
     "id": "features.googleDocs",
-    "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication and optionally googleDrive for listing docs. The markdown converter handles headings, text formatting, links, lists, tables, and images.",
+    "description": "Google Docs feature for reading documents and converting them to Markdown. Depends on googleAuth for authentication (requires Google OAuth2 credentials or a service account with Docs access, e.g. the `documents.readonly` scope) and uses googleDrive for listing and searching docs (which needs Drive access too). The standout capability is Markdown conversion: the converter handles headings (H1-H6), bold/italic/strikethrough, links, code spans (Courier/monospace fonts), ordered and unordered lists with nesting, tables (pipe format), images, and section breaks. Also supports plain text extraction and raw Docs API structure. The document ID is in the doc URL: `https://docs.google.com/document/d/{DOCUMENT_ID}/edit`",
     "shortcut": "features.googleDocs",
     "className": "GoogleDocs",
     "methods": {
       "getDocument": {
-        "description": "Get the raw document structure from the Docs API.",
+        "description": "Get the raw document structure from the Docs API. Use this when you need the full Docs API structure for custom processing.",
         "parameters": {
           "documentId": {
             "type": "string",
@@ -21749,10 +24329,16 @@ export const introspectionData = [
         "required": [
           "documentId"
         ],
-        "returns": "Promise<docs_v1.Schema$Document>"
+        "returns": "Promise<docs_v1.Schema$Document>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst rawDoc = await docs.getDocument('1abc_document_id')\nconsole.log(rawDoc.title)\nconsole.log(rawDoc.body?.content?.length)  // structural elements\nconsole.log(rawDoc.inlineObjects)          // embedded images"
+          }
+        ]
       },
       "getAsMarkdown": {
-        "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks.",
+        "description": "Read a Google Doc and convert it to Markdown. Handles headings, bold/italic/strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks. This is the primary method for extracting document content.",
         "parameters": {
           "documentId": {
             "type": "string",
@@ -21762,10 +24348,16 @@ export const introspectionData = [
         "required": [
           "documentId"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\nconsole.log(markdown)"
+          }
+        ]
       },
       "getAsText": {
-        "description": "Read a Google Doc as plain text (strips all formatting).",
+        "description": "Read a Google Doc as plain text (strips all formatting). Use this when you only need the words without any Markdown syntax.",
         "parameters": {
           "documentId": {
             "type": "string",
@@ -21775,10 +24367,16 @@ export const introspectionData = [
         "required": [
           "documentId"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst text = await docs.getAsText('1abc_document_id')\nconsole.log('Plain text length:', text.length)"
+          }
+        ]
       },
       "saveAsMarkdown": {
-        "description": "Download a Google Doc as Markdown and save to a local file.",
+        "description": "Download a Google Doc as Markdown and save to a local file in one step.",
         "parameters": {
           "documentId": {
             "type": "string",
@@ -21793,14 +24391,20 @@ export const introspectionData = [
           "documentId",
           "localPath"
         ],
-        "returns": "Promise<string>"
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst path = await docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\nconsole.log('Saved to:', path)  // absolute path"
+          }
+        ]
       },
       "listDocs": {
-        "description": "List Google Docs in Drive (filters by Docs MIME type).",
+        "description": "List Google Docs in Drive (filters by the Docs MIME type, excludes trashed files). Passing a query filters by document name.",
         "parameters": {
           "query": {
             "type": "string",
-            "description": "Optional additional Drive search query"
+            "description": "Optional name filter (matches \"name contains\" in Drive)"
           },
           "options": {
             "type": "{ pageSize?: number; pageToken?: string }",
@@ -21808,10 +24412,16 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<DriveFile[]>"
+        "returns": "Promise<DriveFile[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst allDocs = await docs.listDocs()\nconsole.log(`Found ${allDocs.length} Google Docs`)\n\n// Filter by name\nconst reports = await docs.listDocs('report')"
+          }
+        ]
       },
       "searchDocs": {
-        "description": "Search for Google Docs by name or content.",
+        "description": "Search for Google Docs by name or content (full-text search via Drive, filtered to the Google Docs MIME type).",
         "parameters": {
           "term": {
             "type": "string",
@@ -21821,7 +24431,13 @@ export const introspectionData = [
         "required": [
           "term"
         ],
-        "returns": "Promise<DriveFile[]>"
+        "returns": "Promise<DriveFile[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst docs = container.feature('googleDocs')\nconst results = await docs.searchDocs('quarterly earnings')\nresults.forEach(d => console.log(d.name, d.id))"
+          }
+        ]
       }
     },
     "getters": {
@@ -21850,21 +24466,22 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
-        "code": "const docs = container.feature('googleDocs')\n\n// Get a doc as markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Save to file\nawait docs.saveAsMarkdown('1abc_document_id', './output/doc.md')\n\n// List all Google Docs in Drive\nconst allDocs = await docs.listDocs()\n\n// Get raw document structure\nconst rawDoc = await docs.getDocument('1abc_document_id')\n\n// Plain text extraction\nconst text = await docs.getAsText('1abc_document_id')"
+        "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: [\n   'https://www.googleapis.com/auth/documents.readonly',\n   'https://www.googleapis.com/auth/drive.readonly',\n ],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst docs = container.feature('googleDocs')\n\n// Convert a doc to clean Markdown\nconst markdown = await docs.getAsMarkdown('1abc_document_id')\n\n// Find docs by name or content (via Drive)\nconst results = await docs.searchDocs('meeting notes')\nresults.forEach(d => console.log(d.name, d.id))"
       }
     ]
   },
   {
     "id": "features.googleDrive",
-    "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication. Creates a Drive v3 API client lazily and passes the auth client from googleAuth.",
+    "description": "Google Drive feature for listing, searching, browsing, and downloading files. Depends on the googleAuth feature for authentication (requires Google OAuth2 credentials or a service account with Drive access, e.g. the `drive.readonly` scope). Creates a Drive v3 API client lazily and passes the auth client from googleAuth — authenticate once via googleAuth and this feature picks it up. Use `download()`/`downloadTo()` for binary files and `exportFile()` to convert Google Workspace documents (Docs, Sheets, Slides) to formats like PDF, CSV, or plain text. Listing defaults: 100 results per page, ordered by modifiedTime desc.",
     "shortcut": "features.googleDrive",
     "className": "GoogleDrive",
     "methods": {
       "listFiles": {
-        "description": "List files in the user's Drive with an optional query filter.",
+        "description": "List files in the user's Drive with an optional query filter. Defaults to 100 results ordered by modifiedTime desc. Paginate via the returned nextPageToken. Pass `corpora: 'allDrives'` to include shared drives.",
         "parameters": {
           "query": {
             "type": "string",
@@ -21898,7 +24515,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<DriveFileList>"
+        "returns": "Promise<DriveFileList>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\n\n// Recent files\nconst { files } = await drive.listFiles()\n\n// With a Drive query filter\nconst { files: pdfs } = await drive.listFiles(\"mimeType = 'application/pdf'\")\n\n// Paginate\nconst page1 = await drive.listFiles(undefined, { pageSize: 10 })\nconst page2 = await drive.listFiles(undefined, { pageSize: 10, pageToken: page1.nextPageToken })"
+          }
+        ]
       },
       "listFolder": {
         "description": "List files within a specific folder.",
@@ -21940,7 +24563,7 @@ export const introspectionData = [
         "returns": "Promise<DriveFileList>"
       },
       "browse": {
-        "description": "Browse a folder's contents, separating files from subfolders.",
+        "description": "Browse a folder's contents, separating files from subfolders for easy navigation.",
         "parameters": {
           "folderId": {
             "type": "string",
@@ -21948,10 +24571,16 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<DriveBrowseResult>"
+        "returns": "Promise<DriveBrowseResult>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\nconst root = await drive.browse()  // defaults to the root folder\nroot.folders.forEach(f => console.log(`[dir]  ${f.name}`))\nroot.files.forEach(f => console.log(`[file] ${f.name}`))\n\nconst sub = await drive.browse('folder-id-here')"
+          }
+        ]
       },
       "search": {
-        "description": "Search files by name, content, or MIME type.",
+        "description": "Search files by name, content, or MIME type (full-text search, trashed files excluded). A simpler interface than raw Drive query strings on `listFiles()`.",
         "parameters": {
           "term": {
             "type": "string",
@@ -21965,7 +24594,13 @@ export const introspectionData = [
         "required": [
           "term"
         ],
-        "returns": "Promise<DriveFileList>"
+        "returns": "Promise<DriveFileList>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires Google OAuth credentials\nconst drive = container.feature('googleDrive')\n\n// Search by name and content\nconst { files } = await drive.search('quarterly report')\n\n// Filter by MIME type, or restrict to a folder\nconst { files: pdfs } = await drive.search('report', { mimeType: 'application/pdf' })\nconst { files: notes } = await drive.search('notes', { inFolder: 'folder-id-here' })"
+          }
+        ]
       },
       "getFile": {
         "description": "Get file metadata by file ID.",
@@ -22067,10 +24702,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
-        "code": "const drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\n\n// Search for documents\nconst { files: docs } = await drive.search('quarterly report', { mimeType: 'application/pdf' })\n\n// Browse a folder\nconst contents = await drive.browse('folder-id-here')\n\n// Download a file to disk\nawait drive.downloadTo('file-id', './downloads/report.pdf')"
+        "code": "// (no-run) requires Google OAuth credentials\n// Authenticate once via googleAuth (cached tokens restore automatically)\nconst auth = container.feature('googleAuth', {\n scopes: ['https://www.googleapis.com/auth/drive.readonly'],\n})\nif (!(await auth.tryRestoreTokens())) await auth.authorize()\n\nconst drive = container.feature('googleDrive')\n\n// List recent files\nconst { files } = await drive.listFiles()\nfiles.forEach(f => console.log(f.name, f.mimeType))\n\n// Search, then download a match to disk\nconst { files: pdfs } = await drive.search('quarterly report', {\n mimeType: 'application/pdf',\n})\nawait drive.downloadTo(pdfs[0].id, './downloads/report.pdf')"
       }
     ],
     "types": {
@@ -22373,6 +25009,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
@@ -22595,7 +25232,7 @@ export const introspectionData = [
   },
   {
     "id": "features.googleSheets",
-    "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication. Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data.",
+    "description": "Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Depends on the googleAuth feature for authentication (OAuth2 credentials or a service account with Sheets access). Creates a Sheets v4 API client lazily and provides convenient methods for reading tabular data. Set `defaultSpreadsheetId` once to avoid passing the ID on every call. Numeric cell values come through as strings by default.",
     "shortcut": "features.googleSheets",
     "className": "GoogleSheets",
     "methods": {
@@ -22733,10 +25370,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "google-workspace",
     "examples": [
       {
         "language": "ts",
-        "code": "const sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file\nawait sheets.saveAsJson('./data/export.json')"
+        "code": "// (no-run) requires Google OAuth credentials\nconst sheets = container.feature('googleSheets', {\n defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'\n})\n\n// Inspect structure before reading\nconst meta = await sheets.getSpreadsheet()\nconst tabs = await sheets.listSheets()\n// => [{ title: 'Sheet1', rowCount: 100, ... }]\n\n// Read as JSON objects (first row = headers)\nconst data = await sheets.getAsJson('Sheet1')\n// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }]\n\n// Read as CSV string\nconst csv = await sheets.getAsCsv('Revenue')\n\n// Read a specific range (A1 notation, returns a 2D string array)\nconst values = await sheets.getRange('Sheet1!A1:D10')\n\n// Save to file (path resolved relative to the container cwd; returns the resolved path)\nawait sheets.saveAsJson('./data/export.json')"
       }
     ],
     "types": {
@@ -22871,7 +25509,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst results = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})"
+            "code": "// Search for a pattern in TypeScript files\nconst results = await grep.search({\n pattern: 'useState',\n include: '*.tsx',\n exclude: 'node_modules'\n})\n\n// Case insensitive search with context\nconst withContext = await grep.search({\n pattern: 'error',\n ignoreCase: true,\n before: 2,\n after: 2\n})\n\n// Cap the number of results\nconst firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })"
           }
         ]
       },
@@ -22945,7 +25583,7 @@ export const introspectionData = [
         ]
       },
       "todos": {
-        "description": "Find TODO, FIXME, HACK, and XXX comments.",
+        "description": "Find lines containing TODO, FIXME, HACK, or XXX. NOTE: this is a plain substring/regex match against the whole line — it does NOT parse comments. Any occurrence of these words matches, including inside string literals, markdown prose, and documentation. In particular, a command or script that generates a report about TODOs will match its own source (e.g. `console.log('TODO report')`), so filter out the reporting file itself or exclude string-literal matches when post-processing results.",
         "parameters": {
           "options": {
             "type": "Omit<GrepOptions, 'pattern'>",
@@ -22957,7 +25595,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })"
+            "code": "const todos = await grep.todos()\nconst fixmes = await grep.todos({ include: '*.ts' })\n\n// A report generator should exclude itself from the results\nconst filtered = todos.filter(m => !m.file.endsWith('commands/todo-report.ts'))"
           }
         ]
       },
@@ -23027,6 +25665,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "filesystem",
     "examples": [
       {
         "language": "ts",
@@ -23139,7 +25778,7 @@ export const introspectionData = [
   },
   {
     "id": "features.helpers",
-    "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/, selectors/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms",
+    "description": "The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. It scans known folder names (features/, clients/, servers/, commands/, endpoints/, selectors/) and handles registration differently based on the helper type: - Class-based (features, clients, servers): Dynamic import, validate subclass, register - Config-based (commands, endpoints, selectors): Delegate to existing discovery mechanisms This is also the composition point for building your own plugin/registry systems (\"meta-discovery\"): call `discover(type, { directory })` once per plugin folder to load helpers from anywhere, not just the conventional locations. A missing directory simply yields no helpers. See `assistantsManager` for a production example. Note: registries (`container.commands`, `container.features`, ...) are class instances — enumerate them with `.available`, not `Object.keys()`.",
     "shortcut": "features.helpers",
     "className": "Helpers",
     "methods": {
@@ -23173,7 +25812,7 @@ export const introspectionData = [
             "properties": {
               "directory": {
                 "type": "any",
-                "description": "Override the directory to scan"
+                "description": "Override the directory to scan. A missing directory"
               }
             }
           }
@@ -23186,6 +25825,10 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "const names = await container.helpers.discover('features')\nconsole.log(names) // ['myCustomFeature']"
+          },
+          {
+            "language": "ts",
+            "code": "// Meta-discovery: build a plugin system by scanning each plugin's folders.\n// To enumerate a registry afterwards use `.available` — registries are class\n// instances, so `Object.keys(container.commands)` will NOT list helper names.\nconst pluginDirs = [container.paths.resolve(container.feature('os').tmpdir, 'my-plugin')]\nfor (const plugin of pluginDirs) {\n await container.helpers.discover('commands', { directory: `${plugin}/commands` })\n}\nconsole.log(container.commands.available)"
           }
         ]
       },
@@ -23244,7 +25887,7 @@ export const introspectionData = [
         "returns": "string"
       },
       "loadModuleExports": {
-        "description": "Load a module either via native `import()` or the VM's virtual module system. Uses the same `useNativeImport` check as discovery to decide the loading strategy.",
+        "description": "Load a module either via native `import()` or the VM's virtual module system. Uses the same `useNativeImport` check as discovery to decide the loading strategy. Prefer this over a raw dynamic `import()` when loading project files: it works both in dev and inside the compiled `luca` binary (where project modules must go through the VM), so plugin loaders built on it don't break in production.",
         "parameters": {
           "absPath": {
             "type": "string",
@@ -23264,7 +25907,13 @@ export const introspectionData = [
         "required": [
           "absPath"
         ],
-        "returns": "Promise<Record<string, any>>"
+        "returns": "Promise<Record<string, any>>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const mod = await container.helpers.loadModuleExports('/abs/path/to/plugin.ts')"
+          }
+        ]
       }
     },
     "getters": {
@@ -23273,7 +25922,7 @@ export const introspectionData = [
         "returns": "string"
       },
       "useNativeImport": {
-        "description": "Whether to use native `import()` for loading project helpers. True only if `luca` is actually resolvable in `node_modules`. Warns when `node_modules` exists but the package is missing.",
+        "description": "Whether to use native `import()` for loading project helpers. Never inside a compiled binary — a standalone executable cannot resolve bare `import 'luca'` specifiers from disk files at runtime, so the VM's virtual modules are the only working path there. In dev (running under plain bun), native import is used when `luca` is resolvable in `node_modules` under either package name.",
         "returns": "boolean"
       },
       "available": {
@@ -23292,16 +25941,21 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
         "code": "const helpers = container.feature('helpers', { enable: true })\n\n// Discover all helper types\nawait helpers.discoverAll()\n\n// Discover a specific type\nawait helpers.discover('features')\n\n// Unified view of all available helpers\nconsole.log(helpers.available)"
+      },
+      {
+        "language": "ts",
+        "code": "// Meta-discovery: load each plugin's commands from its own folder\nfor (const dir of ['./plugins/analytics/commands', './plugins/billing/commands']) {\n await container.helpers.discover('commands', { directory: dir })\n}\nconsole.log(container.commands.available) // all registered command names"
       }
     ]
   },
   {
     "id": "features.ink",
-    "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
+    "description": "Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. This feature is intentionally a thin pass-through. It re-exports all of Ink's components, hooks, and the render function, plus a few convenience methods for mounting / unmounting apps. The actual UI composition is left entirely to the consumer — the feature just makes Ink available. **What you get:** - `ink.render(element)` — mount a React element to the terminal - `ink.components` — { Box, Text, Static, Transform, Newline, Spacer } - `ink.hooks` — { useInput, useApp, useStdin, useStdout, useStderr, useFocus, useFocusManager } - `ink.React` — the React module itself (createElement, useState, etc.) - `ink.unmount()` — tear down the currently mounted app - `ink.waitUntilExit()` — await the mounted app's exit - `ink.registerBlock()` / `ink.renderBlock()` / `ink.renderBlockAsync()` — a named block registry for rendering components inline in document flow (\"poor man's MDX\", used by `luca run` for markdown files with a `## Blocks` section) **Quick start:** ```tsx const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components const { React } = ink ink.render( React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, { color: 'green' }, 'hello from ink'), React.createElement(Text, { dimColor: true }, 'powered by luca'), ) ) await ink.waitUntilExit() ``` Or if you're in a .tsx file: ```tsx import React from 'react' const ink = container.feature('ink', { enable: true }) const { Box, Text } = ink.components ink.render( <Box flexDirection=\"column\"> <Text color=\"green\">hello from ink</Text> <Text dimColor>powered by luca</Text> </Box> ) ```",
     "shortcut": "features.ink",
     "className": "Ink",
     "methods": {
@@ -23361,7 +26015,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
+            "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'Hello'))\n// ... later\nink.unmount()\nconsole.log(ink.isMounted) // false"
           }
         ]
       },
@@ -23373,7 +26027,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+            "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'working...'))\n// something must eventually unmount the app or the promise never settles —\n// here a timer stands in for user input / app completion\nsetTimeout(() => ink.unmount(), 100)\nawait ink.waitUntilExit()\nconsole.log('App exited')"
           }
         ]
       },
@@ -23385,12 +26039,12 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ink = container.feature('ink', { enable: true })\nawait ink.render(myElement)\n// ... later, wipe the screen\nink.clear()"
+            "code": "const ink = container.feature('ink', { enable: true })\nconst { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nawait ink.render(React.createElement(Text, null, 'temporary output'))\n// ... later, wipe the screen\nink.clear()\nink.unmount()"
           }
         ]
       },
       "registerBlock": {
-        "description": "Register a named React function component as a renderable block.",
+        "description": "Register a named React function component as a renderable block. Blocks power the \"poor man's MDX\" pattern used by `luca run` on markdown files: any `tsx`/`jsx` code fence under a `## Blocks` heading has its top-level function components auto-registered as blocks, and the plain `ts` code blocks in the rest of the document get `render(name, props)` and `renderAsync(name, props)` globals that map to `renderBlock()` and `renderBlockAsync()` — so rich terminal UI renders inline with the document flow.",
         "parameters": {
           "name": {
             "type": "string",
@@ -23432,7 +26086,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await ink.renderBlock('Greeting', { name: 'Jon' })"
+            "code": "const { React } = await ink.loadModules()\nconst { Text } = ink.components\n\nink.registerBlock('Greeting', ({ name }) =>\n React.createElement(Text, { color: 'green' }, `Hello ${name}!`)\n)\nawait ink.renderBlock('Greeting', { name: 'Jon' })"
           }
         ]
       },
@@ -23459,7 +26113,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "tsx",
-            "code": "// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
+            "code": "// (no-run) demonstrates the ## Blocks convention inside runnable markdown docs\n// In a ## Blocks section:\nfunction AsyncChart({ url, done }) {\n const [rows, setRows] = React.useState(null)\n React.useEffect(() => {\n   fetch(url).then(r => r.json()).then(data => {\n     setRows(data)\n     done()\n   })\n }, [])\n if (!rows) return <Text dimColor>Loading...</Text>\n return <Box><Text>{JSON.stringify(rows)}</Text></Box>\n}\n\n// In a code block:\nawait renderAsync('AsyncChart', { url: 'https://api.example.com/data' })"
           }
         ]
       }
@@ -23469,13 +26123,23 @@ export const introspectionData = [
         "description": "The React module (createElement, useState, useEffect, etc.) Exposed so consumers don't need a separate react import. Lazy-loaded — first access triggers the import.",
         "returns": "typeof import('react')"
       },
+      "module": {
+        "description": "The raw ink module namespace, or `null` if not yet loaded. Used by the VM virtual-module bridge so user code that does `import { Text } from 'ink'` receives the SAME ink instance the feature renders with — a second ink/react copy breaks every hook with React context mismatches (\"Invalid hook call\", `isRawModeSupported === undefined`).",
+        "returns": "typeof import('ink') | null"
+      },
       "components": {
         "description": "All Ink components as a single object for destructuring. ```ts const { Box, Text, Static, Spacer } = ink.components ```",
         "returns": "{ Box: typeof import('ink').Box; Text: typeof import('ink').Text; Static: typeof import('ink').Static; Transform: typeof import('ink').Transform; Newline: typeof import('ink').Newline; Spacer: typeof import('ink').Spacer }"
       },
       "hooks": {
-        "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ```",
-        "returns": "{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }"
+        "description": "All Ink hooks as a single object for destructuring. ```ts const { useInput, useApp, useFocus } = ink.hooks ``` Hooks work inside functional components passed to `render()`.",
+        "returns": "{ useInput: typeof import('ink').useInput; useApp: typeof import('ink').useApp; useStdin: typeof import('ink').useStdin; useStdout: typeof import('ink').useStdout; useStderr: typeof import('ink').useStderr; useFocus: typeof import('ink').useFocus; useFocusManager: typeof import('ink').useFocusManager; useCursor: typeof import('ink').useCursor }",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) interactive — waits for a keypress\nconst ink = container.feature('ink', { enable: true })\nawait ink.loadModules()\nconst { Text } = ink.components\nconst { React } = ink\nconst { useInput, useApp } = ink.hooks\n\nfunction App() {\n const { exit } = useApp()\n useInput((input, key) => {\n   if (input === 'q') exit()\n })\n return React.createElement(Text, null, 'Press q to quit')\n}\n\nawait ink.render(React.createElement(App))\nawait ink.waitUntilExit()\nconsole.log('App exited')"
+          }
+        ]
       },
       "measureElement": {
         "description": "The Ink measureElement utility.",
@@ -23509,11 +26173,12 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
-    "stability": "stable"
+    "stability": "stable",
+    "category": "ui-output"
   },
   {
     "id": "features.ipcSocket",
-    "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Reply to sender, or ask and wait ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
+    "description": "IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. It supports both server and client modes, allowing processes to communicate efficiently through file system-based socket connections. **Key Features:** - Hub-and-spoke: one server, many named clients with identity tracking - Targeted messaging: sendTo(clientId), broadcast(msg, excludeId) - Request/reply: ask() + reply() with timeout-based correlation - Auto-reconnect: clients reconnect with exponential backoff - Stale socket detection: probeSocket() before listen() - Clean shutdown: stopServer() removes socket file **CLI commands: an open socket keeps the process alive.** A `luca` command that connects as a client will hang after its work is done — the live socket (and reconnect timers, when `reconnect: true`) keep the event loop running. Call `ipc.disconnect()` (client) or `await ipc.stopServer()` (server) when finished, and if the process still lingers, end with `process.exit(0)`. **Mode locking:** a single IpcSocket instance is locked to one role — the first `listen()` locks it into server mode and the first `connect()` locks it into client mode (attempting the other call afterwards throws). To act as both server and client within one process, create two distinct instances by giving each a different `name` option (instances are memoized per schema-validated options, so the differentiating key must be a real option): `container.feature('ipcSocket', { name: 'hub' })` and `container.feature('ipcSocket', { name: 'spoke' })`. **Server (Hub):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.listen('/tmp/hub.sock', true); ipc.on('connection', (clientId, socket) => { console.log('Client joined:', clientId); }); ipc.on('message', (data, clientId) => { console.log(`From ${clientId}:`, data); // Incoming ask() requests carry a requestId — reply to complete them if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId); // Or fire-and-forget back to the sender else ipc.sendTo(clientId, { ack: true }); }); ``` **Client (Spoke):** ```typescript const ipc = container.feature('ipcSocket'); await ipc.connect('/tmp/hub.sock', { reconnect: true, name: 'worker-1' }); // Fire and forget await ipc.send({ type: 'status', ready: true }); // Request/reply: ask the server and await its reply const answer = await ipc.ask({ type: 'question' }); // Answer asks initiated by the server ipc.on('message', (data) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }); }); ```",
     "shortcut": "features.ipcSocket",
     "className": "IpcSocket",
     "methods": {
@@ -23536,7 +26201,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Basic server setup\nconst server = await ipc.listen('/tmp/myapp.sock');\n\n// With automatic lock removal\nconst server = await ipc.listen('/tmp/myapp.sock', true);\n\n// Handle connections and messages\nipc.on('connection', (socket) => {\n console.log('New client connected');\n});\n\nipc.on('message', (data) => {\n console.log('Received message:', data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});"
+            "code": "const sock = `/tmp/myapp-${process.pid}.sock`\n\n// `true` removes a stale socket file first (probes it; throws if a live\n// process is already listening on the path)\nconst server = await ipc.listen(sock, true);\n\n// Handle connections and messages — both events include the client ID\nipc.on('connection', (clientId, socket) => {\n console.log('New client connected:', clientId);\n});\n\nipc.on('message', (data, clientId) => {\n console.log(`Received from ${clientId}:`, data);\n // Echo back to all clients\n ipc.broadcast({ echo: data });\n});\n\n// An open server holds the event loop — stop it when your command is done\nawait ipc.stopServer();"
           }
         ]
       },
@@ -23553,7 +26218,7 @@ export const introspectionData = [
         ]
       },
       "broadcast": {
-        "description": "Broadcasts a message to all connected clients (server mode only).",
+        "description": "Broadcasts a message to all connected clients (server mode only). Each connected client receives the broadcast as a `message` event. Messages are JSON-encoded in an envelope carrying a UUID for correlation. Clients whose sockets are no longer writable are silently skipped.",
         "parameters": {
           "message": {
             "type": "any",
@@ -23567,7 +26232,13 @@ export const introspectionData = [
         "required": [
           "message"
         ],
-        "returns": "this"
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "ipc.broadcast({\n type: 'notification',\n message: 'Deployment starting',\n timestamp: Date.now()\n})"
+          }
+        ]
       },
       "sendTo": {
         "description": "Sends a message to a specific client by ID (server mode only).",
@@ -23585,10 +26256,16 @@ export const introspectionData = [
           "clientId",
           "message"
         ],
-        "returns": "boolean"
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Reply directly to the sender of an incoming message\nipc.on('message', (data, clientId) => {\n if (clientId) ipc.sendTo(clientId, { ack: true })\n})"
+          }
+        ]
       },
       "send": {
-        "description": "Fire-and-forget: sends a message to the server (client mode only). For server→client, use sendTo() or broadcast().",
+        "description": "Fire-and-forget: sends a message to the server (client mode only). For server→client, use sendTo() or broadcast(). When you need a correlated response, use ask() instead.",
         "parameters": {
           "message": {
             "type": "any",
@@ -23598,10 +26275,16 @@ export const introspectionData = [
         "required": [
           "message"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// A live hub to talk to (in real projects it runs in another process)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/send-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\nhub.on('message', (data, clientId) => console.log('hub received:', data))\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\nawait ipc.send({ type: 'status', ready: true })\n\nawait container.utils.sleep(100)  // let the message arrive\nipc.disconnect(); await hub.stopServer()"
+          }
+        ]
       },
       "ask": {
-        "description": "Sends a message and waits for a correlated reply. Works in both client and server mode. The recipient should call `reply(requestId, response)` to respond.",
+        "description": "Sends a message and waits for a correlated reply. Works in both client and server mode. On the receiving side the message is delivered via the 'message' event with a `requestId` property merged onto the payload; the recipient should call `reply(requestId, response)` (plus the sender's clientId when replying from a server) to resolve this promise.",
         "parameters": {
           "message": {
             "type": "any",
@@ -23615,10 +26298,16 @@ export const introspectionData = [
         "required": [
           "message"
         ],
-        "returns": "Promise<any>"
+        "returns": "Promise<any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Full roundtrip: hub answers a spoke's ask (distinct `name` options\n// yield two independent instances — see the class example)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/ask-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\nhub.on('message', (data, clientId) => {\n if (data.requestId) hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)\n})\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\nconst answer = await ipc.ask({ type: 'sum', numbers: [1, 2, 3] })\nconsole.log(answer) // { sum: 6 }\n\n// Server → client works too: ipc.ask(msg, { clientId, timeoutMs: 2000 })\nipc.disconnect(); await hub.stopServer()"
+          }
+        ]
       },
       "reply": {
-        "description": "Sends a reply to a previous ask() call, correlated by requestId.",
+        "description": "Sends a reply to a previous ask() call, correlated by requestId. Incoming ask() requests surface their `requestId` on the payload delivered to the 'message' event, so a handler can correlate the reply: ```typescript // Server side — the 'message' handler receives (data, clientId) ipc.on('message', (data, clientId) => { if (data.requestId) ipc.reply(data.requestId, { result: 42 }, clientId) }) ```",
         "parameters": {
           "requestId": {
             "type": "string",
@@ -23630,7 +26319,7 @@ export const introspectionData = [
           },
           "clientId": {
             "type": "string",
-            "description": "Target client (server mode; for client mode, omit)"
+            "description": "Target client (required in server mode; omit in client mode)"
           }
         },
         "required": [
@@ -23648,32 +26337,50 @@ export const introspectionData = [
           },
           "options": {
             "type": "{ reconnect?: boolean; name?: string }",
-            "description": "Optional: reconnect (enable auto-reconnect), name (identify this client)"
+            "description": "Optional: reconnect (enable auto-reconnect with exponential backoff), name (identify this client to the server)"
           }
         },
         "required": [
           "socketPath"
         ],
-        "returns": "Promise<Socket>"
+        "returns": "Promise<Socket>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// A live hub to connect to (in real projects it runs in another process)\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/connect-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock, { reconnect: false, name: 'worker-1' })\n\nipc.on('message', (data) => {\n console.log('From server:', data)\n})\n\n// The server assigns this client an ID on connect\nconsole.log('My client id:', ipc.clientId)\n\nipc.disconnect(); await hub.stopServer()"
+          }
+        ]
       },
       "disconnect": {
-        "description": "Disconnects the client and stops any reconnection attempts.",
+        "description": "Disconnects the client and stops any reconnection attempts. Call this when a CLI command finishes its work — an open socket (and any reconnect timers) keeps the event loop alive, so a command that skips disconnect() will hang instead of exiting.",
         "parameters": {},
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const hub = container.feature('ipcSocket', { name: 'hub' })\nconst sock = `/tmp/disconnect-demo-${process.pid}.sock`\nawait hub.listen(sock, true)\n\nconst ipc = container.feature('ipcSocket', { name: 'spoke' })\nawait ipc.connect(sock)\n\n// ...do your work, then:\nipc.disconnect() // let the process exit cleanly\nawait hub.stopServer()"
+          }
+        ]
       },
       "probeSocket": {
-        "description": "Probe an existing socket to see if a live listener is behind it. Attempts a quick connect — if it succeeds, someone is listening.",
+        "description": "Probe an existing socket to see if a live listener is behind it. Attempts a quick connect (500ms timeout) — if it succeeds, someone is listening. Used internally by listen(socketPath, true) to distinguish a stale socket file (safe to remove) from one owned by a live process.",
         "parameters": {
           "socketPath": {
             "type": "string",
-            "description": "Parameter socketPath"
+            "description": "Path to the socket file to probe"
           }
         },
         "required": [
           "socketPath"
         ],
-        "returns": "Promise<boolean>"
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sock = `/tmp/probe-demo-${process.pid}.sock`\n\nconsole.log(await ipc.probeSocket(sock)) // false — nothing listening\n\nawait ipc.listen(sock, true)\n// Probing from any process now reports a live listener\nconst other = container.feature('ipcSocket', { name: 'prober' })\nconsole.log(await other.probeSocket(sock)) // true\n\nawait ipc.stopServer()"
+          }
+        ]
       }
     },
     "getters": {
@@ -23718,11 +26425,18 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
-    "stability": "stable"
+    "stability": "stable",
+    "category": "networking",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// Complete request/reply roundtrip in a single process.\n// Distinct `name` options yield two independent instances,\n// one locked into server mode and one into client mode.\nconst hub = container.feature('ipcSocket', { name: 'hub' })\nconst spoke = container.feature('ipcSocket', { name: 'spoke' })\n\nconst sock = `/tmp/ipc-example-${process.pid}.sock`\nawait hub.listen(sock, true) // `true` removes a stale socket file before binding\n\n// Server side: ask() requests arrive on the 'message' event with a requestId —\n// reply with it (plus the sender's clientId when replying from the server).\nhub.on('message', (data, clientId) => {\n if (data.requestId && data.type === 'sum') {\n   hub.reply(data.requestId, { sum: data.numbers.reduce((a, b) => a + b, 0) }, clientId)\n }\n})\n\nawait spoke.connect(sock, { name: 'worker-1' })\nconst answer = await spoke.ask({ type: 'sum', numbers: [1, 2, 3] })\nconsole.log(answer) // { sum: 6 }\n\n// Fire-and-forget alternatives: send() (client→server), sendTo()/broadcast() (server→clients)\n\nspoke.disconnect()\nawait hub.stopServer()\n// In real projects the hub and spoke live in different processes —\n// the API is identical; only the socket path is shared."
+      }
+    ]
   },
   {
     "id": "features.jsonTree",
-    "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects **Usage Example:** ```typescript const jsonTree = container.feature('jsonTree', { enable: true }); await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
+    "description": "JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive JSON file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Native JSON parsing for optimal performance **Path Processing:** Files are processed to create a nested object structure: - Directory names become object properties (camelCased) - File names become the final property names (without .json extension) - Nested directories create nested objects This feature is on-demand: enable it explicitly before use. The tree starts empty and stays empty until you call `loadTree`. The `tree` getter returns a clean view of your loaded data — it filters out the internal `enabled` state property, so you only ever see JSON you loaded, never framework bookkeeping. **Usage Example:** ```typescript // On-demand: enable it explicitly first. const jsonTree = container.feature('jsonTree', { enable: true }); console.log(jsonTree.state.enabled);       // true console.log(jsonTree.tree);                 // {} — empty until loaded console.log('enabled' in jsonTree.tree);    // false — getter is clean // Scan a directory of JSON files. Paths become camelCased property paths: //   data/users/profiles.json  -> tree.appData.users.profiles //   data/user-profiles.json   -> tree.appData.userProfiles await jsonTree.loadTree('data', 'appData'); const userData = jsonTree.tree.appData.users.profiles; ``` **Directory Structure Example:** ``` data/ users/ profiles.json    -> tree.data.users.profiles settings.json    -> tree.data.users.settings config/ app-config.json  -> tree.data.config.appConfig ```",
     "shortcut": "features.jsonTree",
     "className": "JsonTree",
     "methods": {
@@ -23745,7 +26459,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Load all JSON files from 'data' directory into state.data\nawait jsonTree.loadTree('data');\n\n// Load with custom key\nawait jsonTree.loadTree('app/config', 'configuration');\n\n// Access the loaded data\nconst dbConfig = jsonTree.tree.data.database.production;\nconst apiEndpoints = jsonTree.tree.data.api.endpoints;"
+            "code": "// Given a directory of JSON files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('settings/database')\nfs.writeFile('settings/database/production.json', JSON.stringify({ host: 'db.example.com', port: 5432 }))\n\n// Load all JSON files from the 'settings' directory into state.settings\nawait jsonTree.loadTree('settings');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = jsonTree.tree.settings.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load the same folder again under a custom key\nawait jsonTree.loadTree('settings', 'configuration');"
           }
         ]
       }
@@ -23766,11 +26480,12 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
-    "stability": "stable"
+    "stability": "stable",
+    "category": "content-nlp"
   },
   {
     "id": "features.networking",
-    "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services.",
+    "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services. Use `findOpenPort` before starting a server to avoid port conflicts, and `isPortOpen` to test a specific port without claiming it. It also offers heavier LAN tooling — host discovery, TCP port scanning, and an optional nmap wrapper — for inspecting the local network.",
     "shortcut": "features.networking",
     "className": "Networking",
     "methods": {
@@ -23805,6 +26520,43 @@ export const introspectionData = [
           {
             "language": "ts",
             "code": "// Check if port 8080 is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is free to use')\n} else {\n console.log('Port 8080 is already in use')\n}"
+          }
+        ]
+      },
+      "waitForPort": {
+        "description": "Waits until something is LISTENING on a port, polling with TCP connection probes. Resolves `true` as soon as a connection succeeds, or `false` when the timeout elapses without one — it never throws. Note the difference from `isPortOpen`, which asks whether a port is FREE for your own server to bind. `waitForPort` asks the opposite question: has a server come up on this port yet? It is the blessed way to smoke-test a server you just started, replacing hand-rolled poll loops.",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "The port to wait on"
+          },
+          "options": {
+            "type": "{ host?: string; timeout?: number; interval?: number }",
+            "description": "Wait options",
+            "properties": {
+              "host": {
+                "type": "any",
+                "description": "Host to probe"
+              },
+              "timeout": {
+                "type": "any",
+                "description": "Total time to keep trying, in milliseconds"
+              },
+              "interval": {
+                "type": "any",
+                "description": "Delay between probes, in milliseconds"
+              }
+            }
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "returns": "Promise<boolean>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Smoke-test a server you just started (the agent-harness pattern):\nconst port = await networking.findOpenPort(4000)\nconst server = container.server('express')\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\nawait server.start({ port })\n\nconst up = await networking.waitForPort(port, { timeout: 5000 })\nconsole.log(up) // true — safe to hit it with a rest client now\n\n// Fail fast when a dependency never comes up:\nconst ready = await networking.waitForPort(9999, { timeout: 500 })\nconsole.log(ready) // false — nothing is listening on 9999\n\nawait server.stop()"
           }
         ]
       },
@@ -24004,10 +26756,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
-        "code": "const networking = container.feature('networking')\n\n// Find an available port starting from 3000\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check if a specific port is available\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}"
+        "code": "const networking = container.feature('networking')\n\n// Find the next available port starting at 3000. If 3000 is free you get\n// 3000 back; otherwise you get the next open port above it.\nconst port = await networking.findOpenPort(3000)\nconsole.log(`Available port: ${port}`)\n\n// Check whether a specific port is free without claiming it.\nconst isAvailable = await networking.isPortOpen(8080)\nif (isAvailable) {\n console.log('Port 8080 is available')\n}\n\n// Allocate several non-conflicting ports for a multi-service setup —\n// each call independently finds the next open port from its start point.\nconst apiPort = await networking.findOpenPort(8080)\nconst wsPort = await networking.findOpenPort(8090)\nconst devPort = await networking.findOpenPort(5173)"
       }
     ],
     "types": {
@@ -24165,7 +26918,7 @@ export const introspectionData = [
     "className": "NLP",
     "methods": {
       "parse": {
-        "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers.",
+        "description": "Parse an utterance into structured command data using compromise. Extracts intent (normalized verb), target noun, prepositional subject, and modifiers. Prepositional phrases (\"of\", \"about\", \"for\", \"with\") are pulled out as the `subject`, while the direct object becomes the `target`. This method is fast and lightweight (compromise only, no wink model load), so it is well suited to batch-processing large lists of voice commands.",
         "parameters": {
           "text": {
             "type": "string",
@@ -24179,7 +26932,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }"
+            "code": "nlp.parse(\"open the terminal\")\n// { intent: \"open\", target: \"terminal\", subject: null, modifiers: [], raw: \"open the terminal\" }\n\nnlp.parse(\"draw a diagram of the auth flow\")\n// { intent: \"draw\", target: \"diagram\", subject: \"auth flow\", modifiers: [], raw: \"...\" }\n\n// Fast enough to batch-process many commands at once:\nconst commands = [\"deploy the app to production\", \"restart the database server\"]\nfor (const raw of commands) {\n const { intent, target } = nlp.parse(raw)\n console.log(`${intent} -> ${target}`)\n}"
           }
         ]
       },
@@ -24228,6 +26981,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "content-nlp",
     "examples": [
       {
         "language": "ts",
@@ -24237,12 +26991,12 @@ export const introspectionData = [
   },
   {
     "id": "features.opener",
-    "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders).",
+    "description": "The Opener feature opens files, URLs, desktop applications, and code editors. HTTP/HTTPS URLs are opened in Google Chrome. Desktop apps can be launched by name. VS Code and Cursor can be opened to a specific path. All other paths are opened with the platform's default handler (e.g. Preview for images, Finder for folders). Under the hood it delegates to platform-appropriate commands (`open` on macOS, `start` on Windows, `xdg-open` / direct binary invocation on Linux). Every method triggers a side effect on the host — launching an application or browser — so treat all of these as no-run in automated/headless contexts.",
     "shortcut": "features.opener",
     "className": "Opener",
     "methods": {
       "open": {
-        "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome. Everything else is opened with the system default handler via `open` (macOS).",
+        "description": "Opens a path or URL with the appropriate application. HTTP and HTTPS URLs are opened in Google Chrome (on Linux it tries `google-chrome`, then `chromium`, then falls back to `xdg-open`). Everything else is opened with the system default handler (`open` on macOS, `start` on Windows, `xdg-open` on Linux).",
         "parameters": {
           "target": {
             "type": "string",
@@ -24252,10 +27006,16 @@ export const introspectionData = [
         "required": [
           "target"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) opens applications on the host\nawait opener.open('https://github.com/soederpop/luca') // opens in Chrome\nawait opener.open('/Users/jon/screenshots/diagram.png') // default handler (Preview on macOS)"
+          }
+        ]
       },
       "app": {
-        "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
+        "description": "Opens a desktop application by name. On macOS, uses `open -a` to launch the app — the application name should match what appears in `/Applications`. On Windows, uses `start`. On Linux, attempts to run the lowercase app name as a command.",
         "parameters": {
           "name": {
             "type": "string",
@@ -24265,10 +27025,16 @@ export const introspectionData = [
         "required": [
           "name"
         ],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) opens applications on the host\nawait opener.app('Slack')\nawait opener.app('Finder')"
+          }
+        ]
       },
       "code": {
-        "description": "Opens VS Code at the specified path. Uses the `code` CLI command. Falls back to `open -a \"Visual Studio Code\"` on macOS.",
+        "description": "Opens VS Code at the specified path. Uses the `code` CLI command if it is found in PATH. Falls back to `open -a \"Visual Studio Code\"` on macOS; on other platforms a missing CLI throws with install instructions.",
         "parameters": {
           "path": {
             "type": "string",
@@ -24276,10 +27042,16 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) opens applications on the host\nawait opener.code('/Users/jon/projects/my-app')"
+          }
+        ]
       },
       "cursor": {
-        "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command. Falls back to `open -a \"Cursor\"` on macOS.",
+        "description": "Opens Cursor at the specified path. Uses the `cursor` CLI command if it is found in PATH. Falls back to `open -a \"Cursor\"` on macOS; on other platforms a missing CLI throws with install instructions.",
         "parameters": {
           "path": {
             "type": "string",
@@ -24287,7 +27059,13 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) opens applications on the host\nawait opener.cursor('/Users/jon/projects/my-app/src/index.ts')"
+          }
+        ]
       }
     },
     "getters": {},
@@ -24296,10 +27074,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
-        "code": "const opener = container.feature('opener')\n\n// Open a URL in Chrome\nawait opener.open('https://www.google.com')\n\n// Open a file with the default application\nawait opener.open('/path/to/image.png')\n\n// Open a desktop application\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a project path\nawait opener.cursor('/Users/jon/projects/my-app')"
+        "code": "// (no-run) opens applications on the host\nconst opener = container.feature('opener')\n\n// Open a URL in Chrome (the default browser for HTTP/HTTPS targets)\nawait opener.open('https://github.com/soederpop/luca')\n\n// Open a file with the system default handler (e.g. Preview for a .png on macOS)\nawait opener.open('/Users/jon/screenshots/diagram.png')\n\n// Launch a desktop application by name\nawait opener.app('Slack')\n\n// Open VS Code at a project path\nawait opener.code('/Users/jon/projects/my-app')\n\n// Open Cursor at a specific file\nawait opener.cursor('/Users/jon/projects/my-app/src/index.ts')"
       }
     ]
   },
@@ -24458,7 +27237,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// spawn a shell command cross-platform\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])"
+            "code": "// spawn a shell command cross-platform\nconst proc = container.feature('proc')\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, 'echo hello'])"
           }
         ]
       },
@@ -24468,7 +27247,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await proc.spawnAndCapture(os.shell, [os.shellFlag, command])"
+            "code": "const proc = container.feature('proc')\nconst command = 'echo hello'\nawait proc.spawnAndCapture(os.shell, [os.shellFlag, command])"
           }
         ]
       },
@@ -24508,6 +27287,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -24812,6 +27592,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "dev-tools",
     "types": {
       "PartialManifest": {
         "description": "Partial representation of a package.json manifest file. Contains the most commonly used fields for package analysis and dependency management.",
@@ -24855,7 +27636,7 @@ export const introspectionData = [
   },
   {
     "id": "features.postgres",
-    "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+    "description": "Postgres feature for safe SQL execution through Bun's native SQL client. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Requires a running PostgreSQL server and a connection URL — `options.url` is required (the constructor throws without it). In production, read the URL from an environment variable rather than hardcoding credentials.",
     "shortcut": "features.postgres",
     "className": "Postgres",
     "methods": {
@@ -24974,6 +27755,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
@@ -24988,7 +27770,7 @@ export const introspectionData = [
     "className": "ChildProcess",
     "methods": {
       "execAndCapture": {
-        "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution.",
+        "description": "Executes a command string and captures its output asynchronously. This method takes a complete command string, splits it into command and arguments, and executes it using the spawnAndCapture method. It's a convenient wrapper for simple command execution. **WARNING: the command string is split naively on spaces** — there is no shell quoting or escaping. Quoted arguments containing spaces (paths like `\"/My Documents/file.txt\"`, format strings like `--format=\"%h %s\"`) get mangled into multiple arguments, quotes included. If any argument contains spaces or quotes, use `spawnAndCapture(command, argsArray)` instead and pass each argument as its own array element.",
         "parameters": {
           "cmd": {
             "type": "string",
@@ -25006,7 +27788,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Execute a git command\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst result = await proc.execAndCapture('npm list --depth=0', {\n cwd: '/path/to/project'\n})"
+            "code": "// Execute a git command — failures are captured, not thrown\nconst result = await proc.execAndCapture('git status --porcelain')\nif (result.exitCode === 0) {\n console.log('Git status:', result.stdout)\n} else {\n console.error('Git error:', result.stderr)\n}\n\n// Execute with options\nconst listing = await proc.execAndCapture('ls -1', { cwd: 'src' })\n\n// WRONG: quoted args with spaces get split apart\n// await proc.execAndCapture('git log --format=\"%h %ad %s\" --date=short')\n// RIGHT: use spawnAndCapture with an args array\nconst log = await proc.spawnAndCapture('git', ['log', '--format=%h %ad %s', '--date=short'])"
           }
         ]
       },
@@ -25072,24 +27854,24 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst result = await proc.spawnAndCapture('npm', ['install'], {\n onOutput: (data) => console.log('📦 ', data.trim()),\n onError: (data) => console.error('❌ ', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Long-running process with custom working directory\nconst buildResult = await proc.spawnAndCapture('npm', ['run', 'build'], {\n cwd: '/path/to/project',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
+            "code": "// Basic usage\nconst result = await proc.spawnAndCapture('node', ['--version'])\nconsole.log(`Node version: ${result.stdout}`)\n\n// With real-time output monitoring\nconst monitored = await proc.spawnAndCapture('bun', ['--version'], {\n onOutput: (data) => console.log('OUT:', data.trim()),\n onError: (data) => console.error('ERR:', data.trim()),\n onExit: (code) => console.log(`Process exited with code ${code}`)\n})\n\n// Custom working directory, watching output as it streams\nconst buildResult = await proc.spawnAndCapture('ls', ['-1'], {\n cwd: 'src',\n onOutput: (data) => {\n   if (data.includes('error')) {\n     console.error('Build error detected:', data)\n   }\n }\n})"
           }
         ]
       },
       "spawn": {
-        "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()).",
+        "description": "Spawn a raw child process and return the handle immediately. Useful when callers need streaming access to stdout/stderr and direct lifecycle control (for example, cancellation via kill()). Pass `detached: true` to run the child in its own process group so it can outlive the parent. When detached, stdio defaults to 'ignore' (piped stdio would tie the child to the parent and keep the parent's event loop alive) — call `.unref()` on the returned handle to let the parent exit.",
         "parameters": {
           "command": {
             "type": "string",
-            "description": "Parameter command"
+            "description": "The executable to run"
           },
           "args": {
             "type": "string[]",
-            "description": "Parameter args"
+            "description": "Arguments to pass to the command"
           },
           "options": {
             "type": "RawSpawnOptions",
-            "description": "Parameter options",
+            "description": "Spawn options",
             "properties": {
               "cwd": {
                 "type": "string",
@@ -25110,6 +27892,10 @@ export const introspectionData = [
               "stderr": {
                 "type": "\"pipe\" | \"inherit\" | \"ignore\"",
                 "description": "Stderr mode for the child process"
+              },
+              "detached": {
+                "type": "boolean",
+                "description": "Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore')"
               }
             }
           }
@@ -25117,7 +27903,13 @@ export const introspectionData = [
         "required": [
           "command"
         ],
-        "returns": "import('child_process').ChildProcess"
+        "returns": "import('child_process').ChildProcess",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Streaming access with lifecycle control\nconst child = proc.spawn('bun', ['run', 'dev'])\nchild.stdout?.on('data', (buf) => console.log(buf.toString()))\n\n// Background worker that outlives the CLI process\nconst worker = proc.spawn('bun', ['worker.ts'], {\n detached: true,   // own process group — not reaped when the CLI exits\n stdout: 'ignore', // no pipes back to the parent\n stderr: 'ignore',\n})\nworker.unref()      // let the parent event loop exit\nconsole.log('worker pid:', worker.pid)"
+          }
+        ]
       },
       "exec": {
         "description": "Execute a command synchronously and return its output. Runs a shell command and waits for it to complete before returning. Useful for simple commands where you need the result immediately.",
@@ -25138,7 +27930,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const branch = proc.exec('git branch --show-current')\nconst version = proc.exec('node --version')"
+            "code": "const greeting = proc.exec('echo \"Hello World\"')\nconst version = proc.exec('node --version')\n\n// Run in a different directory without changing the container's cwd\nconst listing = proc.exec('ls -1', { cwd: 'src' })\n\n// NOTE: exec throws on a non-zero exit code — commands that can fail\n// (e.g. git outside a repository) belong in a try/catch or execAndCapture"
           }
         ]
       },
@@ -25197,7 +27989,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')"
+            "code": "// Gracefully terminate a process\nproc.kill(12345)\n\n// Force kill a process\nproc.kill(12345, 'SIGKILL')\n\n// Liveness check (supervisor pattern): signal 0 sends nothing but\n// returns false if the PID is dead/recycled — it does not throw.\n// Perfect for checking a PID persisted via diskCache from an earlier run.\nconst cache = container.feature('diskCache')\nif (await cache.has('worker')) {\n const { pid } = await cache.get('worker')\n const alive = proc.kill(pid, 0)   // true = still running, false = gone\n}"
           }
         ]
       },
@@ -25264,6 +28056,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "process",
     "examples": [
       {
         "language": "ts",
@@ -25348,6 +28141,11 @@ export const introspectionData = [
             "type": "\"pipe\" | \"inherit\" | \"ignore\"",
             "description": "Stderr mode for the child process",
             "optional": true
+          },
+          "detached": {
+            "type": "boolean",
+            "description": "Run the child in its own process group so it can outlive the parent (defaults stdio to 'ignore')",
+            "optional": true
           }
         }
       }
@@ -25355,7 +28153,7 @@ export const introspectionData = [
   },
   {
     "id": "features.processManager",
-    "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded.",
+    "description": "Manages long-running child processes with tracking, events, and automatic cleanup. Unlike the `proc` feature whose spawn methods block until the child exits, ProcessManager returns a SpawnHandler immediately — a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes, maintains observable state, and can automatically kill them on parent exit. Each handler maintains a memory-efficient output buffer: the first 20 lines (head) and last 50 lines (tail) of stdout/stderr are kept, everything in between is discarded. SCOPE: tracking is in-memory and per-process. ProcessManager supervises children of the *current* process only — its registry does not survive the CLI exiting, so it is the wrong tool for cross-invocation supervision (a `start` command spawning a worker that a later `stop` command must find). For that, use the detached spawn pattern: `proc.spawn(cmd, args, { detached: true })` + persist the PID via `diskCache`, and check liveness with `proc.kill(pid, 0)`. EVENT NAMING: handler-level events are singular (`exit`, `crash`, `killed` on the SpawnHandler) while feature-level events are past tense (`exited`, `crashed`, `killed`, `spawned`, `allStopped` on the ProcessManager itself). Subscribe on the right object for the name you want. The feature also keeps observable bookkeeping state: `pm.state.get('totalSpawned')` counts every spawn since the feature was created, and `pm.state.get('processes')` maps process IDs to metadata records (command, args, pid, status, exit code, timestamps). With `autoCleanup: true` (the default) exit/SIGINT/SIGTERM handlers are registered on first spawn so tracked children die with the parent.",
     "shortcut": "features.processManager",
     "className": "ProcessManager",
     "methods": {
@@ -25475,7 +28273,13 @@ export const introspectionData = [
         "required": [
           "command"
         ],
-        "returns": "SpawnHandler"
+        "returns": "SpawnHandler",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const pm = container.feature('processManager', { enable: true })\n\n// Returns immediately — the handle carries state, events, and lifecycle methods\nconst handle = pm.spawn('echo', ['hello from process manager'], { tag: 'greeter' })\nhandle.on('stdout', (data) => console.log(data))\n\n// Wait for completion when you need the result\nconst exitCode = await handle.await()"
+          }
+        ]
       },
       "get": {
         "description": "Get a SpawnHandler by its unique ID.",
@@ -25501,16 +28305,28 @@ export const introspectionData = [
         "required": [
           "tag"
         ],
-        "returns": "SpawnHandler | undefined"
+        "returns": "SpawnHandler | undefined",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "pm.spawn('sleep', ['5'], { tag: 'napper' })\nconst found = pm.getByTag('napper')\nconsole.log('Found by tag:', found ? found.status : 'no')"
+          }
+        ]
       },
       "list": {
-        "description": "List all tracked SpawnHandlers (running and finished).",
+        "description": "List all tracked SpawnHandlers (running and finished). Finished processes stay in the registry until removed with `remove(id)`, so the list is a full history of everything spawned by this feature instance.",
         "parameters": {},
         "required": [],
-        "returns": "SpawnHandler[]"
+        "returns": "SpawnHandler[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const all = pm.list()\nconst running = all.filter(h => h.isRunning)\nconsole.log(`${running.length} running of ${all.length} tracked`)"
+          }
+        ]
       },
       "killAll": {
-        "description": "Kill all running processes.",
+        "description": "Kill all running processes. Already-finished handlers are skipped; they remain in the registry for inspection. Use `stop()` instead when you also want the process exit handlers removed.",
         "parameters": {
           "signal": {
             "type": "NodeJS.Signals | number",
@@ -25518,13 +28334,25 @@ export const introspectionData = [
           }
         },
         "required": [],
-        "returns": "void"
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "pm.killAll()\npm.list().filter(h => h.isRunning).length // => 0"
+          }
+        ]
       },
       "stop": {
-        "description": "Stop the process manager: kill all running processes and remove cleanup handlers.",
+        "description": "Stop the process manager: kill all running processes and remove cleanup handlers. This is the full teardown — unlike `killAll()` it also unregisters the exit/SIGINT/SIGTERM handlers installed by `autoCleanup`, so call it when a long-running command is shutting down and should leave no listeners behind.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<void>"
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "await pm.stop() // killAll + remove process exit handlers"
+          }
+        ]
       },
       "remove": {
         "description": "Remove a finished handler from tracking.",
@@ -25605,10 +28433,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "process",
     "examples": [
       {
         "language": "ts",
-        "code": "const pm = container.feature('processManager', { enable: true })\n\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Peek at buffered output\nconst { head, tail } = server.peek()\n\n// Kill one\nserver.kill()\n\n// Kill all tracked processes\npm.killAll()\n\n// List and lookup\npm.list()              // SpawnHandler[]\npm.getByTag('api')     // SpawnHandler | undefined"
+        "code": "// Enable with auto-cleanup so tracked processes die when the parent exits\nconst pm = container.feature('processManager', { enable: true, autoCleanup: true })\n\n// spawn() returns a SpawnHandler immediately — it never blocks\nconst server = pm.spawn('node', ['server.js'], { tag: 'api', cwd: '/app' })\nserver.on('stdout', (data) => console.log('[api]', data))\nserver.on('crash', (code) => console.error('API crashed:', code))\n\n// Peek at buffered output (first 20 + last 50 lines)\nconst { head, tail } = server.peek()\n\n// List and lookup tracked processes (running and finished)\npm.list()                          // SpawnHandler[]\npm.getByTag('api')                 // SpawnHandler | undefined\npm.state.get('totalSpawned')       // number of processes spawned so far\n\n// Spawn something long-lived and terminate it\nconst sleeper = pm.spawn('sleep', ['10'], { tag: 'sleeper' })\nsleeper.kill()                     // status becomes 'killed'\n\n// Kill everything still running, then full teardown\npm.killAll()\npm.list().filter(h => h.isRunning).length // => 0\nawait pm.stop()                    // killAll + remove exit handlers"
       }
     ],
     "types": {
@@ -25651,7 +28480,7 @@ export const introspectionData = [
   },
   {
     "id": "features.python",
-    "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
+    "description": "The Python VM feature provides Python virtual machine capabilities for executing Python code. This feature automatically detects Python environments (uv, conda, venv, system) and provides methods to install dependencies and execute Python scripts. It can manage project-specific Python environments and maintain context between executions. Requires a Python interpreter to be installed on the host. Supports two modes: - **Stateless** (default): `execute()` and `executeFile()` spawn a fresh process per call - **Persistent session**: `startSession()` spawns a long-lived bridge process that maintains state across `run()` calls, enabling real codebase interaction with imports and session variables",
     "shortcut": "features.python",
     "className": "Python",
     "methods": {
@@ -25679,7 +28508,7 @@ export const introspectionData = [
         ]
       },
       "installDependencies": {
-        "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type. If a custom installCommand is provided in options, it will use that instead.",
+        "description": "Installs dependencies for the Python project. This method automatically detects the appropriate package manager and install command based on the environment type — e.g. `uv sync` for uv, `conda env update` for conda, `pip install -r requirements.txt` or `pip install -e .` for venv/system. If a custom installCommand is provided in options, it will use that instead.",
         "parameters": {},
         "required": [],
         "returns": "Promise<{ stdout: string; stderr: string; exitCode: number }>",
@@ -25795,7 +28624,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'"
+            "code": "await python.startSession()\n\n// State persists across calls\nawait python.run('x = 42')\nconst result = await python.run('print(x * 2)')\nconsole.log(result.stdout) // '84\\n'\n\n// Inject variables from JS\nconst result2 = await python.run('print(f\"Hello {name}!\")', { name: 'World' })\nconsole.log(result2.stdout) // 'Hello World!\\n'\n\n// Errors don't crash the session — they come back on the result\nconst bad = await python.run('raise ValueError(\"oops\")')\nconsole.log(bad.ok)    // false\nconsole.log(bad.error) // 'oops'\nconst alive = await python.run('print(\"still here\")') // session keeps working"
           }
         ]
       },
@@ -25968,6 +28797,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -26303,6 +29133,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
@@ -26312,12 +29143,12 @@ export const introspectionData = [
   },
   {
     "id": "features.repl",
-    "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers. Supports tab completion for dot-notation property access, command history persistence, and async/await.",
+    "description": "REPL feature — provides an interactive read-eval-print loop with tab completion and history. Launches a REPL session that evaluates JavaScript/TypeScript expressions in a sandboxed VM context populated with the container and its helpers (the same globals as `container.context` — `container`, `fs`, `git`, `proc`, `grep`, `os`, `ui`, and friends — plus anything you pass via `context`). Supports tab completion for dot-notation property access, per-project command history persistence, and top-level await. The last evaluated result is bound to `_` inside the session. Type `.exit` or `exit` to quit. Because `start()` blocks waiting for interactive input, it is not suitable for scripts or markdown-runner contexts — you can enable the feature and inspect its state without starting it. The typical workflow is the `--console` flag on `luca run`: ``` luca run setup.md --console ``` This executes all of the markdown's code blocks first, then drops into a REPL that inherits the accumulated context — every variable, enabled feature, and loaded piece of data from the preceding blocks carries over. Define your setup and data loading in code blocks, then explore the results interactively. History defaults to a per-project file keyed by a hash of the cwd (`~/.cache/luca/repl-{cwdHash}.history`); override it with the `historyPath` option.",
     "shortcut": "features.repl",
     "className": "Repl",
     "methods": {
       "start": {
-        "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await.",
+        "description": "Start the REPL session. Creates a VM context populated with the container and its helpers, sets up readline with tab completion and history, then enters the interactive loop. Type `.exit` or `exit` to quit. Supports top-level await, and binds the last evaluated result to `_`. The prompt string comes from the feature's `prompt` option (default: `\"> \"`). Calling `start()` again on an already-started REPL resumes with a fresh readline but reuses the existing VM context, merging in any new `context` variables — accumulated session state survives.",
         "parameters": {
           "options": {
             "type": "{ historyPath?: string, context?: any }",
@@ -26329,7 +29160,7 @@ export const introspectionData = [
               },
               "context": {
                 "type": "any",
-                "description": "Additional variables to inject into the VM context"
+                "description": "Additional variables to inject into the VM context as globals"
               }
             }
           }
@@ -26339,7 +29170,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})"
+            "code": "const repl = container.feature('repl', { enable: true, prompt: 'luca> ' })\nawait repl.start({\n context: { db: myDatabase },\n historyPath: '.repl-history'\n})\n// Inside the session: `db`, `container`, `fs`, etc. are all in scope,\n// tab completion works on dot paths, and `await` works at the top level."
           }
         ]
       }
@@ -26359,10 +29190,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
-        "code": "const repl = container.feature('repl', { enable: true })\nawait repl.start({ context: { myVar: 42 } })"
+        "code": "// Enable without starting — safe in non-interactive contexts\nconst repl = container.feature('repl', { enable: true })\nconsole.log('started:', repl.isStarted) // false until start() is called\n\n// Start interactively (blocks until the user types .exit or exit).\n// Variables passed as `context` become globals in the session.\nawait repl.start({ context: { myVar: 42 } })"
       }
     ]
   },
@@ -26496,7 +29328,7 @@ export const introspectionData = [
         ]
       },
       "stopPod": {
-        "description": "Stop a running pod.",
+        "description": "Stop a running pod. Stopping preserves the pod's disk and data — restart it later with `startPod()`. Use `removePod()` to delete a pod permanently.",
         "parameters": {
           "podId": {
             "type": "string",
@@ -26661,7 +29493,7 @@ export const introspectionData = [
         ]
       },
       "createVolume": {
-        "description": "Create a new network storage volume.",
+        "description": "Create a new network storage volume. Network volumes persist independently of pods — attach one to a pod via the `networkVolumeId` option of `createPod()`.",
         "parameters": {
           "options": {
             "type": "CreateVolumeOptions",
@@ -26888,6 +29720,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -27211,8 +30044,377 @@ export const introspectionData = [
     }
   },
   {
+    "id": "features.scheduler",
+    "description": "In-process task scheduler: recurring intervals, cron expressions, and one-shot timers as named, observable, stoppable tasks — plus the daemon lifecycle (`run()`) that keeps a long-running command alive until SIGINT/SIGTERM. This is the managed layer above `container.utils.sleep/backoff/every`. Reach for the utils when you need a bare poll loop inside other code; reach for the scheduler when tasks should have names, run history, error tracking, and a single shutdown path. Intervals accept milliseconds or duration strings (`'30s'`, `'5m'`, `'1h30m'`). Cron expressions use standard 5-field syntax (minute hour day-of-month month day-of-week) with lists, ranges, steps, names (`mon`, `jan`), and aliases (`@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly`). Cron dates evaluate in local time. A task's next run is never scheduled until the previous run finishes, so slow ticks don't overlap. A run that throws is recorded and emitted as `task:error`, and the task stays on schedule.",
+    "shortcut": "features.scheduler",
+    "className": "Scheduler",
+    "methods": {
+      "parseDuration": {
+        "description": "Parse a duration into milliseconds. Accepts a number (passed through), a numeric string (`'250'`), or a duration string combining units: `ms`, `s`, `m`, `h`, `d`, `w` — e.g. `'30s'`, `'5m'`, `'1h30m'`, `'2d'`.",
+        "parameters": {
+          "input": {
+            "type": "string | number",
+            "description": "The duration to parse"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "returns": "number",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "scheduler.parseDuration('1h30m') // 5400000\nscheduler.parseDuration(250)     // 250"
+          }
+        ]
+      },
+      "every": {
+        "description": "Run a function on a recurring interval as a named task. Uses the recursive-setTimeout idiom: the next run is scheduled only after the previous one finishes, so runs never overlap.",
+        "parameters": {
+          "interval": {
+            "type": "string | number",
+            "description": "Milliseconds or a duration string ('30s', '5m', '1h30m')"
+          },
+          "fn": {
+            "type": "() => any | Promise<any>",
+            "description": "The function to run (sync or async)"
+          },
+          "options": {
+            "type": "EveryTaskOptions",
+            "description": "Task name, immediate first run, and error handler",
+            "properties": {
+              "immediate": {
+                "type": "boolean",
+                "description": "Run the task immediately instead of waiting for the first interval (default: false)"
+              }
+            }
+          }
+        },
+        "required": [
+          "interval",
+          "fn"
+        ],
+        "returns": "TaskHandle",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const poll = scheduler.every('30s', async () => { await syncOnce() }, {\n name: 'sync',\n immediate: true,\n})\n// later\npoll.stop() // or scheduler.stop('sync')"
+          }
+        ]
+      },
+      "cron": {
+        "description": "Run a function on a cron schedule as a named task. Standard 5-field syntax (minute hour day-of-month month day-of-week) with lists (`1,15`), ranges (`mon-fri`), steps (`0-59/15`, and star-with-step), month/day names, and `@hourly`-style aliases. Day-of-month and day-of-week follow the standard rule: when both are restricted, the task runs when either matches. Times are local. Invalid expressions throw immediately with the reason — before the task is registered.",
+        "parameters": {
+          "expression": {
+            "type": "string",
+            "description": "A 5-field cron expression or alias like '@daily'"
+          },
+          "fn": {
+            "type": "() => any | Promise<any>",
+            "description": "The function to run (sync or async)"
+          },
+          "options": {
+            "type": "ScheduleTaskOptions",
+            "description": "Task name and error handler",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+              },
+              "onError": {
+                "type": "(error: unknown) => void",
+                "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+              }
+            }
+          }
+        },
+        "required": [
+          "expression",
+          "fn"
+        ],
+        "returns": "TaskHandle",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const rotateLogs = async () => console.log('rotating logs')\nconst digest = async () => console.log('sending digest')\nconst cleanup = () => console.log('cleaning up')\n\nscheduler.cron('0-59/15 * * * *', rotateLogs)           // every 15 minutes\nscheduler.cron('0 9 * * mon-fri', digest, { name: 'digest' }) // weekdays at 9am\nscheduler.cron('@daily', cleanup)\n\nscheduler.stopAll() // release the pending cron timers when done"
+          }
+        ]
+      },
+      "at": {
+        "description": "Run a function once at a specific time. One-shots deactivate after they fire (`active` becomes false) but stay visible in scheduler.tasks.",
+        "parameters": {
+          "when": {
+            "type": "Date | string | number",
+            "description": "A Date, a timestamp in ms, or an ISO date string"
+          },
+          "fn": {
+            "type": "() => any | Promise<any>",
+            "description": "The function to run (sync or async)"
+          },
+          "options": {
+            "type": "ScheduleTaskOptions",
+            "description": "Task name and error handler",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+              },
+              "onError": {
+                "type": "(error: unknown) => void",
+                "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+              }
+            }
+          }
+        },
+        "required": [
+          "when",
+          "fn"
+        ],
+        "returns": "TaskHandle",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sendReminder = () => console.log('time for standup')\nconst handle = scheduler.at(new Date(Date.now() + 60_000), sendReminder)\nconsole.log(handle.info.nextRun) // ~one minute from now\nhandle.stop() // cancel it (a pending one-shot holds a timer until it fires)"
+          }
+        ]
+      },
+      "in": {
+        "description": "Run a function once after a delay. Sugar for at(Date.now() + duration).",
+        "parameters": {
+          "delay": {
+            "type": "string | number",
+            "description": "Milliseconds or a duration string ('30s', '5m')"
+          },
+          "fn": {
+            "type": "() => any | Promise<any>",
+            "description": "The function to run (sync or async)"
+          },
+          "options": {
+            "type": "ScheduleTaskOptions",
+            "description": "Task name and error handler",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws."
+              },
+              "onError": {
+                "type": "(error: unknown) => void",
+                "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'."
+              }
+            }
+          }
+        },
+        "required": [
+          "delay",
+          "fn"
+        ],
+        "returns": "TaskHandle",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const handle = scheduler.in('150ms', () => console.log('a moment later'))\nawait container.utils.sleep(300)      // let the one-shot fire\nconsole.log(handle.info.runs)         // 1 — fired and deactivated"
+          }
+        ]
+      },
+      "stop": {
+        "description": "Stop a task by name. Safe to call for unknown or already-stopped tasks.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The task name (from the handle or scheduler.tasks)"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "boolean",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "scheduler.stop('sync')"
+          }
+        ]
+      },
+      "stopAll": {
+        "description": "Stop every active task. Called automatically when run() receives a shutdown signal.",
+        "parameters": {},
+        "required": [],
+        "returns": "number",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "scheduler.stopAll()"
+          }
+        ]
+      },
+      "run": {
+        "description": "Keep the process alive until a shutdown signal arrives, then stop all tasks and resolve. This is the daemon lifecycle for long-running commands — no `await new Promise(() => {})` needed.",
+        "parameters": {
+          "options": {
+            "type": "SchedulerRunOptions",
+            "description": "Signals to listen for (default SIGINT/SIGTERM) and an onShutdown cleanup hook",
+            "properties": {
+              "signals": {
+                "type": "NodeJS.Signals[]",
+                "description": "Signals that trigger shutdown (default: SIGINT and SIGTERM)"
+              },
+              "onShutdown": {
+                "type": "(signal: string) => void | Promise<void>",
+                "description": "Awaited after tasks stop, before run() resolves — put cleanup here"
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) blocks until SIGINT/SIGTERM arrives\nconst poll = async () => console.log('polling')\nconst flushBuffers = async () => console.log('flushing')\n\nscheduler.every('1m', poll, { name: 'poller', immediate: true })\nconst signal = await scheduler.run({\n onShutdown: async () => { await flushBuffers() },\n})\nconsole.log(`shut down on ${signal}`)"
+          }
+        ]
+      },
+      "nextCronDate": {
+        "description": "Compute the next date a cron expression fires, in local time. Useful for showing \"next run\" without scheduling anything.",
+        "parameters": {
+          "expression": {
+            "type": "string",
+            "description": "A 5-field cron expression or alias like '@daily'"
+          },
+          "from": {
+            "type": "Date",
+            "description": "The reference time (default: now). The result is strictly after this."
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "returns": "Date",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "scheduler.nextCronDate('0 9 * * mon') // next Monday 09:00 local time"
+          }
+        ]
+      }
+    },
+    "getters": {
+      "tasks": {
+        "description": "Snapshots of every task this scheduler knows about, including finished one-shots and stopped tasks (check `active`).",
+        "returns": "ScheduledTaskInfo[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stuck = scheduler.tasks.filter(t => t.active && t.errors > 0)"
+          }
+        ]
+      }
+    },
+    "events": {
+      "task:stopped": {
+        "name": "task:stopped",
+        "description": "Event emitted by Scheduler",
+        "arguments": {}
+      },
+      "shutdown": {
+        "name": "shutdown",
+        "description": "Event emitted by Scheduler",
+        "arguments": {}
+      },
+      "task:added": {
+        "name": "task:added",
+        "description": "Event emitted by Scheduler",
+        "arguments": {}
+      },
+      "task:error": {
+        "name": "task:error",
+        "description": "Event emitted by Scheduler",
+        "arguments": {}
+      },
+      "task:run": {
+        "name": "task:run",
+        "description": "Event emitted by Scheduler",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "stable",
+    "category": "process",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const scheduler = container.feature('scheduler')\n\nconst syncOnce = async () => console.log('syncing...')\nconst sendDigest = async () => console.log('sending digest')\nconst warmCache = () => console.log('warming cache')\n\nscheduler.every('5m', syncOnce, { name: 'sync', immediate: true })\nscheduler.cron('0 9 * * mon-fri', sendDigest, { name: 'digest' })\nscheduler.in('30s', warmCache)\n\nconsole.log(scheduler.tasks.map(t => t.name)) // ['sync', 'digest', ...]\nscheduler.stopAll() // release the pending timers\n// In a long-running command you'd instead: await scheduler.run()\n// — it blocks until SIGINT/SIGTERM and stops all tasks for you."
+      },
+      {
+        "language": "ts",
+        "code": "// Observability: every task has a name, run counts, and error history\nconst pollQueue = async () => console.log('polling the queue')\nconst handle = scheduler.every('10s', pollQueue)\nconsole.log(handle.info)     // live snapshot: { name, runs, errors, lastError, nextRun, ... }\nconsole.log(scheduler.tasks) // [{ name, type, spec, runs, errors, lastRun, nextRun, ... }]\nhandle.stop()"
+      }
+    ],
+    "types": {
+      "EveryTaskOptions": {
+        "description": "Options accepted by every() only.",
+        "properties": {
+          "immediate": {
+            "type": "boolean",
+            "description": "Run the task immediately instead of waiting for the first interval (default: false)",
+            "optional": true
+          }
+        }
+      },
+      "TaskHandle": {
+        "description": "Handle returned by every(), cron(), at(), and in().",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The task's unique name — pass to scheduler.stop() or find it in scheduler.tasks"
+          },
+          "stop": {
+            "type": "() => void",
+            "description": "Cancel the task. Safe to call more than once."
+          },
+          "info": {
+            "type": "ScheduledTaskInfo",
+            "description": "Live snapshot of the task's schedule and run history"
+          }
+        }
+      },
+      "ScheduleTaskOptions": {
+        "description": "Options accepted by every(), cron(), at(), and in().",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique name for the task (defaults to an auto-generated one). Scheduling a second active task with the same name throws.",
+            "optional": true
+          },
+          "onError": {
+            "type": "(error: unknown) => void",
+            "description": "Called when a run throws. The task keeps its schedule either way; errors are also recorded on the task and emitted as 'task:error'.",
+            "optional": true
+          }
+        }
+      },
+      "SchedulerRunOptions": {
+        "description": "Options accepted by run().",
+        "properties": {
+          "signals": {
+            "type": "NodeJS.Signals[]",
+            "description": "Signals that trigger shutdown (default: SIGINT and SIGTERM)",
+            "optional": true
+          },
+          "onShutdown": {
+            "type": "(signal: string) => void | Promise<void>",
+            "description": "Awaited after tasks stop, before run() resolves — put cleanup here",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.secureShell",
-    "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files. Supports key-based and password-based authentication through the container's `proc` feature.",
+    "description": "SecureShell Feature -- SSH command execution and SCP file transfers. Uses the system `ssh` and `scp` binaries to run commands on remote hosts and transfer files, through the container's `proc` feature. All connections run with `BatchMode=yes`, so a command that would require an interactive prompt fails immediately instead of hanging. In practice this means authentication must be non-interactive: a `key` option pointing at a private key file, or an already-loaded ssh-agent identity. (A `password` option exists in the schema but is not wired into the ssh/scp command line — BatchMode suppresses password prompts.) Connection state is tracked on the feature: `testConnection()` and `exec()` update `state.connected` based on whether the remote host responded.",
     "shortcut": "features.secureShell",
     "className": "SecureShell",
     "methods": {
@@ -27224,7 +30426,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')"
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst ok = await ssh.testConnection()\nif (!ok) console.error('SSH connection failed')\nconsole.log('state connected:', ssh.state.get('connected'))"
           }
         ]
       },
@@ -27243,12 +30445,12 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nconst uptime = await ssh.exec('uptime')\nconsole.log('Remote uptime:', uptime)\n\nconst listing = await ssh.exec('ls -la /var/log')\nconsole.log(listing)"
           }
         ]
       },
       "download": {
-        "description": "Downloads a file from the remote host via SCP.",
+        "description": "Downloads a file from the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
         "parameters": {
           "source": {
             "type": "string",
@@ -27267,12 +30469,12 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.download('/var/log/app.log', './logs/app.log')"
           }
         ]
       },
       "upload": {
-        "description": "Uploads a file to the remote host via SCP.",
+        "description": "Uploads a file to the remote host via SCP. Uses the same authentication credentials configured on the feature instance. Remote paths are absolute, or relative to the remote user's home directory.",
         "parameters": {
           "source": {
             "type": "string",
@@ -27291,7 +30493,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
+            "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', { host: 'example.com', username: 'admin', key: '~/.ssh/id_rsa' })\nawait ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')"
           }
         ]
       }
@@ -27311,16 +30513,17 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "process",
     "examples": [
       {
         "language": "ts",
-        "code": "const ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\nif (await ssh.testConnection()) {\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n}"
+        "code": "// (no-run) requires a reachable SSH host\nconst ssh = container.feature('secureShell', {\n host: '192.168.1.100',\n port: 22,                  // default: 22\n username: 'deploy',\n key: '~/.ssh/id_ed25519',\n})\n\n// Verify reachability before doing real work — never throws\nif (await ssh.testConnection()) {\n console.log('connected:', ssh.state.get('connected')) // true\n\n // exec() returns the command's trimmed stdout\n const uptime = await ssh.exec('uptime')\n console.log(uptime)\n\n // SCP round-trip. Remote paths are absolute, or relative to\n // the remote user's home directory.\n await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')\n await ssh.download('/var/log/app.log', './logs/app.log')\n}"
       }
     ]
   },
   {
     "id": "features.semanticSearch",
-    "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search.",
+    "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.",
     "shortcut": "features.semanticSearch",
     "className": "SemanticSearch",
     "methods": {
@@ -27594,6 +30797,10 @@ export const introspectionData = [
               "vecWeight": {
                 "type": "number",
                 "description": ""
+              },
+              "ftsQuery": {
+                "type": "string",
+                "description": "Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query."
               }
             }
           }
@@ -27750,17 +30957,32 @@ export const introspectionData = [
         "required": [],
         "returns": "IndexStatus"
       },
-      "installLocalEmbeddings": {
-        "description": "Install node-llama-cpp into the user's project for local embedding support. Detects package manager from lockfile presence and verifies the native addon loads.",
+      "downloadModelWeights": {
+        "description": "Download the .gguf weights for a supported local embedding model into ~/.cache/luca/models/. Skips the download when the weights already exist. Downloads to a temp file first, then renames atomically.",
         "parameters": {
-          "cwd": {
+          "modelName": {
             "type": "string",
-            "description": "Parameter cwd"
+            "description": "Local model to fetch (default: the resolved embeddingModel)"
           }
         },
-        "required": [
-          "cwd"
-        ],
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const search = container.feature('semanticSearch', { embeddingProvider: 'local' })\nawait search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing"
+          }
+        ]
+      },
+      "installLocalEmbeddings": {
+        "description": "Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
+        "parameters": {
+          "_cwd": {
+            "type": "string",
+            "description": "unused, accepted for backward compatibility (older versions installed into the project's node_modules)"
+          }
+        },
+        "required": [],
         "returns": "Promise<void>"
       },
       "close": {
@@ -27771,6 +30993,10 @@ export const introspectionData = [
       }
     },
     "getters": {
+      "embeddingModel": {
+        "description": "The embedding model in effect, resolved per provider when no explicit embeddingModel option was given (openai → text-embedding-3-small, local → embedding-gemma-300M-Q8_0).",
+        "returns": "string"
+      },
       "db": {
         "description": "",
         "returns": "Database"
@@ -27806,10 +31032,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "content-nlp",
     "examples": [
       {
         "language": "ts",
-        "code": "const search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
+        "code": "// Offline/local embeddings — one-time setup, then fully local\nconst search = container.feature('semanticSearch', {\n dbPath: '.contentbase/search.sqlite',\n embeddingProvider: 'local',\n})\nawait search.installLocalEmbeddings(process.cwd()) // installs addon + downloads weights\nawait search.initDb()\nawait search.indexDocuments(docs)\nconst results = await search.hybridSearch('how does authentication work')"
       }
     ],
     "types": {
@@ -27990,6 +31217,11 @@ export const introspectionData = [
             "type": "number",
             "description": "",
             "optional": true
+          },
+          "ftsQuery": {
+            "type": "string",
+            "description": "Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query.",
+            "optional": true
           }
         }
       }
@@ -28080,6 +31312,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -28089,7 +31322,7 @@ export const introspectionData = [
   },
   {
     "id": "features.sqlite",
-    "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring",
+    "description": "SQLite feature for safe SQL execution through Bun's native sqlite binding. Supports: - parameterized query execution (`query` / `execute`) - tagged-template query execution (`sql`) to avoid manual placeholder wiring Pass `{ path: ':memory:' }` (the default when no path is given) for an ephemeral in-memory database with zero setup, or a file path to persist to disk.",
     "shortcut": "features.sqlite",
     "className": "Sqlite",
     "methods": {
@@ -28112,7 +31345,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)"
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, active INTEGER)')\nawait db.execute('INSERT INTO users (email, active) VALUES (?, ?)', ['hello@example.com', 1])\n\nconst users = await db.query<{ id: number; email: string }>(\n 'SELECT id, email FROM users WHERE active = ?',\n [1]\n)\nconsole.log(users) // [{ id: 1, email: 'hello@example.com' }]"
           }
         ]
       },
@@ -28135,7 +31368,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT UNIQUE)')\n\nconst { changes, lastInsertRowid } = await db.execute(\n 'INSERT INTO users (email) VALUES (?)',\n ['hello@example.com']\n)\nconsole.log(`Inserted row ${lastInsertRowid}, ${changes} change(s)`)"
           }
         ]
       },
@@ -28159,7 +31392,26 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const db = container.feature('sqlite', { path: 'app.db' })\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`"
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute('CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)')\nawait db.execute('INSERT INTO users (email) VALUES (?)', ['hello@example.com'])\n\nconst email = 'hello@example.com'\nconst rows = await db.sql<{ id: number }>`\n SELECT id FROM users WHERE email = ${email}\n`\nconsole.log(rows) // [{ id: 1 }]"
+          }
+        ]
+      },
+      "transaction": {
+        "description": "Runs a function inside a database transaction. Delegates to Bun's native `db.transaction()` — the transaction commits when the function returns and rolls back if it throws. The function must be synchronous (bun:sqlite transactions do not span awaits); use the raw `db` getter's prepared statements inside it for speed. Combined with `UPDATE ... RETURNING`, this gives you atomic job-claiming for durable queues and workers.",
+        "parameters": {
+          "fn": {
+            "type": "() => T",
+            "description": "Synchronous function containing the transactional work"
+          }
+        },
+        "required": [
+          "fn"
+        ],
+        "returns": "T",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const db = container.feature('sqlite') // in-memory\nawait db.execute(`CREATE TABLE jobs (id INTEGER PRIMARY KEY, payload TEXT, status TEXT DEFAULT 'pending', claimed_at TEXT)`)\nawait db.execute(`CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER)`)\nawait db.execute(`INSERT INTO jobs (payload) VALUES ('build'), ('deploy')`)\nawait db.execute(`INSERT INTO accounts (balance) VALUES (500), (500)`)\n\n// Atomically claim the next pending job (single statement — no explicit\n// transaction needed thanks to UPDATE ... RETURNING)\nconst [job] = await db.query(`\n UPDATE jobs SET status = 'running', claimed_at = datetime('now')\n WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)\n RETURNING id, payload\n`)\nconsole.log(job) // { id: 1, payload: 'build' }\n\n// Multi-statement atomic work: all-or-nothing\ndb.transaction(() => {\n db.db.query('UPDATE accounts SET balance = balance - ? WHERE id = ?').run(100, 1)\n db.db.query('UPDATE accounts SET balance = balance + ? WHERE id = ?').run(100, 2)\n})"
           }
         ]
       },
@@ -28208,16 +31460,121 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "data-storage",
     "examples": [
       {
         "language": "ts",
-        "code": "const sqlite = container.feature('sqlite', { path: 'data/app.db' })\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`"
+        "code": "// In-memory by default; pass { path: 'app.db' } to persist to disk\n// (the parent folder of a file path must already exist)\nconst sqlite = container.feature('sqlite')\n\nawait sqlite.execute(\n 'create table if not exists users (id integer primary key, email text not null unique)'\n)\n\nawait sqlite.execute('insert into users (email) values (?)', ['hello@example.com'])\n\nconst users = await sqlite.sql<{ id: number; email: string }>`\n select id, email from users where email = ${'hello@example.com'}\n`\nconsole.log(users) // [{ id: 1, email: 'hello@example.com' }]"
       }
     ]
   },
   {
+    "id": "features.store",
+    "description": "Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to \"two luca processes need to share state.\" Every `luca <command>` invocation is a separate process: a server and its `--stats` sibling, a fleet manager and its `stop` command, a watcher and a reporter — none of them share memory. This feature gives each piece of shared state a named, schema-validated JSON document with atomic writes and a read-modify-write `update()` that takes a file lock, so concurrent invocations can't clobber each other. **Reach for it via the container sugar:** ```ts const stats = container.store('proxy-stats', { schema: z.object({ hits: z.number().default(0), misses: z.number().default(0) }), }) await stats.update(s => { s.hits++ })     // lock → read → mutate → validate → atomic write const { hits } = await stats.read()       // always re-reads — sees sibling processes' writes console.log(stats.path)                   // .luca/store/proxy-stats.json — cat it, commit it ``` **Which store when?** (the full spectrum) - `container.state` / `container.entity` — in-process, observable, dies with the process - **`container.store` (this)** — cross-process, durable, one JSON document per name; counters, manifests, process lists, small configs - `sqlite` — the moment you want to query, filter, or run a real queue under contention - `diskCache` — caches only: TTL expiry means entries are *losable by contract* - `redis` — cross-process pub/sub and shared state across machines If you're building a job queue on `update()`, you've outgrown this feature — use `sqlite` (`transaction()` + `UPDATE … RETURNING`). **Scopes:** `project` (default) puts files in `<cwd>/.luca/store/`, so `ls .luca/store` answers \"what state does this app keep?\"; `machine` uses `~/.luca/store/` for state shared across projects; `tmp` for scratch.",
+    "shortcut": "features.store",
+    "className": "Store",
+    "methods": {
+      "open": {
+        "description": "Open (or reuse) a named store handle. Handles are cached per `scope:name` within the process; the schema and options from the most recent open win. Prefer the container sugar `container.store(name, opts)` — it calls this.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The store's name; becomes the filename `<name>.json`"
+          },
+          "opts": {
+            "type": "StoreHandleOptions<T>",
+            "description": "Schema, initial value, scope, and lock tuning"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "StoreHandle<T>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stores = container.feature('store')\nconst flags = stores.open(`flags-${Date.now()}`, {\n scope: 'tmp',\n schema: z.object({ darkMode: z.boolean().default(false) }),\n})\n\nconst initial = await flags.read()\nconsole.log(initial.darkMode) // false — schema defaults apply to a missing file\n\nawait flags.update(f => { f.darkMode = true })\nconsole.log((await flags.read()).darkMode) // true\nawait flags.delete()"
+          }
+        ]
+      },
+      "list": {
+        "description": "List the store names that exist in a scope (files in its directory). The discovery story: `container.stores.list()` (or `ls .luca/store`) answers \"what state does this app keep on disk?\"",
+        "parameters": {
+          "scope": {
+            "type": "StoreScope",
+            "description": "Which scope's directory to list (default 'project')"
+          }
+        },
+        "required": [],
+        "returns": "string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stores = container.feature('store')\nconst name = `inventory-${Date.now()}`\nconst inv = stores.open(name, { scope: 'tmp' })\nawait inv.write({ widgets: 12 })\n\nconsole.log(stores.list('tmp').includes(name)) // true\nawait inv.delete()"
+          }
+        ]
+      },
+      "dirFor": {
+        "description": "The directory a scope's store files live in.",
+        "parameters": {
+          "scope": {
+            "type": "StoreScope",
+            "description": "Parameter scope"
+          }
+        },
+        "required": [],
+        "returns": "string"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "stable",
+    "category": "data-storage",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const stores = container.feature('store')\n\nconst counter = stores.open(`demo-${Date.now()}`, { scope: 'tmp' })\nawait counter.update(s => { s.count = (s.count ?? 0) + 1 })\nawait counter.update(s => { s.count++ })\nconst { count } = await counter.read()\nconsole.log(count) // 2\nawait counter.delete()"
+      }
+    ],
+    "types": {
+      "StoreHandleOptions": {
+        "description": "Options accepted by `container.store(name, opts)` / `stores.open(name, opts)`.",
+        "properties": {
+          "schema": {
+            "type": "z.ZodType<T>",
+            "description": "Zod schema applied on every read AND before every write. Give fields `.default()`s and a missing file parses cleanly.",
+            "optional": true
+          },
+          "initial": {
+            "type": "T",
+            "description": "Value a missing file reads as (before schema validation). Defaults to `{}`.",
+            "optional": true
+          },
+          "scope": {
+            "type": "StoreScope",
+            "description": "'project' → `<cwd>/.luca/store/<name>.json` (default), 'machine' → `~/.luca/store/<name>.json`, 'tmp' → `<os.tmpdir>/luca-store/<name>.json`",
+            "optional": true
+          },
+          "lockTimeout": {
+            "type": "number",
+            "description": "Ms to wait for a contended lock before update() throws (default: feature option, 5000)",
+            "optional": true
+          },
+          "lockStale": {
+            "type": "number",
+            "description": "Ms after which an abandoned lock is stolen (default: feature option, 10000)",
+            "optional": true
+          }
+        }
+      }
+    }
+  },
+  {
     "id": "features.telegram",
-    "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly for full API access while bridging events to Luca's event bus.",
+    "description": "Telegram bot feature powered by grammY. Supports both long-polling and webhook modes. Exposes the grammY Bot instance directly (via `.bot`) for full API access while bridging Telegram events to Luca's event bus — `started`, `stopped`, `command`, `webhook_ready`, and `error` all fire as container events, so other features can react to bot activity. Requires a bot token from @BotFather: set the `TELEGRAM_BOT_TOKEN` environment variable (read automatically) or pass `token` explicitly as an option.",
     "shortcut": "features.telegram",
     "className": "Telegram",
     "methods": {
@@ -28233,10 +31590,16 @@ export const introspectionData = [
         "returns": "Promise<this>"
       },
       "start": {
-        "description": "Start the bot in the configured mode (polling or webhook).",
+        "description": "Start the bot in the configured mode (polling or webhook). In polling mode the bot continuously fetches updates from Telegram until you call `stop()`. The `started` event fires on the Luca event bus with `{ mode }`. Calling `start()` while already running is a no-op.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\nawait tg.start()\nconsole.log(tg.isRunning) // true\nconsole.log(tg.mode)      // 'polling' (or 'webhook')"
+          }
+        ]
       },
       "stop": {
         "description": "Stop the bot gracefully.",
@@ -28245,7 +31608,7 @@ export const introspectionData = [
         "returns": "Promise<this>"
       },
       "command": {
-        "description": "Register a command handler. Also emits 'command' on the Luca event bus.",
+        "description": "Register a command handler. Also emits 'command' on the Luca event bus, and tracks the command name in `state.get('commandsRegistered')`.",
         "parameters": {
           "name": {
             "type": "string",
@@ -28260,10 +31623,16 @@ export const introspectionData = [
           "name",
           "handler"
         ],
-        "returns": "this"
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\ntg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))\ntg.command('ping', (ctx) => ctx.reply('Pong!'))\nconsole.log(tg.state.get('commandsRegistered')) // ['start', 'ping']"
+          }
+        ]
       },
       "handle": {
-        "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method.",
+        "description": "Register a grammY update handler (filter query). Named 'handle' to avoid collision with the inherited on() event bus method. Maps directly to grammY's `bot.on()` and supports all grammY filter queries, e.g. `message:text`, `message:photo`, `edited_message`, `callback_query:data`.",
         "parameters": {
           "filter": {
             "type": "Parameters<Bot['on']>[0]",
@@ -28282,7 +31651,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "tg.handle('message:text', (ctx) => ctx.reply('Got text'))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Clicked'))"
+            "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))\ntg.handle('callback_query:data', (ctx) => ctx.answerCallbackQuery('Button clicked!'))"
           }
         ]
       },
@@ -28393,10 +31762,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
-        "code": "const tg = container.feature('telegram', { autoStart: true })\ntg.command('start', (ctx) => ctx.reply('Hello!'))\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))"
+        "code": "// (no-run) requires TELEGRAM_BOT_TOKEN\nconst tg = container.feature('telegram', {\n mode: 'polling',            // or 'webhook'\n dropPendingUpdates: true,   // skip updates queued while offline\n})\n\n// Register bot commands — each also emits a 'command' event on the Luca event bus\ntg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))\ntg.command('help', (ctx) => ctx.reply('Available: /start, /help, /ping'))\ntg.command('ping', (ctx) => ctx.reply('Pong!'))\n\n// Handle any grammY filter query (message:text, message:photo, callback_query:data, ...)\ntg.handle('message:text', (ctx) => ctx.reply(`Echo: ${ctx.message.text}`))\n\n// Start receiving updates; in polling mode this fetches continuously\nawait tg.start()\nconsole.log('Bot is running:', tg.isRunning)   // true\nconsole.log('Mode:', tg.mode)                  // 'polling'\nconsole.log('Commands:', tg.state.get('commandsRegistered')) // ['start', 'help', 'ping']\n\n// ... later, shut down gracefully (fires the 'stopped' event)\nawait tg.stop()"
       }
     ]
   },
@@ -28823,6 +32193,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "ai-assistants",
     "examples": [
       {
         "language": "ts",
@@ -28857,7 +32228,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])"
+            "code": "await tmux.run(['new-session', '-d', '-s', 'myapp', 'bash'])\n\n// Read the stdout of any tmux query, e.g. pane dimensions\nconst info = await tmux.run(['display-message', '-t', 'myapp', '-p', '#{pane_width}x#{pane_height}'])\nconsole.log('pane dimensions:', info.stdout.trim())"
           }
         ]
       },
@@ -28936,7 +32307,13 @@ export const introspectionData = [
         "description": "List all active tmux sessions.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<SessionInfo[]>"
+        "returns": "Promise<SessionInfo[]>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const sessions = await tmux.listSessions()\nsessions.forEach(s => console.log(s.name, '— windows:', s.windows))"
+          }
+        ]
       },
       "killSession": {
         "description": "Kill a named session by name.",
@@ -28967,6 +32344,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "process",
     "examples": [
       {
         "language": "ts",
@@ -29085,6 +32463,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -29133,12 +32512,12 @@ export const introspectionData = [
   },
   {
     "id": "features.tts",
-    "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL.",
+    "description": "TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. Generates high-quality speech audio by calling the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Supports 20 preset voices and voice cloning via a reference audio URL. Requires a `RUNPOD_API_KEY` environment variable or an `apiKey` option. Three output formats are supported: `wav` (default, uncompressed), `flac` (lossless compressed), and `ogg` (lossy compressed). Generated files are saved to `outputDir` (defaults to `~/.luca/tts-cache`) with hash-based filenames, and the `synthesized` event fires on the Luca event bus when generation completes.",
     "shortcut": "features.tts",
     "className": "TTS",
     "methods": {
       "synthesize": {
-        "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, downloads the generated audio, and saves it to the output directory.",
+        "description": "Synthesize text to an audio file using Chatterbox Turbo. Calls the RunPod public endpoint, waits for generation, downloads the resulting audio, and saves it to the output directory. On completion the file path is recorded in state (`lastFile`) and the `synthesized` event fires with `(text, filePath, voice, durationMs)`. If `voiceUrl` is given it takes precedence over any preset `voice` — the reference audio should be a clear recording of the voice you want to clone. Defaults: voice `'lucy'`, format `'wav'`. Throws if no RunPod API key is configured.",
         "parameters": {
           "text": {
             "type": "string",
@@ -29156,7 +32535,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\n\n// Clone a voice from a reference audio URL\nconst path = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})"
+            "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\n// Use a preset voice\nconst path = await tts.synthesize('Good morning!', { voice: 'ethan' })\nconsole.log('Audio saved to:', path)\n\n// Clone a voice from a reference audio URL\nconst clonedPath = await tts.synthesize('Hello world', {\n voiceUrl: 'https://example.com/reference.wav'\n})\n\n// Choose an output format per call: wav (uncompressed, default),\n// flac (lossless), or ogg (lossy)\nconst ogg = await tts.synthesize('OGG format', { format: 'ogg' })"
           }
         ]
       }
@@ -29171,8 +32550,14 @@ export const introspectionData = [
         "returns": "string"
       },
       "voices": {
-        "description": "The 20 preset voice names available in Chatterbox Turbo.",
-        "returns": "readonly string[]"
+        "description": "The 20 preset voice names available in Chatterbox Turbo. Safe to read without an API key — this is a static list, no network call.",
+        "returns": "readonly string[]",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const tts = container.feature('tts')\nconsole.log('Available voices:', tts.voices.join(', '))\n// aaron, abigail, anaya, andy, archer, brian, chloe, dylan, emmanuel, ethan, ..."
+          }
+        ]
       }
     },
     "events": {
@@ -29191,10 +32576,11 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
-        "code": "const tts = container.feature('tts', { enable: true })\nconst path = await tts.synthesize('Hello, how are you?', { voice: 'lucy' })\nconsole.log(`Audio saved to: ${path}`)"
+        "code": "// (no-run) requires RUNPOD_API_KEY and calls the RunPod API\nconst tts = container.feature('tts', {\n voice: 'lucy',            // default preset voice\n format: 'wav',            // 'wav' | 'flac' | 'ogg'\n outputDir: '/tmp/tts-output'\n})\n\n// List the 20 preset voice names (safe — no API call)\nconsole.log('Available voices:', tts.voices.join(', '))\n\n// Synthesize with a preset voice\nconst path = await tts.synthesize('Good morning! Here is your daily briefing.', {\n voice: 'ethan'\n})\nconsole.log('Audio saved to:', path)\nconsole.log('Last generated file:', tts.state.get('lastFile'))\n\n// Clone any voice from a reference audio URL instead of a preset\nconst cloned = await tts.synthesize('Hello world, this is a cloned voice.', {\n voiceUrl: 'https://example.com/reference-voice.wav'\n})"
       }
     ]
   },
@@ -29204,8 +32590,25 @@ export const introspectionData = [
     "shortcut": "features.ui",
     "className": "UI",
     "methods": {
+      "print": {
+        "description": "Enhanced print function with color methods for convenient terminal output. Call it directly like console.log, or use the attached color/style methods (red, green, blue, yellow, cyan, dim, bold, italic, underline, bg* variants) and semantic helpers (error, info, success, warn). NOTE: `ui.print.<color>(text)` is NOT a string formatter — it writes the colored text to stdout immediately and returns `undefined`. To compose a colored string (e.g. to embed inside a larger message), use `ui.colors.<color>(text)`, which returns the styled string.",
+        "parameters": {
+          "args": {
+            "type": "any[]",
+            "description": "Parameter args"
+          }
+        },
+        "required": [],
+        "returns": "ColoredPrintFunction",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\nui.print('plain text')\nui.print.cyan('cyan text')\nui.print.error('printed in red')\nui.print.success('printed in green')\n\n// Composing strings: use ui.colors, not ui.print\nui.print(`Status: ${ui.colors.green('OK')}`)   // correct\nui.print(`Status: ${ui.print.green('OK')}`)    // wrong — prints \"OK\" on its own line, interpolates \"undefined\""
+          }
+        ]
+      },
       "markdown": {
-        "description": "Parse markdown text and render it for terminal display using marked-terminal.",
+        "description": "Parse markdown text and render it for terminal display using marked-terminal. Headings, bold text, inline code, lists, and other markdown constructs come back styled for the terminal.",
         "parameters": {
           "text": {
             "type": "string",
@@ -29215,7 +32618,13 @@ export const introspectionData = [
         "required": [
           "text"
         ],
-        "returns": "string | Promise<string>"
+        "returns": "string | Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const ui = container.feature('ui')\nconst rendered = ui.markdown('## Features\\n\\n- **Bold** text\\n- `inline code`\\n- Regular paragraph text\\n')\nconsole.log(rendered)"
+          }
+        ]
       },
       "assignColor": {
         "description": "Assigns a consistent color to a named entity. This method provides automatic color assignment that remains consistent across the application session. Each unique name gets assigned a color from the palette, and subsequent calls with the same name return the same color function. **Assignment Strategy:** - First call with a name assigns the next available palette color - Subsequent calls return the previously assigned color - Colors cycle through the palette when all colors are used - Returns a chalk hex color function for styling text",
@@ -29255,7 +32664,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
+            "code": "// (no-run) interactive — waits for keyboard input\n\n// Basic wizard\nconst answers = await ui.wizard([\n {\n   type: 'input',\n   name: 'projectName',\n   message: 'What is your project name?',\n   validate: (input) => input.length > 0 || 'Name is required'\n },\n {\n   type: 'list',\n   name: 'framework',\n   message: 'Choose a framework:',\n   choices: ['React', 'Vue', 'Angular', 'Svelte']\n },\n {\n   type: 'confirm',\n   name: 'typescript',\n   message: 'Use TypeScript?',\n   default: true\n }\n]);\n\nconsole.log(`Creating ${answers.projectName} with ${answers.framework}`);\n\n// With initial answers\nconst moreAnswers = await ui.wizard([\n { type: 'input', name: 'version', message: 'Version?' }\n], { version: '1.0.0' });"
           }
         ]
       },
@@ -29291,7 +32700,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
+            "code": "// (no-run) interactive — opens $EDITOR and waits for the user\n\n// Edit code snippet\nconst code = `function hello() {\\n  console.log('Hello');\\n}`;\nconst editedCode = await ui.openInEditor(code, '.js');\n\n// Edit configuration\nconst config = JSON.stringify({ port: 3000 }, null, 2);\nconst newConfig = await ui.openInEditor(config, '.json');\n\n// Edit markdown content\nconst markdown = '# Title\\n\\nContent here...';\nconst editedMarkdown = await ui.openInEditor(markdown, '.md');"
           }
         ]
       },
@@ -29320,7 +32729,7 @@ export const introspectionData = [
         ]
       },
       "banner": {
-        "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation",
+        "description": "Creates a styled banner with ASCII art and color gradients. This method combines ASCII art generation with color gradient effects to create visually striking banners for terminal applications. It automatically applies color gradients to the generated ASCII art based on the specified options. **Banner Features:** - ASCII art text generation - Automatic color gradient application - Customizable gradient directions - Multiple color combinations - Professional terminal presentation NOTE: the gradient colors rely on chalk, which auto-disables ANSI codes when stdout is not a TTY (pipes, command substitution, CI, sandboxes) — in those contexts the banner renders as plain ASCII art with no color. Not a bug; set `FORCE_COLOR=1` to force color codes into non-TTY output.",
         "parameters": {
           "text": {
             "type": "string",
@@ -29411,7 +32820,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'orange']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
+            "code": "// Rainbow effect across characters\nconst rainbow = ui.applyHorizontalGradient('RAINBOW', \n ['red', 'yellow', 'green', 'cyan', 'blue', 'magenta']\n);\n\n// Simple two-color transition\nconst sunset = ui.applyHorizontalGradient('SUNSET', ['red', 'yellow']);\n\n// Great for short text and ASCII art\nconst art = ui.asciiArt('COOL', 'Big');\nconst coloredArt = ui.applyHorizontalGradient(art, ['cyan', 'blue']);"
           }
         ]
       },
@@ -29434,7 +32843,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner, \n ['yellow', 'orange', 'red', 'purple']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
+            "code": "// Patriotic vertical gradient\nconst flag = 'USA\\nUSA\\nUSA\\nUSA';\nconst patriotic = ui.applyVerticalGradient(flag, ['red', 'white', 'blue']);\n\n// Sunset effect on ASCII art\nconst banner = ui.asciiArt('SUNSET', 'Big');\nconst sunset = ui.applyVerticalGradient(banner,\n ['yellow', 'red', 'magenta', 'blue']\n);\n\n// Ocean waves effect\nconst waves = 'Wave 1\\nWave 2\\nWave 3\\nWave 4\\nWave 5';\nconst ocean = ui.applyVerticalGradient(waves, ['cyan', 'blue']);"
           }
         ]
       },
@@ -29497,7 +32906,7 @@ export const introspectionData = [
     },
     "getters": {
       "colors": {
-        "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting.",
+        "description": "Provides access to the full chalk colors API. Chalk provides extensive color and styling capabilities including: - Basic colors: red, green, blue, yellow, etc. - Background colors: bgRed, bgGreen, etc. - Styles: bold, italic, underline, strikethrough - Advanced: rgb, hex, hsl color support Colors and styles can be chained for complex formatting. NOTE: chalk auto-detects color support and DISABLES all ANSI codes when stdout is not a TTY — piped output, `$(...)` capture, CI, and sandboxed environments all produce plain uncolored text. This is expected behavior, not a bug. To verify that output actually contains ANSI codes (or to force color through a pipe), set `FORCE_COLOR=1` in the environment.",
         "returns": "typeof colors",
         "examples": [
           {
@@ -29516,7 +32925,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
+            "code": "const randomColor = ui.randomColor;\nconsole.log(ui.colors[randomColor]('This text is a random color!'));\n\n// Use in loops for varied output\nconst items = ['alpha', 'beta', 'gamma'];\nitems.forEach(item => {\n const color = ui.randomColor;\n console.log(ui.colors[color](`- ${item}`));\n});"
           }
         ]
       },
@@ -29535,16 +32944,17 @@ export const introspectionData = [
     "state": {},
     "options": {},
     "envVars": [],
-    "stability": "core"
+    "stability": "core",
+    "category": "ui-output"
   },
   {
     "id": "features.vault",
-    "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations.",
+    "description": "The Vault feature provides encryption and decryption capabilities using AES-256-GCM. This feature allows you to securely encrypt and decrypt sensitive data using industry-standard encryption. It manages secret keys and provides a simple interface for cryptographic operations. **Keys are NOT persisted.** Unless you pass a `secret` option, the vault mints a brand-new random key the first time one is needed, and that key lives only in process memory. Every `luca` invocation (every process) gets a fresh key, so data encrypted in one run CANNOT be decrypted in a later run unless you save the key yourself and pass it back via `container.feature('vault', { secret })`.",
     "shortcut": "features.vault",
     "className": "Vault",
     "methods": {
       "secret": {
-        "description": "Gets or generates a secret key for encryption operations.",
+        "description": "Gets or generates a secret key for encryption operations. If no key exists yet, this mints a NEW cryptographically random 32-byte key — it is not derived from anything and is never written to disk. Each process therefore gets its own key: data encrypted with it is undecryptable in any other `luca` invocation unless you persist the key (see `secretText`) and pass it back via `container.feature('vault', { secret })`.",
         "parameters": {
           "{ refresh = false, set = true }": {
             "type": "any",
@@ -29555,7 +32965,7 @@ export const introspectionData = [
         "returns": "Buffer"
       },
       "decrypt": {
-        "description": "Decrypts an encrypted payload that was created by the encrypt method.",
+        "description": "Decrypts an encrypted payload that was created by the encrypt method. Because AES-256-GCM is authenticated encryption, decryption verifies the auth tag — a tampered or truncated payload, or the wrong key, throws rather than silently returning garbage.",
         "parameters": {
           "payload": {
             "type": "string",
@@ -29565,10 +32975,16 @@ export const introspectionData = [
         "required": [
           "payload"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const vault = container.feature('vault')\nconst encrypted = vault.encrypt('my-database-password-12345')\n\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted)                                    // 'my-database-password-12345'\nconsole.log(decrypted === 'my-database-password-12345')   // true — exact round-trip"
+          }
+        ]
       },
       "encrypt": {
-        "description": "Encrypts a plaintext string using AES-256-GCM encryption.",
+        "description": "Encrypts a plaintext string using AES-256-GCM encryption. The output is an opaque text payload — three base64 segments (IV, ciphertext, auth tag) joined by a delimiter — safe to store in config files or databases. A fresh random IV is generated on every call, so encrypting the same input twice produces different ciphertexts (semantic security): an attacker cannot tell whether two payloads contain the same plaintext. Both still decrypt to the same value.",
         "parameters": {
           "payload": {
             "type": "string",
@@ -29578,12 +32994,18 @@ export const introspectionData = [
         "required": [
           "payload"
         ],
-        "returns": "string"
+        "returns": "string",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const vault = container.feature('vault')\n\n// Same input, unique ciphertext every time — a fresh IV is used per call\nconst a = vault.encrypt('same-input')\nconst b = vault.encrypt('same-input')\nconsole.log(a === b)                                   // false\nconsole.log(vault.decrypt(a) === vault.decrypt(b))     // true — both round-trip"
+          }
+        ]
       }
     },
     "getters": {
       "secretText": {
-        "description": "Gets the secret key as a base64-encoded string.",
+        "description": "Gets the secret key as a base64-encoded string. Lazily populated: unless a `secret` option was passed at construction, this is `undefined` until something forces key generation — i.e. until `secret()`, `encrypt()`, or `decrypt()` has run. Call `vault.secret()` first if you want to read `secretText` before encrypting anything.",
         "returns": "string | undefined"
       }
     },
@@ -29592,16 +33014,17 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
-        "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'"
+        "code": "const vault = container.feature('vault')\n\n// Encrypt sensitive data\nconst encrypted = vault.encrypt('sensitive information')\nconsole.log(encrypted) // Base64 encoded encrypted data\n\n// Decrypt the data (same process — the in-memory key is still around)\nconst decrypted = vault.decrypt(encrypted)\nconsole.log(decrypted) // 'sensitive information'\n\n// ── Cross-invocation decryption: persist the key and pass it back ──\n// Run 1: encrypt and save the base64 key alongside (or apart from) the data\nconst v1 = container.feature('vault')\nconst payload = v1.encrypt('remember me')\nawait container.fs.writeFileAsync('secret.key', v1.secretText!)  // base64 key\nawait container.fs.writeFileAsync('payload.enc', payload)\n\n// Run 2 (a NEW process): restore the key via the `secret` option\nconst key = container.fs.readFile('secret.key') as string\nconst v2 = container.feature('vault', { secret: key })            // base64 string or Buffer\nv2.decrypt(container.fs.readFile('payload.enc') as string)        // 'remember me'"
       }
     ]
   },
   {
     "id": "features.vm",
-    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It's useful for running untrusted code, creating sandboxed environments, or dynamically executing code with controlled access to variables and modules.",
+    "description": "The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. This feature wraps Node.js's built-in `vm` module to provide secure code execution in isolated contexts. It is how ALL user code runs under the luca binary — commands, endpoints, `luca eval` snippets, `luca run` scripts, and runnable markdown blocks all execute through it, which is why a bare folder of .ts files needs no install step. Three capabilities compose the module system: - `run(code, ctx)` — execute a snippet; top-level `await` is auto-wrapped and the final expression's value is returned. - `loadModule(filePath)` — load a .ts/.js file as a CommonJS module (ESM syntax is transpiled; `export default` becomes `module.exports.default`). - `defineModule(id, exports)` — register a virtual module that `require()`/`import` resolve BEFORE Node's native resolution. The runtime seeds `'luca'`, its subpaths, and `'zod'` this way, so user code can `import { z } from 'zod'` with zero installs. Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come free from the realm, and luca injects console, timers, process, Buffer, fetch and friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.",
     "shortcut": "features.vm",
     "className": "VM",
     "methods": {
@@ -29625,7 +33048,31 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const vm = container.feature('vm')\nvm.defineModule('luca', { Container, Feature, fs, proc })\nvm.defineModule('zod', { z })\n\n// Now loadModule can resolve these in user code:\n// import { Container } from 'luca'  → works"
+            "code": "const vm = container.feature('vm')\n\n// Expose container helpers (or anything else) under a virtual module id\nvm.defineModule('luca', { fs: container.fs, proc: container.feature('proc') })\nvm.defineModule('answers', { magic: 42 })\n\n// Now loadModule can resolve these in user code:\n// const { magic } = require('answers')  → works"
+          }
+        ]
+      },
+      "defineLazyModule": {
+        "description": "Register a virtual module whose exports are produced on first `require()`. Like {@link defineModule}, the id is treated as external during bundling and resolves before Node's native require — but the loader only runs when (and if) VM-executed code actually requires the module, and its result is cached. This is how the runtime bridges `react` and `ink` into user code: registering them lazily keeps CLI startup free of their import cost, while guaranteeing that code which does `import React from 'react'` receives the SAME module instance the container's ink feature renders with. (A second React copy — e.g. inlined from a stray `node_modules` at bundle time — breaks all ink hooks with \"Invalid hook call\" / raw-mode errors.)",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "The module specifier (e.g. `'react'`)"
+          },
+          "loader": {
+            "type": "() => any",
+            "description": "Synchronous function returning the module's exports; called once, then cached"
+          }
+        },
+        "required": [
+          "id",
+          "loader"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const vm = container.feature('vm')\n\nlet built = 0\nvm.defineLazyModule('expensive', () => ({ builds: ++built }))\n\n// The loader hasn't run yet — only code that requires 'expensive' triggers it\nconsole.log(built) // 0"
           }
         ]
       },
@@ -29697,12 +33144,12 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)"
+            "code": "const context = vm.createContext({ user: { name: 'John' } })\nconst result = vm.runSync('user.name', context)\n\n// Reuse the same context to share state across runs — variables accumulate\nconst ctx = vm.createContext({ counter: 0 })\nvm.runSync('counter += 1', ctx)\nvm.runSync('counter += 10', ctx)\nvm.runSync('counter', ctx) // 11"
           }
         ]
       },
       "wrapTopLevelAwait": {
-        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the last expression so the value is not lost. If the code does not contain `await`, or is already wrapped in an async function/arrow, it is returned unchanged.",
+        "description": "Wrap code containing top-level `await` in an async IIFE, injecting `return` before the final expression so its value is not lost. Resolution order: 1. No `await` substring, or code already starts with an async wrapper → returned unchanged (native `vm.Script` completion-value semantics apply). 2. Code parses as a plain (non-async) function body via `new Function` → the `await` is inside a string, comment, or nested async function, not at the top level → returned unchanged. 3. Otherwise the code is scanned for top-level statement boundaries (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and, working from the last boundary backwards, the first `head / tail` split whose wrapped form parses gets `return (tail)` injected. 4. If no boundary yields a returnable tail (code ends in a declaration, loop, etc.), the whole body is wrapped with no injected return and the run resolves `undefined` — matching native completion semantics for declaration-final programs. `new Function` is used for *parsing only* — it is never invoked. Under bun, `new vm.Script` compiles lazily, so it cannot serve as an eager parse probe.",
         "parameters": {
           "code": {
             "type": "string",
@@ -29715,21 +33162,37 @@ export const introspectionData = [
         "returns": "string"
       },
       "run": {
-        "description": "",
+        "description": "Executes JavaScript code asynchronously in a controlled environment. This method creates a script from the provided code, sets up an execution context with the specified variables, and runs the code. Code containing top-level `await` is automatically wrapped in an async IIFE so the final expression's value is returned. Dynamic `import()` is supported: virtual modules resolve first (same as `require`), relative specifiers resolve against `opts.filePath` (or `container.cwd` when omitted), and everything else falls through to native import. Errors thrown by the evaluated code propagate to the caller — wrap the call in try/catch if the snippet might throw.",
         "parameters": {
           "code": {
             "type": "string",
-            "description": "Parameter code"
+            "description": "The JavaScript code to execute"
           },
           "ctx": {
             "type": "any",
-            "description": "Parameter ctx"
+            "description": "Context variables to make available to the executing code"
+          },
+          "opts": {
+            "type": "VMRunOptions",
+            "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+            "properties": {
+              "filePath": {
+                "type": "string",
+                "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+              }
+            }
           }
         },
         "required": [
           "code"
         ],
-        "returns": "Promise<T>"
+        "returns": "Promise<T>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Simple calculation\nconst result = await vm.run('2 + 3 * 4')\nconsole.log(result) // 14\n\n// Using context variables\nconst greeting = await vm.run('`Hello ${name}!`', { name: 'Alice' })\nconsole.log(greeting) // 'Hello Alice!'\n\n// Array operations — any JS value can be passed through the context\nconst sum = await vm.run('numbers.reduce((a, b) => a + b, 0)', {\n numbers: [10, 20, 30, 40]\n})\nconsole.log(sum) // 100\n\n// Error handling — a throwing snippet rejects, so catch it\ntry {\n await vm.run('undefinedFunction()')\n} catch (err) {\n console.log('Execution failed:', err.message)\n}"
+          }
+        ]
       },
       "runCaptured": {
         "description": "Execute code and capture all console output as structured JSON. Returns both the execution result and an array of every `console.*` call made during execution, each entry recording the method name and arguments.",
@@ -29741,6 +33204,16 @@ export const introspectionData = [
           "ctx": {
             "type": "any",
             "description": "Context variables to make available to the executing code"
+          },
+          "opts": {
+            "type": "VMRunOptions",
+            "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+            "properties": {
+              "filePath": {
+                "type": "string",
+                "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+              }
+            }
           }
         },
         "required": [
@@ -29750,7 +33223,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const { result, console: calls } = await vm.runCaptured('console.log(\"hi\"); console.warn(\"oh\"); 42')\n// result === 42\n// calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]"
+            "code": "const snippet = 'console.log(\"hi\")\\nconsole.warn(\"oh\")\\n42'\nconst { result, console: calls } = await vm.runCaptured(snippet)\n// result === 42\n// calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]"
           }
         ]
       },
@@ -29764,6 +33237,16 @@ export const introspectionData = [
           "ctx": {
             "type": "any",
             "description": "Context variables to make available to the executing code"
+          },
+          "opts": {
+            "type": "VMRunOptions",
+            "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+            "properties": {
+              "filePath": {
+                "type": "string",
+                "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+              }
+            }
           }
         },
         "required": [
@@ -29787,6 +33270,16 @@ export const introspectionData = [
           "ctx": {
             "type": "any",
             "description": "Context variables to make available to the executing code"
+          },
+          "opts": {
+            "type": "VMRunOptions",
+            "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+            "properties": {
+              "filePath": {
+                "type": "string",
+                "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+              }
+            }
           }
         },
         "required": [
@@ -29810,6 +33303,16 @@ export const introspectionData = [
           "ctx": {
             "type": "any",
             "description": "Context variables to make available to the executing code"
+          },
+          "opts": {
+            "type": "VMRunOptions",
+            "description": "Run options, e.g. the referrer `filePath` for dynamic imports",
+            "properties": {
+              "filePath": {
+                "type": "string",
+                "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd."
+              }
+            }
           }
         },
         "required": [
@@ -29819,7 +33322,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports"
+            "code": "const code = 'module.exports = { double: (n) => n * 2 }'\nconst { result, context } = vm.performSync(code, {\n exports: {},\n module: { exports: {} },\n})\nconst moduleExports = context.module?.exports || context.exports\nconsole.log(moduleExports.double(21)) // 42"
           }
         ]
       },
@@ -29842,7 +33345,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "const vm = container.feature('vm')\n\n// Load a tools module, injecting the container\nconst tools = vm.loadModule('/path/to/tools.ts', { container, me: assistant })\n// tools.myFunction, tools.schemas, etc."
+            "code": "const vm = container.feature('vm')\n\n// Write a module to disk, then load it with extra context injected\ncontainer.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => \"hi \" + name }')\nconst tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })\nconsole.log(tools.greet('luca')) // 'hi luca'"
           }
         ]
       }
@@ -29853,21 +33356,34 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
-        "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = vm.run('greeting + \" \" + name', { \n greeting: 'Hello', \n name: 'World' \n})\nconsole.log(result2) // 'Hello World'"
+        "code": "const vm = container.feature('vm')\n\n// Execute simple code\nconst result = await vm.run('1 + 2 + 3')\nconsole.log(result) // 6\n\n// Execute code with custom context\nconst result2 = await vm.run('greeting + \" \" + name', {\n greeting: 'Hello',\n name: 'World'\n})\nconsole.log(result2) // 'Hello World'\n\n// Virtual modules take precedence over native require\nvm.defineModule('answers', { magic: 42 })"
       }
-    ]
+    ],
+    "types": {
+      "VMRunOptions": {
+        "description": "Per-run options accepted by `run`, `runSync`, `perform`, `performSync`, and `runCaptured`.",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "description": "The file the code came from, used as the referrer for dynamic `import()`: relative specifiers resolve against its directory, and bare specifiers fall back to its `node_modules` resolution. Defaults to a synthetic file in `container.cwd`, so eval-style snippets resolve relative to the cwd.",
+            "optional": true
+          }
+        }
+      }
+    }
   },
   {
     "id": "features.yaml",
-    "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access.",
+    "description": "The YAML feature provides utilities for parsing and stringifying YAML data. This feature wraps the js-yaml library to provide convenient methods for converting between YAML strings and JavaScript objects. It's automatically attached to Node containers for easy access. The API is two methods: `parse()` (YAML string → object) and `stringify()` (object → YAML string). The parser handles nested objects, arrays, numbers, and booleans automatically, and nulls serialize cleanly on the way back out. A parse → modify → stringify round-trip preserves data intact, which makes this the standard tool for reading a config file, mutating a value, and writing it back.",
     "shortcut": "features.yaml",
     "className": "YAML",
     "methods": {
       "stringify": {
-        "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files.",
+        "description": "Converts a JavaScript object to a YAML string. This method serializes JavaScript data structures into YAML format, which is human-readable and commonly used for configuration files. Deeply nested and mixed-type structures serialize cleanly — nulls, booleans, numbers, and nested arrays of objects all round-trip without special handling.",
         "parameters": {
           "data": {
             "type": "any",
@@ -29911,16 +33427,17 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "ui-output",
     "examples": [
       {
         "language": "ts",
-        "code": "const yamlFeature = container.feature('yaml')\n\n// Parse YAML string to object\nconst config = yamlFeature.parse(`\n name: MyApp\n version: 1.0.0\n settings:\n   debug: true\n`)\n\n// Convert object to YAML string\nconst yamlString = yamlFeature.stringify(config)\nconsole.log(yamlString)"
+        "code": "const yml = container.feature('yaml')\n\n// Parse YAML string to object — nested objects, arrays, numbers,\n// and booleans are all handled automatically.\nconst config = yml.parse(`\n name: my-app\n version: 2.1.0\n database:\n   host: localhost\n   port: 5432\n features:\n   - auth\n   - logging\n`)\nconsole.log(config.database.host) // 'localhost'\nconsole.log(config.features)      // ['auth', 'logging']\n\n// Convert an object back to a human-readable YAML string.\nconst output = yml.stringify({\n server: { host: '0.0.0.0', port: 3000 },\n cors: { origins: ['https://example.com'] },\n})\n\n// Round-trip: parse → modify → stringify preserves data intact.\nconst parsed = yml.parse('replicas: 3\\nmemory: 256Mi\\n')\nparsed.replicas = 5\nconst updated = yml.stringify(parsed)\nconst reparsed = yml.parse(updated)\nconsole.log(reparsed.replicas) // 5 — survives the cycle"
       }
     ]
   },
   {
     "id": "features.yamlTree",
-    "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions",
+    "description": "YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. It automatically processes file paths to create a nested object structure where file paths become object property paths. **Key Features:** - Recursive YAML file discovery in directory trees - Automatic path-to-property mapping using camelCase conversion - Integration with FileManager for efficient file operations - State-based tree storage and retrieval - Support for both .yml and .yaml file extensions This is the YAML counterpart to the `jsonTree` feature — same design in every respect (recursive scan, camelCased property paths, a `tree` getter, a custom key for namespacing). The only differences are the extensions it looks for (`.yml`/`.yaml` vs `.json`) and the parser it uses (the `yaml` feature vs `JSON.parse`). It is on-demand, so you must enable it before use, and the tree starts empty until you load a directory into it.",
     "shortcut": "features.yamlTree",
     "className": "YamlTree",
     "methods": {
@@ -29943,7 +33460,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Load with custom key\nawait yamlTree.loadTree('app/settings', 'appSettings');\n\n// Access the loaded data\nconst dbConfig = yamlTree.tree.config.database.production;"
+            "code": "// Given a directory of YAML files (create one for the demo —\n// writeFile does not create parent dirs, so ensure the folder first):\nconst fs = container.feature('fs')\nfs.ensureFolder('config/database')\nfs.writeFile('config/database/production.yml', 'host: db.example.com\\nport: 5432\\n')\n\n// Load all YAML files from 'config' directory into state.config\nawait yamlTree.loadTree('config');\n\n// Access the loaded data — file paths become camelCased property paths\nconst dbConfig = yamlTree.tree.config.database.production;\nconsole.log(dbConfig.host); // 'db.example.com'\n\n// Load a different folder under a custom key\nawait yamlTree.loadTree('config', 'appSettings');"
           }
         ]
       }
@@ -29965,35 +33482,48 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "content-nlp",
     "examples": [
       {
         "language": "ts",
-        "code": "const yamlTree = container.feature('yamlTree', { enable: true });\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
+        "code": "// On-demand: enable it explicitly first.\nconst yamlTree = container.feature('yamlTree', { enable: true });\nconsole.log(yamlTree.state.enabled);          // true\nconsole.log(yamlTree.tree);                    // {} — empty until loaded\n\n// Scan a directory of YAML files. Paths become camelCased property paths:\n//   config/database/production.yml -> tree.appConfig.database.production\n//   config/app-settings.yaml       -> tree.appConfig.appSettings\nawait yamlTree.loadTree('config', 'appConfig');\nconst configData = yamlTree.tree.appConfig;"
       }
     ]
   },
   {
     "id": "servers.express",
-    "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoints defined as modules are automatically mounted as routes. Supports static file serving, CORS configuration, and single-page app history fallback out of the box.",
+    "description": "Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. Wraps an Express application with convention-based endpoint discovery. Endpoint modules (files exporting `path` plus `get`/`post`/`put`/`patch`/`delete` handlers) are mounted as routes — this is what `luca serve` does with your project's `endpoints/` folder via `useEndpoints(dir)`. Supports static file serving, CORS, and single-page app history fallback out of the box.",
     "shortcut": "servers.express",
     "className": "ExpressServer",
     "methods": {
       "start": {
-        "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality.",
+        "description": "Start the Express HTTP server. A runtime `port` overrides the constructor option and is written to state so `server.port` always reflects reality. Runs the `beforeStart` hook, wires the SPA history fallback (when `historyFallback` + `static` are set), then listens. Resolves once the server is accepting connections; calling start() while already listening is a no-op.",
         "parameters": {
           "options": {
             "type": "StartOptions",
-            "description": "Optional runtime overrides for port and host"
+            "description": "Optional runtime overrides for port and host (host defaults to '0.0.0.0')"
           }
         },
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\n// findOpenPort keeps the example collision-free; start({ port: 3000 }) works the same\nconst port = await container.feature('networking').findOpenPort(3430)\nawait server.start({ port })\nconsole.log(server.isListening)    // true\nconsole.log(server.port === port)  // true — runtime port wins over options\nawait server.stop()"
+          }
+        ]
       },
       "stop": {
-        "description": "",
+        "description": "Stop the HTTP listener. Waits up to 500ms for the underlying server to close (open keep-alive connections can hold it), then marks the server stopped either way — so stop() never hangs a CLI command.",
         "parameters": {},
         "required": [],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nconst port = await container.feature('networking').findOpenPort(3440)\nawait server.start({ port })\n// ... handle requests ...\nawait server.stop()\nconsole.log(server.isListening)   // false"
+          }
+        ]
       },
       "configure": {
         "description": "",
@@ -30002,30 +33532,42 @@ export const introspectionData = [
         "returns": "Promise<this>"
       },
       "useEndpoint": {
-        "description": "",
+        "description": "Mount an already-constructed Endpoint instance onto the Express app and track it (mounted endpoints power reloadEndpoint and the OpenAPI spec). Most callers want useEndpoints(dir) or useEndpointModules(mods) instead, which build the Endpoint for you.",
         "parameters": {
           "endpoint": {
             "type": "Endpoint",
-            "description": "Parameter endpoint"
+            "description": "A loaded Endpoint instance"
           }
         },
         "required": [
           "endpoint"
         ],
-        "returns": "this"
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// The Endpoint class is on the endpoints registry — no import needed\nconst Endpoint = container.endpoints.baseClass\n\nconst server = container.server('express')\nconst endpoint = new Endpoint({ path: '/hello' }, container.context)\nawait endpoint.load({\n path: '/hello',\n get: async (params) => ({ hello: params.name || 'world' }),\n})\nserver.useEndpoint(endpoint)\n\nconst port = await container.feature('networking').findOpenPort(3450)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/hello', { name: 'luca' }))   // { hello: 'luca' }\nawait server.stop()"
+          }
+        ]
       },
       "useEndpoints": {
-        "description": "",
+        "description": "Discover and mount every endpoint module in a directory (recursive `**\\/*.ts` scan). This is how `luca serve` wires up a project's `endpoints/` folder. Each file must export a `path` string (files without one are silently skipped) plus handler functions named after HTTP methods. Modules are loaded through the helpers feature's VM-aware loader, so this works from the compiled binary too. A file that fails to load logs an error and is skipped — it does not abort the others.",
         "parameters": {
           "dir": {
             "type": "string",
-            "description": "Parameter dir"
+            "description": "Absolute path to the directory containing endpoint modules"
           }
         },
         "required": [
           "dir"
         ],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// Given an endpoints/users.ts file like this (written here so the example runs):\nconst fs = container.feature('fs')\nfs.ensureFile(container.paths.join('endpoints', 'users.ts'), [\n \"export const path = '/users/:id'\",\n \"export async function get(params) { return { id: params.id } }\",\n].join('\\n'))\n\nconst server = container.server('express')\nawait server.useEndpoints(container.paths.join('endpoints'))\n\nconst port = await container.feature('networking').findOpenPort(3460)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/users/42'))   // { id: '42' } — params merges query + body + route params\nawait server.stop()"
+          }
+        ]
       },
       "reloadEndpoint": {
         "description": "Reload a mounted endpoint by its file path. Re-reads the module through the helpers VM loader so the next request picks up the new handlers.",
@@ -30038,56 +33580,90 @@ export const introspectionData = [
         "required": [
           "filePath"
         ],
-        "returns": "Promise<Endpoint | null>"
+        "returns": "Promise<Endpoint | null>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const fs = container.feature('fs')\nconst file = container.paths.join('endpoints', 'users.ts')\nfs.ensureFile(file, \"export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id } }\")\n\nconst server = container.server('express')\nawait server.useEndpoints(container.paths.join('endpoints'))\n\n// after editing endpoints/users.ts on disk (e.g. from a file watcher):\nfs.ensureFile(file, \"export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id, v: 2 } }\", true)\nconst reloaded = await server.reloadEndpoint(file)\nconsole.log(reloaded ? 'hot-reloaded' : 'not a mounted endpoint')"
+          }
+        ]
       },
       "useEndpointModules": {
-        "description": "",
+        "description": "Mount endpoint modules you already have in memory (imported or inline objects) instead of scanning a directory. Same module contract as useEndpoints: each needs a `path` plus HTTP-method handlers; modules without a `path` are skipped, and a module that fails to load logs an error without aborting the rest.",
         "parameters": {
           "modules": {
             "type": "EndpointModule[]",
-            "description": "Parameter modules"
+            "description": "Array of endpoint modules (or their `import()` results)"
           }
         },
         "required": [
           "modules"
         ],
-        "returns": "Promise<this>"
+        "returns": "Promise<this>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nawait server.useEndpointModules([\n {\n   path: '/status',\n   get: async () => ({ ok: true }),\n },\n {\n   path: '/echo',\n   post: async (params) => ({ received: params }),\n },\n])\n\nconst port = await container.feature('networking').findOpenPort(3480)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.post('/echo', { hello: 'world' }))   // { received: { hello: 'world' } }\nawait server.stop()"
+          }
+        ]
       },
       "serveOpenAPISpec": {
-        "description": "",
+        "description": "Register a GET /openapi.json route that serves the OpenAPI 3.1 spec generated from all mounted endpoints (regenerated per request, so endpoints mounted later still show up).",
         "parameters": {
           "options": {
             "type": "{ title?: string; version?: string; description?: string }",
-            "description": "Parameter options"
+            "description": "Optional info-block overrides (title, version, description)"
           }
         },
         "required": [],
-        "returns": "this"
+        "returns": "this",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\nserver.serveOpenAPISpec({ title: 'My API', version: '2.0.0' })\n\nconst port = await container.feature('networking').findOpenPort(3470)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconst spec = await api.get('/openapi.json')\nconsole.log(spec.info.title, Object.keys(spec.paths))   // My API [ '/status' ]\nawait server.stop()"
+          }
+        ]
       },
       "generateOpenAPISpec": {
-        "description": "",
+        "description": "Build an OpenAPI 3.1 document describing every mounted endpoint — paths come from the endpoint modules, parameter schemas from their zod method schemas (e.g. `getSchema`), and the server URL from the current port.",
         "parameters": {
           "options": {
             "type": "{ title?: string; version?: string; description?: string }",
-            "description": "Parameter options"
+            "description": "Optional info-block overrides (title, version, description)"
           }
         },
         "required": [],
-        "returns": "Record<string, any>"
+        "returns": "Record<string, any>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\nconst spec = server.generateOpenAPISpec({ title: 'My API' })\nconsole.log(spec.info.title)          // 'My API'\nconsole.log(Object.keys(spec.paths))  // ['/status']"
+          }
+        ]
       }
     },
     "getters": {
       "express": {
-        "description": "",
+        "description": "The raw express module itself — handy for `server.express.static(...)`, `server.express.Router()`, etc.",
         "returns": "typeof express"
       },
+      "httpServer": {
+        "description": "The underlying Node http.Server, available once the app is listening (`undefined` before `start()`). Pass it — or this express server itself — to `container.server('websocket', { server })` to run a WebSocket on the same port via the Upgrade handshake.",
+        "returns": "any"
+      },
       "hooks": {
-        "description": "",
+        "description": "The lifecycle hooks resolved from options: `create(app, server)` runs when the app is first built (before endpoints mount); `beforeStart(startOptions, server)` runs inside start() before listening. Both default to no-ops.",
         "returns": "{ create: (app: Express, server: Server) => Express; beforeStart: (options: any, server: Server) => any }"
       },
       "app": {
-        "description": "",
-        "returns": "Express"
+        "description": "The underlying Express application, built lazily on first access: CORS (unless `cors: false`), JSON + urlencoded body parsers, optional static file serving, then the `create` hook. Use it to register raw routes and middleware directly.",
+        "returns": "Express",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express')\nserver.app.use((req, res, next) => { console.log(req.method, req.path); next() })\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\n\nconst port = await container.feature('networking').findOpenPort(3420)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/health'))   // { ok: true }\nawait server.stop()"
+          }
+        ]
       }
     },
     "events": {},
@@ -30095,10 +33671,134 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
-        "code": "const server = container.server('express', { cors: true, static: './public' })\nawait server.start({ port: 3000 })\n\n// Mount endpoints programmatically\nserver.mount(myEndpoint)\n\n// Access the underlying Express app\nserver.app.get('/health', (req, res) => res.json({ ok: true }))"
+        "code": "const server = container.server('express', { static: './public' })\n\n// custom routes on the underlying Express app, before or after start\nserver.app.get('/health', (req, res) => res.json({ ok: true }))\n\n// mount endpoint modules — useEndpoints(dir) does the same for a folder\n// of endpoint files (that's what `luca serve` does with endpoints/)\nawait server.useEndpointModules([\n { path: '/status', get: async () => ({ ok: true }) },\n])\n\n// grab a free port so the example runs anywhere; a fixed port works too\nconst port = await container.feature('networking').findOpenPort(3400)\nawait server.start({ port })\nconsole.log(server.port === port)       // true\n\nconst api = container.client('rest', { baseURL: `http://localhost:${server.port}` })\nconsole.log(await api.get('/health'))   // { ok: true }\nawait server.stop()"
+      },
+      {
+        "language": "ts",
+        "code": "// endpoints/status.ts — a rate-limited endpoint module, mounted by `luca serve`:\n//   export const path = '/status'\n//   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods\n//   export async function get() { return { ok: true } }\n\n// Custom middleware via the create hook (runs before endpoints mount)\nconst seen = []\nconst server = container.server('express', {\n create: (app, server) => {\n   app.use((req, res, next) => { seen.push(req.path); next() })\n   return app\n },\n})\nserver.app.get('/ping', (req, res) => res.json({ pong: true }))\n\nconst port = await container.feature('networking').findOpenPort(3410)\nawait server.start({ port })\nconst api = container.client('rest', { baseURL: `http://localhost:${port}` })\nconsole.log(await api.get('/ping'))   // { pong: true }\nconsole.log(seen)                     // ['/ping']\nawait server.stop()"
+      }
+    ]
+  },
+  {
+    "id": "servers.llmProxy",
+    "description": "Runs a [LiteLLM proxy](https://docs.litellm.ai/docs/proxy/quick_start) in a docker container, exposing every configured backend — local GPU boxes running OpenAI-compatible servers, LM Studio, paid APIs like OpenAI and Anthropic — behind a single OpenAI-compatible endpoint on `http://localhost:<port>/v1`. `start()` generates a LiteLLM `config.yaml` from the `models` option into a tmp directory, injects API keys through a 0600 env file (keys are referenced in the config as `os.environ/...` and never written into it), and runs the LiteLLM image with the config volume-mounted and the port published. It then polls `/health/liveliness` until the proxy is up. `stop()` stops and removes the container and deletes the env file. **Host networking:** the proxy runs inside a container, so a backend on the host (e.g. LM Studio at `http://localhost:1234/v1`) is not reachable as `localhost`. Any localhost `apiBase` is rewritten automatically to the host gateway (`host.docker.internal` by default; override with `hostGatewayOverride`, e.g. `192.168.64.1` for Apple's container runtime). Requires the docker CLI. Restarting always removes any stale `luca-llm-proxy-<port>` container first, so the running config deterministically matches the options you passed.",
+    "shortcut": "servers.llmProxy",
+    "className": "LlmProxyServer",
+    "methods": {
+      "rewriteApiBase": {
+        "description": "Rewrite a localhost/127.0.0.1/0.0.0.0 apiBase to the host gateway, since inside the container localhost refers to the container itself, not the machine running backends like LM Studio.",
+        "parameters": {
+          "apiBase": {
+            "type": "string",
+            "description": "Parameter apiBase"
+          }
+        },
+        "required": [
+          "apiBase"
+        ],
+        "returns": "string"
+      },
+      "writeConfig": {
+        "description": "Generate the LiteLLM config.yaml and the 0600 env file holding the actual API key values. The config references keys as os.environ/LUCA_LLM_KEY_<n> so secrets never appear in the YAML.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "checkHealth": {
+        "description": "Check the proxy's /health/liveliness endpoint.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<boolean>"
+      },
+      "start": {
+        "description": "Start the LiteLLM proxy container. Verifies a container runtime is available, reclaims any stale container with the same name, writes the config + env file, runs the image with the port published and config mounted, then polls /health/liveliness until healthy or `healthCheckTimeoutMs` elapses (failing with the container's recent log output embedded in the error).",
+        "parameters": {
+          "options": {
+            "type": "StartOptions",
+            "description": "Parameter options"
+          }
+        },
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "stop": {
+        "description": "Stop and remove the LiteLLM container and delete the env file holding injected secrets. Tolerates the container already being gone.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<this>"
+      },
+      "logs": {
+        "description": "Fetch logs from the LiteLLM container.",
+        "parameters": {
+          "options": {
+            "type": "{ follow?: boolean; tail?: number; since?: string; timestamps?: boolean }",
+            "description": "Passed through to docker getLogs (follow, tail, since, timestamps)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>"
+      }
+    },
+    "getters": {
+      "docker": {
+        "description": "The docker feature used to run and manage the LiteLLM container.",
+        "returns": "any"
+      },
+      "yaml": {
+        "description": "",
+        "returns": "any"
+      },
+      "fs": {
+        "description": "",
+        "returns": "any"
+      },
+      "os": {
+        "description": "",
+        "returns": "any"
+      },
+      "baseURL": {
+        "description": "The OpenAI-compatible base URL of the running proxy, e.g. http://localhost:4000",
+        "returns": "string"
+      },
+      "port": {
+        "description": "The port the proxy publishes on the host. Defaults to 4000.",
+        "returns": "number"
+      },
+      "image": {
+        "description": "LiteLLM docker image, ghcr.io/berriai/litellm:main-stable by default.",
+        "returns": "string"
+      },
+      "containerName": {
+        "description": "Deterministic container name so restarts can reclaim stale containers.",
+        "returns": "string"
+      },
+      "hostGateway": {
+        "description": "Hostname containers use to reach the host machine.",
+        "returns": "string"
+      },
+      "configDir": {
+        "description": "Directory the generated config.yaml and env file live in.",
+        "returns": "string"
+      },
+      "envFilePath": {
+        "description": "Path of the env file holding the injected secrets.",
+        "returns": "string"
+      }
+    },
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "// (no-run) requires docker and live backends\nconst proxy = container.server('llmProxy', {\n port: 4000,\n masterKey: 'sk-luca-dev',\n models: [\n   // LM Studio on this machine — localhost is rewritten to the host gateway\n   { modelName: 'local-qwen', provider: 'openai', model: 'qwen2.5-32b', apiBase: 'http://localhost:1234/v1', apiKey: 'lm-studio' },\n   // A DGX box on the LAN serving an OpenAI-compatible endpoint\n   { modelName: 'dgx-llama', provider: 'openai', model: 'llama-3.3-70b', apiBase: 'http://192.168.1.50:8000/v1', apiKey: 'none' },\n   // A paid API\n   { modelName: 'claude', provider: 'anthropic', model: 'claude-sonnet-5', apiKey: process.env.ANTHROPIC_API_KEY },\n ],\n})\nawait proxy.start()\n\n// one OpenAI-compatible endpoint for everything\nconst client = container.client('rest', { baseURL: proxy.baseURL })\nconst models = await client.get('/v1/models', { headers: { Authorization: 'Bearer sk-luca-dev' } })\n\nawait proxy.stop()"
       }
     ]
   },
@@ -30260,6 +33960,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "ai-assistants",
     "examples": [
       {
         "language": "ts",
@@ -30356,12 +34057,35 @@ export const introspectionData = [
   },
   {
     "id": "servers.websocket",
-    "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data) and outgoing messages via `send()` / `broadcast()` are JSON-stringified. When `json` mode is disabled, raw message data is emitted as-is and `send()` / `broadcast()` still JSON-stringify for safety. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
+    "description": "WebSocket server built on the `ws` library with optional JSON message framing. Manages WebSocket connections, tracks connected clients, and bridges messages to Luca's event bus. When `json` mode is enabled, incoming messages are automatically JSON-parsed (with `.toString()` for Buffer data); a binary frame that is not valid JSON is passed through untouched. When `json` mode is disabled, raw message data is emitted as-is. Outgoing `send()` / `broadcast()` frame the payload with {@link encodeWireFrame}: objects become JSON, but a `Buffer`/`ArrayBuffer`/ typed array is sent as a raw binary frame and a `string` as a raw text frame. So binary transport (audio, protobuf, etc.) is a first-class option — no need to base64 into JSON or drop to the raw `wss` getter. Supports ask/reply semantics when paired with the Luca WebSocket client. The server can `ask(ws, type, data)` a connected client and await a typed response, or handle incoming asks from clients by listening for messages with a `requestId` and replying via `send(ws, { replyTo, data })`. Requests time out if no reply arrives within the configurable window.",
     "shortcut": "servers.websocket",
     "className": "WebsocketServer",
     "methods": {
+      "handleUpgrade": {
+        "description": "Feed an HTTP `upgrade` event to this server. Only meaningful in `noServer` mode — wire it from your own http.Server: `httpServer.on('upgrade', (req, socket, head) => wsServer.handleUpgrade(req, socket, head))`.",
+        "parameters": {
+          "request": {
+            "type": "any",
+            "description": "Parameter request"
+          },
+          "socket": {
+            "type": "any",
+            "description": "Parameter socket"
+          },
+          "head": {
+            "type": "any",
+            "description": "Parameter head"
+          }
+        },
+        "required": [
+          "request",
+          "socket",
+          "head"
+        ],
+        "returns": "void"
+      },
       "broadcast": {
-        "description": "",
+        "description": "Send a message to every connected client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is broadcast as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}). The frame is encoded once and reused across all connections.",
         "parameters": {
           "message": {
             "type": "any",
@@ -30374,7 +34098,7 @@ export const introspectionData = [
         "returns": "Promise<this>"
       },
       "send": {
-        "description": "",
+        "description": "Send a message to one client. Objects are JSON-encoded; a `Buffer`/`ArrayBuffer`/typed array is sent as a raw binary frame and a `string` as a raw text frame (see {@link encodeWireFrame}).",
         "parameters": {
           "ws": {
             "type": "any",
@@ -30419,7 +34143,7 @@ export const introspectionData = [
         "examples": [
           {
             "language": "ts",
-            "code": "ws.on('connection', async (client) => {\n const info = await ws.ask(client, 'identify')\n console.log('Client says:', info)\n})"
+            "code": "const server = container.server('websocket', { json: true })\nconst port = await container.feature('networking').findOpenPort(8190)\nawait server.start({ port })\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\n\n// a connected Luca websocket client replies by echoing requestId as replyTo\nconst client = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nclient.on('message', (msg) => {\n if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n})\nawait client.connect()\n\nconst socket = await firstConnection\nconst info = await server.ask(socket, 'identify')\nconsole.log('Client says:', info)   // { name: 'my-client' }\n\nawait client.disconnect()\nawait server.stop()"
           }
         ]
       },
@@ -30443,7 +34167,7 @@ export const introspectionData = [
     },
     "getters": {
       "wss": {
-        "description": "",
+        "description": "The underlying `ws` WebSocketServer, built lazily on first access. The construction mode is chosen from options: `noServer` builds a manual server (drive it with {@link handleUpgrade}); an attached `server` (raw http.Server, or an already-listening express server) shares that server's port via the Upgrade handshake; otherwise it binds its own `port`. A `path` option, when set, is applied in every mode.",
         "returns": "BaseServer"
       },
       "port": {
@@ -30452,6 +34176,11 @@ export const introspectionData = [
       }
     },
     "events": {
+      "attached": {
+        "name": "attached",
+        "description": "Event emitted by WebsocketServer",
+        "arguments": {}
+      },
       "connection": {
         "name": "connection",
         "description": "Event emitted by WebsocketServer",
@@ -30467,16 +34196,17 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
-        "code": "const ws = container.server('websocket', { json: true })\nawait ws.start({ port: 8080 })\n\nws.on('message', (data, client) => {\n console.log('Received:', data)\n ws.broadcast({ echo: data })\n})\n\n// ask/reply: request info from a connected client\nws.on('connection', async (client) => {\n const info = await ws.ask(client, 'identify')\n console.log('Client says:', info)\n})"
+        "code": "const server = container.server('websocket', { json: true })\nconst port = await container.feature('networking').findOpenPort(8180)\nawait server.start({ port })\n\nserver.on('message', (data, client) => {\n console.log('Received:', data)\n})\n\n// a Luca websocket client on the other end — it answers asks from the\n// server by echoing the requestId back as replyTo\nconst firstConnection = new Promise((resolve) => server.on('connection', resolve))\nconst client = container.client('websocket', { baseURL: `ws://localhost:${port}` })\nclient.on('message', (msg) => {\n if (msg?.requestId) client.send({ replyTo: msg.requestId, data: { name: 'my-client' } })\n})\nawait client.connect()\nawait client.send({ type: 'hello' })      // -> Received: { type: 'hello' }\n\n// ask/reply: request info from a connected client and await its answer\nconst socket = await firstConnection\nconst info = await server.ask(socket, 'identify')\nconsole.log('Client says:', info)         // { name: 'my-client' }\n\nawait client.disconnect()\nawait server.stop()"
       }
     ]
   }
 ];
 
-export const containerIntrospectionData = [
+export const containerIntrospectionData: Record<string, any>[] = [
   {
     "className": "Container",
     "description": "The Container is the core runtime object in Luca. It is a singleton per process that acts as an event bus, state machine, and dependency injector. It holds registries of helpers (features, clients, servers, commands, endpoints) and provides factory methods to create instances from them. All helper instances share the container's context, enabling them to communicate and coordinate. The container detects its runtime environment (Node, Bun, browser, Electron) and can load platform-specific feature implementations accordingly. Use `container.feature('name')` to create feature instances, `container.use(Plugin)` to extend the container with new capabilities, and `container.on('event', handler)` to react to lifecycle events.",
@@ -30840,6 +34570,16 @@ export const containerIntrospectionData = [
       }
     },
     "getters": {
+      "zod": {
+        "description": "The bundled zod (v4) instance — the same one seeded into VM-loaded user code as the `'zod'` virtual module, so schemas built here and schemas built in commands/endpoints share one zod identity.",
+        "returns": "typeof z",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const schema = container.zod.object({ name: container.zod.string() })\nschema.parse({ name: 'luca' }).name // 'luca'"
+          }
+        ]
+      },
       "state": {
         "description": "The observable state object for this container instance.",
         "returns": "State<ContainerState>"
@@ -30853,12 +34593,16 @@ export const containerIntrospectionData = [
         "returns": "Partial<AvailableInstanceTypes<Features>>"
       },
       "utils": {
-        "description": "Common utilities available on every container. Provides UUID generation, object hashing, string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
+        "description": "Common utilities available on every container. Provides UUID generation, object hashing, timing helpers (sleep, backoff, every), string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.sleep(ms)` — resolve after ms milliseconds - `utils.backoff(fn, opts)` — retry an async fn with exponential backoff - `utils.every(ms, fn, opts)` — poll loop with no overlapping runs; returns a stop() function - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
         "returns": "ContainerUtils",
         "examples": [
           {
             "language": "ts",
             "code": "const id = container.utils.uuid()\nconst hash = container.utils.hashObject({ foo: 'bar' })\nconst name = container.utils.stringUtils.camelCase('my-feature')\nconst unique = container.utils.lodash.uniq([1, 2, 2, 3])"
+          },
+          {
+            "language": "ts",
+            "code": "// Retry a flaky call: 5 attempts, 200ms → 400ms → 800ms → 1600ms between them\nconst data = await container.utils.backoff(() => api.get('/status'), {\n attempts: 5, delay: 200,\n onRetry: (err, attempt) => console.log(`attempt ${attempt} failed`)\n})\n\n// Poll every 30s until stopped — the next run never starts before the previous finishes\nconst stop = container.utils.every(30_000, async () => { await syncOnce() })\nprocess.on('SIGINT', () => { stop(); process.exit(0) })"
           }
         ]
       },
@@ -30928,7 +34672,48 @@ export const containerIntrospectionData = [
   {
     "className": "NodeContainer",
     "description": "Server-side container for Node.js and Bun environments. Extends the base Container with file system access, process management, git integration, and other server-side capabilities. Auto-enables core features on construction: fs, proc, git, grep, os, networking, ui, vm, transpiler, helpers. Also attaches Client, Server, Command, Endpoint, and Selector helper types, providing `container.client()`, `container.server()`, `container.command()`, etc. factory methods.",
-    "methods": {},
+    "methods": {
+      "store": {
+        "description": "Open a named cross-process store — durable JSON state shared safely between separate luca invocations (a server and its sibling CLI commands, a fleet manager and its `stop` command, etc.). Sugar for `container.feature('store').open(name, options)`. The backing file is plain JSON under `.luca/store/` (project scope by default), and `update()` does a locked read-modify-write so concurrent processes can't clobber each other's writes. See `luca describe store` for the full API and the state-store decision guide.",
+        "parameters": {
+          "name": {
+            "type": "string",
+            "description": "The store's name; becomes the filename `<name>.json`"
+          },
+          "options": {
+            "type": "StoreHandleOptions<T>",
+            "description": "Schema, initial value, scope ('project' | 'machine' | 'tmp'), lock tuning"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "returns": "StoreHandle<T>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const stats = container.store('proxy-stats', {\n schema: z.object({ hits: z.number().default(0) }),\n})\nawait stats.update(s => { s.hits++ })\nconsole.log((await stats.read()).hits)"
+          }
+        ]
+      },
+      "runUntilShutdown": {
+        "description": "Keep the process alive until SIGINT/SIGTERM, then run cleanup and exit 0. The blessed pattern for long-running commands (servers, watchers, daemons): call it as the last statement of your handler instead of hand-rolling `await new Promise(() => {})` plus signal wiring. Multiple calls share one shutdown promise; cleanups run LIFO with a 5s guard, and a second signal exits immediately. Command handlers receive it on their context: `context.runUntilShutdown(cleanup)`.",
+        "parameters": {
+          "cleanup": {
+            "type": "() => void | Promise<void>",
+            "description": "Optional async cleanup to run on shutdown (close servers, remove state files)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<void>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const server = container.server('express', { port: 4000 })\nawait server.start()\nawait container.runUntilShutdown(async () => { await server.stop() })"
+          }
+        ]
+      }
+    },
     "getters": {
       "cwd": {
         "description": "Returns the current working directory, from options or process.cwd().",

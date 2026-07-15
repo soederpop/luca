@@ -379,6 +379,8 @@ export class Docker extends Feature<DockerState, DockerOptions> {
    * @param options.entrypoint - Override the default entrypoint
    * @param options.network - Connect the container to a network
    * @param options.restart - Restart policy (e.g. 'always', 'on-failure')
+   * @param options.envFile - Path to an env file passed via --env-file (keeps secrets out of process args)
+   * @param options.addHostGateway - Make host.docker.internal resolve to the host from inside the container (adds --add-host on Linux engines; Docker Desktop resolves it natively)
    * @returns Promise resolving to the container ID
    * @throws Error if the container cannot be started
    * @example
@@ -420,6 +422,10 @@ export class Docker extends Feature<DockerState, DockerOptions> {
       network?: string
       /** Restart policy (e.g. 'always', 'on-failure') */
       restart?: string
+      /** Path to an env file passed via --env-file */
+      envFile?: string
+      /** Make host.docker.internal resolve to the host from inside the container */
+      addHostGateway?: boolean
     } = {}
   ): Promise<string> {
     const args = ['run']
@@ -433,7 +439,12 @@ export class Docker extends Feature<DockerState, DockerOptions> {
     if (options.entrypoint) args.push('--entrypoint', options.entrypoint)
     if (options.network) args.push('--network', options.network)
     if (options.restart) args.push('--restart', options.restart)
-    
+    if (options.envFile) args.push('--env-file', options.envFile)
+    // Docker Desktop (mac/win) resolves host.docker.internal natively; Linux engines need the explicit mapping
+    if (options.addHostGateway && process.platform === 'linux') {
+      args.push('--add-host', 'host.docker.internal:host-gateway')
+    }
+
     if (options.ports) {
       for (const port of options.ports) {
         args.push('--publish', port)

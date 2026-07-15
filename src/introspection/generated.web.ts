@@ -59,6 +59,7 @@ setBuildTimeData('features.assetLoader', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -153,6 +154,7 @@ setBuildTimeData('features.containerLink', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -208,6 +210,7 @@ setBuildTimeData('features.esbuild', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -329,6 +332,7 @@ setBuildTimeData('features.helpers', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -371,6 +375,7 @@ setBuildTimeData('features.network', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "networking",
   "examples": [
     {
       "language": "ts",
@@ -443,6 +448,7 @@ setBuildTimeData('features.speech', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -528,6 +534,7 @@ setBuildTimeData('features.vault', {
   "options": {},
   "envVars": [],
   "stability": "stable",
+  "category": "system",
   "examples": [
     {
       "language": "ts",
@@ -594,6 +601,7 @@ setBuildTimeData('features.vm', {
   "options": {},
   "envVars": [],
   "stability": "core",
+  "category": "dev-tools",
   "examples": [
     {
       "language": "ts",
@@ -670,6 +678,7 @@ setBuildTimeData('features.voice', {
   "options": {},
   "envVars": [],
   "stability": "experimental",
+  "category": "media-browser",
   "examples": [
     {
       "language": "ts",
@@ -1042,6 +1051,16 @@ setContainerBuildTimeData('Container', {
     }
   },
   "getters": {
+    "zod": {
+      "description": "The bundled zod (v4) instance — the same one seeded into VM-loaded user code as the `'zod'` virtual module, so schemas built here and schemas built in commands/endpoints share one zod identity.",
+      "returns": "typeof z",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const schema = container.zod.object({ name: container.zod.string() })\nschema.parse({ name: 'luca' }).name // 'luca'"
+        }
+      ]
+    },
     "state": {
       "description": "The observable state object for this container instance.",
       "returns": "State<ContainerState>"
@@ -1055,12 +1074,16 @@ setContainerBuildTimeData('Container', {
       "returns": "Partial<AvailableInstanceTypes<Features>>"
     },
     "utils": {
-      "description": "Common utilities available on every container. Provides UUID generation, object hashing, string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
+      "description": "Common utilities available on every container. Provides UUID generation, object hashing, timing helpers (sleep, backoff, every), string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.sleep(ms)` — resolve after ms milliseconds - `utils.backoff(fn, opts)` — retry an async fn with exponential backoff - `utils.every(ms, fn, opts)` — poll loop with no overlapping runs; returns a stop() function - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
       "returns": "ContainerUtils",
       "examples": [
         {
           "language": "ts",
           "code": "const id = container.utils.uuid()\nconst hash = container.utils.hashObject({ foo: 'bar' })\nconst name = container.utils.stringUtils.camelCase('my-feature')\nconst unique = container.utils.lodash.uniq([1, 2, 2, 3])"
+        },
+        {
+          "language": "ts",
+          "code": "// Retry a flaky call: 5 attempts, 200ms → 400ms → 800ms → 1600ms between them\nconst data = await container.utils.backoff(() => api.get('/status'), {\n attempts: 5, delay: 200,\n onRetry: (err, attempt) => console.log(`attempt ${attempt} failed`)\n})\n\n// Poll every 30s until stopped — the next run never starts before the previous finishes\nconst stop = container.utils.every(30_000, async () => { await syncOnce() })\nprocess.on('SIGINT', () => { stop(); process.exit(0) })"
         }
       ]
     },
@@ -1148,7 +1171,7 @@ setContainerBuildTimeData('WebContainer', {
   },
   "events": {}
 });
-export const introspectionData = [
+export const introspectionData: Record<string, any>[] = [
   {
     "id": "features.assetLoader",
     "description": "Injects scripts and stylesheets into the page at runtime. Provides helpers for loading external libraries from unpkg.com, injecting arbitrary script/link tags, and managing load state. Used by other web features (e.g. Esbuild) to pull in dependencies on demand.",
@@ -1206,6 +1229,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -1299,6 +1323,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -1353,6 +1378,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -1473,6 +1499,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -1514,6 +1541,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "networking",
     "examples": [
       {
         "language": "ts",
@@ -1585,6 +1613,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -1669,6 +1698,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "stable",
+    "category": "system",
     "examples": [
       {
         "language": "ts",
@@ -1734,6 +1764,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "core",
+    "category": "dev-tools",
     "examples": [
       {
         "language": "ts",
@@ -1809,6 +1840,7 @@ export const introspectionData = [
     "options": {},
     "envVars": [],
     "stability": "experimental",
+    "category": "media-browser",
     "examples": [
       {
         "language": "ts",
@@ -1818,7 +1850,7 @@ export const introspectionData = [
   }
 ];
 
-export const containerIntrospectionData = [
+export const containerIntrospectionData: Record<string, any>[] = [
   {
     "className": "Container",
     "description": "The Container is the core runtime object in Luca. It is a singleton per process that acts as an event bus, state machine, and dependency injector. It holds registries of helpers (features, clients, servers, commands, endpoints) and provides factory methods to create instances from them. All helper instances share the container's context, enabling them to communicate and coordinate. The container detects its runtime environment (Node, Bun, browser, Electron) and can load platform-specific feature implementations accordingly. Use `container.feature('name')` to create feature instances, `container.use(Plugin)` to extend the container with new capabilities, and `container.on('event', handler)` to react to lifecycle events.",
@@ -2182,6 +2214,16 @@ export const containerIntrospectionData = [
       }
     },
     "getters": {
+      "zod": {
+        "description": "The bundled zod (v4) instance — the same one seeded into VM-loaded user code as the `'zod'` virtual module, so schemas built here and schemas built in commands/endpoints share one zod identity.",
+        "returns": "typeof z",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const schema = container.zod.object({ name: container.zod.string() })\nschema.parse({ name: 'luca' }).name // 'luca'"
+          }
+        ]
+      },
       "state": {
         "description": "The observable state object for this container instance.",
         "returns": "State<ContainerState>"
@@ -2195,12 +2237,16 @@ export const containerIntrospectionData = [
         "returns": "Partial<AvailableInstanceTypes<Features>>"
       },
       "utils": {
-        "description": "Common utilities available on every container. Provides UUID generation, object hashing, string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
+        "description": "Common utilities available on every container. Provides UUID generation, object hashing, timing helpers (sleep, backoff, every), string case conversion, and lodash helpers — no imports needed. - `utils.uuid()` — generate a v4 UUID - `utils.hashObject(obj)` — deterministic hash of any object - `utils.sleep(ms)` — resolve after ms milliseconds - `utils.backoff(fn, opts)` — retry an async fn with exponential backoff - `utils.every(ms, fn, opts)` — poll loop with no overlapping runs; returns a stop() function - `utils.stringUtils` — `{ kebabCase, camelCase, upperFirst, lowerFirst, pluralize, singularize }` - `utils.lodash` — `{ uniq, keyBy, uniqBy, groupBy, debounce, throttle, mapValues, mapKeys, pick, get, set, omit }`",
         "returns": "ContainerUtils",
         "examples": [
           {
             "language": "ts",
             "code": "const id = container.utils.uuid()\nconst hash = container.utils.hashObject({ foo: 'bar' })\nconst name = container.utils.stringUtils.camelCase('my-feature')\nconst unique = container.utils.lodash.uniq([1, 2, 2, 3])"
+          },
+          {
+            "language": "ts",
+            "code": "// Retry a flaky call: 5 attempts, 200ms → 400ms → 800ms → 1600ms between them\nconst data = await container.utils.backoff(() => api.get('/status'), {\n attempts: 5, delay: 200,\n onRetry: (err, attempt) => console.log(`attempt ${attempt} failed`)\n})\n\n// Poll every 30s until stopped — the next run never starts before the previous finishes\nconst stop = container.utils.every(30_000, async () => { await syncOnce() })\nprocess.on('SIGINT', () => { stop(); process.exit(0) })"
           }
         ]
       },
