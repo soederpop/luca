@@ -6,6 +6,8 @@ import type { NodeContainer } from '../node/container.js'
 import { bootstrapFiles, bootstrapTemplates, bootstrapExamples, bootstrapTutorials, bootstrapReferences } from '../bootstrap/generated.js'
 import { generateScaffold } from '../scaffolds/template.js'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
+import { setup as runSetup } from './setup.js'
+import { localEmbeddingReadiness, hasDescribeEmbeddings } from '../describe-search.js'
 
 declare module '../command.js' {
 	interface AvailableCommands {
@@ -16,6 +18,7 @@ declare module '../command.js' {
 export const argsSchema = CommandOptionsSchema.extend({
 	output: z.string().default('.').describe('Output folder path (defaults to cwd)'),
 	'update-skill': z.boolean().default(false).describe('Only update .claude/skills/luca-framework in the current project'),
+	setup: z.boolean().optional().describe('Run `luca setup` afterward to install local semantic search (native addon + embedding model). Use --no-setup to skip the prompt; omitted = ask in an interactive terminal.'),
 })
 
 async function bootstrap(options: z.infer<typeof argsSchema>, context: ContainerContext) {
@@ -177,9 +180,73 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print('')
 	ui.print.dim('    Run luca scaffold <type> --tutorial for a full guide on any type')
 	ui.print('')
-	ui.print('  Want local semantic search? Run luca setup — a guided, once-per-machine')
-	ui.print('  install of the native addon and embedding model.')
-	ui.print('')
+
+	// ── Offer to run `luca setup` (local semantic search) ──────────
+	await offerSetup(container, context, ui, options)
+}
+
+/**
+ * Offer to run `luca setup` so the new project has local semantic search
+ * (and a working `luca describe --query`) out of the box. Honors --setup /
+ * --no-setup; otherwise asks in a TTY and does nothing in a pipe.
+ */
+async function offerSetup(
+	container: NodeContainer,
+	context: ContainerContext,
+	ui: any,
+	options: z.infer<typeof argsSchema>,
+) {
+	const setupTip = () => {
+		ui.print('  Want local semantic search? Run luca setup — a guided, once-per-machine')
+		ui.print('  install of the native addon and embedding model (powers `luca describe --query`).')
+		ui.print('')
+	}
+
+	// minimist collapses an absent boolean and `--no-setup` both to `false`,
+	// so read the raw token to tell an explicit opt-out from "not passed".
+	const rawArgs = process.argv
+	const explicitNo = rawArgs.includes('--no-setup') || rawArgs.includes('--setup=false')
+	const explicitYes = options.setup === true
+
+	// Explicit opt-out
+	if (explicitNo) {
+		setupTip()
+		return
+	}
+
+	// Already fully set up — nothing to do (idempotent, but skip the noise)
+	const alreadyReady = (await localEmbeddingReadiness()) === 'ready' && hasDescribeEmbeddings()
+
+	let runIt: boolean
+	if (explicitYes) {
+		runIt = true
+	} else if (alreadyReady) {
+		ui.print.green('  ✓ Local semantic search is already set up on this machine.')
+		ui.print('')
+		return
+	} else if (process.stdin.isTTY) {
+		ui.print('  Local semantic search (used by `luca describe --query`) needs a')
+		ui.print('  once-per-machine native addon + embedding model (~300MB). This runs')
+		ui.print('  `luca setup --local-embeddings` for you.')
+		ui.print('')
+		const { answer } = await ui.wizard([{ type: 'confirm', name: 'answer', message: 'Set up local semantic search now?', default: true }])
+		runIt = answer
+	} else {
+		// Non-interactive with no flag — leave the tip, change nothing
+		setupTip()
+		return
+	}
+
+	if (!runIt) {
+		ui.print.dim('  Skipped — run `luca setup --local-embeddings` any time.\n')
+		return
+	}
+
+	// Reuse the setup handler in-process (no reliance on `luca` being on PATH,
+	// works from the compiled binary). --local-embeddings installs the addon,
+	// weights, and describe index; it does NOT touch project types (bootstrap
+	// already wrote them).
+	await runSetup({ 'local-embeddings': true } as any, context)
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────

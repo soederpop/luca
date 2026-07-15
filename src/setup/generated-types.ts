@@ -163,6 +163,7 @@ export interface MemorySearchResult extends MemoryRecord {
 export declare class Memory extends Feature<MemoryState, MemoryOptions> {
     static shortcut: "features.memory";
     static stability: "stable";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         dbReady: z.ZodDefault<z.ZodBoolean>;
@@ -679,6 +680,7 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
     }, z.core.$strip>;
     static shortcut: "features.assistant";
     static stability: "core";
+    static category: "ai-assistants";
     readonly interceptors: {
         beforeAsk: InterceptorChain<import("../lib/interceptor-chain.js").BeforeAskCtx>;
         beforeTurn: InterceptorChain<import("../lib/interceptor-chain.js").BeforeTurnCtx>;
@@ -1227,6 +1229,7 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
     }, z.core.$strip>;
     static shortcut: "features.assistantsManager";
     static stability: "core";
+    static category: "ai-assistants";
     /** @returns Default state with discovery not yet run and zero counts. */
     get initialState(): AssistantsManagerState;
     /** Discovered assistant entries keyed by name. */
@@ -1578,6 +1581,7 @@ export type AutonomousAssistantOptions = z.infer<typeof AutonomousAssistantOptio
 export declare class AutonomousAssistant extends Feature<AutonomousAssistantState, AutonomousAssistantOptions> {
     static shortcut: "features.autoAssistant";
     static stability: "experimental";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodBoolean;
@@ -1781,6 +1785,7 @@ interface BrowserUseResult {
 export declare class BrowserUse extends Feature<BrowserUseState, BrowserUseOptions> {
     static shortcut: "features.browserUse";
     static stability: "experimental";
+    static category: "media-browser";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         session: z.ZodDefault<z.ZodString>;
@@ -2660,6 +2665,7 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
     }, z.core.$strip>;
     static shortcut: "features.claudeCode";
     static stability: "stable";
+    static category: "agent-wrappers";
     static envVars: string[];
     get initialState(): ClaudeCodeState;
     /**
@@ -3231,6 +3237,7 @@ export declare class ClaudeController extends Feature<ClaudeControllerState, Cla
     }, z.core.$strip>;
     static shortcut: "features.claudeController";
     static stability: "stable";
+    static category: "agent-wrappers";
     private sessions;
     private personas;
     get initialState(): ClaudeControllerState;
@@ -3374,6 +3381,7 @@ export declare const CodingToolsOptionsSchema: z.ZodObject<{
 export declare class CodingTools extends Feature {
     static shortcut: "features.codingTools";
     static stability: "stable";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
@@ -3525,6 +3533,7 @@ export declare class ConversationHistory extends Feature<ConversationHistoryStat
     }, z.core.$strip>;
     static shortcut: "features.conversationHistory";
     static stability: "stable";
+    static category: "ai-assistants";
     /** @returns Default state with zero conversations and no last-saved timestamp. */
     get initialState(): ConversationHistoryState;
     /** @returns The diskCache feature instance used for persistence, configured with the optional cachePath. */
@@ -4058,6 +4067,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     }, z.core.$strip>;
     static shortcut: "features.conversation";
     static stability: "stable";
+    static category: "ai-assistants";
     /**
      * Pluggable tool executor. Called for each tool invocation with the tool
      * name, parsed args, and the default handler. Return the serialized result string.
@@ -4412,6 +4422,7 @@ export declare class DocsReader extends Feature<DocsReaderState, DocsReaderOptio
     }, z.core.$strip>;
     static shortcut: "features.docsReader";
     static stability: "stable";
+    static category: "content-nlp";
     /** @returns Default state with started=false. */
     get initialState(): DocsReaderState;
     /** Whether the docs reader has been started. */
@@ -4468,6 +4479,7 @@ export declare const FileToolsOptionsSchema: z.ZodObject<{
 export declare class FileTools extends Feature {
     static shortcut: "features.fileTools";
     static stability: "stable";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
@@ -4695,6 +4707,7 @@ export type LucaCoderOptions = z.infer<typeof LucaCoderOptionsSchema>;
 export declare class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
     static shortcut: "features.lucaCoder";
     static stability: "experimental";
+    static category: "agent-wrappers";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodBoolean;
@@ -4962,6 +4975,7 @@ interface ConnectedServer {
 export declare class McpBridge extends Feature<McpBridgeState, McpBridgeOptions & FeatureOptions> {
     static shortcut: "features.mcpBridge";
     static stability: "stable";
+    static category: "ai-assistants";
     static optionsSchema: z.ZodObject<{
         servers: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
             command: z.ZodString;
@@ -5101,7 +5115,6 @@ export default McpBridge;
 //# sourceMappingURL=mcp-bridge.d.ts.map`,
   "agi/features/model-providers.d.ts": `import { Feature } from '../feature';
 import OpenAI from 'openai';
-import type { ClaudeSessionController } from './claude-session-controller';
 declare module 'luca/feature' {
     interface AvailableFeatures {
         modelProviders: typeof ModelProviders;
@@ -5245,7 +5258,10 @@ export declare class OpenAIResponsesTransport implements ModelTransport {
     stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent>;
 }
 export interface ClaudeSessionTransportOptions {
-    controllerClass?: typeof ClaudeSessionController;
+    /** Inject a claudeCode-like backend (with a \`run()\` method) — used by tests. */
+    claudeCode?: {
+        run: (prompt: string, options?: any) => Promise<any>;
+    };
 }
 export declare class OpenAICodexTransport implements ModelTransport {
     private container;
@@ -5261,27 +5277,30 @@ export declare class ClaudeSessionTransport implements ModelTransport {
     private container;
     private options;
     apiMode: string;
-    private controllers;
     constructor(container: any, options?: ClaudeSessionTransportOptions);
-    stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent>;
-    private controllerFor;
     /**
-     * Build the args list for the Claude CLI, bootstrapping an MCP config when
-     * providerOptions.assistant is set so the spawned Claude process can call
-     * back into a \`luca mcp --assistant <name>\` subprocess for tool execution.
-     * Honors \`providerOptions.mcpServers\` for extra MCP servers, \`lucaBin\` for
-     * the luca binary path, \`askOnly\` for \`--ask-only\`, \`mcpServerName\` for the
-     * server label, and \`strictMcp\` (default true) for \`--strict-mcp-config\`.
+     * Drive the claude-code backend headlessly via \`claudeCode.run()\` (which runs
+     * \`claude -p --output-format stream-json\`). Claude runs its own agentic loop
+     * with its own tools/MCP, so it returns a final text answer — no tool calls
+     * are surfaced to the conversation loop. Multi-turn continuity is handled by
+     * resuming claude's own session id, captured as providerData.
      */
-    private resolveClaudeArgs;
-    private contentFromControllerResponse;
-    private latestAssistantText;
-    private textFromClaudeContent;
+    stream(request: ModelRequest, provider: ResolvedModelProvider): AsyncIterable<ModelStreamEvent>;
+    /**
+     * Build the MCP servers map for the claude run. When providerOptions.assistant
+     * is a name, register a \`luca mcp --assistant <name>\` stdio server so the
+     * spawned Claude can call back into luca for tool execution. Honors
+     * \`mcpServers\` (extra servers), \`lucaBin\`, \`askOnly\`, and \`mcpServerName\`.
+     */
+    private resolveMcpServers;
+    private systemInstructions;
+    private contentToText;
     private promptFromMessages;
 }
 export declare class ModelProviders extends Feature {
     static description: string;
     static stability: "core";
+    static category: "ai-assistants";
     static optionsSchema: import("zod").ZodObject<{
         [x: string]: any;
     }, import("zod/v4/core").$strip>;
@@ -5589,6 +5608,7 @@ export declare class OpenAICodex extends Feature<OpenAICodexState, OpenAICodexOp
     }, z.core.$strip>;
     static shortcut: "features.openaiCodex";
     static stability: "stable";
+    static category: "agent-wrappers";
     get initialState(): OpenAICodexState;
     private _resolvedCodexPath;
     /** @returns The path to the codex CLI binary, falling back to 'codex' on the PATH. */
@@ -5795,6 +5815,7 @@ export declare class OpenAPI extends Feature<OpenAPIState, OpenAPIOptions> {
     static shortcut: "features.openapi";
     static description: string;
     static stability: "stable";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         loaded: z.ZodDefault<z.ZodBoolean>;
@@ -5996,6 +6017,7 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
     }, z.core.$strip>;
     static shortcut: "features.skillsLibrary";
     static stability: "stable";
+    static category: "content-nlp";
     /** Tools for assistant integration via assistant.use(skillsLibrary). */
     static tools: Record<string, {
         schema: z.ZodType;
@@ -6091,6 +6113,8 @@ export declare class SkillsLibrary extends Feature<SkillsLibraryState, SkillsLib
      * @returns Array of skill names relevant to the query (may be empty)
      */
     findRelevantSkillsForAssistant(assistant: Assistant, userQuery: string): Promise<string[]>;
+    /** Pull skill names out of a structured object or a free-text/JSON response. */
+    private extractSkillNames;
 }
 export default SkillsLibrary;
 //# sourceMappingURL=skills-library.d.ts.map`,
@@ -6175,6 +6199,7 @@ type VoiceConfig = {
 export declare class VoiceMode extends Feature<VoiceModeState, VoiceModeOptions> {
     static shortcut: "features.voiceMode";
     static stability: "experimental";
+    static category: "ai-assistants";
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
         _cacheKey: z.ZodOptional<z.ZodString>;
@@ -6396,6 +6421,7 @@ export declare function countMessageTokens(messages: any[], model: string): numb
 export declare const bootstrapTemplates: Record<string, string>;
 export declare const bootstrapExamples: Record<string, string>;
 export declare const bootstrapTutorials: Record<string, string>;
+export declare const bootstrapReferences: Record<string, string>;
 //# sourceMappingURL=generated.d.ts.map`,
   "browser.d.ts": `export * from './web/container.js';
 import { WebContainer } from './web/container.js';
@@ -6438,9 +6464,9 @@ export declare class Bus<T extends EventMap = EventMap> {
 }
 export {};
 //# sourceMappingURL=bus.d.ts.map`,
-  "cli/build-info.d.ts": `export declare const BUILD_SHA = "ab4e914";
-export declare const BUILD_BRANCH = "main";
-export declare const BUILD_DATE = "2026-07-14T05:15:39Z";
+  "cli/build-info.d.ts": `export declare const BUILD_SHA: string;
+export declare const BUILD_BRANCH: string;
+export declare const BUILD_DATE: string;
 //# sourceMappingURL=build-info.d.ts.map`,
   "cli/bundle-utils.d.ts": `export declare function safeIdent(name: string): string;
 export declare function commandNameFromFile(file: string): string | null;
@@ -6637,6 +6663,7 @@ export declare class CivitaiClient<T extends CivitaiClientState> extends RestCli
         checkpoints: z.ZodDefault<z.ZodArray<z.ZodString>>;
     }, z.core.$loose>;
     static stability: "experimental";
+    static category: "media-browser";
     constructor(options: ClientOptions, context: ContainerContext);
     types: string[];
     /**
@@ -7206,6 +7233,7 @@ export declare class ComfyUIClient extends RestClient<ComfyUIClientState, ComfyU
     static shortcut: "clients.comfyui";
     static description: string;
     static stability: "experimental";
+    static category: "media-browser";
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
         clientId: z.ZodDefault<z.ZodString>;
@@ -7456,6 +7484,7 @@ export type SynthesizeOptions = {
 export declare class ElevenLabsClient extends RestClient<ElevenLabsClientState, ElevenLabsClientOptions> {
     static shortcut: "clients.elevenlabs";
     static stability: "experimental";
+    static category: "media-browser";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -7613,6 +7642,7 @@ declare module '../client' {
 export declare class GraphClient<T extends ClientState = ClientState, K extends GraphClientOptions = GraphClientOptions> extends RestClient<T, K> {
     static shortcut: "clients.graph";
     static stability: "stable";
+    static category: "networking";
     static optionsSchema: z.ZodObject<{
         name: z.ZodOptional<z.ZodString>;
         _cacheKey: z.ZodOptional<z.ZodString>;
@@ -7707,6 +7737,7 @@ export declare class OpenAIClient extends Client<OpenAIClientState, OpenAIClient
     private openai;
     static shortcut: "clients.openai";
     static stability: "core";
+    static category: "ai-assistants";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -7902,7 +7933,7 @@ export default OpenAIClient;
 //# sourceMappingURL=index.d.ts.map`,
   "clients/rest.d.ts": `import { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import { Client, type ClientOptions, type ClientState } from '../client.js';
-import type { HelperStability } from '../introspection/index.js';
+import type { HelperStability, HelperCategory } from '../introspection/index.js';
 import type { ContainerContext } from '../container.js';
 import { z } from 'zod';
 export declare const RestClientEventsSchema: z.ZodObject<{
@@ -7961,6 +7992,7 @@ export declare class RestClient<T extends ClientState = ClientState, K extends C
     axios: AxiosInstance;
     static shortcut: string;
     static stability: HelperStability;
+    static category: HelperCategory;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
         failure: z.ZodTuple<[z.ZodAny], null>;
@@ -8154,6 +8186,7 @@ export declare class SocketIOClient<T extends SocketIOClientState = SocketIOClie
     socket: Socket;
     static shortcut: "clients.socketio";
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
         socketId: z.ZodOptional<z.ZodString>;
@@ -8310,6 +8343,7 @@ export type SupabaseClientState = z.infer<typeof SupabaseClientStateSchema>;
 export declare class SupabaseClient extends Client<SupabaseClientState, SupabaseClientOptions> {
     static shortcut: "clients.supabase";
     static stability: "stable";
+    static category: "data-storage";
     static description: string;
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -8492,6 +8526,7 @@ export type SynthesizeOptions = {
 export declare class VoiceBoxClient extends RestClient<VoiceBoxClientState, VoiceBoxClientOptions> {
     static shortcut: "clients.voicebox";
     static stability: "experimental";
+    static category: "media-browser";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -8684,6 +8719,7 @@ export declare class WebSocketClient<T extends WebSocketClientState = WebSocketC
     _pending: Map<string, PendingRequest<any>>;
     static shortcut: "clients.websocket";
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         connected: z.ZodDefault<z.ZodBoolean>;
         connectionError: z.ZodOptional<z.ZodAny>;
@@ -9307,6 +9343,9 @@ export declare const argsSchema: z.ZodObject<{
         node: "node";
         web: "web";
     }>>;
+    query: z.ZodOptional<z.ZodString>;
+    'calculate-embeddings': z.ZodDefault<z.ZodBoolean>;
+    limit: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>;
 export default function describe(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
@@ -10529,6 +10568,90 @@ export declare class Container<Features extends AvailableFeatures = AvailableFea
 export declare function allHelperInstances(): Helper[];
 export declare function allHelperInstances<T extends Helper>(FilterClass: new (...args: any[]) => T): T[];
 //# sourceMappingURL=container.d.ts.map`,
+  "describe-search.d.ts": `import type { DocumentInput, SearchResult, SemanticSearch } from './node/features/semantic-search.js';
+/** Where the shared describe index lives. The catalog is a property of the binary (not the project), so all projects share one index. */
+export declare function describeIndexDir(): string;
+/**
+ * Build one DocumentInput per registered helper (from in-memory introspection,
+ * zero I/O) plus one per bundled example and tutorial.
+ */
+export declare function buildCatalogDocuments(container: any): Promise<DocumentInput[]>;
+/**
+ * Open (and init) the semanticSearch feature over the shared describe index.
+ * Safe with no native deps installed — the constructor and initDb never touch
+ * embeddings. Self-heals a provider/model mismatch by recreating the db.
+ */
+export declare function getDescribeSearch(container: any): Promise<SemanticSearch>;
+/**
+ * Refresh the FTS/document rows for the current catalog (insert new/changed,
+ * drop stale). Runs on every --query; ~100 hash comparisons, sub-100ms.
+ * Returns the number of refreshed documents.
+ */
+export declare function ensureKeywordIndex(ss: SemanticSearch, docs: DocumentInput[]): number;
+/**
+ * Turn a natural-language query into a valid FTS5 MATCH expression:
+ * quoted tokens OR-joined (raw \`?\`/quotes are FTS5 syntax errors).
+ */
+export declare function sanitizeFtsQuery(query: string): string;
+/**
+ * Whether a doc's embeddings are missing or out of date. Compares the multiset
+ * of current chunk hashes against stored chunks that HAVE an embedding — this
+ * is deliberately not \`needsReindex()\` (see module docblock).
+ */
+export declare function embeddingsStale(ss: SemanticSearch, doc: DocumentInput): boolean;
+/** Is the local embedding stack (native addon + model weights) installed? */
+export declare function localEmbeddingReadiness(): Promise<'ready' | 'deps-missing'>;
+/**
+ * Build/refresh the embedding index for the describe catalog
+ * (\`luca describe --calculate-embeddings\`). Only re-embeds documents whose
+ * chunk hashes changed unless \`force\` is set. The first call spins up the
+ * resident bun embedding daemon.
+ */
+export declare function buildDescribeEmbeddings(container: any, opts?: {
+    force?: boolean;
+    onProgress?: (indexed: number, total: number) => void;
+}): Promise<{
+    indexed: number;
+    total: number;
+}>;
+export interface DescribeSearchOutcome {
+    mode: 'hybrid' | 'keyword';
+    results: SearchResult[];
+    hint?: string;
+}
+/**
+ * Answer a \`luca describe --query\` request. Hybrid (BM25 + vector, RRF) when
+ * embeddings exist; otherwise keyword-only with a hint on how to enable
+ * semantic ranking. Never fails just because embeddings are missing.
+ */
+export declare function queryDescribeIndex(container: any, query: string, opts?: {
+    limit?: number;
+}): Promise<DescribeSearchOutcome>;
+/** Does a built (embedded) describe index exist? Used by \`luca setup\`'s state report. */
+export declare function hasDescribeEmbeddings(): boolean;
+//# sourceMappingURL=describe-search.d.ts.map`,
+  "embeddings/client.d.ts": `export declare function daemonSocketPath(model: string, home?: string): string;
+/** Locate an external \`bun\` (required to run the worker — the luca binary can't self-host it). */
+export declare function findBun(): string | null;
+export interface EnsureDaemonOptions {
+    model: string;
+    modelPath: string;
+    home?: string;
+    idleMs?: number;
+    /** Max time to wait for the model to load and the daemon to answer ping (default 180s). */
+    readyTimeoutMs?: number;
+}
+/** Ensure a daemon is serving on the model's socket, spawning one if needed. Returns the socket path. */
+export declare function ensureDaemon(opts: EnsureDaemonOptions): Promise<string>;
+/** Embed texts via the resident daemon, spawning it if necessary. */
+export declare function embedViaDaemon(model: string, modelPath: string, texts: string[], opts?: Partial<EnsureDaemonOptions>): Promise<number[][]>;
+/** Drop cached connections (does not stop the daemon — it idles out on its own). */
+export declare function disposeEmbeddingClients(): void;
+//# sourceMappingURL=client.d.ts.map`,
+  "embeddings/generated.d.ts": `export declare const embeddingWorkerScript = "/**\\n * Embedding worker daemon \\u2014 runs under an EXTERNAL \`bun\`, not the compiled luca binary.\\n *\\n * Why it exists: the compiled luca single-file executable cannot resolve an external\\n * node_modules tree (its module resolver is rooted at $bunfs). node-llama-cpp is a\\n * platform-specific native addon installed into ~/.luca/node_modules by \`luca setup\`,\\n * so it can only be loaded by a plain \`bun\` process. This worker is that process: the\\n * luca binary embeds this script (see src/embeddings/generated.ts), materializes it to\\n * disk, and spawns \`bun worker.ts\`, then talks to it over a unix socket as a pure client.\\n *\\n * The model loads once and stays resident, shared by every luca process on the machine.\\n *\\n * Protocol: newline-delimited JSON, one request/response per line.\\n *   \\u2192 {\\"id\\",\\"type\\":\\"embed\\",\\"texts\\":[...]}   \\u2190 {\\"id\\",\\"embeddings\\":[[...]]}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"ping\\"}                    \\u2190 {\\"id\\",\\"ready\\":true,\\"model\\",\\"dims\\"}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"shutdown\\"}                \\u2190 {\\"id\\",\\"ok\\":true}  (then exits)\\n *\\n * This file is SOURCE ONLY \\u2014 it is never imported by the luca module graph. It is read\\n * as text by \`luca build-embedding-worker\` and embedded as a string constant.\\n */\\nimport net from 'node:net'\\nimport { existsSync, unlinkSync } from 'node:fs'\\nimport { join } from 'node:path'\\n\\ninterface Args {\\n\\tsocket: string\\n\\tmodel: string\\n\\tmodelPath: string\\n\\thome: string\\n\\tidleMs: number\\n}\\n\\nfunction parseArgs(argv: string[]): Args {\\n\\tconst get = (flag: string, def = '') => {\\n\\t\\tconst i = argv.indexOf(flag)\\n\\t\\treturn i >= 0 && i + 1 < argv.length ? argv[i + 1]! : def\\n\\t}\\n\\treturn {\\n\\t\\tsocket: get('--socket'),\\n\\t\\tmodel: get('--model'),\\n\\t\\tmodelPath: get('--model-path'),\\n\\t\\thome: get('--home'),\\n\\t\\tidleMs: Number(get('--idle-ms', String(5 * 60 * 1000))),\\n\\t}\\n}\\n\\nconst out = (obj: any) => process.stdout.write(JSON.stringify(obj) + '\\\\n')\\n\\n/** True if something is actively listening on the socket (vs a stale leftover file). */\\nfunction probeSocket(path: string): Promise<boolean> {\\n\\treturn new Promise((resolve) => {\\n\\t\\tconst sock = net.connect(path)\\n\\t\\tconst done = (alive: boolean) => { try { sock.destroy() } catch {}; resolve(alive) }\\n\\t\\tsock.once('connect', () => done(true))\\n\\t\\tsock.once('error', () => done(false))\\n\\t})\\n}\\n\\nasync function loadLlama(home: string): Promise<any> {\\n\\t// Bare specifier resolves from cwd (set to ~/.luca by the spawner); the absolute\\n\\t// path is a fallback. Both work under plain bun; neither works under $bunfs.\\n\\tconst candidates = ['node-llama-cpp', join(home, 'node_modules', 'node-llama-cpp')]\\n\\tfor (const c of candidates) {\\n\\t\\ttry {\\n\\t\\t\\tconst mod = await import(c)\\n\\t\\t\\tif (mod?.getLlama) return mod.getLlama\\n\\t\\t} catch {\\n\\t\\t\\tcontinue\\n\\t\\t}\\n\\t}\\n\\tthrow new Error(\`Could not load node-llama-cpp from \${home}/node_modules \\u2014 run \\\\\`luca setup --local-embeddings\\\\\`\`)\\n}\\n\\nasync function main() {\\n\\tconst args = parseArgs(process.argv.slice(2))\\n\\tif (!args.socket || !args.modelPath) {\\n\\t\\tout({ event: 'error', error: 'missing --socket or --model-path' })\\n\\t\\tprocess.exit(2)\\n\\t}\\n\\n\\tlet context: any\\n\\tlet dimensions = 0\\n\\ttry {\\n\\t\\tconst getLlama = await loadLlama(args.home)\\n\\t\\tconst llama = await getLlama()\\n\\t\\tconst model = await llama.loadModel({ modelPath: args.modelPath })\\n\\t\\tcontext = await model.createEmbeddingContext({ contextSize: 2048 })\\n\\t\\t// Probe dimensionality once so ping can report it\\n\\t\\tconst probe = await context.getEmbeddingFor('probe')\\n\\t\\tdimensions = probe.vector.length\\n\\t} catch (err: any) {\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tprocess.exit(1)\\n\\t}\\n\\n\\tasync function embedOne(text: string): Promise<number[]> {\\n\\t\\ttry {\\n\\t\\t\\tconst e = await context.getEmbeddingFor(text)\\n\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t} catch {\\n\\t\\t\\t// Retry with a word-truncated version before giving up on a zero vector\\n\\t\\t\\tconst truncated = text.split(/\\\\s+/).slice(0, 300).join(' ')\\n\\t\\t\\ttry {\\n\\t\\t\\t\\tconst e = await context.getEmbeddingFor(truncated)\\n\\t\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t\\t} catch {\\n\\t\\t\\t\\treturn new Array(dimensions).fill(0)\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\n\\tlet idleTimer: ReturnType<typeof setTimeout> | null = null\\n\\tlet activeConnections = 0\\n\\tconst cleanupAndExit = (code = 0) => {\\n\\t\\ttry { server.close() } catch {}\\n\\t\\ttry { if (existsSync(args.socket)) unlinkSync(args.socket) } catch {}\\n\\t\\tprocess.exit(code)\\n\\t}\\n\\tconst resetIdle = () => {\\n\\t\\tif (idleTimer) clearTimeout(idleTimer)\\n\\t\\tif (args.idleMs <= 0) return\\n\\t\\tidleTimer = setTimeout(() => {\\n\\t\\t\\tif (activeConnections === 0) cleanupAndExit(0)\\n\\t\\t\\telse resetIdle()\\n\\t\\t}, args.idleMs)\\n\\t}\\n\\n\\tconst server = net.createServer((sock) => {\\n\\t\\tactiveConnections++\\n\\t\\tlet buffer = ''\\n\\t\\tsock.on('data', async (chunk) => {\\n\\t\\t\\tbuffer += chunk.toString()\\n\\t\\t\\tlet nl: number\\n\\t\\t\\twhile ((nl = buffer.indexOf('\\\\n')) >= 0) {\\n\\t\\t\\t\\tconst line = buffer.slice(0, nl).trim()\\n\\t\\t\\t\\tbuffer = buffer.slice(nl + 1)\\n\\t\\t\\t\\tif (!line) continue\\n\\t\\t\\t\\tresetIdle()\\n\\t\\t\\t\\tlet req: any\\n\\t\\t\\t\\ttry { req = JSON.parse(line) } catch { continue }\\n\\t\\t\\t\\ttry {\\n\\t\\t\\t\\t\\tif (req.type === 'ping') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ready: true, model: args.model, dims: dimensions }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else if (req.type === 'shutdown') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ok: true }) + '\\\\n')\\n\\t\\t\\t\\t\\t\\tcleanupAndExit(0)\\n\\t\\t\\t\\t\\t} else if (req.type === 'embed') {\\n\\t\\t\\t\\t\\t\\tconst texts: string[] = Array.isArray(req.texts) ? req.texts : []\\n\\t\\t\\t\\t\\t\\tconst embeddings: number[][] = []\\n\\t\\t\\t\\t\\t\\tfor (const t of texts) embeddings.push(await embedOne(String(t)))\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, embeddings }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: \`unknown type: \${req.type}\` }) + '\\\\n')\\n\\t\\t\\t\\t\\t}\\n\\t\\t\\t\\t} catch (err: any) {\\n\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: err?.message ?? String(err) }) + '\\\\n')\\n\\t\\t\\t\\t}\\n\\t\\t\\t}\\n\\t\\t})\\n\\t\\tsock.on('close', () => { activeConnections--; resetIdle() })\\n\\t\\tsock.on('error', () => { /* client vanished \\u2014 ignore */ })\\n\\t})\\n\\n\\tserver.on('error', (err: any) => {\\n\\t\\t// Another daemon won the bind race \\u2014 exit quietly and let the client use the winner\\n\\t\\tif (err?.code === 'EADDRINUSE') { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tcleanupAndExit(1)\\n\\t})\\n\\n\\t// Before binding: if a live daemon already owns the socket, defer to it; only\\n\\t// remove the file if it's a stale leftover from a crashed daemon.\\n\\tif (existsSync(args.socket)) {\\n\\t\\tif (await probeSocket(args.socket)) { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\ttry { unlinkSync(args.socket) } catch {}\\n\\t}\\n\\n\\tserver.listen(args.socket, () => {\\n\\t\\tout({ event: 'ready', model: args.model, dims: dimensions, socket: args.socket })\\n\\t\\tresetIdle()\\n\\t})\\n\\n\\tfor (const sig of ['SIGINT', 'SIGTERM'] as const) {\\n\\t\\tprocess.on(sig, () => cleanupAndExit(0))\\n\\t}\\n}\\n\\nmain().catch((err) => {\\n\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\tprocess.exit(1)\\n})\\n";
+//# sourceMappingURL=generated.d.ts.map`,
+  "embeddings/worker.d.ts": `export {};
+//# sourceMappingURL=worker.d.ts.map`,
   "endpoint.d.ts": `import { Helper } from './helper.js';
 import type { Container } from './container.js';
 import { Registry } from './registry.js';
@@ -10796,7 +10919,7 @@ export default function hashObject(value: any): string;
   "helper.d.ts": `import { Bus, type EventMap } from "./bus.js";
 import { type SetStateValue, State } from "./state.js";
 import type { ContainerContext } from './container.js';
-import { type HelperIntrospection, type IntrospectionSection, type HelperStability } from "./introspection/index.js";
+import { type HelperIntrospection, type IntrospectionSection, type HelperStability, type HelperCategory } from "./introspection/index.js";
 import { z } from 'zod';
 import { HelperStateSchema, HelperOptionsSchema } from './schemas/base.js';
 export type HelperState = z.infer<typeof HelperStateSchema>;
@@ -10828,6 +10951,12 @@ export declare abstract class Helper<T extends HelperState = HelperState, K exte
      * declare its own — the introspection build enforces this.
      */
     static stability?: HelperStability;
+    /**
+     * Category slug for grouping this helper in \`luca describe\` output and
+     * the framework index (see HELPER_CATEGORIES). Every built-in helper must
+     * declare its own — the introspection build enforces this.
+     */
+    static category?: HelperCategory;
     static stateSchema: z.ZodType;
     static optionsSchema: z.ZodType;
     static eventsSchema: z.ZodType;
@@ -11031,6 +11160,25 @@ declare function isGenericObjectType(type: string): boolean;
 /** Clean up type strings from introspection data for use in interface declarations */
 declare function normalizeTypeString(type: string): string;
 //# sourceMappingURL=helper.d.ts.map`,
+  "introspection/categories.d.ts": `/**
+ * Helper categories — the single source of truth for grouping features,
+ * clients, and servers in \`luca describe\` output, the bootstrapped skill's
+ * "Features by Category" table, and describe-search index metadata.
+ *
+ * Every built-in helper declares \`static override category\` with one of
+ * these slugs (mirroring the \`stability\` pattern). The introspection build
+ * (\`luca introspect\`) enforces coverage, so this list and the sweep can
+ * never drift apart silently.
+ */
+export declare const HELPER_CATEGORIES: readonly ["filesystem", "process", "ai-assistants", "agent-wrappers", "data-storage", "networking", "google-workspace", "dev-tools", "content-nlp", "ui-output", "media-browser", "system"];
+export type HelperCategory = typeof HELPER_CATEGORIES[number];
+/** Display metadata for each category, in the canonical presentation order. */
+export declare const CATEGORY_LABELS: Record<HelperCategory, {
+    label: string;
+    description: string;
+}>;
+export declare function isHelperCategory(value: unknown): value is HelperCategory;
+//# sourceMappingURL=categories.d.ts.map`,
   "introspection/generated.agi.d.ts": `export declare const introspectionData: Record<string, any>[];
 export declare const containerIntrospectionData: Record<string, any>[];
 //# sourceMappingURL=generated.agi.d.ts.map`,
@@ -11074,6 +11222,8 @@ export type ExampleIntrospection = {
  * - \`experimental\` — rough, may change or be removed without notice
  */
 export type HelperStability = 'core' | 'stable' | 'experimental';
+export { HELPER_CATEGORIES, CATEGORY_LABELS, isHelperCategory } from './categories.js';
+export type { HelperCategory } from './categories.js';
 export type MethodIntrospection = {
     description: string;
     parameters: Record<string, {
@@ -11109,6 +11259,7 @@ export type HelperIntrospection = {
     shortcut: string;
     className?: string;
     stability?: HelperStability;
+    category?: string;
     methods: Record<string, MethodIntrospection>;
     getters: Record<string, GetterIntrospection>;
     events: Record<string, EventIntrospection>;
@@ -11229,6 +11380,7 @@ export type IntrospectionScannerOptions = z.infer<typeof IntrospectionScannerOpt
 export declare class IntrospectionScannerFeature extends Feature<IntrospectionScannerState, IntrospectionScannerOptions> {
     static shortcut: string;
     static stability: "core";
+    static category: "system";
     static description: string;
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -11276,6 +11428,9 @@ export declare class IntrospectionScannerFeature extends Feature<IntrospectionSc
     private extractContainerGetters;
     private extractShortcut;
     private extractStability;
+    private extractCategory;
+    /** Extract the string value of a \`static <propName> = '...'\` declaration (handles \`as const\`). */
+    private extractStaticStringLiteral;
     private extractJSDocDescription;
     private extractJSDocParamDescriptions;
     private extractMethods;
@@ -11817,6 +11972,7 @@ export declare const CipherEventsSchema: z.ZodObject<{
 export declare class CipherSocialFeature extends Feature<CipherState, CipherOptions> {
     static shortcut: "features.cipherSocial";
     static stability: "experimental";
+    static category: "media-browser";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -12060,6 +12216,7 @@ export declare const ContainerLinkEventsSchema: z.ZodObject<{
 export declare class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOptions> {
     static shortcut: "features.containerLink";
     static stability: "stable";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connectionCount: z.ZodDefault<z.ZodNumber>;
@@ -12205,6 +12362,7 @@ export declare const ContentDbEventsSchema: contentbaseExports.z.ZodObject<{
 export declare class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     static shortcut: "features.contentDb";
     static stability: "core";
+    static category: "data-storage";
     static stateSchema: contentbaseExports.z.ZodObject<{
         enabled: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
         loaded: contentbaseExports.z.ZodDefault<contentbaseExports.z.ZodBoolean>;
@@ -12653,6 +12811,7 @@ export type DiskCacheOptions = z.infer<typeof DiskCacheOptionsSchema>;
 export declare class DiskCache extends Feature<FeatureState, DiskCacheOptions> {
     static shortcut: "features.diskCache";
     static stability: "core";
+    static category: "data-storage";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
@@ -13088,6 +13247,7 @@ export declare class Dns extends Feature<DnsState, DnsOptions> {
     static shortcut: "features.dns";
     static description: string;
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastQuery: z.ZodOptional<z.ZodObject<{
@@ -13489,6 +13649,7 @@ export interface DockerShell {
 export declare class Docker extends Feature<DockerState, DockerOptions> {
     static shortcut: "features.docker";
     static stability: "stable";
+    static category: "dev-tools";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         containers: z.ZodArray<z.ZodObject<{
@@ -13934,6 +14095,7 @@ export default Docker;
 export declare class Downloader extends Feature {
     static shortcut: "features.downloader";
     static stability: "stable";
+    static category: "media-browser";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -14075,6 +14237,7 @@ export type FileManagerOptions = z.infer<typeof FileManagerOptionsSchema>;
 export declare class FileManager<T extends FileManagerState = FileManagerState, K extends FileManagerOptions = FileManagerOptions> extends Feature<T, K> {
     static shortcut: "features.fileManager";
     static stability: "core";
+    static category: "filesystem";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodOptional<z.ZodBoolean>;
@@ -14223,6 +14386,7 @@ type WalkOptions = {
 export declare class FS extends Feature {
     static shortcut: "features.fs";
     static stability: "core";
+    static category: "filesystem";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -15113,6 +15277,7 @@ type GitState = z.infer<typeof GitStateSchema>;
 export declare class Git extends Feature {
     static shortcut: "features.git";
     static stability: "core";
+    static category: "dev-tools";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         repoRoot: z.ZodOptional<z.ZodString>;
@@ -15510,6 +15675,7 @@ export declare const GoogleAuthEventsSchema: z.ZodObject<{
 export declare class GoogleAuth extends Feature<GoogleAuthState, GoogleAuthOptions> {
     static shortcut: "features.googleAuth";
     static stability: "stable";
+    static category: "google-workspace";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -15813,6 +15979,7 @@ export declare const GoogleCalendarEventsSchema: z.ZodObject<{
 export declare class GoogleCalendar extends Feature<GoogleCalendarState, GoogleCalendarOptions> {
     static shortcut: "features.googleCalendar";
     static stability: "stable";
+    static category: "google-workspace";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastCalendarId: z.ZodOptional<z.ZodString>;
@@ -16020,6 +16187,7 @@ export declare const GoogleDocsEventsSchema: z.ZodObject<{
 export declare class GoogleDocs extends Feature<GoogleDocsState, GoogleDocsOptions> {
     static shortcut: "features.googleDocs";
     static stability: "stable";
+    static category: "google-workspace";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastDocId: z.ZodOptional<z.ZodString>;
@@ -16271,6 +16439,7 @@ export declare const GoogleDriveEventsSchema: z.ZodObject<{
 export declare class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
     static shortcut: "features.googleDrive";
     static stability: "stable";
+    static category: "google-workspace";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastQuery: z.ZodOptional<z.ZodString>;
@@ -16547,6 +16716,7 @@ export declare const GoogleMailEventsSchema: z.ZodObject<{
 export declare class GoogleMail extends Feature<GoogleMailState, GoogleMailOptions> {
     static shortcut: "features.googleMail";
     static stability: "stable";
+    static category: "google-workspace";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastQuery: z.ZodOptional<z.ZodString>;
@@ -16718,6 +16888,7 @@ export declare const GoogleSheetsEventsSchema: z.ZodObject<{
 export declare class GoogleSheets extends Feature<GoogleSheetsState, GoogleSheetsOptions> {
     static shortcut: "features.googleSheets";
     static stability: "stable";
+    static category: "google-workspace";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastSpreadsheetId: z.ZodOptional<z.ZodString>;
@@ -16877,6 +17048,7 @@ export type GrepOptions = {
 export declare class Grep extends Feature {
     static shortcut: "features.grep";
     static stability: "core";
+    static category: "filesystem";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -17098,6 +17270,7 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
     static shortcut: "features.helpers";
     static description: string;
     static stability: "core";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         discovered: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodBoolean>>;
@@ -17406,6 +17579,7 @@ export declare const InkEventsSchema: z.ZodObject<{
 export declare class Ink extends Feature<InkState, InkOptions> {
     static shortcut: "features.ink";
     static stability: "stable";
+    static category: "ui-output";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         mounted: z.ZodBoolean;
@@ -17854,6 +18028,7 @@ export declare class IpcSocket<T extends IpcState = IpcState> extends Feature<T>
     /** The shortcut path for accessing this feature */
     static shortcut: "features.ipcSocket";
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         mode: z.ZodOptional<z.ZodEnum<{
@@ -18276,6 +18451,7 @@ export declare class JsonTree<T extends JsonTreeState = JsonTreeState> extends F
     /** The shortcut path for accessing this feature */
     static shortcut: "features.jsonTree";
     static stability: "stable";
+    static category: "content-nlp";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$catchall<z.ZodAny>>;
@@ -18580,6 +18756,7 @@ type NmapHost = {
 export declare class Networking extends Feature<NetworkingState, NetworkingOptions> {
     static shortcut: "features.networking";
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         lastScan: z.ZodOptional<z.ZodObject<{
@@ -18856,6 +19033,7 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 export declare class NLP extends Feature<z.infer<typeof NLPStateSchema>, z.infer<typeof NLPOptionsSchema>> {
     static shortcut: "features.nlp";
     static stability: "stable";
+    static category: "content-nlp";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         parseCalls: z.ZodDefault<z.ZodNumber>;
@@ -18972,6 +19150,7 @@ export declare class Opener extends Feature {
     static shortcut: "features.opener";
     static description: string;
     static stability: "stable";
+    static category: "media-browser";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -19101,6 +19280,7 @@ export interface DisplayInfo {
 export declare class OS extends Feature {
     static shortcut: "features.os";
     static stability: "core";
+    static category: "system";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -19464,6 +19644,7 @@ export declare class PackageFinder<T extends PackageFinderState = PackageFinderS
     /** The shortcut path for accessing this feature */
     static shortcut: "features.packageFinder";
     static stability: "stable";
+    static category: "dev-tools";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodOptional<z.ZodBoolean>;
@@ -19835,6 +20016,7 @@ export declare const PostgresEventsSchema: z.ZodObject<{
 export declare class Postgres extends Feature<PostgresState, PostgresOptions> {
     static shortcut: "features.postgres";
     static stability: "stable";
+    static category: "data-storage";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -20021,6 +20203,7 @@ interface RawSpawnOptions {
 export declare class ChildProcess extends Feature {
     static shortcut: "features.proc";
     static stability: "core";
+    static category: "process";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -20540,6 +20723,7 @@ export declare class SpawnHandler {
 export declare class ProcessManager extends Feature {
     static shortcut: "features.processManager";
     static stability: "stable";
+    static category: "process";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         processes: z.ZodRecord<z.ZodString, z.ZodObject<{
@@ -20810,10 +20994,10 @@ export declare const PythonStateSchema: z.ZodObject<{
     pythonPath: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     projectDir: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     environmentType: z.ZodDefault<z.ZodNullable<z.ZodEnum<{
+        system: "system";
         uv: "uv";
         conda: "conda";
         venv: "venv";
-        system: "system";
     }>>>;
     isReady: z.ZodDefault<z.ZodBoolean>;
     lastExecutedScript: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -20839,10 +21023,10 @@ export declare const PythonEventsSchema: z.ZodObject<{
     environmentDetected: z.ZodTuple<[z.ZodObject<{
         pythonPath: z.ZodNullable<z.ZodString>;
         environmentType: z.ZodNullable<z.ZodEnum<{
+            system: "system";
             uv: "uv";
             conda: "conda";
             venv: "venv";
-            system: "system";
         }>>;
     }, z.core.$strip>], null>;
     installingDependencies: z.ZodTuple<[z.ZodObject<{
@@ -20931,15 +21115,16 @@ export interface RunResult {
 export declare class Python<T extends PythonState = PythonState, K extends PythonOptions = PythonOptions> extends Feature<T, K> {
     static shortcut: "features.python";
     static stability: "stable";
+    static category: "dev-tools";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         pythonPath: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         projectDir: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         environmentType: z.ZodDefault<z.ZodNullable<z.ZodEnum<{
+            system: "system";
             uv: "uv";
             conda: "conda";
             venv: "venv";
-            system: "system";
         }>>>;
         isReady: z.ZodDefault<z.ZodBoolean>;
         lastExecutedScript: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -20963,10 +21148,10 @@ export declare class Python<T extends PythonState = PythonState, K extends Pytho
         environmentDetected: z.ZodTuple<[z.ZodObject<{
             pythonPath: z.ZodNullable<z.ZodString>;
             environmentType: z.ZodNullable<z.ZodEnum<{
+                system: "system";
                 uv: "uv";
                 conda: "conda";
                 venv: "venv";
-                system: "system";
             }>>;
         }, z.core.$strip>], null>;
         installingDependencies: z.ZodTuple<[z.ZodObject<{
@@ -21352,6 +21537,7 @@ type MessageHandler = (channel: string, message: string) => void;
 export declare class RedisFeature extends Feature<RedisState, RedisOptions> {
     static shortcut: "features.redis";
     static stability: "stable";
+    static category: "data-storage";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -21595,6 +21781,7 @@ export type ReplOptions = z.infer<typeof ReplOptionsSchema>;
 export declare class Repl<T extends ReplState = ReplState, K extends ReplOptions = ReplOptions> extends Feature<T, K> {
     static shortcut: "features.repl";
     static stability: "stable";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodOptional<z.ZodBoolean>;
@@ -21690,6 +21877,7 @@ export type RunpodOptions = z.infer<typeof RunpodOptionsSchema>;
 export declare class Runpod extends Feature<RunpodState, RunpodOptions> {
     static shortcut: "features.runpod";
     static stability: "experimental";
+    static category: "system";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -22306,6 +22494,7 @@ export interface SchedulerRunOptions {
 export declare class Scheduler extends Feature<SchedulerState, SchedulerOptions> {
     static shortcut: "features.scheduler";
     static stability: "stable";
+    static category: "process";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         taskCount: z.ZodDefault<z.ZodNumber>;
@@ -22565,6 +22754,7 @@ export type SecureShellOptions = z.infer<typeof SecureShellOptionsSchema>;
 export declare class SecureShell extends Feature<SecureShellState, SecureShellOptions> {
     static shortcut: "features.secureShell";
     static stability: "stable";
+    static category: "process";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodBoolean;
@@ -22753,6 +22943,8 @@ export interface SearchOptions {
 export interface HybridSearchOptions extends SearchOptions {
     ftsWeight?: number;
     vecWeight?: number;
+    /** Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query. */
+    ftsQuery?: string;
 }
 export interface IndexStatus {
     documentCount: number;
@@ -22849,11 +23041,9 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
     }, z.core.$strip>;
     static shortcut: "features.semanticSearch";
     static stability: "experimental";
+    static category: "content-nlp";
     private _db;
-    private _llamaContext;
-    private _llamaModel;
-    private _llamaInstance;
-    private _idleTimer;
+    private _daemonReady;
     private _dimensions;
     get initialState(): SemanticSearchState;
     constructor(options: SemanticSearchOptions, context: any);
@@ -22878,8 +23068,15 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
     private _embedLocal;
     private _embedOpenAI;
     ensureModel(): Promise<void>;
+    /**
+     * Ensure the local embedding daemon is up and return the model weights path.
+     *
+     * node-llama-cpp can't be loaded by the compiled luca binary (its $bunfs
+     * resolver can't reach ~/.luca/node_modules), so embeddings run in a resident
+     * \`bun\` worker daemon spawned on demand. This verifies the weights exist
+     * (fast, clear error) then ensures the daemon is serving.
+     */
     private _ensureLocalModel;
-    private _resetIdleTimer;
     disposeModel(): Promise<void>;
     getDimensions(): number;
     chunkDocument(doc: DocumentInput, strategy?: 'section' | 'fixed' | 'document'): Chunk[];
@@ -22983,6 +23180,7 @@ export declare const SocketReplEventsSchema: z.ZodObject<{
 export declare class SocketRepl<T extends SocketReplState = SocketReplState, K extends SocketReplOptions = SocketReplOptions> extends Feature<T, K> {
     static shortcut: "features.socketRepl";
     static stability: "stable";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         started: z.ZodOptional<z.ZodBoolean>;
@@ -23123,6 +23321,7 @@ export declare const SqliteEventsSchema: z.ZodObject<{
 export declare class Sqlite extends Feature<SqliteState, SqliteOptions> {
     static shortcut: "features.sqlite";
     static stability: "core";
+    static category: "data-storage";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -23454,6 +23653,7 @@ export declare class StoreHandle<T = any> {
 export declare class Store extends Feature<z.infer<typeof FeatureStateSchema>, StoreFeatureOptions> {
     static shortcut: "features.store";
     static stability: "stable";
+    static category: "data-storage";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
@@ -23644,6 +23844,7 @@ export declare const TelegramEventsSchema: z.ZodObject<{
 export declare class Telegram extends Feature<TelegramState, TelegramOptions> {
     static shortcut: "features.telegram";
     static stability: "stable";
+    static category: "media-browser";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -23828,6 +24029,7 @@ export declare const TelnyxAssistantConnectorEventsSchema: z.ZodObject<{
 export declare class TelnyxAssistantConnector extends Feature<TelnyxConnectorState, TelnyxConnectorOptions> {
     static shortcut: "features.telnyxAssistantConnector";
     static stability: "experimental";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         publicUrl: z.ZodOptional<z.ZodString>;
@@ -24502,6 +24704,7 @@ export declare class TmuxSession {
 export declare class Tmux extends Feature<TmuxState, TmuxOptions> {
     static shortcut: "features.tmux";
     static stability: "stable";
+    static category: "process";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         available: z.ZodBoolean;
@@ -24648,6 +24851,7 @@ export declare function esmToCjs(code: string): string;
 export declare class Transpiler extends Feature {
     static shortcut: "features.transpiler";
     static stability: "core";
+    static category: "dev-tools";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -24754,6 +24958,7 @@ export declare const TTSEventsSchema: z.ZodObject<{
 export declare class TTS extends Feature<TTSState, TTSOptions> {
     static shortcut: "features.tts";
     static stability: "experimental";
+    static category: "media-browser";
     static envVars: string[];
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
@@ -24872,6 +25077,7 @@ export declare class UI<T extends UIState = UIState> extends Feature<T> {
     /** The shortcut path for accessing this feature */
     static shortcut: "features.ui";
     static stability: "core";
+    static category: "ui-output";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         fonts: z.ZodOptional<z.ZodArray<z.ZodString>>;
@@ -25508,6 +25714,7 @@ export type VaultOptions = z.infer<typeof VaultOptionsSchema>;
 export declare class Vault extends Feature<VaultState, VaultOptions> {
     static shortcut: "features.vault";
     static stability: "stable";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         secret: z.ZodOptional<z.ZodCustom<Buffer<ArrayBufferLike>, Buffer<ArrayBufferLike>>>;
@@ -25617,6 +25824,16 @@ export declare const VMOptionsSchema: z.ZodObject<{
     context: z.ZodAny;
 }, z.core.$strip>;
 export type VMOptions = z.infer<typeof VMOptionsSchema>;
+/** Per-run options accepted by \`run\`, \`runSync\`, \`perform\`, \`performSync\`, and \`runCaptured\`. */
+export interface VMRunOptions {
+    /**
+     * The file the code came from, used as the referrer for dynamic \`import()\`:
+     * relative specifiers resolve against its directory, and bare specifiers
+     * fall back to its \`node_modules\` resolution. Defaults to a synthetic file
+     * in \`container.cwd\`, so eval-style snippets resolve relative to the cwd.
+     */
+    filePath?: string;
+}
 /**
  * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
  *
@@ -25662,6 +25879,7 @@ export type VMOptions = z.infer<typeof VMOptionsSchema>;
 export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOptions> extends Feature<T, K> {
     static shortcut: "features.vm";
     static stability: "core";
+    static category: "dev-tools";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
@@ -25737,6 +25955,35 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
     createRequireFor(filePath: string): ((id: string) => any) & {
         resolve: RequireResolve;
     };
+    /**
+     * @internal Convert a virtual module's exports into an import-namespace-shaped
+     * object. Property descriptors are copied (preserving getters and member
+     * identity — critical for modules like React where hook identity matters),
+     * and \`default\` points at the original exports object when it isn't already
+     * defined, matching how \`require('x').default ?? require('x')\` behaves in
+     * the static-import rewrite.
+     */
+    private _toNamespace;
+    /**
+     * @internal Referrer path for dynamic import resolution. Falls back to a
+     * synthetic file directly inside \`container.cwd\` so \`dirname()\` of it is
+     * the cwd — eval snippets then resolve \`./x\` relative to the project.
+     */
+    private _referrerPath;
+    /**
+     * @internal Build the \`importModuleDynamically\` callback for a script.
+     *
+     * Mirrors {@link createRequireFor} resolution order so \`await import(x)\`
+     * and \`require(x)\` see the same module graph:
+     * 1. virtual modules (eager, then lazy — lazy results are cached)
+     * 2. relative/absolute specifiers, resolved against the referrer's directory
+     * 3. native \`import()\`, falling back to the referrer's \`node_modules\`
+     *    resolution when the host realm can't resolve the bare specifier
+     *    (the compiled binary's own realm has no user node_modules).
+     */
+    private _createImportModuleDynamically;
+    /** @internal Script options carrying the dynamic-import callback for the given run options. */
+    private _scriptOptions;
     /**
      * Creates a new VM script from the provided code.
      *
@@ -25841,11 +26088,16 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * with the specified variables, and runs the code. Code containing top-level \`await\`
      * is automatically wrapped in an async IIFE so the final expression's value is returned.
      *
+     * Dynamic \`import()\` is supported: virtual modules resolve first (same as \`require\`),
+     * relative specifiers resolve against \`opts.filePath\` (or \`container.cwd\` when omitted),
+     * and everything else falls through to native import.
+     *
      * Errors thrown by the evaluated code propagate to the caller — wrap the call in
      * try/catch if the snippet might throw.
      *
      * @param {string} code - The JavaScript code to execute
      * @param {any} [ctx={}] - Context variables to make available to the executing code
+     * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer \`filePath\` for dynamic imports
      * @returns {Promise<any>} A promise resolving to the result of the code execution
      *
      * @example
@@ -25872,7 +26124,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * }
      * \`\`\`
      */
-    run<T extends any>(code: string, ctx?: any): Promise<T>;
+    run<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<T>;
     /**
      * Execute code and capture all console output as structured JSON.
      *
@@ -25881,6 +26133,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      *
      * @param code - The JavaScript code to execute
      * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
      * @returns The result, an array of captured console calls, and the context
      *
      * @example
@@ -25891,7 +26144,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * // calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]
      * \`\`\`
      */
-    runCaptured<T extends any>(code: string, ctx?: any): Promise<{
+    runCaptured<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<{
         result: T;
         console: Array<{
             method: string;
@@ -25904,6 +26157,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      *
      * @param code - The JavaScript code to execute
      * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
      * @returns The result of the code execution
      *
      * @example
@@ -25912,7 +26166,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * console.log(sum) // 5
      * \`\`\`
      */
-    runSync<T extends any = any>(code: string, ctx?: any): T;
+    runSync<T extends any = any>(code: string, ctx?: any, opts?: VMRunOptions): T;
     /**
      * Execute code asynchronously and return both the result and the execution context.
      *
@@ -25921,6 +26175,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      *
      * @param code - The JavaScript code to execute
      * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
      * @returns The execution result and the context object
      *
      * @example
@@ -25930,7 +26185,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * console.log(context.x)  // 42
      * \`\`\`
      */
-    perform<T extends any>(code: string, ctx?: any): Promise<{
+    perform<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<{
         result: T;
         context: vm.Context;
     }>;
@@ -25943,6 +26198,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      *
      * @param {string} code - The JavaScript code to execute
      * @param {any} [ctx={}] - Context variables to make available to the executing code
+     * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer \`filePath\` for dynamic imports
      * @returns {{ result: T, context: vm.Context }} The execution result and the context object
      *
      * @example
@@ -25956,7 +26212,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
      * console.log(moduleExports.double(21)) // 42
      * \`\`\`
      */
-    performSync<T extends any = any>(code: string, ctx?: any): {
+    performSync<T extends any = any>(code: string, ctx?: any, opts?: VMRunOptions): {
         result: T;
         context: vm.Context;
     };
@@ -26040,6 +26296,7 @@ export declare class YamlTree<T extends YamlTreeState = YamlTreeState> extends F
     /** The shortcut path for accessing this feature */
     static shortcut: "features.yamlTree";
     static stability: "stable";
+    static category: "content-nlp";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$catchall<z.ZodAny>>;
@@ -26181,6 +26438,7 @@ import { NodeContainer } from '../container.js';
 export declare class YAML extends Feature {
     static shortcut: "features.yaml";
     static stability: "core";
+    static category: "ui-output";
     static stateSchema: import("zod").ZodObject<{
         enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
     }, import("zod/v4/core").$loose>;
@@ -27042,6 +27300,7 @@ export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>;
 export declare class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T, K> {
     static shortcut: "servers.express";
     static stability: "core";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         port: z.ZodOptional<z.ZodNumber>;
         listening: z.ZodDefault<z.ZodBoolean>;
@@ -27394,6 +27653,7 @@ type StdioCompatMode = 'standard' | 'codex' | 'auto';
 export declare class MCPServer extends Server<MCPServerState, MCPServerOptions> {
     static shortcut: "servers.mcp";
     static stability: "core";
+    static category: "ai-assistants";
     static stateSchema: z.ZodObject<{
         port: z.ZodOptional<z.ZodNumber>;
         listening: z.ZodDefault<z.ZodBoolean>;
@@ -27596,6 +27856,7 @@ export declare const SocketServerEventsSchema: z.ZodObject<{
 export declare class WebsocketServer<T extends ServerState = ServerState, K extends SocketServerOptions = SocketServerOptions> extends Server<T, K> {
     static shortcut: "servers.websocket";
     static stability: "stable";
+    static category: "networking";
     static stateSchema: z.ZodObject<{
         port: z.ZodOptional<z.ZodNumber>;
         listening: z.ZodDefault<z.ZodBoolean>;
@@ -27734,7 +27995,16 @@ export declare function detectPackageManagers(): Promise<PackageManagerAvailabil
 export declare function ensureHomeManifest(home?: string): Promise<string>;
 /** Absolute path where a shared native module would live, e.g. \`~/.luca/node_modules/node-llama-cpp\`. */
 export declare function sharedModulePath(moduleName: string, home?: string): string;
-/** True when the module can actually be imported from the shared node_modules (catches ABI mismatches). */
+/**
+ * True when the shared module appears installed and usable.
+ *
+ * In dev (plain bun) this verifies via a real import. In the compiled luca binary
+ * a native import() can't reach ~/.luca/node_modules at all (the $bunfs resolver
+ * limitation this whole subsystem exists for), so a successful-import can't be the
+ * signal — we fall back to an on-disk presence check. This is a status probe, so
+ * it stays side-effect-free (no process spawn); the deep load-verify runs at
+ * install time in installSharedModule.
+ */
 export declare function sharedModuleLoads(moduleName: string, home?: string): Promise<boolean>;
 /**
  * Install a package into the per-machine \`~/.luca/node_modules\` and verify
@@ -27937,6 +28207,7 @@ export declare class AssetLoader extends Feature {
     }, import("zod/v4/core").$strip>;
     static shortcut: "features.assetLoader";
     static stability: "stable";
+    static category: "dev-tools";
     static loadStylesheet(href: string): Promise<unknown>;
     removeStylesheet(href: string): void;
     loadScript(url: string): Promise<void>;
@@ -28046,6 +28317,7 @@ export declare const ContainerLinkEventsSchema: z.ZodObject<{
 export declare class ContainerLink extends Feature<ContainerLinkState, ContainerLinkOptions> {
     static shortcut: "features.containerLink";
     static stability: "stable";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         connected: z.ZodDefault<z.ZodBoolean>;
@@ -28155,6 +28427,7 @@ export declare class Esbuild extends Feature<FeatureState, EsbuildWebOptions> {
     }, z.core.$strip>;
     static shortcut: "features.esbuild";
     static stability: "stable";
+    static category: "dev-tools";
     /** Returns the assetLoader feature for loading external libraries from unpkg. */
     get assetLoader(): import("./asset-loader.js").AssetLoader;
     compiler: typeof esbuild;
@@ -28218,6 +28491,7 @@ export declare class Helpers extends Feature<HelpersState, HelpersOptions> {
     static shortcut: "features.helpers";
     static description: string;
     static stability: "core";
+    static category: "system";
     static stateSchema: z.ZodObject<{
         enabled: z.ZodDefault<z.ZodBoolean>;
         discovered: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodBoolean>>;
@@ -28381,6 +28655,7 @@ export declare class Network<T extends NetworkState = NetworkState, K extends Ne
     }, z.core.$strip>;
     static shortcut: "features.network";
     static stability: "stable";
+    static category: "networking";
     constructor(options: K, context: ContainerContext);
     /** Whether the browser is currently offline. */
     get isOffline(): boolean;
@@ -28450,6 +28725,7 @@ export declare class Speech<T extends SpeechState = SpeechState, K extends Speec
     }, z.core.$strip>;
     static shortcut: "features.speech";
     static stability: "experimental";
+    static category: "media-browser";
     constructor(options: K, context: ContainerContext);
     /** Returns the array of available speech synthesis voices. */
     get voices(): never[] | NonNullable<T["voices"]>;
@@ -28510,6 +28786,7 @@ export declare class WebVault extends Feature<WebVaultState, WebVaultOptions> {
     }, z.core.$strip>;
     static shortcut: "features.vault";
     static stability: "stable";
+    static category: "system";
     secret({ refresh, set }?: {
         refresh?: boolean | undefined;
         set?: boolean | undefined;
@@ -28570,6 +28847,7 @@ export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOpt
     }, z.core.$strip>;
     static shortcut: "features.vm";
     static stability: "core";
+    static category: "dev-tools";
     createScript(code: string): import("../shims/isomorphic-vm").VMScript;
     createContext(ctx?: any): import("../shims/isomorphic-vm").VMContext;
     run(code: string, ctx?: any, options?: any): Promise<any>;
@@ -28660,6 +28938,7 @@ export declare class VoiceRecognition<T extends VoiceRecognitionState = VoiceRec
     }, z.core.$strip>;
     static shortcut: "features.voice";
     static stability: "experimental";
+    static category: "media-browser";
     constructor(options: K, context: ContainerContext);
     /** Whether the speech recognizer is currently listening for audio input. */
     get listening(): boolean;

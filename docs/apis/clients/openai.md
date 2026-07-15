@@ -8,7 +8,7 @@ OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embe
 
 ```ts
 container.client('openai', {
-  // Base URL for the client connection
+  // API base URL (falls back to OPENAI_BASE_URL env var, then the official OpenAI API)
   baseURL,
   // Whether to automatically parse responses as JSON
   json,
@@ -33,7 +33,7 @@ container.client('openai', {
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `baseURL` | `string` | Base URL for the client connection |
+| `baseURL` | `string` | API base URL (falls back to OPENAI_BASE_URL env var, then the official OpenAI API) |
 | `json` | `boolean` | Whether to automatically parse responses as JSON |
 | `apiKey` | `string` | OpenAI API key (falls back to OPENAI_API_KEY env var) |
 | `organization` | `string` | OpenAI organization ID |
@@ -324,6 +324,7 @@ Emitted after listing available models
 
 - `OPENAI_API_KEY`
 - `OPENAI_DEFAULT_MODEL`
+- `OPENAI_BASE_URL`
 
 ## Examples
 

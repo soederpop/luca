@@ -1018,9 +1018,38 @@ export default {{PascalName}}
   command: {
     sections: [
       { heading: "Imports", code: `import { z } from 'zod'
-import type { ContainerContext } from 'luca'` },
+import type { ContainerContext, CommandArgs } from 'luca'` },
       { heading: "Positional Arguments", code: `// luca {{kebabName}} ./src  =>  options.target === './src'
 export const positionals = ['target']` },
+      { heading: "Positional Arguments", code: `export const positionals = [
+  { name: 'target', description: 'The file or folder to operate on', required: false },
+]` },
+      { heading: "Positional Arguments", code: `// luca {{kebabName}} sum 1 2 3  =>  options.request === 'sum', options.numbers === [1, 2, 3]
+export const positionals = ['request', '...numbers']
+
+export const argsSchema = z.object({
+  request: z.string().describe('The operation to perform'),
+  numbers: z.array(z.number()).default([]).describe('Values to operate on'),
+})` },
+      { heading: "Rich Help: Subcommands and Examples", code: `// Renders a Subcommands: section, and gives each subcommand focused help:
+// \`luca {{kebabName}} sync --help\` shows just that entry with its examples.
+export const subcommands = {
+  sync: {
+    args: '<source>',
+    description: 'Pull the latest data from a source',
+    examples: ['luca {{kebabName}} sync ./data'],
+  },
+  status: {
+    description: 'Show what would change without applying it',
+  },
+}
+
+// Renders an Examples: section at the bottom of --help.
+// Plain strings, or { command, description } to add a one-line comment.
+export const examples = [
+  'luca {{kebabName}} sync ./data',
+  { command: 'luca {{kebabName}} status --json', description: 'Machine-readable output' },
+]` },
       { heading: "Args Schema", code: `export const argsSchema = z.object({
   // Positional: first arg after command name (via positionals array above)
   // target: z.string().optional().describe('The target to operate on'),
@@ -1030,34 +1059,60 @@ export const positionals = ['target']` },
   // output: z.string().optional().describe('Output file path'),
 })` },
       { heading: "Description", code: `export const description = '{{description}}'` },
-      { heading: "Handler", code: `export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+      { heading: "Handler", code: `export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
-  const fs = container.feature('fs')
 
-  // options.target is set from the first positional arg (via positionals export)
-  // options.verbose, options.output, etc. come from --flags
+  // options.<field> comes from --flags and mapped positionals
+  // options._ is the raw positional array, typed as string[]
 
   // Your implementation here
 }` },
+      { heading: "Output and Exit Codes", code: `export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+  const ui = container.feature('ui')
+
+  const result = await doTheWork(container)
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  ui.print.green(\`✓ processed \${result.count} items\`) // ui.print prints; ui.colors composes strings
+  if (!result.ok) process.exitCode = 1
+}` },
       { heading: "Complete Example", code: `import { z } from 'zod'
-import type { ContainerContext } from 'luca'
+import type { ContainerContext, CommandArgs } from 'luca'
 
 export const description = '{{description}}'
 
-// Map positional args to named options: luca {{kebabName}} myTarget => options.target === 'myTarget'
-export const positionals = ['target']
-
 export const argsSchema = z.object({
-  target: z.string().optional().describe('The target to operate on'),
+  json: z.boolean().default(false).describe('Output machine-readable JSON'),
+  // Each field becomes a --flag. Add positional args via the positionals export:
+  // target: z.string().optional().describe('The target to operate on'),
 })
 
-export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-  const { container } = context
-  const fs = container.feature('fs')
+// export const positionals = ['target']  // luca {{kebabName}} ./src => options.target === './src'
 
-  console.log('{{kebabName}} running...', options.target)
+export const examples = [
+  'luca {{kebabName}}',
+  { command: 'luca {{kebabName}} --json', description: 'Machine-readable output' },
+]
+
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+  const ui = container.feature('ui')
+
+  const result = { ok: true }
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  ui.print.green('{{kebabName}} ran successfully')
 }` },
-      { heading: "Container Properties", code: `export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+      { heading: "Container Properties", code: `export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
 
   // Current working directory
@@ -1074,25 +1129,72 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 
   // Raw CLI arguments (from minimist) — prefer positionals export for positional args
   container.argv                   // { _: ['{{kebabName}}', ...], verbose: true, ... }
-}` }
+}` },
+      { heading: "Long-Running Commands (daemons, pollers, watchers)", code: `export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  const server = container.server('express', { port: 4000 })
+  await server.start()
+
+  // Blocks until SIGINT/SIGTERM, then runs the cleanup and exits 0
+  await context.runUntilShutdown(async () => {
+    await server.stop()
+  })
+}` },
+      { heading: "Long-Running Commands (daemons, pollers, watchers)", code: `export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  // Single-instance guard: exits if another copy is already running, cleans up the pid file on exit
+  const proc = container.feature('proc')
+  proc.establishLock('tmp/{{kebabName}}.pid')
+
+  const scheduler = container.feature('scheduler')
+  scheduler.every('30s', () => doOneUnitOfWork(container), { name: 'worker', immediate: true })
+
+  // Hold the process open; on Ctrl-C every task stops, then onShutdown runs
+  await scheduler.run({ onShutdown: () => flushBuffers() })
+}` },
+      { heading: "State Shared Between Invocations", code: `const stats = container.store('{{kebabName}}-stats', {
+  schema: z.object({ processed: z.number().default(0), lastRunAt: z.string().optional() }),
+})
+
+// update() = lock → read → mutate → validate → atomic write.
+// Concurrent invocations can never overwrite each other's writes.
+await stats.update(s => { s.processed++; s.lastRunAt = new Date().toISOString() })
+
+// A sibling process just reads — always fresh from disk
+const { processed } = await stats.read()` }
     ],
     full: `import { z } from 'zod'
-import type { ContainerContext } from 'luca'
+import type { ContainerContext, CommandArgs } from 'luca'
 
 export const description = '{{description}}'
 
-// Map positional args to named options: luca {{kebabName}} myTarget => options.target === 'myTarget'
-export const positionals = ['target']
-
 export const argsSchema = z.object({
-  target: z.string().optional().describe('The target to operate on'),
+  json: z.boolean().default(false).describe('Output machine-readable JSON'),
+  // Each field becomes a --flag. Add positional args via the positionals export:
+  // target: z.string().optional().describe('The target to operate on'),
 })
 
-export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-  const { container } = context
-  const fs = container.feature('fs')
+// export const positionals = ['target']  // luca {{kebabName}} ./src => options.target === './src'
 
-  console.log('{{kebabName}} running...', options.target)
+export const examples = [
+  'luca {{kebabName}}',
+  { command: 'luca {{kebabName}} --json', description: 'Machine-readable output' },
+]
+
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+  const ui = container.feature('ui')
+
+  const result = { ok: true }
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  ui.print.green('{{kebabName}} ran successfully')
 }`,
     tutorial: `# Building a Command
 
@@ -1107,7 +1209,7 @@ When to build a command:
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
+import type { ContainerContext, CommandArgs } from 'luca'
 \`\`\`
 
 ## Positional Arguments
@@ -1118,6 +1220,58 @@ Export a \`positionals\` array to map CLI positional args into named options fie
 // luca {{kebabName}} ./src  =>  options.target === './src'
 export const positionals = ['target']
 \`\`\`
+
+Positionals show up in \`--help\` as an \`Arguments:\` section. The description comes from the matching \`argsSchema\` field. When a positional has no schema field, use the object form to describe it inline:
+
+\`\`\`ts
+export const positionals = [
+  { name: 'target', description: 'The file or folder to operate on', required: false },
+]
+\`\`\`
+
+A trailing \`'...name'\` positional collects all remaining args as an array (a trailing field typed \`z.array(...)\` in the schema does the same):
+
+\`\`\`ts
+// luca {{kebabName}} sum 1 2 3  =>  options.request === 'sum', options.numbers === [1, 2, 3]
+export const positionals = ['request', '...numbers']
+
+export const argsSchema = z.object({
+  request: z.string().describe('The operation to perform'),
+  numbers: z.array(z.number()).default([]).describe('Values to operate on'),
+})
+\`\`\`
+
+Parsing agrees with your schema — no workarounds needed:
+- Boolean flags never consume a following positional (\`luca {{kebabName}} --json foo\` keeps \`foo\` as a positional).
+- Positionals arrive as strings and are coerced to what the schema field expects — \`z.string()\` accepts \`8080\`, \`z.number()\` accepts \`'8080'\`. Don't reach for \`z.union([z.string(), z.number()])\`.
+
+## Rich Help: Subcommands and Examples
+
+Commands are how you teach other developers (and agents) to use your project's tooling — \`--help\` should tell the whole story. Two more exports feed the help system:
+
+\`\`\`ts
+// Renders a Subcommands: section, and gives each subcommand focused help:
+// \`luca {{kebabName}} sync --help\` shows just that entry with its examples.
+export const subcommands = {
+  sync: {
+    args: '<source>',
+    description: 'Pull the latest data from a source',
+    examples: ['luca {{kebabName}} sync ./data'],
+  },
+  status: {
+    description: 'Show what would change without applying it',
+  },
+}
+
+// Renders an Examples: section at the bottom of --help.
+// Plain strings, or { command, description } to add a one-line comment.
+export const examples = [
+  'luca {{kebabName}} sync ./data',
+  { command: 'luca {{kebabName}} status --json', description: 'Machine-readable output' },
+]
+\`\`\`
+
+Subcommand *dispatch* stays in your handler — read the subcommand from a positional (\`export const positionals = ['subcommand']\`, then branch on \`options.subcommand\`). The \`subcommands\` export is the declarative help metadata that makes it discoverable. Fields named in \`positionals\` are automatically excluded from the \`Options:\` listing so they aren't documented twice.
 
 ## Args Schema
 
@@ -1146,15 +1300,41 @@ export const description = '{{description}}'
 
 Export a default async function. It receives parsed options and the container context. Use the container for all I/O. Positional args declared in the \`positionals\` export are available as named fields on \`options\`.
 
-\`\`\`ts
-export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-  const { container } = context
-  const fs = container.feature('fs')
+Type the options with \`CommandArgs<typeof argsSchema>\` — it's the inferred schema fields plus the raw positional array \`options._\` (where \`_[0]\` is the command name):
 
-  // options.target is set from the first positional arg (via positionals export)
-  // options.verbose, options.output, etc. come from --flags
+\`\`\`ts
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  // options.<field> comes from --flags and mapped positionals
+  // options._ is the raw positional array, typed as string[]
 
   // Your implementation here
+}
+\`\`\`
+
+## Output and Exit Codes
+
+Conventions that make commands scriptable and agent-friendly:
+
+- **Support \`--json\` for machine output.** Declare \`json: z.boolean().default(false)\` and gate all human-facing output (\`ui.print.*\`, banners, spinners) behind \`if (!options.json)\`. With \`--json\`, print exactly one \`JSON.stringify(...)\` to stdout. If the command also writes an artifact (a report file), still write it — print the machine summary alongside.
+- **Fail by throwing or by setting \`process.exitCode = 1\`.** A thrown error is reported cleanly (message only; \`--verbose\` or \`DEBUG=1\` adds the stack) and exits non-zero. For "soft" failures where you've already printed diagnostics, set \`process.exitCode = 1\` and return.
+- **Verifier commands** (health checks, \`status\`, \`doctor\`) should exit non-zero on failure so shells and CI can branch on them. Test non-interactively with \`luca {{kebabName}} || echo failed\`.
+
+\`\`\`ts
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+  const ui = container.feature('ui')
+
+  const result = await doTheWork(container)
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  ui.print.green(\`✓ processed \${result.count} items\`) // ui.print prints; ui.colors composes strings
+  if (!result.ok) process.exitCode = 1
 }
 \`\`\`
 
@@ -1162,22 +1342,35 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 
 \`\`\`ts
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
+import type { ContainerContext, CommandArgs } from 'luca'
 
 export const description = '{{description}}'
 
-// Map positional args to named options: luca {{kebabName}} myTarget => options.target === 'myTarget'
-export const positionals = ['target']
-
 export const argsSchema = z.object({
-  target: z.string().optional().describe('The target to operate on'),
+  json: z.boolean().default(false).describe('Output machine-readable JSON'),
+  // Each field becomes a --flag. Add positional args via the positionals export:
+  // target: z.string().optional().describe('The target to operate on'),
 })
 
-export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-  const { container } = context
-  const fs = container.feature('fs')
+// export const positionals = ['target']  // luca {{kebabName}} ./src => options.target === './src'
 
-  console.log('{{kebabName}} running...', options.target)
+export const examples = [
+  'luca {{kebabName}}',
+  { command: 'luca {{kebabName}} --json', description: 'Machine-readable output' },
+]
+
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+  const ui = container.feature('ui')
+
+  const result = { ok: true }
+
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  ui.print.green('{{kebabName}} ran successfully')
 }
 \`\`\`
 
@@ -1186,7 +1379,7 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 The \`context.container\` object provides useful properties beyond features:
 
 \`\`\`ts
-export default async function {{camelName}}(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
   const { container } = context
 
   // Current working directory
@@ -1206,14 +1399,86 @@ export default async function {{camelName}}(options: z.infer<typeof argsSchema>,
 }
 \`\`\`
 
+## Long-Running Commands (daemons, pollers, watchers)
+
+A command that should keep running (a server, a watcher, a queue worker) ends with
+\`context.runUntilShutdown(cleanup)\` — it holds the process open, wires SIGINT/SIGTERM,
+runs your cleanup (5s guard; a second Ctrl-C exits immediately), then exits 0. Don't
+hand-roll \`await new Promise(() => {})\` plus signal handlers:
+
+\`\`\`ts
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  const server = container.server('express', { port: 4000 })
+  await server.start()
+
+  // Blocks until SIGINT/SIGTERM, then runs the cleanup and exits 0
+  await context.runUntilShutdown(async () => {
+    await server.stop()
+  })
+}
+\`\`\`
+
+Multiple calls share one shutdown; cleanups run LIFO. It's also on the container
+(\`container.runUntilShutdown\`) for \`luca run\` scripts.
+
+For *recurring* work, layer \`container.feature('scheduler')\` on top — named tasks on
+intervals (\`'30s'\`, \`'5m'\`) or cron (\`'0 9 * * mon-fri'\`, \`'@hourly'\`), where the next run
+never starts before the previous one finishes:
+
+\`\`\`ts
+export default async function {{camelName}}(options: CommandArgs<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  // Single-instance guard: exits if another copy is already running, cleans up the pid file on exit
+  const proc = container.feature('proc')
+  proc.establishLock('tmp/{{kebabName}}.pid')
+
+  const scheduler = container.feature('scheduler')
+  scheduler.every('30s', () => doOneUnitOfWork(container), { name: 'worker', immediate: true })
+
+  // Hold the process open; on Ctrl-C every task stops, then onShutdown runs
+  await scheduler.run({ onShutdown: () => flushBuffers() })
+}
+\`\`\`
+
+Inspect \`scheduler.tasks\` for run counts, errors, and next-run times. For a bare loop
+without the managed layer, the primitives live on utils: \`container.utils.every(ms, fn)\`
+(non-overlapping poll loop, returns \`stop()\`), \`container.utils.sleep(ms)\`, and
+\`container.utils.backoff(fn, { attempts, delay })\` for retrying flaky calls.
+
+## State Shared Between Invocations
+
+Every \`luca\` command is a separate process — a daemon and the sibling commands that
+inspect or control it (\`--stats\`, \`stop\`, \`status\`) share no memory. Give that shared
+state a named store instead of inventing a dotfile:
+
+\`\`\`ts
+const stats = container.store('{{kebabName}}-stats', {
+  schema: z.object({ processed: z.number().default(0), lastRunAt: z.string().optional() }),
+})
+
+// update() = lock → read → mutate → validate → atomic write.
+// Concurrent invocations can never overwrite each other's writes.
+await stats.update(s => { s.processed++; s.lastRunAt = new Date().toISOString() })
+
+// A sibling process just reads — always fresh from disk
+const { processed } = await stats.read()
+\`\`\`
+
+The file lives at \`.luca/store/{{kebabName}}-stats.json\` — plain JSON you can \`cat\`.
+Full API and the which-store decision guide: \`luca describe store\`.
+
 ## Conventions
 
 - **File location**: \`commands/{{kebabName}}.ts\` in the project root. The \`luca\` CLI discovers these automatically.
 - **Naming**: kebab-case for filename. \`luca {{kebabName}}\` maps to \`commands/{{kebabName}}.ts\`.
+- **Project helpers are pre-discovered**: \`luca <command>\` discovers the project's \`features/\`, \`clients/\`, and \`servers/\` folders before dispatch — \`container.feature('myProjectFeature')\` just works. Opt out with \`LUCA_COMMAND_DISCOVERY=commands-only\`.
 - **Use the container**: Never import \`fs\`, \`path\`, \`child_process\` directly. Use \`container.feature('fs')\`, \`container.paths\`, \`container.feature('proc')\`.
-- **Positional args**: Export \`positionals = ['name1', 'name2']\` to map CLI positional args into named options fields. For raw access, use \`container.argv._\` where \`_[0]\` is the command name.
-- **Exit codes**: Return nothing for success. Throw for errors — the CLI catches and reports them.
-- **Help text**: Use \`.describe()\` on every schema field — it powers \`luca {{kebabName}} --help\`.
+- **Positional args**: Export \`positionals = ['name1', 'name2']\` (trailing \`'...rest'\` collects the remainder). For raw access, use \`options._\` where \`_[0]\` is the command name.
+- **Exit codes**: Return nothing for success. Throw for errors — the CLI reports the message cleanly (stack behind \`--verbose\`/\`DEBUG=1\`) and exits non-zero. Or set \`process.exitCode = 1\` for soft failures.
+- **Help text**: Use \`.describe()\` on every schema field — it powers \`luca {{kebabName}} --help\`. Export \`examples\` (and \`subcommands\` when you branch on a verb) so \`--help\` teaches real usage, not just flags.
 `,
   },
   endpoint: {
@@ -1375,7 +1640,7 @@ Return any object — it's automatically JSON-serialized as the response.
 
 ## Validation Schemas
 
-If \`zod\` is available (via \`luca\` dependency or \`node_modules\`), export Zod schemas to validate parameters for each method. Name them \`{method}Schema\`:
+zod (v4) is **always available** — the luca runtime seeds it as a virtual module, so \`import { z } from 'zod'\` works in every endpoint file with zero installs, in binary mode and dev mode alike. Export Zod schemas to validate parameters for each method. Name them \`{method}Schema\`:
 
 \`\`\`ts
 import { z } from 'zod'
@@ -1391,7 +1656,7 @@ export const postSchema = z.object({
 })
 \`\`\`
 
-Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec. If zod is not available, skip schema exports — the endpoint still works, you just lose automatic validation.
+Invalid requests automatically return 400 with Zod error details. Schemas also feed the auto-generated OpenAPI spec — skipping them costs you both the validation and the free API docs, so don't.
 
 ## Rate Limiting
 
@@ -1617,6 +1882,139 @@ export async function run(args: z.infer<typeof argsSchema>, context: ContainerCo
 - **Caching**: On by default. Override \`cacheKey()\` for custom invalidation, or set \`cacheable = false\` to skip.
 - **CLI**: \`luca select {{kebabName}}\` runs the selector and prints JSON. Use \`--json\` for data only, \`--no-cache\` to force fresh.
 `,
+  },
+  assistant: {
+    sections: [
+      { heading: "tools.ts — Tool Functions", code: `import { z } from 'zod'
+
+export const schemas = {
+	listTodos: z.object({
+		include: z.string().optional().describe('Glob of files to search, e.g. "*.ts"'),
+	}).describe('Find TODO/FIXME comments in the project'),
+}
+
+export async function listTodos(options: z.infer<typeof schemas.listTodos>) {
+	const grep = container.feature('grep')
+	const matches = await grep.todos({ include: options.include })
+	return matches.map((m) => \`\${m.file}:\${m.line} \${m.content}\`).join('\\n')
+}` },
+      { heading: "hooks.ts — Lifecycle Event Handlers", code: `export function started() {
+	console.log('Assistant started!')
+}
+
+export function toolCall(name: string, args: unknown) {
+	console.log(\`calling \${name}\`, args)
+}
+
+export async function response(text: string) {
+	await container.fs.appendFileAsync('assistant.log', text + '\\n')
+}` }
+    ],
+    full: ``,
+    tutorial: `# Building an Assistant
+
+An assistant is an AI chat agent defined by a folder of files. Assistants live in a project's \`assistants/\` folder (or \`~/.luca/assistants/\` for user-global assistants) and are automatically discovered — any subdirectory containing a \`CORE.md\` is treated as an assistant definition.
+
+When to build an assistant:
+- You want a conversational agent with a custom system prompt
+- You want to give a model tools (plain TypeScript functions) it can call
+- You want to react to the agent's lifecycle (turns, tool calls, responses) with hooks
+
+Unlike the other scaffold types, an assistant is not a single file. \`luca scaffold assistant <name>\` generates a folder:
+
+\`\`\`
+assistants/<name>/
+  CORE.md    — system prompt (markdown, optional YAML frontmatter)
+  tools.ts   — tool functions the assistant can call
+  hooks.ts   — lifecycle event handlers
+  voice.yml  — optional voice/TTS config (commented out by default)
+\`\`\`
+
+Start chatting with it immediately:
+
+\`\`\`sh
+luca scaffold assistant chief-of-staff
+luca chat chief-of-staff
+\`\`\`
+
+## CORE.md — The System Prompt
+
+\`CORE.md\` is a markdown file that gets injected into the system prompt of every chat completion call. Write it the way you would write instructions for the agent: who it is, what it knows, how it should behave.
+
+Optional YAML frontmatter at the top of \`CORE.md\` is parsed as metadata (\`assistant.meta\`) and can provide default options for the assistant.
+
+\`\`\`md
+---
+description: Runs my calendar and inbox
+---
+# Chief of Staff
+
+You manage my schedule. Be terse. Always confirm before creating events.
+\`\`\`
+
+## tools.ts — Tool Functions
+
+\`tools.ts\` exports plain functions, plus a \`schemas\` object whose keys match the exported function names and whose values are Zod v4 schemas describing each function's parameters. Every exported function with a matching schema becomes a tool the model can call.
+
+The luca \`container\` is globally available inside \`tools.ts\` — do not import \`fs\`, \`path\`, or other builtins; use container features.
+
+\`\`\`ts
+import { z } from 'zod'
+
+export const schemas = {
+	listTodos: z.object({
+		include: z.string().optional().describe('Glob of files to search, e.g. "*.ts"'),
+	}).describe('Find TODO/FIXME comments in the project'),
+}
+
+export async function listTodos(options: z.infer<typeof schemas.listTodos>) {
+	const grep = container.feature('grep')
+	const matches = await grep.todos({ include: options.include })
+	return matches.map((m) => \`\${m.file}:\${m.line} \${m.content}\`).join('\\n')
+}
+\`\`\`
+
+Schema rules:
+- Use \`.describe()\` on the schema and every field — descriptions are what the model sees.
+- Do NOT use \`z.any()\` or \`z.record(z.any())\` in tool schemas — Zod v4's JSON Schema serializer cannot handle them. Accept a \`z.string()\` of JSON and parse it at runtime instead.
+
+## hooks.ts — Lifecycle Event Handlers
+
+\`hooks.ts\` exports functions whose names match events emitted by the assistant. Each exported function runs (and is awaited) when the matching event fires. The \`container\` global is available here too.
+
+Hookable events include: \`created\`, \`started\`, \`turnStart\`, \`turnEnd\`, \`chunk\`, \`preview\`, \`response\`, \`toolCall\`, \`toolResult\`, and \`toolError\`. Run \`luca describe assistant --events\` for the full list with payloads.
+
+\`\`\`ts
+export function started() {
+	console.log('Assistant started!')
+}
+
+export function toolCall(name: string, args: unknown) {
+	console.log(\`calling \${name}\`, args)
+}
+
+export async function response(text: string) {
+	await container.fs.appendFileAsync('assistant.log', text + '\\n')
+}
+\`\`\`
+
+## voice.yml — Optional Voice Config
+
+When \`voice.yml\` is present the assistant can become voice-capable via the \`voiceMode\` feature. The scaffolded file ships fully commented out; uncomment a provider (\`elevenlabs\` requires \`ELEVENLABS_API_KEY\`, \`voicebox\` requires a local VoiceBox service) to enable it.
+
+\`\`\`yaml
+# provider: elevenlabs
+# voiceId: REPLACE_WITH_YOUR_VOICE_ID
+\`\`\`
+
+## Conventions
+
+- **Folder location**: \`assistants/<name>/\` in the project root, or \`~/.luca/assistants/<name>/\` to make it available in every project. \`--output <dir>\` overrides the destination.
+- **Discovery**: any folder under \`assistants/\` with a \`CORE.md\` is an assistant. \`tools.ts\`, \`hooks.ts\`, and \`voice.yml\` are optional.
+- **Run it**: \`luca chat <name>\` starts an interactive session. \`luca chat <name> --use <feature>\` attaches container features to the assistant.
+- **Use the container**: \`container\` is a global inside \`tools.ts\` and \`hooks.ts\`. Never import \`fs\`, \`path\`, or \`child_process\` — use \`container.feature('fs')\`, \`container.paths\`, \`container.feature('proc')\`.
+- **Describe it**: \`luca describe assistant\` documents the assistant feature's full API, events, and options.
+`,
   }
 }
 
@@ -1642,6 +2040,19 @@ It is also important for them to know that the luca \`container\` is globally av
 `,
     "tools.ts": `import { z } from 'zod'
 
+// The luca container is a global inside tools.ts and hooks.ts — no import
+// needed. Declare it so TypeScript tooling doesn't flag it.
+declare const container: any
+
+// Every key in \`schemas\` must match an exported function below. The zod
+// schema describes that function's options argument to the model.
+//
+// At runtime these become entries on \`assistant.tools\`, each shaped
+// \`{ handler, parameters, description }\` — so call one manually with
+// \`assistant.tools.myTool.handler({ ... })\`, not \`assistant.tools.myTool()\`.
+//
+// Verify your assistant is registered with:
+//   luca eval "container.feature('assistantsManager').availableAssistants"
 export const schemas = {
 	README: z.object({}).describe('CALL THIS README FUNCTION AS EARLY AS POSSIBLE')
 }
@@ -1649,9 +2060,12 @@ export const schemas = {
 export function README(options: z.infer<typeof schemas.README>) {
 	return 'YO YO'
 }
-
 `,
-    "hooks.ts": `export function started() {
+    "hooks.ts": `// Lifecycle hooks — export functions named after assistant events.
+// The luca container is available here as a global, same as tools.ts.
+declare const container: any
+
+export function started() {
 	console.log('Assistant started!')
 }
 `,

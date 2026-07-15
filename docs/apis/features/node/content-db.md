@@ -35,6 +35,21 @@ When an assistant uses contentDb, inject system prompt guidance about progressiv
 
 
 
+### defineModel
+
+Define a model in the collection at runtime.  Usually models are defined in the docs/models.ts file but this allows you to do it at runtime for dynamic model definitions.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `string` | ✓ | Parameter name |
+| `config` | `any` | ✓ | Parameter config |
+
+**Returns:** `ModelDefinition`
+
+
+
 ### renderTree
 
 Render a tree view of the collection directory structure. Built with container.fs so it works without the `tree` binary.
@@ -433,6 +448,7 @@ Hybrid semantic search with graceful fallback to grep.
 |----------|------|-------------|
 | `isLoaded` | `boolean` | Whether the content database has been loaded. |
 | `collection` | `Collection` | Returns the lazily-initialized Collection instance for the configured rootPath. |
+| `contentbase` | `any` | The contentbase library instance. |
 | `collectionPath` | `string` | Returns the absolute resolved path to the collection root directory. |
 | `models` | `Record<string, ModelDefinition>` | Returns an object mapping model names to their model definitions, sourced from the collection. |
 | `modelNames` | `string[]` | Returns an array of all registered model names from the collection. |

@@ -73,7 +73,7 @@ async function confirm(ui: any, message: string, def: boolean): Promise<boolean>
 	return answer
 }
 
-async function setup(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+export async function setup(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as unknown as NodeContainer
 	const fs = container.feature('fs')
 	const ui = container.feature('ui')

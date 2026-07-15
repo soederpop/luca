@@ -238,7 +238,6 @@ The assistant doesn't need to read source files to understand the framework. It 
 git clone https://github.com/soederpop/luca.git
 cd luca
 bun install
-bun run setup
 ```
 
 ### Running in dev

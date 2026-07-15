@@ -1,5 +1,6 @@
 // Auto-generated bootstrap content
-// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md
+// Source: docs/bootstrap/*.md, docs/bootstrap/templates/*, docs/examples/*.md, docs/tutorials/*.md,
+// plus reference docs generated from live introspection data.
 //
 // Do not edit manually. Run: luca build-bootstrap
 
@@ -10,7 +11,7 @@ description: The luca framework, when you see a project with docs/ commands/ fea
 ---
 # Luca: Learning the Container
 
-The Luca framework \`luca\` ships a \`luca\` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. The container auto-discovers modules in \`commands/\`, \`clients/\`, \`servers/\`, \`features/\`, and \`endpoints/\` folders.
+The Luca framework \`luca\` ships a \`luca\` binary — a bun-based CLI for a dependency injection container. This project is based on it if this skill is present. Project helper folders (\`commands/\`, \`endpoints/\`, \`features/\`, \`clients/\`, \`servers/\`) are discovered at runtime — but not all of them automatically. See "How Auto-Discovery Works" below before assuming a folder is picked up.
 
 The \`luca\` cli loads typescript modules in through its VM which injects a \`container\` global that is a singleton object from which you can learn about, and access all different kinds of utils and Helpers (features, clients, servers, commands, and compositions thereof)
 
@@ -29,10 +30,22 @@ This is your primary tool. The \`luca\` binary is a compiled artifact that bundl
 ### See what's available
 
 \`\`\`shell
-luca describe features     # index of all available features
+luca describe features     # index of all available features, grouped by category
 luca describe clients      # index of all available clients
 luca describe servers      # index of all available servers
 \`\`\`
+
+### Search by meaning when you don't know the name
+
+When you know what you want to *do* but not what it's called, ask in plain language — it searches every helper, example, and tutorial and returns ranked pointers:
+
+\`\`\`shell
+luca describe --query "how do I build a rest server?"
+luca describe --query "watch files for changes"
+luca describe --query "run a command over ssh" --json   # machine-readable results
+\`\`\`
+
+Each result tells you the follow-up move (\`luca describe <name>\`, or a references/ doc to read). Keyword search always works; for semantic ranking build the index once with \`luca describe --calculate-embeddings\` (needs \`luca setup --local-embeddings\`). There's also a flat lookup table of every helper in \`references/helper-index.md\`.
 
 You can even learn about features in the browser container, or a specific platform (server, node are the same, browser,web are the same)
 
@@ -95,15 +108,21 @@ luca describe              # overview of the container
 luca describe self         # same thing
 \`\`\`
 
-### Get help on any command
+### Learn how to run a CLI command → \`--help\`, not \`describe\`
+
+\`luca describe\` documents the **programmatic API** of helpers (features, clients, servers) — the methods, getters, and events you call in code. It is the wrong tool for learning how to *invoke a CLI command*. For that, use the command's own \`--help\`, which renders its arguments, positionals, flags, subcommands, and examples:
 
 \`\`\`shell
-luca                       # list all available commands
-luca describe --help       # full flag reference for describe
-luca help scaffold         # help for any command
+luca                       # list every available command
+luca serve --help          # how to run the serve command
+luca scaffold --help       # arguments, flags, and examples for scaffold
+luca bundle --help         # ...for any command
+luca help scaffold         # equivalent to \`luca scaffold --help\`
 \`\`\`
 
-**Use \`luca describe\` liberally.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (\`ui.banner\`, \`fs.readFile\`) when you need docs on just one method or getter. Use \`--ts\` when you need type information for writing code.
+Rule of thumb: **helper → \`luca describe <name>\`; command → \`luca <command> --help\`.** (Describing a command still works, but it shows the command class's internals, not its usage — \`describe\` will warn you and point you at \`--help\`.)
+
+**Use \`luca describe\` liberally for helpers.** It is the fastest, safest way to understand what the container provides. Every feature, client, and server is self-describing — if you know a name, describe will tell you everything about it. Use dot notation (\`ui.banner\`, \`fs.readFile\`) when you need docs on just one method or getter. Use \`--ts\` when you need type information for writing code.
 
 > **NOTE:** The \`luca\` binary is compiled and bundles all introspection data. \`luca describe\` reflects what actually ships in the binary — source files for built-in helpers may not exist in your project. Reading source can add context when it's available, but \`luca describe\` and \`luca eval\` are always the authority.
 
@@ -112,6 +131,10 @@ luca help scaffold         # help for any command
 ## Phase 2: Build with \`luca scaffold\`
 
 When your project needs a new helper, scaffold it. The \`scaffold\` command generates correct boilerplate — you fill in the logic.
+
+### Check the shipped examples first
+
+Before building anything multi-step, look for a runnable composition pattern in \`references/examples/\` (index below). **A runnable example beats fifty describes** — run it with \`luca run <doc.md>\` to confirm it works, then adapt the pattern. In a measured comparison, the fastest solution to a websocket task came from finding and running the shipped ask/reply example; the slowest came from scaffolding a custom client from scratch. Don't scaffold what you don't need: if a built-in client or server already speaks the protocol (websocket, rest), use it directly with your message conventions on top.
 
 ### Learn how to build each type
 
@@ -138,10 +161,10 @@ The workflow after scaffolding:
 \`\`\`shell
 luca scaffold command sync-data --description "Pull data from staging"
 # edit commands/sync-data.ts — add your logic
-luca describe sync-data            # verify it shows up and reads correctly
+luca sync-data --help              # verify it shows up and its args/flags read correctly
 \`\`\`
 
-Every scaffolded helper is auto-discovered by the container at runtime.
+Every scaffolded helper is picked up automatically — the CLI discovers all project helper folders (\`commands/\`, \`features/\`, \`clients/\`, \`servers/\`, ...) before dispatching a command, and \`luca serve\` discovers \`endpoints/\`. See "How Auto-Discovery Works" below for opt-outs and non-CLI entry points.
 
 ### When to use each type
 
@@ -212,6 +235,26 @@ const rest = container.client('rest')
 const server = container.server('express')
 \`\`\`
 
+### How Auto-Discovery Works
+
+The CLI discovers **all** project helper folders before dispatching a command — \`features/\`, \`clients/\`, \`servers/\`, \`commands/\`, \`endpoints/\`, \`selectors/\` — so \`container.feature('myThing')\` works inside any command without extra wiring. \`~/.luca/{features,clients,servers,commands}\` (user-level helpers) are discovered on every CLI run too.
+
+| Folder | Discovered by | When |
+|--------|---------------|------|
+| all project helper folders | the CLI itself | every \`luca <command>\` invocation |
+| \`endpoints/\` | \`luca serve\` | when the server starts |
+| everything | \`luca eval\` | internally, before evaluating |
+
+Opt-outs via the \`LUCA_COMMAND_DISCOVERY\` env var: \`commands-only\` (only discover \`commands/\`, the pre-auto-discovery behavior), \`no-local\` (skip the project), \`no-home\` (skip \`~/.luca\`), \`disable\` (skip both).
+
+**Non-CLI entry points** (embedding the container in your own script or service) don't get this for free — discover explicitly:
+
+\`\`\`js
+await container.helpers.discoverAll()                               // everything
+await container.helpers.discover('features')                        // one type
+await container.helpers.discover('commands', { directory: dir })    // from a custom folder (plugins)
+\`\`\`
+
 ### State
 
 Every helper and the container itself have observable state:
@@ -268,45 +311,166 @@ This is useful inside commands and scripts where you need introspection data pro
 - \`luca serve --any-port\` will open on any port
 
 
+## Common Patterns
+
+Recurring shapes that evaluation sessions had to improvise — use these instead of inventing your own:
+
+### State between separate \`luca\` invocations
+
+Every \`luca\` command runs in a fresh process with a fresh container — module-level variables and helper registrations do not survive. The blessed handoff is \`container.store(name)\`: one durable JSON document per name (under \`.luca/store/\`), schema-validated, with atomic writes. Never hand-roll a state dotfile or keep shared counters in memory.
+
+\`\`\`js
+// process A (e.g. \`luca scout\`) — update() is a LOCKED read-modify-write:
+// concurrent invocations can never overwrite each other's writes
+const scout = container.store('scout')
+await scout.update(s => { s.port = port; s.pid = process.pid })
+
+// process B (e.g. \`luca check\`) — read() always re-reads the file
+const { port } = await container.store('scout').read()
+\`\`\`
+
+Pass \`schema\` (zod, with \`.default()\`s) and a missing file reads as your defaults — no init step. The file at \`store.path\` is plain JSON: \`cat\` it, commit it. Full API: \`luca describe store\`.
+
+**Which store? The decision heuristic:**
+
+| Need | Use |
+|------|-----|
+| In-process, ephemeral, reactive | \`container.state\` / feature state |
+| Cross-process **state** — counters, manifests, PIDs, process lists, small configs | \`container.store(name)\` (locked \`update()\`, atomic writes; losing it would be a bug) |
+| Cross-process **cache** — recomputable, may expire | \`diskCache\` (supports \`ttl\`; expired = miss; \`get()\` throws on a miss — guard with \`has()\`) |
+| Queryable, relational, transactional, durable queues | \`sqlite\` (see \`transaction()\` and \`UPDATE … RETURNING\` for atomic job claims) |
+| Cross-process pub/sub fan-out | \`redis\` (\`publish\`/\`subscribe\`) |
+
+### Subcommand-style CLIs (\`luca note add|list|wipe\`)
+
+One command file; map the verb through positionals and validate with an enum:
+
+\`\`\`ts
+export const positionals = ['action', 'text']
+export const argsSchema = z.object({
+  action: z.enum(['add', 'list', 'wipe']).describe('What to do'),
+  text: z.string().optional().describe('Note text (for add)'),
+})
+
+// Declarative help metadata: renders a Subcommands: section in --help,
+// and \`luca note add --help\` shows focused help for just that verb.
+export const subcommands = {
+  add: { args: '<text>', description: 'Save a note', examples: ['luca note add "call the vet"'] },
+  list: { description: 'Print all saved notes' },
+  wipe: { description: 'Delete all notes' },
+}
+
+export const examples = ['luca note add "call the vet"', 'luca note list']
+\`\`\`
+
+### Supervising background workers across invocations
+
+The complete start/status/stop shape: detach the workers so they outlive the CLI, persist their PIDs, and check liveness with signal 0. (\`processManager\` won't work here — its tracking is in-memory, per-process.)
+
+\`\`\`js
+const proc = container.feature('proc')
+const cache = container.feature('diskCache')
+
+// start — detached children survive the parent command exiting
+const pids = []
+for (let i = 0; i < 3; i++) {
+  const worker = proc.spawn('bun', ['worker.ts'], { detached: true })  // stdio defaults to 'ignore' when detached
+  worker.unref()  // let the parent event loop exit
+  pids.push(worker.pid)
+}
+await cache.set('fleet', { pids })
+
+// status — a later, separate process finds them again
+const { pids: saved } = await cache.get('fleet')
+const alive = saved.filter(pid => proc.kill(pid, 0))  // signal 0: liveness check, returns false when gone
+
+// stop
+for (const pid of saved) proc.kill(pid)   // SIGTERM; proc.kill(pid, 'SIGKILL') for stragglers
+await cache.rm('fleet')
+\`\`\`
+
+### Client commands must exit explicitly
+
+A command that connects as a websocket/IPC client can keep the event loop alive after its work is done and hang forever. Disconnect and exit:
+
+\`\`\`js
+const answer = await client.ask({ type: 'time' })
+console.log(answer)
+await client.disconnect?.()
+process.exit(0)
+\`\`\`
+
+### Secrets across invocations
+
+\`vault.secret()\` mints a **new random key each process** — encrypt in one command, and the next command can't decrypt unless you persist the key and pass it back: \`container.feature('vault', { secret: savedKey })\`. (\`vault.secretText\` is also lazy — undefined until \`secret()\`/\`encrypt()\`/\`decrypt()\` has run once.)
+
+### Reactive browser UIs (no build step)
+
+You can build a full reactive front-end with **no bundler, no \`npm install\`, no build step** — put \`public/index.html\`, run \`luca serve\` (it serves \`public/\` static + \`endpoints/\` as a same-origin API, so no CORS). The pattern that scales, framework-agnostic at its core:
+
+- **Import from esm.sh** — React (\`https://esm.sh/react@18.3.1\`), the web container (\`https://esm.sh/luca/web\`), anything. Use \`React.createElement\` (alias \`e\`) instead of JSX so there's nothing to compile.
+- **A Luca feature *is* your store** — it already has \`this.state.get/set\` and \`emit/on/off\`. Mutate state, then \`this.emit('changed')\`. No Redux/Context needed.
+- **The view subscribes to \`changed\`** — a ~6-line \`useFeatureVersion([feature])\` hook (\`f.on('changed', forceRerender)\`) re-renders React on every change. Plain DOM works too: a \`render()\` on \`changed\`. The store never references the view.
+- **Layer as Api → Store → App** for anything real: Api does \`fetch\`/ws/SSE, Store holds state and emits, App orchestrates and exposes \`snapshot()\` (one atomic read for the view). Features compose via \`this.container.feature('...')\`.
+- **Backend half:** \`endpoints/*.ts\` return JSON; the browser's web container reaches them with \`container.client('rest', { baseURL: '/api' })\`. Node-only work (\`fs\`, \`sqlite\`, \`git\`) lives behind endpoints — the web container doesn't have it.
+
+Footguns: pin esm.sh versions; react-dom must resolve the *same* React (\`?deps=react@VERSION\` or an import map); \`emit('changed')\` after **every** mutation. Full walkthrough: \`references/tutorials/22-reactive-frontend.md\`.
+
+To let a **server-side assistant drive** such a UI (call its actions as tools, live), the app's methods are exposed as \`static tools\` and reached over the \`containerLink\` WebSocket bridge (host \`eval\`s into the browser, \`await\`s the result) — same tool-provider pattern as any feature, plus one transport hop. See \`references/tutorials/23-assistant-driven-ui.md\`.
+
+### Modeling state in markdown (frontmatter vs. body)
+
+When designing a \`contentDb\` model (\`docs/models.ts\`), sort every field into one of two drawers — getting this right is what keeps the markdown worth reading:
+
+- **Frontmatter = the index card.** Only what the *system* filters/sorts/joins on: \`status\` enums, tags, foreign-key slugs, timestamps, machine-written scalars (\`lastRanAt\`, \`costUsd\`), small flags. Scalars and short arrays — labels, not content.
+- **Body sections = the substance.** Anything a human writes in sentences, lists, or code. A \`section('Heading', { extract, schema })\` makes a heading's prose a typed, validated, queryable field (\`instance.sections.motivation\`) — and a \`computed\` can turn a readable list into structured data (e.g. an execution DAG from a bulleted list of links). You get human-editable *and* machine-structured from one source.
+
+Litmus test: *would you write it in a sentence? → body. Is it a label you filter on? → frontmatter.* If you're reaching for YAML \`|\` multi-line strings or nesting objects three deep, that's body content in the wrong drawer — it defeats the purpose of using markdown. Read is split too: \`db.query(Model).where('meta.status', …)\` on the cheap indexed drawer; \`contentDb.getDocument(id, { include: ['Findings'] })\` to pull one section. Write: \`doc.replaceSectionContent(heading, md)\` then \`doc.save()\` (whole-file atomic — no per-section save). Full walkthrough: \`references/tutorials/24-state-in-markdown.md\`.
+
 ## Framework Index
 
-A table of contents for the container. **Run \`luca describe <name>\` for full docs on any item.** Use \`luca describe <name> --ts\` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority.
+A table of contents for the container. **Run \`luca describe <name>\` for full docs on any item.** Use \`luca describe <name> --ts\` when you need type information. Source may not exist locally for built-in helpers — the compiled binary is the authority. For a flat, per-helper lookup table (name, category, stability, one-liner) see \`references/helper-index.md\`; to search by meaning use \`luca describe --query "..."\`.
 
+<!-- BEGIN:GENERATED helper-tables (luca build-bootstrap regenerates this block from introspection — do not edit by hand) -->
 ### Features by Category
 
 | Category | Features | What they do |
 |----------|----------|--------------|
-| **File System & Code** | \`fs\`, \`grep\`, \`fileManager\` | Read/write files, search code, watch for changes |
-| **Process & Shell** | \`proc\`, \`processManager\`, \`secureShell\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`conversation\`, \`conversationHistory\`, \`fileTools\` | Build AI assistants, manage conversations, tool calling. \`fileTools\` composes lower-level features (\`fs\`, \`grep\`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see \`references/examples/feature-as-tool-provider.md\`). |
-| **AI Agent Wrappers** | \`claudeCode\`, \`openaiCodex\`, \`lucaCoder\` | Spawn and manage external AI agent CLIs as subprocesses |
-| **Data & Storage** | \`sqlite\`, \`postgres\`, \`diskCache\`, \`contentDb\`, \`redis\` | Databases, caching, document management |
-| **Networking** | \`networking\`, \`dns\` | Network utilities, DNS |
-| **Google Workspace** | \`googleAuth\`, \`googleDrive\`, \`googleDocs\`, \`googleSheets\`, \`googleCalendar\`, \`googleMail\` | OAuth and Google service wrappers |
-| **Dev Tools** | \`git\`, \`docker\`, \`esbuild\`, \`vm\`, \`python\`, \`packageFinder\` | Version control, containers, bundling, sandboxed execution |
-| **Content & NLP** | \`docsReader\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`jsonTree\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, skills, structured file ingestion |
-| **UI & Output** | \`ui\`, \`ink\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
-| **Media & Browser** | \`browserUse\`, \`tts\`, \`downloader\`, \`opener\`, \`telegram\` | Browser automation, text-to-speech, downloads, messaging |
-| **System** | \`os\`, \`vault\`, \`helpers\`, \`introspectionScanner\`, \`containerLink\`, \`repl\`, \`runpod\` | OS info, secrets, runtime introspection, remote container linking |
+| **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
+| **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
+| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`lucaCoder\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
+| **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
+| **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
+| **Google Workspace** | \`googleAuth\`, \`googleCalendar\`, \`googleDocs\`, \`googleDrive\`, \`googleMail\`, \`googleSheets\` | OAuth and Google service wrappers |
+| **Dev Tools** | \`docker\`, \`git\`, \`packageFinder\`, \`python\`, \`transpiler\`, \`vm\` | Version control, containers, bundling, sandboxed execution |
+| **Content & NLP** | \`docsReader\`, \`jsonTree\`, \`nlp\`, \`semanticSearch\`, \`skillsLibrary\`, \`yamlTree\` | Document Q&A, text analysis, semantic search, structured file ingestion |
+| **UI & Output** | \`ink\`, \`ui\`, \`yaml\` | Terminal UI, colors, ascii art, structured data display |
+| **Media & Browser** | \`browserUse\`, \`cipherSocial\`, \`downloader\`, \`opener\`, \`telegram\`, \`tts\` | Browser automation, text-to-speech, downloads, messaging |
+| **System** | \`containerLink\`, \`helpers\`, \`introspectionScanner\`, \`os\`, \`repl\`, \`runpod\`, \`socketRepl\`, \`vault\` | OS info, secrets, runtime introspection, remote container linking |
 
 ### Clients
 
 | Client | Purpose |
 |--------|---------|
-| \`openai\` | Chat completions, embeddings, image generation |
-| \`rest\` | Generic HTTP client (GET/POST/PUT/PATCH/DELETE) |
-| \`websocket\` | WebSocket connections |
-| \`elevenlabs\` | Text-to-speech synthesis |
-| \`graph\` | GraphQL queries and mutations |
+| \`elevenlabs\` | ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. |
+| \`graph\` | GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. |
+| \`openai\` | OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. |
+| \`rest\` | HTTP REST client built on top of axios. |
+| \`socketio\` | Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. |
+| \`voicebox\` | VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). |
+| \`websocket\` | WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (\`state.connected\`, \`state.reconnectAttempts\`), and optional auto-reconnection with exponential backoff (base \`reconnectInterval\`, doubled per attempt, capped at 30s, up to \`maxReconnectAttempts\`). |
 
 ### Servers
 
 | Server | Purpose |
 |--------|---------|
-| \`express\` | HTTP server with file-based endpoint routing |
-| \`mcp\` | Model Context Protocol server for AI tool exposure |
-| \`websocket\` | WebSocket server with JSON framing |
-| \`ipcSocket\` | Local IPC socket server for inter-process communication |
+| \`express\` | Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. |
+| \`mcp\` | MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. |
+| \`websocket\` | WebSocket server built on the \`ws\` library with optional JSON message framing. |
+<!-- END:GENERATED helper-tables -->
+
+\`fileTools\` composes lower-level features (\`fs\`, \`grep\`) into an assistant-ready tool surface — a good example of how features can define tools for assistants (see \`references/examples/feature-as-tool-provider.md\`).
 
 ### Type Discovery
 
@@ -329,10 +493,34 @@ luca eval "container.feature('fs').readFile('package.json')"
 
 The skill directory includes reference material:
 
-- **\`references/examples/\`** — short, focused example docs for individual features (e.g. \`fs.md\`, \`git.md\`, \`proc.md\`)
+- **\`references/examples/\`** — runnable composition patterns that combine multiple helpers. Every one executes via \`luca run <doc.md>\` and carries \`lastTested\`/\`lastTestPassed\` frontmatter from the test harness. For single-feature usage, use \`luca describe <name>\` instead — every helper's docs include per-method examples.
 - **\`references/tutorials/\`** — longer-form guides covering the container, helpers, commands, endpoints, state/events, assistants, and more
 
-These complement \`luca describe\` — describe gives you the API surface, examples show you patterns in action, and tutorials walk through building things end to end.
+Match your task to the catalog:
+
+| You're building... | Run/read |
+|---|---|
+| A custom feature (schemas, state, events, discovery) | \`custom-feature-authoring.md\`, \`testing-a-composed-feature.md\` |
+| A feature that gives an assistant tools | \`feature-as-tool-provider.md\`, \`assistant-with-process-manager.md\` |
+| An HTTP API + client | \`full-stack-slice.md\`, \`server-rest-roundtrip.md\` |
+| A reactive browser UI / dashboard (no build step) | \`references/tutorials/22-reactive-frontend.md\` (feature-as-store, React via esm.sh) |
+| An assistant that drives a browser UI (calls its actions as tools) | \`references/tutorials/23-assistant-driven-ui.md\` (\`containerLink\` + \`static tools\`) |
+| WebSocket messaging / request-reply | \`server-client-roundtrip-ws.md\`, \`websocket-ask-and-reply-example.md\` |
+| An HTTP API + a WebSocket sidecar (live push from REST) | \`references/tutorials/25-express-websocket-sidecar.md\` (\`luca serve --setup\`) |
+| Event-driven fan-out (in-process → ws → redis) | \`event-bus-fanout.md\` |
+| A data pipeline or job queue | \`data-pipeline-fs-grep-sqlite.md\`, \`sqlite-job-queue.md\` |
+| Cross-process state (which store?) | \`cross-process-state-handoff.md\` |
+| A daemon, poll loop, or scheduled task | \`daemon-command.md\` |
+| Search over documents | \`semantic-search-content-db.md\` |
+| Designing a markdown doc model (what goes in frontmatter vs. body) | \`references/tutorials/24-state-in-markdown.md\` (the two-drawer rule) |
+| Understanding how your code executes (VM, virtual modules, globals, entry points) | \`references/tutorials/26-the-vm.md\` (the execution contract) |
+| Plugin systems / dynamic registries | \`meta-discovery.md\` |
+| Lightweight stateful objects with tools | \`entity.md\` |
+| Structured JSON output from a model | \`structured-output-with-assistants.md\` |
+| Orchestrating Claude Code sessions | \`claude-controller-personas.md\` |
+| Understanding how errors behave (returned vs thrown) | \`error-handling-conventions.md\` |
+
+These complement \`luca describe\` — describe gives you the API surface and per-method examples, the example docs show multi-helper patterns in action, and tutorials walk through building things end to end.
 
 **Tip:** Runnable markdown is a great artifact to produce when building with luca. \`luca run doc.md\` executes code blocks inside the Luca VM — useful for both testing and documentation. When prototyping a feature or writing a how-to, consider writing it as a markdown file that can be run.
 
@@ -377,16 +565,16 @@ The \`luca\` binary is available in the path. Key commands:
 
 ## Learning the Framework
 
-1. **Discover** — Run \`luca describe features\`, \`luca describe clients\`, \`luca describe servers\` to see what's available. Then \`luca describe <name>\` for full docs on any helper, or \`luca describe <name>.<member>\` to drill into a specific method or getter. This is your first move, always. (See \`.claude/skills/luca-framework/SKILL.md\` for the full mental model.)
-2. **Build** — Run \`luca scaffold <type> --tutorial\` before creating a new helper. It covers the full guide for that type.
+1. **Discover** — Run \`luca describe features\`, \`luca describe clients\`, \`luca describe servers\` to see what's available. Then \`luca describe <name>\` for full docs on any helper (including per-method examples), or \`luca describe <name>.<member>\` to drill into a specific method or getter. This is your first move, always. (See \`.claude/skills/luca-framework/SKILL.md\` for the full mental model.)
+2. **Build** — Check \`.claude/skills/luca-framework/references/examples/\` first: runnable multi-helper composition patterns (\`luca run <doc.md>\` executes one) — a working example beats fifty describes. Then \`luca scaffold <type> --tutorial\` before creating a new helper; it covers the full guide for that type.
 3. **Prototype** — Use \`luca eval "expression"\` to test container code before wiring up full handlers. Reach for eval when you're stuck — it gives you full runtime access.
-4. **Reference** — The skill file (\`.claude/skills/luca-framework/SKILL.md\`) includes a full Framework Index with every feature, client, and server organized by category
+4. **Reference** — The skill file (\`.claude/skills/luca-framework/SKILL.md\`) includes a full Framework Index with every feature, client, and server organized by category, plus a task-to-example routing table. \`references/tutorials/\` holds the long-form guides.
 
 ## Project Structure
 
 - \`commands/\` — custom CLI commands, run via \`luca <commandName>\` (auto-discovered)
 - \`endpoints/\` — file-based HTTP routes, served via \`luca serve\` (auto-discovered)
-- \`features/\` — custom container features, discovered via \`container.helpers.discoverAll()\` (auto-discovered)
+- \`features/\`, \`clients/\`, \`servers/\` — custom container helpers, auto-discovered before any \`luca <command>\` dispatch (so commands can use project features directly). Opt out with \`LUCA_COMMAND_DISCOVERY=commands-only\`; for non-CLI entry points (scripts, embedded containers), call \`await container.helpers.discoverAll()\` yourself.
 - \`docs/\` — content documents managed by the \`contentDb\` feature (\`container.docs\`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
 - \`luca.cli.ts\` — optional project-level CLI customization (runs before any command)
 
@@ -395,7 +583,7 @@ The \`luca\` binary is available in the path. Key commands:
 Command handlers receive \`(options, context)\`. The \`options\` object contains:
 - **Named flags** from \`argsSchema\`: \`--verbose\` → \`options.verbose\`
 - **Positional args** mapped via \`positionals\` export: \`luca cmd ./src\` → \`options.target\`
-- **Raw positionals** in \`options._\`: array where \`_[0]\` is the command name, \`_[1+]\` are positional args
+- **Raw positionals** in \`options._\`: array where \`_[0]\` is the command name, \`_[1+]\` are positional args. Type the handler's options as \`CommandArgs<typeof argsSchema>\` (from \`'luca'\`) to get \`_\` typed.
 
 To accept positional arguments, export a \`positionals\` array that maps them to named fields in \`argsSchema\`:
 
@@ -407,30 +595,59 @@ export const argsSchema = z.object({
 })
 \`\`\`
 
+A trailing \`'...rest'\` positional (or a trailing \`z.array(...)\` field) collects all remaining args as an array: \`positionals = ['action', '...files']\`.
+
+Parsing agrees with the schema — boolean flags never consume a following positional (\`luca cmd --json foo\` keeps \`foo\` positional), and positionals arrive as strings coerced to what the field expects (\`z.string()\` accepts \`8080\`, \`z.number()\` accepts \`'8080'\` — no \`z.union\` workarounds needed).
+
+## Command Help
+
+\`luca <cmd> --help\` is generated from what the command declares — make it teach:
+- **\`.describe()\` every argsSchema field** — powers the Options/Flags listing.
+- **\`positionals\`** render as an \`Arguments:\` section (described via the matching schema field, or use the object form \`{ name, description, required }\` when there is no schema field).
+- **\`export const examples = [...]\`** — strings or \`{ command, description }\` objects, rendered as an \`Examples:\` section.
+- **\`export const subcommands = { verb: { args: '<name>', description, examples } }\`** — renders a \`Subcommands:\` section, and \`luca <cmd> <verb> --help\` shows focused help for that verb. Dispatch is still yours: map the verb via \`positionals\` and branch on it in the handler.
+
 ## What's Available
 
 The container provides more than you might expect. Before importing anything external, check here:
 
 - **YAML** — \`container.feature('yaml')\` wraps \`js-yaml\`. Use \`.parse(str)\` and \`.stringify(obj)\`.
 - **SQLite** — \`container.feature('sqlite')\` for databases. Parameterized queries, tagged templates.
+- **Cross-process state** — \`container.store('name', { schema })\` opens a durable JSON document in \`.luca/store/\` shared by all luca processes. \`await store.update(s => { s.count++ })\` is a locked read-modify-write (concurrent commands can't lose each other's writes); \`read()\` always re-reads. \`luca describe store\` for the full guide.
 - **REST client** — \`container.client('rest', { baseURL })\`. Methods (\`get\`, \`post\`, etc.) return **parsed JSON directly**, not \`{ data, status, headers }\`. On HTTP errors, the error is returned (not thrown).
 - **Content DB** — \`container.docs\` (alias for \`container.feature('contentDb')\`) manages markdown documents with frontmatter. Query with \`docs.query(docs.models.MyModel).fetchAll()\`.
-- **Grep** — \`container.feature('grep')\` has \`search()\` and \`codeAnnotations()\` for finding TODOs/FIXMEs/etc.
+- **Grep** — \`container.feature('grep')\` has \`search()\` and \`todos()\` for finding TODOs/FIXMEs/etc.
 - **chalk** — available as \`container.feature('ui').colors\`, not via \`import('chalk')\`.
 - **figlet** — available as \`container.feature('ui').asciiArt(text)\`.
 - **uuid** — \`container.utils.uuid()\`
-- **lodash** — \`container.utils.lodash\` (groupBy, keyBy, pick, omit, debounce, etc.)
-- **string utils** — \`container.utils.stringUtils\` (camelCase, kebabCase, pluralize, etc.)
+- **Scheduler** — \`container.feature('scheduler')\` for named recurring tasks: \`every('5m', fn)\`, \`cron('0 9 * * mon-fri', fn)\`, one-shots via \`at()\`/\`in()\`, and \`run()\` for the daemon lifecycle (holds the process open, stops all tasks on SIGINT/SIGTERM). Inspect \`scheduler.tasks\` for run counts and errors.
+- **timing** — \`container.utils.sleep(ms)\`, \`container.utils.backoff(fn, { attempts, delay })\` (retry with exponential backoff), \`container.utils.every(ms, fn)\` (bare poll loop with no overlapping runs; returns \`stop()\`).
+- **lodash** — \`container.utils.lodash\`. Exactly these: \`uniq\`, \`uniqBy\`, \`keyBy\`, \`groupBy\`, \`debounce\`, \`throttle\`, \`mapValues\`, \`mapKeys\`, \`pick\`, \`get\`, \`set\`, \`omit\`. Nothing else (no \`sortBy\`, \`orderBy\`, \`chunk\`, …) — use native array methods for the rest.
+- **string utils** — \`container.utils.stringUtils\`. Exactly these: \`camelCase\`, \`kebabCase\`, \`upperFirst\`, \`lowerFirst\`, \`pluralize\`, \`singularize\`.
 
 ## Known Gotchas
 
 - **For DELETE endpoint handlers, use \`export { del as delete }\`** — \`delete\` is a JS reserved word. Define your function with any name, then re-export it as \`delete\`.
 - **Bun globals (\`Bun.spawn\`, \`Bun.serve\`) are unavailable** in command/endpoint handlers. Use Node's \`child_process\` for spawning processes, or use \`container.feature('proc').exec()\`.
 - **\`ui.print.*\` writes to stdout** — if your command supports \`--json\`, gate UI output behind \`if (!options.json)\`.
-- **VM contexts start empty** — when using \`container.feature('vm')\`, inject globals explicitly (\`console\`, \`Date\`, \`Promise\`, \`crypto\`, \`TextEncoder\`, \`setTimeout\`).
-- **Long-running commands** (servers, watchers) need \`await new Promise(() => {})\` at the end with a \`process.on('SIGINT', ...)\` handler for cleanup.
+- **\`ui.print.<color>()\` is not a string formatter** — it prints immediately and returns \`undefined\`, so \`\` \`\${ui.print.green('OK')}\` \`\` interpolates \`undefined\`. To compose colored strings, use \`ui.colors.<color>()\`, which returns the styled string. (\`ui.print\` mirrors every chalk color/style name that \`ui.colors\` has — but it always prints.)
+- **Checking whether a PID is alive**: \`proc.kill(pid, 0)\` sends nothing and returns \`false\` if the process is gone (it doesn't throw) — the standard liveness check for PIDs persisted from an earlier run.
+- **VM contexts start near-empty — and command/endpoint handlers run in that same VM.** JS built-ins (\`Promise\`, \`Date\`, \`Math\`, \`JSON\`) plus \`console\`, timers, \`process\`, \`Buffer\`, \`fetch\`, \`crypto\`, and \`TextEncoder\`/\`TextDecoder\` are provided; when you build your own context with \`container.feature('vm')\`, inject anything beyond that explicitly. zod is always importable (\`import { z } from 'zod'\`) — export schemas unconditionally. In \`luca eval\`, \`z\` and \`require\` are already in scope — prototype schemas directly.
+- **Long-running commands** (servers, watchers) end with \`await context.runUntilShutdown(async () => { /* cleanup */ })\` — it holds the process open, wires SIGINT/SIGTERM, runs the cleanup (5s guard, second Ctrl-C exits immediately), and exits 0. Also on the container (\`container.runUntilShutdown\`) for \`luca run\` scripts. For recurring tasks, \`await container.feature('scheduler').run({ onShutdown })\` layers named intervals/cron on the same lifecycle.
 - **Shared state between endpoints**: use \`ctx.request.app.locals\` to share data across endpoint files.
 - **Database init**: use \`luca.cli.ts\` \`main()\` hook for table creation and seeding — it runs before any command or server starts.
+- **Which store for cross-process state?** Every \`luca <command>\` is a separate process — never keep shared state in memory. In-process/ephemeral → \`container.state\`; **cross-process state → \`container.store(name)\`** (durable JSON document; \`update(fn)\` is a locked read-modify-write, so concurrent siblings can't clobber each other — never hand-roll a state dotfile); caches with TTL → \`diskCache\` (entries are losable by contract — not for state); queryable/relational/durable queues → \`sqlite\` (use \`transaction()\` and \`UPDATE … RETURNING\` for atomic job claims); cross-process pub/sub → \`redis\`.
+- **Scheduling**: \`container.feature('scheduler')\` is the managed layer (named tasks, cron, run history, daemon \`run()\`); \`container.utils.every(ms, fn)\` / \`sleep(ms)\` / \`backoff(fn, opts)\` are the bare primitives when you don't need names or lifecycle. Neither ever overlaps runs of the same task.
+- **\`paths.join()\` prepends \`container.cwd\` even when the first arg is absolute** — use \`paths.resolve(absPath, 'sub')\` when the base is already absolute (e.g. \`os.tmpdir\`); \`resolve\` behaves like Node's.
+- **Colors silently disappear when stdout isn't a real TTY** — chalk auto-disables in pipes and sandboxed shells; this is not a bug in your command. Verify with \`FORCE_COLOR=1 luca yourCmd | cat -v\`.
+- **\`useInput\` requires a TTY** (\`setRawMode\`) and crashes on piped stdin — guard with \`process.stdin.isTTY\` and fall back to \`process.on('SIGINT', ...)\`.
+- **ink/react must be single-instance.** \`import React from 'react'\` and \`import { Text, useInput } from 'ink'\` in commands resolve to the runtime's own copies — use them freely alongside \`ink.components\`/\`ink.hooks\`/\`ink.render\`. Never add react or ink to a local \`node_modules\`: a second React copy breaks every hook ("Invalid hook call", \`isRawModeSupported === undefined\`).
+- **\`fileManager.watch\` emits \`file:change\` before its own bookkeeping** — a handler that moves or deletes the file crashes the watcher's internal \`statSync\`; defer mutating work (\`setTimeout(() => processFile(e.path), 100)\`). Watching is recursive by default — filter by directory in your handler.
+- **\`docs.models\` showing only \`["Base"]\`** means \`docs/models.ts\` failed to load *silently* — run \`bun docs/models.ts\` to see the real error (often package resolution).
+- **Registry names are camelCase, files are kebab-case** (\`cipherSocial\` ↔ \`cipher-social.ts\`). Don't guess short names; when \`luca describe\` fails, its "Available:" list is authoritative.
+- **Server options belong in the constructor** — \`container.server('websocket', { port: 8099, json: true })\`, then \`start()\`. If a server "isn't responding," verify the port it *actually* bound before debugging the client.
+- **Builds can lie** — \`bun build --compile\` can exit 0 without writing the binary. Check the artifact exists on disk before reporting success.
+- **Don't scaffold a custom client when a built-in speaks the protocol** (websocket, rest) — use it directly with your message conventions on top. If you do write one: \`afterInitialize()\` fires but is **not awaited** — do synchronous setup there and put connection work behind an explicit \`connect()\`.
 
 ## Extending the Container
 
@@ -443,6 +660,35 @@ luca scaffold endpoint users --description "User management API"
 \`\`\`
 
 Run \`luca scaffold\` with no arguments for full usage and examples.
+
+## Assistants
+
+\`luca scaffold assistant <name>\` creates \`assistants/<name>/\` — an assistant is just that folder:
+
+- \`CORE.md\` — injected into the system prompt
+- \`tools.ts\` — exports a \`schemas\` object (zod v4, keys = tool names) plus a matching exported function per key. The luca \`container\` is available as a **global** in tools.ts and hooks.ts (add \`declare const container: any\` for your editor).
+- \`hooks.ts\` — exported functions named after assistant lifecycle events
+
+At runtime \`assistant.tools.<name>\` is \`{ handler, parameters, description }\` — call \`assistant.tools.myTool.handler({...})\`, not \`assistant.tools.myTool()\`. Check what's registered with \`container.feature('assistantsManager').availableAssistants\`. Chat interactively with \`luca chat <name>\`.
+
+## Shipping a Binary
+
+\`luca bundle <name>\` compiles the whole project — features, commands, endpoints, and every \`assistants/\` folder with a CORE.md — into a standalone consumer binary at \`dist/<name>-<platform>\`:
+
+\`\`\`sh
+luca bundle fortune                          # darwin-arm64 by default
+luca bundle fortune --targets darwin-arm64,linux-x64
+luca bundle fortune --builtins eval,describe # opt in to luca built-ins
+\`\`\`
+
+- **Built-in luca commands are opt-in** via \`--builtins\` (only \`run\` is always included, and bundling assistants implies \`chat\` + \`assistant\`). If you skip \`eval\`/\`describe\`, the binary can't be introspected — you'd have to rebuild.
+- **Verify from the binary itself**, not just the dev CLI:
+  \`\`\`sh
+  ./dist/<name>-<platform> <yourCommand>
+  ./dist/<name>-<platform> run scripts/smoke.ts
+  ./dist/<name>-<platform> eval "container.feature('assistantsManager').availableAssistants"   # needs --builtins eval
+  \`\`\`
+- Bundled assistants are embedded in the binary and materialized to \`~/.luca/bundles/<name>/assistants\` on first run — edits to your \`assistants/\` folder don't reach an already-built binary; rebundle.
 
 ## Git Strategy
 
@@ -496,8 +742,9 @@ export const Note = defineModel('Note', {
  */
 
 export async function main(container: any) {
-  // Discover project-level helpers (commands/, features/, endpoints/)
-  await container.helpers.discoverAll()
+  // Project helpers (commands/, features/, clients/, servers/, endpoints/) are
+  // auto-discovered by the CLI before dispatch — no discoverAll() needed here.
+  // (Opt out with LUCA_COMMAND_DISCOVERY=commands-only.)
 
   // Handle unknown commands gracefully instead of silently failing
   container.onMissingCommand(async ({ phrase }: { phrase: string }) => {
@@ -611,14 +858,15 @@ export default Example
  * For example: \`luca about commands\` → options._[1] === 'commands'
  */
 import { z } from 'zod'
-import type { ContainerContext } from 'luca'
+import type { ContainerContext, NodeContainer } from 'luca'
 
 export const description = 'Display project information and discovered helpers'
 
 export const argsSchema = z.object({})
 
 export default async function about(options: z.infer<typeof argsSchema>, context: ContainerContext) {
-  const { container } = context
+  // The runtime container is the full node container — cast for typed access
+  const container = context.container as unknown as NodeContainer
   const ui = container.feature('ui')
 
   // Discover all project-level helpers (commands, features, endpoints, etc.)
@@ -641,8 +889,24 @@ export default async function about(options: z.infer<typeof argsSchema>, context
     }
   }
 
-  const totalBuiltIn = types.reduce((sum: number, t: string) => sum + (container[t]?.available?.length || 0), 0)
-  ui.print.dim(\`\\n  \${totalBuiltIn} built-in helpers available. Run \\\`luca describe\\\` for details.\\n\`)
+  // Assistants register through the assistantsManager rather than discoverAll —
+  // this also lists assistants embedded in a bundled consumer binary.
+  // (assistantsManager comes from the AGI layer, outside NodeContainer's typed features)
+  const assistants = (container.feature as any)('assistantsManager').availableAssistants || []
+  if (assistants.length > 0) {
+    ui.print.green(\`  assistants (\${assistants.length})\`)
+    for (const name of assistants) {
+      ui.print(\`    • \${name}\`)
+    }
+  }
+
+  // In a bundled consumer binary this command runs under that binary's name,
+  // and describe/eval are only present when compiled in via --builtins.
+  const binaryName = (container as any)._binaryName || 'luca'
+  const totalBuiltIn = types.reduce((sum: number, t: string) => sum + ((container as any)[t]?.available?.length || 0), 0)
+  const inspector = ['describe', 'eval'].find((cmd) => container.commands.has(cmd))
+  const hint = inspector ? \` Run \\\`\${binaryName} \${inspector}\\\` for details.\` : ''
+  ui.print.dim(\`\\n  \${totalBuiltIn} built-in helpers available.\${hint}\\n\`)
 }
 `,
   "health-endpoint": `/**
@@ -719,545 +983,592 @@ await render('Greeting', { name: 'Jon', role: 'Humble Servant' })
 }
 
 export const bootstrapExamples: Record<string, string> = {
-  "disk-cache.md": `---
-title: "Disk Cache"
-tags: [diskCache, storage, caching]
-lastTested: null
-lastTestPassed: null
+  "meta-discovery.md": `---
+title: 'Meta-Discovery: Building a Plugin System'
+tags:
+  - helpers
+  - discovery
+  - plugins
+  - registry
+  - commands
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# diskCache
+# Meta-Discovery: Building a Plugin System
 
-A file-backed key-value cache powered by cacache (the same store behind npm). Persist arbitrary data to disk with a simple get/set interface.
+The \`helpers\` feature isn't just how Luca loads your project's \`commands/\` folder — it's a composition point. Call \`discover(type, { directory })\` once per plugin folder and you have a plugin system: each plugin ships its own \`commands/\`, and they all land in the same registry. This is exactly how \`assistantsManager\` loads per-assistant helpers in production.
 
-## Overview
+## Fake up two plugins
 
-The \`diskCache\` feature is on-demand. Enable it with a \`path\` option pointing to a cache directory. It is ideal for persisting computed results, downloaded assets, or any data you want to survive across process restarts without setting up a full database.
-
-## Creating a Cache
-
-We start by enabling the feature and pointing it at a temporary directory.
+Each plugin is just a folder with a \`commands/\` directory inside. One of our plugins ships commands; the other doesn't — which must be fine.
 
 \`\`\`ts
-const cache = container.feature('diskCache', { path: '/tmp/luca-example-cache' })
-console.log('diskCache enabled:', cache.state.get('enabled'))
+const fs = container.feature('fs')
+const base = container.paths.resolve('tmp', 'meta-discovery-plugins')
+
+fs.ensureFolder(container.paths.resolve(base, 'analytics', 'commands'))
+fs.writeFile(container.paths.resolve(base, 'analytics', 'commands', 'track.ts'), \`
+export const description = 'Track an analytics event'
+export default async function track() { return 'tracked!' }
+\`)
+fs.writeFile(container.paths.resolve(base, 'analytics', 'commands', 'report.ts'), \`
+export const description = 'Generate an analytics report'
+export default async function report() { return 'reported!' }
+\`)
+
+// the billing plugin declares no commands folder at all
+fs.ensureFolder(container.paths.resolve(base, 'billing'))
+
+console.log('plugins created under', base)
 \`\`\`
 
-The cache directory is created automatically when the first entry is written.
+## Discover each plugin's commands
 
-## Storing and Retrieving Values
-
-Use \`set()\` to write a key and \`get()\` to read it back.
+\`discover(type, { directory })\` scans any folder — not just the conventional project locations — and registers what it finds. A plugin with no \`commands/\` folder simply yields \`[]\`; it is not an error.
 
 \`\`\`ts
-await cache.set('greeting', 'Hello from Luca!')
-const value = await cache.get('greeting')
-console.log('Retrieved:', value)
+const helpers = container.feature('helpers')
+
+const fromAnalytics = await helpers.discover('commands', {
+  directory: container.paths.resolve(base, 'analytics', 'commands'),
+})
+console.log('analytics plugin registered:', fromAnalytics)
+
+const fromBilling = await helpers.discover('commands', {
+  directory: container.paths.resolve(base, 'billing', 'commands'),
+})
+console.log('billing plugin registered:', fromBilling)
 \`\`\`
 
-The value comes back exactly as stored.
+## Enumerate the registry — with .available, not Object.keys()
 
-## Checking for Keys
-
-Use \`has()\` to check whether a key exists without reading it.
+Registries are class instances — \`Object.keys(container.commands)\` returns internals like \`["scope", "baseClass"]\`, never the registered names. The accessor you want is \`.available\`.
 
 \`\`\`ts
-const exists = await cache.has('greeting')
-console.log('Has greeting?', exists)
-const missing = await cache.has('nonexistent')
-console.log('Has nonexistent?', missing)
+console.log('Object.keys(container.commands):', Object.keys(container.commands))
+console.log('container.commands.available:', container.commands.available.filter(n => ['track', 'report'].includes(n)))
 \`\`\`
 
-This is useful for conditional caching patterns where you want to skip expensive work if a result is already stored.
+## Run a discovered command
 
-## Listing All Keys
-
-Use \`keys()\` to enumerate everything in the cache.
+Everything discovered is a first-class registry member — dispatch it headlessly like any built-in, or from the CLI as \`luca track\`.
 
 \`\`\`ts
-await cache.set('user:1', JSON.stringify({ name: 'Alice' }))
-await cache.set('user:2', JSON.stringify({ name: 'Bob' }))
-const allKeys = await cache.keys()
-console.log('All keys:', allKeys)
+const cmd = container.command('track')
+const result = await cmd.dispatch({}, 'headless')
+console.log('track() →', JSON.stringify(result))
 \`\`\`
 
-Keys are plain strings, so you can use naming conventions like prefixes to organize entries.
-
-## Removing Entries
-
-Use \`rm()\` to delete a single key, or \`clearAll(true)\` to wipe the entire cache.
+## Cleanup
 
 \`\`\`ts
-await cache.rm('user:2')
-const afterRemove = await cache.keys()
-console.log('After removing user:2:', afterRemove)
-
-await cache.clearAll(true)
-const afterClear = await cache.keys()
-console.log('After clearAll:', afterClear)
+await fs.rmdir(base)
+console.log('cleaned up')
 \`\`\`
 
-Note that \`clearAll\` requires passing \`true\` as a confirmation safeguard.
+## The generalized plugin loader
 
-## Summary
-
-This demo covered creating a disk cache, storing and retrieving values, checking key existence, listing keys, and removing entries. The \`diskCache\` feature provides a lightweight persistence layer without any external dependencies.
-`,
-  "fs.md": `---
-title: "fs"
-tags: [fs, filesystem, core]
-lastTested: null
-lastTestPassed: null
----
-
-# fs
-
-File system utilities for reading, writing, checking, and walking files and directories.
-
-## Overview
-
-The \`fs\` feature is a core feature, meaning it is auto-enabled on every container. You can access it directly as a global or via \`container.feature('fs')\`. It provides synchronous and asynchronous methods for common filesystem operations. All paths are resolved relative to the container's working directory.
-
-## Reading Files
-
-Use \`readFile()\` to read a file as a string. This is the simplest way to get file contents.
-
-\`\`\`ts
-const content = fs.readFile('README.md')
-console.log('README.md length:', content.length, 'characters')
-console.log('First line:', content.split('\\n')[0])
-\`\`\`
-
-The returned value is always a string, ready for processing.
-
-## Reading JSON
-
-Use \`readJson()\` to read and parse a JSON file in one step. No need for manual \`JSON.parse()\`.
-
-\`\`\`ts
-const pkg = fs.readJson('package.json')
-console.log('Package name:', pkg.name)
-console.log('Version:', pkg.version)
-console.log('Dependencies:', Object.keys(pkg.dependencies || {}).length, 'packages')
-\`\`\`
-
-This is especially handy for configuration files and manifests.
-
-## Checking Existence
-
-Use \`exists()\` to check whether a file or directory is present before operating on it.
-
-\`\`\`ts
-console.log('README.md exists:', fs.exists('README.md'))
-console.log('package.json exists:', fs.exists('package.json'))
-console.log('nonexistent.txt exists:', fs.exists('nonexistent.txt'))
-console.log('src/ exists:', fs.exists('src'))
-\`\`\`
-
-Returns a simple boolean. There is also an \`existsAsync()\` variant.
-
-## Walking a Directory
-
-Use \`walk()\` to recursively list all files under a directory tree. You can filter to just files or just directories.
-
-\`\`\`ts
-const result = fs.walk('src', { files: true, directories: false, exclude: ['node_modules'] })
-console.log('Total files in src/:', result.files.length)
-console.log('First 5 files:')
-result.files.slice(0, 5).forEach(f => console.log(' ', f))
-\`\`\`
-
-Walk returns an object with \`files\` and \`directories\` arrays of relative paths.
-
-## Finding Files Upward
-
-Use \`findUp()\` to search for a file by walking up the directory tree from the current working directory. This is useful for locating project root markers.
-
-\`\`\`ts
-const tsconfig = fs.findUp('tsconfig.json')
-console.log('tsconfig.json found at:', tsconfig)
-
-const packageJson = fs.findUp('package.json')
-console.log('package.json found at:', packageJson)
-\`\`\`
-
-Returns the absolute path if found, or \`null\` if the file is not in any ancestor directory.
-
-## Summary
-
-This demo covered reading files as strings and JSON, checking existence, recursively walking directories, and searching upward for project configuration files. These are the bread-and-butter operations for any script that needs to interact with the filesystem.
-`,
-  "ipc-socket.md": `---
-title: "IPC Socket"
-tags: [ipcSocket, ipc, unix-socket, messaging]
-lastTested: null
-lastTestPassed: null
----
-
-# ipcSocket
-
-Inter-process communication via Unix domain sockets. Supports both server and client modes with JSON message serialization, broadcast messaging, and event-driven message handling.
-
-## Overview
-
-The \`ipcSocket\` feature enables processes to communicate through file-system-based Unix domain sockets. A server listens on a socket path and accepts multiple client connections. Messages are automatically JSON-encoded with unique IDs. Both server and client emit \`message\` events for incoming data. Because IPC requires coordinating two processes (server and client), all socket operation examples use skip blocks.
-
-## Enabling the Feature
-
-\`\`\`ts
-const ipc = container.feature('ipcSocket', { enable: true })
-console.log('IPC Socket enabled:', ipc.state.get('enabled'))
-console.log('Current mode:', ipc.state.get('mode'))
-\`\`\`
-
-## Exploring the API
-
-\`\`\`ts
-const docs = container.features.describe('ipcSocket')
-console.log(docs)
-\`\`\`
-
-## Checking Mode
-
-\`\`\`ts
-const ipc = container.feature('ipcSocket')
-console.log('Is server:', ipc.isServer)
-console.log('Is client:', ipc.isClient)
-\`\`\`
-
-## Starting a Server
-
-Listen on a Unix domain socket and handle incoming connections.
+The loop that turns this into a real plugin system — point it at a folder of plugin folders. Discovery results are cached per directory, so calling it twice is free. (Shown, not executed.)
 
 \`\`\`ts skip
-const server = await ipc.listen('/tmp/myapp.sock', true)
-console.log('Server listening')
+const fs = container.feature('fs')
+const helpers = container.feature('helpers')
+const pluginsRoot = container.paths.resolve('plugins')
 
-ipc.on('connection', (socket) => {
-  console.log('Client connected')
-})
-
-ipc.on('message', (data) => {
-  console.log('Received:', data)
-  ipc.broadcast({ reply: 'ACK', original: data })
-})
-\`\`\`
-
-The second argument \`true\` removes any stale socket file before binding. Without it, the call throws if the socket file already exists.
-
-## Connecting a Client
-
-Connect to an existing server and exchange messages.
-
-\`\`\`ts skip
-const socket = await ipc.connect('/tmp/myapp.sock')
-console.log('Connected to server')
-
-ipc.on('message', (data) => {
-  console.log('Server says:', data)
-})
-
-ipc.send({ type: 'hello', clientId: 'worker-1' })
-\`\`\`
-
-Messages sent via \`ipc.send()\` are automatically wrapped with a unique ID for tracking. The server receives the original data in the \`message\` event.
-
-## Broadcasting Messages
-
-Send a message to all connected clients from the server.
-
-\`\`\`ts skip
-ipc.broadcast({
-  type: 'notification',
-  message: 'Deployment starting',
-  timestamp: Date.now()
-})
-\`\`\`
-
-Each connected client receives the broadcast as a \`message\` event. Messages are JSON-encoded with a UUID for correlation.
-
-## Stopping the Server
-
-Gracefully shut down the server and disconnect all clients.
-
-\`\`\`ts skip
-await ipc.stopServer()
-console.log('Server stopped')
-\`\`\`
-
-The \`stopServer\` method closes the listener, destroys all active client connections, and resets internal state.
-
-## Summary
-
-The \`ipcSocket\` feature provides Unix domain socket IPC with JSON message serialization, multi-client support, broadcast messaging, and automatic socket cleanup. It works in either server or client mode within a single feature instance.
-`,
-  "json-tree.md": `---
-title: "JSON Tree"
-tags: [jsonTree, json, files, data-loading]
-lastTested: null
-lastTestPassed: null
----
-
-# jsonTree
-
-Load JSON files from directory structures into a nested object tree.
-
-## Overview
-
-The \`jsonTree\` feature is an on-demand feature that recursively scans a directory for \`.json\` files and builds a hierarchical JavaScript object from them. File paths are converted to camelCased property paths, so \`config/database/production.json\` becomes \`tree.config.database.production\`. This is useful when your project stores structured data across many JSON files and you want to access it all through a single unified object.
-
-## Feature Documentation
-
-Let us inspect the feature's built-in documentation.
-
-\`\`\`ts
-const desc = container.features.describe('jsonTree')
-console.log(desc)
-\`\`\`
-
-The key method is \`loadTree(basePath, key?)\` which scans a directory and populates the \`tree\` getter.
-
-## Enabling the Feature
-
-Enable jsonTree and check its initial state.
-
-\`\`\`ts
-const jsonTree = container.feature('jsonTree', { enable: true })
-console.log('jsonTree enabled:', jsonTree.state.enabled)
-console.log('Initial tree:', JSON.stringify(jsonTree.tree))
-\`\`\`
-
-The tree starts empty until you load directories into it.
-
-## How loadTree Works
-
-The \`loadTree(basePath, key?)\` method recursively scans a directory for \`.json\` files, parses each one, and builds a nested object from the file paths. The optional \`key\` parameter controls where in the tree the data is stored.
-
-\`\`\`ts
-console.log('loadTree processing steps:')
-console.log('  1. Scans basePath recursively for *.json files')
-console.log('  2. Reads and parses each file with JSON.parse()')
-console.log('  3. Converts file paths to camelCased property paths')
-console.log('  4. Stores the result under the given key in feature state')
-console.log('')
-console.log('Example call: await jsonTree.loadTree("config", "appConfig")')
-console.log('  config/db/prod.json => jsonTree.tree.appConfig.db.prod')
-\`\`\`
-
-After calling \`loadTree\`, the data is accessible through the \`tree\` getter, which returns all loaded trees minus internal state properties.
-
-## Inspecting the Tree Getter
-
-The \`tree\` getter provides clean access to loaded data. Before any data is loaded, it returns an empty object.
-
-\`\`\`ts
-console.log('Tree before loading:', JSON.stringify(jsonTree.tree))
-console.log('Tree type:', typeof jsonTree.tree)
-console.log('Tree is clean (no "enabled" key):', !('enabled' in jsonTree.tree))
-\`\`\`
-
-The getter filters out the internal \`enabled\` state property so you only see your loaded JSON data.
-
-## Path Transformation Rules
-
-The feature applies consistent transformations when building the tree:
-
-- Directory names become nested object properties
-- File names (without \`.json\`) become leaf properties
-- All names are converted to camelCase
-- Hyphens and dots in names are handled by the camelCase conversion
-
-\`\`\`ts
-// Conceptual example of path mapping:
-const mappings = {
-  'config/database/production.json': 'tree.config.database.production',
-  'data/user-profiles.json': 'tree.data.userProfiles',
-  'settings/app-config.json': 'tree.settings.appConfig',
-}
-for (const [file, path] of Object.entries(mappings)) {
-  console.log(\`\${file} => \${path}\`)
+for (const plugin of fs.readdirSync(pluginsRoot)) {
+  // each plugin may ship commands/, endpoints/, features/ — all optional
+  for (const type of ['commands', 'endpoints', 'features']) {
+    const names = await helpers.discover(type, {
+      directory: container.paths.resolve(pluginsRoot, plugin, type),
+    })
+    if (names.length) console.log(\`[\${plugin}] loaded \${type}:\`, names)
+  }
 }
 \`\`\`
 
+For loading a single module file (a plugin manifest, say) use \`helpers.loadModuleExports(absPath)\` instead of a raw dynamic \`import()\` — it works both in dev and inside the compiled \`luca\` binary, where project files must load through the VM.
+
 ## Summary
 
-This demo covered the \`jsonTree\` feature, which scans directories for JSON files and builds a nested object tree from them. File paths are transformed into camelCased property paths, making it easy to access deeply nested configuration or data files through a single unified interface.
+\`helpers.discover(type, { directory })\` per plugin folder = a plugin system with no new machinery: missing folders yield \`[]\`, results cache per directory, and everything lands in the standard registries. Enumerate registries with \`.available\` (never \`Object.keys()\`), and load one-off modules with \`helpers.loadModuleExports()\` so the compiled binary stays happy.
 `,
-  "package-finder.md": `---
-title: "Package Finder"
-tags: [packageFinder, packages, dependencies, npm]
-lastTested: null
-lastTestPassed: null
+  "data-pipeline-fs-grep-sqlite.md": `---
+title: 'Data Pipeline: grep → normalize → SQLite'
+tags:
+  - pipeline
+  - grep
+  - sqlite
+  - fs
+  - data
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# packageFinder
+# Data Pipeline: grep → normalize → SQLite
 
-Scans your workspace's node_modules and builds a queryable index of every installed package. Find duplicates, inspect versions, and map dependency relationships.
+A recurring shape: scan something with \`grep\`/\`fs\`, normalize the hits in plain JavaScript, load them into SQLite, then answer questions with SQL. The store-choice heuristic that drives it: **the moment you want to ask questions of your data — group it, count it, filter it, join it — put it in \`sqlite\`**. \`diskCache\` is for opaque values you fetch by key; container state is for in-process wiring. Anything *queryable* belongs in a database, and the \`sqlite\` feature makes that a one-liner.
 
-## Overview
+This pipeline scans this repo's \`src/\` tree for code annotations (TODO, FIXME, HACK, XXX), loads them into a temp database, and asks it questions. Run \`luca describe grep\` and \`luca describe sqlite\` for the full API of each helper.
 
-The \`packageFinder\` feature is on-demand. After enabling and starting it, it recursively walks all node_modules directories, reads every package.json, and indexes the results. Use it for dependency auditing, duplicate detection, or understanding what is actually installed in your project.
+## Extract — scan the codebase with grep
 
-## Starting the Finder
-
-Enable the feature and run the initial scan.
+\`grep.todos()\` is a canned search for \`TODO|FIXME|HACK|XXX\` that returns structured \`{ file, line, column, content }\` matches with paths relative to the container cwd. One caveat worth knowing: it matches the words *anywhere on the line* — including inside string literals and generated documentation — not just in comments. We'll deal with that in the normalize step.
 
 \`\`\`ts
-const finder = container.feature('packageFinder')
-await finder.start()
-console.log('Scan complete:', finder.isStarted)
-console.log('Unique packages:', finder.packageNames.length)
-console.log('Total manifests:', finder.manifests.length)
+// bare assignment (no const) — hits survives into the later blocks
+hits = await grep.todos({ path: 'src', include: '*.ts' })
+console.log(\`raw hits in src/: \${hits.length}\`)
+console.log('first hit:', JSON.stringify(hits[0]))
 \`\`\`
 
-The difference between unique package names and total manifests reveals how many packages exist in multiple copies (different versions in different locations).
+(\`grep\`, \`fs\`, and \`os\` are already in scope in these runnable docs — the container injects its context. In your own scripts, \`container.feature('grep')\` gets you the same instance.)
 
-## Listing Packages
+## Transform — normalize the raw matches
 
-Browse the discovered package names.
+Raw grep output is not yet *data*. Each row we load should carry the fields we'll want to query by: which tag, which file, which top-level area of the codebase. This is also where we drop noise — generated build artifacts (\`*generated*.ts\`) mention TODO in prose constantly, and they're not actionable annotations.
 
 \`\`\`ts
-const names = finder.packageNames
-console.log('First 10 packages:')
-names.slice(0, 10).forEach(n => console.log(' ', n))
+const TAG = /\\b(TODO|FIXME|HACK|XXX)\\b/
+
+annotations = hits
+  .filter(h => !/generated/.test(h.file))
+  .map(h => ({
+    tag: h.content.match(TAG)[1],
+    file: h.file,
+    line: h.line,
+    area: h.file.split('/').slice(0, 2).join('/'),
+    text: h.content.trim().slice(0, 160),
+  }))
+
+if (annotations.length === 0) throw new Error('expected at least one annotation in src/')
+console.log(\`normalized: \${annotations.length} annotations (dropped \${hits.length - annotations.length} from generated files)\`)
 \`\`\`
 
-Package names include both scoped and unscoped packages from every node_modules tree in the workspace.
+## Load — bulk insert into a temp SQLite database
 
-## Finding a Package by Name
-
-Look up a specific package to see its version and location.
+Use a real file in the OS temp dir — \`container.paths.resolve(os.tmpdir, ...)\`, **not** \`paths.join\`, which prepends the cwd even to absolute paths. For the bulk insert, \`db.transaction()\` with a prepared statement is the fast, all-or-nothing idiom: the transaction function must be synchronous, so we use the raw \`db.db\` prepared statement inside it.
 
 \`\`\`ts
-const zod = finder.findByName('zod')
-if (zod) {
-  console.log('Found:', zod.name)
-  console.log('Version:', zod.version)
-  console.log('Description:', zod.description)
+dbPath = container.paths.resolve(os.tmpdir, \`annotations-\${Date.now()}.sqlite\`)
+db = container.feature('sqlite', { path: dbPath })
+
+db.db.exec(\`
+  CREATE TABLE annotations (
+    id INTEGER PRIMARY KEY,
+    tag TEXT NOT NULL,
+    file TEXT NOT NULL,
+    line INTEGER NOT NULL,
+    area TEXT NOT NULL,
+    text TEXT NOT NULL
+  )
+\`)
+
+db.transaction(() => {
+  const insert = db.db.query(\`INSERT INTO annotations (tag, file, line, area, text) VALUES (?, ?, ?, ?, ?)\`)
+  for (const a of annotations) insert.run(a.tag, a.file, a.line, a.area, a.text)
+})
+
+const [{ n }] = await db.sql\`SELECT COUNT(*) AS n FROM annotations\`
+if (n !== annotations.length) throw new Error(\`loaded \${n}, expected \${annotations.length}\`)
+console.log(\`loaded \${n} rows into \${dbPath}\`)
+\`\`\`
+
+## Query — answer questions with tagged-template SQL
+
+This is the payoff. Questions that would be awkward loops over an array are one \`GROUP BY\` away. \`db.sql\` is a tagged template — every \`\${value}\` becomes a bound \`?\` parameter automatically, so there's no injection risk and no placeholder wiring.
+
+\`\`\`ts
+byTag = await db.sql\`
+  SELECT tag, COUNT(*) AS count
+  FROM annotations
+  GROUP BY tag
+  ORDER BY count DESC
+\`
+console.log('annotations by tag:', JSON.stringify(byTag))
+
+const hotspots = await db.sql\`
+  SELECT area, COUNT(*) AS count
+  FROM annotations
+  GROUP BY area
+  ORDER BY count DESC
+  LIMIT 3
+\`
+console.log('busiest areas:', JSON.stringify(hotspots))
+\`\`\`
+
+Interpolated values are bound, not spliced — filter by whatever the previous step produced:
+
+\`\`\`ts
+const topTag = byTag[0].tag
+
+const examples = await db.sql\`
+  SELECT file, line, text
+  FROM annotations
+  WHERE tag = \${topTag}
+  ORDER BY file, line
+  LIMIT 3
+\`
+console.log(\`sample \${topTag} annotations:\`)
+for (const e of examples) console.log(\`  \${e.file}:\${e.line}  \${e.text.slice(0, 80)}\`)
+\`\`\`
+
+## Verify — SQL and JavaScript agree
+
+A pipeline you can't cross-check is a pipeline you can't trust. \`container.utils.lodash.groupBy\` gives us the same aggregation on the in-memory array — the two views of the data must match.
+
+\`\`\`ts
+const { groupBy } = container.utils.lodash
+const jsCounts = groupBy(annotations, 'tag')
+
+for (const row of byTag) {
+  const expected = jsCounts[row.tag].length
+  if (row.count !== expected) throw new Error(\`mismatch for \${row.tag}: sql=\${row.count} js=\${expected}\`)
+}
+
+const sqlTotal = byTag.reduce((sum, r) => sum + r.count, 0)
+if (sqlTotal !== annotations.length) throw new Error('totals diverged')
+console.log(\`verified: SQL GROUP BY matches lodash groupBy across \${byTag.length} tags, \${sqlTotal} rows total\`)
+\`\`\`
+
+## Clean up
+
+Close the connection and remove the temp database file — a pipeline that leaves artifacts behind isn't finished.
+
+\`\`\`ts
+db.close()
+await fs.rm(dbPath)
+if (fs.exists(dbPath)) throw new Error('db file should have been removed')
+console.log('closed connection and removed', dbPath)
+\`\`\`
+
+## Summary
+
+The pipeline shape is always the same: **extract** with a scanning helper (\`grep.search\`/\`grep.todos\`, \`fs\`), **transform** with plain JavaScript into rows that carry your query dimensions, **load** with \`db.transaction()\` + a prepared statement, **query** with \`db.sql\` tagged templates. The heuristic to internalize: as soon as "look at the data" means grouping, counting, or filtering, stop reaching for \`Array.prototype\` gymnastics or a KV store — load it into \`sqlite\` and ask in SQL.
+`,
+  "sqlite-job-queue.md": `---
+title: SQLite Job Queue Worker
+tags:
+  - sqlite
+  - queue
+  - worker
+  - transaction
+  - returning
+  - wal
+lastTested: '2026-07-05'
+lastTestPassed: true
+---
+
+# SQLite Job Queue Worker
+
+A durable job queue needs exactly two SQLite tricks the docs rarely lead with: \`UPDATE … RETURNING\` to claim a job atomically in one statement, and \`transaction()\` for multi-statement all-or-nothing work. With WAL mode, several worker processes can share one queue file safely.
+
+## Create the queue
+
+\`\`\`ts
+const db = container.feature('sqlite', { path: ':memory:' })
+
+// For a real multi-process queue use a file path — and WAL mode, so readers
+// never block the writer: db.db.exec('PRAGMA journal_mode = WAL')
+
+db.db.exec(\`
+  CREATE TABLE jobs (
+    id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'pending',
+    payload TEXT NOT NULL,
+    claimed_at TEXT,
+    finished_at TEXT
+  )
+\`)
+console.log('queue table created')
+\`\`\`
+
+## Enqueue some work
+
+\`\`\`ts
+await db.execute(\`INSERT INTO jobs (payload) VALUES (?), (?), (?)\`, [
+  JSON.stringify({ task: 'send-email', to: 'a@example.com' }),
+  JSON.stringify({ task: 'resize-image', file: 'photo.jpg' }),
+  JSON.stringify({ task: 'sync-crm' }),
+])
+
+const pending = await db.query(\`SELECT COUNT(*) AS n FROM jobs WHERE status = 'pending'\`)
+console.log('pending jobs:', pending[0].n)
+\`\`\`
+
+## Claim a job atomically with UPDATE … RETURNING
+
+This is the heart of the worker. One statement finds the oldest pending job, marks it running, and hands it back — no read-then-write race, no explicit transaction needed. Two workers running this concurrently can never claim the same job.
+
+\`\`\`ts
+const claimed = await db.query(\`
+  UPDATE jobs
+  SET status = 'running', claimed_at = datetime('now')
+  WHERE id = (
+    SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1
+  )
+  RETURNING id, payload
+\`)
+
+console.log('claimed job:', claimed[0].id, '→', JSON.parse(claimed[0].payload).task)
+\`\`\`
+
+An empty array means the queue is drained — that's the worker's signal to idle.
+
+## Multi-statement work: transaction()
+
+When finishing a job touches more than one row, wrap it in \`transaction()\` — it commits when the function returns, rolls back if it throws. The function must be synchronous (bun:sqlite transactions don't span awaits), so use the raw \`db.db\` prepared statements inside.
+
+\`\`\`ts
+const [job] = await db.query(\`SELECT id FROM jobs WHERE status = 'running' LIMIT 1\`)
+
+db.transaction(() => {
+  db.db.query(\`UPDATE jobs SET status = 'done', finished_at = datetime('now') WHERE id = ?\`).run(job.id)
+  db.db.query(\`INSERT INTO jobs (payload) VALUES (?)\`).run(JSON.stringify({ task: 'send-receipt' }))
+})
+
+const counts = await db.query(\`SELECT status, COUNT(*) AS n FROM jobs GROUP BY status ORDER BY status\`)
+console.log('queue state:', JSON.stringify(counts))
+\`\`\`
+
+If anything inside throws, neither statement lands:
+
+\`\`\`ts
+try {
+  db.transaction(() => {
+    db.db.query(\`UPDATE jobs SET status = 'cancelled' WHERE status = 'pending'\`).run()
+    throw new Error('something went wrong mid-job')
+  })
+} catch (err) {
+  console.log('rolled back:', err.message)
+}
+
+const counts2 = await db.query(\`
+  SELECT
+    SUM(status = 'cancelled') AS cancelled,
+    SUM(status = 'pending') AS pending
+  FROM jobs
+\`)
+console.log(\`cancelled: \${counts2[0].cancelled}, pending: \${counts2[0].pending} — the UPDATE never landed\`)
+\`\`\`
+
+## The worker loop
+
+The complete worker command shape — poll with \`utils.every\`, claim with RETURNING, guard single-instance with \`proc.establishLock\`. (Shown, not executed — it runs forever. See the *Daemon & Poll-Loop Commands* example for the lifecycle details.)
+
+\`\`\`ts skip
+export default async function worker(options, context) {
+  const { container } = context
+  container.feature('proc').establishLock('tmp/worker.pid')
+
+  const db = container.feature('sqlite', { path: 'queue.db' })
+  db.db.exec('PRAGMA journal_mode = WAL')
+
+  const stop = container.utils.every(5000, async () => {
+    const [job] = await db.query(\`
+      UPDATE jobs SET status = 'running', claimed_at = datetime('now')
+      WHERE id = (SELECT id FROM jobs WHERE status = 'pending' ORDER BY id LIMIT 1)
+      RETURNING id, payload
+    \`)
+    if (!job) return // queue drained — idle until the next tick
+
+    await processJob(JSON.parse(job.payload))
+    await db.execute(\`UPDATE jobs SET status = 'done', finished_at = datetime('now') WHERE id = ?\`, [job.id])
+  }, { immediate: true, onError: (err) => console.error('worker tick failed:', err) })
+
+  process.on('SIGINT', () => { stop(); process.exit(0) })
+  await new Promise(() => {})
 }
 \`\`\`
 
-If multiple versions exist, \`findByName\` returns the first match. Use \`filter()\` to find all instances.
-
-## Scoped Packages
-
-The finder tracks which npm scopes are present in your dependencies.
-
-\`\`\`ts
-const scopes = finder.scopes
-console.log('Scopes found:', scopes.length)
-scopes.slice(0, 8).forEach(s => {
-  const count = finder.packageNames.filter(n => n.startsWith(s)).length
-  console.log(\`  \${s}: \${count} packages\`)
-})
-\`\`\`
-
-This is useful for auditing which organizations and ecosystems your project depends on.
-
-## Detecting Duplicates
-
-Packages that appear in multiple locations (often at different versions) show up in the duplicates list.
-
-\`\`\`ts
-const dupes = finder.duplicates
-console.log('Duplicate packages:', dupes.length)
-dupes.slice(0, 5).forEach(name => {
-  const count = finder.counts[name]
-  console.log(\`  \${name}: \${count} copies\`)
-})
-\`\`\`
-
-Duplicates increase install size and can cause subtle bugs when multiple versions of the same library coexist.
-
 ## Summary
 
-This demo covered scanning the workspace for packages, listing and looking up packages, inspecting scopes, and detecting duplicates. The \`packageFinder\` feature gives you a complete inventory of your installed dependencies for auditing and analysis.
+\`UPDATE … RETURNING\` claims jobs atomically in one statement — the idiom that makes SQLite a real queue. \`transaction()\` covers multi-statement commits with automatic rollback. Add WAL mode for multi-process access, \`utils.every\` for the poll loop, and \`proc.establishLock\` for single-instance workers.
 `,
-  "process-manager.md": `---
-title: "Process Manager"
-tags: [processManager, processes, spawn, lifecycle]
-lastTested: null
-lastTestPassed: null
+  "server-client-roundtrip-ws.md": `---
+title: 'Server ↔ Client Roundtrip: WebSockets'
+tags:
+  - websocket
+  - servers
+  - clients
+  - ask
+  - reply
+  - broadcast
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# processManager
+# Server ↔ Client Roundtrip: WebSockets
 
-Manage long-running child processes with tracking, events, and automatic cleanup.
+The websocket server and websocket client are **paired helpers**: \`container.server('websocket')\` speaks the same framing as \`container.client('websocket')\`, so you get JSON messages, connection state, and an \`ask()\`/\`reply()\` request-response protocol without writing any correlation plumbing yourself. This doc runs the whole conversation in one process: plain send/receive, asks in both directions, error replies, timeouts, broadcast to multiple clients, and clean shutdown.
 
-## Overview
+For each helper's full API: \`luca describe servers.websocket\`, \`luca describe clients.websocket\`.
 
-The \`processManager\` feature is an on-demand feature for spawning and supervising child processes. Unlike \`proc.spawn\` which blocks until a process exits, processManager returns a \`SpawnHandler\` immediately -- a handle object with its own state, events, and lifecycle methods. The feature tracks all spawned processes and can kill them all on parent exit. Use it when you need to orchestrate multiple background services, dev servers, or worker processes.
+## Create the server and wire handlers
 
-## Enabling the Feature
-
-Enable the processManager with auto-cleanup so tracked processes are killed when the parent exits.
+With \`json: true\` the server JSON-parses incoming messages before emitting its \`message\` event (handler signature: \`(data, ws)\`). Any message that arrives with a \`requestId\` gets \`reply()\` and \`replyError()\` helpers attached — that is the server half of the ask protocol.
 
 \`\`\`ts
-const pm = container.feature('processManager', { enable: true, autoCleanup: true })
-console.log('ProcessManager enabled:', pm.state.enabled)
-console.log('Total spawned so far:', pm.state.totalSpawned)
+// bare assignments (no const) so these survive into later blocks
+server = container.server('websocket', { json: true })
+
+server.on('message', (data, ws) => {
+  if (data.type === 'add') {
+    data.reply({ sum: data.data.a + data.data.b })
+  } else if (data.type === 'divide') {
+    if (data.data.b === 0) data.replyError('division by zero')
+    else data.reply({ result: data.data.a / data.data.b })
+  }
+})
+console.log('server created and handlers wired')
 \`\`\`
 
-## Spawning a Process
+## Start it, connect a client
 
-Spawn a short-lived process and capture its output. The \`spawn\` method returns a \`SpawnHandler\` immediately.
+\`start({ port })\` overrides any constructor port. The client's \`connect()\` resolves once the socket is open, and \`state.connected\` tracks the connection from then on.
 
 \`\`\`ts
-const handle = pm.spawn('echo', ['hello from process manager'], { tag: 'greeter' })
-console.log('Spawned process tag:', 'greeter')
-console.log('Handle has kill method:', typeof handle.kill === 'function')
+port = await networking.findOpenPort(19910)
+await server.start({ port })
+if (server.state.get('listening') !== true) throw new Error('server did not report listening')
+
+client = container.client('websocket', { baseURL: \`ws://localhost:\${port}\` })
+await client.connect()
+if (client.state.get('connected') !== true) throw new Error('client did not report connected')
+console.log('server listening on', port, '— client connected')
 \`\`\`
 
-The handle provides methods like \`kill()\` and events like \`stdout\`, \`stderr\`, \`exited\`, and \`crashed\`.
+## Plain send and receive
 
-## Listing Tracked Processes
-
-The processManager keeps track of every process it has spawned, whether running or finished.
+Fire-and-forget messages flow through each side's \`message\` event. Every helper has \`waitFor(event)\` — a promise for the next emission (it resolves with the first listener argument). Create the promise **before** sending, or you race the delivery.
 
 \`\`\`ts
-const all = pm.list()
-console.log('Tracked processes:', all.length)
-console.log('Total spawned:', pm.state.totalSpawned)
+// client -> server
+const arrived = server.waitFor('message')
+await client.send({ type: 'ping', at: 42 })
+const msg = await arrived
+if (msg.type !== 'ping' || msg.at !== 42) throw new Error('server did not receive the ping payload intact')
+
+// server -> client: server.send(ws, data) targets one connection
+const pushed = client.waitFor('message')
+await server.send([...server.connections][0], { type: 'pong', at: 43 })
+const back = await pushed
+if (back.type !== 'pong' || back.at !== 43) throw new Error('client did not receive the pong payload intact')
+
+console.log('roundtrip verified: ping', msg.at, '/ pong', back.at)
 \`\`\`
 
-You can also look up a specific process by its tag.
+## The client asks, the server replies
+
+\`ask(type, data, timeout?)\` sends a message with a generated \`requestId\` and returns a promise for the correlated reply's \`data\`. On the server, \`data.reply(payload)\` answers it. You never touch \`requestId\`/\`replyTo\` yourself.
 
 \`\`\`ts
-const found = pm.getByTag('greeter')
-console.log('Found by tag:', found ? 'yes' : 'no')
+const sum = await client.ask('add', { a: 3, b: 4 })
+if (sum.sum !== 7) throw new Error(\`ask('add') returned \${JSON.stringify(sum)}\`)
+
+const quotient = await client.ask('divide', { a: 10, b: 4 })
+if (quotient.result !== 2.5) throw new Error(\`ask('divide') returned \${JSON.stringify(quotient)}\`)
+
+console.log('3 + 4 =', sum.sum, '| 10 / 4 =', quotient.result)
 \`\`\`
 
-## Spawning and Killing
+## Error replies reject the ask
 
-You can spawn a longer process and then kill it. Here we spawn \`sleep\` and immediately terminate it.
+Unlike the rest client (which *returns* errors), \`ask()\` failures **throw**: a \`replyError(message)\` from the server rejects the pending promise with that message.
 
 \`\`\`ts
-const sleeper = pm.spawn('sleep', ['10'], { tag: 'sleeper' })
-console.log('Sleeper spawned')
-sleeper.kill()
-console.log('Sleeper killed')
-console.log('Total spawned now:', pm.state.totalSpawned)
+let caught = null
+try {
+  await client.ask('divide', { a: 1, b: 0 })
+} catch (err) {
+  caught = err
+}
+if (!caught || !caught.message.includes('division by zero')) {
+  throw new Error('replyError did not reject the ask with the server message')
+}
+console.log('error reply rejected the ask:', caught.message)
 \`\`\`
 
-## Cleaning Up
+## The server asks the client
 
-The \`killAll\` method terminates every tracked process, and \`stop\` does a full teardown including removing exit handlers.
+The protocol is symmetric. A server-initiated ask arrives at the client as a normal \`message\` carrying a \`requestId\`; the client answers by echoing it back as \`replyTo\`. The server addresses a specific socket from its \`connections\` set.
 
 \`\`\`ts
-pm.killAll()
-const remaining = pm.list().filter(h => h.state?.status === 'running')
-console.log('Running after killAll:', remaining.length)
+client.on('message', (data) => {
+  if (data.requestId && data.type === 'whoAreYou') {
+    client.send({ replyTo: data.requestId, data: { name: 'roundtrip-client', version: '1.0' } })
+  }
+})
+
+const identity = await server.ask([...server.connections][0], 'whoAreYou')
+if (identity.name !== 'roundtrip-client') throw new Error('server.ask did not get the client identity')
+console.log('client identified itself as', identity.name, identity.version)
+\`\`\`
+
+## Timeouts
+
+If nobody replies, \`ask()\` rejects after the timeout (default 10s, configurable as the third argument). Our server has no handler for \`noop\`, so nothing answers.
+
+\`\`\`ts
+try {
+  await client.ask('noop', {}, 500)
+  throw new Error('ask should have timed out')
+} catch (err) {
+  if (!err.message.includes('timed out')) throw err
+  console.log('timed out as expected:', err.message)
+}
+\`\`\`
+
+## Broadcast to every connected client
+
+\`broadcast(data)\` sends to all connections. One memoization gotcha: helper factories cache per id + options, so \`container.client('websocket', { baseURL })\` with identical options returns the **same instance**. Give the second client a distinguishing option (like \`name\`) to get a genuinely separate socket.
+
+\`\`\`ts
+client2 = container.client('websocket', { baseURL: \`ws://localhost:\${port}\`, name: 'second' })
+await client2.connect()
+if (server.connections.size !== 2) throw new Error(\`expected 2 connections, server sees \${server.connections.size}\`)
+
+const first = client.waitFor('message')
+const second = client2.waitFor('message')
+await server.broadcast({ type: 'announcement', text: 'hello everyone' })
+
+const [gotFirst, gotSecond] = await Promise.all([first, second])
+if (gotFirst.text !== 'hello everyone') throw new Error('client 1 missed the broadcast')
+if (gotSecond.text !== 'hello everyone') throw new Error('client 2 missed the broadcast')
+console.log('both clients received the broadcast')
+\`\`\`
+
+## Disconnect and stop
+
+An open socket keeps the event loop alive — a CLI command that skips this step hangs forever. \`disconnect()\` suppresses auto-reconnect and rejects any in-flight asks; \`stop()\` terminates remaining connections and closes the server.
+
+\`\`\`ts
+await client.disconnect()
+await client2.disconnect()
+if (client.state.get('connected') !== false) throw new Error('client 1 still reports connected')
+if (client2.state.get('connected') !== false) throw new Error('client 2 still reports connected')
+
+await server.stop()
+if (server.state.get('listening') !== false) throw new Error('server still reports listening')
+console.log('clients disconnected, server stopped')
 \`\`\`
 
 ## Summary
 
-This demo covered the \`processManager\` feature: spawning processes that return handles immediately, tracking them by ID or tag, listing all tracked processes, and killing them individually or all at once. It is the right tool for orchestrating background services, dev servers, and any scenario where you need non-blocking process management with lifecycle events.
+One paired protocol, both directions: \`send()\` for fire-and-forget, \`ask()\`/\`reply()\`/\`replyError()\` for request-response (correlation IDs handled for you), \`broadcast()\` for fan-out, and \`waitFor(event)\` to await deliveries without callback bookkeeping. Asks **throw** on error and timeout — the opposite convention from the rest client, which returns errors as values. And always \`disconnect()\` + \`stop()\` at the end, or the process never exits.
 `,
   "entity.md": `---
-title: "Entity"
-tags: [entity, state, events, tools, core]
-lastTested: null
-lastTestPassed: null
+title: Entity
+tags:
+  - entity
+  - state
+  - events
+  - tools
+  - core
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
 # entity
@@ -1379,23 +1690,29 @@ console.log('registered tools:', Object.keys(schemas))
 Entities give you observable state, a typed event bus, and prototype-safe method extension — all as a plain object with no class overhead. The \`.expose()\` / \`.toTools()\` interface makes it straightforward to surface entity methods as AI tools.
 `,
   "assistant-with-process-manager.md": `---
-title: "Assistant with ProcessManager Tools"
-tags: [assistant, processManager, tools, runtime, use]
-lastTested: null
-lastTestPassed: null
+title: Assistant with ProcessManager Tools
+tags:
+  - assistant
+  - processManager
+  - tools
+  - runtime
+  - use
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
 # Assistant with ProcessManager Tools
 
-Create an assistant at runtime, give it processManager tools, and watch it orchestrate long-running processes — spawning ping and top, checking their output over time, running a quick command in between, then coming back to report.
+Create an assistant at runtime, give it processManager tools via \`assistant.use()\`, and let it orchestrate long-running processes — spawning ping and top, checking their output over time, running a quick command in between, then coming back to report.
 
-## The Demo
+## Wire the tools (no API key needed)
+
+\`assistant.use(feature)\` registers the feature's tool surface immediately — the tool schemas, bound handlers, and system-prompt extension all exist before any model is involved. That makes the wiring verifiable without credentials:
 
 \`\`\`ts
-const pm = container.feature('processManager', { enable: true, autoCleanup: true })
-const ui = container.feature('ui')
+pm = container.feature('processManager', { enable: true, autoCleanup: true })
 
-const assistant = container.feature('assistant', {
+assistant = container.feature('assistant', {
   systemPrompt: [
     'You are a process management assistant with tools to spawn, monitor, inspect, and kill background processes.',
     'When asked to check on processes, use getProcessOutput to read their latest output and summarize what you see.',
@@ -1407,11 +1724,19 @@ const assistant = container.feature('assistant', {
 })
 
 assistant.use(pm)
-await assistant.start()
 
 const tools = Object.keys(assistant.tools)
-console.log(ui.colors.cyan('Tools registered:'), tools.join(', '))
-console.log()
+console.log('Tools registered:', tools.join(', '))
+if (tools.length === 0) throw new Error('assistant.use(pm) registered no tools')
+\`\`\`
+
+## The conversation demo
+
+Driving the conversation calls the model, so this part needs an \`OPENAI_API_KEY\`:
+
+\`\`\`ts skip
+await assistant.start()
+const ui = container.feature('ui')
 
 // ── Helper to print assistant responses ──────────────────────────────
 const ask = async (label, question) => {
@@ -1452,444 +1777,559 @@ await ask('CHECK-IN #2',
 await ask('CLEANUP',
   'Kill all running processes and confirm they are stopped.'
 )
+\`\`\`
 
-// Belt and suspenders
+## Cleanup always works headlessly
+
+The tools the assistant would call are just processManager methods — call them directly to prove the surface is live:
+
+\`\`\`ts
 pm.killAll()
 const remaining = pm.list().filter(h => h.status === 'running')
-console.log(ui.colors.green('Running after cleanup:'), remaining.length)
+console.log('Running after cleanup:', remaining.length)
+if (remaining.length !== 0) throw new Error('processes survived killAll')
 \`\`\`
 
 ## Summary
 
-This example showed a runtime assistant orchestrating real background processes over multiple conversation turns — spawning long-running \`ping\` and \`top\` commands, checking in on their output as it accumulates, running a quick \`uptime\` in between, then coming back for a second check-in before cleaning everything up. The assistant parsed ping times, summarized CPU usage, and managed the full lifecycle without any hardcoded logic — just natural language and processManager tools.
+The runnable part proves the composition: a runtime assistant wired with processManager tools, verified without a model call. The skipped conversation shows what it looks like driven end to end — spawning long-running \`ping\` and \`top\` commands, checking in on their output as it accumulates, running a quick \`uptime\` in between, then cleaning everything up with natural language alone. See [feature-as-tool-provider](./feature-as-tool-provider.md) for how to author your own tool-providing feature.
 `,
-  "postgres.md": `---
-title: "PostgreSQL"
-tags: [postgres, database, sql, storage]
-lastTested: null
-lastTestPassed: null
+  "full-stack-slice.md": `---
+title: 'A Full-Stack Slice: Endpoints, Express, and the REST Client'
+tags:
+  - express
+  - rest
+  - endpoints
+  - servers
+  - clients
+  - composition
+  - rateLimit
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# postgres
+# A Full-Stack Slice: Endpoints, Express, and the REST Client
 
-PostgreSQL feature for safe SQL execution through Bun's native SQL client. Supports parameterized queries, tagged-template literals, and write operations.
+One vertical slice, all in this process: file-based **endpoint modules** mounted on the **express server**, consumed by the **rest client** — including the two behaviors that surprise everyone: rate limiting declared as an export, and the rest client *returning* errors instead of throwing them.
 
-## Overview
+For each helper's full API: \`luca describe express\`, \`luca describe rest\`, \`luca describe endpoints\`.
 
-Use the \`postgres\` feature when you need to interact with a PostgreSQL database. It provides three query interfaces: parameterized \`query()\` for reads, \`execute()\` for writes, and the \`sql\` tagged template for injection-safe inline SQL.
+## Write an endpoints folder
 
-Requires a running PostgreSQL instance and a connection URL.
-
-## Enabling the Feature
+An endpoint module exports a \`path\` plus HTTP-method functions (\`get\`, \`post\`, ...). Whatever they return is sent as JSON. \`export const rateLimit\` declares throttling — no middleware wiring. This is exactly what \`luca serve\` mounts from your project's \`endpoints/\` folder. Modules without a \`path\` export are skipped.
 
 \`\`\`ts
-const pg = container.feature('postgres', {
-  url: 'postgres://user:pass@localhost:5432/mydb'
-})
-console.log('Postgres feature created')
-console.log('Connection URL configured:', !!pg.state.url)
-\`\`\`
-
-Pass your connection URL via the \`url\` option. In production, read from an environment variable.
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('postgres')
-console.log(info)
-\`\`\`
-
-## Parameterized Queries
-
-Use \`query()\` for SELECT statements with \`$N\` placeholders to prevent SQL injection.
-
-\`\`\`ts skip
-const users = await pg.query(
-  'SELECT id, email FROM users WHERE active = $1 LIMIT $2',
-  [true, 10]
-)
-console.log(\`Found \${users.length} active users\`)
-users.forEach(u => console.log(\`  \${u.id}: \${u.email}\`))
-\`\`\`
-
-With a running database, this would return an array of row objects matching the query. The \`query\` event fires on each execution.
-
-## Tagged Template SQL
-
-The \`sql\` tagged template automatically converts interpolated values into bound parameters.
-
-\`\`\`ts skip
-const email = 'hello@example.com'
-const rows = await pg.sql\`
-  SELECT id, name FROM users WHERE email = \${email}
-\`
-console.log('Found:', rows)
-\`\`\`
-
-This is the most ergonomic way to write queries. Each interpolated value becomes a \`$N\` parameter automatically, preventing SQL injection without manual placeholder numbering.
-
-## Write Operations
-
-Use \`execute()\` for INSERT, UPDATE, and DELETE statements that return affected row counts.
-
-\`\`\`ts skip
-const { rowCount } = await pg.execute(
-  'UPDATE users SET active = $1 WHERE last_login < $2',
-  [false, '2024-01-01']
-)
-console.log(\`Deactivated \${rowCount} users\`)
-\`\`\`
-
-The \`execute\` event fires with the row count after each write operation.
-
-## Closing the Connection
-
-\`\`\`ts skip
-await pg.close()
-console.log('Connection closed:', !pg.state.connected)
-\`\`\`
-
-Always close the connection when done. The \`closed\` event fires after teardown.
-
-## Summary
-
-The \`postgres\` feature wraps Bun's native SQL client with three query methods: \`query()\` for parameterized reads, \`execute()\` for writes, and the \`sql\` tagged template for ergonomic injection-safe queries. Events fire for each operation. Key methods: \`query()\`, \`execute()\`, \`sql\`, \`close()\`.
-`,
-  "python.md": `---
-title: "Python"
-tags: [python, scripting, virtualenv, integration]
-lastTested: null
-lastTestPassed: null
----
-
-# python
-
-Python virtual machine feature for executing Python code, managing environments, and installing dependencies. Automatically detects uv, conda, venv, or system Python.
-
-## Overview
-
-The \`python\` feature provides a bridge between Luca and the Python ecosystem. It auto-detects the best available Python environment (uv, conda, venv, system), can install project dependencies, and execute Python code with variable injection and local variable capture. Requires Python to be installed on the host.
-
-## Enabling the Feature
-
-\`\`\`ts
-const python = container.feature('python', { enable: true })
-console.log('Python feature enabled:', python.state.get('enabled'))
-console.log('Python ready:', python.state.get('isReady'))
-\`\`\`
-
-## Exploring the API
-
-\`\`\`ts
-const docs = container.features.describe('python')
-console.log(docs)
-\`\`\`
-
-## Environment Detection
-
-\`\`\`ts
-const python = container.feature('python')
-await python.detectEnvironment()
-console.log('Environment type:', python.state.get('environmentType'))
-console.log('Python path:', python.state.get('pythonPath'))
-\`\`\`
-
-## Running Inline Code
-
-Execute Python code directly and capture the output.
-
-\`\`\`ts skip
-const result = await python.execute('print("Hello from Python!")')
-console.log('stdout:', result.stdout)
-console.log('exit code:', result.exitCode)
-\`\`\`
-
-You can also pass variables into the Python context and capture locals after execution.
-
-\`\`\`ts skip
-const result = await python.execute(
-  'greeting = f"Hello {name}, you are {age}!";\\nprint(greeting)',
-  { name: 'Alice', age: 30 },
-  { captureLocals: true }
-)
-console.log('stdout:', result.stdout)
-console.log('locals:', result.locals)
-\`\`\`
-
-The \`captureLocals\` option serializes all local variables from the script back to JavaScript as JSON.
-
-## Running a Script File
-
-Execute an existing \`.py\` file and capture its output.
-
-\`\`\`ts skip
-const result = await python.executeFile('/path/to/analysis.py')
-console.log('stdout:', result.stdout)
-console.log('stderr:', result.stderr)
-\`\`\`
-
-## Creating a Virtual Environment
-
-Install project dependencies using the auto-detected package manager.
-
-\`\`\`ts skip
-const python = container.feature('python', {
-  dir: '/path/to/python-project',
-  installCommand: 'pip install -r requirements.txt'
-})
-const result = await python.installDependencies()
-console.log('Install exit code:', result.exitCode)
-\`\`\`
-
-When no \`installCommand\` is provided, the feature infers the correct command from the detected environment type (e.g., \`uv sync\` for uv, \`pip install -e .\` for venv).
-
-## Persistent Sessions
-
-Start a long-lived Python process where state persists across calls. Ideal for working inside real Python codebases, data analysis, and anything with expensive setup.
-
-\`\`\`ts skip
-const python = container.feature('python', { dir: '/path/to/python-project' })
-await python.enable()
-await python.startSession()
-
-// State persists across calls
-await python.run('x = 42')
-const result = await python.run('print(x * 2)')
-console.log('stdout:', result.stdout) // '84\\n'
-
-// Evaluate expressions and get values back
-const val = await python.eval('x + 1')
-console.log('eval:', val) // 43
-
-// Import project modules (sys.path is set up automatically)
-await python.importModule('json')
-const encoded = await python.call('json.dumps', [{ key: 'value' }], { indent: 2 })
-console.log('call:', encoded)
-
-// Inspect the namespace
-const locals = await python.getLocals()
-console.log('locals:', Object.keys(locals))
-
-// Errors don't crash the session
-const bad = await python.run('raise ValueError("oops")')
-console.log('error:', bad.error) // 'oops'
-
-// Still alive
-const check = await python.run('print("still here")')
-console.log(check.stdout) // 'still here\\n'
-
-// Clean up
-await python.stopSession()
-\`\`\`
-
-See the [Python Sessions tutorial](../tutorials/19-python-sessions.md) for real-world patterns (data pipelines, Django, ML models).
-
-## Summary
-
-The \`python\` feature bridges Luca and Python by auto-detecting environments, managing dependencies, and providing both stateless execution and persistent sessions. It supports uv, conda, venv, and system Python installations.
-`,
-  "yaml.md": `---
-title: "YAML"
-tags: [yaml, parsing, serialization, config]
-lastTested: null
-lastTestPassed: null
----
-
-# yaml
-
-Parse YAML strings into JavaScript objects and serialize objects back to YAML. A thin wrapper around js-yaml.
-
-## Overview
-
-The \`yaml\` feature is on-demand. It provides two methods: \`parse()\` and \`stringify()\`. Use it any time you need to read or write YAML configuration files, convert between formats, or work with YAML data in memory.
-
-## Parsing a YAML String
-
-Start by enabling the feature and parsing some YAML.
-
-\`\`\`ts
-const yml = container.feature('yaml')
-const config = yml.parse(\`
-name: my-app
-version: 2.1.0
-database:
-  host: localhost
-  port: 5432
-features:
-  - auth
-  - logging
-  - caching
-\`)
-console.log('Parsed name:', config.name)
-console.log('Parsed db host:', config.database.host)
-console.log('Parsed features:', config.features)
-\`\`\`
-
-The parser handles nested objects, arrays, numbers, and booleans automatically.
-
-## Serializing an Object to YAML
-
-Use \`stringify()\` to convert a JavaScript object into a YAML-formatted string.
-
-\`\`\`ts
-const output = yml.stringify({
-  server: { host: '0.0.0.0', port: 3000 },
-  logging: { level: 'info', pretty: true },
-  cors: { origins: ['https://example.com', 'https://app.example.com'] }
-})
-console.log('YAML output:')
-console.log(output)
-\`\`\`
-
-The output is human-readable and suitable for writing to configuration files.
-
-## Round-Trip Conversion
-
-A common pattern is reading YAML, modifying data, and writing it back. Here we verify that a round-trip preserves data.
-
-\`\`\`ts
-const original = \`
-environment: production
-replicas: 3
-resources:
-  cpu: 500m
-  memory: 256Mi
-\`
-const parsed = yml.parse(original)
-parsed.replicas = 5
-parsed.resources.memory = '512Mi'
-const updated = yml.stringify(parsed)
-console.log('Updated YAML:')
-console.log(updated)
-const reparsed = yml.parse(updated)
-console.log('Replicas after round-trip:', reparsed.replicas)
-console.log('Memory after round-trip:', reparsed.resources.memory)
-\`\`\`
-
-The data survives the parse-modify-stringify cycle intact.
-
-## Working with Complex Structures
-
-YAML handles deeply nested and mixed-type structures well.
-
-\`\`\`ts
-const complex = yml.stringify({
-  users: [
-    { name: 'Alice', roles: ['admin', 'editor'], active: true },
-    { name: 'Bob', roles: ['viewer'], active: false },
-  ],
-  settings: {
-    maxRetries: 3,
-    timeout: null,
-    nested: { deep: { value: 42 } }
-  }
-})
-console.log(complex)
-\`\`\`
-
-Nulls, booleans, numbers, and nested arrays all serialize cleanly.
-
-## Summary
-
-This demo covered parsing YAML strings, serializing objects to YAML, round-trip conversion, and handling complex nested structures. The \`yaml\` feature gives you a clean two-method API for all YAML operations.
-`,
-  "nlp.md": `---
-title: "Natural Language Processing"
-tags: [nlp, parsing, text-analysis]
-lastTested: null
-lastTestPassed: null
----
-
-# nlp
-
-Natural language processing utilities for parsing utterances into structured data, POS tagging, and entity extraction.
-
-## Overview
-
-The \`nlp\` feature is an on-demand feature that combines two complementary NLP libraries: **compromise** for verb normalization and quick structural parsing, and **wink-nlp** for high-accuracy part-of-speech tagging and named entity recognition. Use it when you need to extract intent from voice commands, classify sentence structure, or identify entities in text.
-
-## Enabling the Feature
-
-The nlp feature is on-demand, so we enable it explicitly.
-
-\`\`\`ts
-const nlp = container.feature('nlp', { enable: true })
-console.log('NLP feature enabled:', nlp.state.enabled)
-\`\`\`
-
-## Parsing Voice Commands
-
-The \`parse()\` method uses compromise to extract structured command data: an intent (normalized verb), a target noun, an optional prepositional subject, and any modifiers.
-
-\`\`\`ts
-const cmd1 = nlp.parse("open the terminal")
-console.log('Command:', JSON.stringify(cmd1, null, 2))
-\`\`\`
-
-Prepositional phrases with "of" are extracted as the subject.
-
-\`\`\`ts
-const cmd2 = nlp.parse("draw a diagram of the auth flow")
-console.log('Command with subject:', JSON.stringify(cmd2, null, 2))
-\`\`\`
-
-Notice how \`intent\` is the normalized verb form ("draw"), \`target\` is the direct object ("diagram"), and \`subject\` captures the prepositional phrase ("auth flow").
-
-## POS Tagging and Entity Recognition
-
-The \`analyze()\` method uses wink-nlp for high-accuracy part-of-speech tagging and named entity recognition.
-
-\`\`\`ts
-const analysis = nlp.analyze("meet john at 3pm about the deployment")
-console.log('Tokens:')
-for (const tok of analysis.tokens) {
-  console.log(\`  \${tok.value.padEnd(15)} \${tok.pos}\`)
-}
-console.log('Entities:', JSON.stringify(analysis.entities))
-\`\`\`
-
-Each token is tagged with its part of speech (VERB, NOUN, ADP, DET, etc.) and named entities like times and proper nouns are extracted separately.
-
-## Full Understanding
-
-The \`understand()\` method combines both \`parse()\` and \`analyze()\` into a single result, giving you structured command data alongside detailed POS tags and entities.
-
-\`\`\`ts
-const full = nlp.understand("send an email to sarah about the quarterly report")
-console.log('Intent:', full.intent)
-console.log('Target:', full.target)
-console.log('Modifiers:', full.modifiers)
-console.log('Token count:', full.tokens.length)
-console.log('Entities:', JSON.stringify(full.entities))
-\`\`\`
-
-This is the most complete method when you need both the high-level command structure and the detailed linguistic analysis in one call.
-
-## Comparing Multiple Commands
-
-Parse is fast and lightweight, making it suitable for batch processing of voice commands.
-
-\`\`\`ts
-const commands = [
-  "deploy the app to production",
-  "restart the database server",
-  "show logs for the api gateway",
+// bare assignment: survives into later blocks
+endpointsDir = container.paths.resolve('tmp', \`full-stack-slice-\${Date.now()}\`, 'endpoints')
+fs.ensureFolder(endpointsDir)
+
+fs.writeFile(container.paths.resolve(endpointsDir, 'todos.ts'), \`
+export const path = '/todos'
+
+const todos = [
+  { id: 1, title: 'write the docs', done: false },
+  { id: 2, title: 'ship the docs', done: false },
 ]
-for (const raw of commands) {
-  const parsed = nlp.parse(raw)
-  console.log(\`"\${raw}" => intent: \${parsed.intent}, target: \${parsed.target}\`)
+
+export async function get() {
+  return { todos }
+}
+
+// handlers receive (params, ctx) — params merges query + body + route params
+export async function post(params) {
+  const todo = { id: todos.length + 1, title: params.title, done: false }
+  todos.push(todo)
+  return todo
+}
+\`)
+
+fs.writeFile(container.paths.resolve(endpointsDir, 'status.ts'), \`
+export const path = '/status'
+export const rateLimit = { maxRequests: 3, windowSeconds: 60 }
+
+export async function get() {
+  return { ok: true, at: new Date().toISOString() }
+}
+\`)
+
+console.log('endpoint modules written')
+\`\`\`
+
+## Mount and start the server
+
+\`useEndpoints(dir)\` mounts every module in the folder at its exported \`path\`. You can also hang plain express routes off \`server.app\` before or after starting.
+
+\`\`\`ts
+server = container.server('express')
+
+// a hand-rolled route alongside the endpoint modules
+server.app.get('/health', (req, res) => res.json({ healthy: true }))
+
+await server.useEndpoints(endpointsDir)
+
+const port = await networking.findOpenPort(4310)
+await server.start({ port })
+console.log('listening on', server.port)
+\`\`\`
+
+## Consume it with the rest client
+
+The client returns **parsed JSON directly** — no \`{ data, status }\` wrapper to unwrap.
+
+\`\`\`ts
+api = container.client('rest', { baseURL: \`http://localhost:\${server.port}\`, json: true })
+
+const health = await api.get('/health')
+if (health.healthy !== true) throw new Error('health route broken')
+
+const listing = await api.get('/todos')
+if (listing.todos.length !== 2) throw new Error('expected 2 seed todos')
+
+const created = await api.post('/todos', { title: 'celebrate' })
+if (created.id !== 3) throw new Error('post did not create todo #3')
+
+console.log('created:', created)
+\`\`\`
+
+## Errors are returned, not thrown
+
+This is the framework's most important anti-prior. HTTP error statuses (a 404 here) and connection failures (a dead port) both **resolve** with the error serialized as a plain object — \`instanceof Error\` is \`false\`, and try/catch catches nothing. Inspect the shape.
+
+\`\`\`ts
+// a 404 — returned, not thrown
+const missing = await api.get('/nope')
+if (missing instanceof Error) throw new Error('unexpected: 404 came back as an Error instance')
+if (missing?.status !== 404 && missing?.name !== 'AxiosError') {
+  throw new Error('expected the 404 to come back as a serialized AxiosError')
+}
+console.log('404 came back as a value:', missing.name, missing.status ?? missing.code)
+
+// a connection refused — also returned, not thrown. The exact \`code\` string
+// depends on the runtime: 'ConnectionRefused' under Bun, 'ECONNREFUSED' under Node.
+const deadPort = await networking.findOpenPort(4550)
+const down = container.client('rest', { baseURL: \`http://localhost:\${deadPort}\` })
+const result = await down.get('/anything')
+if (result instanceof Error) throw new Error('unexpected: connection error came back as an Error instance')
+if (!result?.code) throw new Error('expected a connection error code in the returned value')
+console.log('dead server came back as a value:', result.code)
+\`\`\`
+
+So the idiomatic health check is a shape check, not a try/catch:
+
+\`\`\`ts
+const check = await api.get('/status')
+if (check?.name === 'AxiosError') {
+  console.log('server is DOWN:', check.message)
+} else {
+  console.log('server is UP:', check.ok)
 }
 \`\`\`
 
-## Summary
+## Rate limiting kicks in
 
-This demo covered the three main methods of the \`nlp\` feature: \`parse()\` for quick structural extraction from voice commands, \`analyze()\` for detailed POS tagging and entity recognition, and \`understand()\` for a combined view of both. The feature is well suited for building voice command interpreters, chatbot intent classifiers, and text analysis pipelines.
+\`status.ts\` declared \`maxRequests: 3\` per minute. We used one above; two more succeed, then the server answers 429 — which the client, of course, *returns*.
+
+\`\`\`ts
+await api.get('/status')
+await api.get('/status')
+const limited = await api.get('/status')
+
+if (limited?.status !== 429) throw new Error(\`expected a 429 after exceeding the rate limit, got \${JSON.stringify(limited).slice(0, 120)}\`)
+console.log('rate limit enforced with a 429 on request #4')
+\`\`\`
+
+## Shut down
+
+Always stop servers at the end of a script — otherwise the process never exits.
+
+\`\`\`ts
+await server.stop()
+await fs.rmdir(container.paths.resolve(endpointsDir, '..'))
+console.log('server stopped, scratch folder removed')
+\`\`\`
+`,
+  "claude-controller-personas.md": `---
+title: Claude Controller Personas
+tags:
+  - claude
+  - claude-code
+  - tmux
+  - personas
+  - agents
+lastTested: '2026-07-05'
+lastTestPassed: true
+---
+
+# Claude Controller Personas
+
+Use \`claudeController\` personas when you want repeatable interactive Claude Code workers with different instructions, allowed directories, tools, MCP servers, and permission behavior.
+
+\`claudeController\` does not use \`claude -p\`. It starts real interactive Claude Code sessions inside tmux and returns \`ClaudeSessionController\` workers. The top-level \`ClaudeController\` only defines personas and spawns/list/stops session workers; each worker owns \`ask()\`, \`respond()\`, \`chooseOption()\`, screen state, and JSONL session lookup.
+
+## Quick Start
+
+\`\`\`ts
+// bare assignments so these survive into the later blocks
+controller = container.feature('claudeController')
+repo = container.cwd
+
+controller.definePersona('reviewer', {
+  description: 'Strict Luca-aware code reviewer',
+  systemPrompt: \`You are a strict code reviewer for Luca projects.\`,
+  appendSystemPrompt: \`Check Luca conventions, tests, API shape, and edge cases.\`,
+  addDirs: [repo],
+  tools: ['Read', 'Grep', 'Glob', 'Bash'],
+  allowedTools: ['Bash(git *)', 'Bash(bun test *)'],
+  permissionMode: 'acceptEdits',
+})
+
+const reviewerWorker = controller.create({
+  id: 'reviewer',
+  cwd: repo,
+  persona: 'reviewer',
+})
+console.log('reviewer worker constructed (tmux not started yet)')
+\`\`\`
+
+Starting the worker launches a real interactive Claude Code session in tmux — that part is shown, not executed:
+
+\`\`\`ts skip
+await reviewerWorker.start()
+await reviewerWorker.ask('Review the current diff and tell me what is risky.')
+\`\`\`
+
+The persona compiles to normal interactive Claude Code CLI flags before the session starts. For example, the persona above passes flags like \`--system-prompt\`, \`--append-system-prompt\`, \`--add-dir\`, \`--tools\`, \`--allowed-tools\`, and \`--permission-mode\` to \`claude\`.
+
+## Defining Personas
+
+Call \`definePersona(name, persona)\` on the controller. Names are arbitrary strings; use short stable names because they are how later \`create()\`, \`start()\`, or \`startMany()\` calls select a persona.
+
+\`\`\`ts
+controller.definePersona('docs', {
+  description: 'Documentation writer',
+  systemPrompt: \`You write concise docs with runnable TypeScript examples.\`,
+  appendSystemPrompt: \`Prefer Luca container APIs over direct node imports.\`,
+  addDirs: ['/repo'],
+  skillsFolders: ['/repo/.claude/skills'],
+  tools: ['Read', 'Grep', 'Glob', 'Edit'],
+  permissionMode: 'plan',
+})
+\`\`\`
+
+You can define personas during container boot, inside a command, or in whatever module owns your orchestration setup.
+
+## Listing Available Personas
+
+Use \`listPersonas()\` to see the personas registered on this controller instance.
+
+\`\`\`ts
+const personas = controller.listPersonas()
+
+for (const { name, persona } of personas) {
+  console.log(name, persona.description ?? '')
+}
+\`\`\`
+
+Use \`getPersona(name)\` to inspect one persona:
+
+\`\`\`ts
+const reviewer = controller.getPersona('reviewer')
+if (!reviewer) throw new Error('reviewer persona is not registered')
+
+console.log(reviewer.systemPrompt)
+\`\`\`
+
+Personas live in memory on the controller. If you need persistence, store your persona definitions in your project config and call \`definePersona()\` during startup.
+
+## Starting One Persona
+
+\`create()\` constructs a worker without starting tmux. \`start()\` constructs and starts it immediately.
+
+\`\`\`ts skip
+const worker = controller.create({
+  id: 'docs-worker',
+  cwd: '/repo',
+  persona: 'docs',
+})
+
+await worker.start()
+await worker.ask('Update docs for the new command.')
+\`\`\`
+
+Or:
+
+\`\`\`ts skip
+await controller.start({
+  id: 'docs-worker',
+  cwd: '/repo',
+  persona: 'docs',
+})
+
+const worker = controller.session('docs-worker')
+await worker?.ask('Update docs for the new command.')
+\`\`\`
+
+## Starting Multiple Personas
+
+Use \`startMany()\` to launch multiple interactive Claude Code sessions with different personas.
+
+\`\`\`ts skip
+await controller.startMany([
+  { id: 'planner', cwd: repo, persona: 'architect' },
+  { id: 'tester', cwd: repo, persona: 'tdd' },
+  { id: 'reviewer', cwd: repo, persona: 'reviewer' },
+])
+
+await controller.session('planner')?.ask('Plan the refactor.')
+await controller.session('tester')?.ask('Write focused tests for the refactor.')
+await controller.session('reviewer')?.ask('Review the diff for Luca convention issues.')
+\`\`\`
+
+Each session has its own tmux session, cwd, arguments, state snapshot, prompt choices, and input methods.
+
+## Inline Personas
+
+You do not have to register a persona first. Pass a persona object directly in \`create()\` or \`start()\` for one-off sessions.
+
+\`\`\`ts
+const spike = controller.create({
+  id: 'spike',
+  cwd: repo,
+  persona: {
+    description: 'One-off exploration worker',
+    systemPrompt: 'Explore the codebase and report options. Do not edit files.',
+    tools: ['Read', 'Grep', 'Glob'],
+    permissionMode: 'plan',
+  },
+})
+console.log('inline-persona worker constructed')
+\`\`\`
+
+\`\`\`ts skip
+await spike.start()
+await spike.ask('Find the likely files involved in adding OAuth support.')
+\`\`\`
+
+## Overriding Persona Options per Session
+
+Spawn options override scalar persona fields such as \`systemPrompt\`, \`appendSystemPrompt\`, \`permissionMode\`, \`tools\`, \`allowedTools\`, and \`settingsFile\`.
+
+Array-like context fields are combined:
+
+- \`mcpConfig\`: persona entries first, then session entries
+- \`addDirs\`: persona entries first, then session entries
+- \`skillsFolders\`: appended to the \`--add-dir\` list after regular dirs
+- \`args\`: raw extra Claude CLI args appended last
+
+\`\`\`ts
+const worker = controller.create({
+  id: 'docs-opus',
+  persona: 'docs',
+  cwd: repo,
+  systemPrompt: 'Use the docs persona, but focus on API reference only.',
+  addDirs: ['/another/repo'],
+  args: ['--model', 'opus'],
+})
+\`\`\`
+
+This keeps personas reusable while still letting each worker tune model, directories, or instructions for one run.
+
+## Full Persona Example with MCP
+
+\`\`\`ts
+controller.definePersona('luca-architect', {
+  description: 'Architect for Luca framework changes',
+  systemPrompt: \`
+You are an architect for the Luca framework.
+Think in terms of container features, helpers, commands, and runtime discovery.
+Do not use claude -p. You are running as an interactive tmux-backed Claude Code session.
+\`,
+  appendSystemPrompt: \`
+Before proposing implementation details, inspect the runtime surface with luca describe when useful.
+Prefer container.paths and container.feature('fs') over direct path/fs imports.
+\`,
+  addDirs: [
+    '/Users/jonathansoeder/@soederpop/projects/luca',
+    '/Users/jonathansoeder/@agentic-loop',
+  ],
+  skillsFolders: [
+    '/Users/jonathansoeder/@agentic-loop/.claude/skills',
+  ],
+  mcpConfig: [
+    './.claude/mcp.shared.json',
+  ],
+  mcpServers: {
+    luca: {
+      type: 'stdio',
+      command: 'bun',
+      args: ['run', './mcp/luca-server.ts'],
+    },
+  },
+  strictMcpConfig: true,
+  tools: ['Read', 'Grep', 'Glob', 'Bash', 'Edit'],
+  allowedTools: [
+    'Bash(git status *)',
+    'Bash(git diff *)',
+    'Bash(bun test *)',
+    'Bash(luca describe *)',
+    'Bash(luca eval *)',
+  ],
+  permissionMode: 'acceptEdits',
+  settingsFile: './.claude/settings.architect.json',
+})
+\`\`\`
+
+Then start it:
+
+\`\`\`ts skip
+const architect = controller.create({
+  id: 'architect',
+  cwd: repo,
+  persona: 'luca-architect',
+})
+
+await architect.start()
+await architect.ask('Design a small API for persisted persona profiles.')
+\`\`\`
+
+## Persona Options
+
+| Option | Type | CLI output | Notes |
+|--------|------|------------|-------|
+| \`description\` | \`string\` | none | Human-readable note for \`listPersonas()\` output. |
+| \`systemPrompt\` | \`string\` | \`--system-prompt <text>\` | Main system prompt for Claude Code. Session option overrides persona value. |
+| \`appendSystemPrompt\` | \`string\` | \`--append-system-prompt <text>\` | Additional system prompt text. Session option overrides persona value. |
+| \`mcpConfig\` | \`string[]\` | \`--mcp-config <configs...>\` | Paths to MCP config files. Persona and session arrays are combined. |
+| \`mcpServers\` | \`Record<string, any>\` | \`--mcp-config '{"mcpServers": ...}'\` | Inline MCP servers are merged with session servers and passed as an MCP config JSON argument. |
+| \`strictMcpConfig\` | \`boolean\` | \`--strict-mcp-config\` | Requires Claude Code to validate MCP config strictly. |
+| \`addDirs\` | \`string[]\` | \`--add-dir <dirs...>\` | Additional directories Claude may access. Persona and session arrays are combined. |
+| \`skillsFolders\` | \`string[]\` | included in \`--add-dir <dirs...>\` | Directories that contain Claude skills. They are added as allowed dirs for interactive Claude sessions. |
+| \`tools\` | \`string[]\` | \`--tools <tools...>\` | Tool names made available to Claude Code. Session option overrides persona value. |
+| \`allowedTools\` | \`string[]\` | \`--allowed-tools <tools...>\` | Permission allow-list entries. Session option overrides persona value. |
+| \`permissionMode\` | string enum | \`--permission-mode <mode>\` | One of \`default\`, \`acceptEdits\`, \`auto\`, \`bypassPermissions\`, \`plan\`, \`dontAsk\`. |
+| \`settingsFile\` | \`string\` | \`--settings <file>\` | Claude Code settings file path. Session option overrides persona value. |
+
+## Start Options Related to Personas
+
+These options are passed to \`create()\`, \`start()\`, or each entry in \`startMany()\`:
+
+| Option | Type | Notes |
+|--------|------|-------|
+| \`id\` | \`string\` | Worker/session id. Normalized to a compact tmux-safe id. |
+| \`cwd\` | \`string\` | Working directory for this Claude Code session. |
+| \`persona\` | \`string | ClaudeControllerPersona\` | Registered persona name or inline persona object. |
+| \`args\` | \`string[]\` | Raw extra Claude CLI arguments appended after persona-compiled args. |
+| \`width\` | \`number\` | tmux pane width. Defaults to controller option. |
+| \`height\` | \`number\` | tmux pane height. Defaults to controller option. |
+| \`reuse\` | \`boolean\` | Reuse an existing tmux session when supported by the worker. |
+
+The start options also accept every persona option, so you can override or extend persona configuration per session.
+
+## Permission Mode Notes
+
+Common modes:
+
+- \`plan\`: safest for exploration. Claude can plan and ask before edits.
+- \`acceptEdits\`: useful for coding workers where you want Claude Code to accept file edits more smoothly.
+- \`default\`: normal Claude Code permission behavior.
+- \`dontAsk\`, \`auto\`, \`bypassPermissions\`: more permissive modes. Use only when you understand the local Claude Code behavior and trust the working directory.
+
+For unattended or parallel sessions, prefer tight \`allowedTools\` plus a specific \`cwd\` and \`addDirs\` rather than broad permissions.
+
+## Interacting with a Persona Worker
+
+After the worker starts, use the session worker API, not the controller, for input.
+
+\`\`\`ts skip
+const worker = controller.session('reviewer')
+if (!worker) throw new Error('reviewer session was not started')
+
+await worker.ask('Review the diff.')
+
+const snapshot = await worker.refresh()
+if (snapshot.awaitingInput) {
+  console.log(snapshot.choices)
+  await worker.chooseOption(0)
+}
+\`\`\`
+
+The controller intentionally does not expose \`ask()\`, \`respond()\`, or \`chooseOption()\` directly. Those methods belong to \`ClaudeSessionController\` because each worker already knows its own tmux session and Claude state.
+
+## Troubleshooting
+
+### Unknown persona
+
+If \`create({ persona: 'reviewer' })\` throws \`Unknown Claude controller persona: reviewer\`, define it first or pass an inline persona object.
+
+\`\`\`ts
+if (!controller.getPersona('reviewer')) {
+  controller.definePersona('reviewer', { systemPrompt: 'Review code carefully.' })
+}
+\`\`\`
+
+### Persona did not change a running session
+
+Personas compile into CLI args before a worker starts. Changing a persona after \`worker.start()\` does not rewrite the already-running Claude Code process. Stop and start a new worker to apply the changed persona.
+
+### Claude cannot see files
+
+Make sure \`cwd\`, \`addDirs\`, and \`skillsFolders\` include the directories Claude needs. For multi-repo work, set the worker \`cwd\` to the main repo and put sibling repos in \`addDirs\`.
+
+### MCP server does not load
+
+Check these first:
+
+- \`mcpConfig\` paths are correct relative to the worker \`cwd\`
+- inline \`mcpServers\` have the expected \`command\` and \`args\`
+- \`strictMcpConfig\` is not rejecting a loose config
+- the command works when run manually from the same \`cwd\`
+
+## Minimal Pattern for Project Commands
+
+A project command that spawns named workers can define personas once, list them for the operator, then start selected ones.
+
+\`\`\`ts skip
+export default async function run({ container }) {
+  const claude = container.feature('claudeController')
+  const repo = container.paths.resolve('.')
+
+  claude
+    .definePersona('planner', {
+      description: 'Plans the change without editing',
+      systemPrompt: 'Plan the implementation. Do not edit files.',
+      tools: ['Read', 'Grep', 'Glob'],
+      permissionMode: 'plan',
+    })
+    .definePersona('implementer', {
+      description: 'Writes code and tests',
+      systemPrompt: 'Implement the requested change using Luca conventions.',
+      tools: ['Read', 'Grep', 'Glob', 'Edit', 'Bash'],
+      allowedTools: ['Bash(bun test *)', 'Bash(luca describe *)'],
+      permissionMode: 'acceptEdits',
+    })
+
+  console.table(claude.listPersonas().map(({ name, persona }) => ({
+    name,
+    description: persona.description ?? '',
+  })))
+
+  await claude.startMany([
+    { id: 'planner', cwd: repo, persona: 'planner' },
+    { id: 'implementer', cwd: repo, persona: 'implementer' },
+  ])
+}
+\`\`\`
 `,
   "structured-output-with-assistants.md": `---
-title: "Structured Output with Assistants"
-tags: [assistant, conversation, structured-output, zod, openai]
-lastTested: null
-lastTestPassed: null
+title: Structured Output with Assistants
+tags:
+  - assistant
+  - conversation
+  - structured-output
+  - zod
+  - openai
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
 # Structured Output with Assistants
@@ -1902,11 +2342,13 @@ OpenAI's Structured Outputs feature constrains the model to return JSON that exa
 
 Pass a \`schema\` option to \`ask()\` and the response comes back as a parsed object guaranteed to match your schema.
 
+Every block below calls the OpenAI API, so they are shown rather than executed — set \`OPENAI_API_KEY\` and run them yourself (paste into \`luca eval\`, or remove the \`skip\` annotations and \`luca run\` this doc).
+
 ## Basic: Extract Structured Data
 
 The simplest use case — ask a question and get structured data back.
 
-\`\`\`ts
+\`\`\`ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -1934,7 +2376,7 @@ The \`.describe()\` on the schema gives OpenAI the schema name — keep it short
 
 Structured outputs work great for classification tasks where you want the model to pick from a fixed set of values.
 
-\`\`\`ts
+\`\`\`ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -1960,7 +2402,7 @@ Because the model is constrained by the schema, \`sentiment\` will always be one
 
 Schemas can be as complex as you need. Here we extract a structured analysis with nested objects.
 
-\`\`\`ts
+\`\`\`ts skip
 const { z } = container
 const conversation = container.feature('conversation', {
   model: 'gpt-4.1-mini',
@@ -1997,7 +2439,7 @@ Every level of nesting is validated — the model cannot return a feature withou
 
 Structured outputs work the same way through the assistant API. The schema passes straight through to the underlying conversation.
 
-\`\`\`ts
+\`\`\`ts skip
 const { z } = container
 const assistant = container.feature('assistant', {
   systemPrompt: 'You are a code review assistant. You analyze code snippets and provide structured feedback.',
@@ -2030,275 +2472,61 @@ for (const issue of review.issues) {
 
 This demo covered extracting structured data, classification with enums, nested schema validation, and using structured outputs through both the conversation and assistant APIs. The key is passing a Zod schema via \`{ schema }\` in the options to \`ask()\` — OpenAI guarantees the response matches, and you get a parsed object back.
 `,
-  "networking.md": `---
-title: "networking"
-tags: [networking, ports, network, core]
-lastTested: null
-lastTestPassed: null
----
-
-# networking
-
-Port discovery and availability checking for network services.
-
-## Overview
-
-The \`networking\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('networking')\`. It provides async methods for finding available ports and checking whether a given port is already in use. Use it before starting servers to avoid port conflicts.
-
-## Finding an Open Port
-
-Use \`findOpenPort()\` to get the next available port starting from a given number. If the requested port is taken, it searches upward.
-
-\`\`\`ts
-const port = await networking.findOpenPort(3000)
-console.log('Available port starting from 3000:', port)
-\`\`\`
-
-If port 3000 is free, you get 3000 back. If not, you get the next one that is.
-
-## Checking Port Availability
-
-Use \`isPortOpen()\` to check whether a specific port is available without claiming it.
-
-\`\`\`ts
-const is3000Open = await networking.isPortOpen(3000)
-console.log('Port 3000 available:', is3000Open)
-
-const is80Open = await networking.isPortOpen(80)
-console.log('Port 80 available:', is80Open)
-\`\`\`
-
-Returns \`true\` if the port is free, \`false\` if something is already listening on it.
-
-## Finding Multiple Ports
-
-You can call \`findOpenPort()\` with different starting points to allocate several non-conflicting ports for a multi-service setup.
-
-\`\`\`ts
-const apiPort = await networking.findOpenPort(8080)
-const wsPort = await networking.findOpenPort(8090)
-const devPort = await networking.findOpenPort(5173)
-console.log('API server port:', apiPort)
-console.log('WebSocket port:', wsPort)
-console.log('Dev server port:', devPort)
-\`\`\`
-
-Each call independently finds the next available port from its starting point.
-
-## Summary
-
-This demo covered finding available ports from a starting number, checking individual port availability, and allocating multiple ports for multi-service architectures. The \`networking\` feature eliminates port conflicts before they happen.
-`,
-  "vault.md": `---
-title: "Vault"
-tags: [vault, encryption, security, crypto]
-lastTested: null
-lastTestPassed: null
----
-
-# vault
-
-AES-256-GCM encryption and decryption for sensitive data. Encrypt strings and get them back with a simple two-method API.
-
-## Overview
-
-The \`vault\` feature is on-demand. It generates or accepts a secret key and provides \`encrypt()\` and \`decrypt()\` methods using AES-256-GCM, an authenticated encryption scheme. Use it to protect sensitive configuration values, tokens, or any data that should not be stored in plaintext.
-
-## Enabling the Vault
-
-Create a vault instance. It will generate a secret key automatically.
-
-\`\`\`ts
-const vault = container.feature('vault')
-console.log('Vault enabled:', vault.state.get('enabled'))
-\`\`\`
-
-The vault is ready to use immediately after creation.
-
-## Encrypting a String
-
-Pass any plaintext string to \`encrypt()\` and receive an opaque encrypted payload.
-
-\`\`\`ts
-const secret = 'my-database-password-12345'
-const encrypted = vault.encrypt(secret)
-console.log('Original:', secret)
-console.log('Encrypted:', encrypted)
-console.log('Encrypted length:', encrypted.length)
-\`\`\`
-
-The encrypted output is a base64-encoded string containing the IV, auth tag, and ciphertext. It is safe to store in config files or databases.
-
-## Decrypting Back to Plaintext
-
-Use \`decrypt()\` with the same vault instance to recover the original value.
-
-\`\`\`ts
-const decrypted = vault.decrypt(encrypted)
-console.log('Decrypted:', decrypted)
-console.log('Round-trip matches:', decrypted === secret)
-\`\`\`
-
-The decrypted value is identical to the original input.
-
-## Encrypting Multiple Values
-
-Each call to \`encrypt()\` produces a unique ciphertext, even for the same input, because a fresh IV is generated every time.
-
-\`\`\`ts
-const a = vault.encrypt('same-input')
-const b = vault.encrypt('same-input')
-console.log('Encryption A:', a)
-console.log('Encryption B:', b)
-console.log('Same ciphertext?', a === b)
-console.log('Both decrypt correctly?', vault.decrypt(a) === vault.decrypt(b))
-\`\`\`
-
-This property (semantic security) means an attacker cannot tell if two ciphertexts contain the same plaintext.
-
-## Summary
-
-This demo covered enabling the vault, encrypting strings, decrypting them back, and verifying that repeated encryption produces unique ciphertexts. The \`vault\` feature provides straightforward authenticated encryption for any sensitive data your application handles.
-`,
-  "google-calendar.md": `---
-title: "Google Calendar"
-tags: [googleCalendar, google, calendar, events, scheduling]
-lastTested: null
-lastTestPassed: null
----
-
-# googleCalendar
-
-Google Calendar feature for listing calendars and reading events. Creates a Calendar v3 API client and depends on \`googleAuth\` for authentication.
-
-## Overview
-
-Use the \`googleCalendar\` feature when you need to read calendar data: list calendars, fetch today's events, look ahead at upcoming days, or search events by text. Provides convenience methods for common time-based queries alongside the full \`listEvents()\` for custom ranges.
-
-Requires Google OAuth2 credentials or a service account with Calendar access.
-
-## Enabling the Feature
-
-\`\`\`ts
-const calendar = container.feature('googleCalendar', {
-  defaultCalendarId: 'primary',
-  timeZone: 'America/Chicago'
-})
-console.log('Google Calendar feature created')
-console.log('Default calendar:', calendar.defaultCalendarId)
-\`\`\`
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('googleCalendar')
-console.log(info)
-\`\`\`
-
-## Listing Calendars
-
-Discover all calendars accessible to the authenticated user.
-
-\`\`\`ts skip
-const calendars = await calendar.listCalendars()
-calendars.forEach(c => console.log(\`  \${c.summary} (\${c.id})\`))
-\`\`\`
-
-Returns calendar metadata including ID, summary, time zone, and access role. Use the ID to target specific calendars in other methods.
-
-## Today's Events and Upcoming
-
-Quick methods for the most common queries.
-
-\`\`\`ts skip
-const today = await calendar.getToday()
-console.log(\`Today: \${today.length} events\`)
-today.forEach(e => console.log(\`  \${e.start} - \${e.summary}\`))
-
-const upcoming = await calendar.getUpcoming(7)
-console.log(\`Next 7 days: \${upcoming.length} events\`)
-upcoming.forEach(e => console.log(\`  \${e.start} - \${e.summary}\`))
-\`\`\`
-
-\`getToday()\` returns events from midnight to midnight in the configured timezone. \`getUpcoming(days)\` looks ahead the specified number of days from now.
-
-## Searching Events
-
-Search across event summaries, descriptions, and locations.
-
-\`\`\`ts skip
-const meetings = await calendar.searchEvents('standup')
-console.log(\`Found \${meetings.length} standup events\`)
-meetings.forEach(e => console.log(\`  \${e.start} - \${e.summary}\`))
-\`\`\`
-
-The search is freetext and matches against multiple event fields. Combine with time range options for more precise results.
-
-## Custom Time Range Queries
-
-Use \`listEvents()\` for full control over the query parameters.
-
-\`\`\`ts skip
-const events = await calendar.listEvents({
-  timeMin: '2026-03-01T00:00:00Z',
-  timeMax: '2026-03-31T23:59:59Z',
-  maxResults: 50,
-  orderBy: 'startTime',
-  singleEvents: true
-})
-console.log(\`March events: \${events.items.length}\`)
-\`\`\`
-
-Supports pagination via \`pageToken\`, ordering by \`startTime\` or \`updated\`, and filtering by calendar ID.
-
-## Summary
-
-The \`googleCalendar\` feature provides read access to Google Calendar events. Use the convenience methods \`getToday()\` and \`getUpcoming()\` for quick lookups, \`searchEvents()\` for text search, or \`listEvents()\` for full query control. Authentication is handled by \`googleAuth\`. Key methods: \`listCalendars()\`, \`getToday()\`, \`getUpcoming()\`, \`searchEvents()\`, \`listEvents()\`.
-`,
   "feature-as-tool-provider.md": `---
-title: "Features as Tool Providers for Assistants"
-tags: [feature, tools, assistant, composition, use, setupToolsConsumer]
-lastTested: null
-lastTestPassed: null
+title: Features as Tool Providers for Assistants
+tags:
+  - feature
+  - tools
+  - assistant
+  - composition
+  - use
+  - setupToolsConsumer
+  - toTools
+  - authoring
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
 # Features as Tool Providers for Assistants
 
 Any feature can expose tools that assistants pick up via \`assistant.use(feature)\`. This is how you compose lower-level container capabilities into an assistant-ready tool surface. The built-in \`fileTools\` feature is the canonical example — it wraps \`fs\` and \`grep\` into a focused set of tools modeled on what coding assistants need.
 
+For the helpers involved: \`luca describe fileTools\`, \`luca describe assistant\`, \`luca describe helpers\`.
+
 ## The Pattern
 
 A feature becomes a tool provider by defining three things:
 
-1. **\`static tools\`** — a record mapping tool names to Zod schemas with descriptions
-2. **Matching methods** — instance methods whose names match the keys in \`static tools\`
+1. **\`static tools\`** — a record mapping tool names to \`{ description, schema }\` entries (Zod schemas with \`.describe()\` on every field)
+2. **Matching methods** — instance methods whose names match the keys in \`static tools\`; \`toTools()\` auto-binds each schema to the same-named method
 3. **\`setupToolsConsumer()\`** (optional) — a hook that runs when an assistant calls \`use()\`, perfect for injecting system prompt guidance
 
 When an assistant calls \`assistant.use(feature)\`, the framework:
-- Reads \`static tools\` to register each tool with its schema
-- Routes tool calls to the matching instance methods
-- Calls \`setupToolsConsumer()\` so the feature can configure the assistant (e.g. add system prompt extensions)
+- Calls the feature's \`toTools()\` to collect \`{ schemas, handlers }\` (walking the prototype chain, so subclasses can override parent tools; instance-level \`tool()\` registrations win over all)
+- Registers each tool on the assistant via \`addTool()\`
+- Calls \`setupToolsConsumer(assistant)\` so the feature can configure the assistant (e.g. add system prompt extensions)
 
 ## Anatomy of fileTools
 
-Here's the structure of the built-in \`fileTools\` feature (simplified for clarity):
+Here's the structure of the built-in \`fileTools\` feature (abridged from the real source — shown, not executed; the runnable version of this pattern is the walkthrough below):
 
-\`\`\`ts
+\`\`\`ts skip
 import { z } from 'zod'
-import { Feature } from 'luca/feature'
+import { Feature } from 'luca'
 
 export class FileTools extends Feature {
+  static override stability = 'stable' as const
   static { Feature.register(this, 'fileTools') }
 
   // ── 1. Declare tools with Zod schemas ──────────────────────────
-  static tools = {
+  static override tools = {
     readFile: {
       description: 'Read the contents of a file.',
       schema: z.object({
         path: z.string().describe('File path relative to the project root'),
         offset: z.number().optional().describe('Line number to start reading from'),
         limit: z.number().optional().describe('Maximum number of lines to read'),
-      }),
+      }).describe('Read the contents of a file.'),
     },
     searchFiles: {
       description: 'Search file contents for a pattern using ripgrep.',
@@ -2306,42 +2534,25 @@ export class FileTools extends Feature {
         pattern: z.string().describe('Search pattern (regex supported)'),
         path: z.string().optional().describe('Directory to search in'),
         include: z.string().optional().describe('Glob pattern to filter files'),
-      }),
+      }).describe('Search file contents for a pattern using ripgrep.'),
     },
-    editFile: {
-      description: 'Replace an exact string match in a file.',
-      schema: z.object({
-        path: z.string().describe('File path relative to the project root'),
-        oldString: z.string().describe('The exact text to find and replace'),
-        newString: z.string().describe('The replacement text'),
-      }),
-    },
-    // ... more tools
+    // ... editFile, listDirectory, findFiles, fileInfo, and more
   }
 
   // ── 2. Implement each tool as an instance method ───────────────
   // Method names must match the keys in static tools exactly.
-  // Each receives the parsed args object and returns a string.
+  // Each receives the parsed args object; composition happens
+  // through this.container, never through direct imports.
 
   async readFile(args: { path: string; offset?: number; limit?: number }) {
     const fs = this.container.feature('fs')
-    const content = await fs.readFileAsync(args.path)
-    // ... handle offset/limit
-    return content
+    return await fs.readFileAsync(args.path)
   }
 
   async searchFiles(args: { pattern: string; path?: string; include?: string }) {
     const grep = this.container.feature('grep')
     const results = await grep.search({ pattern: args.pattern, path: args.path, include: args.include })
     return JSON.stringify(results.map(r => ({ file: r.file, line: r.line, content: r.content })))
-  }
-
-  async editFile(args: { path: string; oldString: string; newString: string }) {
-    const fs = this.container.feature('fs')
-    const content = await fs.readFileAsync(args.path)
-    const updated = content.replace(args.oldString, args.newString)
-    await fs.writeFileAsync(args.path, updated)
-    return \`Edited \${args.path}\`
   }
 
   // ── 3. Configure the assistant when it calls use() ─────────────
@@ -2361,27 +2572,166 @@ export class FileTools extends Feature {
 
 ## Using It
 
+Wiring tools onto an assistant needs no API key — \`use()\` registers the tool surface and runs \`setupToolsConsumer\` immediately, before any model is contacted. We can verify the whole handshake live:
+
 \`\`\`ts
-const assistant = container.feature('assistant', {
+fileTools = container.feature('fileTools')
+
+reviewer = container.feature('assistant', {
   systemPrompt: 'You are a coding assistant.',
   model: 'gpt-4.1-mini',
 })
+reviewer.use(fileTools)
 
-const fileTools = container.feature('fileTools')
-assistant.use(fileTools)
-await assistant.start()
+// The assistant now has the full fileTools surface...
+const toolNames = Object.keys(reviewer.tools)
+console.log('registered tools:', toolNames.join(', '))
+for (const expected of ['readFile', 'writeFile', 'editFile', 'searchFiles', 'listDirectory']) {
+  if (!toolNames.includes(expected)) throw new Error(\`expected \${expected} to be registered\`)
+}
 
-// The assistant now has readFile, searchFiles, editFile, etc.
-// and its system prompt includes the fileTools guidance.
-console.log(Object.keys(assistant.tools))
+// ...and setupToolsConsumer injected the usage guidance into its system prompt
+if (!reviewer.effectiveSystemPrompt.includes('## File Tools')) {
+  throw new Error('fileTools guidance missing from the effective system prompt')
+}
+console.log('tool surface and system prompt extension verified')
 \`\`\`
 
 ### Selective tool registration
 
-You can expose only a subset of tools:
+You can expose only a subset of tools — \`toTools({ only })\` returns a \`{ schemas, handlers, setup }\` package that \`use()\` also accepts:
 
 \`\`\`ts
-assistant.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] }))
+scout = container.feature('assistant', {
+  systemPrompt: 'You are a read-only code scout.',
+  model: 'gpt-4.1-mini',
+})
+scout.use(fileTools.toTools({ only: ['readFile', 'searchFiles', 'listDirectory'] }))
+
+const scoutTools = Object.keys(scout.tools)
+if (scoutTools.length !== 3) throw new Error(\`expected exactly 3 tools, got \${scoutTools.length}: \${scoutTools}\`)
+if (scoutTools.includes('writeFile')) throw new Error('writeFile should have been excluded')
+console.log('scout has only:', scoutTools.join(', '))
+\`\`\`
+
+## Walkthrough: author your own tool-providing feature
+
+Now the full lifecycle for a feature of your own: write it, register it through discovery, inspect its tool surface, and hand it to an assistant. In a real project this file lives in \`features/\` and is picked up automatically; here we write it to a scratch folder inside the project (so its \`import ... from 'luca'\` resolves) and discover it explicitly — the same pattern as the [custom feature authoring example](./custom-feature-authoring.md).
+
+We build \`diceTools\`: a tiny feature exposing one tool, with matching method and system prompt guidance.
+
+\`\`\`ts
+// bare assignments (no const) so these survive into the later blocks
+pluginRoot = container.paths.resolve('tmp', \`tool-provider-demo-\${Date.now()}\`)
+featureDir = container.paths.resolve(pluginRoot, 'features')
+
+const featureSource = \`
+import { z } from 'zod'
+import { Feature } from 'luca'
+
+/**
+ * Dice-rolling tools for assistants. One static tools entry, one
+ * matching method, one setupToolsConsumer hook — the whole pattern.
+ */
+export class DiceTools extends Feature {
+  static override stability = 'experimental' as const
+  static { Feature.register(this, 'diceTools') }
+
+  // 1. Declare the tool surface
+  static override tools = {
+    rollDice: {
+      description: 'Roll one or more dice and return the rolls and their total.',
+      schema: z.object({
+        sides: z.number().default(6).describe('How many sides each die has'),
+        count: z.number().default(1).describe('How many dice to roll'),
+      }).describe('Roll one or more dice and return the rolls and their total.'),
+    },
+  }
+
+  // 2. Implement it — the method name matches the static tools key
+  async rollDice(args: { sides?: number; count?: number }) {
+    const sides = args.sides ?? 6
+    const count = args.count ?? 1
+    const rolls = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * sides))
+    return JSON.stringify({ rolls, total: rolls.reduce((a, b) => a + b, 0) })
+  }
+
+  // 3. Teach the consumer how to use it
+  override setupToolsConsumer(consumer) {
+    if (typeof consumer.addSystemPromptExtension === 'function') {
+      consumer.addSystemPromptExtension('diceTools', [
+        '## Dice Tools',
+        'Use rollDice for anything involving chance. Never invent dice results yourself.',
+      ].join('\\\\n'))
+    }
+  }
+}
+
+export default DiceTools
+\`
+
+fs.ensureFolder(featureDir)
+fs.writeFile(container.paths.resolve(featureDir, 'dice-tools.ts'), featureSource)
+console.log('feature file written')
+\`\`\`
+
+### Register and introspect the tool surface
+
+\`helpers.discover('features', { directory })\` loads the module, which runs its \`static { Feature.register(...) }\` block. After that, \`toTools()\` shows exactly what an assistant would receive — and the handlers are directly callable, which is the fastest way to test tool implementations without a model in the loop.
+
+\`\`\`ts
+const discovered = await helpers.discover('features', { directory: featureDir })
+console.log('discovered:', discovered)
+if (!container.features.available.includes('diceTools')) throw new Error('diceTools did not register')
+
+dice = container.feature('diceTools')
+const pkg = dice.toTools()
+
+if (Object.keys(pkg.schemas).join() !== 'rollDice') throw new Error('expected exactly the rollDice schema')
+if (typeof pkg.handlers.rollDice !== 'function') throw new Error('rollDice handler was not auto-bound to the method')
+if (typeof pkg.setup !== 'function') throw new Error('setupToolsConsumer should be packaged as pkg.setup')
+
+// call the tool handler directly — no assistant, no model
+const rolled = JSON.parse(await pkg.handlers.rollDice({ sides: 6, count: 3 }))
+console.log('direct tool call:', rolled)
+if (rolled.rolls.length !== 3) throw new Error('expected 3 rolls')
+if (rolled.total !== rolled.rolls.reduce((a, b) => a + b, 0)) throw new Error('total should match the rolls')
+\`\`\`
+
+### Hand it to an assistant
+
+\`\`\`ts
+gameMaster = container.feature('assistant', {
+  systemPrompt: 'You are a game master for a dice game.',
+  model: 'gpt-4.1-mini',
+})
+gameMaster.use(dice)
+
+if (!Object.keys(gameMaster.tools).includes('rollDice')) throw new Error('rollDice not registered on the assistant')
+if (!gameMaster.effectiveSystemPrompt.includes('## Dice Tools')) throw new Error('diceTools guidance missing from system prompt')
+
+// the registered tool carries the schema description through to the model
+console.log('rollDice description:', gameMaster.tools.rollDice.description)
+console.log('assistant wired with diceTools')
+\`\`\`
+
+### Let the model actually call it
+
+Everything above ran without credentials. Actually starting the assistant and asking a question sends the tool schemas to the model, which decides to call \`rollDice\`; the framework routes the call to your method and feeds the result back. That requires an \`OPENAI_API_KEY\` in the environment, so it's shown rather than run:
+
+\`\`\`ts skip
+await gameMaster.start()
+const answer = await gameMaster.ask('Roll 2d20 for initiative and tell me the total.')
+console.log(answer)
+// The transcript will include a rollDice tool call with { sides: 20, count: 2 }
+// and the model's narration of the real (not hallucinated) result.
+\`\`\`
+
+### Clean up
+
+\`\`\`ts
+await fs.rmdir(pluginRoot)
+console.log('cleaned up', pluginRoot)
 \`\`\`
 
 ## Why This Pattern Matters
@@ -2393,298 +2743,881 @@ This is how features compose for AI. Instead of the assistant importing \`fs\` a
 - **\`setupToolsConsumer()\`** lets the feature teach the assistant how to use the tools well
 - **\`toTools({ only })\`** lets you scope down what the assistant can do
 
-Any feature you build can follow this same pattern. Define \`static tools\`, implement matching methods, optionally override \`setupToolsConsumer()\`, and assistants can \`use()\` it.
+Any feature you build can follow this same pattern. Define \`static tools\`, implement matching methods, optionally override \`setupToolsConsumer()\`, and assistants can \`use()\` it. Other built-ins to study: \`contentDb\` (document exploration tools) and \`codingTools\` — \`luca describe <name>\` shows each one's surface.
 
 ## Summary
 
-Features are the natural place to package tools for assistants. The \`static tools\` record declares the schema, instance methods implement the logic, and \`setupToolsConsumer()\` wires up assistant-specific configuration like system prompt extensions. This keeps tool definitions, implementations, and assistant guidance co-located in a single feature class.
+Features are the natural place to package tools for assistants. The \`static tools\` record declares the schema, instance methods implement the logic (auto-bound by name in \`toTools()\`), and \`setupToolsConsumer()\` wires up assistant-specific configuration like system prompt extensions. This keeps tool definitions, implementations, and assistant guidance co-located in a single feature class — and every piece of the handshake is verifiable without an API key, right up to the final \`ask()\`.
 `,
-  "content-db.md": `---
-title: "Content Database"
-tags: [contentDb, markdown, content, database]
-lastTested: null
-lastTestPassed: null
+  "event-bus-fanout.md": `---
+title: 'Event Bus Fanout: In-Process, Cross-Boundary, Cross-Process'
+tags:
+  - events
+  - bus
+  - container
+  - websocket
+  - redis
+  - composition
+  - fanout
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# contentDb
+# Event Bus Fanout: In-Process, Cross-Boundary, Cross-Process
 
-Treat folders of structured markdown files as queryable databases. Each markdown file is a document with frontmatter metadata and content.
+The container **is** an event bus: \`container.on\` / \`container.emit\` / \`container.once\` / \`container.off\` / \`container.waitFor\`. Every helper carries its own bus with the same API. Nothing is relayed anywhere automatically — fanout is something you *compose*, and it composes in three widening rings: listeners in the same process, websocket clients outside the process, and redis subscribers on other machines. This doc walks all three.
 
-## Overview
+For the APIs used here: \`luca describe servers.websocket\`, \`luca describe clients.websocket\`, \`luca describe redis\`.
 
-The \`contentDb\` feature is on-demand. Enable it with a \`rootPath\` pointing to a directory that contains a \`models.ts\` file and subfolders of markdown documents. It is perfect for documentation sites, knowledge bases, or any content-driven application where markdown is the source of truth.
+## Ring 1: the container's own bus
 
-## Loading a Collection
-
-We point the feature at the project's docs directory, which already has models and content.
+Events take any name and any arguments. \`once\` fires a single time, \`off\` unsubscribes, \`waitFor(event)\` returns a promise for the next emission (resolving with the first listener argument). There is also a wildcard: \`container.on('*', (event, ...args) => ...)\` sees **every** event by name — the primitive that makes generic relays possible.
 
 \`\`\`ts
-const contentDb = container.feature('contentDb', { rootPath: '.' })
-await contentDb.load()
-console.log('Loaded:', contentDb.isLoaded)
+const received = []
+const handler = (payload) => received.push(payload)
+container.on('fanout:job', handler)
+container.emit('fanout:job', { id: 1 })
+container.emit('fanout:job', { id: 2 })
+if (received.length !== 2 || received[1].id !== 2) throw new Error('on/emit did not deliver both payloads')
+
+container.off('fanout:job', handler)
+container.emit('fanout:job', { id: 3 })
+if (received.length !== 2) throw new Error('off() did not unsubscribe the listener')
+
+let onceCount = 0
+container.once('fanout:once', () => onceCount++)
+container.emit('fanout:once')
+container.emit('fanout:once')
+if (onceCount !== 1) throw new Error('once() fired more than once')
+
+// wildcard: observe every event crossing the container bus
+const names = []
+const spy = (event) => names.push(event)
+container.on('*', spy)
+container.emit('fanout:alpha')
+container.emit('fanout:beta', 42)
+container.off('*', spy)
+if (!names.includes('fanout:alpha') || !names.includes('fanout:beta')) {
+  throw new Error('wildcard listener missed an event')
+}
+
+// waitFor: promise for the next emission
+const arrival = container.waitFor('fanout:ready')
+setTimeout(() => container.emit('fanout:ready', 'go'), 10)
+const signal = await arrival
+if (signal !== 'go') throw new Error('waitFor did not resolve with the event argument')
+
+console.log('container bus verified: on/off, once, wildcard, waitFor')
 \`\`\`
 
-The \`load()\` call discovers the models defined in \`models.ts\` and parses every markdown file in the matching prefix directories.
+## Scoped buses relay upward
 
-## Discovering Models
-
-Each collection has named models. Let us see what is available.
+\`container.bus()\` mints an independent bus — a private channel that does not pollute the container's event space. The wildcard makes relaying to the container a one-liner, with a namespace prefix so the origin stays legible. Buses also keep stats: \`getEventStats(event)\`, \`firedEvents\`, \`history\`.
 
 \`\`\`ts
-const names = contentDb.modelNames
-console.log('Available models:', names)
+const jobBus = container.bus()
+
+// generic relay: everything on jobBus resurfaces on the container as jobs:*
+jobBus.on('*', (event, ...args) => container.emit(\`jobs:\${event}\`, ...args))
+
+let containerSaw = null
+container.on('jobs:completed', (id) => { containerSaw = id })
+
+jobBus.emit('started', 'job-1')
+jobBus.emit('completed', 'job-1')
+
+if (containerSaw !== 'job-1') throw new Error('scoped bus event did not relay to the container')
+if (jobBus.getEventStats('completed').fireCount !== 1) throw new Error('bus stats did not record the emit')
+if (!jobBus.firedEvents.includes('started')) throw new Error('firedEvents missing started')
+console.log('scoped bus relayed to container; stats:', jobBus.firedEvents.join(', '))
 \`\`\`
 
-Models correspond to subdirectories. Each model defines a schema for the frontmatter metadata its documents must conform to.
+## The container narrates its own lifecycle
 
-## Querying Documents
-
-Use \`query()\` to fetch documents belonging to a model. Here we query the Tutorial model.
+Two events the framework emits for you: \`helperInitialized\` (after any helper's \`afterInitialize()\` completes) and \`featureEnabled\` (with the feature's shortcut). Helpers do **not** forward their own events to the container — a feature's \`emit()\` stays on that feature's bus — but these lifecycle hooks let you observe helpers coming online and attach relays the moment they do.
 
 \`\`\`ts
-const tutorials = await contentDb.query(contentDb.models.Tutorial).fetchAll()
-console.log('Tutorial count:', tutorials.length)
-tutorials.slice(0, 3).forEach(doc => {
-  console.log('-', doc.id, '|', doc.meta?.title)
+const initialized = []
+const enabled = []
+container.on('helperInitialized', (helper) => initialized.push(helper))
+container.on('featureEnabled', (shortcut, feature) => enabled.push(shortcut))
+
+// options are part of the memoization key, so a distinct name mints a fresh instance
+const yaml = container.feature('yaml', { name: 'fanout-demo', enable: true })
+
+if (!initialized.includes(yaml)) throw new Error('helperInitialized did not fire for the new feature')
+if (!enabled.includes('features.yaml')) throw new Error('featureEnabled did not fire with the shortcut')
+
+// helper events stay on the helper's bus unless you relay them yourself
+let relayed = null
+yaml.on('enabled', () => {}) // helper-level subscription — same bus API as the container
+container.on('fanout:yaml-state', (state) => { relayed = state })
+yaml.on('stateChange', (state) => container.emit('fanout:yaml-state', state)) // the relay
+yaml.state.set('touched', true)
+if (!relayed || relayed.touched !== true) throw new Error('manual helper -> container relay failed')
+
+console.log('lifecycle events observed:', enabled.join(', '))
+\`\`\`
+
+## Ring 2: out of the process, over a websocket
+
+To push container events to external consumers, bridge them to the websocket server's \`broadcast()\`. Anything emitted on the container fans out to every connected socket. The subscriber below is a real websocket client — it could just as well be a browser or another machine.
+
+\`\`\`ts
+wsPort = await networking.findOpenPort(19930)
+wsServer = container.server('websocket', { json: true })
+
+// bridge: container event -> every connected websocket client
+container.on('news', (item) => wsServer.broadcast({ event: 'news', item }))
+
+// and the reverse relay: server helper events -> container bus
+let connectionsSeen = 0
+container.on('fanout:connection', () => { connectionsSeen++ })
+wsServer.on('connection', () => container.emit('fanout:connection'))
+
+await wsServer.start({ port: wsPort })
+
+const firstConnection = wsServer.waitFor('connection')
+subscriber = container.client('websocket', { baseURL: \`ws://localhost:\${wsPort}\` })
+await subscriber.connect()
+await firstConnection
+if (connectionsSeen !== 1) throw new Error('server connection event did not relay to the container')
+
+const delivery = subscriber.waitFor('message')
+container.emit('news', { headline: 'container events can leave the process' })
+const received = await delivery
+
+if (received.event !== 'news') throw new Error('websocket subscriber got the wrong envelope')
+if (received.item.headline !== 'container events can leave the process') {
+  throw new Error('broadcast payload did not survive the trip')
+}
+console.log('external websocket client received:', received.item.headline)
+\`\`\`
+
+## Ring 3: across processes, over redis
+
+The redis feature (\`luca describe redis\`) closes the loop between separate container processes with pub/sub: \`publish(channel, message)\` on one side, \`subscribe(channel, handler?)\` on the other (a dedicated subscriber connection is created lazily, as ioredis requires). Messages are strings — \`JSON.stringify\` your payloads.
+
+**Requirement: a reachable redis server** (default \`redis://localhost:6379\`). No redis was reachable when this doc was tested, so these blocks are marked \`skip\` and not executed. With docker available you can bootstrap one via \`container.feature('redis', { lazyConnect: true }).ensureLocalDocker()\`.
+
+\`\`\`ts skip
+// process A — the publisher
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+
+// bridge: container event -> redis channel
+container.on('news', (item) => redis.publish('news', JSON.stringify(item)))
+container.emit('news', { headline: 'hello from process A' })
+\`\`\`
+
+\`\`\`ts skip
+// process B — the subscriber, bridging back onto ITS container bus
+const redis = container.feature('redis', { url: 'redis://localhost:6379' })
+
+await redis.subscribe('news', (channel, message) => {
+  container.emit('news:remote', JSON.parse(message))
 })
+
+const item = await container.waitFor('news:remote')
+console.log('received from the other process:', item.headline)
+
+// pub/sub connections keep the process alive — close when done
+await redis.close()
 \`\`\`
 
-Documents come back with their parsed frontmatter, content, and a unique id derived from the file path.
+The shape is identical to the websocket ring: pick a transport, listen on the container, forward. The receiving side re-emits onto its own container, so downstream code subscribes to plain container events and never knows the message crossed a process boundary.
 
-## Parsing a Single File
-
-You can also parse any markdown file directly without going through the query system.
+## Shut down
 
 \`\`\`ts
-const doc = contentDb.parseMarkdownAtPath('./docs/tutorials/01-getting-started.md')
-console.log('Title:', doc.meta?.title)
-console.log('Tags:', doc.meta?.tags)
+await subscriber.disconnect()
+await wsServer.stop()
+if (wsServer.state.get('listening') !== false) throw new Error('websocket server still listening')
+console.log('subscriber disconnected, server stopped')
 \`\`\`
-
-This is useful when you know exactly which file you want and do not need to iterate over a collection.
-
-## Collection Summary
-
-The feature tracks a model summary in its state, giving you a quick overview of the entire collection.
-
-\`\`\`ts
-console.log(contentDb.state.get('modelSummary'))
-\`\`\`
-
-This summary shows each model and how many documents belong to it.
 
 ## Summary
 
-This demo covered loading a contentbase collection, listing models, querying documents by model, parsing individual markdown files, and inspecting the collection summary. The \`contentDb\` feature turns your markdown files into a lightweight, schema-validated content database.
+One mental model, three ranges. In-process: \`container.on\`/\`emit\`, scoped buses from \`container.bus()\`, the \`'*'\` wildcard for generic relays, and lifecycle events (\`helperInitialized\`, \`featureEnabled\`) narrating helper startup. Cross-boundary: a container listener that calls \`wsServer.broadcast()\`. Cross-process: the same listener calling \`redis.publish()\`, with the far side re-emitting into its own container. Helpers never auto-forward their events — every hop is an explicit, one-line relay you compose.
 `,
-  "file-manager.md": `---
-title: "File Manager"
-tags: [fileManager, files, indexing, filesystem]
-lastTested: null
-lastTestPassed: null
+  "daemon-command.md": `---
+title: Daemon & Poll-Loop Commands
+tags:
+  - commands
+  - daemon
+  - polling
+  - scheduling
+  - utils
+  - proc
+  - scheduler
+  - cron
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# fileManager
+# Daemon & Poll-Loop Commands
 
-Builds an in-memory index of every file in your project with metadata and glob matching. Think of it as a fast, queryable snapshot of your file tree.
+Luca's low-level scheduling primitives live on \`container.utils\`: \`sleep\`, \`backoff\`, and \`every\`. This example covers all three, plus the full lifecycle of a long-running command (keep-alive, SIGINT cleanup, single-instance locking). When you want named tasks, cron expressions, run history, or a one-line daemon lifecycle, reach for the managed layer instead — \`container.feature('scheduler')\` — covered in its own section below.
 
-## Overview
+## sleep — pauses between work
 
-The \`fileManager\` feature is on-demand. After enabling it and calling \`start()\`, it scans the project directory and indexes every file. You can then match files by glob patterns, inspect metadata, and list unique extensions. It is useful for code analysis tools, documentation generators, or any script that needs to reason about project structure.
-
-## Starting the File Manager
-
-Enable the feature and kick off the initial scan.
+\`utils.sleep(ms)\` resolves after the given delay. It's the building block for polite loops that don't hammer an API.
 
 \`\`\`ts
-const fm = container.feature('fileManager')
-await fm.start()
-console.log('Scan complete:', fm.isStarted)
-console.log('Total files indexed:', fm.fileIds.length)
+const started = Date.now()
+await container.utils.sleep(150)
+console.log(\`slept for ~\${Date.now() - started}ms\`)
 \`\`\`
 
-The scan respects common ignore patterns (node_modules, .git, etc.) by default.
+## backoff — retry flaky calls with exponential delay
 
-## Matching Files by Glob
-
-Use \`match()\` to find file paths matching a glob pattern.
+\`utils.backoff(fn, opts)\` retries an async function until it succeeds or attempts run out. The delay doubles after each failure (tune with \`factor\`, cap with \`maxDelay\`). It returns the function's result, or throws the last error.
 
 \`\`\`ts
-const tsFiles = fm.match('**/*.ts')
-console.log('TypeScript files found:', tsFiles.length)
-tsFiles.slice(0, 5).forEach(f => console.log(' ', f))
-\`\`\`
+let calls = 0
 
-This returns an array of relative file paths that match the pattern.
-
-## Inspecting File Metadata
-
-Use \`matchFiles()\` to get full file objects instead of just paths. Each object contains metadata about the file.
-
-\`\`\`ts
-const pkgFiles = fm.matchFiles('package.json')
-pkgFiles.forEach(f => {
-  console.log('File:', f.id)
-  console.log('  Extension:', f.extension)
-  console.log('  Directory:', f.directory)
+const result = await container.utils.backoff(async () => {
+  calls++
+  if (calls < 3) throw new Error(\`transient failure #\${calls}\`)
+  return \`succeeded on attempt \${calls}\`
+}, {
+  attempts: 5,
+  delay: 50,
+  onRetry: (err, attempt) => console.log(\`attempt \${attempt} failed: \${err.message}\`)
 })
+
+console.log(result)
 \`\`\`
 
-File objects include properties like \`id\` (relative path), \`extension\`, and \`directory\`.
+## every — the poll loop
 
-## Unique Extensions
-
-The file manager tracks every file extension it encounters across the project.
+\`utils.every(ms, fn)\` codifies the recursive-\`setTimeout\` idiom: the next run is only scheduled after the previous one finishes, so slow ticks never overlap. It returns a \`stop()\` function.
 
 \`\`\`ts
-const extensions = fm.uniqueExtensions
-console.log('Unique extensions:', extensions.length)
-console.log('Extensions:', extensions.slice(0, 15).join(', '))
+let ticks = 0
+
+const stop = container.utils.every(100, async () => {
+  ticks++
+  console.log(\`tick \${ticks}\`)
+}, { immediate: true })
+
+// let it run for a few ticks, then stop it
+await container.utils.sleep(350)
+stop()
+console.log(\`stopped after \${ticks} ticks\`)
 \`\`\`
 
-This is handy for understanding the technology mix in a project at a glance.
+Pass \`{ onError: (err) => ... }\` to keep the loop alive through failures — without it, a throwing tick stops the loop and surfaces the error.
 
-## Directory Listing
+## The managed layer: scheduler
 
-You can also get the unique set of directories that contain indexed files.
+\`utils.every\` gives you a bare loop and a \`stop()\` function — nothing else. The \`scheduler\` feature wraps the same non-overlapping-tick idiom in **named tasks** with run history, error tracking, and cron expressions. Every \`scheduler.every()\` / \`cron()\` / \`at()\` / \`in()\` call returns a handle with a live \`info\` snapshot, and \`scheduler.tasks\` lists everything it knows about.
 
 \`\`\`ts
-const dirs = fm.directoryIds
-console.log('Directories:', dirs.length)
-dirs.slice(0, 8).forEach(d => console.log(' ', d))
+scheduler = container.feature('scheduler')
+
+let schedTicks = 0
+const poll = scheduler.every(100, () => { schedTicks++ }, { name: 'demo-poll', immediate: true })
+
+// let it tick a couple of times, then stop it
+await container.utils.sleep(350)
+poll.stop()
+
+// run history lives on the handle (and in scheduler.tasks)
+console.log(poll.info)
+if (poll.info.runs < 2) throw new Error(\`expected at least 2 runs, got \${poll.info.runs}\`)
+if (poll.info.errors !== 0) throw new Error('demo task should not have errored')
+if (poll.info.active !== false) throw new Error('stopped task should be inactive')
+
+const listed = scheduler.tasks.find(t => t.name === 'demo-poll')
+if (!listed || listed.runs !== poll.info.runs) throw new Error('scheduler.tasks should list the same snapshot')
+console.log(\`demo-poll ran \${poll.info.runs} times, then stopped cleanly\`)
 \`\`\`
 
-Combined with glob matching, this gives you a complete picture of the project layout.
+Intervals accept milliseconds or duration strings (\`'30s'\`, \`'5m'\`, \`'1h30m'\`). Cron tasks use standard 5-field syntax with names and \`@daily\`-style aliases — and \`nextCronDate()\` lets you inspect a schedule without waiting for it:
+
+\`\`\`ts
+const digest = scheduler.cron('0 9 * * mon-fri', () => console.log('good morning'), { name: 'digest' })
+console.log('digest next fires at', new Date(digest.info.nextRun).toString())
+console.log('next Monday 9am:', scheduler.nextCronDate('0 9 * * mon').toString())
+
+// a failing task stays scheduled — errors are recorded, not fatal
+const flaky = scheduler.every(100, () => { throw new Error('boom') }, { name: 'flaky', immediate: true })
+await container.utils.sleep(150)
+
+// stop everything before the script ends — active tasks hold timers
+const stopped = scheduler.stopAll()
+console.log(\`stopped \${stopped} tasks\`)
+if (flaky.info.errors < 1) throw new Error('expected the flaky task to record its error')
+if (flaky.info.active) throw new Error('stopAll should have deactivated flaky')
+if (scheduler.state.get('taskCount') !== 0) throw new Error('taskCount should be 0 after stopAll')
+\`\`\`
+
+For a daemon command, \`await scheduler.run()\` replaces both the keep-alive promise and the SIGINT handler: it holds the process open, stops all tasks on SIGINT/SIGTERM, awaits your \`onShutdown\` hook, and resolves with the signal name. Run \`luca describe scheduler\` for the full API (\`every\`, \`cron\`, \`at\`, \`in\`, \`stop\`, \`stopAll\`, \`run\`, \`tasks\`, \`nextCronDate\`, events).
+
+## Single-instance locking with proc
+
+\`proc.establishLock(pidPath)\` writes the current PID to a file and **exits the process** if the file already names a live process — so two copies of your daemon never run at once. Stale PID files (dead process) are cleaned up automatically, and cleanup handlers on SIGINT/SIGTERM/exit remove the file on shutdown. It returns \`{ release }\` for manual release.
+
+\`\`\`ts
+proc = container.feature('proc')
+
+lockPath = \`tmp/daemon-example-\${Date.now()}.pid\`
+const lock = proc.establishLock(lockPath) // paths resolve relative to container.cwd
+
+if (!fs.exists(lockPath)) throw new Error('lock file was not created')
+if (fs.readFile(lockPath).trim() !== String(process.pid)) throw new Error('lock file should contain our PID')
+
+lock.release()
+if (fs.exists(lockPath)) throw new Error('release() should remove the lock file')
+console.log('lock acquired and released cleanly')
+\`\`\`
+
+## The full daemon command
+
+Putting it together in a real command file — \`commands/sync-worker.ts\`. Three things make a command long-running: a PID lock so only one instance runs, an \`await new Promise(() => {})\` keep-alive, and a SIGINT handler that cleans up. (Shown, not executed — it runs forever.)
+
+\`\`\`ts skip
+import { z } from 'zod'
+import type { ContainerContext } from '@soederpop/luca'
+
+export const description = 'Poll for new work every 30 seconds'
+
+export const argsSchema = z.object({
+  interval: z.number().default(30).describe('Poll interval in seconds'),
+})
+
+export default async function syncWorker(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const { container } = context
+
+  // 1. Single-instance guard — exits if another copy is running,
+  //    removes the pid file automatically on exit
+  const proc = container.feature('proc')
+  proc.establishLock('tmp/sync-worker.pid')
+
+  // 2. The poll loop — retries flaky work with backoff inside each tick
+  const stop = container.utils.every(options.interval * 1000, async () => {
+    await container.utils.backoff(() => doOneSync(container), { attempts: 3, delay: 500 })
+  }, { immediate: true, onError: (err) => console.error('tick failed:', err) })
+
+  // 3. Hold the process open; release everything on Ctrl-C
+  process.on('SIGINT', () => {
+    stop()
+    process.exit(0)
+  })
+  await new Promise(() => {})
+}
+\`\`\`
 
 ## Summary
 
-This demo covered starting the file manager, glob matching, inspecting file metadata, listing unique extensions, and enumerating directories. The \`fileManager\` feature provides a fast, in-memory file index for project analysis and tooling.
+\`sleep\` for pauses, \`backoff\` for retries, \`every\` for non-overlapping poll loops — all on \`container.utils\`, no imports. A daemon command adds \`proc.establishLock()\` for single-instance safety, \`await new Promise(() => {})\` to stay alive, and a SIGINT handler to clean up — or replaces the last two with a single \`await container.feature('scheduler').run()\`. Run \`luca scaffold command --tutorial\` for the full command-authoring guide.
 `,
-  "runpod.md": `---
-title: "RunPod GPU Cloud"
-tags: [runpod, gpu, cloud, pods, ssh, infrastructure]
-lastTested: null
-lastTestPassed: null
+  "cross-process-state-handoff.md": `---
+title: 'Cross-Process State Handoff: store, diskCache, or sqlite'
+tags:
+  - state
+  - store
+  - entity
+  - diskCache
+  - sqlite
+  - persistence
+  - proc
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# runpod
+# Cross-Process State Handoff: store, diskCache, or sqlite
 
-GPU cloud pod management via the RunPod REST API and CLI. Provision GPU instances, manage network volumes, SSH into pods, and transfer files.
+Every script eventually asks: *where does this value live?* The container gives you four stores with four different lifetimes, and picking the wrong one is how you end up serializing a database into a cache key. The heuristic:
 
-## Overview
+- **\`container.state\` / \`container.entity\`** — in-process, observable, dies with the process.
+- **\`container.store\`** — cross-process *state*: one durable, schema-validated JSON document per name, with locked read-modify-write updates. The default answer for counters, manifests, process lists, small configs.
+- **\`diskCache\`** — cross-process *cache* with optional TTL; entries are losable by contract. Fetch by key, no questions asked.
+- **\`sqlite\`** — cross-process *and queryable*; the moment you want to filter, group, or count, it's this one.
 
-Use the \`runpod\` feature when you need to manage GPU cloud infrastructure. It provides a complete interface for creating and managing RunPod GPU pods, including template selection, volume management, SSH access, file transfers, and lifecycle operations (start, stop, remove). Integrates with the \`secureShell\` feature for remote command execution.
+This doc exercises all four — including proving the handoffs by reading values back **from a genuinely fresh process**.
 
-Requires a \`RUNPOD_API_KEY\` environment variable or an \`apiKey\` option.
+## In-process: entities are memoized by id
 
-## Enabling the Feature
-
-\`\`\`ts
-const runpod = container.feature('runpod', {
-  dataCenterId: 'US-TX-3'
-})
-console.log('RunPod feature created')
-console.log('Data center:', runpod.dataCenterId)
-console.log('API key configured:', !!runpod.apiKey)
-\`\`\`
-
-## API Documentation
+\`container.entity(id)\` returns the *same* cached object for the same id anywhere in the process — that memoization **is** the in-process handoff. Module A writes state, module B calls \`container.entity('...')\` with the same id and observes it. No exporting singletons, no plumbing. State is observable: observers receive \`(changeType, key, value)\` per mutation — not a state object. (Full API: \`luca describe\`, and see [entity.md](./entity.md).)
 
 \`\`\`ts
-const info = await container.features.describe('runpod')
-console.log(info)
-\`\`\`
+// bare assignments — these survive into later blocks
+worker = container.entity('handoff:worker')
+worker.setState({ progress: 0 })
 
-## Listing Pods and GPUs
-
-Query your existing pods and available GPU types.
-
-\`\`\`ts skip
-const pods = await runpod.getpods()
-pods.forEach(p => console.log(\`\${p.name}: \${p.desiredStatus} - $\${p.costPerHr}/hr\`))
-
-const gpus = await runpod.listSecureGPUs()
-gpus.forEach(g => console.log(\`\${g.gpuType}: $\${g.ondemandPrice}/hr\`))
-\`\`\`
-
-Use \`getpods()\` for detailed REST API data including port mappings and public IP, or \`listPods()\` for a quick summary via the CLI.
-
-## Creating and Managing Pods
-
-Provision a new GPU pod and manage its lifecycle.
-
-\`\`\`ts skip
-const pod = await runpod.createPod({
-  name: 'my-training-pod',
-  gpuTypeId: 'NVIDIA RTX 4090',
-  templateId: 'abc123',
-  volumeInGb: 50,
-  containerDiskInGb: 50,
-  ports: ['8888/http', '22/tcp']
+observed = []
+worker.state.observe((changeType, key, value) => {
+  if (key === 'progress') observed.push(value)
 })
-console.log(\`Pod \${pod.id} created\`)
 
-const ready = await runpod.waitForPod(pod.id, 'RUNNING', { timeout: 120000 })
-console.log('Pod is running:', ready.desiredStatus)
+// "another module" asks for the same id — identical instance, same state
+const sameWorker = container.entity('handoff:worker')
+if (sameWorker !== worker) throw new Error('entity memoization broke — same id must return the same instance')
+
+sameWorker.setState({ progress: 50 })
+
+if (worker.state.get('progress') !== 50) throw new Error('write through one handle must be visible through the other')
+if (!observed.includes(50)) throw new Error('observer never saw the update')
+console.log('one entity, two handles, observed progress values:', JSON.stringify(observed))
 \`\`\`
 
-After creation, use \`waitForPod()\` to poll until the pod reaches the desired status.
+The catch: all of it evaporates when the process exits. Entities and feature state are wiring, not storage.
 
-## Pod Lifecycle
+## Cross-process state: container.store
+
+Every \`luca <command>\` invocation is a separate process — a server and its \`--stats\` sibling share no memory. \`container.store(name)\` gives that shared state a home: one JSON document, atomic writes, and the method that matters, **\`update()\`** — a locked read-modify-write, so two processes bumping the same counter can never overwrite each other (the classic lost-update bug is impossible by construction, not by discipline).
+
+\`\`\`ts
+statsStore = container.store(\`handoff-stats-\${Date.now()}\`, {
+  scope: 'tmp',   // demo hygiene — real apps default to 'project': <cwd>/.luca/store/<name>.json
+  schema: z.object({ hits: z.number().default(0), misses: z.number().default(0) }),
+})
+
+// A missing file reads as the schema's defaults — no init step, no exists-check dance
+const empty = await statsStore.read()
+if (empty.hits !== 0) throw new Error('schema defaults should apply to a missing file')
+
+// Ten concurrent updates — same-process calls serialize, cross-process calls take a file lock
+await Promise.all(Array.from({ length: 10 }, () => statsStore.update(s => { s.hits++ })))
+
+const after = await statsStore.read()
+if (after.hits !== 10) throw new Error(\`lost update! expected 10 hits, got \${after.hits}\`)
+console.log('10 concurrent updates, 10 recorded hits:', JSON.stringify(after))
+\`\`\`
+
+The backing file is ordinary pretty-printed JSON — \`cat\` it, diff it, commit it:
+
+\`\`\`ts
+console.log('state lives at:', statsStore.path)
+console.log(String(fs.readFile(statsStore.path)))
+\`\`\`
+
+### Prove it: a fresh process updates the same store
+
+\`\`\`ts
+const devCli2 = container.paths.resolve('src', 'cli', 'cli.ts')
+const [cmd2, baseArgs2] = fs.exists(devCli2) ? ['bun', ['run', devCli2, 'eval']] : ['luca', ['eval']]
+
+const storeExpr = \`const s = container.store(\${JSON.stringify(statsStore.name)}, { scope: 'tmp' }); await s.update(d => { d.misses = (d.misses ?? 0) + 1 }); console.log('CHILD_WROTE')\`
+const storeChild = await proc.spawnAndCapture(cmd2, [...baseArgs2, storeExpr])
+
+if (storeChild.error !== null) throw new Error(\`child process failed: \${storeChild.stderr.slice(-300)}\`)
+const merged = await statsStore.read()
+if (merged.misses !== 1 || merged.hits !== 10) throw new Error(\`child write lost or clobbered ours: \${JSON.stringify(merged)}\`)
+console.log('fresh process bumped misses without touching our hits:', JSON.stringify(merged))
+\`\`\`
+
+Scope note: \`'project'\` (the default) puts files in \`<cwd>/.luca/store/\` — so \`ls .luca/store\` (or \`container.stores.list()\`) answers "what state does this app keep?". \`'machine'\` (\`~/.luca/store/\`) is for state shared across projects. And if you're building a job queue on \`update()\`, you've outgrown it — that's sqlite's job below.
+
+## Cross-process KV: diskCache
+
+\`diskCache\` is a file-backed key-value store (the same cacache engine npm uses). Anything you \`set()\` in one process can be \`get()\` from any other process that opens the same cache path. It has native TTL support: pass \`{ ttl: seconds }\` as the third argument to \`set()\` (or a feature-level \`ttl\` option as a default) — expired entries are evicted on access and behave exactly like cache misses. Remember the miss contract: \`get()\` on a missing *or expired* key **throws**, so guard with \`has()\` (see [error-handling-conventions.md](./error-handling-conventions.md)).
+
+\`\`\`ts
+cachePath = container.paths.resolve(os.tmpdir, \`handoff-cache-\${Date.now()}\`)
+cache = container.feature('diskCache', { path: cachePath })
+
+token = \`handoff-token-\${Date.now()}\`
+await cache.set('handoff:token', token)
+
+// TTL: this entry self-destructs after 1 second
+await cache.set('handoff:flash', 'gone-soon', { ttl: 1 })
+if (!(await cache.has('handoff:flash'))) throw new Error('ttl entry should exist immediately after set')
+
+await container.utils.sleep(1300)
+
+if (await cache.has('handoff:flash')) throw new Error('ttl entry should have expired and read as a miss')
+console.log('ttl entry expired; durable token still cached:', await cache.get('handoff:token'))
+\`\`\`
+
+### Prove it: read the key back from a fresh process
+
+The real test of "cross-process" is a process that shares nothing with this one. We spawn \`luca eval\` as a child, point a brand-new container at the same cache path, and read the token back. Note \`spawnAndCapture\` with an **args array** — the expression contains spaces, and \`execAndCapture\` splits its command string naively.
+
+\`\`\`ts
+// in the framework repo run through the dev CLI; in your project, \`luca\` is on the PATH
+const devCli = container.paths.resolve('src', 'cli', 'cli.ts')
+const [cmd, baseArgs] = fs.exists(devCli) ? ['bun', ['run', devCli, 'eval']] : ['luca', ['eval']]
+
+const expr = \`const cache = container.feature('diskCache', { path: \${JSON.stringify(cachePath)} }); console.log('CHILD_READ=' + await cache.get('handoff:token'))\`
+
+const child = await proc.spawnAndCapture(cmd, [...baseArgs, expr])
+
+if (child.error !== null) throw new Error(\`child process failed: \${child.stderr.slice(-300)}\`)
+if (!child.stdout.includes(\`CHILD_READ=\${token}\`)) {
+  throw new Error(\`fresh process did not read the cached token back; stdout: \${child.stdout.slice(-300)}\`)
+}
+console.log('fresh process read the token back through diskCache')
+\`\`\`
+
+That is the whole handoff pattern: writer sets a key, any later process gets it by key. Scalars, JSON blobs, file contents — as long as access is *by key*, diskCache is the right shelf.
+
+## Cross-process and queryable: sqlite
+
+The moment "read the value" becomes "which ones, how many, grouped by what" — stop stuffing arrays into cache keys and give the data a schema. The \`sqlite\` feature is file-backed too: any process that opens the same path sees the same tables.
+
+\`\`\`ts
+dbPath = container.paths.resolve(os.tmpdir, \`handoff-\${Date.now()}.sqlite\`)
+db = container.feature('sqlite', { path: dbPath })
+
+await db.execute('CREATE TABLE runs (id INTEGER PRIMARY KEY, status TEXT NOT NULL)')
+await db.execute('INSERT INTO runs (status) VALUES (?), (?), (?)', ['done', 'done', 'failed'])
+
+// a question a KV store cannot answer without you re-implementing GROUP BY
+const byStatus = await db.sql\`SELECT status, COUNT(*) AS n FROM runs GROUP BY status ORDER BY n DESC\`
+
+if (byStatus[0].status !== 'done' || byStatus[0].n !== 2) throw new Error('GROUP BY answer was wrong')
+console.log('run counts by status:', JSON.stringify(byStatus))
+\`\`\`
+
+For the full extract → normalize → load → query workflow (bulk inserts inside \`db.transaction()\`, tagged-template parameters, cross-checking SQL against lodash), see [data-pipeline-fs-grep-sqlite.md](./data-pipeline-fs-grep-sqlite.md).
+
+## Clean up
+
+\`\`\`ts
+db.close()
+await fs.rm(dbPath)
+await fs.rmdir(cachePath)
+await statsStore.delete()
+console.log('removed scratch db, cache dir, and store')
+\`\`\`
+
+## The decision heuristic
+
+| The value... | Reach for | Why |
+|---|---|---|
+| Stays inside this process; other modules should react to it | \`container.state\` / \`container.entity\` | Observable, memoized by id, zero persistence |
+| Is *state* other processes read and mutate — counters, manifests, process lists, small configs | \`container.store\` | One durable JSON doc; \`update()\` is a locked read-modify-write, so concurrent commands can't lose writes |
+| Is a *cache* — recomputable, fetch-by-key, may expire | \`diskCache\` | KV with native TTL (\`set(key, value, { ttl })\`); remember \`get()\` throws on a miss |
+| You will ask questions of it — filter, count, group, join, claim-one-atomically | \`sqlite\` | A file path makes it durable and shared; SQL makes it queryable |
+
+When in doubt: if losing the value is a bug, it's a store; if losing it is a cache miss, it's a cache; if the access pattern is a question, table it; if nobody outside this process cares, keep it in state.
+`,
+  "testing-a-composed-feature.md": `---
+title: Testing a Composed Feature
+tags:
+  - testing
+  - bun
+  - features
+  - state
+  - events
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
+---
+
+# Testing a Composed Feature
+
+You built a feature that composes other helpers — now prove it works. The test runner is **bun** (\`bun test\`, never vitest), and the patterns below are the ones this framework's own \`test/*.test.ts\` files use: a fresh container per test, state assertions via \`state.get()\`, observer spies, and events awaited as promises.
+
+One honest caveat about this document: \`bun:test\` only exists inside a \`bun test\` run, not inside the container VM that executes these docs. So the real test code appears in **skip blocks** (shown verbatim, not executed), and each one is paired with a **runnable block** that performs the identical assertions with plain conditionals — which means the claims in the skip blocks are still regression-checked every time this doc runs.
+
+## The feature under test
+
+A small but genuinely composed feature: \`tally\` counts lines in files through the \`fs\` feature, tracks observable state, and emits a \`tallied\` event. In a real project this lives at \`features/tally.ts\`; here we write it into a scratch folder inside the project (inside, because its \`import ... from 'luca'\` must resolve against project dependencies) and load it through discovery — the exact mechanism that loads a project's \`features/\` folder.
+
+\`\`\`ts
+// bare assignments (no const) so these survive into later blocks
+pluginRoot = container.paths.resolve('tmp', \`testing-composed-feature-\${Date.now()}\`)
+featureDir = container.paths.resolve(pluginRoot, 'features')
+
+const featureSource = \`
+import { z } from 'zod'
+import { Feature, FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+
+export const TallyStateSchema = FeatureStateSchema.extend({
+  tallies: z.number().default(0).describe('How many tallies have run'),
+  lastCount: z.number().optional().describe('Line count from the most recent tally'),
+})
+export type TallyState = z.infer<typeof TallyStateSchema>
+
+export const TallyOptionsSchema = FeatureOptionsSchema.extend({
+  trim: z.boolean().default(true).describe('Ignore trailing newlines when counting'),
+})
+export type TallyOptions = z.infer<typeof TallyOptionsSchema>
+
+export const TallyEventsSchema = FeatureEventsSchema.extend({
+  tallied: z.tuple([
+    z.string().describe('The file that was counted'),
+    z.number().describe('The line count'),
+  ]).describe('Emitted after each completed tally'),
+})
+
+/**
+ * Counts lines in files by composing the fs feature.
+ */
+export class Tally extends Feature<TallyState, TallyOptions> {
+  static override shortcut = 'features.tally' as const
+  static override stability = 'experimental' as const
+  static override stateSchema = TallyStateSchema
+  static override optionsSchema = TallyOptionsSchema
+  static override eventsSchema = TallyEventsSchema
+  static { Feature.register(this, 'tally') }
+
+  // initialState is NOT derived from schema defaults — declare it explicitly
+  override get initialState(): TallyState {
+    return { enabled: false, tallies: 0 }
+  }
+
+  async tally(file: string) {
+    const fs = this.container.feature('fs')
+    if (!fs.exists(file)) throw new Error('tally: no such file: ' + file)
+
+    let text = String(fs.readFile(file))
+    if (this.options.trim !== false) text = text.replace(/\\\\n+$/, '')
+    const lines = text.split('\\\\n').length
+
+    this.setState({ tallies: (this.state.get('tallies') || 0) + 1, lastCount: lines })
+    this.emit('tallied', file, lines)
+    return lines
+  }
+}
+
+export default Tally
+\`
+
+fs.ensureFolder(featureDir)
+fs.writeFile(container.paths.resolve(featureDir, 'tally.ts'), featureSource)
+
+// a fixture to count: three lines plus a trailing newline
+sampleFile = container.paths.resolve(pluginRoot, 'sample.txt')
+fs.writeFile(sampleFile, 'alpha\\nbeta\\ngamma\\n')
+
+const discovered = await helpers.discover('features', { directory: featureDir })
+if (!container.features.available.includes('tally')) throw new Error('tally did not register via discovery')
+console.log('discovered and registered:', discovered)
+\`\`\`
+
+## How do I get a fresh container in a test?
+
+The answer the real tests use: **construct one**. \`new NodeContainer()\` per test (or per \`describe\`) gives you isolated helper instances while sharing the module-global registry — registration happens in the feature file's \`static { Feature.register(...) }\` block the moment the module is imported.
 
 \`\`\`ts skip
-await runpod.stopPod('pod-abc123')
-console.log('Pod stopped')
+import { describe, it, expect } from 'bun:test'
+import { NodeContainer } from 'luca'   // in the framework repo itself: '../src/node/container'
+import './features/tally'              // side-effect import runs Feature.register
 
-await runpod.startPod('pod-abc123')
-console.log('Pod restarted')
+describe('tally registration', () => {
+  it('is registered once the module is imported', () => {
+    const c = new NodeContainer()
+    expect(c.features.available).toContain('tally')
+  })
 
-await runpod.removePod('pod-abc123')
-console.log('Pod permanently deleted')
+  it('memoizes per container: same args return same instance', () => {
+    const c = new NodeContainer()
+    expect(c.feature('tally').uuid).toBe(c.feature('tally').uuid)
+  })
+
+  it('different containers get different instances', () => {
+    const a = new NodeContainer().feature('tally')
+    const b = new NodeContainer().feature('tally')
+    expect(a.uuid).not.toBe(b.uuid)
+  })
+})
 \`\`\`
 
-Stopping a pod preserves its disk; removing it is permanent.
+Two rules fall out of this: **registries are global** (register once, visible from every container), and **instances are per container, memoized by id + options** (so a fresh container is what gives a test a clean slate).
 
-## SSH and Remote Execution
+Doc blocks don't have the \`NodeContainer\` class in scope, but \`container.subcontainer({})\` constructs a fresh instance of the same concrete class — so we can verify those exact claims right now:
 
-Connect to a running pod and execute commands remotely.
+\`\`\`ts
+freshContainer = container.subcontainer({})
+
+if (!freshContainer.features.available.includes('tally')) throw new Error('registry should be shared globally')
+
+const a = container.feature('tally')
+const b = container.feature('tally')
+if (a.uuid !== b.uuid) throw new Error('same container + same options should memoize to one instance')
+
+const c = freshContainer.feature('tally')
+if (c.uuid === a.uuid) throw new Error('a fresh container should get a fresh instance')
+console.log('registry shared, instances isolated per container')
+\`\`\`
+
+## Asserting behavior and state
+
+The bun:test version — construct, call, assert on the return value and on \`state.get()\`:
 
 \`\`\`ts skip
-const shell = await runpod.getShell('pod-abc123')
-const output = await shell.exec('nvidia-smi')
-console.log(output)
+import { describe, it, expect } from 'bun:test'
+import { NodeContainer } from 'luca'
+import './features/tally'
 
-const ls = await shell.exec('ls /workspace')
-console.log('Workspace files:', ls)
+describe('tally()', () => {
+  it('counts lines and updates state', async () => {
+    const c = new NodeContainer()
+    const tally = c.feature('tally')
+
+    const lines = await tally.tally('test/fixtures/sample.txt')
+
+    expect(lines).toBe(3)
+    expect(tally.state.get('lastCount')).toBe(3)
+    expect(tally.state.get('tallies')).toBe(1)
+  })
+
+  it('respects options', async () => {
+    const c = new NodeContainer()
+    const raw = c.feature('tally', { trim: false })
+    expect(await raw.tally('test/fixtures/sample.txt')).toBe(4) // trailing newline counts
+  })
+})
 \`\`\`
 
-The \`getShell()\` method uses REST API data for reliable SSH connections. Use it over \`createRemoteShell()\` which depends on the CLI.
+The same assertions, live — each "test" takes a fresh subcontainer, exactly as each \`it()\` above takes a fresh \`NodeContainer\`:
 
-## Network Volumes
+\`\`\`ts
+const tally = container.subcontainer({}).feature('tally')
+const lines = await tally.tally(sampleFile)
+if (lines !== 3) throw new Error(\`expected 3 lines, got \${lines}\`)
+if (tally.state.get('lastCount') !== 3) throw new Error('state.lastCount not updated')
+if (tally.state.get('tallies') !== 1) throw new Error('state.tallies should be 1 after one run')
 
-Manage persistent storage that survives pod restarts.
+const raw = container.subcontainer({}).feature('tally', { trim: false })
+const rawLines = await raw.tally(sampleFile)
+if (rawLines !== 4) throw new Error(\`trim:false should count the trailing newline, got \${rawLines}\`)
+console.log('behavior and state verified: 3 trimmed, 4 raw')
+\`\`\`
+
+## Spying on state observers
+
+In bun tests, \`mock()\` gives you a spy, and the observer contract is \`(changeType, key, value)\` — \`'add'\` for a new key, \`'update'\` for an existing one, \`'delete'\` on removal:
 
 \`\`\`ts skip
-const vol = await runpod.createVolume({ name: 'my-models', size: 100 })
-console.log(\`Created volume \${vol.id}\`)
+import { describe, it, expect, mock } from 'bun:test'
+import { NodeContainer } from 'luca'
+import './features/tally'
 
-const volumes = await runpod.listVolumes()
-volumes.forEach(v => console.log(\`\${v.name}: \${v.size}GB\`))
+it('notifies state observers', async () => {
+  const c = new NodeContainer()
+  const tally = c.feature('tally')
+  const observer = mock()
+  tally.state.observe(observer)
 
-await runpod.removeVolume('vol-abc123')
+  await tally.tally('test/fixtures/sample.txt')
+
+  expect(observer).toHaveBeenCalledWith('update', 'tallies', 1)   // existed in initialState
+  expect(observer).toHaveBeenCalledWith('add', 'lastCount', 3)    // first write of a new key
+})
 \`\`\`
 
-Attach network volumes to pods via the \`networkVolumeId\` option in \`createPod()\`.
+Without \`mock()\`, a plain array records the same call log:
 
-## Summary
+\`\`\`ts
+const t = container.subcontainer({}).feature('tally')
+const calls = []
+const unsubscribe = t.state.observe((changeType, key, value) => calls.push([changeType, key, value]))
 
-The \`runpod\` feature provides complete GPU cloud management. Create pods from templates, manage lifecycle (start/stop/remove), SSH into running pods, and manage network storage volumes. Supports polling for readiness and file transfer operations. Key methods: \`createPod()\`, \`getpods()\`, \`waitForPod()\`, \`getShell()\`, \`listVolumes()\`, \`createVolume()\`.
+await t.tally(sampleFile)
+
+const saw = (type, key, value) => calls.some(c => c[0] === type && c[1] === key && c[2] === value)
+if (!saw('update', 'tallies', 1)) throw new Error('observer missed the tallies update (key existed in initialState)')
+if (!saw('add', 'lastCount', 3)) throw new Error('observer missed the lastCount add (new key)')
+
+unsubscribe()
+await t.tally(sampleFile)
+if (calls.length !== 2) throw new Error('unsubscribe() should stop notifications')
+console.log('observer contract verified: (changeType, key, value), unsubscribe works')
+\`\`\`
+
+## Awaiting events
+
+Real tests wrap the event in a promise **before** triggering the behavior (the pattern in \`test/websocket-ask.test.ts\`), then await it:
+
+\`\`\`ts skip
+import { it, expect } from 'bun:test'
+import { NodeContainer } from 'luca'
+import './features/tally'
+
+it('emits tallied with the file and count', async () => {
+  const c = new NodeContainer()
+  const tally = c.feature('tally')
+
+  const event = new Promise((resolve) => {
+    tally.once('tallied', (file, count) => resolve({ file, count }))
+  })
+
+  await tally.tally('test/fixtures/sample.txt')
+
+  const { file, count } = await event
+  expect(file).toContain('sample.txt')
+  expect(count).toBe(3)
+})
+\`\`\`
+
+Every helper also has \`waitFor(event)\` — handy shorthand, with one caveat: it resolves with only the **first** listener argument, so for multi-argument events like \`tallied(file, count)\` use the promise-plus-\`once\` pattern to capture everything.
+
+\`\`\`ts
+const t2 = container.subcontainer({}).feature('tally')
+
+// promise-plus-once: captures every event argument
+const event = new Promise((resolve) => {
+  t2.once('tallied', (file, count) => resolve({ file, count }))
+})
+await t2.tally(sampleFile)
+
+const { file, count } = await event
+if (!file.endsWith('sample.txt')) throw new Error('tallied event missing the file argument')
+if (count !== 3) throw new Error('tallied event missing the count argument')
+
+// waitFor: shorthand for the next emission, but only the FIRST argument survives
+const firstArgOnly = t2.waitFor('tallied')
+await t2.tally(sampleFile)
+const viaWaitFor = await firstArgOnly
+if (viaWaitFor !== file) throw new Error('waitFor should resolve with the first event argument')
+
+console.log('event awaited: tallied', count, 'lines — waitFor caveat confirmed')
+\`\`\`
+
+## Cleaning up long-lived helpers
+
+If a feature under test opens sockets, servers, or watchers, the suite hangs without teardown. The framework's own websocket tests use \`afterAll\`:
+
+\`\`\`ts skip
+import { describe, it, expect, afterAll } from 'bun:test'
+import { NodeContainer } from 'luca'
+
+describe('a feature that starts a server', () => {
+  const c = new NodeContainer()
+  const server = c.server('websocket', { json: true })
+
+  afterAll(async () => {
+    try { await server.stop() } catch {}
+  })
+
+  // ...its
+})
+\`\`\`
+
+Our tally feature holds no resources, so this doc only needs to remove its scratch folder:
+
+\`\`\`ts
+await fs.rmdir(pluginRoot)
+console.log('cleaned up', pluginRoot)
+\`\`\`
+
+## The checklist
+
+- Tests live in \`test/<name>.test.ts\` and run with \`bun test\` (or \`bun test test/tally.test.ts\` for one file). Never vitest.
+- Importing anything from \`bun:test\` disables auto-globals — import \`describe\`, \`it\`, \`expect\` explicitly alongside \`mock\` / \`spyOn\` / \`afterAll\`.
+- **Fresh container per test**: \`new NodeContainer()\`. Registration is global; instances are memoized per container + options.
+- Import the feature module (side-effect registration) or run \`helpers.discover('features', { directory })\` before asking the container for it.
+- Assert state with \`state.get()\`; spy on \`state.observe\` knowing the \`(changeType, key, value)\` contract; await events with promise-plus-\`once\` (or \`waitFor\` when one argument is enough).
+- Tear down servers and sockets in \`afterAll\` — and keep every test passing; broken tests don't get committed.
 `,
   "websocket-ask-and-reply-example.md": `---
-title: "websocket-ask-and-reply"
-tags: [websocket, client, server, ask, reply, rpc]
-lastTested: null
-lastTestPassed: null
+title: websocket-ask-and-reply
+tags:
+  - websocket
+  - client
+  - server
+  - ask
+  - reply
+  - rpc
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
 # websocket-ask-and-reply
@@ -2809,2123 +3742,710 @@ console.log('Done')
 
 The ask/reply protocol gives you awaitable request/response over WebSocket without leaving the Luca helper API. The client calls \`ask(type, data)\` and gets back a promise. The server's message handler gets \`reply()\` and \`replyError()\` injected on any message that carries a \`requestId\`. The server can also \`ask()\` a specific client. Timeouts, error propagation, and cleanup of pending requests on disconnect are all handled automatically.
 `,
-  "secure-shell.md": `---
-title: "Secure Shell"
-tags: [secureShell, ssh, scp, remote, deployment]
-lastTested: null
-lastTestPassed: null
+  "error-handling-conventions.md": `---
+title: Error-Handling Conventions
+tags:
+  - errors
+  - conventions
+  - rest
+  - diskCache
+  - proc
+  - registries
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# secureShell
+# Error-Handling Conventions
 
-SSH command execution and SCP file transfers. Uses the system \`ssh\` and \`scp\` binaries to run commands on remote hosts and transfer files securely.
+The framework's helpers do not all fail the same way — and several fail the *opposite* of how instinct says they should. This doc is the map: each convention below is demonstrated live and asserted, so if a contract ever changes, this doc fails.
 
-## Overview
+The four to internalize:
 
-The \`secureShell\` feature provides an SSH client for executing commands on remote machines and transferring files via SCP. It supports both key-based and password-based authentication. All operations require a reachable SSH target host, so the actual connection and command examples use skip blocks.
+1. **\`rest\` returns errors** as values — try/catch catches nothing.
+2. **\`diskCache.get\` throws on a miss** — it does not return \`undefined\`.
+3. **\`proc.exec\` throws on failure; \`proc.execAndCapture\` never throws** — check \`.error\`.
+4. **Registries are classes** — \`Object.keys()\` lies; use \`.available\`.
 
-## Enabling the Feature
+## 1. The rest client returns errors
 
-\`\`\`ts
-const ssh = container.feature('secureShell', {
-  host: 'example.com',
-  username: 'deploy',
-  key: '~/.ssh/id_ed25519',
-  enable: true
-})
-console.log('SSH enabled:', ssh.state.get('enabled'))
-\`\`\`
-
-## Exploring the API
-
-\`\`\`ts
-const docs = container.features.describe('secureShell')
-console.log(docs)
-\`\`\`
-
-## Feature Options
-
-\`\`\`ts
-const ssh = container.feature('secureShell', {
-  host: '192.168.1.100',
-  port: 22,
-  username: 'admin',
-  key: '~/.ssh/id_rsa'
-})
-console.log('Host configured:', ssh.options.host)
-console.log('Port:', ssh.options.port || 22)
-\`\`\`
-
-## Testing the Connection
-
-Verify that the SSH target is reachable before running commands.
-
-\`\`\`ts skip
-const ok = await ssh.testConnection()
-console.log('Connection OK:', ok)
-console.log('State connected:', ssh.state.get('connected'))
-\`\`\`
-
-The \`testConnection\` method runs a simple echo command on the remote host. If it succeeds, \`state.connected\` is set to \`true\`.
-
-## Executing a Remote Command
-
-Run a shell command on the remote host and capture its output.
-
-\`\`\`ts skip
-const uptime = await ssh.exec('uptime')
-console.log('Remote uptime:', uptime)
-
-const listing = await ssh.exec('ls -la /var/log')
-console.log(listing)
-\`\`\`
-
-The \`exec\` method returns the command's stdout as a string. It uses the configured host, username, and authentication credentials.
-
-## Uploading and Downloading Files
-
-Transfer files between the local machine and the remote host using SCP.
-
-\`\`\`ts skip
-await ssh.upload('./build/app.tar.gz', '/opt/releases/app.tar.gz')
-console.log('Upload complete')
-\`\`\`
-
-\`\`\`ts skip
-await ssh.download('/var/log/app.log', './logs/app.log')
-console.log('Download complete')
-\`\`\`
-
-Both methods use the same authentication credentials configured on the feature instance. Paths on the remote side are absolute or relative to the user's home directory.
-
-## Summary
-
-The \`secureShell\` feature wraps the system \`ssh\` and \`scp\` commands to provide remote command execution and file transfers. It supports key-based and password-based authentication, connection testing, and maintains connection state on the feature instance.
-`,
-  "google-sheets.md": `---
-title: "Google Sheets"
-tags: [googleSheets, google, sheets, spreadsheet, data]
-lastTested: null
-lastTestPassed: null
----
-
-# googleSheets
-
-Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. Creates a Sheets v4 API client and depends on \`googleAuth\` for authentication.
-
-## Overview
-
-Use the \`googleSheets\` feature when you need to read data from Google Sheets. It provides convenient methods for reading ranges, converting rows to JSON objects (using the first row as headers), and exporting as CSV. You can set a default spreadsheet ID to avoid passing it on every call.
-
-Requires Google OAuth2 credentials or a service account with Sheets access.
-
-## Enabling the Feature
-
-\`\`\`ts
-const sheets = container.feature('googleSheets', {
-  defaultSpreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms'
-})
-console.log('Google Sheets feature created')
-console.log('Default spreadsheet configured:', !!sheets.options.defaultSpreadsheetId)
-\`\`\`
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('googleSheets')
-console.log(info)
-\`\`\`
-
-## Reading Data as JSON
-
-The \`getAsJson()\` method treats the first row as headers and returns an array of objects.
-
-\`\`\`ts skip
-const data = await sheets.getAsJson('Sheet1')
-console.log(\`Read \${data.length} rows\`)
-data.slice(0, 3).forEach(row => console.log(row))
-// => [{ name: 'Alice', age: '30' }, { name: 'Bob', age: '25' }, ...]
-\`\`\`
-
-With a valid spreadsheet, this reads the first sheet tab and converts each row into a keyed object using the header row. Numeric values come through as strings by default.
-
-## Reading Specific Ranges
-
-Use A1 notation to read a precise cell range.
-
-\`\`\`ts skip
-const values = await sheets.getRange('Sheet1!A1:D10')
-console.log(\`Got \${values.length} rows, \${values[0]?.length} columns\`)
-values.forEach(row => console.log(row.join(' | ')))
-\`\`\`
-
-Returns a 2D array of strings. Useful when you need raw cell data without header interpretation.
-
-## Exporting as CSV
-
-\`\`\`ts skip
-const csv = await sheets.getAsCsv('Revenue')
-console.log(csv)
-\`\`\`
-
-Returns the entire sheet as a CSV-formatted string, ready for piping to files or other tools.
-
-## Saving to Local Files
-
-\`\`\`ts skip
-await sheets.saveAsJson('./data/export.json', 'Sheet1')
-console.log('Saved JSON export')
-
-await sheets.saveAsCsv('./data/export.csv', 'Revenue')
-console.log('Saved CSV export')
-\`\`\`
-
-Both methods write the file and return the resolved path. Paths are relative to the container's working directory.
-
-## Spreadsheet Metadata
-
-\`\`\`ts skip
-const meta = await sheets.getSpreadsheet()
-console.log('Title:', meta.title)
-
-const tabs = await sheets.listSheets()
-tabs.forEach(t => console.log(\`  Tab: \${t.title} (\${t.rowCount} rows)\`))
-\`\`\`
-
-Inspect the spreadsheet structure before reading data.
-
-## Summary
-
-The \`googleSheets\` feature reads Google Sheets data in three formats: JSON objects, raw 2D arrays, and CSV strings. Set a default spreadsheet ID for convenience. Authentication is handled by \`googleAuth\`. Key methods: \`getAsJson()\`, \`getRange()\`, \`getAsCsv()\`, \`saveAsJson()\`, \`saveAsCsv()\`, \`listSheets()\`.
-`,
-  "esbuild.md": `---
-title: "esbuild"
-tags: [esbuild, transpilation, bundling, typescript]
-lastTested: null
-lastTestPassed: null
----
-
-# esbuild
-
-Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. Compile code strings on the fly without touching the filesystem.
-
-## Overview
-
-The \`esbuild\` feature is a core feature, meaning it is auto-enabled on every container. You can access it directly as a global or via \`container.feature('esbuild')\`. It wraps Bun's transpiler and exposes both synchronous and asynchronous \`transform\` methods. Use it for runtime code generation, plugin systems, or any scenario where you need to compile TypeScript strings to runnable JavaScript.
-
-## Synchronous Transform
-
-Use \`transformSync()\` to transpile a TypeScript string to JavaScript in a single blocking call.
-
-\`\`\`ts
-const result = esbuild.transformSync('const x: number = 42; console.log(x);')
-console.log('Input:  const x: number = 42; console.log(x);')
-console.log('Output:', result.code.trim())
-\`\`\`
-
-The type annotations are stripped and the output is plain JavaScript.
-
-## Async Transform
-
-The async \`transform()\` method does the same thing but returns a promise. Prefer this in hot paths where you do not want to block.
-
-\`\`\`ts
-const tsxCode = \`
-interface Props { name: string }
-const Greet = (props: Props) => <h1>Hello {props.name}</h1>
-\`
-const out = await esbuild.transform(tsxCode, { loader: 'tsx' })
-console.log('TSX transpiled:')
-console.log(out.code.trim())
-\`\`\`
-
-Notice the \`loader: 'tsx'\` option tells the transpiler to handle JSX syntax.
-
-## Minification
-
-Pass \`minify: true\` to produce compact output with whitespace removed.
-
-\`\`\`ts
-const verbose = \`
-  function greet(name: string): string {
-    const greeting = "Hello, " + name + "!";
-    return greeting;
-  }
-\`
-const normal = esbuild.transformSync(verbose)
-const minified = esbuild.transformSync(verbose, { minify: true })
-console.log('Normal length:', normal.code.length)
-console.log('Minified length:', minified.code.length)
-console.log('Minified:', minified.code.trim())
-\`\`\`
-
-Minification is useful when generating code that will be sent to a browser or embedded in a response.
-
-## Different Loaders
-
-The feature supports multiple source languages via the \`loader\` option.
-
-\`\`\`ts
-const jsxResult = esbuild.transformSync(
-  'const App = () => <div className="app">Content</div>',
-  { loader: 'tsx' }
-)
-console.log('JSX output:', jsxResult.code.trim())
-\`\`\`
-
-Supported loaders include \`ts\` (default), \`tsx\`, \`jsx\`, and \`js\`.
-
-## Summary
-
-This demo covered synchronous and asynchronous transpilation, minification, and using different source loaders. The \`esbuild\` feature gives you runtime TypeScript-to-JavaScript compilation with zero configuration.
-`,
-  "proc.md": `---
-title: "proc"
-tags: [proc, process, shell, core]
-lastTested: null
-lastTestPassed: null
----
-
-# proc
-
-Process execution utilities for running shell commands and capturing their output.
-
-## Overview
-
-The \`proc\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('proc')\`. It provides synchronous and asynchronous methods for executing shell commands. Use \`exec()\` for quick synchronous calls and \`execAndCapture()\` when you need structured output with exit codes.
-
-## Simple Command Execution
-
-Use \`exec()\` to run a command synchronously and get its stdout as a string.
-
-\`\`\`ts
-const result = proc.exec('echo hello from luca')
-console.log('Output:', result.trim())
-\`\`\`
-
-The output is returned directly as a string, with no wrapper object.
-
-## Listing Files
-
-Commands that produce multi-line output work naturally. Each line comes through as part of the string.
-
-\`\`\`ts
-const listing = proc.exec('ls src')
-const entries = listing.trim().split('\\n')
-console.log('Entries in src/:', entries.length)
-entries.slice(0, 5).forEach(e => console.log(' ', e))
-\`\`\`
-
-You can split and process the output like any other string.
-
-## Working Directory Option
-
-Pass a \`cwd\` option to run a command in a different directory without changing the container's working directory.
-
-\`\`\`ts
-const rootFiles = proc.exec('ls -1', { cwd: '.' })
-console.log('Files in project root:')
-rootFiles.trim().split('\\n').slice(0, 5).forEach(f => console.log(' ', f))
-\`\`\`
-
-This is useful when you need to operate on files in a subdirectory or sibling project.
-
-## Getting System Info
-
-Shell commands work for gathering system information that might not be available through other features.
-
-\`\`\`ts
-const date = proc.exec('date')
-console.log('Current date:', date.trim())
-
-const whoami = proc.exec('whoami')
-console.log('Current user:', whoami.trim())
-\`\`\`
-
-Any command available on the system PATH can be called through \`exec()\`.
-
-## Async Execution with Capture
-
-Use \`execAndCapture()\` for async execution with structured output including exit code and stderr.
-
-\`\`\`ts
-const result = await proc.execAndCapture('ls src')
-console.log('Exit code:', result.exitCode)
-console.log('Stdout lines:', result.stdout.trim().split('\\n').length)
-console.log('Stderr:', result.stderr || '(empty)')
-\`\`\`
-
-The returned object gives you \`stdout\`, \`stderr\`, \`exitCode\`, and \`pid\` for full control over the result.
-
-## Summary
-
-This demo covered synchronous command execution, processing multi-line output, running commands in different directories, gathering system info, and async execution with structured results. The \`proc\` feature is the escape hatch for anything the other features do not cover directly.
-`,
-  "downloader.md": `---
-title: "Downloader"
-tags: [downloader, network, files, http]
-lastTested: null
-lastTestPassed: null
----
-
-# downloader
-
-Download files from remote URLs and save them to the local filesystem.
-
-## Overview
-
-The \`downloader\` feature is an on-demand feature that fetches files from HTTP/HTTPS URLs and writes them to disk. It handles the network request, buffering, and file writing automatically. Use it when you need to programmatically pull remote assets -- images, documents, data files -- into your project.
-
-## Feature Documentation
-
-Let us inspect the feature's built-in documentation to understand its API.
-
-\`\`\`ts
-const desc = container.features.describe('downloader')
-console.log(desc)
-\`\`\`
-
-The feature exposes a single \`download(url, targetPath)\` method that fetches a URL and writes the response body to the specified path.
-
-## Enabling the Feature
-
-Enable the downloader and inspect its initial state.
-
-\`\`\`ts
-const downloader = container.feature('downloader', { enable: true })
-console.log('Downloader enabled:', downloader.state.enabled)
-\`\`\`
-
-Once enabled, the feature is ready to accept download requests.
-
-## Inspecting the API
-
-The downloader has a straightforward interface: one method for downloading.
-
-\`\`\`ts
-const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(downloader))
-  .filter(m => !m.startsWith('_') && m !== 'constructor')
-console.log('Available methods:', methods.join(', '))
-\`\`\`
-
-The \`download\` method takes two arguments: a URL string and a target file path. The target path is resolved relative to the container's working directory.
-
-## How Downloading Works
-
-Here is what happens when you call \`download()\`:
-
-1. The feature makes an HTTP fetch to the provided URL
-2. The response is buffered into memory
-3. The buffer is written to the filesystem at the target path
-4. The path is resolved using the container's path resolution
-
-\`\`\`ts
-// Example usage (not executed to avoid network calls):
-//   await downloader.download(
-//     'https://example.com/data.json',
-//     'downloads/data.json'
-//   )
-console.log('Downloader is ready. Call downloader.download(url, path) to fetch files.')
-\`\`\`
-
-## Summary
-
-This demo covered the \`downloader\` feature, which provides a simple one-method API for fetching remote files and saving them locally. It handles HTTP requests, buffering, and file writing, making it the right choice for any task that involves pulling assets from the network.
-`,
-  "google-docs.md": `---
-title: "Google Docs"
-tags: [googleDocs, google, docs, documents, markdown]
-lastTested: null
-lastTestPassed: null
----
-
-# googleDocs
-
-Google Docs feature for reading documents and converting them to Markdown. Depends on \`googleAuth\` for authentication and optionally \`googleDrive\` for listing documents.
-
-## Overview
-
-Use the \`googleDocs\` feature when you need to read Google Docs content. Its standout capability is converting Google Docs to well-formatted Markdown, handling headings, bold/italic/strikethrough, links, code, lists, tables, and images. Also supports plain text extraction and raw document structure access.
-
-Requires Google OAuth2 credentials or a service account with Docs access.
-
-## Enabling the Feature
-
-\`\`\`ts
-const docs = container.feature('googleDocs')
-console.log('Google Docs feature created')
-\`\`\`
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('googleDocs')
-console.log(info)
-\`\`\`
-
-## Reading as Markdown
-
-Convert a Google Doc into clean Markdown with full formatting support.
-
-\`\`\`ts skip
-const markdown = await docs.getAsMarkdown('1abc_document_id')
-console.log(markdown)
-\`\`\`
-
-The converter handles headings (H1-H6), bold, italic, strikethrough, links, code fonts, ordered/unordered lists with nesting, tables, images, and section breaks. This is the primary method for extracting document content.
-
-## Plain Text and Raw Structure
-
-\`\`\`ts skip
-const text = await docs.getAsText('1abc_document_id')
-console.log('Plain text length:', text.length)
-
-const rawDoc = await docs.getDocument('1abc_document_id')
-console.log('Document title:', rawDoc.title)
-console.log('Sections:', rawDoc.body.content.length)
-\`\`\`
-
-Use \`getAsText()\` when you only need the words without any formatting. Use \`getDocument()\` when you need the full Docs API structure for custom processing.
-
-## Saving to Files
-
-\`\`\`ts skip
-const path = await docs.saveAsMarkdown('1abc_document_id', './output/doc.md')
-console.log('Saved to:', path)
-\`\`\`
-
-Downloads and converts a doc to Markdown in one step. The path is resolved relative to the container's working directory.
-
-## Listing and Searching Docs
-
-Uses Google Drive under the hood to find Google Docs by name or content.
-
-\`\`\`ts skip
-const allDocs = await docs.listDocs()
-console.log(\`Found \${allDocs.length} Google Docs\`)
-allDocs.slice(0, 5).forEach(d => console.log(\`  \${d.name} (\${d.id})\`))
-
-const results = await docs.searchDocs('meeting notes')
-console.log(\`Search returned \${results.length} docs\`)
-\`\`\`
-
-Both methods filter Drive results to the Google Docs MIME type automatically.
-
-## Summary
-
-The \`googleDocs\` feature reads Google Docs and converts them to Markdown, plain text, or raw API structures. The Markdown converter handles all common formatting elements. Uses \`googleDrive\` for listing and searching documents. Key methods: \`getAsMarkdown()\`, \`getAsText()\`, \`getDocument()\`, \`saveAsMarkdown()\`, \`listDocs()\`, \`searchDocs()\`.
-`,
-  "ink-renderer.md": `# Feature Registry
-
-## Blocks
-
-\`\`\`tsx
-const { Box, Text } = ink.components
-const React = ink.React
-
-function Table({ rows, columns }) {
-  const colWidth = Math.floor(70 / columns)
-
-  const chunked = []
-  for (let i = 0; i < rows.length; i += columns) {
-    chunked.push(rows.slice(i, i + columns))
-  }
-
-  return (
-    <Box flexDirection="column">
-      <Box borderStyle="single" paddingX={1}>
-        <Text bold color="cyan">Available Features</Text>
-      </Box>
-      {chunked.map((row, ri) => (
-        <Box key={ri} flexDirection="row">
-          {row.map((item, ci) => (
-            <Box key={ci} width={colWidth} paddingX={1}>
-              <Text color="green">{item}</Text>
-            </Box>
-          ))}
-        </Box>
-      ))}
-    </Box>
-  )
-}
-\`\`\`
-
-## Features
-
-\`\`\`ts
-const features = container.features.available
-await render('Table', { rows: features, columns: 3 })
-\`\`\`
-`,
-  "git.md": `---
-title: "git"
-tags: [git, version-control, core]
-lastTested: null
-lastTestPassed: null
----
-
-# git
-
-Git repository operations including branch info, commit history, and file listing.
-
-## Overview
-
-The \`git\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('git')\`. It provides getters for quick repo metadata and methods for querying commit history and tracked files. All operations use the repository that contains the container's working directory.
-
-## Repository Info
-
-The basic getters give you quick access to the current repository state without any arguments.
-
-\`\`\`ts
-console.log('Is a git repo:', git.isRepo)
-console.log('Repo root:', git.repoRoot)
-console.log('Current branch:', git.branch)
-console.log('Current SHA:', git.sha)
-\`\`\`
-
-These are synchronous getters, so you can use them inline anywhere.
-
-## Listing Tracked Files
-
-Use \`lsFiles()\` to list files tracked by git. This wraps \`git ls-files\` with structured options.
-
-\`\`\`ts
-const files = await git.lsFiles()
-console.log('Total tracked files:', files.length)
-console.log('First 5 files:')
-files.slice(0, 5).forEach(f => console.log(' ', f))
-\`\`\`
-
-You can filter for modified, deleted, or untracked files by passing options.
-
-## Filtered File Listing
-
-Pass options to \`lsFiles()\` to narrow down the results by file status or pattern.
-
-\`\`\`ts
-const tsFiles = await git.lsFiles({ include: '*.ts' })
-console.log('Tracked .ts files:', tsFiles.length)
-
-const srcFiles = await git.lsFiles({ baseDir: 'src' })
-console.log('Files in src/:', srcFiles.length)
-\`\`\`
-
-The \`include\`, \`exclude\`, and \`baseDir\` options let you scope the listing precisely.
-
-## Latest Commits
-
-Use \`getLatestChanges()\` to retrieve recent commit metadata. Each entry has a \`title\`, \`message\`, and \`author\`.
-
-\`\`\`ts
-const changes = await git.getLatestChanges(3)
-changes.forEach((c, i) => {
-  console.log(\`\${i + 1}. [\${c.author}] \${c.title}\`)
-})
-\`\`\`
-
-This is useful for generating changelogs, displaying recent activity, or auditing history.
-
-## File History
-
-Use \`fileLog()\` to see the commit history for a specific file.
-
-\`\`\`ts
-const log = git.fileLog('package.json')
-console.log('Commits touching package.json:', log.length)
-log.slice(0, 3).forEach(entry => {
-  console.log(\`  \${entry.sha.slice(0, 8)} \${entry.message}\`)
-})
-\`\`\`
-
-Each entry contains the commit \`sha\` and \`message\`. This is a synchronous method.
-
-## Summary
-
-This demo covered checking repository status, listing tracked files with filters, viewing recent commit history, and inspecting per-file commit logs. These tools give scripts full visibility into the git state of a project.
-`,
-  "ink.md": `---
-title: "Ink"
-tags: [ink, react, terminal, ui, components]
-lastTested: null
-lastTestPassed: null
----
-
-# ink
-
-React-powered terminal UI via the Ink library. Build rich, interactive command-line interfaces using React components that render directly in the terminal.
-
-## Overview
-
-The \`ink\` feature exposes the Ink library (React for CLIs) through the container. It provides access to React itself, all Ink components (Box, Text, Spacer, etc.), all Ink hooks (useInput, useApp, useFocus, etc.), and a render/unmount lifecycle. Because Ink renders an interactive React tree in the terminal, it cannot be fully demonstrated in a non-interactive markdown runner. Runnable blocks cover setup and introspection; actual rendering is shown in skip blocks.
-
-## Enabling the Feature
-
-\`\`\`ts
-const ink = container.feature('ink', { enable: true })
-console.log('Ink enabled:', ink.state.get('enabled'))
-console.log('Currently mounted:', ink.isMounted)
-\`\`\`
-
-## Exploring the API
-
-\`\`\`ts
-const docs = container.features.describe('ink')
-console.log(docs)
-\`\`\`
-
-## Loading Modules
-
-The \`loadModules\` method pre-loads React and Ink so that the sync getters work immediately.
-
-\`\`\`ts
-const ink = container.feature('ink', { enable: true })
-await ink.loadModules()
-const componentNames = Object.keys(ink.components)
-const hookNames = Object.keys(ink.hooks)
-console.log('Components:', componentNames.join(', '))
-console.log('Hooks:', hookNames.join(', '))
-console.log('React available:', typeof ink.React.createElement)
-\`\`\`
-
-## Rendering a Component
-
-Mount a React element to the terminal using \`React.createElement\`.
-
-\`\`\`ts skip
-const { Box, Text } = ink.components
-const { React } = ink
-
-ink.render(
-  React.createElement(Box, { flexDirection: 'column' },
-    React.createElement(Text, { color: 'green' }, 'Hello from Ink'),
-    React.createElement(Text, { dimColor: true }, 'Powered by Luca')
-  )
-)
-await ink.waitUntilExit()
-\`\`\`
-
-The \`render\` method mounts the React tree and starts the Ink render loop. \`waitUntilExit\` returns a promise that resolves when the app exits (via \`useApp().exit()\` or \`unmount()\`).
-
-## Using Hooks
-
-Ink hooks like \`useInput\` and \`useFocus\` work inside functional components passed to \`render\`.
-
-\`\`\`ts skip
-const { Text } = ink.components
-const { React } = ink
-const { useInput, useApp } = ink.hooks
-
-function App() {
-  const { exit } = useApp()
-  useInput((input, key) => {
-    if (input === 'q') exit()
-  })
-  return React.createElement(Text, null, 'Press q to quit')
-}
-
-ink.render(React.createElement(App))
-await ink.waitUntilExit()
-console.log('App exited')
-\`\`\`
-
-## Unmounting and Cleanup
-
-Tear down the rendered app and clear terminal output.
-
-\`\`\`ts skip
-ink.render(
-  React.createElement(ink.components.Text, null, 'Temporary UI')
-)
-ink.clear()
-ink.unmount()
-console.log('Mounted after unmount:', ink.isMounted)
-\`\`\`
-
-The \`clear\` method erases all Ink-rendered content from the terminal. The \`unmount\` method tears down the React tree. Both are safe to call when no app is mounted.
-
-## Summary
-
-The \`ink\` feature brings React-based terminal UIs to Luca scripts. It provides the full Ink component and hook library, a render lifecycle with mount/unmount/rerender, and access to the React module itself. Best suited for interactive CLI tools and dashboards.
-`,
-  "yaml-tree.md": `---
-title: "YAML Tree"
-tags: [yamlTree, yaml, files, data-loading]
-lastTested: null
-lastTestPassed: null
----
-
-# yamlTree
-
-Load YAML files from directory structures into a nested object tree.
-
-## Overview
-
-The \`yamlTree\` feature is an on-demand feature that recursively scans a directory for \`.yml\` and \`.yaml\` files and builds a hierarchical JavaScript object from them. It works identically to \`jsonTree\` but for YAML content. File paths are converted to camelCased property paths, so \`config/database/production.yml\` becomes \`tree.config.database.production\`. This is useful for projects that store configuration, infrastructure definitions, or data in YAML format.
-
-## Feature Documentation
-
-Let us inspect the feature's built-in documentation.
-
-\`\`\`ts
-const desc = container.features.describe('yamlTree')
-console.log(desc)
-\`\`\`
-
-Like jsonTree, the key method is \`loadTree(basePath, key?)\` and the data is accessed through the \`tree\` getter.
-
-## Enabling the Feature
-
-Enable yamlTree and check its initial state.
-
-\`\`\`ts
-const yamlTree = container.feature('yamlTree', { enable: true })
-console.log('yamlTree enabled:', yamlTree.state.enabled)
-console.log('Initial tree:', JSON.stringify(yamlTree.tree))
-\`\`\`
-
-The tree starts empty until you load directories into it.
-
-## Loading YAML Files
-
-We can attempt to load YAML files from the project. If the project has any \`.yml\` or \`.yaml\` files, they will appear in the tree.
-
-\`\`\`ts
-await yamlTree.loadTree('.', 'root')
-const keys = Object.keys(yamlTree.tree.root || {})
-console.log('Keys loaded under root:', keys.length ? keys.join(', ') : '(no YAML files found)')
-\`\`\`
-
-If no YAML files are found, the tree for that key will be empty. This is expected for projects that do not use YAML.
-
-## How It Compares to jsonTree
-
-The yamlTree and jsonTree features share the same design pattern:
-
-- Both recursively scan directories
-- Both convert file paths to camelCased property paths
-- Both store results in a \`tree\` getter
-- Both accept a custom key for namespacing
-
-The only difference is the file extensions they look for and the parser they use.
-
-\`\`\`ts
-const comparison = {
-  jsonTree: { extensions: ['.json'], parser: 'JSON.parse' },
-  yamlTree: { extensions: ['.yml', '.yaml'], parser: 'YAML parser' },
-}
-for (const [name, info] of Object.entries(comparison)) {
-  console.log(\`\${name}: scans \${info.extensions.join(', ')} files, uses \${info.parser}\`)
-}
-\`\`\`
-
-## Path Transformation Rules
-
-The same path transformation rules apply as in jsonTree:
-
-- Directory names become nested object properties
-- File names (without extension) become leaf properties
-- All names are converted to camelCase
-
-\`\`\`ts
-const mappings = {
-  'infra/k8s/deployment.yml': 'tree.infra.k8s.deployment',
-  'config/app-settings.yaml': 'tree.config.appSettings',
-  'data/seed/users.yml': 'tree.data.seed.users',
-}
-for (const [file, path] of Object.entries(mappings)) {
-  console.log(\`\${file} => \${path}\`)
-}
-\`\`\`
-
-## Summary
-
-This demo covered the \`yamlTree\` feature, which scans directories for YAML files (.yml and .yaml) and builds a nested object tree. It follows the same pattern as \`jsonTree\` and is ideal for projects that rely on YAML for configuration, infrastructure definitions, or structured data.
-`,
-  "grep.md": `---
-title: "grep"
-tags: [grep, search, core]
-lastTested: null
-lastTestPassed: null
----
-
-# grep
-
-Search file contents for patterns, find imports, definitions, and TODO comments.
-
-## Overview
-
-The \`grep\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('grep')\`. It wraps ripgrep with a structured API, providing methods for pattern search, import discovery, definition lookup, and TODO scanning. Results come back as arrays of match objects with file, line, and content info.
-
-## Searching for a Pattern
-
-Use \`search()\` to find occurrences of a pattern across files. Options let you filter by file type, limit results, and control case sensitivity.
-
-\`\`\`ts
-const results = await grep.search({ pattern: 'container', include: '*.ts', exclude: 'node_modules', maxResults: 5 })
-console.log('Matches for "container" in .ts files (first 5):')
-results.forEach(r => {
-  console.log(\`  \${r.file}:\${r.line} \${r.content.trim().slice(0, 60)}\`)
-})
-\`\`\`
-
-Each match object contains \`file\`, \`line\`, and \`content\` fields.
-
-## Counting Matches
-
-Use \`count()\` to get just the number of matches without fetching all the details.
-
-\`\`\`ts
-const total = await grep.count('container', { include: '*.ts', exclude: 'node_modules' })
-console.log('Total "container" occurrences in .ts files:', total)
-\`\`\`
-
-This is much faster when you only need the total.
-
-## Finding Import Statements
-
-Use \`imports()\` to find all files that import a specific module or path.
-
-\`\`\`ts
-const results = await grep.imports('path', { include: '*.ts', exclude: 'node_modules', maxResults: 5 })
-console.log('Files importing "path" (first 5):')
-results.forEach(r => {
-  console.log(\`  \${r.file}:\${r.line} \${r.content.trim().slice(0, 70)}\`)
-})
-\`\`\`
-
-This searches for both \`import\` and \`require\` patterns automatically.
-
-## Finding Definitions
-
-Use \`definitions()\` to locate where functions, classes, types, or variables are defined.
-
-\`\`\`ts
-const defs = await grep.definitions('Feature', { include: '*.ts', exclude: 'node_modules', maxResults: 5 })
-console.log('Definitions matching "Feature" (first 5):')
-defs.forEach(d => {
-  console.log(\`  \${d.file}:\${d.line} \${d.content.trim().slice(0, 70)}\`)
-})
-\`\`\`
-
-This searches for \`function\`, \`class\`, \`type\`, \`interface\`, \`const\`, and \`let\` declarations.
-
-## Finding TODOs
-
-Use \`todos()\` to scan for TODO, FIXME, HACK, and XXX comments across the codebase.
-
-\`\`\`ts
-const todos = await grep.todos({ include: '*.ts', exclude: 'node_modules', maxResults: 5 })
-console.log('TODOs found in .ts files (first 5):')
-todos.forEach(t => {
-  console.log(\`  \${t.file}:\${t.line} \${t.content.trim().slice(0, 70)}\`)
-})
-\`\`\`
-
-This is handy for tracking technical debt and outstanding work items.
-
-## Summary
-
-This demo covered pattern searching with structured results, counting matches efficiently, finding import statements, locating definitions by name, and scanning for TODO comments. The \`grep\` feature is the go-to tool for codebase analysis and discovery.
-`,
-  "google-auth.md": `---
-title: "Google Auth"
-tags: [googleAuth, google, oauth2, authentication, service-account]
-lastTested: null
-lastTestPassed: null
----
-
-# googleAuth
-
-Google authentication feature supporting OAuth2 browser flow and service account auth. Handles the complete OAuth2 lifecycle including token refresh and secure storage via diskCache.
-
-## Overview
-
-Use the \`googleAuth\` feature to authenticate with Google APIs. It supports two modes: OAuth2 (opens a browser for user consent) and service account (non-interactive, uses a JSON key file). Other Google features (drive, sheets, calendar, docs) depend on this feature automatically.
-
-Requires either \`GOOGLE_CLIENT_ID\` and \`GOOGLE_CLIENT_SECRET\` environment variables for OAuth2, or a service account key file.
-
-## Enabling the Feature
-
-\`\`\`ts
-const auth = container.feature('googleAuth')
-console.log('Auth mode:', auth.authMode)
-console.log('Authenticated:', auth.isAuthenticated)
-\`\`\`
-
-The feature reads \`GOOGLE_CLIENT_ID\` and \`GOOGLE_CLIENT_SECRET\` from the environment automatically. You can also pass \`clientId\` and \`clientSecret\` as options.
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('googleAuth')
-console.log(info)
-\`\`\`
-
-## OAuth2 Authorization Flow
-
-The \`authorize()\` method starts the full OAuth2 browser flow: it spins up a local callback server, opens the consent page, exchanges the code for tokens, and caches the refresh token.
-
-\`\`\`ts skip
-const auth = container.feature('googleAuth', {
-  scopes: ['https://www.googleapis.com/auth/drive.readonly']
-})
-await auth.authorize()
-console.log('Authenticated:', auth.isAuthenticated)
-console.log('Scopes:', auth.state.scopes)
-\`\`\`
-
-When running with valid credentials, this opens a browser to Google's consent page. After approval, tokens are stored in diskCache and automatically refreshed on expiry.
-
-## Service Account Authentication
-
-For server-to-server auth without a browser, use a service account JSON key file.
-
-\`\`\`ts skip
-const auth = container.feature('googleAuth', {
-  mode: 'service-account',
-  serviceAccountKeyPath: '/path/to/service-account-key.json',
-  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
-})
-await auth.authenticateServiceAccount()
-console.log('Service account email:', auth.state.email)
-\`\`\`
-
-Service accounts are ideal for automation, CI/CD, and background services that need Google API access without user interaction.
-
-## Token Management
-
-Tokens are cached automatically and restored on subsequent runs. You can also revoke credentials.
-
-\`\`\`ts skip
-// Attempt to restore from cache (called automatically)
-const restored = await auth.tryRestoreTokens()
-console.log('Restored from cache:', restored)
-
-// Get the auth client for passing to Google API constructors
-const client = await auth.getAuthClient()
-console.log('Auth client ready')
-
-// Revoke and clear cached tokens
-await auth.revoke()
-console.log('Credentials revoked')
-\`\`\`
-
-The \`tokenRefreshed\` event fires when tokens are automatically refreshed, and \`authenticated\` fires after successful authentication.
-
-## Summary
-
-The \`googleAuth\` feature provides the authentication layer for all Google API features. It supports OAuth2 browser flow and service accounts, with automatic token refresh and diskCache storage. Other Google features (drive, sheets, calendar, docs) use it automatically. Key methods: \`authorize()\`, \`authenticateServiceAccount()\`, \`getAuthClient()\`, \`revoke()\`.
-`,
-  "tts.md": `---
-title: "Text-to-Speech"
-tags: [tts, speech, audio, runpod, chatterbox]
-lastTested: null
-lastTestPassed: null
----
-
-# tts
-
-Text-to-speech feature that synthesizes audio files via RunPod's Chatterbox Turbo endpoint. Supports 20 preset voices and voice cloning from a reference audio URL.
-
-## Overview
-
-Use the \`tts\` feature when you need to generate speech audio from text. It calls the Chatterbox Turbo public endpoint on RunPod, downloads the resulting audio, and saves it locally. Choose from 20 preset voices or clone any voice by providing a reference audio URL.
-
-Requires a \`RUNPOD_API_KEY\` environment variable or an \`apiKey\` option.
-
-## Enabling the Feature
-
-\`\`\`ts
-const tts = container.feature('tts', {
-  voice: 'lucy',
-  format: 'wav',
-  outputDir: '/tmp/tts-output'
-})
-console.log('TTS feature created')
-console.log('Default voice:', tts.options.voice)
-console.log('Output format:', tts.options.format)
-\`\`\`
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('tts')
-console.log(info)
-\`\`\`
-
-## Available Voices
-
-List all 20 preset voice names.
-
-\`\`\`ts
-console.log('Available voices:', tts.voices.join(', '))
-\`\`\`
-
-## Generating Speech
-
-Synthesize text with a preset voice.
-
-\`\`\`ts skip
-const path = await tts.synthesize('Good morning! Here is your daily briefing.', {
-  voice: 'ethan'
-})
-console.log('Audio saved to:', path)
-console.log('Last generated file:', tts.state.lastFile)
-\`\`\`
-
-The synthesize method sends the text to RunPod, waits for generation, downloads the audio, and saves it to the output directory. The \`synthesized\` event fires with the file path on completion.
-
-## Voice Cloning
-
-Clone any voice by providing a reference audio URL.
-
-\`\`\`ts skip
-const path = await tts.synthesize('Hello world, this is a cloned voice.', {
-  voiceUrl: 'https://example.com/reference-voice.wav'
-})
-console.log('Cloned voice audio saved to:', path)
-\`\`\`
-
-The reference audio should be a clear recording of the voice you want to clone. The Chatterbox Turbo model uses it to match the voice characteristics.
-
-## Output Formats
-
-\`\`\`ts skip
-const wav = await tts.synthesize('WAV format', { format: 'wav' })
-const flac = await tts.synthesize('FLAC format', { format: 'flac' })
-const ogg = await tts.synthesize('OGG format', { format: 'ogg' })
-console.log('Generated files:', wav, flac, ogg)
-\`\`\`
-
-Three output formats are supported: WAV (default, uncompressed), FLAC (lossless compressed), and OGG (lossy compressed).
-
-## Summary
-
-The \`tts\` feature generates speech audio via RunPod's Chatterbox Turbo. Choose from 20 preset voices or clone a custom voice with a reference URL. Supports WAV, FLAC, and OGG output formats. Key methods: \`synthesize()\`. Key getters: \`voices\`, \`outputDir\`.
-`,
-  "os.md": `---
-title: "os"
-tags: [os, system, platform, core]
-lastTested: null
-lastTestPassed: null
----
-
-# os
-
-Operating system information including platform, architecture, CPU, and network details.
-
-## Overview
-
-The \`os\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('os')\`. It exposes system metadata through simple getters -- no method calls needed. Use it to detect the runtime environment, adapt behavior per platform, or gather machine info for diagnostics.
-
-## Platform and Architecture
-
-The \`platform\` and \`arch\` getters tell you what operating system and CPU architecture the code is running on.
-
-\`\`\`ts
-console.log('Platform:', os.platform)
-console.log('Architecture:', os.arch)
-\`\`\`
-
-Platform returns values like \`darwin\`, \`linux\`, or \`win32\`. Architecture returns values like \`arm64\` or \`x64\`.
-
-## CPU Information
-
-The \`cpuCount\` getter reports the number of logical CPU cores available.
-
-\`\`\`ts
-console.log('CPU cores:', os.cpuCount)
-\`\`\`
+The full walkthrough (HTTP errors, health-check idiom, rate limits) lives in [full-stack-slice.md](./full-stack-slice.md); here is just the reflex. A request to a dead port **resolves** — the error comes back as a plain serialized object, not a thrown exception, and \`instanceof Error\` is \`false\`. Connection failures carry a \`code\` (the exact string is runtime-dependent: \`'ConnectionRefused'\` under Bun, \`'ECONNREFUSED'\` under Node — never assert the exact string).
 
-Use this to size worker pools or decide how many parallel tasks to run.
-
-## System Paths
-
-The \`tmpdir\` and \`homedir\` getters return commonly needed system directories.
-
-\`\`\`ts
-console.log('Temp directory:', os.tmpdir)
-console.log('Home directory:', os.homedir)
-\`\`\`
-
-These are the OS defaults -- \`tmpdir\` for throwaway files and \`homedir\` for the current user's home.
-
-## Hostname
-
-The \`hostname\` getter returns the machine's network hostname.
-
-\`\`\`ts
-console.log('Hostname:', os.hostname)
-\`\`\`
-
-This can be useful for logging, multi-machine coordination, or display purposes.
-
-## Network Interfaces
-
-The \`macAddresses\` getter returns MAC addresses for non-internal IPv4 network interfaces.
-
-\`\`\`ts
-const macs = os.macAddresses
-console.log('MAC addresses:', macs.length, 'found')
-macs.slice(0, 3).forEach(mac => console.log(' ', mac))
-\`\`\`
-
-MAC addresses are useful for machine fingerprinting or license management.
-
-## Summary
-
-This demo covered querying the platform and architecture, checking CPU core count, retrieving system directory paths, reading the hostname, and listing network MAC addresses. The \`os\` feature gives scripts everything they need to adapt to and report on the runtime environment.
-`,
-  "sqlite.md": `---
-title: "SQLite"
-tags: [sqlite, database, sql, storage]
-lastTested: null
-lastTestPassed: null
----
-
-# sqlite
-
-In-process SQLite database via Bun's native binding. Create tables, insert rows, and query data with parameterized SQL or tagged templates.
-
-## Overview
-
-The \`sqlite\` feature is on-demand. Pass \`{ path: ':memory:' }\` for an in-memory database or a file path for persistence. It supports parameterized queries to prevent SQL injection and a convenient tagged-template syntax for inline SQL.
-
-## Creating an In-Memory Database
-
-Enable the feature with an in-memory path. No files are created on disk.
-
-\`\`\`ts
-const db = container.feature('sqlite', { path: ':memory:' })
-console.log('SQLite enabled:', db.state.get('enabled'))
-\`\`\`
-
-The database is ready for queries immediately.
-
-## Creating a Table
-
-Use \`execute()\` for DDL and write statements.
-
-\`\`\`ts
-await db.execute(\`
-  CREATE TABLE users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    active INTEGER DEFAULT 1
-  )
-\`)
-console.log('Table created')
-\`\`\`
-
-The \`execute()\` method returns metadata including the number of changes and the last inserted row ID.
-
-## Inserting Rows
-
-Insert data using parameterized queries to keep values safe.
-
-\`\`\`ts
-await db.execute('INSERT INTO users (name, email) VALUES (?, ?)', ['Alice', 'alice@example.com'])
-await db.execute('INSERT INTO users (name, email) VALUES (?, ?)', ['Bob', 'bob@example.com'])
-const result = await db.execute('INSERT INTO users (name, email, active) VALUES (?, ?, ?)', ['Charlie', 'charlie@example.com', 0])
-console.log('Last insert ID:', result.lastInsertRowid)
-console.log('Changes:', result.changes)
-\`\`\`
-
-Each \`?\` placeholder is bound to the corresponding value in the array, preventing SQL injection.
-
-## Querying Rows
-
-Use \`query()\` for SELECT statements that return result rows.
-
-\`\`\`ts
-const users = await db.query('SELECT * FROM users WHERE active = ?', [1])
-console.log('Active users:')
-users.forEach(u => console.log(\`  \${u.id}: \${u.name} <\${u.email}>\`))
-\`\`\`
-
-Results come back as an array of plain objects with column names as keys.
-
-## Tagged Template Queries
-
-The \`sql\` tagged template lets you write queries with inline interpolation that is still safely parameterized.
-
-\`\`\`ts
-const emailDomain = '%example.com'
-const rows = await db.sql\`SELECT name, email FROM users WHERE email LIKE \${emailDomain}\`
-console.log('Users matching domain:')
-rows.forEach(r => console.log(\`  \${r.name}: \${r.email}\`))
-\`\`\`
-
-Interpolated values become bound parameters automatically. This combines readability with safety.
-
-## Summary
-
-This demo covered creating an in-memory SQLite database, defining tables, inserting rows with parameterized queries, reading data back, and using the tagged-template SQL syntax. The \`sqlite\` feature gives you a full relational database with zero setup.
-`,
-  "docker.md": `---
-title: "Docker"
-tags: [docker, containers, images, devops]
-lastTested: null
-lastTestPassed: null
----
-
-# docker
-
-Docker CLI interface for managing containers, images, and executing commands inside running containers. Provides comprehensive Docker operations including build, run, exec, logs, and system pruning.
-
-## Overview
-
-The \`docker\` feature wraps the Docker CLI to give you programmatic control over containers and images. It requires Docker to be installed and the Docker daemon to be running on the host machine. All methods return structured data rather than raw CLI output.
-
-## Enabling the Feature
-
-\`\`\`ts
-const docker = container.feature('docker', { enable: true })
-console.log('Docker feature enabled:', docker.state.get('enabled'))
-\`\`\`
-
-## Exploring the API
-
-\`\`\`ts
-const docs = container.features.describe('docker')
-console.log(docs)
-\`\`\`
-
-## Checking Availability
-
-\`\`\`ts
-const docker = container.feature('docker')
-const available = await docker.checkDockerAvailability()
-console.log('Docker available:', available)
-console.log('State:', docker.state.get('isDockerAvailable'))
-\`\`\`
-
-## Building an Image
-
-Build a Docker image from a Dockerfile in a project directory.
-
-\`\`\`ts skip
-await docker.buildImage('./my-project', {
-  tag: 'my-app:latest',
-  buildArgs: { NODE_ENV: 'production' },
-  nocache: true
-})
-console.log('Image built successfully')
-\`\`\`
-
-If the build succeeds, the image appears in \`docker.listImages()\`. The \`buildArgs\` option passes \`--build-arg\` flags to the Docker build command.
-
-## Running a Container
-
-Create and start a container from an image with port mappings, volumes, and environment variables.
-
-\`\`\`ts skip
-const containerId = await docker.runContainer('nginx:latest', {
-  name: 'web-server',
-  ports: ['8080:80'],
-  detach: true,
-  environment: { NGINX_HOST: 'localhost' }
-})
-console.log('Container started:', containerId)
-\`\`\`
-
-The \`detach: true\` option runs the container in the background and returns its ID. Without it, the call blocks until the container exits.
-
-## Executing Commands in a Container
-
-Run commands inside a running container and capture the output.
-
-\`\`\`ts skip
-const result = await docker.execCommand('web-server', ['ls', '-la', '/usr/share/nginx/html'])
-console.log('stdout:', result.stdout)
-console.log('exit code:', result.exitCode)
-\`\`\`
-
-The command array avoids shell interpretation issues. The returned object includes \`stdout\`, \`stderr\`, and \`exitCode\`.
-
-## Creating a Shell
-
-The \`createShell\` method returns a shell-like wrapper for running multiple commands against the same container.
-
-\`\`\`ts skip
-const shell = await docker.createShell('web-server', {
-  workdir: '/app'
-})
-await shell.run('ls -la')
-console.log(shell.last.stdout)
-await shell.run('cat package.json')
-console.log(shell.last.stdout)
-await shell.destroy()
-\`\`\`
-
-Call \`destroy()\` when finished to clean up any helper containers created for volume-mounted shells.
-
-## Summary
-
-The \`docker\` feature provides a complete programmatic interface to Docker: build images, run and manage containers, execute commands inside them, retrieve logs, and prune unused resources. All operations require the Docker daemon to be running on the host.
-`,
-  "telegram.md": `---
-title: "Telegram Bot"
-tags: [telegram, bot, messaging, grammy]
-lastTested: null
-lastTestPassed: null
----
-
-# telegram
-
-Telegram bot feature powered by grammY. Supports long-polling and webhook modes, with the full grammY Bot instance exposed for direct API access. Events bridge to Luca's event bus.
-
-## Overview
-
-Use the \`telegram\` feature when you need to build a Telegram bot. It wraps the grammY library and handles bot lifecycle (start, stop, polling, webhooks) while bridging Telegram events into Luca's event system.
-
-Requires a \`TELEGRAM_BOT_TOKEN\` environment variable or a \`token\` option from [@BotFather](https://t.me/BotFather).
-
-## Enabling the Feature
-
-\`\`\`ts
-const tg = container.feature('telegram', {
-  mode: 'polling',
-  dropPendingUpdates: true
-})
-console.log('Telegram feature created, mode:', tg.mode)
-\`\`\`
-
-The feature reads \`TELEGRAM_BOT_TOKEN\` from the environment automatically. You can also pass \`token\` explicitly as an option.
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('telegram')
-console.log(info)
-\`\`\`
-
-## Registering Commands
-
-Bot commands are registered with \`.command()\` and also emit events on Luca's event bus.
-
-\`\`\`ts skip
-tg.command('start', (ctx) => ctx.reply('Welcome! I am your Luca bot.'))
-tg.command('help', (ctx) => ctx.reply('Available: /start, /help, /ping'))
-tg.command('ping', (ctx) => ctx.reply('Pong!'))
-console.log('Registered commands:', tg.state.commandsRegistered)
-\`\`\`
-
-If the bot were running with a valid token, sending \`/start\` in Telegram would reply with "Welcome! I am your Luca bot." and the \`command\` event would fire on the Luca event bus.
-
-## Handling Messages
-
-Use \`.handle()\` to register grammY update handlers for any filter query.
-
-\`\`\`ts skip
-tg.handle('message:text', (ctx) => {
-  ctx.reply(\`Echo: \${ctx.message.text}\`)
-})
-tg.handle('callback_query:data', (ctx) => {
-  ctx.answerCallbackQuery('Button clicked!')
-})
-\`\`\`
-
-The \`.handle()\` method maps directly to grammY's \`bot.on()\` and supports all grammY filter queries like \`message:photo\`, \`edited_message\`, and \`callback_query:data\`.
-
-## Starting the Bot
-
-\`\`\`ts skip
-await tg.start()
-console.log('Bot is running:', tg.isRunning)
-console.log('Mode:', tg.mode)
-\`\`\`
-
-Once started in polling mode, the bot continuously fetches updates from Telegram. Call \`await tg.stop()\` to shut down gracefully. The \`started\` and \`stopped\` events fire on the Luca event bus.
-
-## Summary
-
-The \`telegram\` feature provides a complete Telegram bot lifecycle manager. Register commands and handlers, then start polling or set up a webhook. All Telegram events are bridged to Luca's event bus for integration with other features. Key methods: \`command()\`, \`handle()\`, \`start()\`, \`stop()\`, \`setupWebhook()\`.
-`,
-  "repl.md": `---
-title: "REPL"
-tags: [repl, interactive, debugging, console]
-lastTested: null
-lastTestPassed: null
----
-
-# repl
-
-Interactive read-eval-print loop with tab completion, history, and full container access.
-
-## Overview
-
-The \`repl\` feature is an on-demand feature that launches an interactive REPL session inside a VM context populated with the container and all its helpers. It supports tab completion for dot-notation property access, command history persistence, and top-level await. Since it is interactive, it cannot run inside a markdown code block -- instead, the typical workflow is to run \`luca run somefile.md --console\` which executes all code blocks first and then drops into a REPL with the accumulated context.
-
-## Feature Documentation
-
-Let us inspect the feature's built-in documentation.
-
-\`\`\`ts
-const desc = container.features.describe('repl')
-console.log(desc)
-\`\`\`
-
-The main method is \`start(options?)\` which begins the interactive session. It accepts an optional context object and history path.
-
-## Enabling the Feature
-
-We can enable the feature and inspect its state without starting the interactive session.
-
-\`\`\`ts
-const repl = container.feature('repl', { enable: true })
-console.log('REPL enabled:', repl.state.enabled)
-console.log('REPL started:', repl.state.started)
-\`\`\`
-
-The feature is enabled but not started. Starting it would block execution waiting for interactive input, which is not suitable for a markdown runner context.
-
-## Configuration Options
-
-The REPL feature accepts several options for customization.
-
-\`\`\`ts
-const options = {
-  prompt: 'Custom prompt string displayed before each input line',
-  historyPath: 'Path to a file where command history is persisted between sessions',
-  context: 'Additional variables injected into the VM evaluation context',
-}
-for (const [key, desc] of Object.entries(options)) {
-  console.log(\`  \${key}: \${desc}\`)
-}
-\`\`\`
-
-When you provide a \`context\` object to \`start()\`, those variables become globally available in the REPL session alongside the container and its helpers.
-
-## How to Use the REPL
-
-The recommended way to use the REPL is through the \`--console\` flag on \`luca run\`.
-
-\`\`\`ts
-console.log('Usage patterns:')
-console.log('')
-console.log('  luca run script.md --console')
-console.log('    Run all code blocks, then drop into REPL with accumulated context')
-console.log('')
-console.log('  luca run setup.md --console')
-console.log('    Execute setup code, then explore interactively')
-console.log('')
-console.log('Inside the REPL:')
-console.log('  - Tab completion works on all container properties')
-console.log('  - Top-level await is supported')
-console.log('  - Type .exit or exit to quit')
-\`\`\`
-
-This is especially powerful when combined with runnable markdown files: you define your setup and data loading in code blocks, then explore the results interactively in the REPL.
-
-## REPL Context
-
-When launched via \`--console\`, the REPL inherits everything from the markdown execution context. This means all variables, enabled features, and loaded data carry over.
-
-\`\`\`ts
-console.log('The REPL context automatically includes:')
-const globals = ['container', 'fs', 'git', 'proc', 'grep', 'os', 'networking', 'ui', 'vm', 'esbuild', 'console']
-for (const name of globals) {
-  console.log(\`  \${name}\`)
-}
-console.log('')
-console.log('Plus any variables defined in preceding code blocks.')
-\`\`\`
-
-## Summary
-
-This demo covered the \`repl\` feature, which provides an interactive REPL with tab completion, history, and async support. Since it is interactive by nature, it is best used via \`luca run somefile.md --console\` to combine scripted setup with interactive exploration. The REPL inherits the full container context plus any variables accumulated during markdown execution.
-`,
-  "google-drive.md": `---
-title: "Google Drive"
-tags: [googleDrive, google, drive, files, storage]
-lastTested: null
-lastTestPassed: null
----
-
-# googleDrive
-
-Google Drive feature for listing, searching, browsing, and downloading files. Creates a Drive v3 API client and depends on \`googleAuth\` for authentication.
-
-## Overview
-
-Use the \`googleDrive\` feature when you need to interact with Google Drive: list files, search by name or content, browse folder hierarchies, download files, or export Google Workspace documents. Authentication is handled automatically via the \`googleAuth\` feature.
-
-Requires Google OAuth2 credentials or a service account with Drive access.
-
-## Enabling the Feature
-
-\`\`\`ts
-const drive = container.feature('googleDrive', {
-  pageSize: 50
-})
-console.log('Google Drive feature created')
-console.log('Default page size:', 50)
-\`\`\`
-
-## API Documentation
-
-\`\`\`ts
-const info = await container.features.describe('googleDrive')
-console.log(info)
-\`\`\`
-
-## Listing and Searching Files
-
-List recent files or search by name, content, or MIME type.
-
-\`\`\`ts skip
-const { files } = await drive.listFiles()
-console.log(\`Found \${files.length} files:\`)
-files.slice(0, 5).forEach(f => console.log(\`  \${f.name} (\${f.mimeType})\`))
-
-const { files: pdfs } = await drive.search('quarterly report', {
-  mimeType: 'application/pdf'
-})
-console.log(\`Found \${pdfs.length} matching PDFs\`)
-\`\`\`
-
-The \`listFiles()\` method accepts an optional Drive query string for filtering. The \`search()\` method provides a simpler interface for text-based searches.
-
-## Browsing Folders
-
-Browse a folder to see its files and subfolders separately.
-
-\`\`\`ts skip
-const root = await drive.browse()
-console.log('Root folders:', root.folders.length)
-console.log('Root files:', root.files.length)
-
-const sub = await drive.browse('folder-id-here')
-sub.folders.forEach(f => console.log(\`  [dir] \${f.name}\`))
-sub.files.forEach(f => console.log(\`  [file] \${f.name}\`))
-\`\`\`
-
-The \`browse()\` method defaults to the root folder and separates the results into \`folders\` and \`files\` for easy navigation.
-
-## Downloading and Exporting
-
-Download files to disk or export Google Workspace documents to other formats.
-
-\`\`\`ts skip
-await drive.downloadTo('file-id', './downloads/report.pdf')
-console.log('File downloaded')
-
-const buffer = await drive.download('file-id')
-console.log('Downloaded', buffer.length, 'bytes')
-
-const csv = await drive.exportFile('sheet-id', 'text/csv')
-console.log('Exported sheet as CSV:', csv.length, 'bytes')
-\`\`\`
-
-Use \`download()\` for binary files and \`exportFile()\` for converting Google Docs, Sheets, or Slides to formats like PDF, CSV, or plain text.
-
-## Shared Drives
-
-\`\`\`ts skip
-const drives = await drive.listDrives()
-drives.forEach(d => console.log(\`  \${d.name} (\${d.id})\`))
-\`\`\`
-
-List all shared drives the authenticated user has access to.
-
-## Summary
-
-The \`googleDrive\` feature provides complete Drive v3 API access for file management. Browse folders, search by content or type, download files, and export Workspace documents. Authentication is handled by \`googleAuth\`. Key methods: \`listFiles()\`, \`search()\`, \`browse()\`, \`download()\`, \`downloadTo()\`, \`exportFile()\`.
-`,
-  "ui.md": `---
-title: "ui"
-tags: [ui, terminal, colors, ascii-art, core]
-lastTested: null
-lastTestPassed: null
----
-
-# ui
-
-Terminal UI utilities including colors, ASCII art, gradients, and markdown rendering.
-
-## Overview
-
-The \`ui\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('ui')\`. It provides chalk-based color styling, figlet-powered ASCII art, color gradient effects, and terminal markdown rendering. Use it to make CLI output readable and visually organized.
-
-## Text Colors
-
-The \`colors\` getter provides the full chalk API for coloring and styling terminal text.
-
-\`\`\`ts
-const { colors } = ui
-console.log(colors.green('Success: all tests passed'))
-console.log(colors.red('Error: file not found'))
-console.log(colors.yellow('Warning: deprecated API'))
-console.log(colors.bold.cyan('Info: build complete'))
-\`\`\`
-
-Colors can be chained with styles like \`bold\`, \`italic\`, \`underline\`, and \`dim\`.
-
-## ASCII Art
-
-Use \`asciiArt()\` to render text in large figlet fonts. Pass the text and a font name.
-
-\`\`\`ts
-const art = ui.asciiArt('LUCA', 'Standard')
-console.log(art)
-\`\`\`
-
-The \`fonts\` getter lists all available figlet fonts if you want to explore options.
-
-## Banner with Gradient
-
-Use \`banner()\` to combine ASCII art with a color gradient for eye-catching headers.
-
-\`\`\`ts
-const result = ui.banner('Hello', { font: 'Small', colors: ['cyan', 'blue', 'magenta'] })
-console.log(result)
-\`\`\`
-
-The gradient is applied automatically across the lines of the ASCII art.
-
-## Color Gradients
-
-Use \`applyGradient()\` to apply color transitions to any text. Choose between horizontal (per-character) and vertical (per-line) directions.
-
-\`\`\`ts
-const horizontal = ui.applyGradient('Horizontal gradient across this text', ['red', 'yellow', 'green'], 'horizontal')
-console.log(horizontal)
-
-const lines = 'Line one\\nLine two\\nLine three\\nLine four'
-const vertical = ui.applyGradient(lines, ['cyan', 'blue', 'magenta'], 'vertical')
-console.log(vertical)
-\`\`\`
-
-Horizontal gradients color each character individually. Vertical gradients color each line uniformly.
-
-## Markdown Rendering
-
-Use \`markdown()\` to render a markdown string for terminal display with formatting preserved.
-
-\`\`\`ts
-const md = ui.markdown('## Features\\n\\n- **Bold** text\\n- \`inline code\`\\n- Regular paragraph text\\n')
-console.log(md)
-\`\`\`
-
-This uses marked-terminal under the hood to produce styled terminal output from markdown source.
-
-## Summary
-
-This demo covered text coloring with chalk, ASCII art generation with figlet, gradient banners, horizontal and vertical color gradients, and markdown rendering. The \`ui\` feature handles all the visual polish for terminal applications.
-`,
-  "vm.md": `---
-title: "vm"
-tags: [vm, sandbox, evaluation, core]
-lastTested: null
-lastTestPassed: null
----
-
-# vm
-
-JavaScript VM for evaluating code in isolated contexts with shared or independent state.
-
-## Overview
-
-The \`vm\` feature is a core feature, auto-enabled on every container. You can access it directly as a global or via \`container.feature('vm')\`. It provides methods for running JavaScript in sandboxed contexts, passing variables in, and optionally preserving state across multiple runs. Use it for plugin systems, dynamic code evaluation, or testing snippets in isolation.
-
-## Simple Expression Evaluation
-
-Use \`runSync()\` to evaluate a JavaScript expression and get the result back immediately.
-
-\`\`\`ts
-const sum = vm.runSync('2 + 3 * 4')
-console.log('2 + 3 * 4 =', sum)
-
-const greeting = vm.runSync('\`Hello \${name}!\`', { name: 'Luca' })
-console.log(greeting)
-\`\`\`
-
-The second argument is an optional context object whose keys become variables in the evaluated code.
-
-## Running with Context Variables
-
-Use \`run()\` for async evaluation with injected variables. This is the async equivalent of \`runSync()\`.
-
 \`\`\`ts
-const result = await vm.run('numbers.reduce((a, b) => a + b, 0)', {
-  numbers: [10, 20, 30, 40]
-})
-console.log('Sum of [10, 20, 30, 40]:', result)
-\`\`\`
-
-Any JavaScript value can be passed through the context -- arrays, objects, functions, and primitives.
+const deadPort = await networking.findOpenPort(4720)
+const down = container.client('rest', { baseURL: \`http://localhost:\${deadPort}\` })
 
-## Getting the Context Back
+const result = await down.get('/anything')
 
-Use \`performSync()\` to run code and get both the result and the modified context. This lets you inspect variables that were set during execution.
-
-\`\`\`ts
-const { result, context } = vm.performSync('x = x * 2; x + 1', { x: 21 })
-console.log('Result:', result)
-console.log('x after execution:', context.x)
+if (result instanceof Error) throw new Error('unexpected: rest error came back as an Error instance')
+if (!result?.code) throw new Error('expected a connection error code on the returned value')
+console.log('dead server resolved to a value with code:', result.code)
 \`\`\`
 
-The context is mutated in place, so you can see side effects of the evaluated code.
+So never write \`try { await api.get(...) } catch { ... }\` and call it handled — inspect the shape of what came back (\`result?.name === 'AxiosError'\`, \`result?.code\`, \`result?.status\`).
 
-## Shared State Across Runs
+## 2. diskCache.get throws on a miss
 
-Use \`createContext()\` to build a persistent context that carries state across multiple evaluations.
+The mirror image of the rest client: a cache miss **rejects**, it does not resolve to \`undefined\`. The rejection is a \`NotFoundError\` with \`code: 'ENOENT'\`. (Full API: \`luca describe diskCache\`.)
 
 \`\`\`ts
-const ctx = vm.createContext({ counter: 0 })
-vm.runSync('counter += 1', ctx)
-vm.runSync('counter += 1', ctx)
-vm.runSync('counter += 10', ctx)
-console.log('Counter after 3 runs:', vm.runSync('counter', ctx))
-\`\`\`
-
-The same context object is reused, so variables accumulate across calls.
+// bare assignment — cacheDir survives into the cleanup block
+cacheDir = container.paths.resolve(os.tmpdir, \`error-conventions-cache-\${Date.now()}\`)
+cache = container.feature('diskCache', { path: cacheDir })
 
-## Error Handling
-
-When evaluated code might throw, wrap the call in a try/catch to handle it gracefully.
-
-\`\`\`ts
+let caught = null
 try {
-  vm.runSync('undefinedFunction()')
+  await cache.get('never-written')
 } catch (err) {
-  console.log('Error caught:', err.constructor.name)
-  console.log('Message:', err.message)
+  caught = err
 }
+
+if (!caught) throw new Error('diskCache.get on a missing key must throw — it did not')
+if (caught.code !== 'ENOENT') throw new Error(\`expected code ENOENT on a cache miss, got \${caught.code}\`)
+console.log('cache miss rejected with code:', caught.code)
 \`\`\`
 
-This keeps a bad snippet from crashing the rest of your program.
+The idiomatic guards: \`has()\` before \`get()\`, or \`ensure()\` to seed a default so the read can never miss.
 
-## Summary
+\`\`\`ts
+if (await cache.has('never-written')) throw new Error('has() should be false for a missing key')
 
-This demo covered synchronous and async expression evaluation, passing context variables into the sandbox, inspecting mutated context after execution, maintaining shared state across runs, and safe error handling. The \`vm\` feature is the foundation for dynamic code execution in any Luca application.
+await cache.ensure('never-written', 'default-value')
+const val = await cache.get('never-written')
+if (val !== 'default-value') throw new Error('ensure() should have seeded the default')
+console.log('guarded read after ensure():', val)
+\`\`\`
+
+## 3. proc: exec throws, execAndCapture reports
+
+\`proc.exec(cmd)\` is synchronous, runs through a shell, and returns the **trimmed stdout as a plain string**. On a nonzero exit it **throws**, with the exit code at \`err.status\`.
+
+\`\`\`ts
+const banner = proc.exec('echo hello')
+if (banner !== 'hello') throw new Error(\`exec should return trimmed stdout, got \${JSON.stringify(banner)}\`)
+
+let execError = null
+try {
+  proc.exec('exit 3')
+} catch (err) {
+  execError = err
+}
+if (!execError) throw new Error('exec on a failing command must throw')
+if (execError.status !== 3) throw new Error(\`expected err.status === 3, got \${execError.status}\`)
+console.log('exec returned a string on success, threw with status', execError.status, 'on failure')
+\`\`\`
+
+\`proc.execAndCapture(cmd)\` is asynchronous and **never throws for a failing command** — it always resolves to a structured \`{ stdout, stderr, exitCode, pid, error }\`. On success \`error\` is \`null\` and \`exitCode\` is \`0\`; on a nonzero exit \`exitCode\` carries the child's real status and \`error\` is set (with the code also at \`error.code\`).
+
+\`\`\`ts
+const ok = await proc.execAndCapture('bun --version')
+if (typeof ok.stdout !== 'string' || !ok.stdout.trim()) throw new Error('expected captured stdout')
+if (ok.error !== null) throw new Error('successful run should have error === null')
+if (ok.exitCode !== 0) throw new Error('successful run should have exitCode 0')
+
+const failed = await proc.execAndCapture('bun -e process.exit(3)')
+if (failed.exitCode !== 3) throw new Error(\`expected exitCode === 3, got \${failed.exitCode}\`)
+if (failed.error == null) throw new Error('nonzero exit should also surface on .error')
+if (failed.error.code !== 3) throw new Error(\`expected error.code === 3, got \${failed.error.code}\`)
+console.log('execAndCapture failure: exitCode =', failed.exitCode, ', error.code =', failed.error.code)
+\`\`\`
+
+One trap to know:
+
+- **The command string is split naively on spaces** — no shell quoting. Any argument containing spaces (paths, \`--format="%h %s"\`) gets mangled. Use \`proc.spawnAndCapture(command, argsArray)\` and pass each argument as its own element.
+
+## 4. Registries are classes — use .available
+
+\`container.features\`, \`container.commands\`, \`container.clients\`, \`container.servers\` are class instances, not plain objects. \`Object.keys()\` on them returns internal fields, **not** helper ids. Enumerate with \`.available\`.
+
+\`\`\`ts
+const keys = Object.keys(container.features)
+if (keys.includes('fs')) throw new Error('unexpected: Object.keys() now enumerates helper ids — update this doc')
+if (!container.features.available.includes('fs')) throw new Error('.available should list the fs feature')
+
+console.log('Object.keys(container.features) =', JSON.stringify(keys), '— useless for enumeration')
+console.log('.available lists', container.features.available.length, 'features, including fs')
+\`\`\`
+
+## Clean up
+
+\`\`\`ts
+await fs.rmdir(cacheDir)
+console.log('removed scratch cache dir', cacheDir)
+\`\`\`
+
+## The cheat sheet
+
+- **\`rest\` client** — failure is **returned** as a plain object. Detect: \`result?.name === 'AxiosError'\`, \`result?.code\`, \`result?.status\`.
+- **\`diskCache.get\`** — a miss **throws** \`NotFoundError\` (\`code: 'ENOENT'\`). Detect: try/catch, or guard with \`has()\` / \`ensure()\`.
+- **\`proc.exec\`** — failure **throws**, exit code at \`err.status\`. Detect: try/catch.
+- **\`proc.execAndCapture\`** — always **resolves**; failure reports the real \`exitCode\` and sets \`.error\`. Detect: \`result.exitCode === 0\` (or \`result.error === null\`) means success.
+- **Registries** — \`Object.keys()\` returns internals. Enumerate with \`.available\`.
 `,
-  "opener.md": `---
-title: "Opener"
-tags: [opener, files, urls, apps, editor]
-lastTested: null
-lastTestPassed: null
+  "server-rest-roundtrip.md": `---
+title: Server + REST Client Roundtrip
+tags:
+  - express
+  - endpoints
+  - rest
+  - rateLimit
+  - server
+  - http
+lastTested: '2026-07-05'
+lastTestPassed: true
 ---
 
-# opener
+# Server + REST Client Roundtrip
 
-Opens files, URLs, desktop applications, and code editors from scripts. HTTP/HTTPS URLs open in Chrome, files open with the system default handler, and VS Code / Cursor can be targeted directly.
+Start an express server with file-based endpoints, add a raw custom route through the \`create\` hook, call it all with the \`rest\` client — and see how the client reports errors (it **returns** them, it never throws). Also: endpoints get IP-keyed rate limiting for free, no middleware to write.
 
-## Overview
+## Write an endpoint module
 
-The \`opener\` feature provides a simple interface for opening things on the host system. It delegates to platform-appropriate commands (\`open\` on macOS, \`start\` on Windows, direct invocation on Linux). Because every method triggers a side effect (launching an application or browser), all operational examples use skip blocks.
-
-## Enabling the Feature
+Endpoints are plain modules. Exporting \`rateLimit\` turns on built-in sliding-window rate limiting — this one allows 3 requests per minute per IP.
 
 \`\`\`ts
-const opener = container.feature('opener', { enable: true })
-console.log('Opener enabled:', opener.state.get('enabled'))
+const fs = container.feature('fs')
+const dir = container.paths.resolve('tmp', 'roundtrip-endpoints')
+fs.ensureFolder(dir)
+
+fs.writeFile(container.paths.resolve(dir, 'status.ts'), \`
+export const path = '/status'
+export const description = 'Rate-limited status endpoint'
+export const rateLimit = { maxRequests: 3, windowSeconds: 60 }
+
+export async function get() {
+  return { ok: true, time: new Date().toISOString() }
+}
+\`)
+console.log('endpoint written to', dir)
 \`\`\`
 
-## Exploring the API
+## Create the server and client
+
+The \`create: (app, server) => app\` hook runs when the express app is built — the door for raw middleware and routes that don't fit the endpoint-module shape. (Two more doors: \`server.app.use(...)\` after creation, and \`luca serve --setup setup.ts\` from the CLI.)
 
 \`\`\`ts
-const docs = container.features.describe('opener')
-console.log(docs)
-\`\`\`
-
-## Opening a URL
-
-Open a URL in Google Chrome (the default browser for HTTP/HTTPS targets).
-
-\`\`\`ts skip
-await opener.open('https://github.com/soederpop/luca')
-console.log('URL opened in Chrome')
-\`\`\`
-
-Non-HTTP paths are opened with the platform default handler. For example, opening a \`.png\` file would launch Preview on macOS.
-
-\`\`\`ts skip
-await opener.open('/Users/jon/screenshots/diagram.png')
-\`\`\`
-
-## Opening a Desktop App
-
-Launch any desktop application by name.
-
-\`\`\`ts skip
-await opener.app('Slack')
-console.log('Slack launched')
-\`\`\`
-
-\`\`\`ts skip
-await opener.app('Finder')
-\`\`\`
-
-On macOS this uses \`open -a\`. The application name should match what appears in \`/Applications\`.
-
-## Opening in VS Code or Cursor
-
-Open a file or folder directly in VS Code or Cursor.
-
-\`\`\`ts skip
-await opener.code('/Users/jon/projects/my-app')
-console.log('VS Code opened')
-\`\`\`
-
-\`\`\`ts skip
-await opener.cursor('/Users/jon/projects/my-app/src/index.ts')
-console.log('Cursor opened')
-\`\`\`
-
-Both methods fall back to \`open -a\` on macOS if the CLI command is not found in PATH.
-
-## Summary
-
-The \`opener\` feature provides \`open\`, \`app\`, \`code\`, and \`cursor\` methods for launching URLs, files, desktop applications, and code editors from Luca scripts. All operations produce side effects on the host system.
-`,
-  "tmux.md": `---
-title: "tmux"
-tags: [tmux, sessions, processes, terminal]
-lastTested: null
-lastTestPassed: null
----
-
-# tmux
-
-Create and control named background terminal sessions from any context.
-
-## Overview
-
-The \`tmux\` feature wraps the tmux multiplexer to manage named, detached sessions that run independently of any terminal you're in. Unlike running a subprocess directly, tmux sessions persist after your script exits and can be inspected or interacted with later. You send keystrokes to a session, capture its visible output, and check what process is currently in the foreground.
-
-Requires \`tmux\` to be installed (\`brew install tmux\` on macOS).
-
-## Creating a Session
-
-Use \`session()\` to create a new named session running a command. If a session with that name already exists, you get a handle to it without restarting it — so calling \`session()\` repeatedly is safe.
-
-\`\`\`ts
-const tmux = container.feature('tmux')
-
-const s = await tmux.session('demo', { command: 'bash' })
-console.log('exists:', await s.exists())
-\`\`\`
-
-## Sending Input
-
-Use \`send()\` to type text and press Enter. This is how you interact with any program waiting at a prompt.
-
-\`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
-
-await s.send('echo hello from tmux')
-await new Promise(r => setTimeout(r, 300))
-
-const output = await s.capture()
-console.log(output.trim())
-await s.kill()
-\`\`\`
-
-## Capturing Output
-
-Use \`capture()\` to read the current visible content of the pane. Pass \`lines: -N\` to also include N lines of scrollback history.
-
-\`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
-
-await s.send('for i in 1 2 3 4 5; do echo "line $i"; done')
-await new Promise(r => setTimeout(r, 400))
-
-const visible = await s.capture()
-console.log('Visible pane:')
-console.log(visible.trim())
-
-const withHistory = await s.capture({ lines: -100 })
-console.log('With 100 lines of scrollback, chars:', withHistory.length)
-
-await s.kill()
-\`\`\`
-
-## Checking Whether a Pane is Waiting for Input
-
-Use \`isWaitingForInput()\` to detect whether the program at the prompt is idle. It checks the last non-empty line of the pane content against a set of prompt patterns (\`>\`, \`$\`, \`%\`, \`?\`, \`❯\`, \`…\`).
-
-\`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
-
-await new Promise(r => setTimeout(r, 500))
-const ready = await s.isWaitingForInput()
-console.log('ready at prompt:', ready)
-
-await s.send('sleep 2')
-const busy = await s.isWaitingForInput()
-console.log('busy (sleep running):', busy)
-
-await new Promise(r => setTimeout(r, 2200))
-const doneNow = await s.isWaitingForInput()
-console.log('done, back at prompt:', doneNow)
-
-// Pass custom patterns to match any program's specific prompt
-const customReady = await s.isWaitingForInput({
-  patterns: [/your-app-prompt\\s*$/, /\\[y\\/n\\]\\s*$/],
+const server = container.server('express', {
+  cors: true,
+  create: (app) => {
+    app.get('/custom', (req, res) => res.json({ source: 'create hook' }))
+    return app
+  },
 })
-console.log('custom pattern check:', customReady)
 
-await s.kill()
+const api = container.client('rest', { baseURL: 'http://localhost:43117' })
+console.log('server and client created')
 \`\`\`
 
-## Checking the Foreground Process
+## Mount the endpoints and start listening
 
-Use \`currentCommand()\` to see which process is in the foreground of the pane. This tells you whether the shell is idle or a subprocess is running.
+\`useEndpoints(dir)\` loads every endpoint module in a folder — the same discovery \`luca serve\` does for your project's \`endpoints/\`.
 
 \`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
-
-await new Promise(r => setTimeout(r, 400))
-console.log('at prompt:', await s.currentCommand())  // 'bash'
-
-await s.send('sleep 5 &')  // background job, shell stays in foreground
-await new Promise(r => setTimeout(r, 200))
-console.log('after bg job:', await s.currentCommand())  // still 'bash'
-
-await s.kill()
+await server.useEndpoints(dir)
+await server.start({ port: 43117 })
+console.log('listening:', server.state.get('listening'))
 \`\`\`
 
-## Sending Raw Key Sequences
+## Call it with the rest client
 
-Use \`sendKeys()\` to send special key sequences without appending Enter. Useful for interrupting a process, navigating menus, or controlling interactive programs.
+Methods return the parsed JSON body directly — no \`{ data, status }\` wrapper.
 
 \`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
+const status = await api.get('/status')
+console.log('GET /status →', status)
 
-await s.send('sleep 60')
-await new Promise(r => setTimeout(r, 300))
-console.log('interrupting...')
-await s.sendKeys('C-c')
-await new Promise(r => setTimeout(r, 300))
-console.log('after interrupt:', await s.currentCommand())  // 'bash'
-
-await s.kill()
+const custom = await api.get('/custom')
+console.log('GET /custom →', custom)
 \`\`\`
 
-Common key sequences: \`C-c\` (Ctrl+C), \`C-d\` (Ctrl+D / EOF), \`Escape\`, \`Up\`, \`Down\`, \`Enter\`.
+## Errors are returned, not thrown
 
-## Listing and Killing Sessions
+This is the rest client's most important contract — and the easiest to get wrong. HTTP errors (4xx/5xx) AND connection failures (ECONNREFUSED, DNS, timeouts) resolve with the error serialized as JSON. A \`try/catch\` around \`api.get(...)\` catches **nothing**. Inspect the returned shape instead.
 
-Use \`listSessions()\` to see all active sessions, and \`killSession()\` or \`session.kill()\` to clean up.
+Burn through the rate limit to see it live — requests 2 and 3 pass, the 4th comes back as a 429 error object:
 
 \`\`\`ts
-const tmux = container.feature('tmux')
-
-await tmux.session('worker-1', { command: 'bash' })
-await tmux.session('worker-2', { command: 'bash' })
-
-const sessions = await tmux.listSessions()
-console.log('active sessions:')
-sessions.forEach(s => console.log(' ', s.name, '— windows:', s.windows))
-
-await tmux.killSession('worker-1')
-await tmux.killSession('worker-2')
-
-console.log('after cleanup:', (await tmux.listSessions()).length, 'sessions')
+for (let i = 2; i <= 4; i++) {
+  const result = await api.get('/status')
+  if (result?.name === 'AxiosError') {
+    console.log(\`request \${i} → BLOCKED (\${result.status ?? result.code}): \${result.message}\`)
+  } else {
+    console.log(\`request \${i} → ok\`)
+  }
+}
 \`\`\`
 
-## Running a Low-Level Command
-
-Use \`run()\` for any tmux operation not covered by the API. It returns stdout and stderr as strings.
+Same story for a server that's down — the connection error comes back as a value too (the \`code\` is runtime-flavored: \`ECONNREFUSED\` under node, \`ConnectionRefused\` under bun — check \`result?.name === 'AxiosError'\` when you need a runtime-agnostic test):
 
 \`\`\`ts
-const tmux = container.feature('tmux')
-const s = await tmux.session('demo', { command: 'bash' })
+const nobody = container.client('rest', { baseURL: 'http://localhost:59999' })
+const down = await nobody.get('/anything')
+console.log('down server →', down?.code, '|', down?.message)
+\`\`\`
 
-const info = await tmux.run(['display-message', '-t', 'demo', '-p', '#{pane_width}x#{pane_height}'])
-console.log('pane dimensions:', info.stdout.trim())
+## Cleanup
 
-await s.kill()
+\`\`\`ts
+await server.stop()
+await fs.rmdir(dir)
+console.log('stopped:', server.state.get('stopped'))
 \`\`\`
 
 ## Summary
 
-This demo covered creating named detached sessions, sending input, capturing pane output, detecting when a program is waiting for input, identifying the foreground process, sending raw key sequences, listing and killing sessions, and issuing raw tmux commands. Sessions persist independently of your script — start one, walk away, and come back to inspect it later.
+Endpoint modules export \`path\` + method handlers, and \`rateLimit\`/\`getRateLimit\` for free per-IP throttling. Raw routes go through the \`create\` hook, \`server.app.use()\`, or \`luca serve --setup\`. The \`rest\` client returns parsed JSON on success and **returns error objects on any failure** — check \`result?.name === 'AxiosError'\` or \`result?.code\`, don't \`try/catch\`.
 `,
-  "ink-blocks.md": `# Ink Blocks — Poor Man's MDX
+  "semantic-search-content-db.md": `---
+title: 'Searching a Document Collection: contentDb + semanticSearch'
+tags:
+  - contentDb
+  - semanticSearch
+  - search
+  - bm25
+  - embeddings
+  - markdown
+  - composition
+lastTested: '2026-07-05'
+lastTestPassed: true
+---
 
-This example demonstrates rendering rich terminal UI inline in a markdown document using ink blocks.
+# Searching a Document Collection: contentDb + semanticSearch
 
-## Blocks
+Two features compose into a searchable knowledge base: **contentDb** manages a folder of markdown documents (frontmatter, models, section-aware reads), and **semanticSearch** indexes them into SQLite for retrieval. The honest part up front — search has three tiers with different requirements:
 
-\`\`\`tsx
-const { Box, Text } = ink.components
-const React = ink.React
+1. **grep** — regex over the files. Always works.
+2. **BM25 keyword search** — SQLite FTS5, ranked and snippeted. Works offline with zero credentials.
+3. **Vector / hybrid search** — needs embeddings, which means either an \`OPENAI_API_KEY\` or a one-time local model install. It does **not** work out of the box; the setup is shown honestly at the end.
 
-function Greeting({ name, role }) {
-  return (
-    <Box borderStyle="round" padding={1}>
-      <Text color="green" bold>Hello {name}!</Text>
-      <Text dimColor> ({role})</Text>
-    </Box>
-  )
-}
+Everything through tier 2 runs live below. For each feature's full API: \`luca describe contentDb\`, \`luca describe semanticSearch\`.
 
-function StatusBar({ items }) {
-  return (
-    <Box flexDirection="row" gap={2}>
-      {items.map((item, i) =>
-        <Text key={i} color={item.ok ? 'green' : 'red'}>{item.label}</Text>
-      )}
-    </Box>
-  )
-}
+## Write a small corpus
 
-function DelayedMessage({ message, delay, done }) {
-  const [visible, setVisible] = React.useState(false)
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(true)
-      done()
-    }, delay || 500)
-    return () => clearTimeout(timer)
-  }, [])
-
-  return (
-    <Box>
-      <Text dimColor={!visible} color={visible ? 'cyan' : undefined}>
-        {visible ? message : 'Loading...'}
-      </Text>
-    </Box>
-  )
-}
-\`\`\`
-
-## Report
-
-Let's greet the admin:
+Five themed documents with frontmatter — the shape of any \`docs/\` folder contentDb manages. A collection doesn't require a \`models.ts\`; without one, every document falls under the built-in \`Base\` model.
 
 \`\`\`ts
-await render('Greeting', { name: 'Jon', role: 'admin' })
+// bare assignments (no const) so these survive into later blocks
+corpusRoot = container.paths.resolve('tmp', \`semantic-search-demo-\${Date.now()}\`)
+docsDir = container.paths.resolve(corpusRoot, 'docs')
+fs.ensureFolder(docsDir)
+
+const corpus = {
+  'caching.md': \`---
+title: Caching Guide
+area: performance
+---
+
+# Caching Guide
+
+Layered caches keep latency low.
+
+## Strategy
+
+Cache at the edge first, then in the application, then at the database.
+
+## Invalidation
+
+Cache invalidation is the hardest problem: prefer short TTLs over clever purging.
+\`,
+  'authentication.md': \`---
+title: Authentication Guide
+area: security
+---
+
+# Authentication Guide
+
+Sessions and tokens identify users.
+
+## Sessions
+
+Server-side sessions store state; rotate identifiers after privilege changes.
+
+## Tokens
+
+Signed tokens carry claims; keep lifetimes short and refresh them.
+\`,
+  'deployments.md': \`---
+title: Deployment Guide
+area: operations
+---
+
+# Deployment Guide
+
+Ship through a pipeline, never by hand.
+
+## Rollbacks
+
+Every deploy needs a one-command rollback path.
+\`,
+  'observability.md': \`---
+title: Observability Guide
+area: operations
+---
+
+# Observability Guide
+
+Logs, metrics, and traces answer different questions.
+
+## Alerting
+
+Alert on symptoms users feel, not on every internal metric.
+\`,
+  'testing.md': \`---
+title: Testing Guide
+area: quality
+---
+
+# Testing Guide
+
+Fast unit tests gate every change in the pipeline.
+
+## Flakes
+
+A flaky test is worse than no test: quarantine it the day it flakes.
+\`,
+}
+
+for (const [name, content] of Object.entries(corpus)) {
+  fs.writeFile(container.paths.resolve(docsDir, name), content)
+}
+console.log('corpus written:', Object.keys(corpus).join(', '))
 \`\`\`
 
-Now let's check the system status:
+## Load it with contentDb
+
+Point \`contentDb\` at the folder and \`load()\`. Document ids are file paths without the extension; frontmatter is parsed into \`meta\`; \`read()\` can slice out individual sections so you never load a whole document for one heading.
 
 \`\`\`ts
-await render('StatusBar', { items: [
-  { label: 'API', ok: true },
-  { label: 'DB', ok: false },
-  { label: 'Cache', ok: true },
-]})
+cdb = container.feature('contentDb', { rootPath: docsDir })
+await cdb.load()
+
+console.log('documents:', cdb.available.join(', '))
+if (cdb.available.length !== 5) throw new Error(\`expected 5 documents, got \${cdb.available.length}\`)
+if (!cdb.modelNames.includes('Base')) throw new Error('collections without models.ts should expose the Base model')
+
+const caching = await cdb.document({ id: 'caching' })
+if (caching.title !== 'Caching Guide') throw new Error('frontmatter title not parsed')
+if (caching.meta.area !== 'performance') throw new Error('frontmatter meta not parsed')
+
+// section-aware read: just the Invalidation section, not the whole doc
+const invalidation = await cdb.read('caching', { include: ['Invalidation'] })
+console.log(invalidation)
+if (!invalidation.includes('hardest problem')) throw new Error('include filter should return the Invalidation section')
+if (invalidation.includes('Cache at the edge')) throw new Error('include filter should drop the Strategy section')
 \`\`\`
 
-Now an async block that waits for a timer before rendering:
+Tier 1 search is already available — \`cdb.grep(pattern)\` runs the \`grep\` feature scoped to the collection:
 
 \`\`\`ts
-await renderAsync('DelayedMessage', { message: 'Data loaded successfully!', delay: 1000 })
+const grepHits = await cdb.grep('rollback')
+console.log(grepHits.map(h => \`\${h.file}:\${h.line}\`))
+if (!grepHits.some(h => h.file.endsWith('deployments.md'))) throw new Error('grep should find rollback in deployments.md')
 \`\`\`
 
-All done. Blocks rendered inline with the document flow.
+## Tier 2: BM25 keyword search — offline, no credentials
+
+The \`semanticSearch\` feature is SQLite-backed: FTS5 for keyword search, BLOB-stored vectors for similarity. The keyword half needs no embeddings at all — \`insertDocument()\` syncs the FTS index directly, so we can compose the two features by feeding contentDb's documents in and get ranked, snippeted search immediately.
+
+\`\`\`ts
+ss = container.feature('semanticSearch', {
+  dbPath: container.paths.resolve(corpusRoot, 'index', 'search.sqlite'),
+})
+await ss.initDb()
+
+for (const id of cdb.available) {
+  const doc = await cdb.document({ id })
+  ss.insertDocument({
+    pathId: id,
+    title: doc.title,
+    meta: doc.meta,
+    content: doc.content,
+  })
+}
+
+const stats = ss.getStats()
+console.log(\`indexed \${stats.documentCount} documents, \${stats.embeddingCount} embeddings\`)
+if (stats.documentCount !== 5) throw new Error('expected 5 documents in the index')
+if (stats.embeddingCount !== 0) throw new Error('keyword indexing should not have created embeddings')
+\`\`\`
+
+Queries are ranked by BM25 and come back with highlighted snippets. Metadata from the frontmatter travels along, and \`where\` filters on it:
+
+\`\`\`ts
+const ranked = await ss.search('cache invalidation')
+console.log(ranked.map(r => \`\${r.score.toFixed(2)} \${r.pathId} — \${r.snippet}\`))
+if (ranked[0]?.pathId !== 'caching') throw new Error(\`expected caching to rank first, got \${ranked[0]?.pathId}\`)
+
+// 'pipeline' appears in both deployments and testing — filter by frontmatter
+const filtered = await ss.search('pipeline', { where: { area: 'quality' } })
+if (filtered.length !== 1 || filtered[0].pathId !== 'testing') {
+  throw new Error('where filter should narrow pipeline hits to the quality doc')
+}
+console.log('metadata filter verified:', filtered[0].pathId)
+\`\`\`
+
+## What happens without an embedding index
+
+contentDb has search built in too — \`cdb.search()\`, \`cdb.vectorSearch()\`, \`cdb.hybridSearch()\`, plus a \`semanticSearch\` tool method it exposes to assistants (contentDb is itself a tool provider — see the [tool provider example](./feature-as-tool-provider.md)). These expect an embedding index under \`~/.luca/contentbase/\` for the collection. When there is none, the tool method degrades gracefully to grep and says so:
+
+\`\`\`ts
+if (cdb.searchIndexStatus.exists) throw new Error('fresh corpus should have no embedding index yet')
+
+const fallback = await cdb.semanticSearch({ query: 'rollback' })
+console.log(fallback.note)
+if (!fallback.note || !fallback.note.includes('fell back to text search')) {
+  throw new Error('expected the graceful grep fallback with an explanatory note')
+}
+if (!fallback.results.some(h => h.file.endsWith('deployments.md'))) throw new Error('fallback grep should still find the answer')
+\`\`\`
+
+## Tier 3: real embeddings — the honest requirements
+
+Vector and hybrid search find documents by meaning ("how do I undo a bad release" should hit the deployments doc without sharing a keyword). That requires generating embeddings, and there is no credential-free, download-free path:
+
+**Option A — OpenAI (default provider).** Requires \`OPENAI_API_KEY\` in the environment. \`cdb.buildSearchIndex()\` chunks every document by section, embeds the chunks with \`text-embedding-3-small\`, and stores vectors in the collection's index:
+
+\`\`\`ts skip
+// requires OPENAI_API_KEY
+await cdb.buildSearchIndex({ onProgress: (done, total) => console.log(\`\${done}/\${total}\`) })
+
+// hybrid = BM25 + vector similarity, fused with Reciprocal Rank Fusion
+const hits = await cdb.hybridSearch('how do I undo a bad release', { limit: 3 })
+console.log(hits.map(h => \`\${h.score.toFixed(3)} \${h.pathId}\`))
+// 'deployments' ranks despite zero keyword overlap with "undo a bad release"
+\`\`\`
+
+**Option B — local embeddings.** Fully offline *after* a one-time setup that is not free: \`installLocalEmbeddings()\` runs a package-manager install of \`node-llama-cpp\` (a native addon) into your project and downloads the embedding-gemma-300M weights (~300 MB) to \`~/.cache/luca/models/\`. Until that completes, \`embeddingProvider: 'local'\` throws with instructions — it does not silently work:
+
+\`\`\`ts skip
+const localSearch = container.feature('semanticSearch', {
+  dbPath: '.contentbase/search.sqlite',
+  embeddingProvider: 'local',   // embedding-gemma-300M-Q8_0, the only supported local model
+})
+await localSearch.installLocalEmbeddings(process.cwd()) // installs node-llama-cpp + downloads ~300MB of weights
+await localSearch.initDb()
+// from here on, indexing and vectorSearch/hybridSearch run with no network at all
+\`\`\`
+
+One more constraint worth knowing: the index file is stamped with its provider/model/dimensions (\`search.openai-text-embedding-3-small.sqlite\` vs \`search.local-embedding-gemma-300M-Q8_0.sqlite\`). Switching providers means re-indexing — \`initDb()\` refuses a mismatched database rather than mixing vector spaces.
+
+## Clean up
+
+\`\`\`ts
+await ss.close()
+await fs.rmdir(corpusRoot)
+console.log('index closed, corpus removed')
+\`\`\`
+
+## Summary
+
+\`contentDb\` turns a folder of markdown into queryable documents; \`semanticSearch\` turns those documents into a search index. Grep and BM25 keyword search work immediately and offline — compose them by piping \`cdb.document(id)\` into \`ss.insertDocument()\`. Semantic (vector/hybrid) search is a deliberate upgrade with real prerequisites: an OpenAI key, or a one-time \`installLocalEmbeddings()\` that installs a native addon and downloads model weights. When no embedding index exists, contentDb's assistant-facing \`semanticSearch\` tool falls back to grep and tells you so.
+`,
+  "custom-feature-authoring.md": `---
+title: Authoring a Custom Feature
+tags:
+  - features
+  - composition
+  - authoring
+  - state
+  - events
+  - discovery
+  - conventions
+lastTested: '2026-07-05'
+lastTestPassed: true
+---
+
+# Authoring a Custom Feature
+
+This is the full lifecycle of building your own container feature: write a feature file that **composes existing helpers** (here: \`fs\` + \`grep\`), register it through discovery, then drive it — call methods, observe state, listen to events. Everything a "real" feature in a \`features/\` folder does, executed live.
+
+For the API surface of any helper we lean on here, run \`luca describe fs\`, \`luca describe grep\`, or \`luca describe helpers\`.
+
+## The anatomy
+
+A feature is a class with three Zod schemas and some methods:
+
+- **options** — construction-time configuration (\`container.feature('x', options)\`)
+- **state** — observable runtime state; every write notifies observers
+- **events** — a typed event bus other code can subscribe to
+
+Framework conventions that matter (the introspection system and \`luca describe\` are built on them):
+
+- Every schema field gets a \`.describe('...')\` — this text becomes the generated docs.
+- The class and its public methods get JSDoc with \`@example\` blocks — same reason.
+- Setup logic goes in \`afterInitialize()\`, not the constructor.
+- Composition happens through \`this.container\` — a feature never imports another feature's module; it asks the container for it.
+
+## Write the feature file
+
+We build \`todoScanner\`: point it at a directory, it greps for annotation markers, keeps observable counts in state, and emits a \`scanned\` event. Note the composition: \`fs\` checks the directory, \`grep\` does the searching.
+
+In a real project this file would live at \`features/todo-scanner.ts\`. Here we write it to a scratch folder inside the project so the example is self-contained — inside the project, because the file's \`import ... from 'luca'\` must resolve against your project's dependencies, exactly as it would for a real \`features/\` folder.
+
+\`\`\`ts
+// bare assignments (no const) so these survive into the later blocks
+pluginRoot = container.paths.resolve('tmp', \`feature-authoring-demo-\${Date.now()}\`)
+featureDir = container.paths.resolve(pluginRoot, 'features')
+
+const featureSource = \`
+import { z } from 'zod'
+import { Feature, FeatureStateSchema, FeatureOptionsSchema, FeatureEventsSchema } from 'luca'
+
+export const TodoScannerStateSchema = FeatureStateSchema.extend({
+  scanning: z.boolean().default(false).describe('Whether a scan is currently running'),
+  lastScanCount: z.number().default(0).describe('Number of annotations found by the most recent scan'),
+  lastScannedAt: z.string().optional().describe('ISO timestamp of the most recent scan'),
+})
+export type TodoScannerState = z.infer<typeof TodoScannerStateSchema>
+
+export const TodoScannerOptionsSchema = FeatureOptionsSchema.extend({
+  directory: z.string().optional().describe('Directory to scan (defaults to the container cwd)'),
+  markers: z.array(z.string()).default(['TODO', 'FIXME']).describe('Annotation markers to search for'),
+})
+export type TodoScannerOptions = z.infer<typeof TodoScannerOptionsSchema>
+
+export const TodoScannerEventsSchema = FeatureEventsSchema.extend({
+  scanned: z.tuple([
+    z.number().describe('Number of annotations found'),
+  ]).describe('Emitted after each completed scan'),
+})
+
+/**
+ * Scans a directory for code annotations (TODO, FIXME, ...) by composing
+ * the fs and grep features. Keeps observable counts in state and emits a
+ * \\\`scanned\\\` event after every run.
+ */
+export class TodoScanner extends Feature<TodoScannerState, TodoScannerOptions> {
+  static override shortcut = 'features.todoScanner' as const
+  static override stability = 'experimental' as const
+  static override stateSchema = TodoScannerStateSchema
+  static override optionsSchema = TodoScannerOptionsSchema
+  static override eventsSchema = TodoScannerEventsSchema
+  static { Feature.register(this, 'todoScanner') }
+
+  /**
+   * Run a scan and return the matches.
+   */
+  async scan() {
+    const { container } = this
+    const dir = this.options.directory || container.cwd
+
+    // Compose: fs guards, grep searches
+    const fs = container.feature('fs')
+    if (!fs.exists(dir)) throw new Error('todoScanner: directory does not exist: ' + dir)
+
+    this.setState({ scanning: true })
+
+    const grep = container.feature('grep')
+    const pattern = (this.options.markers || ['TODO', 'FIXME']).join('|')
+    const matches = await grep.search({ pattern, path: dir, include: '*.ts' })
+
+    this.setState({
+      scanning: false,
+      lastScanCount: matches.length,
+      lastScannedAt: new Date().toISOString(),
+    })
+    this.emit('scanned', matches.length)
+
+    return matches
+  }
+}
+
+export default TodoScanner
+\`
+
+fs.ensureFolder(featureDir)
+fs.writeFile(container.paths.resolve(featureDir, 'todo-scanner.ts'), featureSource)
+console.log('feature file written to', featureDir)
+\`\`\`
+
+(\`fs\`, \`os\`, \`grep\`, and \`helpers\` are already in scope in these runnable docs — the container injects its context. In your own scripts, \`container.feature('fs')\` gets you the same instances.)
+
+## Seed something to find
+
+Give the scanner a codebase with annotations in it.
+
+\`\`\`ts
+srcDir = container.paths.resolve(pluginRoot, 'src')
+fs.ensureFolder(srcDir)
+fs.writeFile(container.paths.resolve(srcDir, 'auth.ts'), [
+  'export function login() {',
+  '  // TODO: rate-limit repeated failures',
+  '  return true',
+  '}',
+  '// FIXME: logout does not clear the session cache',
+  'export function logout() {}',
+].join('\\n'))
+fs.writeFile(container.paths.resolve(srcDir, 'billing.ts'), [
+  '// TODO: support proration',
+  'export const invoice = () => 42',
+].join('\\n'))
+\`\`\`
+
+## Register through discovery
+
+\`helpers.discover(type, { directory })\` is how project \`features/\` folders load — and it works on any folder, which is what makes it a plugin mechanism (see the [meta-discovery example](./meta-discovery.md)). The file's \`static { Feature.register(this, 'todoScanner') }\` block runs when the module loads; after that the registry knows it.
+
+\`\`\`ts
+const discovered = await helpers.discover('features', { directory: featureDir })
+console.log('discovered:', discovered)
+
+if (!container.features.available.includes('todoScanner')) {
+  throw new Error('todoScanner did not register — discovery failed')
+}
+console.log('todoScanner is registered alongside', container.features.available.length - 1, 'other features')
+\`\`\`
+
+Enumerate registries with \`.available\` — they're class instances, so \`Object.keys(container.features)\` will not list helper ids.
+
+## Drive it: options, state, events
+
+Instantiate with options, subscribe to state and events, then call the method. Factories are memoized per id + options, so any later \`container.feature('todoScanner')\` call in this process gets the same instance and the same state.
+
+\`\`\`ts
+const scanner = container.feature('todoScanner', { directory: srcDir })
+
+// observable state — observers receive (changeType, key, value) per mutation
+const observedCounts = []
+scanner.state.observe((changeType, key, value) => {
+  if (key === 'lastScanCount') observedCounts.push(value)
+})
+
+// typed event bus
+let announced = null
+scanner.on('scanned', (count) => { announced = count })
+
+const matches = await scanner.scan()
+
+console.log('found', matches.length, 'annotations')
+for (const m of matches) console.log(\` \${m.file}:\${m.line} \${m.content.trim()}\`)
+
+// assert the composed behavior actually happened
+if (matches.length !== 3) throw new Error(\`expected 3 annotations, got \${matches.length}\`)
+if (announced !== 3) throw new Error('scanned event did not fire with the count')
+if (scanner.state.get('lastScanCount') !== 3) throw new Error('state.lastScanCount not updated')
+if (!observedCounts.includes(3)) throw new Error('state observer never saw the new count')
+if (scanner.state.get('scanning') !== false) throw new Error('scanning state did not settle back to false')
+console.log('state, events, and composition all verified')
+\`\`\`
+
+## Clean up
+
+\`\`\`ts
+await fs.rmdir(pluginRoot)
+console.log('cleaned up', pluginRoot)
+\`\`\`
+
+## The checklist
+
+When you author a feature for a real project (start with \`luca scaffold feature myThing\`):
+
+1. **File** in \`features/<kebab-name>.ts\`, class registered via \`static { Feature.register(this, '<camelName>') }\`, default export the class.
+2. **Schemas** extend \`FeatureStateSchema\` / \`FeatureOptionsSchema\` / \`FeatureEventsSchema\`, with \`.describe()\` on every field.
+3. **JSDoc + @example** on the class and every public method — \`luca describe <name>\` is generated from them.
+4. **Compose through \`this.container\`** — \`this.container.feature('fs')\`, never a direct import of another helper.
+5. **Type augmentation** (in-project): add \`declare module 'luca' { interface AvailableFeatures { myThing: typeof MyThing } }\` so \`container.feature('myThing')\` returns your type.
+6. Verify with \`luca about\` (discovery) and \`luca describe myThing\` (docs).
 `
 }
 
@@ -5665,6 +5185,208 @@ session.$getters  // => ['activeCount', ...]
 4. **Access the container, not imports** -- prefer \`this.container.feature('fs')\` over importing fs directly, so the feature works in any container
 5. **Document everything** -- JSDoc on the class, methods, and getters feeds the introspection system
 `,
+  "24-state-in-markdown.md": `---
+title: "Modeling State in Markdown: Frontmatter vs. Body"
+tags:
+  - contentbase
+  - contentdb
+  - markdown
+  - models
+  - state
+  - design
+  - frontmatter
+  - sections
+---
+# Modeling State in Markdown: Frontmatter vs. Body
+
+[Tutorial 11](./11-contentbase.md) shows the mechanics of contentbase — \`defineModel\`, \`meta\`, \`sections\`, querying. This tutorial is about the *judgment call* that decides whether your markdown stays worth writing: **which state goes in the frontmatter, and which goes in the body.**
+
+There's a trap. Once you learn that frontmatter is validated and queryable, it's tempting to treat it as *the database* and the prose as leftover comments — so an \`overview\` becomes a 12-line YAML string, \`success_criteria\` becomes a nested YAML array, and soon opening the file greets you with forty lines of \`key: value\` before the first sentence. At that point you've built a worse database *and* thrown away the one thing markdown was for: a document a human wants to read and edit.
+
+The point of contentbase is the opposite. **The prose is the state. Frontmatter is just the index card taped to the front.**
+
+## The two-drawer rule
+
+Every piece of state you store goes in one of two drawers. Sorting them correctly is the whole skill.
+
+**Frontmatter — the index card.** Only what the *system* filters, sorts, or joins on:
+- Lifecycle status (\`status: approved\`)
+- Tags and categorical labels
+- Foreign-key slugs (\`goal: user-experience\`)
+- Timestamps and machine-written scalars (\`lastRanAt\`, \`costUsd\`, \`completedAt\`)
+- Small boolean flags (\`running: true\`)
+
+These are **scalars and short arrays** — labels, not content.
+
+**Body — the substance.** Anything a human writes in sentences, lists, or code: the overview, the reasoning, the criteria, the findings, the plan. This is the actual work product.
+
+The litmus test: **would you write this in a sentence? → body. Is it a label the system filters on? → frontmatter.** If you're reaching for \`|\` (YAML multi-line) or nesting objects three deep, you're putting body content in the frontmatter drawer.
+
+## Sections are fields, not comments
+
+The reason you *can* keep substance in the body without losing queryability: a \`section()\` makes a heading's prose a **typed, validated, cached field.**
+
+\`\`\`ts
+// docs/models.ts
+import { defineModel, section, z } from 'contentbase'
+import { toString } from 'mdast-util-to-string'
+
+export const Goal = defineModel('Goal', {
+  prefix: 'goals',
+  meta: z.object({
+    horizon: z.enum(['short', 'medium', 'long']).default('medium')
+      .describe('short <3mo, medium 3–6mo, long >6mo'),
+  }),
+  sections: {
+    successCriteria: section('Success Criteria', {
+      extract: (q) => q.selectAll('*').map((n) => toString(n)).join('\\n'),
+      schema: z.string().min(1).describe('What success looks like'),
+    }),
+    motivation: section('Motivation', {
+      extract: (q) => q.selectAll('*').map((n) => toString(n)).join('\\n'),
+      schema: z.string().min(1).describe('Why this goal matters'),
+    }),
+  },
+})
+\`\`\`
+
+That \`Goal\` has exactly **one** frontmatter field (\`horizon\` — a label you'd filter on). "Success Criteria" and "Motivation" are the content, and they're still first-class: \`goal.sections.motivation\` returns the validated prose, \`goal.validate()\` fails if the section is empty (\`z.string().min(1)\`), and you never had to cram a paragraph into YAML. The file reads like a goal document a person wrote — because it is one.
+
+## The payoff frontmatter can't match: prose that's also structured
+
+Here's what makes sections better than "just parse the frontmatter" — a section can be *read by a human as prose and by the machine as structured data at the same time.*
+
+The agentic-loop's \`Project\` model has a section called **Execution** that authors write as an ordinary bulleted list of links to plans:
+
+\`\`\`markdown
+## Execution
+
+- [Connect and poll](plans/drive-connect)
+- [Detect change](plans/change-detection), [Dedupe events](plans/dedupe)
+- [Operator inspection](plans/inspect)
+\`\`\`
+
+A \`computed\` property turns that readable list into a dependency graph — each list item is a step, commas within an item mean "run in parallel":
+
+\`\`\`ts
+computed: {
+  executionOrder: (self) =>
+    self.document.querySection('Execution')
+      .selectAll('listItem')
+      .map((item) => new AstQuery({ type: 'root', children: [item] })
+        .selectAll('link').map((l) => l.url))
+      .filter((group) => group.length > 0),
+},
+\`\`\`
+
+The human edits a to-do list; the machine reads a parallel/sequential DAG. Encode that same information in frontmatter and you'd have an unreadable nested YAML array that no one wants to maintain — and you'd *still* have to write prose explaining it. The section gives you both, with one source of truth.
+
+The same trick powers scheduled work: the agentic-loop's \`Play\` and \`Task\` models extract a run-condition from \`code[lang=ts]\` blocks under a **Conditions** heading — executable logic living in the body, not a frontmatter string.
+
+## What it looks like in practice
+
+A real, completed project document from the agentic-loop:
+
+\`\`\`markdown
+---
+status: completed
+goal: user-experience-improvements
+---
+
+# Shared File Service
+
+## Overview
+
+Build a new core service that watches shared file systems for changes and
+turns those changes into structured events the Agentic Loop can react to.
+...
+
+## Success Criteria
+
+- The loop can watch one or more configured Google Drive folders...
+...
+
+## Motivation
+
+Important work often shows up in shared folders before it shows up in chat...
+\`\`\`
+
+Two lines of frontmatter — a lifecycle \`status\` and a \`goal\` foreign key. Everything of substance is prose under headings. This is a document a person wrote and can read. It is *also* a queryable record with a status the pipeline routes on and a relationship to a goal. Both, with no tax on either.
+
+## Reading and writing state that lives in the body
+
+Because state is split across two drawers, you read from each the way it's meant to be read.
+
+**Query on the cheap, indexed drawer:**
+
+\`\`\`ts
+const db = container.feature('contentDb', { rootPath: './docs' })
+await db.load()
+
+// filter/sort/join happen on frontmatter — fast, no body parsing
+const ready = await db.query(Project).where('meta.status', 'approved').fetchAll()
+\`\`\`
+
+**Pull only the section you need** (don't load a whole 500-line doc to read one heading) — the \`contentDb\` feature reads by heading:
+
+\`\`\`ts
+// just the Findings section, skip the rest
+const findings = await db.getDocument('reports/q3-research', { include: ['Findings'] })
+\`\`\`
+
+**Write to the body, save the document.** Editing a section is first-class; persistence is per-*document* (the file is the atomic unit — there's no section-level save):
+
+\`\`\`ts
+const report = await db.query(Report).find('q3-research')
+
+// replaceSectionContent is immutable by default → returns a new Document.
+// (pass { mutate: true } to edit in place instead.)
+const updated = report.document
+  .replaceSectionContent('Findings', '- Source A confirms X\\n- Source B contradicts Y')
+
+await updated.save()   // rewrites frontmatter + body together, atomically
+\`\`\`
+
+Related section writers: \`appendToSection(heading, md)\`, \`removeSection(heading)\`, \`insertAfter(node, md)\`. A tiny wrapper covers the common edit-and-persist case:
+
+\`\`\`ts
+async function updateSection(doc, heading, md) {
+  const next = doc.replaceSectionContent(heading, md)
+  await next.save()
+  return next
+}
+\`\`\`
+
+This is exactly how the agentic-loop's pipeline runs: **cheap \`status\` flips in frontmatter route the work** (\`spark → exploring → ready → promoted\`), while **agents accrete substance into the body sections** (research into "Findings", conclusions into "Synthesis"). The index card moves an item through the workflow; the prose is where the value accumulates.
+
+## When frontmatter *is* the right drawer
+
+Don't over-correct into "everything is prose." Some state genuinely belongs on the index card, and forcing it into the body is just as wrong:
+
+- **Lifecycle / status enums** — the pipeline filters on these constantly; they must be a fast, indexed scalar.
+- **Tags and foreign-key slugs** — labels and joins, not sentences.
+- **Machine-written bookkeeping** — \`lastRanAt\`, \`costUsd\`, \`turns\`, \`completedAt\`, \`running\`. An agent stamps a timestamp, not a paragraph. These are the clearest frontmatter citizens: no human writes them, no human reads them as prose.
+- **Small flags** that gate behavior (\`repeatable\`, \`running\`).
+
+The rule isn't "no frontmatter." It's **labels up top, substance in the body.**
+
+## Anti-patterns — the "defeats the purpose" list
+
+You've put state in the wrong drawer when you see:
+
+- **Multi-line prose as a YAML string** (\`overview: |\` followed by three paragraphs). That's a section wearing a frontmatter costume — and it's unreadable, awkward to diff, and fragile around special characters.
+- **Nested YAML objects that are really sections** (\`scope: { in: [...], out: [...] }\`). Write "## Scope" with "### In / ### Out" and extract it.
+- **Duplicating a heading's content into frontmatter "so it's easy to parse."** It's already parseable — that's what \`section()\` is for — and now you have two copies that drift.
+- **The H1 below the fold.** If opening the file shows thirty lines of \`key: value\` before any prose, you built a worse database and discarded the readability you chose markdown for.
+
+Every one of these trades away the thing that made markdown the right choice. Keep the frontmatter to the index card, let the document be a document, and you get the database for free.
+
+## What's Next
+
+- [Contentbase — Markdown as a Database](./11-contentbase.md) — the model/query/section API this builds on
+- [Semantic search over a content collection](../examples/semantic-search-content-db.md) — searching the body, not just the labels
+- \`luca describe contentDb\` — the feature's read/query/section tools
+`,
   "13-introspection.md": `---
 title: Introspection and Discovery
 tags: [introspection, runtime, discovery, documentation, describe, inspect]
@@ -5825,110 +5547,131 @@ Now \`container.features.describe('connectionPool')\` returns rich documentation
 `,
   "01-getting-started.md": `---
 title: Getting Started with Luca
-tags: [setup, quickstart, project, init]
+tags: [setup, quickstart, project, init, install, bundle]
 ---
 
 # Getting Started with Luca
 
-## Prerequisites
+Luca ships as a single binary. You install one file, and that file is the framework, the runtime, and the build tool. No \`npm install\`, no \`node_modules\`, no supply chain exposure.
 
-- [Bun](https://bun.sh) installed (Luca's runtime)
-- A new or existing bun project
+This tutorial takes you from nothing to a shipped binary of your own.
 
-## Create a New Project
+## 1. Install the Binary
 
-\`\`\`bash
-mkdir my-app && cd my-app
-bun init -y
-bun add luca 
+\`\`\`sh
+curl -fsSL https://luca-js.soederpop.com/install.sh | bash
 \`\`\`
 
-## Project Structure
+Detects your platform, downloads the binary, puts \`luca\` in your path. Or grab a release directly from [GitHub Releases](https://github.com/soederpop/luca/releases/latest) — binaries are available for macOS (Apple Silicon and Intel), Linux (x64 and ARM64), and Windows (x64).
 
-A typical Luca project looks like this:
+Verify it works:
+
+\`\`\`sh
+luca --version
+luca describe features
+\`\`\`
+
+That second command is the important one — it prints docs for every feature the runtime carries: file system, git, process management, SQLite, HTTP servers, AI assistants, and more. You'll never need to memorize this list; the binary can always tell you what it can do. (See [Bootstrap: Learning the Container at Runtime](./00-bootstrap.md) for the full discovery pattern.)
+
+## 2. Create a Project
+
+\`\`\`sh
+luca bootstrap my-app
+cd my-app
+\`\`\`
+
+This scaffolds a project with \`commands/\`, \`endpoints/\`, \`features/\`, \`docs/\`, and AI assistant configuration — everything wired up and ready to extend:
 
 \`\`\`
 my-app/
-├── package.json
-├── endpoints/          # File-based HTTP routes (auto-discovered by \`luca serve\`)
-│   ├── health.ts
-│   └── users.ts
 ├── commands/           # Project-local CLI commands (auto-discovered by \`luca\`)
-│   └── seed.ts
+├── endpoints/          # File-based HTTP routes (auto-discovered by \`luca serve\`)
+├── features/           # Custom container features
 ├── assistants/         # AI assistants (file-based convention)
-│   └── my-helper/
-│       ├── CORE.md
-│       ├── tools.ts
-│       ├── hooks.ts
-│       └── docs/
-├── public/             # Static files served by \`luca serve\`
-│   └── index.html
-└── scripts/            # Standalone scripts that use the container
-    └── migrate.ts
+├── docs/               # Content documents queryable via container.docs
+└── public/             # Static files served by \`luca serve\`
 \`\`\`
 
-## The Container
+There's no \`package.json\` required and nothing to install. The binary discovers these folders by convention and runs them through its own runtime.
 
-Everything in Luca revolves around the **container**. It is a per-process singleton that acts as your dependency injector, event bus, and state machine.
+## 3. Add Your Own Pieces
 
-In scripts, you create one directly:
+Generate boilerplate with \`luca scaffold\`:
+
+\`\`\`sh
+luca scaffold command seed --description "Seed the database"
+luca scaffold endpoint health --description "Health check endpoint"
+luca scaffold feature myCache --description "Custom caching layer"
+\`\`\`
+
+A command handler receives the container with everything on it:
 
 \`\`\`typescript
-import container from 'luca/node'
+// commands/seed.ts
+export default async function seed(options, context) {
+  const { container } = context
+  const fs = container.feature('fs')
+  const ui = container.feature('ui')
 
-// Now you have access to all features
-const fs = container.fs           // File system operations
-const git = container.git         // Git utilities (branch, sha, lsFiles, etc.)
-const ui = container.ui           // Terminal UI (colors, prompts, figlet)
-const proc = container.feature('proc')  // Process execution
+  ui.print.success(\`Seeded \${options.count} records\`)
+}
 \`\`\`
 
-In endpoints and commands, the container is provided for you via context:
+An endpoint gets the container via context too:
 
 \`\`\`typescript
 // endpoints/health.ts
 export const path = '/health'
 
-export async function get(_params: any, ctx: EndpointContext) {
+export async function get(_params, ctx) {
   const { container } = ctx
   return { status: 'ok', uptime: process.uptime() }
 }
 \`\`\`
 
-## Running Your Project
+No imports beyond what the container gives you. File I/O, HTTP clients, databases, YAML, git — it's all on the container, typed and documented. Run \`luca describe fs\` (or any helper name) whenever you want the full API.
 
-### Start the API server
+## 4. Run It
 
-\`\`\`bash
-luca serve
-# or with options:
-luca serve --port 4000 --endpointsDir src/endpoints
-\`\`\`
-
-This auto-discovers your \`endpoints/\` directory, mounts all routes, and generates an OpenAPI spec at \`/openapi.json\`.
-
-### Run a CLI command
-
-\`\`\`bash
+\`\`\`sh
+# run your CLI command
 luca seed --count 10
-\`\`\`
 
-This auto-discovers \`commands/seed.ts\` from your project and runs it.
+# start the API server — auto-discovers endpoints/, serves public/,
+# generates an OpenAPI spec at /openapi.json
+luca serve
 
-### Run a script
-
-\`\`\`bash
+# run a one-off script with the container in scope
 luca run scripts/migrate.ts
 \`\`\`
 
+Your commands show up alongside the built-ins when you run \`luca\` with no arguments.
+
+## 5. Ship It
+
+This is the payoff. Compile your project — your commands, endpoints, features, and assistants — into its own standalone binary:
+
+\`\`\`sh
+luca bundle my-app
+\`\`\`
+
+The output is a self-contained executable. No node, no bun, no npm on the target machine. Your users download one file and run it; your custom commands show up in \`my-app --help\`.
+
+Single binary in, single binary out.
+
+## Using Luca Inside an Existing App?
+
+If you want the container as a library inside an existing TypeScript/Bun project — \`bun add luca\`, import the container, keep your own build — see [Embedding Luca in an Existing Project](./21-embedding-luca.md).
+
 ## What's Next
 
+- [Bootstrap: Learning the Container at Runtime](./00-bootstrap.md) -- the discovery pattern: \`luca describe\`, \`luca eval\`, the REPL
 - [The Container](./02-container.md) -- deep dive into the container
 - [Scripts and Markdown Notebooks](./03-scripts.md) -- run scripts and executable markdown
 - [Using Features](./04-features-overview.md) -- explore built-in features
-- [Servers](./06-servers.md) -- set up Express and WebSocket servers
 - [Writing Endpoints](./07-endpoints.md) -- build your API routes
 - [Writing Commands](./08-commands.md) -- add CLI commands to your project
+- [Assistants](./12-assistants.md) -- build an AI operator into your project
 `,
   "07-endpoints.md": `---
 title: Writing Endpoints
@@ -7221,6 +6964,403 @@ It automatically:
 - Generates the OpenAPI spec
 - Prints all routes
 `,
+  "23-assistant-driven-ui.md": `---
+title: "Advanced: An Assistant That Drives Your UI"
+tags:
+  - browser
+  - assistant
+  - tools
+  - containerLink
+  - reactive
+  - advanced
+  - rpc
+---
+# Advanced: An Assistant That Drives Your UI
+
+You have a reactive browser app ([tutorial 22](./22-reactive-frontend.md)) and you know features expose tools that assistants pick up with \`assistant.use()\` ([Features as Tool Providers](../examples/feature-as-tool-provider.md)). This tutorial connects the two: **a server-side assistant that can operate the front-end the user is looking at** — add items, flip tabs, run a query — with every action visibly updating the live UI.
+
+This is the "assistant spawns a UI, then drives it" loop. It's built entirely from generic Luca primitives; nothing here is bespoke.
+
+## The one insight: it's the same tool pattern, plus one hop
+
+Exposing tools never changes. A feature declares \`static tools\` (name → \`{ description, schema }\`), implements a matching method per tool, and an assistant calls \`use(feature)\` to register them. That's true for \`fileTools\`, for your own server features, and for this.
+
+The *only* new problem is a **location gap**: the assistant runs in a Node process, but the app's state and methods live in the user's browser. You need a way for server code to call a method over in the browser and get the result back. That transport is the **\`containerLink\`** feature — and once you have it, the tool-provider pattern drops in unchanged.
+
+\`\`\`
+┌─ Node process ──────────────┐         ┌─ Browser ───────────────┐
+│  assistant.use(remote)      │  ws     │  container.feature('app')│
+│  remote.addTodo(args) ──────┼────────▶│  .addTodo(args)          │
+│         ▲ result            │  eval   │   → mutates state        │
+│         └───────────────────┼─────────┤   → emit('changed')      │
+└─────────────────────────────┘         │   → UI re-renders        │
+                                         └──────────────────────────┘
+\`\`\`
+
+## \`containerLink\` in a nutshell
+
+\`containerLink\` is one feature with two sides — the browser gets the client, a Node process gets the host:
+
+- **Host (Node):** \`container.feature('containerLink', { port: 8089 })\`, then \`await link.start()\`. It's a WebSocket server. It emits \`connection(uuid, meta)\` when a browser registers, and its key method is **\`eval(containerId, code, context?, timeout?)\`** — run code inside that browser and get the (awaited) result back.
+- **Client (browser):** \`container.feature('containerLink', { hostUrl })\`, then \`await link.connect()\`. It registers with the host and services eval requests.
+
+The trust is **one-directional**: the host can eval in the browser, never the reverse (the browser can only \`emitToHost(event, data)\`). Evaluated code runs through the browser's \`vm\` with the **\`container\` in scope**, and — crucially — the host \`await\`s a Promise the code returns. So an async method call round-trips cleanly.
+
+> \`luca describe containerLink\` and \`luca describe containerLink --platform=web\` show the full surface of each side.
+
+## Step 1 — the browser app, with methods worth calling
+
+Start from tutorial 22's store-as-feature. The only thing that matters for remote control: **each mutating method ends with \`emit('changed')\`**, so when the assistant calls it, the human watching the page sees the update. Reference the app through \`container.feature('app')\` (that's what's in scope on the browser side) — not \`window.app\`.
+
+\`\`\`html
+<script type="module">
+  import container from "https://esm.sh/luca@3.3.3/web"
+  const { Feature } = container
+
+  class TodoApp extends Feature {
+    static shortcut = 'features.app'
+    static { Feature.register(this, 'app') }
+
+    get todos() { return this.state.get('todos') || [] }
+
+    async addTodo({ title }) {
+      const todo = { id: container.utils.uuid(), title, done: false }
+      this.state.set('todos', [...this.todos, todo])
+      this.emit('changed')                 // ← the user sees it appear
+      return todo
+    }
+    async toggleTodo({ id }) {
+      this.state.set('todos', this.todos.map((t) => t.id === id ? { ...t, done: !t.done } : t))
+      this.emit('changed')
+      return { id }
+    }
+    async listTodos() { return this.todos }
+  }
+
+  const app = container.feature('app')
+  // ...render with React exactly as in tutorial 22...
+
+  // Connect back to the host so it can drive this app.
+  const link = container.feature('containerLink', {
+    hostUrl: \`ws://\${location.hostname}:8089\`,
+    meta: { app: 'todos' },              // lets the host tell windows apart
+  })
+  await link.connect()
+</script>
+\`\`\`
+
+That's the entire browser-side change: three callable methods and one \`connect()\`.
+
+## Step 2 — a server feature that exposes those methods as tools
+
+This is an ordinary tool-provider feature (\`features/todo-remote.ts\`), identical in shape to \`fileTools\`. The difference is that each method, instead of doing the work locally, **evals the call over the link**. The server owns the Zod schemas — it's the side talking to the model.
+
+\`\`\`ts
+// features/todo-remote.ts
+import { z } from 'zod'
+import { Feature } from 'luca'
+
+export class TodoRemote extends Feature {
+  static override stability = 'experimental' as const
+  static { Feature.register(this, 'todoRemote') }
+
+  // 1. The tool surface the assistant sees (Zod, per the standard pattern)
+  static override tools = {
+    addTodo: {
+      description: 'Add a todo to the UI the user is looking at.',
+      schema: z.object({ title: z.string().describe('The todo text') })
+        .describe('Add a todo to the UI the user is looking at.'),
+    },
+    toggleTodo: {
+      description: 'Toggle a todo done/undone by its id.',
+      schema: z.object({ id: z.string().describe('The todo id') })
+        .describe('Toggle a todo done/undone by its id.'),
+    },
+    listTodos: {
+      description: 'List the todos currently shown in the UI.',
+      schema: z.object({}).describe('List the todos currently shown in the UI.'),
+    },
+  }
+
+  get link() { return this.container.feature('containerLink') }
+  get uiId() { return this.state.get('uiId') as string | undefined }
+
+  // 2. Each method forwards the call into the browser and returns its result.
+  //    Pass args via the eval *context* (second arg) — no string interpolation,
+  //    no injection surface. \`args\` and \`container\` are both in scope over there.
+  async addTodo(args: { title: string }) {
+    return this.callUi(\`container.feature('app').addTodo(args)\`, args)
+  }
+  async toggleTodo(args: { id: string }) {
+    return this.callUi(\`container.feature('app').toggleTodo(args)\`, args)
+  }
+  async listTodos() {
+    return this.callUi(\`container.feature('app').listTodos()\`, {})
+  }
+
+  private async callUi(code: string, args: any) {
+    if (!this.uiId) throw new Error('No UI is connected yet — open the app in a browser first.')
+    return this.link.eval(this.uiId, code, { args })
+  }
+
+  // 3. Teach the assistant it's operating a live surface, not a database.
+  override setupToolsConsumer(consumer: any) {
+    if (typeof consumer.addSystemPromptExtension === 'function') {
+      consumer.addSystemPromptExtension('todoRemote', [
+        '## Todo UI',
+        'These tools operate the live todo list the user is watching on screen.',
+        'Prefer listTodos to see current state before toggling. Actions are visible immediately.',
+      ].join('\\n'))
+    }
+  }
+}
+
+export default TodoRemote
+\`\`\`
+
+Because \`TodoRemote\` is a normal feature, everything from the tool-provider example still holds: handlers are auto-bound by name in \`toTools()\`, you can call them directly to test without a model, and \`toTools({ only })\` scopes them down.
+
+## Step 3 — wire the host, track the window, hand it to the assistant
+
+Put the plumbing where it runs before anything else — \`luca.cli.ts\`'s \`main()\`, or a dedicated command. Serve the app with \`luca serve\` (tutorial 22), and run the link host alongside it:
+
+\`\`\`ts
+// in luca.cli.ts main(), a command, or a script
+await container.helpers.discoverAll()          // register features/todo-remote.ts
+
+const link = container.feature('containerLink', { port: 8089 })
+await link.start()
+
+const remote = container.feature('todoRemote')
+
+// When a browser opens the app, remember which container is the todo UI.
+link.on('connection', (uuid: string, meta: any) => {
+  if (meta?.meta?.app === 'todos') remote.state.set('uiId', uuid)
+})
+link.on('disconnection', (uuid: string) => {
+  if (remote.uiId === uuid) remote.state.set('uiId', undefined)
+})
+
+const assistant = container.feature('assistant', {
+  systemPrompt: 'You help the user manage their todo list.',
+  model: 'gpt-4.1-mini',
+})
+assistant.use(remote)                          // addTodo / toggleTodo / listTodos now registered
+
+await assistant.start()
+console.log(await assistant.ask('Add todos for milk, eggs, and bread, then show me the list.'))
+// The three items pop into the browser as the model calls addTodo, and
+// listTodos returns the real state — the assistant narrates what's on screen.
+\`\`\`
+
+The loop is closed: the model calls a tool → the handler evals into the browser → the method mutates state and emits \`changed\` → the user's UI re-renders → the result flows back to the model. Everything you already learned about tool providers and reactive features composes; \`containerLink\` just carries the call across the process boundary.
+
+## Scaling up: let the browser own its tool surface
+
+Hardcoding \`TodoRemote\`'s schemas on the server is right when *you* wrote the UI. But if UIs are generated on the fly — an assistant writes a new workflow, serves it, and wants to drive it without anyone updating server code — the tool contract has to come *from the browser*.
+
+The shape: have the browser app expose its own tools (in the browser, schemas are plain JSON Schema — there's no Zod), and fetch them over the link at connect time:
+
+\`\`\`ts
+// host: discover the app's declared tools
+const schemas = await link.eval(uiId,
+  \`JSON.stringify(container.feature('app').toTools().schemas)\`)   // returns { toolName: jsonSchema }
+
+// build one proxy handler per tool, each evaling the matching method in the browser
+for (const name of Object.keys(JSON.parse(schemas))) {
+  // handler forwards to container.feature('app')[name](args) over the link
+}
+\`\`\`
+
+One friction point to plan for: **\`assistant.addTool()\` wants a Zod schema** (it calls \`schema.toJSONSchema()\` internally). Browser-declared schemas arrive as JSON Schema, so a fully dynamic path needs a JSON-Schema→Zod step on the host. That conversion is the reason most apps keep the tool contract on the server (Step 2) and only reach for dynamic discovery when the set of UIs genuinely isn't known ahead of time.
+
+> **Alternate transport.** If your app runs in *native* windows you spawn (not a persistent WebSocket link), you can inject and evaluate JS in a window directly and poll a result global instead of using \`containerLink.eval\`. Same author-facing idea — the app exposes \`toTools()\`; only the pipe differs.
+
+## Gotchas
+
+- **Host→browser eval runs arbitrary code in the user's page.** Only connect a browser to a host you control, and treat the \`containerLink\` port like any other trusted local service. Connections are token-authenticated per session.
+- **\`emit('changed')\` in every mutating method**, or the assistant will change state the user can't see — defeating the point.
+- **Results must be JSON-serializable.** \`eval\` marshals the return value over WebSocket; return plain objects, not class instances or DOM nodes.
+- **Handle "no UI connected."** The assistant may call a tool before any browser has opened the app — fail with a clear message (as \`callUi\` does) rather than evaling into \`undefined\`.
+- **Pass arguments via the eval context, not string interpolation** — \`link.eval(id, 'fn(args)', { args })\` keeps model-supplied values out of the code string.
+- **Reference \`container.feature('app')\` in evaled code.** \`container\` is in scope on the browser side; \`window\`-globals may not be, depending on how the page loaded.
+- **Route by \`meta\` when multiple windows connect.** The \`connection(uuid, meta)\` event carries the \`meta\` you passed to \`connect()\` — use it to pick the right UI, or track several.
+
+## What's Next
+
+- [Browser: Reactive UIs with No Build Step](./22-reactive-frontend.md) — the app this drives
+- [Features as Tool Providers](../examples/feature-as-tool-provider.md) — \`static tools\`, \`toTools()\`, \`use()\`, \`setupToolsConsumer()\` in depth
+- [Assistants](./12-assistants.md) — building and running assistants
+- \`luca describe containerLink\` / \`--platform=web\` — the full host and client APIs
+`,
+  "25-express-websocket-sidecar.md": `---
+title: "Express + a WebSocket Sidecar with luca serve --setup"
+tags:
+  - servers
+  - express
+  - websocket
+  - serve
+  - setup
+  - sidecar
+  - realtime
+---
+# Express + a WebSocket Sidecar with \`luca serve --setup\`
+
+You have REST endpoints served by \`luca serve\` ([tutorial 7](./07-endpoints.md)). Now you want **live push** — a WebSocket running in the same process, alongside the HTTP API, so a \`POST\` can notify every connected client. This is the "sidecar" shape: one process, two servers, one shared state.
+
+The clean seam for wiring it up is **\`luca serve --setup\`**. You keep \`luca serve\` managing Express (endpoints, static, OpenAPI, port handling), and hand it a small module that receives the running server so you can attach the WebSocket sidecar and connect the two. No custom bootstrap, no reinventing the serve command.
+
+## The shape
+
+\`\`\`
+                 luca serve --setup setup.ts --port 3000
+                 │
+  ┌──────────────┼───────────────────────────────┐
+  │  one process                                  │
+  │                                               │
+  │   Express (owned by luca serve)   :3000       │  ← endpoints/ + public/
+  │        │                                      │
+  │        │ setup.ts wires them together         │
+  │        ▼                                      │
+  │   WebSocket sidecar (you start)   :8081       │  ← live push to clients
+  └───────────────────────────────────────────────┘
+\`\`\`
+
+\`luca serve\` builds the Express server, mounts your \`endpoints/\`, and serves \`public/\`. \`--setup setup.ts\` hands your module that Express server **after endpoints mount but before it starts listening** — exactly the right moment to start the sidecar and stash shared handles.
+
+## The setup module contract
+
+A setup module's default export is a function that receives the Luca Express server. It may be async and is awaited:
+
+\`\`\`ts
+// setup.ts
+export default async function setup(server) {
+  // \`server\` is the Luca ExpressServer. Two things you always have:
+  const container = server.container   // the full container — reliable handle
+  const app = server.app               // the underlying Express app (routes mounted, not yet listening)
+
+  // ...attach middleware, start the sidecar, share state (below)
+}
+\`\`\`
+
+What's true at setup time:
+- **\`server.app\` is ready** — endpoints are already mounted; you can add more middleware or routes.
+- **It is not listening yet** — \`luca serve\` calls \`start()\` *after* your setup returns. Don't assume the HTTP port is open.
+- **\`server.container\` is your container** — use it for features, clients, and the WebSocket server.
+
+> Express has three doors for custom wiring: the \`create: (app, server) => app\` option (when the app is first built, before endpoints), \`server.app.use(...)\` on the instance, and \`luca serve --setup\` from the CLI. This tutorial uses the CLI door — it's the one that composes with the managed \`serve\` lifecycle.
+
+## Start the WebSocket sidecar
+
+Luca's \`websocket\` server binds its **own port** — so the sidecar is a *companion port* (say \`8081\`) next to Express on \`3000\`. Start it in \`setup.ts\` and stash it on \`app.locals\` so your REST endpoints can reach it:
+
+\`\`\`ts
+// setup.ts
+export default async function setup(server) {
+  const container = server.container
+  const app = server.app
+
+  // A JSON WebSocket server on its own port, alongside Express.
+  const ws = container.server('websocket', { port: 8081, json: true })
+
+  ws.on('connection', (socket) => {
+    ws.send(socket, { type: 'welcome', at: Date.now() })
+    socket.on('message', (raw) => {
+      // client → server messages arrive here
+    })
+  })
+
+  await ws.start()
+
+  // Shared state: endpoints reach the sidecar via req.app.locals.
+  app.locals.ws = ws
+  console.log('WebSocket sidecar listening on :8081')
+}
+\`\`\`
+
+\`app.locals\` is the blessed way to share objects across the HTTP and WebSocket halves — endpoint files can't import a variable from \`setup.ts\`, but they can read \`req.app.locals\`.
+
+## Wire REST → WebSocket
+
+The payoff: an HTTP write triggers a live push. Here's an endpoint that records a message and broadcasts it to every connected socket. Endpoint handlers are \`(params, ctx)\`; reach the sidecar through \`ctx.request.app.locals\`:
+
+\`\`\`ts
+// endpoints/messages.ts  →  POST /api/messages
+import { z } from 'zod'
+import type { EndpointContext } from 'luca'
+
+export const path = '/api/messages'
+
+export const postSchema = z.object({
+  text: z.string().describe('The message body'),
+})
+
+export async function post(params: z.infer<typeof postSchema>, ctx: EndpointContext) {
+  const ws = ctx.request.app.locals.ws            // the sidecar, shared from setup.ts
+  const message = { id: ctx.container.utils.uuid(), text: params.text, at: Date.now() }
+
+  await ws.broadcast({ type: 'message', message })  // push to all connected clients
+  return { ok: true, message }
+}
+\`\`\`
+
+Now \`POST /api/messages\` returns JSON to the caller *and* fans the message out to every WebSocket client in real time. HTTP handles the write; the sidecar handles the notify.
+
+Need the server to *ask* a specific client something and await its reply? The Luca WebSocket server has \`ask(socket, type, data)\` request/response semantics — see the [ask-and-reply example](../examples/websocket-ask-and-reply-example.md).
+
+## The client side
+
+Connect from a browser app ([tutorial 22](./22-reactive-frontend.md)) or any Luca container — note the client targets the **sidecar port**, not the HTTP port:
+
+\`\`\`js
+// in the browser (or any container)
+const socket = container.client('websocket', { baseURL: 'ws://localhost:8081' })
+socket.on('message', (msg) => {
+  if (msg.type === 'message') store.addMessage(msg.message)  // push into your reactive store
+})
+await socket.connect()
+\`\`\`
+
+A \`fetch('/api/messages', …)\` to \`:3000\` now shows up on every connected client via \`:8081\`.
+
+## Run it
+
+\`\`\`bash
+luca serve --setup setup.ts --port 3000
+\`\`\`
+
+You get Express on \`:3000\` (your endpoints + \`public/\` + \`/openapi.json\`) and the WebSocket sidecar on \`:8081\`, in one process, sharing state. \`luca serve\` holds the process open and handles shutdown.
+
+## Lifecycle & gotchas
+
+- **Setup runs before \`listen()\`.** \`server.app\` is ready and endpoints are mounted, but the HTTP port isn't open yet. Do setup work (start the sidecar, add middleware, seed \`app.locals\`); don't make requests to yourself from inside setup.
+- **Share state through \`app.locals\`.** Endpoint files are separate modules — they can't import from \`setup.ts\`. Put shared handles (\`ws\`, caches, queues) on \`app.locals\` in setup and read \`ctx.request.app.locals\` in handlers.
+- **The sidecar is a companion port.** Clients connect to \`ws://host:8081\`, distinct from the HTTP \`:3000\`. For browsers, that's a different origin — allow it (Express \`--cors\` is on by default for the HTTP side; the WS side isn't CORS-gated the same way, but mind mixed \`ws://\`/\`wss://\` under HTTPS).
+- **Want a single shared port (HTTP \`Upgrade\`)?** Luca's \`websocket\` server always binds its own port, and the Express HTTP listener doesn't exist until \`start()\` (after setup) — so true single-port upgrade means owning the \`http.Server\` yourself with raw \`ws\` (\`new WebSocketServer({ noServer: true })\` + \`httpServer.on('upgrade', …)\`) in a custom command, not via \`luca serve\`. Reach for it only if a second port is genuinely unacceptable; the companion-port sidecar is simpler and is what \`serve\` supports cleanly.
+- **\`Bun.serve\`/\`Bun.spawn\` are unavailable** in the VM-loaded setup module — use \`container.server(...)\` (as here) and \`container.feature('proc')\`.
+- **Clean up if you must.** \`luca serve\` tears down on SIGINT. If your sidecar holds external resources, close them in a \`process.on('SIGINT', …)\` handler registered in setup.
+
+## Alternative: own the whole lifecycle in a command
+
+If you don't want \`luca serve\` managing things — you need custom startup order, your own signal handling, or to run both servers from a script — build the pair directly and start them together (see [Servers → Combining Servers](./06-servers.md)):
+
+\`\`\`ts
+const http = container.server('express', { port: 3000, static: './public' })
+const ws = container.server('websocket', { port: 8081, json: true })
+await http.useEndpoints('./endpoints')
+http.app.locals.ws = ws
+await Promise.all([http.start(), ws.start()])
+\`\`\`
+
+Same two-server shape; \`--setup\` is just the version where \`serve\` owns Express and you bolt the sidecar on.
+
+## What's Next
+
+- [Servers](./06-servers.md) — Express and WebSocket server primitives and options
+- [Endpoints](./07-endpoints.md) — file-based routes served by \`luca serve\`
+- [WebSocket ask-and-reply](../examples/websocket-ask-and-reply-example.md) — server↔client request/response
+- [Browser: Reactive UIs](./22-reactive-frontend.md) — subscribing to the sidecar from a front-end store
+`,
   "00-bootstrap.md": `---
 title: "Bootstrap: Learning the Container at Runtime"
 tags:
@@ -7387,6 +7527,270 @@ const good = container.paths.resolve(os.tmpdir, 'mydir')
 - [Scripts](./03-scripts.md) — run scripts and executable markdown notebooks
 - [Features Overview](./04-features-overview.md) — explore built-in features
 - [Writing Commands](./08-commands.md) — add CLI commands to your project
+`,
+  "22-reactive-frontend.md": `---
+title: "Browser: Reactive UIs with No Build Step"
+tags:
+  - browser
+  - esm
+  - web
+  - frontend
+  - react
+  - reactive
+  - no-build
+---
+# Browser: Reactive UIs with No Build Step
+
+[Tutorial 20](./20-browser-esm.md) showed you can import Luca from esm.sh and use features in the browser. This tutorial goes one step further: **build a complete, reactive front-end application** — the kind with live-updating panels, streaming data, and real state — with **no bundler, no \`npm install\`, no build step, and no framework lock-in.**
+
+The whole thing rests on three ideas. Learn them once and you can build any UI this way.
+
+## The three ideas
+
+1. **esm.sh means no build.** Any npm package (React, Preact, marked, chart.js…) is importable as a URL. The browser's native ES module loader does the rest. There is no \`package.json\` for the front-end, no Webpack, no Vite, nothing to compile. You write an \`.html\` file and serve it.
+
+2. **A Luca feature is a reactive store.** Every feature already has observable state (\`this.state.get/set\`) and an event bus (\`this.emit/.on/.off\`). That is *exactly* what a front-end store is. You don't need Redux, Zustand, or Context — the container gives you one for free, and it's the same API you use on the server.
+
+3. **The view subscribes to the store's events.** Whatever renders the DOM — plain JavaScript, React, Preact, Vue — just listens for the feature's \`changed\` event and re-reads state. The store never knows about the view. That decoupling is the whole pattern.
+
+Everything below is an elaboration of those three ideas.
+
+## Prove the mechanism with plain DOM
+
+Before any framework, here is the entire pattern in ~20 lines. A feature holds state and emits \`changed\`; a render function listens and repaints. Save as \`public/index.html\`:
+
+\`\`\`html
+<!DOCTYPE html>
+<html>
+<body>
+  <button id="dec">−</button>
+  <span id="value">0</span>
+  <button id="inc">+</button>
+
+  <script type="module">
+    import container from "https://esm.sh/luca/web"
+    const { Feature } = container
+
+    class Counter extends Feature {
+      static shortcut = 'features.counter'
+      static { Feature.register(this, 'counter') }
+
+      get value() { return this.state.get('value') || 0 }
+      bump(by) {
+        this.state.set('value', this.value + by)
+        this.emit('changed')          // ← the only line the view cares about
+      }
+    }
+
+    const counter = container.feature('counter')
+
+    // The view: re-read state whenever the store changes.
+    const render = () => { document.getElementById('value').textContent = counter.value }
+    counter.on('changed', render)
+    render()
+
+    document.getElementById('inc').onclick = () => counter.bump(1)
+    document.getElementById('dec').onclick = () => counter.bump(-1)
+  </script>
+</body>
+</html>
+\`\`\`
+
+Serve it:
+
+\`\`\`shell
+luca serve
+\`\`\`
+
+\`luca serve\` serves \`public/\` as static files (and \`endpoints/\` as an API — more on that below). Open the URL, click the buttons. **No build step ran.** The feature is the store; \`changed\` is the signal; \`render\` is the subscriber. That is the pattern. React just makes the \`render\` half nicer.
+
+## Add React from a URL
+
+You do not install React. You import it. \`React.createElement\` (aliased to \`e\`) replaces JSX, so there's no compile step — this is plain JavaScript the browser runs directly.
+
+\`\`\`html
+<script type="module">
+  import React from "https://esm.sh/react@18.3.1"
+  import { createRoot } from "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1"
+  import container from "https://esm.sh/luca/web"
+
+  const e = React.createElement
+</script>
+\`\`\`
+
+> **The one React footgun:** react-dom must use the *same* React instance. Pin both to the same version and add \`?deps=react@18.3.1\` to the react-dom URL (or use an import map — see Gotchas). Skip this and you get "Invalid hook call."
+
+Now bridge the store to React with a tiny hook. This is not part of Luca — it's six lines you write once and reuse everywhere. It subscribes a component to any feature's \`changed\` event and forces a re-render:
+
+\`\`\`js
+// Re-render this component whenever any of the given features emit 'changed'.
+function useFeatureVersion(features) {
+  const [, setTick] = React.useState(0)
+  React.useEffect(() => {
+    const bump = () => setTick((n) => n + 1)
+    features.forEach((f) => f.on('changed', bump))
+    return () => features.forEach((f) => f.off('changed', bump))
+  }, features)
+}
+\`\`\`
+
+The counter, now in React:
+
+\`\`\`js
+function CounterApp() {
+  useFeatureVersion([counter])            // re-render on every 'changed'
+  return e('div', null,
+    e('button', { onClick: () => counter.bump(-1) }, '−'),
+    e('span', { style: { margin: '0 1rem' } }, counter.value),
+    e('button', { onClick: () => counter.bump(1) }, '+'),
+  )
+}
+
+createRoot(document.getElementById('root')).render(e(CounterApp))
+\`\`\`
+
+The feature is unchanged from the plain-DOM version. Only the subscriber changed. **The store has no idea React exists** — which is why you could swap in Preact or Vue without touching it.
+
+## Scale up: the Api / Store / App layers
+
+A counter fits in one feature. A real app — one that fetches data, holds it, and coordinates actions — is clearest as **three features**, each with one job:
+
+| Layer | Responsibility | Never does |
+| --- | --- | --- |
+| **Api** | Talk to the backend (\`fetch\`, websocket, SSE). Returns plain data. | Hold state, know about the UI |
+| **Store** | Hold in-memory state. Expose getters. \`emit('changed')\` after every mutation. | Make network calls |
+| **App** | Orchestrate: call Api, push results into Store, expose high-level actions (\`start()\`, \`refresh()\`). | Render |
+
+\`\`\`js
+class Api extends Feature {
+  static shortcut = 'features.api'
+  static { Feature.register(this, 'api') }
+  get rest() { return this.container.client('rest', { baseURL: '/api' }) }
+  loadTodos() { return this.rest.get('/todos') }        // returns parsed JSON directly
+}
+
+class Store extends Feature {
+  static shortcut = 'features.store'
+  static { Feature.register(this, 'store') }
+  get todos() { return this.state.get('todos') || [] }
+  setTodos(todos) { this.state.set('todos', todos); this.emit('changed') }
+}
+
+class App extends Feature {
+  static shortcut = 'features.app'
+  static { Feature.register(this, 'app') }
+  get api() { return this.container.feature('api') }
+  get store() { return this.container.feature('store') }
+
+  async start() {
+    this.state.set('loading', true); this.emit('changed')
+    try {
+      this.store.setTodos(await this.api.loadTodos())
+    } catch (err) {
+      this.state.set('error', err.message)
+    }
+    this.state.set('loading', false); this.emit('changed')
+  }
+
+  // One atomic read for the view — no scattered getters, no stale closures.
+  snapshot() {
+    return {
+      loading: this.state.get('loading'),
+      error: this.state.get('error'),
+      todos: this.store.todos,
+    }
+  }
+}
+\`\`\`
+
+Features compose through the container (\`this.container.feature('api')\`) — the same way server-side features depend on each other. The **\`snapshot()\` idiom** is worth adopting: the component makes one call and reads a single plain object, instead of pulling from several getters that might drift out of sync mid-render.
+
+\`\`\`js
+function TodoApp() {
+  const app = container.feature('app')
+  const store = container.feature('store')
+  useFeatureVersion([app, store])           // subscribe to both
+
+  const { loading, error, todos } = app.snapshot()
+  if (loading) return e('p', null, 'Loading…')
+  if (error) return e('p', { style: { color: 'red' } }, error)
+  return e('ul', null, todos.map((t) => e('li', { key: t.id }, t.title)))
+}
+
+const app = container.feature('app')
+createRoot(document.getElementById('root')).render(e(TodoApp))
+app.start()                                 // kick off the initial load
+\`\`\`
+
+## The backend half: \`endpoints/\` + \`luca serve\`
+
+\`luca serve\` serves your static \`public/\` **and** file-based routes from \`endpoints/\` on the *same origin*. Same origin means the browser makes no cross-origin request, so **there's no CORS to configure** — the Api layer just fetches \`/api/...\`.
+
+\`\`\`ts
+// endpoints/todos.ts  →  GET /api/todos
+import type { EndpointContext } from 'luca'
+
+export const path = '/api/todos'
+
+// Handlers are (params, ctx). Return a value — it's serialized to JSON.
+export async function get(_params: any, ctx: EndpointContext) {
+  const db = ctx.container.feature('sqlite')       // full node container on the server
+  return db.query('SELECT id, title FROM todos').all()
+}
+\`\`\`
+
+\`\`\`shell
+luca serve --watch        # hot-reloads endpoints on change
+\`\`\`
+
+Your browser has the *web* container (no \`fs\`, \`git\`, \`proc\`); your endpoints have the *node* container (everything). The REST client is the bridge between them. See [Endpoints](./07-endpoints.md) and [Servers](./06-servers.md) for the full API.
+
+## Live updates
+
+The \`changed\`-event pattern makes live data trivial — the transport pushes into the Store, the Store emits, the view repaints. Pick the transport that fits:
+
+- **Polling** — simplest. An \`App\` timer calls \`refresh()\` every few seconds.
+- **WebSocket** — \`container.client('socket', { url })\`; \`socket.on('message', …)\` pushes into the Store.
+- **Server-Sent Events** — for one-way streams (LLM tokens, build logs). Read \`res.body.getReader()\` and dispatch each \`data:\` line into the Store. When parsing SSE by hand, keep the trailing partial line in a buffer across chunks (\`buffer = lines.pop()\`), or you'll drop events split across a network boundary.
+
+In every case the view code is identical — it only ever knows about \`changed\`.
+
+## Gotchas
+
+- **Pin versions; esm.sh caches hard.** \`https://esm.sh/luca@3.3.3/web\`, not bare \`luca/web\`, for anything you want to be stable.
+- **One React instance.** react-dom must resolve the same React as your components. Pin both versions and add \`?deps=react@VERSION\` to react-dom, or use an **import map** (cleanest when you split code across files):
+  \`\`\`html
+  <script type="importmap">
+  { "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1",
+    "luca/web": "https://esm.sh/luca@3.3.3/web"
+  }}
+  </script>
+  \`\`\`
+  Then \`import React from "react"\` resolves through the map — one instance, everywhere.
+- **\`?dev\` while developing.** \`https://esm.sh/react@18.3.1?dev\` gives readable errors and warnings; drop it in production.
+- **Emit \`changed\` after *every* mutation.** A forgotten \`emit\` is the #1 cause of "the state updated but the UI didn't." Centralize mutations in Store methods so the emit lives in one place.
+- **Web container ≠ node container.** No \`fs\`/\`git\`/\`proc\` in the browser. Anything node-only goes behind an endpoint.
+- **SPA routing.** When you serve only \`public/\` (no explicit \`--static-dir\`), \`luca serve\` enables history fallback so client-side routes resolve to \`index.html\`.
+
+## It's framework-agnostic
+
+Nothing above is React-specific except \`useFeatureVersion\` and \`createElement\`. The store is a plain Luca feature. Swap the view layer freely:
+
+- **Vanilla DOM** — the first example; a \`render()\` function on \`changed\`.
+- **Preact** — identical to the React code; import from \`https://esm.sh/preact@10/compat\`.
+- **Vue / Svelte / lit** — subscribe their reactivity primitive to the feature's \`changed\` event.
+
+The durable skill is the pattern — *a feature is your reactive store; the view subscribes to its events* — not any one library.
+
+## What's Next
+
+- [Browser: Import Luca from esm.sh](./20-browser-esm.md) — the feature/state/event basics this builds on
+- [Endpoints](./07-endpoints.md) — file-based API routes served by \`luca serve\`
+- [Servers](./06-servers.md) — the Express server, static serving, and CORS options
+- [State and Events](./05-state-and-events.md) — the state machine and event bus, in depth
+- [Creating Features](./10-creating-features.md) — full feature anatomy (schemas, lifecycle, events)
 `,
   "08-commands.md": `---
 title: Writing Commands
@@ -8849,6 +9253,147 @@ for (const post of posts) {
 }
 \`\`\`
 `,
+  "26-the-vm.md": `# The VM: How Your Code Actually Runs
+
+Every piece of user code in a luca project — commands, endpoints, \`luca eval\` snippets,
+\`luca run\` scripts, runnable markdown blocks — executes through the container's \`vm\`
+feature. Understanding this one layer explains most of luca's "magic" (a bare folder of
+\`.ts\` files runs with zero installs) and most of its gotchas (why a global you expected
+isn't there). This tutorial is for both humans and agents: it is the contract.
+
+## The execution contract
+
+Luca has **one execution contract with three entry points**:
+
+- **\`luca eval\`** is *expression-oriented*: your code runs with the container in scope
+  and the value of the final expression is printed. Declarations and loops print
+  nothing. TypeScript syntax is fine — input is transpiled first.
+- **\`luca run script.ts\`** is *program-oriented*: the file's top-level code runs first
+  (module evaluation), then, if the script exports a \`default\` function (or a named
+  \`main\`), it is called as the entry point with the container context and its return
+  value is printed:
+
+  \`\`\`ts skip
+  export default async function main({ container }) {
+    const fs = container.feature('fs')
+    return await fs.readJsonAsync('data.json')
+  }
+  \`\`\`
+
+  A non-function \`default\` export is treated as a data module and printed. Scripts with
+  no exports just run top to bottom, exactly as before.
+- **\`luca run doc.md\`** is *literate eval*: each fenced \`ts\`/\`js\` block runs like an
+  eval snippet in one shared context, top to bottom, and each block's final expression
+  value is displayed beneath it (\`⇒ ...\`). Mark a block \` \`\`\`ts silent\` to run it
+  without displaying its value, or \` \`\`\`ts skip\` to not run it at all.
+
+In all three, the container is in scope and **top-level \`await\` just works** — code
+containing it is wrapped in an async IIFE, and the final expression's value survives the
+wrapping (the boundary between "everything before" and "the final expression" is found
+by real parsing, not line heuristics).
+
+## Why a VM at all
+
+The \`luca\` binary bundles its whole runtime. When it loads *your* files — which may
+import \`luca\` or \`zod\`, neither of which exists in your \`node_modules\` (you don't need a
+\`node_modules\`) — something has to resolve those imports to the binary's bundled copies.
+That something is the VM feature plus **virtual modules**.
+
+## Virtual modules
+
+\`vm.defineModule(id, exports)\` registers a module that \`require()\` / \`import\` resolves
+**before** Node's native resolution:
+
+\`\`\`ts
+const vm = container.feature('vm')
+vm.defineModule('answers', { magic: 42 })
+const { magic } = vm.createRequireFor(container.cwd)('answers')
+magic
+\`\`\`
+
+Before any of your files load, the runtime seeds:
+
+| Module id | What you get |
+|---|---|
+| \`luca\`, \`luca/node\` | the full luca exports + the singleton container as \`default\` |
+| \`luca/schemas\`, \`luca/client\`, \`luca/server\`, ... | the corresponding subpath exports |
+| \`@soederpop/luca\` (+ subpaths) | legacy aliases of the above |
+| \`zod\` | zod v4 — \`import { z }\`, \`import * as z\`, and \`import z\` all work |
+
+Two consequences worth internalizing:
+
+1. **zod is always available.** Endpoint and command files should export zod schemas
+   unconditionally — you get argument validation and the auto-generated OpenAPI spec
+   for free. (\`container.zod\` is the same instance, so schemas built inside and outside
+   the VM share one zod identity.)
+2. Virtual-module precedence is also a **sandboxing tool**: registering an inert stub
+   under \`'fs'\` and \`'node:fs'\` means \`require('fs')\` inside VM code gets your stub, not
+   the real thing. Register both forms — \`require('fs')\` is normalized to \`node:fs\`
+   during resolution, so a stub under only one id can be bypassed.
+
+## The globals model
+
+VM contexts start deliberately close to empty. Three tiers:
+
+- **Free from the JS realm** (always there, nothing injects them): \`Promise\`, \`Date\`,
+  \`Math\`, \`JSON\`, \`Object\`, \`Array\`, \`RegExp\`, ...
+- **Injected by luca**: \`console\`, \`setTimeout\`/\`setInterval\` (+clears), \`process\`,
+  \`Buffer\`, \`URL\`/\`URLSearchParams\`, \`AbortController\`/\`AbortSignal\`, \`FormData\`,
+  \`Blob\`/\`File\`, \`Headers\`/\`Request\`/\`Response\`/\`fetch\`, \`crypto\`,
+  \`TextEncoder\`/\`TextDecoder\` — plus every **enabled container helper** by name
+  (\`fs\`, \`ui\`, \`proc\`, ...) via \`container.context\`. Module loading additionally gets
+  \`require\`, \`exports\`, \`module\`, \`__filename\`, \`__dirname\`.
+- **Not there**: everything else. \`Bun.spawn\`/\`Bun.serve\` are unavailable in
+  command/endpoint handlers — use \`container.feature('proc')\` or Node's
+  \`child_process\`. If you build your own context with \`vm.createContext({...})\` and
+  pass only your own keys, remember you are opting out of the injected tier — add back
+  what your code needs.
+
+This applies to *command and endpoint handlers too*, not just code you run through
+\`vm.run\` yourself — they are VM-loaded modules. If you hit a missing global that
+\`globalThis.X\` can reach, that's a candidate for the injected tier: raise it.
+
+## ESM in, CJS through
+
+Your files are written as ESM (\`import\`/\`export\`), but the VM executes CommonJS. The
+transpiler rewrites on the way in:
+
+- \`import { a } from './x.ts'\` → \`const { a } = require('./x.ts')\` — relative imports
+  between your own files work, so commands can share a local \`lib/\` module.
+- \`export const a = ...\` → \`exports.a = ...\`
+- \`export default ...\` → \`module.exports.default = ...\` — which is exactly what
+  \`luca run\` reads back to find your entry point.
+
+Markdown blocks are the exception: they are snippets, not modules — no \`import\`/\`export\`
+inside blocks; use the injected container instead.
+
+## The three vm primitives
+
+\`\`\`ts skip
+const vm = container.feature('vm')
+
+// 1. run — execute a snippet, get the final expression's value
+const sum = await vm.run('numbers.reduce((a, b) => a + b, 0)', { numbers: [1, 2, 3] })
+
+// 2. loadModule — load a file as a CJS module (what command discovery uses)
+const mod = vm.loadModule(container.paths.resolve('commands/hello.ts'))
+
+// 3. defineModule — make a virtual module resolvable inside VM code
+vm.defineModule('config', { port: 3000 })
+\`\`\`
+
+For a worked sandboxing example (Proxy-wrapped container + stubbed \`fs\`/\`child_process\`),
+see the script-runner pattern in \`docs/examples/\`.
+
+## Debugging tips
+
+- \`luca eval\` is the fastest probe: it runs through the exact same VM pipeline as your
+  command, so "works in eval, fails in my command" almost always means a missing
+  context key, not a VM difference.
+- \`luca describe vm\` lists the full API with runnable examples.
+- If a script "does nothing": check you aren't expecting an ignored export shape — the
+  entry point is \`default\` (or \`main\`); other named exports are data, not entry points.
+`,
   "12-assistants.md": `---
 title: Building Assistants
 tags: [assistants, ai, openai, tools, hooks, conversation, CORE.md]
@@ -9423,6 +9968,131 @@ class WeatherService extends Feature<WeatherState, WeatherOptions> {
 }
 \`\`\`
 `,
+  "21-embedding-luca.md": `---
+title: Embedding Luca in an Existing Project
+tags: [setup, npm, library, embedding, integration]
+---
+
+# Embedding Luca in an Existing Project
+
+The canonical way to use Luca is the standalone binary — see [Getting Started](./01-getting-started.md). But sometimes you already have an app, a build pipeline, and a \`package.json\`, and you want the container *inside* it as a library. That's what this path is for.
+
+## When to Choose This Path
+
+Use the **binary** when:
+
+- You're starting a new project or tool
+- You want zero npm dependencies and no supply chain exposure
+- You want to ship your project as its own standalone binary with \`luca bundle\`
+
+Embed Luca as a **package** when:
+
+- You have an existing TypeScript/Bun app and want the container's features inside it
+- You need to import Luca modules into your own build (bundlers, monorepos, CI pipelines you already own)
+- You're using the React bindings or building a browser app on the web container
+
+Both paths use the exact same container — the difference is only who owns the runtime.
+
+## Install
+
+\`\`\`bash
+bun add luca
+\`\`\`
+
+Bun is Luca's runtime; the package assumes it.
+
+## Import the Container
+
+The container is a per-process singleton — dependency injector, event bus, and state machine:
+
+\`\`\`typescript
+import container from 'luca/node'
+
+// Now you have access to all features
+const fs = container.fs           // File system operations
+const git = container.git         // Git utilities (branch, sha, lsFiles, etc.)
+const ui = container.ui           // Terminal UI (colors, prompts, figlet)
+const proc = container.feature('proc')  // Process execution
+\`\`\`
+
+Everything you'd get in the binary is on the container: features, clients, servers, observable state, the event bus. The discovery pattern from [Bootstrap](./00-bootstrap.md) works identically:
+
+\`\`\`typescript
+container.features.available          // list every feature
+container.features.describe('fs')     // markdown docs at runtime
+\`\`\`
+
+## Entry Points
+
+The package exposes several entry points depending on where your code runs:
+
+\`\`\`typescript
+import container from 'luca'          // node container (default)
+import container from 'luca/node'     // node container, explicit
+import container from 'luca/web'      // browser container
+import { ... } from 'luca/react'      // React bindings
+import { ... } from 'luca/agi'        // AGI layer — assistants, conversations, providers
+\`\`\`
+
+In the browser without a bundler, you can load it straight from a CDN — see [Browser ESM](./20-browser-esm.md):
+
+\`\`\`js
+import container from 'https://esm.sh/luca/web'
+\`\`\`
+
+## Using It in Your App
+
+A script in your existing project:
+
+\`\`\`typescript
+// scripts/migrate.ts
+import container from 'luca/node'
+
+const sqlite = container.feature('sqlite')
+const ui = container.feature('ui')
+
+const db = await sqlite.open('app.db')
+await db.exec(\`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY)\`)
+ui.print.success('Migration complete')
+\`\`\`
+
+Run it with your own tooling (\`bun run scripts/migrate.ts\`) — or with the CLI, which the package also installs:
+
+\`\`\`bash
+bunx luca run scripts/migrate.ts
+bunx luca serve
+bunx luca describe features
+\`\`\`
+
+The convention folders (\`commands/\`, \`endpoints/\`, \`features/\`, \`assistants/\`) are auto-discovered by the CLI exactly as they are in binary projects, so you can mix both styles: import the container in your own code, and let \`luca serve\` pick up your \`endpoints/\` folder.
+
+## Building Custom Helpers
+
+Extending the container works the same in both worlds — features, clients, and servers register themselves:
+
+\`\`\`typescript
+import { Feature } from 'luca/feature'
+
+export class MyCache extends Feature {
+  static { Feature.register(this, 'myCache') }
+  // ...
+}
+\`\`\`
+
+See [Creating Features](./10-creating-features.md) for the full guide.
+
+## Graduating to a Binary
+
+Nothing about the embedded path locks you in. If your Luca-powered corner of the app grows into something you want to ship on its own, \`luca bundle <name>\` compiles the convention folders into a standalone binary — see [Getting Started, step 5](./01-getting-started.md#5-ship-it).
+
+## What's Next
+
+- [Getting Started](./01-getting-started.md) -- the canonical binary path
+- [The Container](./02-container.md) -- deep dive into the container
+- [Browser ESM](./20-browser-esm.md) -- the web container without a build step
+- [Creating Features](./10-creating-features.md) -- extend the container with your own helpers
+- [Assistants](./12-assistants.md) -- build an AI operator into your project
+`,
   "16-google-features.md": `---
 title: Google Features
 tags: [google, drive, sheets, calendar, docs, oauth2, service-account, auth, api]
@@ -9957,5 +10627,94 @@ Use the narrowest scopes needed. All default to readonly:
 | \`documents\` | Full document access |
 
 Full scope URLs follow the pattern: \`https://www.googleapis.com/auth/{scope}\`
+`
+}
+
+export const bootstrapReferences: Record<string, string> = {
+  "helper-index.md": `# Helper Index
+
+Every built-in helper in the luca container. Run \`luca describe <name>\` for full docs on any of them, or search by meaning with \`luca describe --query "..."\`.
+
+| Name | Kind | Category | Stability | Description |
+|------|------|----------|-----------|-------------|
+| \`assistant\` | feature | ai-assistants | core | An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. |
+| \`assistantsManager\` | feature | ai-assistants | core | Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/. |
+| \`browserUse\` | feature | media-browser | experimental | Browser automation feature wrapping the browser-use CLI. |
+| \`cipherSocial\` | feature | media-browser | experimental | Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network. |
+| \`claudeCode\` | feature | agent-wrappers | stable | Claude Code CLI wrapper feature. |
+| \`claudeController\` | feature | agent-wrappers | stable | Multi-session spawner for interactive Claude Code workers. |
+| \`codingTools\` | feature | ai-assistants | stable | Shell primitives for AI coding assistants: rg, ls, cat, sed, awk. |
+| \`containerLink\` | feature | system | stable | ContainerLink (Node-side) — WebSocket host for remote web containers. |
+| \`contentDb\` | feature | data-storage | core | Provides access to a Contentbase Collection for a folder of structured markdown files. |
+| \`conversation\` | feature | ai-assistants | stable | A self-contained conversation with OpenAI that supports streaming, tool calling, and message state management. |
+| \`conversationHistory\` | feature | ai-assistants | stable | Persists conversations to disk using the diskCache feature (cacache). |
+| \`diskCache\` | feature | data-storage | core | File-backed key-value cache built on top of the cacache library (the same store that powers npm). |
+| \`dns\` | feature | networking | stable | The Dns feature provides structured DNS lookups by wrapping the \`dig\` CLI. |
+| \`docker\` | feature | dev-tools | stable | Docker CLI interface feature for managing containers, images, and executing Docker commands. |
+| \`docsReader\` | feature | content-nlp | stable | The DocsReader feature is an AI Assisted wrapper around a ContentDB feature. |
+| \`downloader\` | feature | media-browser | stable | A feature that provides file downloading capabilities from URLs. |
+| \`fileManager\` | feature | filesystem | core | The FileManager feature creates a database-like, in-memory index of all of the files in the project, provides metadata about these files, and can watch for changes to them. |
+| \`fileTools\` | feature | ai-assistants | stable | Curated file-system and code-search tools for AI assistants. |
+| \`fs\` | feature | filesystem | core | The FS feature provides methods for interacting with the file system, relative to the container's cwd. |
+| \`git\` | feature | dev-tools | core | The Git feature provides utilities for interacting with Git repositories. |
+| \`googleAuth\` | feature | google-workspace | stable | Google authentication feature supporting OAuth2 browser flow and service account auth. |
+| \`googleCalendar\` | feature | google-workspace | stable | Google Calendar feature for listing calendars and reading events. |
+| \`googleDocs\` | feature | google-workspace | stable | Google Docs feature for reading documents and converting them to Markdown. |
+| \`googleDrive\` | feature | google-workspace | stable | Google Drive feature for listing, searching, browsing, and downloading files. |
+| \`googleMail\` | feature | google-workspace | stable | Google Mail feature for searching, reading, and watching Gmail messages. |
+| \`googleSheets\` | feature | google-workspace | stable | Google Sheets feature for reading spreadsheet data as JSON, CSV, or raw arrays. |
+| \`grep\` | feature | filesystem | core | The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep. |
+| \`helpers\` | feature | system | core | The Helpers feature is a unified gateway for discovering and registering project-level helpers from conventional folder locations. |
+| \`ink\` | feature | ui-output | stable | Ink Feature — React-powered Terminal UI via Ink Exposes the Ink library (React for CLIs) through the container so any feature, script, or application can build rich terminal user interfaces using React components rendered directly in the terminal. |
+| \`introspectionScanner\` | feature | system | core | Scans TypeScript files for Helper classes and generates introspection data using AST analysis |
+| \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
+| \`jsonTree\` | feature | content-nlp | stable | JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. |
+| \`lucaCoder\` | feature | agent-wrappers | experimental | A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. |
+| \`mcpBridge\` | feature | ai-assistants | stable | Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
+| \`memory\` | feature | ai-assistants | stable | Semantic memory storage and retrieval for AI agents. |
+| \`modelProviders\` | feature | ai-assistants | core | Resolve model provider profiles and route requests to provider transports. |
+| \`networking\` | feature | networking | stable | The Networking feature provides utilities for network-related operations. |
+| \`nlp\` | feature | content-nlp | stable | The NLP feature provides natural language processing utilities for parsing utterances into structured data. |
+| \`openaiCodex\` | feature | agent-wrappers | stable | OpenAI Codex CLI wrapper feature. |
+| \`opener\` | feature | media-browser | stable | The Opener feature opens files, URLs, desktop applications, and code editors. |
+| \`os\` | feature | system | core | The OS feature provides access to operating system utilities and information. |
+| \`packageFinder\` | feature | dev-tools | stable | PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. |
+| \`postgres\` | feature | data-storage | stable | Postgres feature for safe SQL execution through Bun's native SQL client. |
+| \`proc\` | feature | process | core | The ChildProcess feature provides utilities for executing external processes and commands. |
+| \`processManager\` | feature | process | stable | Manages long-running child processes with tracking, events, and automatic cleanup. |
+| \`python\` | feature | dev-tools | stable | The Python VM feature provides Python virtual machine capabilities for executing Python code. |
+| \`redis\` | feature | data-storage | stable | Redis feature for shared state and pub/sub communication between container instances. |
+| \`repl\` | feature | system | stable | REPL feature — provides an interactive read-eval-print loop with tab completion and history. |
+| \`runpod\` | feature | system | experimental | RunPod feature — manage GPU cloud pods, templates, volumes, and SSH connections via the RunPod REST API. |
+| \`scheduler\` | feature | process | stable | In-process task scheduler: recurring intervals, cron expressions, and one-shot timers as named, observable, stoppable tasks — plus the daemon lifecycle (\`run()\`) that keeps a long-running command alive until SIGINT/SIGTERM. |
+| \`secureShell\` | feature | process | stable | SecureShell Feature -- SSH command execution and SCP file transfers. |
+| \`semanticSearch\` | feature | content-nlp | experimental | Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. |
+| \`skillsLibrary\` | feature | content-nlp | stable | Manages a registry of skill locations — folders containing SKILL.md files. |
+| \`socketRepl\` | feature | system | stable | Socket REPL — a WebSocket-powered interactive read-eval-print loop. |
+| \`sqlite\` | feature | data-storage | core | SQLite feature for safe SQL execution through Bun's native sqlite binding. |
+| \`store\` | feature | data-storage | stable | Store Feature — durable, cross-process JSON state with safe concurrent updates THE blessed answer to "two luca processes need to share state." Every \`luca <command>\` invocation is a separate process: a server and its \`--stats\` sibling, a fleet manager and its \`stop\` command, a watcher and a reporter — none of them share memory. |
+| \`telegram\` | feature | media-browser | stable | Telegram bot feature powered by grammY. |
+| \`telnyxAssistantConnector\` | feature | ai-assistants | experimental | Bridges a local Luca assistant to Telnyx AI by exposing tool handlers as HTTP endpoints and creating a mirrored Telnyx assistant with webhook bindings. |
+| \`tmux\` | feature | process | stable | Tmux session manager for controlling coding assistants and long-running CLI tools. |
+| \`transpiler\` | feature | dev-tools | core | Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's built-in transpiler. |
+| \`tts\` | feature | media-browser | experimental | TTS feature — synthesizes text to audio files via RunPod's Chatterbox Turbo endpoint. |
+| \`ui\` | feature | ui-output | core | UI Feature - Interactive Terminal User Interface Builder Unified interface for building professional CLI experiences using chalk (colors/styles), figlet (ASCII art), and inquirer (interactive prompts). |
+| \`vault\` | feature | system | stable | The Vault feature provides encryption and decryption capabilities using AES-256-GCM. |
+| \`vm\` | feature | dev-tools | core | The VM feature provides Node.js virtual machine capabilities for executing JavaScript code. |
+| \`voiceMode\` | feature | ai-assistants | experimental | VoiceMode helper |
+| \`yaml\` | feature | ui-output | core | The YAML feature provides utilities for parsing and stringifying YAML data. |
+| \`yamlTree\` | feature | content-nlp | stable | YamlTree Feature - A powerful YAML file tree loader and processor This feature provides functionality to recursively load YAML files from a directory structure and build a hierarchical tree representation. |
+| \`elevenlabs\` | client | media-browser | experimental | ElevenLabs client — text-to-speech synthesis via the ElevenLabs REST API. |
+| \`graph\` | client | networking | stable | GraphQL client that wraps RestClient with convenience methods for executing queries and mutations. |
+| \`openai\` | client | ai-assistants | core | OpenAI client — wraps the OpenAI SDK for chat completions, responses API, embeddings, and image generation. |
+| \`rest\` | client | networking | core | HTTP REST client built on top of axios. |
+| \`socketio\` | client | networking | stable | Socket.IO client that bridges socket.io-client events to Luca's Helper event bus. |
+| \`voicebox\` | client | media-browser | experimental | VoiceBox client — local TTS synthesis via VoiceBox.sh REST API (Qwen3-TTS). |
+| \`websocket\` | client | networking | stable | WebSocket client that bridges raw WebSocket events to Luca's Helper event bus, providing a clean interface for sending/receiving messages, tracking connection state (\`state.connected\`, \`state.reconnectAttempts\`), and optional auto-reconnection with exponential backoff (base \`reconnectInterval\`, doubled per attempt, capped at 30s, up to \`maxReconnectAttempts\`). |
+| \`express\` | server | networking | core | Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback. |
+| \`mcp\` | server | ai-assistants | core | MCP (Model Context Protocol) server for exposing tools, resources, and prompts to AI clients like Claude Code. |
+| \`websocket\` | server | networking | stable | WebSocket server built on the \`ws\` library with optional JSON message framing. |
+
+_Generated by \`luca build-bootstrap\` from live introspection data — do not edit by hand._
 `
 }

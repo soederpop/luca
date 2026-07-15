@@ -55,6 +55,8 @@ console.log(manager.available) // includes assistants from the new folder
 
 ### discover
 
+Discovers assistants by listing subdirectories in ~/.luca/assistants/, cwd/assistants/, and any folders added via `addDiscoveryFolder()`. Each subdirectory containing a CORE.md is an assistant. Earlier locations take precedence when the same name appears in multiple folders.
+
 **Returns:** `Promise<this>`
 
 
@@ -236,7 +238,8 @@ Generates a markdown summary of all discovered assistants, listing their names a
 | `entries` | `Record<string, AssistantEntry>` | Discovered assistant entries keyed by name. |
 | `instances` | `Record<string, Assistant>` | Active assistant instances keyed by name. |
 | `factories` | `Record<string, (options: Record<string, any>) => Assistant>` | Registered factory functions keyed by name. |
-| `available` | `any` |  |
+| `availableAssistants` | `string[]` | Alias for `available`. |
+| `available` | `string[]` | Names of all available assistants — the union of discovered entries and runtime-registered factories, deduplicated. |
 
 ## Events (Zod v4 schema)
 
