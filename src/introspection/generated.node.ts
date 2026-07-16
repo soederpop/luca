@@ -7210,7 +7210,7 @@ setBuildTimeData('features.googleDrive', {
           "description": "Search term to look for in file names and content"
         },
         "options": {
-          "type": "SearchOptions",
+          "type": "DriveSearchOptions",
           "description": "Additional search options like mimeType filter or folder restriction"
         }
       },
@@ -13412,7 +13412,7 @@ setBuildTimeData('features.semanticSearch', {
           "description": "Parameter query"
         },
         "options": {
-          "type": "SearchOptions",
+          "type": "SemanticSearchQueryOptions",
           "description": "Parameter options",
           "properties": {
             "limit": {
@@ -13443,7 +13443,7 @@ setBuildTimeData('features.semanticSearch', {
           "description": "Parameter query"
         },
         "options": {
-          "type": "SearchOptions",
+          "type": "SemanticSearchQueryOptions",
           "description": "Parameter options",
           "properties": {
             "limit": {
@@ -13505,7 +13505,7 @@ setBuildTimeData('features.semanticSearch', {
           "description": "Parameter _query"
         },
         "_options": {
-          "type": "SearchOptions",
+          "type": "SemanticSearchQueryOptions",
           "description": "Parameter _options",
           "properties": {
             "limit": {
@@ -13833,7 +13833,7 @@ setBuildTimeData('features.semanticSearch', {
         }
       }
     },
-    "SearchOptions": {
+    "SemanticSearchQueryOptions": {
       "description": "",
       "properties": {
         "limit": {
@@ -24629,7 +24629,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Search term to look for in file names and content"
           },
           "options": {
-            "type": "SearchOptions",
+            "type": "DriveSearchOptions",
             "description": "Additional search options like mimeType filter or folder restriction"
           }
         },
@@ -30809,7 +30809,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter query"
           },
           "options": {
-            "type": "SearchOptions",
+            "type": "SemanticSearchQueryOptions",
             "description": "Parameter options",
             "properties": {
               "limit": {
@@ -30840,7 +30840,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter query"
           },
           "options": {
-            "type": "SearchOptions",
+            "type": "SemanticSearchQueryOptions",
             "description": "Parameter options",
             "properties": {
               "limit": {
@@ -30902,7 +30902,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter _query"
           },
           "_options": {
-            "type": "SearchOptions",
+            "type": "SemanticSearchQueryOptions",
             "description": "Parameter _options",
             "properties": {
               "limit": {
@@ -31230,7 +31230,7 @@ export const introspectionData: Record<string, any>[] = [
           }
         }
       },
-      "SearchOptions": {
+      "SemanticSearchQueryOptions": {
         "description": "",
         "properties": {
           "limit": {

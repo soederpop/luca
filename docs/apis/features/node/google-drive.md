@@ -125,7 +125,7 @@ Search files by name, content, or MIME type (full-text search, trashed files exc
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `term` | `string` | ✓ | Search term to look for in file names and content |
-| `options` | `SearchOptions` |  | Additional search options like mimeType filter or folder restriction |
+| `options` | `DriveSearchOptions` |  | Additional search options like mimeType filter or folder restriction |
 
 **Returns:** `Promise<DriveFileList>`
 

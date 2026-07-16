@@ -69,13 +69,13 @@ export interface SearchResult {
 	headingPath?: string
 }
 
-export interface SearchOptions {
+export interface SemanticSearchQueryOptions {
 	limit?: number
 	model?: string
 	where?: Record<string, any>
 }
 
-export interface HybridSearchOptions extends SearchOptions {
+export interface HybridSearchOptions extends SemanticSearchQueryOptions {
 	ftsWeight?: number
 	vecWeight?: number
 	/** Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query. */
@@ -650,7 +650,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 	// ── 2.5 Search Engine ───────────────────────────────────────────
 
-	async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+	async search(query: string, options: SemanticSearchQueryOptions = {}): Promise<SearchResult[]> {
 		const limit = options.limit ?? 10
 		const whereClause = this._buildWhereClause(options)
 
@@ -681,7 +681,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		}))
 	}
 
-	async vectorSearch(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+	async vectorSearch(query: string, options: SemanticSearchQueryOptions = {}): Promise<SearchResult[]> {
 		const limit = options.limit ?? 10
 		const embeddings = await this.embed([query])
 		const queryVec = new Float32Array(embeddings[0]!)
@@ -740,7 +740,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		return this._fuseRRF(bm25Results, vecResults, limit)
 	}
 
-	async deepSearch(_query: string, _options: SearchOptions = {}): Promise<SearchResult[]> {
+	async deepSearch(_query: string, _options: SemanticSearchQueryOptions = {}): Promise<SearchResult[]> {
 		throw new Error('deepSearch is not yet implemented (planned for v2). Use hybridSearch() instead.')
 	}
 
@@ -778,7 +778,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	 * keys and the values are bound as parameters (the json path is assembled
 	 * with `'$.' || ?`), so untrusted filter input can't inject SQL.
 	 */
-	private _buildWhereClause(options: SearchOptions): { sql: string; params: (string | number)[] } {
+	private _buildWhereClause(options: SemanticSearchQueryOptions): { sql: string; params: (string | number)[] } {
 		const conditions: string[] = []
 		const params: (string | number)[] = []
 
@@ -797,7 +797,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 		return { sql: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '', params }
 	}
 
-	private _matchesFilters(row: any, options: SearchOptions): boolean {
+	private _matchesFilters(row: any, options: SemanticSearchQueryOptions): boolean {
 		if (options.model && row.model !== options.model) return false
 		if (options.where && row.meta_json) {
 			const meta = JSON.parse(row.meta_json)

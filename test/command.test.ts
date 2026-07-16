@@ -394,7 +394,9 @@ describe('CLI error handling', () => {
 			const output = errSpy.mock.calls.map((c) => c.join(' ')).join('\n')
 			expect(output).toContain('user-facing failure')
 		} finally {
-			process.exitCode = prevExitCode
+			// Bun ignores `process.exitCode = undefined`, which would leave the
+			// dispatch-error test's exit code 1 stuck on the whole test run
+			process.exitCode = prevExitCode ?? 0
 			errSpy.mockRestore()
 		}
 	})

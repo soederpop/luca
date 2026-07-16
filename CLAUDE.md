@@ -66,26 +66,19 @@ Also available on every container:
 
 ## Adding a New Feature — Checklist
 
-When creating a new feature (e.g. `gws`), all four of these steps must be completed or `container.feature('gws')` will fail silently or lack type safety:
+When creating a new feature (e.g. `gws`), there are two steps:
 
 1. **Feature file** — `src/node/features/gws.ts`
    - Export the class: `export class Gws extends Feature { ... }`
    - Declare stability: `static override stability = 'core' | 'stable' | 'experimental' as const` — REQUIRED, the introspection build fails without it
-   - Register inside the class: `static { Feature.register(this, 'gws') }`
+   - Register inside the class: `static { Feature.register(this, 'gws') }` — the registry id string literal is REQUIRED for the barrel generator to pick it up
    - Default export is just the class: `export default Gws`
 
-2. **Side-effect import** — `src/node/container.ts` (import block ~line 20-63)
-   - Add `import "./features/gws";` (this triggers registration)
-
-3. **Type import + re-export** — `src/node/container.ts` (type imports ~line 65-148)
-   - Add `import type { Gws } from './features/gws';`
-   - Add `type Gws,` to the `export { ... }` block
-
-4. **Feature type mapping** — `src/node/container.ts` (`NodeFeatures` interface ~line 170-215)
-   - Add `gws: typeof Gws;` to the `NodeFeatures` interface
-
-Missing step 2 = feature never registers (invisible).
-Missing steps 3-4 = no autocomplete, `container.feature('gws')` returns `Feature` not `Gws`.
+2. **Regenerate the barrel** — `bun run build:feature-barrel`
+   - Rewrites `src/node/features.generated.ts`: side-effect imports, type re-exports, and the `GeneratedNodeFeatures` interface (which `NodeFeatures` extends). Commit the regenerated file.
+   - The pre-commit hook regenerates it too (via `build:introspection`), so it can't silently drift.
+   - Files in `src/node/features/` with no `Feature.register` call are skipped (support modules).
+   - Every exported type name across feature modules must be unique — the generator fails loudly on collisions. Rename with a feature-specific prefix (e.g. `DriveSearchOptions`, not `SearchOptions`).
 
 If the feature has a test, it goes in `test/gws.test.ts`.
 

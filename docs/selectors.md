@@ -109,7 +109,7 @@ These are the key files that were studied to inform this design:
 - `src/registry.ts` — Abstract `Registry<T>` with `register()`, `lookup()`, `has()`, `available`, `describe()`, `describeAll()`, event bus.
 - `src/graft.ts` — `graftModule()` synthesizes a class from plain module exports. `RESERVED_EXPORTS` list determines what becomes static vs prototype methods.
 - `src/schemas/base.ts` — All Zod schemas. Each helper type has State/Options/Events schemas.
-- `src/node/container.ts` — `NodeContainer` wires everything: side-effect imports, `NodeFeatures` interface, `ClientsAndServersInterface`, `this.use(Command)` pattern.
+- `src/node/container.ts` — `NodeContainer` wires everything: imports the generated feature barrel (`src/node/features.generated.ts`, regenerated with `bun run build:feature-barrel`), `NodeFeatures` extends `GeneratedNodeFeatures`, `ClientsAndServersInterface`, `this.use(Command)` pattern.
 - `src/node/features/helpers.ts` — `Helpers` feature: `registryMap`, `RegistryType`, `discoverAll()`, class-based vs config-based discovery, VM module seeding.
 - `src/node/features/disk-cache.ts` — `DiskCache` feature: `get/set/has/rm`, `cacache`-backed, per-project cache dir, `container.utils.hashObject()` for keys.
 - `src/container.ts` — Base `Container`: `createHelperInstance()` with `helperCache` Map, `use()` plugin system, `registerHelperType()`.

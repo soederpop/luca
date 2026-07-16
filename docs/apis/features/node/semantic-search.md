@@ -170,9 +170,9 @@ container.feature('semanticSearch', {
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `query` | `string` | ✓ | Parameter query |
-| `options` | `SearchOptions` |  | Parameter options |
+| `options` | `SemanticSearchQueryOptions` |  | Parameter options |
 
-`SearchOptions` properties:
+`SemanticSearchQueryOptions` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -191,9 +191,9 @@ container.feature('semanticSearch', {
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `query` | `string` | ✓ | Parameter query |
-| `options` | `SearchOptions` |  | Parameter options |
+| `options` | `SemanticSearchQueryOptions` |  | Parameter options |
 
-`SearchOptions` properties:
+`SemanticSearchQueryOptions` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -220,6 +220,7 @@ container.feature('semanticSearch', {
 |----------|------|-------------|
 | `ftsWeight` | `number` |  |
 | `vecWeight` | `number` |  |
+| `ftsQuery` | `string` | Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query. |
 
 **Returns:** `Promise<SearchResult[]>`
 
@@ -232,9 +233,9 @@ container.feature('semanticSearch', {
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `_query` | `string` | ✓ | Parameter _query |
-| `_options` | `SearchOptions` |  | Parameter _options |
+| `_options` | `SemanticSearchQueryOptions` |  | Parameter _options |
 
-`SearchOptions` properties:
+`SemanticSearchQueryOptions` properties:
 
 | Property | Type | Description |
 |----------|------|-------------|

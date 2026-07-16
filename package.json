@@ -112,7 +112,8 @@
     "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
     "clean": "rm -rf dist build package",
     "build:web": "bun run scripts/build-web.ts",
-    "build:introspection": "bun run src/cli/cli.ts introspect",
+    "build:feature-barrel": "bun run scripts/generate-feature-barrel.ts",
+    "build:introspection": "bun run build:feature-barrel && bun run src/cli/cli.ts introspect",
     "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge && bun run build:embedding-worker && bun run build:types-bundle && bash scripts/compile-binary.sh",
     "build:types": "tsc -p tsconfig.build.json",
     "build:types-bundle": "bun run build:types && bun run src/cli/cli.ts build-types-bundle",
@@ -123,7 +124,7 @@
     "build:embedding-worker": "bun run src/cli/cli.ts build-embedding-worker",
     "test": "bun test test/*.test.ts",
     "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge",
-    "precommit": "bun run typecheck && bun run update-all-docs && git add docs/apis/ && bun compile",
+    "precommit": "bun run typecheck && bun run update-all-docs && git add docs/apis/ src/node/features.generated.ts && bun compile",
     "test:integration": "bun test ./test-integration/"
   },
   "devDependencies": {

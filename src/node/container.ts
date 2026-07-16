@@ -23,154 +23,56 @@ import minimist from "minimist";
 import { omit, kebabCase, camelCase, mapKeys, castArray } from "lodash-es";
 import { basename, parse, relative, resolve, join } from "path";
 
-import "./features/disk-cache";
-import "./features/scheduler";
-import "./features/content-db";
-import "./features/downloader";
-import "./features/transpiler";
-import "./features/file-manager";
-import "./features/fs";
-import "./features/git";
-import "./features/grep";
-import "./features/ipc-socket";
-import "./features/json-tree";
-import "./features/networking";
-import "./features/os";
-import "./features/package-finder";
-import "./features/python";
-import "./features/proc";
-import "./features/repl";
-import "./features/ui";
-import "./features/vault";
-import "./features/vm";
-import "./features/yaml-tree";
-import "./features/yaml";
-import "./features/store";
-import "./features/docker";
-import "./features/runpod";
-import "./features/secure-shell";
-import "./features/ink";
-import "./features/telegram";
-import "./features/opener";
-import "./features/postgres";
-import "./features/sqlite";
-import "./features/google-auth";
-import "./features/google-drive";
-import "./features/google-sheets";
-import "./features/google-calendar";
-import "./features/google-docs";
-import "./features/google-mail";
-import "./features/nlp";
-import "./features/process-manager"
-import "./features/tts";
-import "./features/helpers";
-import "./features/container-link";
-import "./features/semantic-search";
-import "./features/dns";
-import "./features/redis";
-import "./features/socket-repl";
-import "./features/telnyx-assistant-connector";
-import "./features/cipher-social";
-import "./features/tmux";
+// All feature side-effect imports, type re-exports, and the
+// GeneratedNodeFeatures interface come from the generated barrel.
+// Regenerate with `bun run build:feature-barrel` after adding a feature.
+import "./features.generated";
+export * from "./features.generated";
+import type {
+  GeneratedNodeFeatures,
+  ChildProcess,
+  ContainerLink,
+  DiskCache,
+  FileManager,
+  FS,
+  Git,
+  GoogleAuth,
+  GoogleCalendar,
+  GoogleDocs,
+  GoogleDrive,
+  GoogleMail,
+  GoogleSheets,
+  Grep,
+  Helpers,
+  Ink,
+  IpcSocket,
+  Networking,
+  NLP,
+  Opener,
+  OS,
+  PackageFinder,
+  Postgres,
+  ProcessManager,
+  Python,
+  Redis,
+  Repl,
+  Scheduler,
+  Sqlite,
+  Store,
+  StoreHandle,
+  StoreHandleOptions,
+  Telegram,
+  Transpiler,
+  TTS,
+  UI,
+  Vault,
+  VM,
+  YamlTree,
+} from "./features.generated";
 
-import type { ChildProcess } from "./features/proc";
-import type { DiskCache } from "./features/disk-cache";
-import type { Scheduler } from "./features/scheduler";
-import type { ContentDb } from "./features/content-db";
-import type { Downloader } from "./features/downloader";
-import type { Transpiler } from "./features/transpiler";
-import type { FileManager } from "./features/file-manager";
-import type { FS } from "./features/fs";
-import type { Git } from "./features/git";
-import type { Grep } from "./features/grep";
-import type { IpcSocket } from "./features/ipc-socket";
-import type { JsonTree } from "./features/json-tree";
-import type { Networking } from "./features/networking";
-import type { OS } from "./features/os";
-import type { PackageFinder } from "./features/package-finder";
-import type { Python } from "./features/python";
-import type { Repl } from "./features/repl";
-import type { UI } from "./features/ui";
-import type { Vault } from "./features/vault";
-import type { VM } from "./features/vm";
-import type { YAML } from "./features/yaml";
-import type { YamlTree } from "./features/yaml-tree";
-import type { Docker } from './features/docker';
-import type { Runpod } from './features/runpod';
-import type { SecureShell } from './features/secure-shell';
-import type { Ink } from './features/ink';
-import type { Store, StoreHandle, StoreHandleOptions } from './features/store';
-import type { Telegram } from './features/telegram';
-import type { Opener } from './features/opener';
-import type { Postgres } from './features/postgres';
-import type { Sqlite } from './features/sqlite';
-import type { GoogleAuth } from './features/google-auth';
-import type { GoogleDrive } from './features/google-drive';
-import type { GoogleSheets } from './features/google-sheets';
-import type { GoogleCalendar } from './features/google-calendar';
-import type { GoogleDocs } from './features/google-docs';
-import type { GoogleMail } from './features/google-mail';
-import type { NLP } from './features/nlp';
-import type { ProcessManager } from './features/process-manager'
-import type { TTS } from './features/tts';
-import type { Helpers } from './features/helpers';
-import type { ContainerLink } from './features/container-link';
-import type { SemanticSearch } from './features/semantic-search';
-import type { Dns } from './features/dns';
-import type { Redis } from './features/redis';
-import type { SocketRepl } from './features/socket-repl';
-import type { TelnyxAssistantConnector } from './features/telnyx-assistant-connector';
-import type { CipherSocialFeature } from './features/cipher-social';
-import type { Tmux } from './features/tmux';
 export { State };
 
-export {
-  features,
-  Feature,
-  type FS,
-  type ContentDb,
-  type ChildProcess,
-  type Git,
-  type Grep,
-  type OS,
-  type Networking,
-  type UI,
-  type FileManager,
-  type DiskCache,
-  type Scheduler,
-  type Vault,
-  type Downloader,
-  type Docker,
-  type Runpod,
-  type SecureShell,
-  type Ink,
-  type Store,
-  type StoreHandle,
-  type StoreHandleOptions,
-  type Telegram,
-  type Opener,
-  type Postgres,
-  type Sqlite,
-  type GoogleAuth,
-  type GoogleDrive,
-  type GoogleSheets,
-  type GoogleCalendar,
-  type GoogleDocs,
-  type GoogleMail,
-  type NLP,
-  type ProcessManager,
-  type TTS,
-  type Helpers,
-  type ContainerLink,
-  type SemanticSearch,
-  type Dns,
-  type Redis,
-  type SocketRepl,
-  type TelnyxAssistantConnector,
-  type CipherSocialFeature,
-  type Tmux,
-  type Transpiler,
-};
+export { features, Feature };
 
 export type { FeatureOptions };
 
@@ -191,57 +93,7 @@ declare module "../container" {
   }
 }
 
-export interface NodeFeatures extends AvailableFeatures {
-  fs: typeof FS;
-  proc: typeof ChildProcess;
-  git: typeof Git;
-  grep: typeof Grep;
-  os: typeof OS;
-  docker: typeof Docker;
-  networking: typeof Networking;
-  ui: typeof UI;
-  vm: typeof VM;
-  fileManager: typeof FileManager;
-  ipcSocket: typeof IpcSocket;
-  yamlTree: typeof YamlTree;
-  packageFinder: typeof PackageFinder;
-  repl: typeof Repl;
-  yaml: typeof YAML;
-  transpiler: typeof Transpiler;
-  diskCache: typeof DiskCache;
-  scheduler: typeof Scheduler;
-  vault: typeof Vault;
-  jsonTree: typeof JsonTree;
-  downloader: typeof Downloader;
-  python: typeof Python;
-  runpod: typeof Runpod;
-  secureShell: typeof SecureShell;
-  ink: typeof Ink;
-  store: typeof Store;
-  telegram: typeof Telegram;
-  opener: typeof Opener;
-  postgres: typeof Postgres;
-  sqlite: typeof Sqlite;
-  contentDb: typeof ContentDb;
-  googleAuth: typeof GoogleAuth;
-  googleDrive: typeof GoogleDrive;
-  googleSheets: typeof GoogleSheets;
-  googleCalendar: typeof GoogleCalendar;
-  googleDocs: typeof GoogleDocs;
-  googleMail: typeof GoogleMail;
-  nlp: typeof NLP;
-  processManager: typeof ProcessManager;
-  tts: typeof TTS;
-  helpers: typeof Helpers;
-  containerLink: typeof ContainerLink;
-  semanticSearch: typeof SemanticSearch;
-  dns: typeof Dns;
-  redis: typeof Redis;
-  socketRepl: typeof SocketRepl;
-  telnyxAssistantConnector: typeof TelnyxAssistantConnector;
-  cipherSocial: typeof CipherSocialFeature;
-  tmux: typeof Tmux;
-}
+export interface NodeFeatures extends GeneratedNodeFeatures {}
 
 export type ClientsAndServersInterface = ClientsInterface & ServersInterface & CommandsInterface & EndpointsInterface & SelectorsInterface;
 

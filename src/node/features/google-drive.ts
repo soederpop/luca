@@ -37,7 +37,7 @@ export type ListFilesOptions = {
   corpora?: 'user' | 'drive' | 'allDrives'
 }
 
-export type SearchOptions = ListFilesOptions & {
+export type DriveSearchOptions = ListFilesOptions & {
   mimeType?: string
   inFolder?: string
 }
@@ -261,7 +261,7 @@ export class GoogleDrive extends Feature<GoogleDriveState, GoogleDriveOptions> {
    * const { files: notes } = await drive.search('notes', { inFolder: 'folder-id-here' })
    * ```
    */
-  async search(term: string, options: SearchOptions = {}): Promise<DriveFileList> {
+  async search(term: string, options: DriveSearchOptions = {}): Promise<DriveFileList> {
     const parts: string[] = [`fullText contains '${term.replace(/'/g, "\\'")}'`]
 
     if (options.mimeType) {
