@@ -298,7 +298,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			...super.initialState,
 			id: this.options.id || this.uuid,
 			thread: this.options.thread || 'default',
-			model: this.options.model || 'gpt-5',
+			model: this.options.model || this.configuredProviderDefaultModel || 'gpt-5',
 			messages: this.options.history || [],
 			streaming: false,
 			lastResponse: '',
@@ -546,6 +546,26 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			if (provider.preset) return this.container.feature('modelProviders').get(provider.preset)?.apiMode
 			// Inline provider objects with a baseURL are OpenAI-compatible by default.
 			return 'openai-chat-completions'
+		}
+		return undefined
+	}
+
+	/**
+	 * The default model of the explicitly configured `provider`, resolved
+	 * synchronously through the modelProviders registry. Lets the conversation
+	 * seed `state.model` with the provider's own default (e.g. a local endpoint's
+	 * model) instead of the OpenAI 'gpt-5' fallback, so native OpenAI loops don't
+	 * override the provider's model with 'gpt-5'. Undefined when no provider is set.
+	 */
+	private get configuredProviderDefaultModel(): string | undefined {
+		const provider = this.options.provider
+		if (!provider) return undefined
+		const modelProviders = this.container.feature('modelProviders')
+		if (typeof provider === 'string') {
+			return modelProviders.get(provider)?.defaultModel
+		}
+		if (typeof provider === 'object') {
+			return provider.model ?? provider.defaultModel ?? (provider.preset ? modelProviders.get(provider.preset)?.defaultModel : undefined)
 		}
 		return undefined
 	}
@@ -875,6 +895,14 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * connection behavior is unchanged — modelProviders supplies the transport.
 	 */
 	private resolveTransportProvider(apiMode: 'openai-responses' | 'openai-chat-completions'): Promise<ResolvedModelProvider> {
+		// When an OpenAI-family provider is explicitly configured — e.g. a local
+		// OpenAI-compatible endpoint registered via modelProviders.registerLocal —
+		// route through ITS connection (baseURL, apiKey, headers, default model)
+		// rather than the container's default OpenAI client. Without this a
+		// `provider:` pointing at http://my-box/v1 silently hits api.openai.com.
+		if (this.configuredProviderApiMode === apiMode) {
+			return this.resolveConfiguredProvider(apiMode)
+		}
 		return this.container.feature('modelProviders').resolve({
 			provider: { id: `conversation-${apiMode}`, apiMode, auth: 'none' },
 			model: this.model,
@@ -905,12 +933,16 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * feature, threading through providerOptions and any continuation data
 	 * (codex/claude-session ids) captured from the previous response.
 	 */
-	private resolveConfiguredProvider(): Promise<ResolvedModelProvider> {
+	private resolveConfiguredProvider(apiMode?: 'openai-responses' | 'openai-chat-completions'): Promise<ResolvedModelProvider> {
 		const previousProviderData = this.state.get('lastProviderData')
 		return this.container.feature('modelProviders').resolve({
 			provider: this.options.provider,
 			model: this.options.model,
 			providerOptions: {
+				// Preserve the native OpenAI-loop hints when a configured provider
+				// drives that loop; the caller's providerOptions still win.
+				...(apiMode === 'openai-chat-completions' ? { maxTokensParam: this.maxTokensParam } : {}),
+				...(Object.keys(this.mcpServers).length ? { mcpServers: this.mcpServers } : {}),
 				...(this.options.providerOptions ?? {}),
 				...(previousProviderData ? { previousProviderData } : {}),
 			},

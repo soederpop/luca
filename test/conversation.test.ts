@@ -149,6 +149,38 @@ describe('Conversation', () => {
 			expect(conv.state.get('tokenUsage')).toMatchObject({ prompt: 5, completion: 2, total: 7 })
 		})
 
+		it('routes a configured OpenAI-compatible provider through its own baseURL and default model', async () => {
+			// Regression: a `provider:` pointing at a local OpenAI-compatible box
+			// (registerLocal) must use that box's baseURL and default model — not
+			// fall back to the container's default OpenAI client + 'gpt-5'.
+			const container = new AGIContainer()
+			const providers = container.feature('modelProviders')
+			providers.registerLocal('mybox', 'http://mybox:9999/v1', 'mybox-model')
+
+			let seen: any = null
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any, provider: any) {
+					seen = { request, provider }
+					yield { type: 'response', response: { content: 'ok', toolCalls: [] } } as const
+				},
+			})
+
+			const conv = container.feature('conversation', { provider: 'mybox' }) as Conversation
+			// No explicit model → the provider's default model wins, never 'gpt-5'.
+			expect(conv.model).toBe('mybox-model')
+
+			const answer = await conv.ask('Ping')
+
+			expect(answer).toBe('ok')
+			expect(conv.apiMode).toBe('chat')
+			// The configured provider's connection is used, not the default OpenAI client.
+			expect(seen.provider.baseURL).toBe('http://mybox:9999/v1')
+			expect(seen.provider.auth).toBe('none')
+			// The model sent to the transport is the provider default, not the fallback.
+			expect(seen.request.model ?? seen.provider.model).toBe('mybox-model')
+		})
+
 		it('executes tool calls returned by the transport and loops to a final answer', async () => {
 			const { providers, conv } = makeContainerAndConversation({ api: 'chat' })
 			const requests: any[] = []
