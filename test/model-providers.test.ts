@@ -104,6 +104,73 @@ describe('ModelProviders', () => {
     expect(events.map(e => e.type)).toEqual(['chunk', 'response'])
   })
 
+  it('exposes REPL-friendly profile and transport inspection helpers', () => {
+    const providers = new AGIContainer().feature('modelProviders')
+
+    expect(providers.available).toContain('openai')
+    expect(providers.profileIds).toContain('claude-code')
+    expect(providers.transportsAvailable).toContain('openai-chat-completions')
+    expect(providers.apiModes).toContain('claude-session')
+    expect(providers.defaults.openai).toBe('gpt-5')
+    expect(providers.hasProfile('ollama')).toBe(true)
+    expect(providers.hasTransport('openai-responses')).toBe(true)
+  })
+
+  it('returns cloned profiles keyed by id', () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    const profiles = providers.profiles
+
+    profiles.openai!.defaultModel = 'mutated'
+
+    expect(providers.get('openai')?.defaultModel).toBe('gpt-5')
+  })
+
+  it('summarizes providers without exposing raw API keys', () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    providers.registerProfile({
+      id: 'secret-box',
+      apiMode: 'missing-mode',
+      auth: 'apiKey',
+      apiKey: 'sk-secret',
+      defaultModel: 'secret-model',
+    })
+
+    const summary = providers.describe('secret-box') as any
+
+    expect(summary).toEqual({
+      id: 'secret-box',
+      label: undefined,
+      apiMode: 'missing-mode',
+      auth: 'apiKey',
+      defaultModel: 'secret-model',
+      baseURL: undefined,
+      hasApiKey: true,
+      apiKeyEnv: undefined,
+      transportAvailable: false,
+    })
+    expect('apiKey' in summary).toBe(false)
+  })
+
+  it('mutates registered profiles through explicit helpers', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+
+    providers.setDefaultModel('ollama', 'llama4')
+    providers.setBaseURL('ollama', 'http://localhost:9999/v1')
+
+    const resolved = await providers.resolve({ provider: 'ollama' })
+    expect(resolved.model).toBe('llama4')
+    expect(resolved.baseURL).toBe('http://localhost:9999/v1')
+  })
+
+  it('removes registered profiles and reports whether anything changed', () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    providers.registerLocal('temporary', 'http://localhost:7777/v1', 'tmp-model')
+
+    expect(providers.removeProfile('temporary')).toBe(true)
+    expect(providers.hasProfile('temporary')).toBe(false)
+    expect(providers.removeProfile('temporary')).toBe(false)
+  })
+
   it('routes OpenAI-compatible chat through an OpenAI SDK style client', async () => {
     const providers = new AGIContainer().feature('modelProviders')
     const calls: any[] = []

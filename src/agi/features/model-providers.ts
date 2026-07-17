@@ -30,6 +30,18 @@ export interface ModelProviderProfile {
   capabilities?: Record<string, any>
 }
 
+export interface ModelProviderSummary {
+  id: string
+  label?: string
+  apiMode: ModelProviderApiMode
+  auth: ModelProviderAuth
+  defaultModel?: string
+  baseURL?: string
+  hasApiKey: boolean
+  apiKeyEnv?: string
+  transportAvailable: boolean
+}
+
 export interface ModelProviderInlineInput {
   id?: string
   preset?: string
@@ -786,8 +798,16 @@ export class ModelProviders extends Feature {
   static override stateSchema = Feature.stateSchema.extend({})
   static { Feature.register(this, 'modelProviders') }
 
-  private profiles = new Map<string, ModelProviderProfile>()
   private transports = new Map<ModelProviderApiMode, ModelTransport>()
+
+  private get profileMap(): Map<string, ModelProviderProfile> {
+    let profiles = this.state.get('profiles' as any) as Map<string, ModelProviderProfile> | undefined
+    if (!profiles) {
+      profiles = new Map<string, ModelProviderProfile>()
+      this.state.set('profiles' as any, profiles as any)
+    }
+    return profiles
+  }
 
   constructor(options: any, context: any) {
     super(options, context)
@@ -799,7 +819,9 @@ export class ModelProviders extends Feature {
   }
 
   registerProfile(profile: ModelProviderProfile) {
-    this.profiles.set(profile.id, cloneProfile(profile))
+    const profiles = new Map(this.profileMap)
+    profiles.set(profile.id, cloneProfile(profile))
+    this.state.set('profiles' as any, profiles as any)
     return this
   }
 
@@ -847,13 +869,91 @@ export class ModelProviders extends Feature {
     return this
   }
 
+  /** Returns true when a provider profile with this id is registered. */
+  hasProfile(id: string): boolean {
+    return this.profileMap.has(id)
+  }
+
+  /** Returns true when a transport is registered for this API mode. */
+  hasTransport(apiMode: ModelProviderApiMode): boolean {
+    return this.transports.has(apiMode)
+  }
+
   get(id: string): ModelProviderProfile | undefined {
-    const profile = this.profiles.get(id)
+    const profile = this.profileMap.get(id)
     return profile ? cloneProfile(profile) : undefined
   }
 
   list(): ModelProviderProfile[] {
-    return Array.from(this.profiles.values()).map(cloneProfile)
+    return Array.from(this.profileMap.values()).map(cloneProfile)
+  }
+
+  /** Provider profile ids available for `provider: "..."` lookups. */
+  get available(): string[] {
+    return this.profileIds
+  }
+
+  /** Provider profile ids available for `provider: "..."` lookups. */
+  get profileIds(): string[] {
+    return Array.from(this.profileMap.keys())
+  }
+
+  /** Registered profiles keyed by provider id. Returned profiles are cloned. */
+  get profiles(): Record<string, ModelProviderProfile> {
+    return Object.fromEntries(this.list().map(profile => [profile.id, profile]))
+  }
+
+  /** API modes with registered transports. */
+  get transportsAvailable(): string[] {
+    return Array.from(this.transports.keys())
+  }
+
+  /** API modes referenced by profiles or directly registered as transports. */
+  get apiModes(): string[] {
+    return this.container.utils.lodash.uniq([
+      ...this.list().map(profile => profile.apiMode),
+      ...this.transportsAvailable,
+    ])
+  }
+
+  /** Default model by provider id. */
+  get defaults(): Record<string, string | undefined> {
+    return Object.fromEntries(this.list().map(profile => [profile.id, profile.defaultModel]))
+  }
+
+  /** REPL-friendly provider overview that never exposes raw API keys. */
+  summary(): ModelProviderSummary[] {
+    return this.list().map(profile => this.summarizeProfile(profile))
+  }
+
+  /**
+   * Describe one provider or, when no id is supplied, all providers.
+   * This is intentionally concise and safe for REPL output.
+   */
+  describe(id?: string): ModelProviderSummary | ModelProviderSummary[] {
+    if (!id) return this.summary()
+    const profile = this.get(id)
+    if (!profile) throw new Error(`Unknown model provider: ${id}`)
+    return this.summarizeProfile(profile)
+  }
+
+  /** Set a provider's default model. */
+  setDefaultModel(providerId: string, model: string) {
+    return this.updateProfile(providerId, { defaultModel: model })
+  }
+
+  /** Set a provider's base URL. */
+  setBaseURL(providerId: string, baseURL: string) {
+    return this.updateProfile(providerId, { baseURL })
+  }
+
+  /** Remove a registered provider profile. */
+  removeProfile(id: string): boolean {
+    if (!this.profileMap.has(id)) return false
+    const profiles = new Map(this.profileMap)
+    const removed = profiles.delete(id)
+    this.state.set('profiles' as any, profiles as any)
+    return removed
   }
 
   async resolve(options: ModelProviderResolveOptions = {}): Promise<ResolvedModelProvider> {
@@ -901,6 +1001,27 @@ export class ModelProviders extends Feature {
     if (profile.apiKey) return profile.apiKey
     if (profile.apiKeyEnv) return process.env[profile.apiKeyEnv]
     return undefined
+  }
+
+  private updateProfile(id: string, updates: Partial<ModelProviderProfile>) {
+    const profile = this.get(id)
+    if (!profile) throw new Error(`Unknown model provider: ${id}`)
+    this.registerProfile({ ...profile, ...updates, id })
+    return this
+  }
+
+  private summarizeProfile(profile: ModelProviderProfile): ModelProviderSummary {
+    return {
+      id: profile.id,
+      label: profile.label,
+      apiMode: profile.apiMode,
+      auth: profile.auth,
+      defaultModel: profile.defaultModel,
+      baseURL: profile.baseURL,
+      hasApiKey: !!(profile.apiKey || (profile.apiKeyEnv && process.env[profile.apiKeyEnv])),
+      apiKeyEnv: profile.apiKeyEnv,
+      transportAvailable: this.hasTransport(profile.apiMode),
+    }
   }
 }
 
