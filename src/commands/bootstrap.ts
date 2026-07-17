@@ -115,6 +115,10 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	await fs.ensureFolder(mkPath('endpoints'))
 	await writeFile(fs, ui, mkPath('endpoints', 'health.ts'), bootstrapTemplates['health-endpoint'] || '', 'endpoints/health.ts')
 
+	// ── 7b. public/index.html (served at / by `luca serve`) ───────
+	await fs.ensureFolder(mkPath('public'))
+	await writeFile(fs, ui, mkPath('public', 'index.html'), bootstrapTemplates['public-index'] || '', 'public/index.html')
+
 	// ── 8. luca.cli.ts ─────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('luca.cli.ts'), bootstrapTemplates['luca-cli'] || '', 'luca.cli.ts')
 

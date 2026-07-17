@@ -454,7 +454,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 |----------|----------|--------------|
 | **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
 | **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`autoAssistant\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
 | **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`lucaCoder\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
@@ -768,6 +768,251 @@ export async function main(container: any) {
     container.command('help').dispatch()
   })
 }
+`,
+  "public-index": `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Luca — Your Project Is Running</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --purple: #bc8cff;
+    --orange: #ffa657;
+    --code-bg: #1c2128;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  header { text-align: center; margin-bottom: 3.5rem; }
+  header h1 {
+    font-size: 2.4rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--dim); margin-top: 0.6rem; font-size: 1.05rem; }
+  .badge {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.25rem 0.8rem;
+    border: 1px solid var(--green);
+    border-radius: 999px;
+    color: var(--green);
+    font-size: 0.85rem;
+    font-family: ui-monospace, monospace;
+  }
+  section { margin-bottom: 3rem; }
+  h2 {
+    font-size: 1.35rem;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  h2 .tag {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    color: var(--dim);
+  }
+  section > p { color: var(--dim); margin-bottom: 1rem; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+  .card h3 code { color: var(--orange); }
+  .card p { color: var(--dim); font-size: 0.92rem; margin-bottom: 0.6rem; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  p code, li code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.85em;
+  }
+  pre code { border: none; background: none; padding: 0; }
+  .comment { color: var(--dim); }
+  .cmd { color: var(--green); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  ul { padding-left: 1.3rem; color: var(--dim); font-size: 0.92rem; }
+  li { margin-bottom: 0.3rem; }
+  li strong { color: var(--text); }
+  footer {
+    text-align: center;
+    color: var(--dim);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    padding-top: 2rem;
+    margin-top: 3rem;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Luca</h1>
+    <p>Lightweight Universal Conversational Architecture</p>
+    <div class="badge">luca serve is running — this page lives in public/index.html</div>
+  </header>
+
+  <section>
+    <h2>Start Here</h2>
+    <p>Everything below runs from your terminal in this project folder. The <code>luca</code> CLI discovers your <code>commands/</code>, <code>features/</code>, and <code>endpoints/</code> automatically.</p>
+    <pre><code><span class="cmd">luca</span>                      <span class="comment"># list every available command</span>
+<span class="cmd">luca about</span>                <span class="comment"># project info + discovered helpers</span>
+<span class="cmd">luca describe features</span>    <span class="comment"># index of everything the container provides</span>
+<span class="cmd">luca describe fs</span>          <span class="comment"># full docs for any helper</span></code></pre>
+  </section>
+
+  <section>
+    <h2>Run Scripts <span class="tag">luca run</span></h2>
+    <div class="card">
+      <p>Run any TypeScript file with the full container in scope — no imports of <code>fs</code> or <code>path</code> needed, the container provides everything.</p>
+      <pre><code><span class="cmd">luca run script.ts</span>        <span class="comment"># run a script with the container injected</span>
+<span class="cmd">luca eval</span> "container.features.available"   <span class="comment"># one-liners, great for prototyping</span></code></pre>
+      <ul>
+        <li><strong>Files:</strong> <code>container.feature('fs')</code></li>
+        <li><strong>Paths:</strong> <code>container.paths.resolve()</code></li>
+        <li><strong>Utils:</strong> <code>container.utils</code> — uuid, lodash, string helpers</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Run Markdown <span class="tag">runnable docs</span></h2>
+    <div class="card">
+      <p>Markdown files with code blocks are executable. Your project ships with <code>RUNME.md</code> — an interactive demo you can run right now.</p>
+      <pre><code><span class="cmd">luca RUNME</span>                <span class="comment"># run the bundled interactive demo</span>
+<span class="cmd">luca run docs/some-guide.md</span>   <span class="comment"># any markdown with code blocks works</span></code></pre>
+      <p>Write docs that never go stale — if the code blocks break, running the doc tells you.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Scaffold <span class="tag">luca scaffold</span></h2>
+    <p>Generate working boilerplate for every helper type. Each scaffold has a built-in tutorial.</p>
+    <div class="grid">
+      <div class="card">
+        <h3><code>command</code></h3>
+        <p>A CLI command in <code>commands/</code>, runnable as <code>luca &lt;name&gt;</code>.</p>
+        <pre><code><span class="cmd">luca scaffold command deploy</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>feature</code></h3>
+        <p>A container feature in <code>features/</code> — reusable business logic.</p>
+        <pre><code><span class="cmd">luca scaffold feature cache</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>endpoint</code></h3>
+        <p>A REST route in <code>endpoints/</code>, served by <code>luca serve</code>.</p>
+        <pre><code><span class="cmd">luca scaffold endpoint users</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>client</code> / <code>server</code></h3>
+        <p>API clients and long-running servers.</p>
+        <pre><code><span class="cmd">luca scaffold client github</span></code></pre>
+      </div>
+    </div>
+    <p style="margin-top: 0.75rem;">Add <code>--tutorial</code> to any scaffold for the full guide: <code>luca scaffold feature --tutorial</code></p>
+  </section>
+
+  <section>
+    <h2>Serve <span class="tag">luca serve</span></h2>
+    <div class="card">
+      <p>You're looking at it. <code>luca serve</code> serves this <code>public/</code> folder plus every file in <code>endpoints/</code> as an API route.</p>
+      <pre><code><span class="cmd">luca serve</span>                <span class="comment"># static files from public/ + API from endpoints/</span></code></pre>
+      <p>Try the bundled health endpoint: <a href="/api/health">/api/health</a></p>
+      <ul>
+        <li>Each file in <code>endpoints/</code> maps to a route — <code>endpoints/users.ts</code> → <code>/api/users</code></li>
+        <li>Export <code>get</code>, <code>post</code>, <code>put</code> functions; for DELETE use <code>export { del as delete }</code></li>
+        <li>Share state across endpoints via <code>ctx.request.app.locals</code></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Assistants <span class="tag">AI-native</span></h2>
+    <div class="card">
+      <p>Luca is built for conversational apps. Assistants combine a system prompt, tools (backed by container helpers), and a chat loop — scaffold one and talk to it immediately.</p>
+      <pre><code><span class="cmd">luca scaffold assistant helper</span>   <span class="comment"># generate an assistant</span>
+<span class="cmd">luca chat</span>                        <span class="comment"># interactive chat session</span></code></pre>
+      <ul>
+        <li>Tools are defined with Zod schemas — <code>assistant.addTool()</code> handles JSON Schema conversion</li>
+        <li>Assistants can call any container feature: files, HTTP, databases, your custom features</li>
+        <li>Run <code>luca describe assistant</code> for the full API</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Content DB <span class="tag">docs/ folder</span></h2>
+    <div class="card">
+      <p>Your <code>docs/</code> folder is a queryable database of markdown documents. Schemas live in <code>docs/models.ts</code>; frontmatter is validated against them.</p>
+      <pre><code><span class="comment">// in any script or command — container.docs is the contentDb feature</span>
+const docs = container.docs
+const posts = await docs.query(docs.models.Post).fetchAll()</code></pre>
+      <ul>
+        <li>Markdown files with frontmatter become typed, queryable records</li>
+        <li>Define models with Zod in <code>docs/models.ts</code> — one model per subfolder</li>
+        <li>Run <code>luca describe contentDb</code> for query syntax and the full API</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Learn More</h2>
+    <ul>
+      <li><code>luca describe &lt;name&gt;</code> — full docs for any feature, client, or server</li>
+      <li><code>luca describe &lt;name&gt;.&lt;method&gt;</code> — drill into a specific method</li>
+      <li><code>luca describe --query "..."</code> — search helpers by meaning</li>
+      <li><code>.claude/skills/luca-framework/</code> — the framework skill for your AI coding assistant</li>
+    </ul>
+  </section>
+
+  <footer>
+    Generated by <code>luca bootstrap</code> ·
+    <a href="https://github.com/soederpop/luca">Luca on GitHub</a>
+  </footer>
+
+</div>
+</body>
+</html>
 `,
   "docs-readme": `# Docs
 
@@ -10752,6 +10997,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 |------|------|----------|-----------|-------------|
 | \`assistant\` | feature | ai-assistants | core | An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. |
 | \`assistantsManager\` | feature | ai-assistants | core | Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/. |
+| \`autoAssistant\` | feature | ai-assistants | experimental | An autonomous assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. |
 | \`browserUse\` | feature | media-browser | experimental | Browser automation feature wrapping the browser-use CLI. |
 | \`cipherSocial\` | feature | media-browser | experimental | Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network. |
 | \`claudeCode\` | feature | agent-wrappers | stable | Claude Code CLI wrapper feature. |
@@ -10789,6 +11035,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`networking\` | feature | networking | stable | The Networking feature provides utilities for network-related operations. |
 | \`nlp\` | feature | content-nlp | stable | The NLP feature provides natural language processing utilities for parsing utterances into structured data. |
 | \`openaiCodex\` | feature | agent-wrappers | stable | OpenAI Codex CLI wrapper feature. |
+| \`openapi\` | feature | ai-assistants | stable | Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions |
 | \`opener\` | feature | media-browser | stable | The Opener feature opens files, URLs, desktop applications, and code editors. |
 | \`os\` | feature | system | core | The OS feature provides access to operating system utilities and information. |
 | \`packageFinder\` | feature | dev-tools | stable | PackageFinder Feature - Comprehensive package discovery and analysis tool This feature provides powerful capabilities for discovering, indexing, and analyzing npm packages across the entire project workspace. |

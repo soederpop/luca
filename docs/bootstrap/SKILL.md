@@ -447,7 +447,7 @@ A table of contents for the container. **Run `luca describe <name>` for full doc
 |----------|----------|--------------|
 | **File System & Code** | `fileManager`, `fs`, `grep` | Read/write files, search code, watch for changes |
 | **Process & Shell** | `proc`, `processManager`, `scheduler`, `secureShell`, `tmux` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | `assistant`, `assistantsManager`, `codingTools`, `conversation`, `conversationHistory`, `fileTools`, `mcpBridge`, `memory`, `modelProviders`, `telnyxAssistantConnector`, `voiceMode` | Build AI assistants, manage conversations, tool calling |
+| **AI Assistants** | `assistant`, `assistantsManager`, `autoAssistant`, `codingTools`, `conversation`, `conversationHistory`, `fileTools`, `mcpBridge`, `memory`, `modelProviders`, `openapi`, `telnyxAssistantConnector`, `voiceMode` | Build AI assistants, manage conversations, tool calling |
 | **AI Agent Wrappers** | `claudeCode`, `claudeController`, `lucaCoder`, `openaiCodex` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | `contentDb`, `diskCache`, `postgres`, `redis`, `sqlite`, `store` | Cross-process state, databases, caching, document management |
 | **Networking** | `dns`, `ipcSocket`, `networking` | HTTP clients and servers, sockets, DNS, network utilities |
