@@ -178,6 +178,10 @@ Create and run a new container from the given image. With `detach: true` the con
       network?: string
       /** Restart policy (e.g. 'always', 'on-failure') */
       restart?: string
+      /** Path to an env file passed via --env-file */
+      envFile?: string
+      /** Make host.docker.internal resolve to the host from inside the container */
+      addHostGateway?: boolean
     }` |  | Container run options |
 
 `{
@@ -207,6 +211,10 @@ Create and run a new container from the given image. With `detach: true` the con
       network?: string
       /** Restart policy (e.g. 'always', 'on-failure') */
       restart?: string
+      /** Path to an env file passed via --env-file */
+      envFile?: string
+      /** Make host.docker.internal resolve to the host from inside the container */
+      addHostGateway?: boolean
     }` properties:
 
 | Property | Type | Description |
@@ -224,6 +232,8 @@ Create and run a new container from the given image. With `detach: true` the con
 | `entrypoint` | `any` | Override the default entrypoint |
 | `network` | `any` | Connect the container to a network |
 | `restart` | `any` | Restart policy (e.g. 'always', 'on-failure') |
+| `envFile` | `any` | Path to an env file passed via --env-file (keeps secrets out of process args) |
+| `addHostGateway` | `any` | Make host.docker.internal resolve to the host from inside the container (adds --add-host on Linux engines; Docker Desktop resolves it natively) |
 
 **Returns:** `Promise<string>`
 

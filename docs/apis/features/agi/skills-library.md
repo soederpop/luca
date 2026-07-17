@@ -59,8 +59,20 @@ Add a new skill location folder and scan it for skills.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `locationPath` | `string` | ✓ | Path to a directory containing skill subfolders with SKILL.md |
+| `options` | `{ persist?: boolean }` |  | Optional settings |
+
+`{ persist?: boolean }` properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `persist` | `any` | When false, the location applies to this process only and |
 
 **Returns:** `Promise<void>`
+
+```ts
+// A plugin lending its skills for this run only
+await lib.addLocation(`${pluginDir}/skills`, { persist: false })
+```
 
 
 
@@ -270,5 +282,14 @@ lib.list() // => SkillInfo[]
 // Or opt in to conventional agent folders:
 const lib2 = container.feature('skillsLibrary', { useAgentsFolders: true })
 await lib2.start()
+```
+
+
+
+**addLocation**
+
+```ts
+// A plugin lending its skills for this run only
+await lib.addLocation(`${pluginDir}/skills`, { persist: false })
 ```
 
