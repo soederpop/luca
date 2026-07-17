@@ -2,13 +2,22 @@
 
 > Stability: `stable`
 
-The OpenAPI feature loads an OpenAPI/Swagger spec from a URL and provides inspection and conversion utilities. Works in both browser and node environments since it uses fetch.
+Load and inspect OpenAPI specs, convert endpoints to OpenAI tool/function definitions
 
 ## Usage
 
 ```ts
-container.feature('openapi')
+container.feature('openapi', {
+  // URL to the OpenAPI/Swagger spec or the API server base URL
+  url,
+})
 ```
+
+## Options (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `url` | `string` | URL to the OpenAPI/Swagger spec or the API server base URL |
 
 ## Methods
 
@@ -116,6 +125,28 @@ Return a compact JSON summary of all endpoints, useful for logging or REPL inspe
 Event emitted by OpenAPI
 
 
+
+### loaded
+
+Fired after the spec is fetched and parsed
+
+**Event Arguments:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg0` | `any` | The parsed OpenAPI spec object |
+
+
+
+## State (Zod v4 schema)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | `boolean` | Whether this feature is currently enabled |
+| `loaded` | `boolean` | Whether the OpenAPI spec has been fetched and parsed |
+| `title` | `string` | The API title from the spec info block |
+| `version` | `string` | The API version from the spec info block |
+| `endpointCount` | `number` | Number of parsed endpoints in the spec |
 
 ## Examples
 

@@ -135,7 +135,7 @@ Write an MCP server config map to a temp file suitable for `--mcp-config`.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `servers` | `Record<string, McpServerConfig>` | ✓ | Server configs keyed by name |
+| `servers` | `Record<string, ClaudeCodeMcpServerConfig>` | ✓ | Server configs keyed by name |
 
 **Returns:** `Promise<string>`
 
@@ -176,7 +176,7 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
 | `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
-| `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
+| `mcpServers` | `Record<string, ClaudeCodeMcpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |
@@ -258,7 +258,7 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `addDirs` | `string[]` | Additional directories to allow tool access to. |
 | `skillsFolders` | `string[]` | Directories containing Claude Code skills (SKILL.md files) to load into sessions. Merged with addDirs as --add-dir. |
 | `mcpConfig` | `string[]` | MCP config file paths. |
-| `mcpServers` | `Record<string, McpServerConfig>` | MCP servers to inject, keyed by server name. |
+| `mcpServers` | `Record<string, ClaudeCodeMcpServerConfig>` | MCP servers to inject, keyed by server name. |
 | `dangerouslySkipPermissions` | `boolean` | Skip all permission checks (only for sandboxed environments). |
 | `extraArgs` | `string[]` | Additional arbitrary CLI flags. |
 | `fileLogPath` | `string` | Path to write a parseable NDJSON session log file. Overrides feature-level fileLogPath. |

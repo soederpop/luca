@@ -80,6 +80,8 @@ When creating a new feature (e.g. `gws`), there are two steps:
    - Files in `src/node/features/` with no `Feature.register` call are skipped (support modules).
    - Every exported type name across feature modules must be unique — the generator fails loudly on collisions. Rename with a feature-specific prefix (e.g. `DriveSearchOptions`, not `SearchOptions`).
 
+The same applies to AGI features: drop the file in `src/agi/features/` and regenerate. The AGI barrel (`src/agi/features.generated.ts`) value-exports the classes, feeds the `use()` loop and VM module seeding in `src/agi/container.server.ts`, and provides `GeneratedAGIFeatures` (which `AGIFeatures` extends). Top-level `features.register('id', Class)` calls are detected too, not just static blocks.
+
 If the feature has a test, it goes in `test/gws.test.ts`.
 
 ## Type Safety and Introspection

@@ -11,10 +11,10 @@ declare module 'luca/feature' {
 }
 
 /** Permission level for a tool. 'allow' runs immediately, 'ask' blocks for user approval, 'deny' rejects. */
-export type PermissionLevel = 'allow' | 'ask' | 'deny'
+export type AutoAssistantPermissionLevel = 'allow' | 'ask' | 'deny'
 
 /** A pending approval awaiting user decision. */
-export interface PendingApproval {
+export interface AutoAssistantPendingApproval {
 	id: string
 	toolName: string
 	args: Record<string, any>
@@ -23,7 +23,7 @@ export interface PendingApproval {
 }
 
 /** Tool bundle spec — either a feature name string, or an object with filtering. */
-export type ToolBundleSpec = string | {
+export type AutoAssistantToolBundleSpec = string | {
 	feature: string
 	only?: string[]
 	except?: string[]
@@ -167,12 +167,12 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 	}
 
 	/** Current permission map from state. */
-	get permissions(): Record<string, PermissionLevel> {
-		return this.state.get('permissions') as Record<string, PermissionLevel>
+	get permissions(): Record<string, AutoAssistantPermissionLevel> {
+		return this.state.get('permissions') as Record<string, AutoAssistantPermissionLevel>
 	}
 
 	/** Current pending approvals. */
-	get pendingApprovals(): PendingApproval[] {
+	get pendingApprovals(): AutoAssistantPendingApproval[] {
 		const stored = this.state.get('pendingApprovals') as Array<{ id: string; toolName: string; args: Record<string, any>; timestamp: number }>
 		return stored.map(p => ({
 			...p,
@@ -205,14 +205,14 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 	// -------------------------------------------------------------------------
 
 	/** Get the effective permission level for a tool. */
-	getPermission(toolName: string): PermissionLevel {
+	getPermission(toolName: string): AutoAssistantPermissionLevel {
 		const perms = this.permissions
 		if (perms[toolName]) return perms[toolName]
-		return this.state.get('defaultPermission') as PermissionLevel
+		return this.state.get('defaultPermission') as AutoAssistantPermissionLevel
 	}
 
 	/** Set permission level for one or more tools. */
-	setPermission(toolName: string | string[], level: PermissionLevel): this {
+	setPermission(toolName: string | string[], level: AutoAssistantPermissionLevel): this {
 		const names = Array.isArray(toolName) ? toolName : [toolName]
 		const perms = { ...this.permissions }
 		for (const name of names) {
@@ -223,7 +223,7 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 	}
 
 	/** Set the default permission level for unconfigured tools. */
-	setDefaultPermission(level: PermissionLevel): this {
+	setDefaultPermission(level: AutoAssistantPermissionLevel): this {
 		this.state.set('defaultPermission', level)
 		return this
 	}
@@ -368,7 +368,7 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 	 * Add a tool bundle after initialization. Useful for dynamically
 	 * extending the assistant's capabilities.
 	 */
-	use(spec: ToolBundleSpec): this {
+	use(spec: AutoAssistantToolBundleSpec): this {
 		this._stackToolBundle(spec)
 		return this
 	}
@@ -378,7 +378,7 @@ export class AutonomousAssistant extends Feature<AutonomousAssistantState, Auton
 	// -------------------------------------------------------------------------
 
 	/** Resolve a tool bundle spec and register its tools on the inner assistant. */
-	private _stackToolBundle(spec: ToolBundleSpec): void {
+	private _stackToolBundle(spec: AutoAssistantToolBundleSpec): void {
 		if (!this._assistant) throw new Error('Cannot stack tools before start()')
 
 		const featureName = typeof spec === 'string' ? spec : spec.feature

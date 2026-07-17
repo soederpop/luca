@@ -114,7 +114,7 @@ export interface McpSseServer {
   headers?: Record<string, string>
 }
 
-export type McpServerConfig = McpStdioServer | McpHttpServer | McpSseServer
+export type ClaudeCodeMcpServerConfig = McpStdioServer | McpHttpServer | McpSseServer
 
 // --- Feature state and options ---
 
@@ -238,7 +238,7 @@ export interface RunOptions {
   /** MCP config file paths. */
   mcpConfig?: string[]
   /** MCP servers to inject, keyed by server name. */
-  mcpServers?: Record<string, McpServerConfig>
+  mcpServers?: Record<string, ClaudeCodeMcpServerConfig>
   /** Skip all permission checks (only for sandboxed environments). */
   dangerouslySkipPermissions?: boolean
   /** Additional arbitrary CLI flags. */
@@ -485,7 +485,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
   /**
    * Write an MCP server config map to a temp file suitable for `--mcp-config`.
    *
-   * @param {Record<string, McpServerConfig>} servers - Server configs keyed by name
+   * @param {Record<string, ClaudeCodeMcpServerConfig>} servers - Server configs keyed by name
    * @returns {Promise<string>} Path to the generated temp config file
    *
    * @example
@@ -496,7 +496,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
    * })
    * ```
    */
-  async writeMcpConfig(servers: Record<string, McpServerConfig>): Promise<string> {
+  async writeMcpConfig(servers: Record<string, ClaudeCodeMcpServerConfig>): Promise<string> {
     const config = { mcpServers: servers }
     const tmpDir = process.env.TMPDIR || '/tmp'
     const tmpPath = `${tmpDir}/luca-mcp-${crypto.randomUUID()}.json`
@@ -546,7 +546,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
     if (mcpConfig?.length) configPaths.push(...mcpConfig)
 
     // Merge mcpServers from feature-level defaults and per-session overrides
-    const defaultServers = this.options.mcpServers as Record<string, McpServerConfig> | undefined
+    const defaultServers = this.options.mcpServers as Record<string, ClaudeCodeMcpServerConfig> | undefined
     const sessionServers = options.mcpServers
     const mergedServers = { ...defaultServers, ...sessionServers }
 

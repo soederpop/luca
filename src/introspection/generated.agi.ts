@@ -2848,7 +2848,7 @@ setBuildTimeData('features.autoAssistant', {
       "required": [
         "toolName"
       ],
-      "returns": "PermissionLevel"
+      "returns": "AutoAssistantPermissionLevel"
     },
     "setPermission": {
       "description": "Set permission level for one or more tools.",
@@ -2858,7 +2858,7 @@ setBuildTimeData('features.autoAssistant', {
           "description": "Parameter toolName"
         },
         "level": {
-          "type": "PermissionLevel",
+          "type": "AutoAssistantPermissionLevel",
           "description": "Parameter level"
         }
       },
@@ -2872,7 +2872,7 @@ setBuildTimeData('features.autoAssistant', {
       "description": "Set the default permission level for unconfigured tools.",
       "parameters": {
         "level": {
-          "type": "PermissionLevel",
+          "type": "AutoAssistantPermissionLevel",
           "description": "Parameter level"
         }
       },
@@ -2985,7 +2985,7 @@ setBuildTimeData('features.autoAssistant', {
       "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
       "parameters": {
         "spec": {
-          "type": "ToolBundleSpec",
+          "type": "AutoAssistantToolBundleSpec",
           "description": "Parameter spec"
         }
       },
@@ -3002,11 +3002,11 @@ setBuildTimeData('features.autoAssistant', {
     },
     "permissions": {
       "description": "Current permission map from state.",
-      "returns": "Record<string, PermissionLevel>"
+      "returns": "Record<string, AutoAssistantPermissionLevel>"
     },
     "pendingApprovals": {
       "description": "Current pending approvals.",
-      "returns": "PendingApproval[]"
+      "returns": "AutoAssistantPendingApproval[]"
     },
     "isStarted": {
       "description": "Whether the assistant is started and ready.",
@@ -3089,7 +3089,7 @@ setBuildTimeData('features.autoAssistant', {
     }
   ],
   "types": {
-    "PendingApproval": {
+    "AutoAssistantPendingApproval": {
       "description": "A pending approval awaiting user decision.",
       "properties": {
         "id": {
@@ -4157,7 +4157,7 @@ setBuildTimeData('features.claudeCode', {
       "description": "Write an MCP server config map to a temp file suitable for `--mcp-config`.",
       "parameters": {
         "servers": {
-          "type": "Record<string, McpServerConfig>",
+          "type": "Record<string, ClaudeCodeMcpServerConfig>",
           "description": "Server configs keyed by name"
         }
       },
@@ -4236,7 +4236,7 @@ setBuildTimeData('features.claudeCode', {
               "description": "MCP config file paths."
             },
             "mcpServers": {
-              "type": "Record<string, McpServerConfig>",
+              "type": "Record<string, ClaudeCodeMcpServerConfig>",
               "description": "MCP servers to inject, keyed by server name."
             },
             "dangerouslySkipPermissions": {
@@ -4401,7 +4401,7 @@ setBuildTimeData('features.claudeCode', {
               "description": "MCP config file paths."
             },
             "mcpServers": {
-              "type": "Record<string, McpServerConfig>",
+              "type": "Record<string, ClaudeCodeMcpServerConfig>",
               "description": "MCP servers to inject, keyed by server name."
             },
             "dangerouslySkipPermissions": {
@@ -4845,7 +4845,7 @@ setBuildTimeData('features.claudeCode', {
           "optional": true
         },
         "mcpServers": {
-          "type": "Record<string, McpServerConfig>",
+          "type": "Record<string, ClaudeCodeMcpServerConfig>",
           "description": "MCP servers to inject, keyed by server name.",
           "optional": true
         },
@@ -27016,7 +27016,7 @@ export const introspectionData: Record<string, any>[] = [
         "required": [
           "toolName"
         ],
-        "returns": "PermissionLevel"
+        "returns": "AutoAssistantPermissionLevel"
       },
       "setPermission": {
         "description": "Set permission level for one or more tools.",
@@ -27026,7 +27026,7 @@ export const introspectionData: Record<string, any>[] = [
             "description": "Parameter toolName"
           },
           "level": {
-            "type": "PermissionLevel",
+            "type": "AutoAssistantPermissionLevel",
             "description": "Parameter level"
           }
         },
@@ -27040,7 +27040,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Set the default permission level for unconfigured tools.",
         "parameters": {
           "level": {
-            "type": "PermissionLevel",
+            "type": "AutoAssistantPermissionLevel",
             "description": "Parameter level"
           }
         },
@@ -27153,7 +27153,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Add a tool bundle after initialization. Useful for dynamically extending the assistant's capabilities.",
         "parameters": {
           "spec": {
-            "type": "ToolBundleSpec",
+            "type": "AutoAssistantToolBundleSpec",
             "description": "Parameter spec"
           }
         },
@@ -27170,11 +27170,11 @@ export const introspectionData: Record<string, any>[] = [
       },
       "permissions": {
         "description": "Current permission map from state.",
-        "returns": "Record<string, PermissionLevel>"
+        "returns": "Record<string, AutoAssistantPermissionLevel>"
       },
       "pendingApprovals": {
         "description": "Current pending approvals.",
-        "returns": "PendingApproval[]"
+        "returns": "AutoAssistantPendingApproval[]"
       },
       "isStarted": {
         "description": "Whether the assistant is started and ready.",
@@ -27257,7 +27257,7 @@ export const introspectionData: Record<string, any>[] = [
       }
     ],
     "types": {
-      "PendingApproval": {
+      "AutoAssistantPendingApproval": {
         "description": "A pending approval awaiting user decision.",
         "properties": {
           "id": {
@@ -28322,7 +28322,7 @@ export const introspectionData: Record<string, any>[] = [
         "description": "Write an MCP server config map to a temp file suitable for `--mcp-config`.",
         "parameters": {
           "servers": {
-            "type": "Record<string, McpServerConfig>",
+            "type": "Record<string, ClaudeCodeMcpServerConfig>",
             "description": "Server configs keyed by name"
           }
         },
@@ -28401,7 +28401,7 @@ export const introspectionData: Record<string, any>[] = [
                 "description": "MCP config file paths."
               },
               "mcpServers": {
-                "type": "Record<string, McpServerConfig>",
+                "type": "Record<string, ClaudeCodeMcpServerConfig>",
                 "description": "MCP servers to inject, keyed by server name."
               },
               "dangerouslySkipPermissions": {
@@ -28566,7 +28566,7 @@ export const introspectionData: Record<string, any>[] = [
                 "description": "MCP config file paths."
               },
               "mcpServers": {
-                "type": "Record<string, McpServerConfig>",
+                "type": "Record<string, ClaudeCodeMcpServerConfig>",
                 "description": "MCP servers to inject, keyed by server name."
               },
               "dangerouslySkipPermissions": {
@@ -29010,7 +29010,7 @@ export const introspectionData: Record<string, any>[] = [
             "optional": true
           },
           "mcpServers": {
-            "type": "Record<string, McpServerConfig>",
+            "type": "Record<string, ClaudeCodeMcpServerConfig>",
             "description": "MCP servers to inject, keyed by server name.",
             "optional": true
           },

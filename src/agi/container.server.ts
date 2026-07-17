@@ -4,49 +4,28 @@ import '../introspection/generated.agi.js'
 import { OpenAIClient } from '../clients/openai'
 import { ElevenLabsClient } from '../clients/elevenlabs'
 import { VoiceBoxClient } from '../clients/voicebox'
-import { ClaudeCode } from './features/claude-code'
-import { ClaudeController } from './features/claude-controller'
 import { ClaudeSessionController } from './features/claude-session-controller'
-import { OpenAICodex } from './features/openai-codex'
-import { Conversation } from './features/conversation'
-import { ModelProviders } from './features/model-providers'
-import { ConversationHistory } from './features/conversation-history'
-import { Assistant } from './features/assistant'
-import { AssistantsManager } from './features/assistants-manager'
-import { DocsReader } from './features/docs-reader'
-import { SkillsLibrary } from './features/skills-library'
-import { BrowserUse } from './features/browser-use'
 import { SemanticSearch } from '../node/features/semantic-search'
 import { ContentDb } from '../node/features/content-db'
-import { FileTools } from './features/file-tools'
-import { LucaCoder } from './features/luca-coder'
-import { Memory } from './features/agent-memory'
-import { CodingTools } from './features/coding-tools'
-import { McpBridge } from './features/mcp-bridge'
-import { VoiceMode } from './features/voice-mode'
+
+// All agi feature imports, value re-exports, type re-exports, and the
+// GeneratedAGIFeatures interface come from the generated barrel.
+// Regenerate with `bun run build:feature-barrel` after adding a feature.
+import { type GeneratedAGIFeatures, generatedAgiFeatureExports } from './features.generated'
+export * from './features.generated'
 
 import type { ConversationTool } from './features/conversation'
+import type {
+	ClaudeCode,
+	ClaudeController,
+	OpenAICodex,
+	ConversationHistory,
+	ModelProviders,
+} from './features.generated'
 import type { ZodType } from 'zod'
 
 export {
-	ClaudeCode,
-	ClaudeController,
 	ClaudeSessionController,
-	OpenAICodex,
-	Conversation,
-	ModelProviders,
-	ConversationHistory,
-	Assistant,
-	AssistantsManager,
-	DocsReader,
-	SkillsLibrary,
-	BrowserUse,
-	FileTools,
-	LucaCoder,
-	Memory,
-	CodingTools,
-	McpBridge,
-	VoiceMode,
 	SemanticSearch,
 	ContentDb,
 	NodeContainer,
@@ -61,25 +40,7 @@ export type {
 	NodeFeatures,
 }
 
-export interface AGIFeatures extends NodeFeatures {
-	conversation: typeof Conversation
-	modelProviders: typeof ModelProviders
-	claudeCode: typeof ClaudeCode
-	claudeController: typeof ClaudeController
-	openaiCodex: typeof OpenAICodex
-	conversationHistory: typeof ConversationHistory
-	assistant: typeof Assistant
-	assistantsManager: typeof AssistantsManager
-	docsReader: typeof DocsReader
-	skillsLibrary: typeof SkillsLibrary
-	browserUse: typeof BrowserUse
-	fileTools: typeof FileTools
-	lucaCoder: typeof LucaCoder
-	memory: typeof Memory
-	codingTools: typeof CodingTools
-	mcpBridge: typeof McpBridge
-	voiceMode: typeof VoiceMode
-}
+export interface AGIFeatures extends NodeFeatures, GeneratedAGIFeatures {}
 
 export interface ConversationFactoryOptions {
 	tools?: {
@@ -146,23 +107,11 @@ const container = new AGIContainer()
 	.use(OpenAIClient)
 	.use(ElevenLabsClient)
 	.use(VoiceBoxClient)
-	.use(ClaudeCode)
-	.use(ClaudeController)
-	.use(OpenAICodex)
-	.use(Conversation)
-	.use(ModelProviders)
-	.use(ConversationHistory)
-	.use(Assistant)
-	.use(AssistantsManager)
-	.use(DocsReader)
-	.use(SkillsLibrary)
-	.use(BrowserUse)
-	.use(FileTools)
-	.use(LucaCoder)
-	.use(Memory)
-	.use(CodingTools)
-	.use(McpBridge)
 	.use(SemanticSearch)
+
+for (const featureClass of Object.values(generatedAgiFeatureExports)) {
+	container.use(featureClass as any)
+}
 
 container.docs = container.feature('contentDb', {
 	rootPath: container.paths.resolve('docs')
@@ -177,24 +126,8 @@ container.docs = container.feature('contentDb', {
 try {
 	const vm = container.feature('vm') as any
 	const agiExports: Record<string, any> = {
-		ClaudeCode,
-		ClaudeController,
+		...generatedAgiFeatureExports,
 		ClaudeSessionController,
-		OpenAICodex,
-		Conversation,
-		ModelProviders,
-		ConversationHistory,
-		Assistant,
-		AssistantsManager,
-		DocsReader,
-		SkillsLibrary,
-		BrowserUse,
-		FileTools,
-		LucaCoder,
-		Memory,
-		CodingTools,
-		McpBridge,
-		VoiceMode,
 		SemanticSearch,
 		ContentDb,
 		NodeContainer,

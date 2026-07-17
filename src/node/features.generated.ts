@@ -5,8 +5,8 @@
  *
  * Adding a feature only requires the feature file itself (class + static
  * stability + Feature.register static block). This barrel supplies the
- * side-effect imports, type re-exports, and the GeneratedNodeFeatures
- * interface that src/node/container.ts builds NodeFeatures from.
+ * imports, re-exports, and the feature-id -> class interface the
+ * container builds its Features type from.
  */
 import type { AvailableFeatures } from "../feature";
 

@@ -1,18 +1,23 @@
 /**
- * Generates src/node/features.generated.ts — the node feature barrel.
+ * Generates the feature barrels:
  *
- * Scans src/node/features/*.ts for classes registered via `Feature.register(this, 'id')`
- * and emits a single committed file containing:
+ *   - src/node/features.generated.ts  (type-only: side-effect imports + type re-exports)
+ *   - src/agi/features.generated.ts   (value exports: agi consumers and VM module
+ *     seeding need the actual classes, and importing them triggers registration)
  *
- *   1. side-effect imports (triggers registration)
- *   2. type re-exports of every exported class / interface / type alias / enum
- *   3. the GeneratedNodeFeatures interface mapping registry ids to feature classes
+ * Scans each features directory for classes registered via
+ * `Feature.register(this, 'id')` static blocks or top-level
+ * `features.register('id', Class)` calls, and emits:
  *
- * src/node/container.ts consumes this file, replacing the old hand-maintained
- * 4-step checklist (side-effect import, type import, re-export, interface entry).
+ *   1. imports of every registered feature module (triggers registration)
+ *   2. re-exports of every exported class / interface / type alias / enum
+ *   3. a Generated*Features interface mapping registry ids to feature classes
  *
- * Files with no Feature.register call (support modules) are skipped entirely.
- * Cross-module export name collisions fail generation loudly.
+ * The container files consume these barrels, replacing the old hand-maintained
+ * checklist (side-effect import, type import, re-export, interface entry).
+ *
+ * Files with no registration call (support modules) are skipped entirely.
+ * Cross-module export name collisions within a barrel fail generation loudly.
  *
  * Run with: bun run build:feature-barrel
  */
@@ -21,13 +26,43 @@ import { NodeContainer } from '../src/node/container.js'
 
 const container = new NodeContainer()
 const fs = container.fs
-const featuresDir = container.paths.resolve('src/node/features')
-const outputPath = container.paths.resolve('src/node/features.generated.ts')
+
+interface Target {
+  dir: string
+  outputPath: string
+  interfaceName: string
+  /** interface heritage clause, e.g. "extends AvailableFeatures" (with matching extra import) */
+  interfaceExtends?: { clause: string; importLine: string }
+  /** 'type' — type-only barrel; 'value' — value-export feature classes + exports record */
+  exportStyle: 'type' | 'value'
+  /** name of the emitted record of feature classes (value style only) */
+  exportsRecordName?: string
+}
+
+const targets: Target[] = [
+  {
+    dir: 'src/node/features',
+    outputPath: 'src/node/features.generated.ts',
+    interfaceName: 'GeneratedNodeFeatures',
+    interfaceExtends: {
+      clause: ' extends AvailableFeatures',
+      importLine: 'import type { AvailableFeatures } from "../feature";',
+    },
+    exportStyle: 'type',
+  },
+  {
+    dir: 'src/agi/features',
+    outputPath: 'src/agi/features.generated.ts',
+    interfaceName: 'GeneratedAGIFeatures',
+    exportStyle: 'value',
+    exportsRecordName: 'generatedAgiFeatureExports',
+  },
+]
 
 interface ModuleInfo {
-  /** module specifier relative to src/node, e.g. "./features/fs" */
+  /** module specifier relative to the barrel, e.g. "./features/fs" */
   specifier: string
-  /** registry id -> class name for each Feature.register call in the file */
+  /** registry id -> class name for each registration in the file */
   registrations: Array<{ id: string; className: string }>
   /** every exported class / interface / type alias / enum name */
   exportedTypes: string[]
@@ -38,7 +73,7 @@ function hasExportModifier(node: ts.HasModifiers): boolean {
 }
 
 /** Find a `Feature.register(this, 'id')` call inside the class's static blocks. */
-function findRegistration(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): string | null {
+function findStaticRegistration(classNode: ts.ClassDeclaration, sourceFile: ts.SourceFile): string | null {
   let id: string | null = null
 
   const visit = (node: ts.Node) => {
@@ -65,6 +100,33 @@ function findRegistration(classNode: ts.ClassDeclaration, sourceFile: ts.SourceF
   return id
 }
 
+/**
+ * Find top-level `features.register('id', ClassName)` calls
+ * (e.g. model-providers.ts registers outside the class body).
+ */
+function findTopLevelRegistrations(sourceFile: ts.SourceFile): Array<{ id: string; className: string }> {
+  const found: Array<{ id: string; className: string }> = []
+
+  const inspect = (expr: ts.Expression) => {
+    if (!ts.isCallExpression(expr)) return
+    const text = expr.expression.getText(sourceFile)
+    if (!text.endsWith('.register')) return
+    const [first, second] = expr.arguments
+    if (first && second && ts.isStringLiteralLike(first) && ts.isIdentifier(second)) {
+      found.push({ id: first.text, className: second.text })
+    } else if (first && second && ts.isIdentifier(first) && ts.isStringLiteralLike(second)) {
+      found.push({ id: second.text, className: first.text })
+    }
+  }
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isExpressionStatement(statement)) inspect(statement.expression)
+    else if (ts.isExportAssignment(statement)) inspect(statement.expression)
+  }
+
+  return found
+}
+
 function scanFile(filePath: string): ModuleInfo | null {
   const source = fs.readFile(filePath, 'utf-8') as string
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
@@ -75,7 +137,7 @@ function scanFile(filePath: string): ModuleInfo | null {
   for (const statement of sourceFile.statements) {
     if (ts.isClassDeclaration(statement) && statement.name && hasExportModifier(statement)) {
       exportedTypes.push(statement.name.text)
-      const id = findRegistration(statement, sourceFile)
+      const id = findStaticRegistration(statement, sourceFile)
       if (id) registrations.push({ id, className: statement.name.text })
     } else if (
       (ts.isInterfaceDeclaration(statement) ||
@@ -97,6 +159,10 @@ function scanFile(filePath: string): ModuleInfo | null {
     }
   }
 
+  for (const reg of findTopLevelRegistrations(sourceFile)) {
+    if (!registrations.some((r) => r.id === reg.id)) registrations.push(reg)
+  }
+
   if (!registrations.length) return null
 
   const deduped = [...new Set(exportedTypes)]
@@ -107,7 +173,10 @@ function scanFile(filePath: string): ModuleInfo | null {
   return { specifier: `./features/${base}`, registrations, exportedTypes }
 }
 
-async function main() {
+async function generateTarget(target: Target) {
+  const featuresDir = container.paths.resolve(target.dir)
+  const outputPath = container.paths.resolve(target.outputPath)
+
   const entries = (await fs.readdir(featuresDir))
     .filter((f: string) => f.endsWith('.ts') && !f.includes('.generated'))
     .sort()
@@ -148,6 +217,8 @@ async function main() {
     }
   }
 
+  const featureClassNames = new Set(modules.flatMap((m) => m.registrations.map((r) => r.className)))
+
   const lines: string[] = [
     '/**',
     ' * AUTO-GENERATED by scripts/generate-feature-barrel.ts — DO NOT EDIT.',
@@ -156,30 +227,44 @@ async function main() {
     ' *',
     ' * Adding a feature only requires the feature file itself (class + static',
     ' * stability + Feature.register static block). This barrel supplies the',
-    ' * side-effect imports, type re-exports, and the GeneratedNodeFeatures',
-    ' * interface that src/node/container.ts builds NodeFeatures from.',
+    ' * imports, re-exports, and the feature-id -> class interface the',
+    ' * container builds its Features type from.',
     ' */',
-    'import type { AvailableFeatures } from "../feature";',
-    '',
   ]
+  if (target.interfaceExtends) lines.push(target.interfaceExtends.importLine)
+  lines.push('')
 
-  for (const mod of modules) {
-    lines.push(`import "${mod.specifier}";`)
+  if (target.exportStyle === 'type') {
+    for (const mod of modules) lines.push(`import "${mod.specifier}";`)
+    lines.push('')
+    for (const mod of modules) {
+      const classNames = mod.registrations.map((r) => r.className)
+      lines.push(`import type { ${classNames.join(', ')} } from "${mod.specifier}";`)
+    }
+    lines.push('')
+    for (const mod of modules) {
+      lines.push(`export type { ${mod.exportedTypes.join(', ')} } from "${mod.specifier}";`)
+    }
+  } else {
+    // Value style: import feature classes as values (triggers registration),
+    // re-export them as values, everything else type-only.
+    for (const mod of modules) {
+      const classNames = mod.registrations.map((r) => r.className)
+      lines.push(`import { ${classNames.join(', ')} } from "${mod.specifier}";`)
+    }
+    lines.push('')
+    for (const mod of modules) {
+      const classNames = mod.registrations.map((r) => r.className)
+      lines.push(`export { ${classNames.join(', ')} } from "${mod.specifier}";`)
+      const typeOnly = mod.exportedTypes.filter((n) => !featureClassNames.has(n))
+      if (typeOnly.length) {
+        lines.push(`export type { ${typeOnly.join(', ')} } from "${mod.specifier}";`)
+      }
+    }
   }
   lines.push('')
 
-  for (const mod of modules) {
-    const classNames = mod.registrations.map((r) => r.className)
-    lines.push(`import type { ${classNames.join(', ')} } from "${mod.specifier}";`)
-  }
-  lines.push('')
-
-  for (const mod of modules) {
-    lines.push(`export type { ${mod.exportedTypes.join(', ')} } from "${mod.specifier}";`)
-  }
-  lines.push('')
-
-  lines.push('export interface GeneratedNodeFeatures extends AvailableFeatures {')
+  lines.push(`export interface ${target.interfaceName}${target.interfaceExtends?.clause ?? ''} {`)
   const allRegistrations = modules.flatMap((m) => m.registrations).sort((a, b) => a.id.localeCompare(b.id))
   for (const { id, className } of allRegistrations) {
     lines.push(`  ${id}: typeof ${className};`)
@@ -187,11 +272,28 @@ async function main() {
   lines.push('}')
   lines.push('')
 
+  if (target.exportStyle === 'value' && target.exportsRecordName) {
+    lines.push('/** Every registered feature class, keyed by class name — for use() loops and VM module seeding. */')
+    lines.push(`export const ${target.exportsRecordName} = {`)
+    const sortedClassNames = [...featureClassNames].sort()
+    for (const className of sortedClassNames) {
+      lines.push(`  ${className},`)
+    }
+    lines.push('} as const;')
+    lines.push('')
+  }
+
   fs.writeFile(outputPath, lines.join('\n'))
 
   console.log(`Wrote ${outputPath}`)
   console.log(`  ${modules.length} feature modules, ${allRegistrations.length} registrations`)
-  if (skipped.length) console.log(`  Skipped (no Feature.register): ${skipped.join(', ')}`)
+  if (skipped.length) console.log(`  Skipped (no registration call): ${skipped.join(', ')}`)
+}
+
+async function main() {
+  for (const target of targets) {
+    await generateTarget(target)
+  }
 }
 
 main().catch((err) => {
