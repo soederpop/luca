@@ -14716,6 +14716,32 @@ setBuildTimeData('features.modelProviders', {
       ],
       "returns": "void"
     },
+    "hasProfile": {
+      "description": "Returns true when a provider profile with this id is registered.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "boolean"
+    },
+    "hasTransport": {
+      "description": "Returns true when a transport is registered for this API mode.",
+      "parameters": {
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": "Parameter apiMode"
+        }
+      },
+      "required": [
+        "apiMode"
+      ],
+      "returns": "boolean"
+    },
     "get": {
       "description": "",
       "parameters": {
@@ -14734,6 +14760,72 @@ setBuildTimeData('features.modelProviders', {
       "parameters": {},
       "required": [],
       "returns": "ModelProviderProfile[]"
+    },
+    "summary": {
+      "description": "REPL-friendly provider overview that never exposes raw API keys.",
+      "parameters": {},
+      "required": [],
+      "returns": "ModelProviderSummary[]"
+    },
+    "describe": {
+      "description": "Describe one provider or, when no id is supplied, all providers. This is intentionally concise and safe for REPL output.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [],
+      "returns": "ModelProviderSummary | ModelProviderSummary[]"
+    },
+    "setDefaultModel": {
+      "description": "Set a provider's default model.",
+      "parameters": {
+        "providerId": {
+          "type": "string",
+          "description": "Parameter providerId"
+        },
+        "model": {
+          "type": "string",
+          "description": "Parameter model"
+        }
+      },
+      "required": [
+        "providerId",
+        "model"
+      ],
+      "returns": "void"
+    },
+    "setBaseURL": {
+      "description": "Set a provider's base URL.",
+      "parameters": {
+        "providerId": {
+          "type": "string",
+          "description": "Parameter providerId"
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "Parameter baseURL"
+        }
+      },
+      "required": [
+        "providerId",
+        "baseURL"
+      ],
+      "returns": "void"
+    },
+    "removeProfile": {
+      "description": "Remove a registered provider profile.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "boolean"
     },
     "resolve": {
       "description": "",
@@ -14761,7 +14853,32 @@ setBuildTimeData('features.modelProviders', {
       "returns": "Promise<ResolvedModelProvider>"
     }
   },
-  "getters": {},
+  "getters": {
+    "available": {
+      "description": "Provider profile ids available for `provider: \"...\"` lookups.",
+      "returns": "string[]"
+    },
+    "profileIds": {
+      "description": "Provider profile ids available for `provider: \"...\"` lookups.",
+      "returns": "string[]"
+    },
+    "profiles": {
+      "description": "Registered profiles keyed by provider id. Returned profiles are cloned.",
+      "returns": "Record<string, ModelProviderProfile>"
+    },
+    "transportsAvailable": {
+      "description": "API modes with registered transports.",
+      "returns": "string[]"
+    },
+    "apiModes": {
+      "description": "API modes referenced by profiles or directly registered as transports.",
+      "returns": "string[]"
+    },
+    "defaults": {
+      "description": "Default model by provider id.",
+      "returns": "Record<string, string | undefined>"
+    }
+  },
   "events": {},
   "state": {},
   "options": {},
@@ -14866,6 +14983,51 @@ setBuildTimeData('features.modelProviders', {
       "properties": {
         "apiMode": {
           "type": "ModelProviderApiMode",
+          "description": ""
+        }
+      }
+    },
+    "ModelProviderSummary": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "label": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": ""
+        },
+        "auth": {
+          "type": "ModelProviderAuth",
+          "description": ""
+        },
+        "defaultModel": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "hasApiKey": {
+          "type": "boolean",
+          "description": ""
+        },
+        "apiKeyEnv": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "transportAvailable": {
+          "type": "boolean",
           "description": ""
         }
       }
@@ -39193,6 +39355,32 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "void"
       },
+      "hasProfile": {
+        "description": "Returns true when a provider profile with this id is registered.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "boolean"
+      },
+      "hasTransport": {
+        "description": "Returns true when a transport is registered for this API mode.",
+        "parameters": {
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": "Parameter apiMode"
+          }
+        },
+        "required": [
+          "apiMode"
+        ],
+        "returns": "boolean"
+      },
       "get": {
         "description": "",
         "parameters": {
@@ -39211,6 +39399,72 @@ export const introspectionData: Record<string, any>[] = [
         "parameters": {},
         "required": [],
         "returns": "ModelProviderProfile[]"
+      },
+      "summary": {
+        "description": "REPL-friendly provider overview that never exposes raw API keys.",
+        "parameters": {},
+        "required": [],
+        "returns": "ModelProviderSummary[]"
+      },
+      "describe": {
+        "description": "Describe one provider or, when no id is supplied, all providers. This is intentionally concise and safe for REPL output.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [],
+        "returns": "ModelProviderSummary | ModelProviderSummary[]"
+      },
+      "setDefaultModel": {
+        "description": "Set a provider's default model.",
+        "parameters": {
+          "providerId": {
+            "type": "string",
+            "description": "Parameter providerId"
+          },
+          "model": {
+            "type": "string",
+            "description": "Parameter model"
+          }
+        },
+        "required": [
+          "providerId",
+          "model"
+        ],
+        "returns": "void"
+      },
+      "setBaseURL": {
+        "description": "Set a provider's base URL.",
+        "parameters": {
+          "providerId": {
+            "type": "string",
+            "description": "Parameter providerId"
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "Parameter baseURL"
+          }
+        },
+        "required": [
+          "providerId",
+          "baseURL"
+        ],
+        "returns": "void"
+      },
+      "removeProfile": {
+        "description": "Remove a registered provider profile.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "boolean"
       },
       "resolve": {
         "description": "",
@@ -39238,7 +39492,32 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "Promise<ResolvedModelProvider>"
       }
     },
-    "getters": {},
+    "getters": {
+      "available": {
+        "description": "Provider profile ids available for `provider: \"...\"` lookups.",
+        "returns": "string[]"
+      },
+      "profileIds": {
+        "description": "Provider profile ids available for `provider: \"...\"` lookups.",
+        "returns": "string[]"
+      },
+      "profiles": {
+        "description": "Registered profiles keyed by provider id. Returned profiles are cloned.",
+        "returns": "Record<string, ModelProviderProfile>"
+      },
+      "transportsAvailable": {
+        "description": "API modes with registered transports.",
+        "returns": "string[]"
+      },
+      "apiModes": {
+        "description": "API modes referenced by profiles or directly registered as transports.",
+        "returns": "string[]"
+      },
+      "defaults": {
+        "description": "Default model by provider id.",
+        "returns": "Record<string, string | undefined>"
+      }
+    },
     "events": {},
     "state": {},
     "options": {},
@@ -39343,6 +39622,51 @@ export const introspectionData: Record<string, any>[] = [
         "properties": {
           "apiMode": {
             "type": "ModelProviderApiMode",
+            "description": ""
+          }
+        }
+      },
+      "ModelProviderSummary": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "label": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": ""
+          },
+          "auth": {
+            "type": "ModelProviderAuth",
+            "description": ""
+          },
+          "defaultModel": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "hasApiKey": {
+            "type": "boolean",
+            "description": ""
+          },
+          "apiKeyEnv": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "transportAvailable": {
+            "type": "boolean",
             "description": ""
           }
         }

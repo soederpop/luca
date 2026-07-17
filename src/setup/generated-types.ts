@@ -118,7 +118,7 @@ export type { PermissionLevel, PendingApproval, ToolBundleSpec, LucaCoderState, 
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
-export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
+export type { ModelProviderApiMode, ModelProviderAuth, ModelProviderProfile, ModelProviderSummary, ModelProviderInlineInput, ModelProviderInput, LocalProviderOptions, ModelProviderResolveOptions, ModelMessage, ModelToolCall, ModelTool, ModelRequest, ModelResponse, ModelStreamEvent, ModelTransport, ResolvedModelProvider, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, ClaudeSessionTransportOptions, OpenAICodexTransport, ClaudeSessionTransport } from "./features/model-providers";
 export { OpenAICodex } from "./features/openai-codex";
 export type { CodexItem, CodexItemEvent, CodexTurnEvent, CodexThreadEvent, CodexMessageEvent, CodexExecEvent, CodexEvent, CodexSession, OpenAICodexState, OpenAICodexOptions, CodexRunOptions } from "./features/openai-codex";
 export { OpenAPI } from "./features/openapi";
@@ -4266,6 +4266,14 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      */
     private get configuredProviderApiMode();
     /**
+     * The default model of the explicitly configured \`provider\`, resolved
+     * synchronously through the modelProviders registry. Lets the conversation
+     * seed \`state.model\` with the provider's own default (e.g. a local endpoint's
+     * model) instead of the OpenAI 'gpt-5' fallback, so native OpenAI loops don't
+     * override the provider's model with 'gpt-5'. Undefined when no provider is set.
+     */
+    private get configuredProviderDefaultModel();
+    /**
      * Whether turns are handled by the generic transport loop. True only when a
      * provider is configured whose apiMode is not an OpenAI HTTP dialect — i.e.
      * the codex and claude-code backends. Everything else uses the OpenAI loops.
@@ -5213,6 +5221,17 @@ export interface ModelProviderProfile {
     providerOptions?: Record<string, any>;
     capabilities?: Record<string, any>;
 }
+export interface ModelProviderSummary {
+    id: string;
+    label?: string;
+    apiMode: ModelProviderApiMode;
+    auth: ModelProviderAuth;
+    defaultModel?: string;
+    baseURL?: string;
+    hasApiKey: boolean;
+    apiKeyEnv?: string;
+    transportAvailable: boolean;
+}
 export interface ModelProviderInlineInput {
     id?: string;
     preset?: string;
@@ -5401,8 +5420,8 @@ export declare class ModelProviders extends Feature {
     static stateSchema: import("zod").ZodObject<{
         [x: string]: any;
     }, import("zod/v4/core").$strip>;
-    private profiles;
     private transports;
+    private get profileMap();
     constructor(options: any, context: any);
     registerProfile(profile: ModelProviderProfile): this;
     /**
@@ -5431,11 +5450,42 @@ export declare class ModelProviders extends Feature {
      */
     registerLocal(id: string, baseURL: string, model: string, options?: LocalProviderOptions): this;
     registerTransport(apiMode: ModelProviderApiMode, transport: ModelTransport): this;
+    /** Returns true when a provider profile with this id is registered. */
+    hasProfile(id: string): boolean;
+    /** Returns true when a transport is registered for this API mode. */
+    hasTransport(apiMode: ModelProviderApiMode): boolean;
     get(id: string): ModelProviderProfile | undefined;
     list(): ModelProviderProfile[];
+    /** Provider profile ids available for \`provider: "..."\` lookups. */
+    get available(): string[];
+    /** Provider profile ids available for \`provider: "..."\` lookups. */
+    get profileIds(): string[];
+    /** Registered profiles keyed by provider id. Returned profiles are cloned. */
+    get profiles(): Record<string, ModelProviderProfile>;
+    /** API modes with registered transports. */
+    get transportsAvailable(): string[];
+    /** API modes referenced by profiles or directly registered as transports. */
+    get apiModes(): string[];
+    /** Default model by provider id. */
+    get defaults(): Record<string, string | undefined>;
+    /** REPL-friendly provider overview that never exposes raw API keys. */
+    summary(): ModelProviderSummary[];
+    /**
+     * Describe one provider or, when no id is supplied, all providers.
+     * This is intentionally concise and safe for REPL output.
+     */
+    describe(id?: string): ModelProviderSummary | ModelProviderSummary[];
+    /** Set a provider's default model. */
+    setDefaultModel(providerId: string, model: string): this;
+    /** Set a provider's base URL. */
+    setBaseURL(providerId: string, baseURL: string): this;
+    /** Remove a registered provider profile. */
+    removeProfile(id: string): boolean;
     resolve(options?: ModelProviderResolveOptions): Promise<ResolvedModelProvider>;
     private profileFromInput;
     private resolveApiKey;
+    private updateProfile;
+    private summarizeProfile;
 }
 export default ModelProviders;
 //# sourceMappingURL=model-providers.d.ts.map`,
@@ -28527,7 +28577,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.1";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.2";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
