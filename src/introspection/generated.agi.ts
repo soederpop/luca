@@ -14564,6 +14564,348 @@ setBuildTimeData('features.memory', {
   }
 });
 
+setBuildTimeData('features.modelProviders', {
+  "id": "features.modelProviders",
+  "description": "ModelProviders helper",
+  "shortcut": "features.modelProviders",
+  "className": "ModelProviders",
+  "methods": {
+    "registerProfile": {
+      "description": "",
+      "parameters": {
+        "profile": {
+          "type": "ModelProviderProfile",
+          "description": "Parameter profile",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": ""
+            },
+            "label": {
+              "type": "string",
+              "description": ""
+            },
+            "apiMode": {
+              "type": "ModelProviderApiMode",
+              "description": ""
+            },
+            "auth": {
+              "type": "ModelProviderAuth",
+              "description": ""
+            },
+            "baseURL": {
+              "type": "string",
+              "description": ""
+            },
+            "apiKey": {
+              "type": "string",
+              "description": ""
+            },
+            "apiKeyEnv": {
+              "type": "string",
+              "description": ""
+            },
+            "defaultModel": {
+              "type": "string",
+              "description": ""
+            },
+            "headers": {
+              "type": "Record<string, string>",
+              "description": ""
+            },
+            "providerOptions": {
+              "type": "Record<string, any>",
+              "description": ""
+            },
+            "capabilities": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "profile"
+      ],
+      "returns": "void"
+    },
+    "registerLocal": {
+      "description": "Register a self-hosted, OpenAI-compatible endpoint with sensible defaults — the common case for local LLM servers (LM Studio, Ollama, vLLM, llama.cpp, a LAN GPU box). Defaults to the `openai-chat-completions` dialect and no auth, since most local servers ignore the API key. You just provide a `baseURL` and a default `model`. Pass `apiKey` or `apiKeyEnv` when a server does require a bearer token — `auth` flips to `'apiKey'` automatically. Override `apiMode`, `label`, or `headers` through the same options object for anything unusual.",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "Parameter baseURL"
+        },
+        "model": {
+          "type": "string",
+          "description": "Parameter model"
+        },
+        "options": {
+          "type": "LocalProviderOptions",
+          "description": "Parameter options",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "Human-friendly label. Defaults to the profile id."
+            },
+            "apiKey": {
+              "type": "string",
+              "description": "API key value. When set (or apiKeyEnv is), auth defaults to 'apiKey'."
+            },
+            "apiKeyEnv": {
+              "type": "string",
+              "description": "Env var name to read the API key from at resolve() time."
+            },
+            "headers": {
+              "type": "Record<string, string>",
+              "description": "Extra request headers to send to the endpoint."
+            },
+            "apiMode": {
+              "type": "ModelProviderApiMode",
+              "description": "Override the wire dialect. Defaults to 'openai-chat-completions'."
+            },
+            "auth": {
+              "type": "ModelProviderAuth",
+              "description": "Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'."
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "baseURL",
+        "model"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "// In luca.cli.ts main(container), seed once at startup:\nconst mp = container.feature('modelProviders')\nmp.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')\nmp.registerLocal('dgx', 'http://192.168.1.50:8000/v1', 'llama-3.3-70b')\n// Then an assistant's CORE.md frontmatter: `provider: chief`"
+        },
+        {
+          "language": "ts",
+          "code": "// A server that does want a key, read from the environment:\nmp.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', {\n apiKeyEnv: 'BOX_API_KEY',\n})"
+        }
+      ]
+    },
+    "registerTransport": {
+      "description": "",
+      "parameters": {
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": "Parameter apiMode"
+        },
+        "transport": {
+          "type": "ModelTransport",
+          "description": "Parameter transport",
+          "properties": {
+            "apiMode": {
+              "type": "ModelProviderApiMode",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [
+        "apiMode",
+        "transport"
+      ],
+      "returns": "void"
+    },
+    "get": {
+      "description": "",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "ModelProviderProfile | undefined"
+    },
+    "list": {
+      "description": "",
+      "parameters": {},
+      "required": [],
+      "returns": "ModelProviderProfile[]"
+    },
+    "resolve": {
+      "description": "",
+      "parameters": {
+        "options": {
+          "type": "ModelProviderResolveOptions",
+          "description": "Parameter options",
+          "properties": {
+            "provider": {
+              "type": "ModelProviderInput",
+              "description": ""
+            },
+            "model": {
+              "type": "string",
+              "description": ""
+            },
+            "providerOptions": {
+              "type": "Record<string, any>",
+              "description": ""
+            }
+          }
+        }
+      },
+      "required": [],
+      "returns": "Promise<ResolvedModelProvider>"
+    }
+  },
+  "getters": {},
+  "events": {},
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "core",
+  "category": "ai-assistants",
+  "types": {
+    "ModelProviderProfile": {
+      "description": "",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": ""
+        },
+        "label": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": ""
+        },
+        "auth": {
+          "type": "ModelProviderAuth",
+          "description": ""
+        },
+        "baseURL": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "apiKeyEnv": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "defaultModel": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "headers": {
+          "type": "Record<string, string>",
+          "description": "",
+          "optional": true
+        },
+        "providerOptions": {
+          "type": "Record<string, any>",
+          "description": "",
+          "optional": true
+        },
+        "capabilities": {
+          "type": "Record<string, any>",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "LocalProviderOptions": {
+      "description": "Options for `registerLocal` beyond the required baseURL and default model.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Human-friendly label. Defaults to the profile id.",
+          "optional": true
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key value. When set (or apiKeyEnv is), auth defaults to 'apiKey'.",
+          "optional": true
+        },
+        "apiKeyEnv": {
+          "type": "string",
+          "description": "Env var name to read the API key from at resolve() time.",
+          "optional": true
+        },
+        "headers": {
+          "type": "Record<string, string>",
+          "description": "Extra request headers to send to the endpoint.",
+          "optional": true
+        },
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": "Override the wire dialect. Defaults to 'openai-chat-completions'.",
+          "optional": true
+        },
+        "auth": {
+          "type": "ModelProviderAuth",
+          "description": "Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'.",
+          "optional": true
+        }
+      }
+    },
+    "ModelTransport": {
+      "description": "",
+      "properties": {
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": ""
+        }
+      }
+    },
+    "ModelProviderResolveOptions": {
+      "description": "",
+      "properties": {
+        "provider": {
+          "type": "ModelProviderInput",
+          "description": "",
+          "optional": true
+        },
+        "model": {
+          "type": "string",
+          "description": "",
+          "optional": true
+        },
+        "providerOptions": {
+          "type": "Record<string, any>",
+          "description": "",
+          "optional": true
+        }
+      }
+    },
+    "ResolvedModelProvider": {
+      "description": "",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": ""
+        },
+        "transport": {
+          "type": "ModelTransport",
+          "description": ""
+        }
+      }
+    }
+  }
+});
+
 setBuildTimeData('features.networking', {
   "id": "features.networking",
   "description": "The Networking feature provides utilities for network-related operations. This feature includes utilities for port detection and availability checking, which are commonly needed when setting up servers or network services. Use `findOpenPort` before starting a server to avoid port conflicts, and `isPortOpen` to test a specific port without claiming it. It also offers heavier LAN tooling — host discovery, TCP port scanning, and an optional nmap wrapper — for inspecting the local network.",
@@ -38693,6 +39035,347 @@ export const introspectionData: Record<string, any>[] = [
         "properties": {
           "distance": {
             "type": "number",
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "features.modelProviders",
+    "description": "ModelProviders helper",
+    "shortcut": "features.modelProviders",
+    "className": "ModelProviders",
+    "methods": {
+      "registerProfile": {
+        "description": "",
+        "parameters": {
+          "profile": {
+            "type": "ModelProviderProfile",
+            "description": "Parameter profile",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": ""
+              },
+              "label": {
+                "type": "string",
+                "description": ""
+              },
+              "apiMode": {
+                "type": "ModelProviderApiMode",
+                "description": ""
+              },
+              "auth": {
+                "type": "ModelProviderAuth",
+                "description": ""
+              },
+              "baseURL": {
+                "type": "string",
+                "description": ""
+              },
+              "apiKey": {
+                "type": "string",
+                "description": ""
+              },
+              "apiKeyEnv": {
+                "type": "string",
+                "description": ""
+              },
+              "defaultModel": {
+                "type": "string",
+                "description": ""
+              },
+              "headers": {
+                "type": "Record<string, string>",
+                "description": ""
+              },
+              "providerOptions": {
+                "type": "Record<string, any>",
+                "description": ""
+              },
+              "capabilities": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "profile"
+        ],
+        "returns": "void"
+      },
+      "registerLocal": {
+        "description": "Register a self-hosted, OpenAI-compatible endpoint with sensible defaults — the common case for local LLM servers (LM Studio, Ollama, vLLM, llama.cpp, a LAN GPU box). Defaults to the `openai-chat-completions` dialect and no auth, since most local servers ignore the API key. You just provide a `baseURL` and a default `model`. Pass `apiKey` or `apiKeyEnv` when a server does require a bearer token — `auth` flips to `'apiKey'` automatically. Override `apiMode`, `label`, or `headers` through the same options object for anything unusual.",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "Parameter baseURL"
+          },
+          "model": {
+            "type": "string",
+            "description": "Parameter model"
+          },
+          "options": {
+            "type": "LocalProviderOptions",
+            "description": "Parameter options",
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Human-friendly label. Defaults to the profile id."
+              },
+              "apiKey": {
+                "type": "string",
+                "description": "API key value. When set (or apiKeyEnv is), auth defaults to 'apiKey'."
+              },
+              "apiKeyEnv": {
+                "type": "string",
+                "description": "Env var name to read the API key from at resolve() time."
+              },
+              "headers": {
+                "type": "Record<string, string>",
+                "description": "Extra request headers to send to the endpoint."
+              },
+              "apiMode": {
+                "type": "ModelProviderApiMode",
+                "description": "Override the wire dialect. Defaults to 'openai-chat-completions'."
+              },
+              "auth": {
+                "type": "ModelProviderAuth",
+                "description": "Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'."
+              }
+            }
+          }
+        },
+        "required": [
+          "id",
+          "baseURL",
+          "model"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "// In luca.cli.ts main(container), seed once at startup:\nconst mp = container.feature('modelProviders')\nmp.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')\nmp.registerLocal('dgx', 'http://192.168.1.50:8000/v1', 'llama-3.3-70b')\n// Then an assistant's CORE.md frontmatter: `provider: chief`"
+          },
+          {
+            "language": "ts",
+            "code": "// A server that does want a key, read from the environment:\nmp.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', {\n apiKeyEnv: 'BOX_API_KEY',\n})"
+          }
+        ]
+      },
+      "registerTransport": {
+        "description": "",
+        "parameters": {
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": "Parameter apiMode"
+          },
+          "transport": {
+            "type": "ModelTransport",
+            "description": "Parameter transport",
+            "properties": {
+              "apiMode": {
+                "type": "ModelProviderApiMode",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [
+          "apiMode",
+          "transport"
+        ],
+        "returns": "void"
+      },
+      "get": {
+        "description": "",
+        "parameters": {
+          "id": {
+            "type": "string",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "ModelProviderProfile | undefined"
+      },
+      "list": {
+        "description": "",
+        "parameters": {},
+        "required": [],
+        "returns": "ModelProviderProfile[]"
+      },
+      "resolve": {
+        "description": "",
+        "parameters": {
+          "options": {
+            "type": "ModelProviderResolveOptions",
+            "description": "Parameter options",
+            "properties": {
+              "provider": {
+                "type": "ModelProviderInput",
+                "description": ""
+              },
+              "model": {
+                "type": "string",
+                "description": ""
+              },
+              "providerOptions": {
+                "type": "Record<string, any>",
+                "description": ""
+              }
+            }
+          }
+        },
+        "required": [],
+        "returns": "Promise<ResolvedModelProvider>"
+      }
+    },
+    "getters": {},
+    "events": {},
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "core",
+    "category": "ai-assistants",
+    "types": {
+      "ModelProviderProfile": {
+        "description": "",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": ""
+          },
+          "label": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": ""
+          },
+          "auth": {
+            "type": "ModelProviderAuth",
+            "description": ""
+          },
+          "baseURL": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "apiKeyEnv": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "defaultModel": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "headers": {
+            "type": "Record<string, string>",
+            "description": "",
+            "optional": true
+          },
+          "providerOptions": {
+            "type": "Record<string, any>",
+            "description": "",
+            "optional": true
+          },
+          "capabilities": {
+            "type": "Record<string, any>",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "LocalProviderOptions": {
+        "description": "Options for `registerLocal` beyond the required baseURL and default model.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Human-friendly label. Defaults to the profile id.",
+            "optional": true
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "API key value. When set (or apiKeyEnv is), auth defaults to 'apiKey'.",
+            "optional": true
+          },
+          "apiKeyEnv": {
+            "type": "string",
+            "description": "Env var name to read the API key from at resolve() time.",
+            "optional": true
+          },
+          "headers": {
+            "type": "Record<string, string>",
+            "description": "Extra request headers to send to the endpoint.",
+            "optional": true
+          },
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": "Override the wire dialect. Defaults to 'openai-chat-completions'.",
+            "optional": true
+          },
+          "auth": {
+            "type": "ModelProviderAuth",
+            "description": "Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'.",
+            "optional": true
+          }
+        }
+      },
+      "ModelTransport": {
+        "description": "",
+        "properties": {
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": ""
+          }
+        }
+      },
+      "ModelProviderResolveOptions": {
+        "description": "",
+        "properties": {
+          "provider": {
+            "type": "ModelProviderInput",
+            "description": "",
+            "optional": true
+          },
+          "model": {
+            "type": "string",
+            "description": "",
+            "optional": true
+          },
+          "providerOptions": {
+            "type": "Record<string, any>",
+            "description": "",
+            "optional": true
+          }
+        }
+      },
+      "ResolvedModelProvider": {
+        "description": "",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": ""
+          },
+          "transport": {
+            "type": "ModelTransport",
             "description": ""
           }
         }

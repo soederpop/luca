@@ -1,4 +1,4 @@
-import { Feature, features } from '../feature'
+import { Feature } from '../feature'
 import OpenAI from 'openai'
 
 declare module 'luca/feature' {
@@ -43,6 +43,22 @@ export interface ModelProviderInlineInput {
 }
 
 export type ModelProviderInput = string | ModelProviderProfile | ModelProviderInlineInput
+
+/** Options for `registerLocal` beyond the required baseURL and default model. */
+export interface LocalProviderOptions {
+  /** Human-friendly label. Defaults to the profile id. */
+  label?: string
+  /** API key value. When set (or apiKeyEnv is), auth defaults to 'apiKey'. */
+  apiKey?: string
+  /** Env var name to read the API key from at resolve() time. */
+  apiKeyEnv?: string
+  /** Extra request headers to send to the endpoint. */
+  headers?: Record<string, string>
+  /** Override the wire dialect. Defaults to 'openai-chat-completions'. */
+  apiMode?: ModelProviderApiMode
+  /** Force auth mode. Defaults to 'apiKey' when a key is supplied, else 'none'. */
+  auth?: ModelProviderAuth
+}
 
 export interface ModelProviderResolveOptions {
   provider?: ModelProviderInput
@@ -763,10 +779,12 @@ export class ClaudeSessionTransport implements ModelTransport {
 
 export class ModelProviders extends Feature {
   static override description = 'Resolve model provider profiles and route requests to provider transports.'
+  static override shortcut = 'features.modelProviders' as const
   static override stability = 'core' as const
   static override category = 'ai-assistants' as const
   static override optionsSchema = Feature.optionsSchema.extend({})
   static override stateSchema = Feature.stateSchema.extend({})
+  static { Feature.register(this, 'modelProviders') }
 
   private profiles = new Map<string, ModelProviderProfile>()
   private transports = new Map<ModelProviderApiMode, ModelTransport>()
@@ -783,6 +801,45 @@ export class ModelProviders extends Feature {
   registerProfile(profile: ModelProviderProfile) {
     this.profiles.set(profile.id, cloneProfile(profile))
     return this
+  }
+
+  /**
+   * Register a self-hosted, OpenAI-compatible endpoint with sensible defaults —
+   * the common case for local LLM servers (LM Studio, Ollama, vLLM, llama.cpp,
+   * a LAN GPU box). Defaults to the `openai-chat-completions` dialect and no
+   * auth, since most local servers ignore the API key. You just provide a
+   * `baseURL` and a default `model`.
+   *
+   * Pass `apiKey` or `apiKeyEnv` when a server does require a bearer token —
+   * `auth` flips to `'apiKey'` automatically. Override `apiMode`, `label`, or
+   * `headers` through the same options object for anything unusual.
+   *
+   * @example
+   * // In luca.cli.ts main(container), seed once at startup:
+   * const mp = container.feature('modelProviders')
+   * mp.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
+   * mp.registerLocal('dgx', 'http://192.168.1.50:8000/v1', 'llama-3.3-70b')
+   * // Then an assistant's CORE.md frontmatter: `provider: chief`
+   *
+   * @example
+   * // A server that does want a key, read from the environment:
+   * mp.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', {
+   *   apiKeyEnv: 'BOX_API_KEY',
+   * })
+   */
+  registerLocal(id: string, baseURL: string, model: string, options: LocalProviderOptions = {}) {
+    const hasKey = !!(options.apiKey || options.apiKeyEnv)
+    return this.registerProfile({
+      id,
+      label: options.label ?? id,
+      apiMode: options.apiMode ?? 'openai-chat-completions',
+      auth: options.auth ?? (hasKey ? 'apiKey' : 'none'),
+      baseURL,
+      defaultModel: model,
+      apiKey: options.apiKey,
+      apiKeyEnv: options.apiKeyEnv,
+      headers: options.headers,
+    })
   }
 
   registerTransport(apiMode: ModelProviderApiMode, transport: ModelTransport) {
@@ -847,4 +904,4 @@ export class ModelProviders extends Feature {
   }
 }
 
-export default features.register('modelProviders', ModelProviders)
+export default ModelProviders

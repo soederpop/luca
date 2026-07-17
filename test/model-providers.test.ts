@@ -24,6 +24,33 @@ describe('ModelProviders', () => {
     expect(ollama.model).toBe('llama3.2')
   })
 
+  it('registerLocal registers an OpenAI-compatible endpoint with no-auth defaults', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
+
+    const resolved = await providers.resolve({ provider: 'chief' })
+    expect(resolved.id).toBe('chief')
+    expect(resolved.label).toBe('chief')
+    expect(resolved.apiMode).toBe('openai-chat-completions')
+    expect(resolved.auth).toBe('none')
+    expect(resolved.baseURL).toBe('http://chief:1234/v1')
+    expect(resolved.model).toBe('qwen2.5-32b')
+    expect(resolved.apiKey).toBeUndefined()
+  })
+
+  it('registerLocal flips to apiKey auth and reads the key from the environment', async () => {
+    const providers = new AGIContainer().feature('modelProviders')
+    process.env.TEST_BOX_KEY = 'sk-box-123'
+    try {
+      providers.registerLocal('secure-box', 'http://10.0.0.5:8000/v1', 'mixtral', { apiKeyEnv: 'TEST_BOX_KEY' })
+      const resolved = await providers.resolve({ provider: 'secure-box' })
+      expect(resolved.auth).toBe('apiKey')
+      expect(resolved.apiKey).toBe('sk-box-123')
+    } finally {
+      delete process.env.TEST_BOX_KEY
+    }
+  })
+
   it('treats provider objects with a baseURL as OpenAI-compatible by default', async () => {
     const providers = new AGIContainer().feature('modelProviders')
     const resolved = await providers.resolve({
