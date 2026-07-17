@@ -15,6 +15,7 @@
     --green: #3fb950;
     --purple: #bc8cff;
     --orange: #ffa657;
+    --pink: #ff7b72;
     --code-bg: #1c2128;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,8 +25,8 @@
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;
   }
-  .container { max-width: 880px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
-  header { text-align: center; margin-bottom: 3.5rem; }
+  .container { max-width: 920px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  header { text-align: center; margin-bottom: 3rem; }
   header h1 {
     font-size: 2.4rem;
     letter-spacing: -0.02em;
@@ -45,7 +46,7 @@
     font-size: 0.85rem;
     font-family: ui-monospace, monospace;
   }
-  section { margin-bottom: 3rem; }
+  section { margin-bottom: 3.5rem; }
   h2 {
     font-size: 1.35rem;
     margin-bottom: 0.4rem;
@@ -65,6 +66,8 @@
     color: var(--dim);
   }
   section > p { color: var(--dim); margin-bottom: 1rem; }
+  .lede { font-size: 1.02rem; }
+  .lede strong { color: var(--text); }
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -75,6 +78,7 @@
   .card h3 { font-size: 1rem; margin-bottom: 0.35rem; }
   .card h3 code { color: var(--orange); }
   .card p { color: var(--dim); font-size: 0.92rem; margin-bottom: 0.6rem; }
+  .card p:last-child { margin-bottom: 0; }
   pre {
     background: var(--code-bg);
     border: 1px solid var(--border);
@@ -84,7 +88,7 @@
     font-size: 0.85rem;
   }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  p code, li code {
+  p code, li code, h3 code {
     background: var(--code-bg);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -94,11 +98,36 @@
   pre code { border: none; background: none; padding: 0; }
   .comment { color: var(--dim); }
   .cmd { color: var(--green); }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  .str { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 760px) { .grid, .grid-2 { grid-template-columns: 1fr; } }
   ul { padding-left: 1.3rem; color: var(--dim); font-size: 0.92rem; }
   li { margin-bottom: 0.3rem; }
   li strong { color: var(--text); }
+  .diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1.25rem 0;
+    overflow-x: auto;
+  }
+  .diagram svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+  .diagram-caption {
+    text-align: center;
+    color: var(--dim);
+    font-size: 0.82rem;
+    margin-top: 0.6rem;
+  }
+  .philosophy {
+    border-left: 3px solid var(--purple);
+    padding: 0.2rem 0 0.2rem 1.1rem;
+    margin: 1.25rem 0;
+    color: var(--dim);
+    font-size: 0.95rem;
+  }
+  .philosophy strong { color: var(--text); }
   footer {
     text-align: center;
     color: var(--dim);
@@ -120,56 +149,225 @@
     <div class="badge">luca serve is running — this page lives in public/index.html</div>
   </header>
 
+  <!-- ============================================================ -->
+  <!-- WHAT YOU BUILD                                               -->
+  <!-- ============================================================ -->
   <section>
-    <h2>Start Here</h2>
-    <p>Everything below runs from your terminal in this project folder. The <code>luca</code> CLI discovers your <code>commands/</code>, <code>features/</code>, and <code>endpoints/</code> automatically.</p>
-    <pre><code><span class="cmd">luca</span>                      <span class="comment"># list every available command</span>
-<span class="cmd">luca about</span>                <span class="comment"># project info + discovered helpers</span>
-<span class="cmd">luca describe features</span>    <span class="comment"># index of everything the container provides</span>
-<span class="cmd">luca describe fs</span>          <span class="comment"># full docs for any helper</span></code></pre>
+    <h2>What You Build With Luca</h2>
+    <p class="lede">
+      Luca is for building <strong>traditional software that embeds AI assistants</strong> —
+      or supports them. Network services, command-line tools, and executable documents,
+      where an assistant is a first-class part of the program rather than a bolt-on.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>Services &amp; APIs</h3>
+        <p>HTTP routes from an <code>endpoints/</code> folder, WebSocket and IPC socket servers, MCP servers that expose your features as tools to any agent.</p>
+      </div>
+      <div class="card">
+        <h3>CLI Tools</h3>
+        <p>Commands with subcommands and rich generated help, plus everything for a beautiful TUI — chalk colors, inquirer prompts, full React Ink apps.</p>
+      </div>
+      <div class="card">
+        <h3>Notebooks &amp; Runbooks</h3>
+        <p>Markdown files whose code blocks actually run. Docs that execute, demos that can't go stale, runbooks that do the work they describe.</p>
+      </div>
+    </div>
+
+    <div class="diagram">
+      <svg viewBox="0 0 860 340" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+        <!-- Apps layer -->
+        <g font-size="13">
+          <rect x="30"  y="20" width="245" height="58" rx="8" fill="#1c2128" stroke="#58a6ff"/>
+          <text x="152" y="44" fill="#e6edf3" text-anchor="middle" font-weight="bold">Services &amp; APIs</text>
+          <text x="152" y="64" fill="#8b949e" text-anchor="middle" font-size="11">http · websocket · ipc · mcp</text>
+
+          <rect x="307" y="20" width="245" height="58" rx="8" fill="#1c2128" stroke="#3fb950"/>
+          <text x="429" y="44" fill="#e6edf3" text-anchor="middle" font-weight="bold">CLI Tools</text>
+          <text x="429" y="64" fill="#8b949e" text-anchor="middle" font-size="11">commands · help · ink TUIs</text>
+
+          <rect x="584" y="20" width="245" height="58" rx="8" fill="#1c2128" stroke="#ffa657"/>
+          <text x="706" y="44" fill="#e6edf3" text-anchor="middle" font-weight="bold">Notebooks &amp; Runbooks</text>
+          <text x="706" y="64" fill="#8b949e" text-anchor="middle" font-size="11">luca run doc.md</text>
+        </g>
+
+        <!-- connectors -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="152" y1="78" x2="300" y2="128"/>
+          <line x1="429" y1="78" x2="429" y2="128"/>
+          <line x1="706" y1="78" x2="558" y2="128"/>
+        </g>
+
+        <!-- container -->
+        <rect x="130" y="128" width="600" height="120" rx="10" fill="#161b22" stroke="#bc8cff" stroke-width="2"/>
+        <text x="430" y="156" fill="#bc8cff" text-anchor="middle" font-size="15" font-weight="bold">container</text>
+        <g font-size="12">
+          <rect x="160" y="172" width="165" height="54" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="242" y="194" fill="#e6edf3" text-anchor="middle">features</text>
+          <text x="242" y="212" fill="#8b949e" text-anchor="middle" font-size="10">fs · sqlite · ui · docs …</text>
+
+          <rect x="347" y="172" width="165" height="54" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="429" y="194" fill="#e6edf3" text-anchor="middle">clients</text>
+          <text x="429" y="212" fill="#8b949e" text-anchor="middle" font-size="10">rest · websocket …</text>
+
+          <rect x="534" y="172" width="165" height="54" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="616" y="194" fill="#e6edf3" text-anchor="middle">servers</text>
+          <text x="616" y="212" fill="#8b949e" text-anchor="middle" font-size="10">express · websocket …</text>
+        </g>
+
+        <!-- assistants strip -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="430" y1="248" x2="430" y2="286"/>
+        </g>
+        <rect x="230" y="286" width="400" height="40" rx="8" fill="#1c2128" stroke="#ff7b72"/>
+        <text x="430" y="311" fill="#e6edf3" text-anchor="middle" font-size="13">AI assistants — tools backed by the same container</text>
+      </svg>
+      <div class="diagram-caption">Every kind of app is a thin interface over the same container — and so are your assistants.</div>
+    </div>
+
+    <div class="philosophy">
+      <strong>The philosophy:</strong> the container is a per-process singleton that holds every
+      dependency — features, clients, servers, state, events. Your business logic lives there once.
+      A CLI command, an HTTP endpoint, and an assistant tool are all just different doorways into it.
+      Every project you build accumulates more helpers, and every new project starts richer than the last.
+    </div>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- AUTO-DISCOVERY                                               -->
+  <!-- ============================================================ -->
   <section>
-    <h2>Run Scripts <span class="tag">luca run</span></h2>
+    <h2>Auto-Discovery <span class="tag">the luca cli</span></h2>
+    <p>
+      You don't register anything. Drop a file in the right folder and the <code>luca</code> CLI
+      finds it before dispatching any command — your commands appear in <code>luca</code>'s listing,
+      your features become available via <code>container.feature()</code>, your endpoints become routes.
+    </p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 860 210" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+        <!-- folders -->
+        <g>
+          <rect x="20" y="18" width="180" height="34" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="110" y="40" fill="#3fb950" text-anchor="middle">commands/</text>
+          <rect x="20" y="60" width="180" height="34" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="110" y="82" fill="#3fb950" text-anchor="middle">features/</text>
+          <rect x="20" y="102" width="180" height="34" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="110" y="124" fill="#3fb950" text-anchor="middle">clients/ servers/</text>
+          <rect x="20" y="144" width="180" height="34" rx="6" fill="#1c2128" stroke="#2d333b"/>
+          <text x="110" y="166" fill="#3fb950" text-anchor="middle">endpoints/</text>
+        </g>
+
+        <!-- arrows to discovery -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="200" y1="35"  x2="300" y2="95"/>
+          <line x1="200" y1="77"  x2="300" y2="98"/>
+          <line x1="200" y1="119" x2="300" y2="102"/>
+          <line x1="200" y1="161" x2="300" y2="105"/>
+        </g>
+
+        <!-- discovery box -->
+        <rect x="300" y="70" width="200" height="60" rx="8" fill="#161b22" stroke="#bc8cff" stroke-width="2"/>
+        <text x="400" y="96" fill="#bc8cff" text-anchor="middle" font-weight="bold">auto-discovered</text>
+        <text x="400" y="116" fill="#8b949e" text-anchor="middle" font-size="10">before every luca &lt;command&gt;</text>
+
+        <!-- luca.cli.ts hook -->
+        <rect x="300" y="152" width="200" height="40" rx="8" fill="#1c2128" stroke="#ffa657" stroke-dasharray="5 3"/>
+        <text x="400" y="177" fill="#ffa657" text-anchor="middle">luca.cli.ts</text>
+        <line x1="400" y1="152" x2="400" y2="130" stroke="#2d333b" stroke-width="2"/>
+
+        <!-- arrow to container -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="500" y1="100" x2="580" y2="100"/>
+          <polygon points="580,94 592,100 580,106" fill="#2d333b"/>
+        </g>
+
+        <!-- container -->
+        <rect x="596" y="60" width="240" height="80" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+        <text x="716" y="92" fill="#58a6ff" text-anchor="middle" font-weight="bold">container</text>
+        <text x="716" y="114" fill="#8b949e" text-anchor="middle" font-size="10">ready in every command &amp; script</text>
+      </svg>
+      <div class="diagram-caption"><code>luca.cli.ts</code> is your customization hook — it runs before any command, so you can seed databases, register extras, or reshape the container for the whole project.</div>
+    </div>
+
+    <pre><code><span class="cmd">luca</span>                      <span class="comment"># list every command — built-ins + yours from commands/</span>
+<span class="cmd">luca describe features</span>    <span class="comment"># index of everything the container provides</span>
+<span class="cmd">luca describe fs</span>          <span class="comment"># full docs for any helper, generated from source</span>
+<span class="cmd">luca eval</span> <span class="str">"container.features.available"</span>   <span class="comment"># poke the runtime directly</span></code></pre>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- LUCA RUN                                                     -->
+  <!-- ============================================================ -->
+  <section>
+    <h2>Run Anything <span class="tag">luca run</span></h2>
+    <p>
+      <code>luca run</code> executes TypeScript <em>and</em> markdown with the container already
+      in scope. No imports of <code>fs</code> or <code>path</code>, no setup — the container is
+      the standard library.
+    </p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>TypeScript</h3>
+        <pre><code><span class="cmd">luca run script.ts</span></code></pre>
+        <p>Scripts get <code>container</code> injected. Files via <code>container.feature('fs')</code>, paths via <code>container.paths</code>, utils via <code>container.utils</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Markdown</h3>
+        <pre><code><span class="cmd">luca RUNME</span>
+<span class="cmd">luca run docs/guide.md</span></code></pre>
+        <p>Fenced code blocks execute top to bottom. Your project ships with <code>RUNME.md</code> — try it now.</p>
+      </div>
+    </div>
+    <div class="philosophy">
+      <strong>Why markdown?</strong> A document whose examples run is a document that can't lie.
+      Tutorials become tests, runbooks become automation, and the prose explains the code sitting
+      right next to it. This is the "notebook" in notebooks &amp; runbooks — and it's also how
+      <code>luca prompt</code> works below.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- LUCA SERVE                                                   -->
+  <!-- ============================================================ -->
+  <section>
+    <h2>Serve <span class="tag">luca serve</span></h2>
     <div class="card">
-      <p>Run any TypeScript file with the full container in scope — no imports of <code>fs</code> or <code>path</code> needed, the container provides everything.</p>
-      <pre><code><span class="cmd">luca run script.ts</span>        <span class="comment"># run a script with the container injected</span>
-<span class="cmd">luca eval</span> "container.features.available"   <span class="comment"># one-liners, great for prototyping</span></code></pre>
+      <p>You're looking at it. <code>luca serve</code> serves this <code>public/</code> folder as static files and mounts every file in <code>endpoints/</code> as an API route.</p>
+      <pre><code><span class="cmd">luca serve</span>                <span class="comment"># static from public/ + API from endpoints/</span></code></pre>
+      <p>Try the bundled health endpoint: <a href="/api/health">/api/health</a></p>
       <ul>
-        <li><strong>Files:</strong> <code>container.feature('fs')</code></li>
-        <li><strong>Paths:</strong> <code>container.paths.resolve()</code></li>
-        <li><strong>Utils:</strong> <code>container.utils</code> — uuid, lodash, string helpers</li>
+        <li><code>endpoints/users.ts</code> → <code>/api/users</code> — export <code>get</code>, <code>post</code>, <code>put</code> (for DELETE: <code>export { del as delete }</code>)</li>
+        <li>Handlers get the container — the same features your CLI commands use</li>
+        <li>Share state across endpoint files via <code>ctx.request.app.locals</code></li>
       </ul>
     </div>
   </section>
 
-  <section>
-    <h2>Run Markdown <span class="tag">runnable docs</span></h2>
-    <div class="card">
-      <p>Markdown files with code blocks are executable. Your project ships with <code>RUNME.md</code> — an interactive demo you can run right now.</p>
-      <pre><code><span class="cmd">luca RUNME</span>                <span class="comment"># run the bundled interactive demo</span>
-<span class="cmd">luca run docs/some-guide.md</span>   <span class="comment"># any markdown with code blocks works</span></code></pre>
-      <p>Write docs that never go stale — if the code blocks break, running the doc tells you.</p>
-    </div>
-  </section>
-
+  <!-- ============================================================ -->
+  <!-- LUCA SCAFFOLD                                                -->
+  <!-- ============================================================ -->
   <section>
     <h2>Scaffold <span class="tag">luca scaffold</span></h2>
-    <p>Generate working boilerplate for every helper type. Each scaffold has a built-in tutorial.</p>
-    <div class="grid">
+    <p>
+      Every helper type has a generator that produces working boilerplate — and a built-in
+      tutorial that teaches the pattern. Scaffolds land in the auto-discovered folders,
+      so the moment the file exists, it's live.
+    </p>
+    <div class="grid-2">
       <div class="card">
         <h3><code>command</code></h3>
-        <p>A CLI command in <code>commands/</code>, runnable as <code>luca &lt;name&gt;</code>.</p>
+        <p>A CLI command with a Zod args schema — flags, positionals, and <code>--help</code> generated from it.</p>
         <pre><code><span class="cmd">luca scaffold command deploy</span></code></pre>
       </div>
       <div class="card">
         <h3><code>feature</code></h3>
-        <p>A container feature in <code>features/</code> — reusable business logic.</p>
+        <p>Reusable business logic on the container — available to commands, endpoints, and assistant tools alike.</p>
         <pre><code><span class="cmd">luca scaffold feature cache</span></code></pre>
       </div>
       <div class="card">
         <h3><code>endpoint</code></h3>
-        <p>A REST route in <code>endpoints/</code>, served by <code>luca serve</code>.</p>
+        <p>A REST route served by <code>luca serve</code>.</p>
         <pre><code><span class="cmd">luca scaffold endpoint users</span></code></pre>
       </div>
       <div class="card">
@@ -181,55 +379,170 @@
     <p style="margin-top: 0.75rem;">Add <code>--tutorial</code> to any scaffold for the full guide: <code>luca scaffold feature --tutorial</code></p>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- ASSISTANTS                                                   -->
+  <!-- ============================================================ -->
   <section>
-    <h2>Serve <span class="tag">luca serve</span></h2>
+    <h2>Assistants <span class="tag">luca scaffold assistant</span></h2>
+    <p>
+      An assistant is just a folder. Scaffold one and the pieces are consumed automatically:
+      the prompt, the tools, the lifecycle hooks — no registration, no framework ceremony.
+    </p>
+    <pre><code><span class="cmd">luca scaffold assistant researcher</span></code></pre>
+
+    <div class="diagram">
+      <svg viewBox="0 0 860 250" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+        <!-- folder -->
+        <rect x="20" y="20" width="290" height="210" rx="10" fill="#161b22" stroke="#2d333b"/>
+        <text x="40" y="48" fill="#e6edf3" font-weight="bold" font-size="13">assistants/researcher/</text>
+
+        <g>
+          <rect x="40" y="64" width="250" height="44" rx="6" fill="#1c2128" stroke="#58a6ff"/>
+          <text x="54" y="83" fill="#58a6ff">CORE.md</text>
+          <text x="54" y="99" fill="#8b949e" font-size="10">persona &amp; instructions</text>
+
+          <rect x="40" y="116" width="250" height="44" rx="6" fill="#1c2128" stroke="#3fb950"/>
+          <text x="54" y="135" fill="#3fb950">tools.ts</text>
+          <text x="54" y="151" fill="#8b949e" font-size="10">zod schemas + handler functions</text>
+
+          <rect x="40" y="168" width="250" height="44" rx="6" fill="#1c2128" stroke="#ffa657"/>
+          <text x="54" y="187" fill="#ffa657">hooks.ts</text>
+          <text x="54" y="203" fill="#8b949e" font-size="10">lifecycle event handlers</text>
+        </g>
+
+        <!-- arrows -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="290" y1="86"  x2="380" y2="110"/>
+          <line x1="290" y1="138" x2="380" y2="125"/>
+          <line x1="290" y1="190" x2="380" y2="140"/>
+        </g>
+        <text x="335" y="80" fill="#8b949e" font-size="10">system prompt</text>
+        <text x="335" y="170" fill="#8b949e" font-size="10">tool schemas</text>
+
+        <!-- assistant box -->
+        <rect x="384" y="85" width="200" height="80" rx="10" fill="#161b22" stroke="#bc8cff" stroke-width="2"/>
+        <text x="484" y="118" fill="#bc8cff" text-anchor="middle" font-weight="bold" font-size="14">assistant</text>
+        <text x="484" y="140" fill="#8b949e" text-anchor="middle" font-size="10">tools call container features</text>
+
+        <!-- arrow to chat -->
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="584" y1="125" x2="650" y2="125"/>
+          <polygon points="650,119 662,125 650,131" fill="#2d333b"/>
+        </g>
+
+        <!-- chat box -->
+        <rect x="666" y="85" width="170" height="80" rx="10" fill="#1c2128" stroke="#3fb950"/>
+        <text x="751" y="118" fill="#3fb950" text-anchor="middle" font-weight="bold" font-size="13">luca chat</text>
+        <text x="751" y="140" fill="#8b949e" text-anchor="middle" font-size="10">researcher</text>
+      </svg>
+      <div class="diagram-caption">The folder <em>is</em> the assistant. CORE.md becomes the system prompt; each exported function in tools.ts becomes a callable tool.</div>
+    </div>
+
     <div class="card">
-      <p>You're looking at it. <code>luca serve</code> serves this <code>public/</code> folder plus every file in <code>endpoints/</code> as an API route.</p>
-      <pre><code><span class="cmd">luca serve</span>                <span class="comment"># static files from public/ + API from endpoints/</span></code></pre>
-      <p>Try the bundled health endpoint: <a href="/api/health">/api/health</a></p>
-      <ul>
-        <li>Each file in <code>endpoints/</code> maps to a route — <code>endpoints/users.ts</code> → <code>/api/users</code></li>
-        <li>Export <code>get</code>, <code>post</code>, <code>put</code> functions; for DELETE use <code>export { del as delete }</code></li>
-        <li>Share state across endpoints via <code>ctx.request.app.locals</code></li>
-      </ul>
+      <p>Inside <code>tools.ts</code>, the container is a global — so a tool is three lines away from your whole stack:</p>
+      <pre><code><span class="comment">// tools.ts — each schema key pairs with an exported function of the same name</span>
+export const schemas = {
+  searchDocs: z.object({ query: z.string().describe(<span class="str">'What to look for'</span>) }),
+}
+export async function searchDocs({ query }) {
+  return container.feature(<span class="cmd">'grep'</span>).search(query)   <span class="comment">// same features as everywhere else</span>
+}</code></pre>
+      <p>Then talk to it:</p>
+      <pre><code><span class="cmd">luca chat researcher</span>      <span class="comment"># interactive chat, tools included</span></code></pre>
     </div>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- LUCA PROMPT                                                  -->
+  <!-- ============================================================ -->
   <section>
-    <h2>Assistants <span class="tag">AI-native</span></h2>
-    <div class="card">
-      <p>Luca is built for conversational apps. Assistants combine a system prompt, tools (backed by container helpers), and a chat loop — scaffold one and talk to it immediately.</p>
-      <pre><code><span class="cmd">luca scaffold assistant helper</span>   <span class="comment"># generate an assistant</span>
-<span class="cmd">luca chat</span>                        <span class="comment"># interactive chat session</span></code></pre>
-      <ul>
-        <li>Tools are defined with Zod schemas — <code>assistant.addTool()</code> handles JSON Schema conversion</li>
-        <li>Assistants can call any container feature: files, HTTP, databases, your custom features</li>
-        <li>Run <code>luca describe assistant</code> for the full API</li>
-      </ul>
+    <h2>Prompts as Programs <span class="tag">luca prompt</span></h2>
+    <p>
+      <code>luca prompt</code> closes the loop: a markdown prompt file can <em>evaluate code first</em> —
+      fenced blocks run against the container, and their output is woven into the prompt —
+      then the result is sent to a coding agent (Claude Code, Codex) or one of your own assistants.
+    </p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 860 150" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">
+        <!-- prompt file -->
+        <rect x="20" y="40" width="180" height="70" rx="8" fill="#1c2128" stroke="#58a6ff"/>
+        <text x="110" y="70" fill="#58a6ff" text-anchor="middle" font-weight="bold">prompt.md</text>
+        <text x="110" y="92" fill="#8b949e" text-anchor="middle" font-size="10">prose + code blocks</text>
+
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="200" y1="75" x2="240" y2="75"/>
+          <polygon points="240,69 252,75 240,81" fill="#2d333b"/>
+        </g>
+
+        <!-- eval -->
+        <rect x="256" y="40" width="180" height="70" rx="8" fill="#161b22" stroke="#bc8cff" stroke-width="2"/>
+        <text x="346" y="70" fill="#bc8cff" text-anchor="middle" font-weight="bold">eval code blocks</text>
+        <text x="346" y="92" fill="#8b949e" text-anchor="middle" font-size="10">against the container</text>
+
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="436" y1="75" x2="476" y2="75"/>
+          <polygon points="476,69 488,75 476,81" fill="#2d333b"/>
+        </g>
+
+        <!-- resolved prompt -->
+        <rect x="492" y="40" width="160" height="70" rx="8" fill="#1c2128" stroke="#ffa657"/>
+        <text x="572" y="70" fill="#ffa657" text-anchor="middle" font-weight="bold">resolved prompt</text>
+        <text x="572" y="92" fill="#8b949e" text-anchor="middle" font-size="10">live data included</text>
+
+        <g stroke="#2d333b" stroke-width="2">
+          <line x1="652" y1="75" x2="692" y2="75"/>
+          <polygon points="692,69 704,75 692,81" fill="#2d333b"/>
+        </g>
+
+        <!-- agents -->
+        <rect x="708" y="20" width="132" height="34" rx="6" fill="#1c2128" stroke="#3fb950"/>
+        <text x="774" y="42" fill="#3fb950" text-anchor="middle" font-size="11">claude / codex</text>
+        <rect x="708" y="62" width="132" height="34" rx="6" fill="#1c2128" stroke="#3fb950"/>
+        <text x="774" y="84" fill="#3fb950" text-anchor="middle" font-size="11">your assistants</text>
+        <rect x="708" y="104" width="132" height="34" rx="6" fill="#1c2128" stroke="#2d333b" stroke-dasharray="5 3"/>
+        <text x="774" y="126" fill="#8b949e" text-anchor="middle" font-size="11">--out-file session.md</text>
+      </svg>
+      <div class="diagram-caption">Prompts stop being static text — they gather their own context at send time.</div>
+    </div>
+
+    <pre><code><span class="cmd">luca prompt claude ./prompts/refactor.md</span>       <span class="comment"># send to Claude Code</span>
+<span class="cmd">luca prompt researcher ./question.md</span>            <span class="comment"># or to one of your assistants</span>
+<span class="cmd">luca prompt claude a.md b.md --parallel</span>         <span class="comment"># run prompts side by side</span>
+<span class="cmd">luca prompt claude ./task.md --dry-run</span>          <span class="comment"># preview the resolved prompt first</span></code></pre>
+
+    <div class="philosophy">
+      <strong>The payoff:</strong> the same markdown format runs as a notebook (<code>luca run</code>)
+      and drives an agent (<code>luca prompt</code>). A runbook that queries your database, embeds
+      the results, and hands the whole thing to an assistant is one file — versioned, reviewable,
+      repeatable.
     </div>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- CONTENT DB                                                   -->
+  <!-- ============================================================ -->
   <section>
     <h2>Content DB <span class="tag">docs/ folder</span></h2>
     <div class="card">
       <p>Your <code>docs/</code> folder is a queryable database of markdown documents. Schemas live in <code>docs/models.ts</code>; frontmatter is validated against them.</p>
-      <pre><code><span class="comment">// in any script or command — container.docs is the contentDb feature</span>
+      <pre><code><span class="comment">// in any script, command, or assistant tool</span>
 const docs = container.docs
 const posts = await docs.query(docs.models.Post).fetchAll()</code></pre>
-      <ul>
-        <li>Markdown files with frontmatter become typed, queryable records</li>
-        <li>Define models with Zod in <code>docs/models.ts</code> — one model per subfolder</li>
-        <li>Run <code>luca describe contentDb</code> for query syntax and the full API</li>
-      </ul>
+      <p>Run <code>luca describe contentDb</code> for query syntax and the full API.</p>
     </div>
   </section>
 
+  <!-- ============================================================ -->
+  <!-- LEARN MORE                                                   -->
+  <!-- ============================================================ -->
   <section>
     <h2>Learn More</h2>
     <ul>
       <li><code>luca describe &lt;name&gt;</code> — full docs for any feature, client, or server</li>
       <li><code>luca describe &lt;name&gt;.&lt;method&gt;</code> — drill into a specific method</li>
       <li><code>luca describe --query "..."</code> — search helpers by meaning</li>
+      <li><code>luca scaffold &lt;type&gt; --tutorial</code> — the full guide for building each helper type</li>
       <li><code>.claude/skills/luca-framework/</code> — the framework skill for your AI coding assistant</li>
     </ul>
   </section>
