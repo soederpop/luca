@@ -551,6 +551,38 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	}
 
 	/**
+	 * The named provider/preset id this conversation is configured to use, if the
+	 * `provider` option references one by name. Inline provider objects (which
+	 * carry their own apiMode/baseURL) return undefined — they resolve without a
+	 * registry lookup.
+	 */
+	private get configuredProviderName(): string | undefined {
+		const provider = this.options.provider
+		if (typeof provider === 'string') return provider
+		if (provider && typeof provider === 'object' && !provider.apiMode && provider.preset) return provider.preset
+		return undefined
+	}
+
+	/**
+	 * Fail loudly when `provider` names a backend that isn't registered. Called at
+	 * ask-time (not construction, so register-after-construct still works). Without
+	 * this, an unresolved named provider silently fell through to the default
+	 * OpenAI client, surfacing a confusing "OPENAI_API_KEY is missing" error
+	 * instead of naming the real problem — the configured provider.
+	 */
+	private assertConfiguredProviderResolvable(): void {
+		const name = this.configuredProviderName
+		if (!name) return
+		const modelProviders = this.container.feature('modelProviders')
+		if (modelProviders.get(name)) return
+		const available = Object.keys(modelProviders.profiles ?? {})
+		throw new Error(
+			`Unknown model provider: "${name}". It is not registered in modelProviders, so this conversation cannot resolve a backend. ` +
+			`Register it (e.g. modelProviders.registerLocal('${name}', baseURL, model) in luca.cli.ts) or use one of the registered ids: ${available.join(', ') || '(none)'}.`
+		)
+	}
+
+	/**
 	 * The default model of the explicitly configured `provider`, resolved
 	 * synchronously through the modelProviders registry. Lets the conversation
 	 * seed `state.model` with the provider's own default (e.g. a local endpoint's
@@ -788,6 +820,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			}
 
 			let raw: string
+
+			// A named `provider:` that isn't registered must fail loudly here
+			// rather than silently routing to the default OpenAI client below.
+			this.assertConfiguredProviderResolvable()
 
 			if (this.usesGenericTransportLoop) {
 				// Non-OpenAI providers (codex, claude-code) run through the
