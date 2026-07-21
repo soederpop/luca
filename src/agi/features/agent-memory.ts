@@ -20,7 +20,10 @@ export type MemoryState = z.infer<typeof MemoryStateSchema>
 
 export const MemoryOptionsSchema = FeatureOptionsSchema.extend({
   dbPath: z.string().optional().describe('Path to SQLite database file. Defaults to .luca/agent-memory/<hash>.db in home dir'),
-  embeddingModel: z.string().default('text-embedding-3-large').describe('OpenAI embedding model to use'),
+  embeddingModel: z.string().optional().describe('Embedding model to use. When omitted, defaults to text-embedding-3-large for the openai provider, or the provider default for local. Note: changing this for an existing memory database mixes vector dimensions and breaks similarity search — wipe and re-index to switch models'),
+  embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp (fully offline, run installLocalEmbeddings() once); "openai" hits an OpenAI-compatible endpoint'),
+  embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var. Only used when embeddingProvider is "openai"'),
+  embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
   namespace: z.string().default('default').describe('Namespace to isolate memory sets (e.g. per-assistant)'),
 })
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>
@@ -116,8 +119,18 @@ export class Memory extends Feature<MemoryState, MemoryOptions> {
   /** @internal */
   private get searcher() {
     if (!this._searcher) {
+      // Preserve the historical openai default (text-embedding-3-large) so
+      // existing memory databases keep the same 3072-dim vectors. For the
+      // local provider, leave the model undefined so semanticSearch resolves
+      // its own local default (embedding-gemma) rather than an openai name.
+      const embeddingModel = this.options.embeddingModel
+        ?? (this.options.embeddingProvider === 'openai' ? 'text-embedding-3-large' : undefined)
+
       this._searcher = this.container.feature('semanticSearch', {
-        embeddingModel: this.options.embeddingModel,
+        embeddingModel,
+        embeddingProvider: this.options.embeddingProvider,
+        embeddingBaseURL: this.options.embeddingBaseURL,
+        embeddingApiKey: this.options.embeddingApiKey,
       })
     }
     return this._searcher

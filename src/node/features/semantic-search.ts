@@ -22,6 +22,8 @@ export const SemanticSearchOptionsSchema = FeatureOptionsSchema.extend({
 	dbPath: z.string().default('.contentbase/search.sqlite').describe('Path to the SQLite database file'),
 	embeddingModel: z.string().optional().describe('Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())'),
 	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights'),
+	embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var, then the official API. Only used when embeddingProvider is "openai"'),
+	embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
 	chunkStrategy: z.enum(['section', 'fixed', 'document']).default('section').describe('How to split documents'),
 	chunkSize: z.number().default(900).describe('Token limit per chunk for fixed strategy'),
 	chunkOverlap: z.number().default(0.15).describe('Overlap ratio for fixed strategy'),
@@ -564,7 +566,15 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	private async _embedOpenAI(texts: string[]): Promise<number[][]> {
-		const openai = (this.container as any).client('openai') as any
+		// Pass baseURL/apiKey through so an OpenAI-compatible endpoint can be
+		// targeted per-instance. Both undefined by default, which keeps the
+		// client on its env-var fallbacks (OPENAI_BASE_URL / OPENAI_API_KEY).
+		// Creating the client *with* options also gives a distinct baseURL its
+		// own cached instance instead of colliding with the env-configured default.
+		const openai = (this.container as any).client('openai', {
+			baseURL: this.options.embeddingBaseURL,
+			apiKey: this.options.embeddingApiKey,
+		}) as any
 		const results: number[][] = []
 
 		for (let i = 0; i < texts.length; i += 2048) {
