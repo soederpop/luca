@@ -4,10 +4,17 @@ import {
   createAGIContainer,
   API_TIMEOUT,
 } from './helpers'
+import { existsSync } from 'node:fs'
 import type { AGIContainer } from '../src/agi/container.server'
 import type { Memory } from '../src/agi/features/agent-memory'
+import { resolveModelPath, DEFAULT_LOCAL_MODEL } from '../src/node/features/semantic-search'
 
 const openaiKey = requireEnv('OPENAI_API_KEY')
+
+/** Local embeddings only run when the gemma weights have been downloaded. */
+const localWeights = existsSync(resolveModelPath(DEFAULT_LOCAL_MODEL))
+  ? { value: resolveModelPath(DEFAULT_LOCAL_MODEL) }
+  : { value: '', skip: `local embedding weights (${DEFAULT_LOCAL_MODEL}) not installed — run 'luca setup --local-embeddings'` }
 
 describeWithRequirements('Memory Integration', [openaiKey], () => {
   let container: AGIContainer
@@ -201,4 +208,49 @@ describeWithRequirements('Memory Integration', [openaiKey], () => {
       expect(mem.getEpoch()).toBe(1)
     })
   })
+})
+
+// Fully-offline path: no OPENAI_API_KEY required, embeddings come from the
+// local gemma daemon. Skips unless the weights are installed.
+describeWithRequirements('Memory Integration (local provider)', [localWeights], () => {
+  let container: AGIContainer
+  let mem: Memory
+
+  beforeAll(async () => {
+    container = createAGIContainer()
+    mem = container.feature('memory', {
+      namespace: 'test-integration-local',
+      embeddingProvider: 'local',
+    }) as unknown as Memory
+    await mem.initDb()
+    await mem.wipeAll()
+  })
+
+  afterAll(async () => {
+    await mem.wipeAll()
+  })
+
+  it('uses the local gemma model (768 dims), not an openai model', () => {
+    const searcher = (mem as any).searcher
+    expect(searcher.options.embeddingProvider).toBe('local')
+    expect(searcher.embeddingModel).toBe(DEFAULT_LOCAL_MODEL)
+    expect(searcher.dimensions).toBe(768)
+  })
+
+  it('stores and recalls a memory with local embeddings', async () => {
+    const created = await mem.create('facts', 'The user deploys to Fly.io from the main branch')
+    expect(created.id).toBeGreaterThan(0)
+
+    const results = await mem.search('facts', 'where does the user deploy', 3)
+    expect(results.length).toBeGreaterThan(0)
+    expect(results[0]!.document).toContain('Fly.io')
+    expect(results[0]!.distance).toBeGreaterThanOrEqual(0)
+  }, API_TIMEOUT)
+
+  it('deduplicates near-identical memories via local similarity', async () => {
+    const first = await mem.createUnique('prefs', 'Prefers tabs over spaces')
+    expect(first).not.toBeNull()
+    const dup = await mem.createUnique('prefs', 'Prefers tabs over spaces')
+    expect(dup).toBeNull()
+  }, API_TIMEOUT)
 })

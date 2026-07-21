@@ -37,7 +37,24 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 /** One round-trip ping on a throwaway connection — returns the daemon's info or null if not up. */
 function pingSocket(sock: string, timeoutMs = 2000): Promise<{ ready: boolean; model?: string; dims?: number } | null> {
 	return new Promise((resolve) => {
-		const conn = net.connect(sock)
+		// A missing socket file unambiguously means no daemon. Short-circuit here:
+		// calling net.connect on a nonexistent unix socket surfaces its ENOENT
+		// asynchronously in a way the bun test runner treats as an unhandled
+		// error, which would blow up ensureDaemon's ping-then-spawn path even
+		// though the daemon spawn that follows would succeed.
+		if (!existsSync(sock)) {
+			resolve(null)
+			return
+		}
+		let conn: net.Socket
+		try {
+			// net.connect can also throw synchronously (races, stale socket) before
+			// any 'error' listener is attached — treat that the same as "not up".
+			conn = net.connect(sock)
+		} catch {
+			resolve(null)
+			return
+		}
 		let buffer = ''
 		const finish = (val: any) => { try { conn.destroy() } catch {}; resolve(val) }
 		const timer = setTimeout(() => finish(null), timeoutMs)
