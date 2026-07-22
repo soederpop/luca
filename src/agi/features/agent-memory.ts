@@ -21,7 +21,7 @@ export type MemoryState = z.infer<typeof MemoryStateSchema>
 export const MemoryOptionsSchema = FeatureOptionsSchema.extend({
   dbPath: z.string().optional().describe('Path to SQLite database file. Defaults to .luca/agent-memory/<hash>.db in home dir'),
   embeddingModel: z.string().optional().describe('Embedding model to use. When omitted, defaults to text-embedding-3-large for the openai provider, or the provider default for local. Note: changing this for an existing memory database mixes vector dimensions and breaks similarity search — wipe and re-index to switch models'),
-  embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp (fully offline, run installLocalEmbeddings() once); "openai" hits an OpenAI-compatible endpoint'),
+  embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server (fully offline, run `luca setup --local-embeddings` once); "openai" hits an OpenAI-compatible endpoint'),
   embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var. Only used when embeddingProvider is "openai"'),
   embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
   namespace: z.string().default('default').describe('Namespace to isolate memory sets (e.g. per-assistant)'),

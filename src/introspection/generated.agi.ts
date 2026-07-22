@@ -13576,6 +13576,150 @@ setBuildTimeData('features.jsonTree', {
   "category": "content-nlp"
 });
 
+setBuildTimeData('features.llamaServer', {
+  "id": "features.llamaServer",
+  "description": "Downloads, supervises, and health-checks local `llama-server` processes — luca's local inference substrate. The llama.cpp server binary installs once per machine into `~/.luca/llama-cpp/<tag>/` and serves GGUF models over an OpenAI-compatible HTTP API on localhost. Chat and embedding models run as separate server processes on separate ports, spawned on demand and shared by every luca process on the machine. This is what backs the `local` model provider: a blank assistant with no provider configured and no OPENAI_API_KEY resolves to `local`, which calls `ensureChatServer()` here before the first request.",
+  "shortcut": "features.llamaServer",
+  "className": "LlamaServer",
+  "methods": {
+    "downloadBinary": {
+      "description": "Download and extract the pinned llama.cpp release into ~/.luca/llama-cpp/<tag>/. Skips when the binary is already installed. Emits downloadProgress events.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const path = await container.feature('llamaServer').downloadBinary()"
+        }
+      ]
+    },
+    "downloadChatModel": {
+      "description": "Download the configured chat model's GGUF weights into the shared model cache. Streams to a temp file and renames atomically; skips when already present. Emits downloadProgress events (these files are large — the default model is ~3.1GB).",
+      "parameters": {
+        "modelName": {
+          "type": "string",
+          "description": "Chat model to fetch (default: the configured chatModel)"
+        }
+      },
+      "required": [],
+      "returns": "Promise<string>",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "const llama = container.feature('llamaServer')\nllama.on('downloadProgress', ({ received, total }) => console.log(received, '/', total))\nawait llama.downloadChatModel()"
+        }
+      ]
+    },
+    "ensureChatServer": {
+      "description": "Ensure a llama-server is healthy on the chat port, spawning one if needed. Reuses a server another luca process already started. Throws with setup guidance when the binary or model weights are missing.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<string>"
+    },
+    "ensureEmbeddingServer": {
+      "description": "Ensure a llama-server with --embedding is healthy on the embedding port, spawning one if needed.",
+      "parameters": {
+        "modelPath": {
+          "type": "string",
+          "description": "Absolute path to the embedding GGUF to serve"
+        }
+      },
+      "required": [
+        "modelPath"
+      ],
+      "returns": "Promise<string>"
+    },
+    "stopServer": {
+      "description": "Stop the server on a port by pid file. No-op when no pid file exists.",
+      "parameters": {
+        "port": {
+          "type": "number",
+          "description": "Port of the server to stop (default: the chat port)"
+        }
+      },
+      "required": [],
+      "returns": "boolean"
+    },
+    "status": {
+      "description": "Install/runtime status snapshot — what's downloaded and what's answering health probes right now.",
+      "parameters": {},
+      "required": [],
+      "returns": "Promise<{\n\t\treleaseTag: string\n\t\tbinaryInstalled: boolean\n\t\tbinaryPath: string | null\n\t\tchatModel: string\n\t\tchatModelInstalled: boolean\n\t\tchatModelPath: string\n\t\tchatServer: 'ok' | 'loading' | 'down'\n\t\tembeddingServer: 'ok' | 'loading' | 'down'\n\t}>"
+    }
+  },
+  "getters": {
+    "releaseTag": {
+      "description": "The llama.cpp release tag this instance installs and runs.",
+      "returns": "string"
+    },
+    "chatModel": {
+      "description": "The configured local chat model name.",
+      "returns": "string"
+    },
+    "installDir": {
+      "description": "Directory the release archive is extracted into (binary + its shared libraries).",
+      "returns": "string"
+    },
+    "binaryPath": {
+      "description": "Absolute path to the llama-server binary, or null when not installed.",
+      "returns": "string | null"
+    },
+    "binaryInstalled": {
+      "description": "Whether the llama-server binary is installed for the pinned release.",
+      "returns": "boolean"
+    },
+    "chatModelPath": {
+      "description": "Absolute path where the configured chat model's weights live (whether or not downloaded yet).",
+      "returns": "string"
+    },
+    "chatModelInstalled": {
+      "description": "Whether the configured chat model's weights are downloaded.",
+      "returns": "boolean"
+    },
+    "chatReady": {
+      "description": "Whether local chat inference is fully installed (binary + chat model weights).",
+      "returns": "boolean"
+    },
+    "chatBaseURL": {
+      "description": "The OpenAI-compatible base URL of the chat server.",
+      "returns": "string"
+    },
+    "embeddingBaseURL": {
+      "description": "The OpenAI-compatible base URL of the embedding server.",
+      "returns": "string"
+    }
+  },
+  "events": {
+    "serverStopped": {
+      "name": "serverStopped",
+      "description": "Event emitted by LlamaServer",
+      "arguments": {}
+    },
+    "serverStarted": {
+      "name": "serverStarted",
+      "description": "Event emitted by LlamaServer",
+      "arguments": {}
+    },
+    "downloadProgress": {
+      "name": "downloadProgress",
+      "description": "Event emitted by LlamaServer",
+      "arguments": {}
+    }
+  },
+  "state": {},
+  "options": {},
+  "envVars": [],
+  "stability": "experimental",
+  "category": "ai-assistants",
+  "examples": [
+    {
+      "language": "ts",
+      "code": "const llama = container.feature('llamaServer')\nif (!llama.binaryInstalled) await llama.downloadBinary()\nif (!llama.chatModelInstalled) await llama.downloadChatModel()\nconst baseURL = await llama.ensureChatServer() // http://127.0.0.1:8143/v1"
+    }
+  ]
+});
+
 setBuildTimeData('features.lucaCoder', {
   "id": "features.lucaCoder",
   "description": "A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in conventional agent skill folders (.claude/skills or .agents/skills). Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
@@ -14742,6 +14886,19 @@ setBuildTimeData('features.modelProviders', {
       ],
       "returns": "boolean"
     },
+    "getTransport": {
+      "description": "The transport registered for this API mode, if any.",
+      "parameters": {
+        "apiMode": {
+          "type": "ModelProviderApiMode",
+          "description": "Parameter apiMode"
+        }
+      },
+      "required": [
+        "apiMode"
+      ],
+      "returns": "ModelTransport | undefined"
+    },
     "get": {
       "description": "",
       "parameters": {
@@ -14827,6 +14984,37 @@ setBuildTimeData('features.modelProviders', {
       ],
       "returns": "boolean"
     },
+    "setDefault": {
+      "description": "Pin the default provider explicitly, overriding the automatic selection. Pass a registered profile id; clear with `setDefault(undefined)`.",
+      "parameters": {
+        "id": {
+          "type": "string | undefined",
+          "description": "Parameter id"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "returns": "void",
+      "examples": [
+        {
+          "language": "ts",
+          "code": "container.feature('modelProviders').setDefault('anthropic')"
+        }
+      ]
+    },
+    "resolveDefaultId": {
+      "description": "The provider a blank assistant/conversation uses when no `provider` option is configured, or undefined when nothing usable is available. Selection order, designed around a brand-new user of the framework: 1. An explicit `setDefault(id)` or the LUCA_DEFAULT_PROVIDER env var 2. `openai` when OPENAI_API_KEY is set 3. `local` when the llama-server binary and a chat model are installed (`luca setup`) 4. `anthropic` when ANTHROPIC_API_KEY is set 5. The first user-registered custom profile whose auth is satisfied",
+      "parameters": {},
+      "required": [],
+      "returns": "string | undefined"
+    },
+    "requireDefaultId": {
+      "description": "Like resolveDefaultId(), but throws an actionable error when no provider is available — a brand-new user with no API key and no local model gets told exactly how to fix it instead of a downstream auth failure.",
+      "parameters": {},
+      "required": [],
+      "returns": "string"
+    },
     "resolve": {
       "description": "",
       "parameters": {
@@ -14877,6 +15065,10 @@ setBuildTimeData('features.modelProviders', {
     "defaults": {
       "description": "Default model by provider id.",
       "returns": "Record<string, string | undefined>"
+    },
+    "localChatReady": {
+      "description": "Whether the local llama-server stack (binary + chat model weights) is installed on this machine.",
+      "returns": "boolean"
     }
   },
   "events": {},
@@ -19891,7 +20083,7 @@ setBuildTimeData('features.secureShell', {
 
 setBuildTimeData('features.semanticSearch', {
   "id": "features.semanticSearch",
-  "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.",
+  "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings()` once — it downloads the llama-server binary and the .gguf weights to ~/.cache/luca/models/.",
   "shortcut": "features.semanticSearch",
   "className": "SemanticSearch",
   "methods": {
@@ -20343,7 +20535,7 @@ setBuildTimeData('features.semanticSearch', {
       ]
     },
     "installLocalEmbeddings": {
-      "description": "Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
+      "description": "Download the llama-server binary into `~/.luca/llama-cpp/` and the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
       "parameters": {
         "_cwd": {
           "type": "string",
@@ -38219,6 +38411,149 @@ export const introspectionData: Record<string, any>[] = [
     "category": "content-nlp"
   },
   {
+    "id": "features.llamaServer",
+    "description": "Downloads, supervises, and health-checks local `llama-server` processes — luca's local inference substrate. The llama.cpp server binary installs once per machine into `~/.luca/llama-cpp/<tag>/` and serves GGUF models over an OpenAI-compatible HTTP API on localhost. Chat and embedding models run as separate server processes on separate ports, spawned on demand and shared by every luca process on the machine. This is what backs the `local` model provider: a blank assistant with no provider configured and no OPENAI_API_KEY resolves to `local`, which calls `ensureChatServer()` here before the first request.",
+    "shortcut": "features.llamaServer",
+    "className": "LlamaServer",
+    "methods": {
+      "downloadBinary": {
+        "description": "Download and extract the pinned llama.cpp release into ~/.luca/llama-cpp/<tag>/. Skips when the binary is already installed. Emits downloadProgress events.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const path = await container.feature('llamaServer').downloadBinary()"
+          }
+        ]
+      },
+      "downloadChatModel": {
+        "description": "Download the configured chat model's GGUF weights into the shared model cache. Streams to a temp file and renames atomically; skips when already present. Emits downloadProgress events (these files are large — the default model is ~3.1GB).",
+        "parameters": {
+          "modelName": {
+            "type": "string",
+            "description": "Chat model to fetch (default: the configured chatModel)"
+          }
+        },
+        "required": [],
+        "returns": "Promise<string>",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "const llama = container.feature('llamaServer')\nllama.on('downloadProgress', ({ received, total }) => console.log(received, '/', total))\nawait llama.downloadChatModel()"
+          }
+        ]
+      },
+      "ensureChatServer": {
+        "description": "Ensure a llama-server is healthy on the chat port, spawning one if needed. Reuses a server another luca process already started. Throws with setup guidance when the binary or model weights are missing.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<string>"
+      },
+      "ensureEmbeddingServer": {
+        "description": "Ensure a llama-server with --embedding is healthy on the embedding port, spawning one if needed.",
+        "parameters": {
+          "modelPath": {
+            "type": "string",
+            "description": "Absolute path to the embedding GGUF to serve"
+          }
+        },
+        "required": [
+          "modelPath"
+        ],
+        "returns": "Promise<string>"
+      },
+      "stopServer": {
+        "description": "Stop the server on a port by pid file. No-op when no pid file exists.",
+        "parameters": {
+          "port": {
+            "type": "number",
+            "description": "Port of the server to stop (default: the chat port)"
+          }
+        },
+        "required": [],
+        "returns": "boolean"
+      },
+      "status": {
+        "description": "Install/runtime status snapshot — what's downloaded and what's answering health probes right now.",
+        "parameters": {},
+        "required": [],
+        "returns": "Promise<{\n\t\treleaseTag: string\n\t\tbinaryInstalled: boolean\n\t\tbinaryPath: string | null\n\t\tchatModel: string\n\t\tchatModelInstalled: boolean\n\t\tchatModelPath: string\n\t\tchatServer: 'ok' | 'loading' | 'down'\n\t\tembeddingServer: 'ok' | 'loading' | 'down'\n\t}>"
+      }
+    },
+    "getters": {
+      "releaseTag": {
+        "description": "The llama.cpp release tag this instance installs and runs.",
+        "returns": "string"
+      },
+      "chatModel": {
+        "description": "The configured local chat model name.",
+        "returns": "string"
+      },
+      "installDir": {
+        "description": "Directory the release archive is extracted into (binary + its shared libraries).",
+        "returns": "string"
+      },
+      "binaryPath": {
+        "description": "Absolute path to the llama-server binary, or null when not installed.",
+        "returns": "string | null"
+      },
+      "binaryInstalled": {
+        "description": "Whether the llama-server binary is installed for the pinned release.",
+        "returns": "boolean"
+      },
+      "chatModelPath": {
+        "description": "Absolute path where the configured chat model's weights live (whether or not downloaded yet).",
+        "returns": "string"
+      },
+      "chatModelInstalled": {
+        "description": "Whether the configured chat model's weights are downloaded.",
+        "returns": "boolean"
+      },
+      "chatReady": {
+        "description": "Whether local chat inference is fully installed (binary + chat model weights).",
+        "returns": "boolean"
+      },
+      "chatBaseURL": {
+        "description": "The OpenAI-compatible base URL of the chat server.",
+        "returns": "string"
+      },
+      "embeddingBaseURL": {
+        "description": "The OpenAI-compatible base URL of the embedding server.",
+        "returns": "string"
+      }
+    },
+    "events": {
+      "serverStopped": {
+        "name": "serverStopped",
+        "description": "Event emitted by LlamaServer",
+        "arguments": {}
+      },
+      "serverStarted": {
+        "name": "serverStarted",
+        "description": "Event emitted by LlamaServer",
+        "arguments": {}
+      },
+      "downloadProgress": {
+        "name": "downloadProgress",
+        "description": "Event emitted by LlamaServer",
+        "arguments": {}
+      }
+    },
+    "state": {},
+    "options": {},
+    "envVars": [],
+    "stability": "experimental",
+    "category": "ai-assistants",
+    "examples": [
+      {
+        "language": "ts",
+        "code": "const llama = container.feature('llamaServer')\nif (!llama.binaryInstalled) await llama.downloadBinary()\nif (!llama.chatModelInstalled) await llama.downloadChatModel()\nconst baseURL = await llama.ensureChatServer() // http://127.0.0.1:8143/v1"
+      }
+    ]
+  },
+  {
     "id": "features.lucaCoder",
     "description": "A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads the luca-framework skill when found in conventional agent skill folders (.claude/skills or .agents/skills). Tools are stacked from feature bundles (fileTools, etc.) and each tool can be set to 'allow' (runs immediately), 'ask' (blocks until user approves/denies), or 'deny' (always rejected).",
     "shortcut": "features.lucaCoder",
@@ -39381,6 +39716,19 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "boolean"
       },
+      "getTransport": {
+        "description": "The transport registered for this API mode, if any.",
+        "parameters": {
+          "apiMode": {
+            "type": "ModelProviderApiMode",
+            "description": "Parameter apiMode"
+          }
+        },
+        "required": [
+          "apiMode"
+        ],
+        "returns": "ModelTransport | undefined"
+      },
       "get": {
         "description": "",
         "parameters": {
@@ -39466,6 +39814,37 @@ export const introspectionData: Record<string, any>[] = [
         ],
         "returns": "boolean"
       },
+      "setDefault": {
+        "description": "Pin the default provider explicitly, overriding the automatic selection. Pass a registered profile id; clear with `setDefault(undefined)`.",
+        "parameters": {
+          "id": {
+            "type": "string | undefined",
+            "description": "Parameter id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "returns": "void",
+        "examples": [
+          {
+            "language": "ts",
+            "code": "container.feature('modelProviders').setDefault('anthropic')"
+          }
+        ]
+      },
+      "resolveDefaultId": {
+        "description": "The provider a blank assistant/conversation uses when no `provider` option is configured, or undefined when nothing usable is available. Selection order, designed around a brand-new user of the framework: 1. An explicit `setDefault(id)` or the LUCA_DEFAULT_PROVIDER env var 2. `openai` when OPENAI_API_KEY is set 3. `local` when the llama-server binary and a chat model are installed (`luca setup`) 4. `anthropic` when ANTHROPIC_API_KEY is set 5. The first user-registered custom profile whose auth is satisfied",
+        "parameters": {},
+        "required": [],
+        "returns": "string | undefined"
+      },
+      "requireDefaultId": {
+        "description": "Like resolveDefaultId(), but throws an actionable error when no provider is available — a brand-new user with no API key and no local model gets told exactly how to fix it instead of a downstream auth failure.",
+        "parameters": {},
+        "required": [],
+        "returns": "string"
+      },
       "resolve": {
         "description": "",
         "parameters": {
@@ -39516,6 +39895,10 @@ export const introspectionData: Record<string, any>[] = [
       "defaults": {
         "description": "Default model by provider id.",
         "returns": "Record<string, string | undefined>"
+      },
+      "localChatReady": {
+        "description": "Whether the local llama-server stack (binary + chat model weights) is installed on this machine.",
+        "returns": "boolean"
       }
     },
     "events": {},
@@ -44513,7 +44896,7 @@ export const introspectionData: Record<string, any>[] = [
   },
   {
     "id": "features.semanticSearch",
-    "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.",
+    "description": "Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings()` once — it downloads the llama-server binary and the .gguf weights to ~/.cache/luca/models/.",
     "shortcut": "features.semanticSearch",
     "className": "SemanticSearch",
     "methods": {
@@ -44965,7 +45348,7 @@ export const introspectionData: Record<string, any>[] = [
         ]
       },
       "installLocalEmbeddings": {
-        "description": "Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
+        "description": "Download the llama-server binary into `~/.luca/llama-cpp/` and the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.",
         "parameters": {
           "_cwd": {
             "type": "string",

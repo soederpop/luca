@@ -268,7 +268,6 @@ export async function bundleCommand(
 			'--compile',
 			`--target=bun-${target}`,
 			'--outfile', outFile,
-			'--external', 'node-llama-cpp',
 		]
 		process.stdout.write(`  ${target.padEnd(18)} `)
 		const result = await proc.spawnAndCapture('bun', args, { cwd: buildDir, silent: true })

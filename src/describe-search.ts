@@ -22,7 +22,7 @@ import { join } from 'node:path'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { Database } from 'bun:sqlite'
 import { lucaHome } from './setup/paths.js'
-import { sharedModuleLoads } from './setup/native-install.js'
+import { installedBinaryPath } from './node/features/llama-server.js'
 import type { DocumentInput, SearchResult, SemanticSearch } from './node/features/semantic-search.js'
 import { DEFAULT_LOCAL_MODEL, resolveModelPath } from './node/features/semantic-search.js'
 
@@ -267,11 +267,11 @@ export function embeddingsStale(ss: SemanticSearch, doc: DocumentInput): boolean
 	return want.some((h, i) => h !== have[i])
 }
 
-/** Is the local embedding stack (native addon + model weights) installed? */
+/** Is the local embedding stack (llama-server binary + model weights) installed? */
 export async function localEmbeddingReadiness(): Promise<'ready' | 'deps-missing'> {
-	const addonReady = await sharedModuleLoads('node-llama-cpp')
+	const binaryReady = installedBinaryPath() !== null
 	const weightsReady = existsSync(resolveModelPath(DEFAULT_LOCAL_MODEL))
-	return addonReady && weightsReady ? 'ready' : 'deps-missing'
+	return binaryReady && weightsReady ? 'ready' : 'deps-missing'
 }
 
 /**

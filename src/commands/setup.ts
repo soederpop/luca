@@ -4,9 +4,9 @@ import { CommandOptionsSchema } from '../schemas/base.js'
 import type { ContainerContext } from '../container.js'
 import type { NodeContainer } from '../node/container.js'
 import { lucaHome } from '../setup/paths.js'
-import { installSharedModule, sharedModuleLoads } from '../setup/native-install.js'
 import { writeProjectTypes, TYPES_DIR } from '../setup/write-types.js'
-import { SemanticSearch, resolveModelPath, DEFAULT_LOCAL_MODEL } from '../node/features/semantic-search.js'
+import { resolveModelPath, DEFAULT_LOCAL_MODEL } from '../node/features/semantic-search.js'
+import { installedBinaryPath, chatModelPath, DEFAULT_CHAT_MODEL, CHAT_MODEL_SOURCES, resolvedReleaseTag } from '../node/features/llama-server.js'
 import { hasDescribeEmbeddings, buildDescribeEmbeddings } from '../describe-search.js'
 
 declare module '../command.js' {
@@ -16,19 +16,22 @@ declare module '../command.js' {
 }
 
 export const argsSchema = CommandOptionsSchema.extend({
-	yes: z.boolean().default(false).describe('Non-interactive: do everything (native addon + model weights + project types)'),
-	'local-embeddings': z.boolean().default(false).describe('Install the node-llama-cpp native addon into ~/.luca and download the embedding model weights'),
-	'skip-models': z.boolean().default(false).describe('Install the native addon and write project types, but skip the model weights download'),
+	yes: z.boolean().default(false).describe('Non-interactive: llama-server binary + embedding model + describe index + project types (the chat model needs --chat-model, it is a multi-GB download)'),
+	'local-embeddings': z.boolean().default(false).describe('Download the llama-server binary and the local embedding model weights'),
+	'chat-model': z.boolean().default(false).describe(`Download the llama-server binary and the local chat model (${DEFAULT_CHAT_MODEL}, ${CHAT_MODEL_SOURCES[DEFAULT_CHAT_MODEL]?.approxSize})`),
+	'skip-models': z.boolean().default(false).describe('Install the llama-server binary and write project types, but skip all model weight downloads'),
 	types: z.boolean().default(false).describe('Only write TypeScript declarations + tsconfig.json into the current project'),
 })
 
-const NATIVE_MODULE = 'node-llama-cpp'
-
 interface SetupState {
 	home: string
-	addonReady: boolean
-	weightsPath: string
-	weightsReady: boolean
+	releaseTag: string
+	binaryReady: boolean
+	embedWeightsPath: string
+	embedWeightsReady: boolean
+	chatModel: string
+	chatWeightsPath: string
+	chatWeightsReady: boolean
 	describeIndexReady: boolean
 	projectRoot: string
 	isProject: boolean
@@ -39,12 +42,17 @@ interface SetupState {
 async function scanState(container: NodeContainer, fs: any): Promise<SetupState> {
 	const home = lucaHome()
 	const projectRoot = container.paths.resolve('.')
-	const weightsPath = resolveModelPath(DEFAULT_LOCAL_MODEL)
+	const embedWeightsPath = resolveModelPath(DEFAULT_LOCAL_MODEL)
+	const chatModel = DEFAULT_CHAT_MODEL
 	return {
 		home,
-		addonReady: await sharedModuleLoads(NATIVE_MODULE, home),
-		weightsPath,
-		weightsReady: fs.exists(weightsPath),
+		releaseTag: resolvedReleaseTag(),
+		binaryReady: installedBinaryPath() !== null,
+		embedWeightsPath,
+		embedWeightsReady: fs.exists(embedWeightsPath),
+		chatModel,
+		chatWeightsPath: chatModelPath(chatModel),
+		chatWeightsReady: fs.exists(chatModelPath(chatModel)),
 		describeIndexReady: hasDescribeEmbeddings(),
 		projectRoot,
 		isProject: ['luca.cli.ts', 'commands', 'features', 'endpoints'].some(p => fs.exists(container.paths.resolve(projectRoot, p))),
@@ -56,8 +64,9 @@ async function scanState(container: NodeContainer, fs: any): Promise<SetupState>
 function printStateReport(ui: any, state: SetupState) {
 	const mark = (ok: boolean) => (ok ? ui.colors.green('✓') : ui.colors.dim('·'))
 	ui.print('  Current state:\n')
-	ui.print(`    ${mark(state.addonReady)} native addon (${NATIVE_MODULE}) in ${state.home}/node_modules`)
-	ui.print(`    ${mark(state.weightsReady)} local embedding model weights (${DEFAULT_LOCAL_MODEL})`)
+	ui.print(`    ${mark(state.binaryReady)} llama-server binary (llama.cpp ${state.releaseTag}) in ${state.home}/llama-cpp`)
+	ui.print(`    ${mark(state.embedWeightsReady)} local embedding model weights (${DEFAULT_LOCAL_MODEL})`)
+	ui.print(`    ${mark(state.chatWeightsReady)} local chat model weights (${state.chatModel})`)
 	ui.print(`    ${mark(state.describeIndexReady)} \`luca describe --query\` search index`)
 	if (state.isProject) {
 		ui.print(`    ${mark(state.typesPresent)} TypeScript declarations in ${TYPES_DIR}/`)
@@ -73,6 +82,15 @@ async function confirm(ui: any, message: string, def: boolean): Promise<boolean>
 	return answer
 }
 
+/** Render a single-line progress bar for a large download. */
+function progressLine(label: string) {
+	return ({ received, total }: { received: number; total: number }) => {
+		const mb = (n: number) => (n / (1024 * 1024)).toFixed(0)
+		const pct = total > 0 ? ` ${Math.floor((received / total) * 100)}%` : ''
+		process.stdout.write(`\r  ${label}: ${mb(received)}MB${total ? `/${mb(total)}MB` : ''}${pct}   `)
+	}
+}
+
 export async function setup(options: z.infer<typeof argsSchema>, context: ContainerContext) {
 	const container = context.container as unknown as NodeContainer
 	const fs = container.feature('fs')
@@ -83,57 +101,76 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	const state = await scanState(container, fs)
 	printStateReport(ui, state)
 
-	const flagged = options.yes || options['local-embeddings'] || options['skip-models'] || options.types
-	let doAddon: boolean
-	let doWeights: boolean
+	const flagged = options.yes || options['local-embeddings'] || options['chat-model'] || options['skip-models'] || options.types
+	let doBinary: boolean
+	let doEmbedWeights: boolean
+	let doChatWeights: boolean
 	let doTypes: boolean
 	let doDescribeIndex = false
 
 	if (flagged) {
 		if (options.types) {
-			doAddon = false
-			doWeights = false
+			doBinary = false
+			doEmbedWeights = false
+			doChatWeights = false
 			doTypes = true
 		} else {
-			doAddon = true
-			doWeights = options.yes || options['local-embeddings']
+			doBinary = true
+			doEmbedWeights = options.yes || options['local-embeddings']
+			doChatWeights = options['chat-model']
 			doTypes = (options.yes || options['skip-models']) && state.isProject
-			if (options['skip-models']) doWeights = false
+			if (options['skip-models']) { doEmbedWeights = false; doChatWeights = false }
 			doDescribeIndex = (options.yes || options['local-embeddings']) && !state.describeIndexReady
 		}
 	} else if (process.stdin.isTTY) {
 		// ── Guided walkthrough ───────────────────────────────────────
-		if (state.addonReady) {
-			ui.print.green(`  ✓ Native addon already installed and loading — skipping`)
-			doAddon = false
+		if (state.binaryReady) {
+			ui.print.green('  ✓ llama-server binary already installed — skipping')
+			doBinary = false
 		} else {
-			ui.print('  Local semantic search runs entirely on your machine, but it needs')
-			ui.print(`  ${NATIVE_MODULE} — a platform-specific native addon that can't live`)
-			ui.print('  inside the luca binary. It installs once per machine into')
-			ui.print(`  ${state.home}/node_modules and never touches your projects.`)
+			ui.print('  Local AI runs through llama-server — a small, self-contained binary')
+			ui.print('  from the llama.cpp project. It serves models over an OpenAI-compatible')
+			ui.print(`  API on localhost, installs once per machine into ${state.home}/llama-cpp,`)
+			ui.print('  and never touches your projects. Both local embeddings and the local')
+			ui.print('  chat model need it.')
 			ui.print('')
-			doAddon = await confirm(ui, 'Install the native addon now?', true)
-			if (!doAddon) ui.print.dim('  Skipped — run `luca setup --local-embeddings` any time.\n')
+			doBinary = await confirm(ui, 'Download the llama-server binary now?', true)
+			if (!doBinary) ui.print.dim('  Skipped — run `luca setup` any time.\n')
 		}
 
-		if (state.weightsReady) {
-			ui.print.green(`  ✓ Embedding model weights already downloaded — skipping`)
-			doWeights = false
+		if (state.embedWeightsReady) {
+			ui.print.green('  ✓ Embedding model weights already downloaded — skipping')
+			doEmbedWeights = false
 		} else {
 			ui.print('')
 			ui.print(`  The embedding model (${DEFAULT_LOCAL_MODEL}, ~300MB) is what turns text`)
 			ui.print('  into vectors for local semantic search. It downloads once from')
-			ui.print(`  HuggingFace to ${state.weightsPath}`)
+			ui.print(`  HuggingFace to ${state.embedWeightsPath}`)
 			ui.print('  and is shared by every project on this machine. Without it, luca')
 			ui.print('  falls back to OpenAI embeddings (requires OPENAI_API_KEY).')
 			ui.print('')
-			doWeights = await confirm(ui, 'Download the model weights now (~300MB)?', doAddon || state.addonReady)
-			if (!doWeights) ui.print.dim('  Skipped — run `luca setup --local-embeddings` any time.\n')
+			doEmbedWeights = await confirm(ui, 'Download the embedding model now (~300MB)?', doBinary || state.binaryReady)
+			if (!doEmbedWeights) ui.print.dim('  Skipped — run `luca setup --local-embeddings` any time.\n')
+		}
+
+		if (state.chatWeightsReady) {
+			ui.print.green('  ✓ Local chat model weights already downloaded — skipping')
+			doChatWeights = false
+		} else {
+			const approx = CHAT_MODEL_SOURCES[state.chatModel]?.approxSize ?? 'multi-GB'
+			ui.print('')
+			ui.print(`  The local chat model (${state.chatModel}, ${approx}) gives you a`)
+			ui.print('  fully offline assistant. When no OPENAI_API_KEY is set and no custom')
+			ui.print('  provider is registered, luca assistants use this model automatically.')
+			ui.print('  With an API key set, the key wins and this model is optional.')
+			ui.print('')
+			doChatWeights = await confirm(ui, `Download the local chat model now (${approx})?`, !process.env.OPENAI_API_KEY && (doBinary || state.binaryReady))
+			if (!doChatWeights) ui.print.dim('  Skipped — run `luca setup --chat-model` any time.\n')
 		}
 
 		if (state.describeIndexReady) {
 			ui.print.green('  ✓ `luca describe --query` search index already built — skipping')
-		} else if ((doAddon || state.addonReady) && (doWeights || state.weightsReady)) {
+		} else if ((doBinary || state.binaryReady) && (doEmbedWeights || state.embedWeightsReady)) {
 			ui.print('')
 			ui.print('  With embeddings installed, `luca describe --query "..."` can search')
 			ui.print('  every helper, example, and tutorial by meaning. Building its index')
@@ -158,9 +195,10 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	} else {
 		// Non-TTY with no flags: report only, change nothing
 		ui.print('  Non-interactive terminal — nothing changed. Use flags to run steps:')
-		ui.print.dim('    luca setup --yes                # everything, no prompts')
-		ui.print.dim('    luca setup --local-embeddings   # native addon + model weights')
-		ui.print.dim('    luca setup --skip-models        # native addon + types only')
+		ui.print.dim('    luca setup --yes                # binary + embedding model + types, no prompts')
+		ui.print.dim('    luca setup --local-embeddings   # llama-server binary + embedding model')
+		ui.print.dim('    luca setup --chat-model         # llama-server binary + local chat model')
+		ui.print.dim('    luca setup --skip-models        # llama-server binary + types only')
 		ui.print.dim('    luca setup --types              # project types only')
 		ui.print('')
 		return
@@ -169,45 +207,77 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 	// ── Execute ──────────────────────────────────────────────────────
 	const done: string[] = []
 	const skipped: string[] = []
+	const llama = container.feature('llamaServer')
 
-	let addonFailed = false
-	if (doAddon && !state.addonReady) {
-		ui.print(`\n  Installing ${NATIVE_MODULE}@${SemanticSearch.PINNED_LLAMA_VERSION} into ${state.home} ...`)
+	let binaryFailed = false
+	if (doBinary && !state.binaryReady) {
+		ui.print(`\n  Downloading llama-server (llama.cpp ${state.releaseTag}) into ${state.home}/llama-cpp ...`)
+		const onProgress = progressLine('llama-server')
+		llama.on('downloadProgress', onProgress)
 		try {
-			const modulePath = await installSharedModule(`${NATIVE_MODULE}@${SemanticSearch.PINNED_LLAMA_VERSION}`)
-			ui.print.green(`  ✓ Native addon installed and verified at ${modulePath}`)
-			done.push('native addon')
+			const binaryPath = await llama.downloadBinary()
+			ui.print('')
+			ui.print.green(`  ✓ llama-server installed at ${binaryPath}`)
+			done.push('llama-server binary')
 		} catch (err: any) {
-			addonFailed = true
-			ui.print.red(`\n  ✗ Could not install the native addon:`)
+			binaryFailed = true
+			ui.print.red('\n  ✗ Could not download llama-server:')
 			ui.print.yellow(`    ${(err?.message ?? String(err)).split('\n').join('\n    ')}`)
-			skipped.push('native addon (install failed — see above)')
+			skipped.push('llama-server binary (download failed — see above)')
+		} finally {
+			llama.off('downloadProgress', onProgress)
 		}
-	} else if (state.addonReady) {
-		skipped.push('native addon (already installed)')
+	} else if (state.binaryReady) {
+		skipped.push('llama-server binary (already installed)')
 	} else {
-		skipped.push('native addon — enable later with `luca setup --local-embeddings`')
+		skipped.push('llama-server binary — install later with `luca setup`')
 	}
 
-	// The weights are useless without the addon — don't download 300MB if the install just failed
-	if (doWeights && !state.weightsReady && addonFailed) {
-		skipped.push('model weights (skipped — native addon is not installed)')
-	} else if (doWeights && !state.weightsReady) {
+	const binaryNowReady = state.binaryReady || (doBinary && !binaryFailed)
+
+	// Model weights are useless without the server binary that loads them
+	if (doEmbedWeights && !state.embedWeightsReady && !binaryNowReady) {
+		skipped.push('embedding model weights (skipped — llama-server is not installed)')
+	} else if (doEmbedWeights && !state.embedWeightsReady) {
 		ui.print(`\n  Downloading ${DEFAULT_LOCAL_MODEL} weights (~300MB, one time) ...`)
 		const semanticSearch = container.feature('semanticSearch')
 		const path = await semanticSearch.downloadModelWeights(DEFAULT_LOCAL_MODEL)
-		ui.print.green(`  ✓ Model weights ready at ${path}`)
-		done.push('model weights')
-	} else if (state.weightsReady) {
-		skipped.push('model weights (already downloaded)')
+		ui.print.green(`  ✓ Embedding model weights ready at ${path}`)
+		done.push('embedding model weights')
+	} else if (state.embedWeightsReady) {
+		skipped.push('embedding model weights (already downloaded)')
 	} else {
-		skipped.push('model weights — download later with `luca setup --local-embeddings`')
+		skipped.push('embedding model weights — download later with `luca setup --local-embeddings`')
 	}
 
-	// ── Describe search index (needs addon + weights) ────────────────
-	const addonNowReady = state.addonReady || (doAddon && !addonFailed)
-	const weightsNowReady = state.weightsReady || (doWeights && !addonFailed)
-	if (doDescribeIndex && addonNowReady && weightsNowReady) {
+	if (doChatWeights && !state.chatWeightsReady && !binaryNowReady) {
+		skipped.push('chat model weights (skipped — llama-server is not installed)')
+	} else if (doChatWeights && !state.chatWeightsReady) {
+		const approx = CHAT_MODEL_SOURCES[state.chatModel]?.approxSize ?? ''
+		ui.print(`\n  Downloading ${state.chatModel} weights (${approx}, one time) ...`)
+		const onProgress = progressLine(state.chatModel)
+		llama.on('downloadProgress', onProgress)
+		try {
+			const path = await llama.downloadChatModel()
+			ui.print('')
+			ui.print.green(`  ✓ Chat model weights ready at ${path}`)
+			done.push('chat model weights')
+		} catch (err: any) {
+			ui.print.red('\n  ✗ Could not download the chat model:')
+			ui.print.yellow(`    ${(err?.message ?? String(err)).split('\n').join('\n    ')}`)
+			skipped.push('chat model weights (download failed — retry with `luca setup --chat-model`)')
+		} finally {
+			llama.off('downloadProgress', onProgress)
+		}
+	} else if (state.chatWeightsReady) {
+		skipped.push('chat model weights (already downloaded)')
+	} else if (!doChatWeights) {
+		skipped.push('chat model weights — download later with `luca setup --chat-model`')
+	}
+
+	// ── Describe search index (needs binary + embedding weights) ─────
+	const embedNowReady = state.embedWeightsReady || (doEmbedWeights && binaryNowReady)
+	if (doDescribeIndex && binaryNowReady && embedNowReady) {
 		ui.print('\n  Building the `luca describe --query` search index ...')
 		try {
 			const result = await buildDescribeEmbeddings(container, {
@@ -224,7 +294,7 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 			skipped.push('describe search index (build failed — run `luca describe --calculate-embeddings` to retry)')
 		}
 	} else if (doDescribeIndex) {
-		skipped.push('describe search index (needs the native addon and model weights)')
+		skipped.push('describe search index (needs llama-server and the embedding model)')
 	} else if (!state.describeIndexReady && !options.types) {
 		skipped.push('describe search index — build later with `luca describe --calculate-embeddings`')
 	}
@@ -256,12 +326,13 @@ export async function setup(options: z.infer<typeof argsSchema>, context: Contai
 }
 
 commands.registerHandler('setup', {
-	description: 'One-time machine setup: install native addons into ~/.luca, download local embedding model weights, and write TypeScript types into your project',
+	description: 'One-time machine setup: download the llama-server binary and local model weights (embedding + chat, each optional), and write TypeScript types into your project',
 	argsSchema,
 	examples: [
 		'luca setup',
-		{ command: 'luca setup --yes', description: 'Do everything without prompts' },
-		{ command: 'luca setup --local-embeddings', description: 'Install the native addon and model weights for local semantic search' },
+		{ command: 'luca setup --yes', description: 'llama-server binary + embedding model + types, no prompts' },
+		{ command: 'luca setup --local-embeddings', description: 'Download llama-server and the embedding model for local semantic search' },
+		{ command: 'luca setup --chat-model', description: `Download llama-server and the local chat model (${DEFAULT_CHAT_MODEL}) for a fully offline assistant` },
 		{ command: 'luca setup --types', description: 'Write TypeScript declarations + tsconfig.json into the current project' },
 	],
 	handler: setup,

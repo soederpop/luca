@@ -102,10 +102,90 @@ export function chatModelPath(modelName: string): string {
 	return join(cacheBase, 'luca', 'models', filename)
 }
 
+/** Default port of the local chat inference server. */
+export const DEFAULT_CHAT_PORT = 8143
+/** Default port of the local embedding server. */
+export const DEFAULT_EMBEDDING_PORT = 8144
+
+/** The llama.cpp release tag in effect: env override, else the pinned build. */
+export function resolvedReleaseTag(tag?: string): string {
+	return tag || process.env.LUCA_LLAMA_RELEASE || PINNED_LLAMA_RELEASE
+}
+
+/** Absolute path to the installed llama-server binary for a release tag, or null. */
+export function installedBinaryPath(tag?: string): string | null {
+	return findBinary(join(lucaHome(), 'llama-cpp', resolvedReleaseTag(tag)))
+}
+
+export interface EnsureServerProcessOptions {
+	/** Absolute path of the GGUF to serve. */
+	modelPath: string
+	/** Port to serve on. */
+	port: number
+	/** Run as an embedding server (--embedding) instead of a chat server. */
+	embedding?: boolean
+	/** Context size for chat servers (-c). */
+	contextSize?: number
+	/** Max time to wait for /health to answer ok (model load can be slow). */
+	readyTimeoutMs?: number
+	/** llama.cpp release tag override. */
+	releaseTag?: string
+	/** Called once when this call actually spawned (rather than reused) a server. */
+	onStarted?: (info: { port: number; modelPath: string; embedding: boolean }) => void
+}
+
+/**
+ * Ensure a llama-server process is healthy on a port, spawning a detached one
+ * if needed. Reuses a server another luca process already started (first
+ * healthy listener wins). Returns the OpenAI-compatible base URL.
+ */
+export async function ensureServerProcess(opts: EnsureServerProcessOptions): Promise<string> {
+	const baseURL = `http://127.0.0.1:${opts.port}/v1`
+	if (await probeHealth(opts.port) === 'ok') return baseURL
+
+	const binary = installedBinaryPath(opts.releaseTag)
+	if (!binary) throw new Error('The llama-server binary is not installed. Run `luca setup` to download it.')
+	if (!existsSync(opts.modelPath)) {
+		throw new Error(`Model weights not found at ${opts.modelPath} — run \`luca setup\` to download them.`)
+	}
+
+	mkdirSync(lucaHome(), { recursive: true })
+	const logPath = join(lucaHome(), `llama-server-${opts.port}.log`)
+	const logFd = openSync(logPath, 'a')
+	const args = [
+		'-m', opts.modelPath,
+		'--host', '127.0.0.1',
+		'--port', String(opts.port),
+		...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(opts.contextSize ?? 8192)]),
+	]
+	const child = spawn(binary, args, {
+		cwd: dirname(binary),
+		detached: true,
+		stdio: ['ignore', logFd, logFd],
+	})
+	child.unref()
+	writeFileSync(join(lucaHome(), `llama-server-${opts.port}.pid`), String(child.pid ?? ''))
+
+	const deadline = Date.now() + (opts.readyTimeoutMs ?? 180_000)
+	while (Date.now() < deadline) {
+		await sleep(400)
+		const health = await probeHealth(opts.port)
+		if (health === 'ok') {
+			opts.onStarted?.({ port: opts.port, modelPath: opts.modelPath, embedding: !!opts.embedding })
+			return baseURL
+		}
+		// A different process may have won a spawn race — that's fine, keep polling
+		if (child.exitCode !== null && health === 'down') {
+			throw new Error(`llama-server exited before becoming healthy (code ${child.exitCode}). Check the log at ${logPath}`)
+		}
+	}
+	throw new Error(`llama-server on port ${opts.port} did not become healthy in time. Check the log at ${logPath}`)
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** One /health round trip. llama-server answers 200 when the model is loaded, 503 while loading. */
-async function probeHealth(port: number, timeoutMs = 2000): Promise<'ok' | 'loading' | 'down'> {
+export async function probeHealth(port: number, timeoutMs = 2000): Promise<'ok' | 'loading' | 'down'> {
 	try {
 		const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(timeoutMs) })
 		if (res.ok) return 'ok'
@@ -147,7 +227,7 @@ export class LlamaServer extends Feature<LlamaServerState, LlamaServerOptions> {
 
 	/** The llama.cpp release tag this instance installs and runs. */
 	get releaseTag(): string {
-		return this.options.releaseTag || process.env.LUCA_LLAMA_RELEASE || PINNED_LLAMA_RELEASE
+		return resolvedReleaseTag(this.options.releaseTag)
 	}
 
 	/** The configured local chat model name. */
@@ -364,47 +444,13 @@ export class LlamaServer extends Feature<LlamaServerState, LlamaServerOptions> {
 	}
 
 	private async ensureServer(opts: { modelPath: string; port: number; embedding: boolean }): Promise<void> {
-		if (await probeHealth(opts.port) === 'ok') return
-
-		const binary = this.binaryPath
-		if (!binary) throw new Error('The llama-server binary is not installed. Run `luca setup` to download it.')
-
-		mkdirSync(lucaHome(), { recursive: true })
-		const logFd = openSync(join(lucaHome(), `llama-server-${opts.port}.log`), 'a')
-		const args = [
-			'-m', opts.modelPath,
-			'--host', '127.0.0.1',
-			'--port', String(opts.port),
-			...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(this.options.contextSize)]),
-		]
-		const child = spawn(binary, args, {
-			cwd: dirname(binary),
-			detached: true,
-			stdio: ['ignore', logFd, logFd],
+		await ensureServerProcess({
+			...opts,
+			contextSize: this.options.contextSize,
+			readyTimeoutMs: this.options.readyTimeoutMs,
+			releaseTag: this.options.releaseTag,
+			onStarted: (info) => this.emit('serverStarted', info),
 		})
-		child.unref()
-		writeFileSync(this.pidFilePath(opts.port), String(child.pid ?? ''))
-
-		const deadline = Date.now() + this.options.readyTimeoutMs
-		while (Date.now() < deadline) {
-			await sleep(400)
-			const health = await probeHealth(opts.port)
-			if (health === 'ok') {
-				this.emit('serverStarted', { port: opts.port, modelPath: opts.modelPath, embedding: opts.embedding })
-				return
-			}
-			// A different process may have won a spawn race — that's fine, keep polling
-			if (child.exitCode !== null && health === 'down') {
-				throw new Error(
-					`llama-server exited before becoming healthy (code ${child.exitCode}). ` +
-					`Check the log at ${join(lucaHome(), `llama-server-${opts.port}.log`)}`
-				)
-			}
-		}
-		throw new Error(
-			`llama-server on port ${opts.port} did not become healthy in time. ` +
-			`Check the log at ${join(lucaHome(), `llama-server-${opts.port}.log`)}`
-		)
 	}
 
 	/** Stream a URL to disk with progress events and an atomic rename. */

@@ -7,7 +7,6 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, existsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { homedir } from 'node:os'
-import { installSharedModule } from '../../setup/native-install.js'
 import { embedViaDaemon, ensureDaemon, disposeEmbeddingClients } from '../../embeddings/client.js'
 
 declare module 'luca/feature' {
@@ -21,7 +20,7 @@ declare module 'luca/feature' {
 export const SemanticSearchOptionsSchema = FeatureOptionsSchema.extend({
 	dbPath: z.string().default('.contentbase/search.sqlite').describe('Path to the SQLite database file'),
 	embeddingModel: z.string().optional().describe('Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())'),
-	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights'),
+	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server — run installLocalEmbeddings() once to download the binary and the model weights'),
 	embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var, then the official API. Only used when embeddingProvider is "openai"'),
 	embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
 	chunkStrategy: z.enum(['section', 'fixed', 'document']).default('section').describe('How to split documents'),
@@ -293,8 +292,8 @@ function chunkByDocument(doc: DocumentInput): Chunk[] {
  *
  * Embedding models default per provider: `openai` → text-embedding-3-small,
  * `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local
- * embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once —
- * it installs the node-llama-cpp addon and downloads the .gguf weights to
+ * embeddings are NOT turnkey until you run `installLocalEmbeddings()` once —
+ * it downloads the llama-server binary and the .gguf weights to
  * ~/.cache/luca/models/.
  *
  * @extends Feature
@@ -600,12 +599,11 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	/**
-	 * Ensure the local embedding daemon is up and return the model weights path.
+	 * Ensure the local embedding server is up and return the model weights path.
 	 *
-	 * node-llama-cpp can't be loaded by the compiled luca binary (its $bunfs
-	 * resolver can't reach ~/.luca/node_modules), so embeddings run in a resident
-	 * `bun` worker daemon spawned on demand. This verifies the weights exist
-	 * (fast, clear error) then ensures the daemon is serving.
+	 * Local embeddings are served by a resident `llama-server --embedding`
+	 * process shared machine-wide (see the llamaServer feature). This verifies
+	 * the weights exist (fast, clear error) then ensures the server is healthy.
 	 */
 	private async _ensureLocalModel(): Promise<string> {
 		const modelPath = resolveModelPath(this.embeddingModel)
@@ -615,7 +613,7 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 				`Local embedding model "${this.embeddingModel}" weights not found at ${modelPath}.\n` +
 				`Valid local models: ${VALID_LOCAL_MODELS.join(', ')}.\n` +
 				`To fix, either:\n` +
-				`  1. Run: luca setup --local-embeddings — installs the addon and downloads the weights\n` +
+				`  1. Run: luca setup --local-embeddings — downloads llama-server and the weights\n` +
 				`  2. Run: await semanticSearch.downloadModelWeights() — downloads just the weights\n` +
 				(source ? `  3. Download manually: curl -L "${source}" -o "${modelPath}"\n` : '')
 			)
@@ -898,8 +896,6 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 	// ── Local Embeddings Install ────────────────────────────────────
 
-	static readonly PINNED_LLAMA_VERSION = '3.17.1'
-
 	/**
 	 * Download the .gguf weights for a supported local embedding model into
 	 * ~/.cache/luca/models/. Skips the download when the weights already exist.
@@ -948,18 +944,18 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	}
 
 	/**
-	 * Install node-llama-cpp into the per-machine `~/.luca/node_modules` for
-	 * local embedding support, then download the embedding model weights so
-	 * local embeddings work turnkey. Runs once per machine, never touches the
-	 * project. Same as `luca setup --local-embeddings`.
+	 * Download the llama-server binary into `~/.luca/llama-cpp/` and the
+	 * embedding model weights so local embeddings work turnkey. Runs once per
+	 * machine, never touches the project. Same as `luca setup --local-embeddings`.
 	 *
 	 * @param _cwd - unused, accepted for backward compatibility (older versions installed into the project's node_modules)
 	 */
 	async installLocalEmbeddings(_cwd?: string): Promise<void> {
-		const pkg = `node-llama-cpp@${SemanticSearch.PINNED_LLAMA_VERSION}`
-		await installSharedModule(pkg)
+		// llama-server is the local inference substrate — the binary plus the
+		// model weights are all local embeddings need.
+		const llama = (this.container as any).feature('llamaServer')
+		await llama.downloadBinary()
 
-		// The addon alone is not enough — fetch the model weights too
 		const localModel = this.options.embeddingProvider === 'local'
 			? this.embeddingModel
 			: PROVIDER_DEFAULT_MODELS.local

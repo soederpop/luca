@@ -114,14 +114,13 @@
     "build:web": "bun run scripts/build-web.ts",
     "build:feature-barrel": "bun run scripts/generate-feature-barrel.ts",
     "build:introspection": "bun run build:feature-barrel && bun run src/cli/cli.ts introspect",
-    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge && bun run build:embedding-worker && bun run build:types-bundle && bash scripts/compile-binary.sh",
+    "compile": "bun run build:introspection && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge && bun run build:types-bundle && bash scripts/compile-binary.sh",
     "build:types": "tsc -p tsconfig.build.json",
     "build:types-bundle": "bun run build:types && bun run src/cli/cli.ts build-types-bundle",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:scaffolds": "bun run src/cli/cli.ts build-scaffolds",
     "build:bootstrap": "bun run src/cli/cli.ts build-bootstrap",
     "build:python-bridge": "bun run src/cli/cli.ts build-python-bridge",
-    "build:embedding-worker": "bun run src/cli/cli.ts build-embedding-worker",
     "test": "bun test test/*.test.ts",
     "update-all-docs": "bun run test && bun run build:introspection && bun run src/cli/cli.ts generate-api-docs && bun run build:scaffolds && bun run build:bootstrap && bun run build:python-bridge",
     "precommit": "bun run typecheck && bun run update-all-docs && git add docs/apis/ src/node/features.generated.ts && bun compile",
@@ -226,7 +225,6 @@
     "zod": "4.3.6"
   },
   "optionalDependencies": {
-    "node-llama-cpp": "3.17.1"
   },
   "luca": {
     "aliases": [

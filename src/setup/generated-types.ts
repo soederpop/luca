@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.4.2"
+export const typesBundleVersion = "3.4.4"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -192,7 +192,13 @@ export declare const MemoryOptionsSchema: z.ZodObject<{
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     dbPath: z.ZodOptional<z.ZodString>;
-    embeddingModel: z.ZodDefault<z.ZodString>;
+    embeddingModel: z.ZodOptional<z.ZodString>;
+    embeddingProvider: z.ZodDefault<z.ZodEnum<{
+        local: "local";
+        openai: "openai";
+    }>>;
+    embeddingBaseURL: z.ZodOptional<z.ZodString>;
+    embeddingApiKey: z.ZodOptional<z.ZodString>;
     namespace: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
 export type MemoryOptions = z.infer<typeof MemoryOptionsSchema>;
@@ -254,7 +260,13 @@ export declare class Memory extends Feature<MemoryState, MemoryOptions> {
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         dbPath: z.ZodOptional<z.ZodString>;
-        embeddingModel: z.ZodDefault<z.ZodString>;
+        embeddingModel: z.ZodOptional<z.ZodString>;
+        embeddingProvider: z.ZodDefault<z.ZodEnum<{
+            local: "local";
+            openai: "openai";
+        }>>;
+        embeddingBaseURL: z.ZodOptional<z.ZodString>;
+        embeddingApiKey: z.ZodOptional<z.ZodString>;
         namespace: z.ZodDefault<z.ZodString>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
@@ -840,6 +852,8 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
      */
     afterInitialize(): void;
     get conversation(): Conversation;
+    /** The container's default provider id (via modelProviders), or undefined when none is available. */
+    private resolveDefaultProviderId;
     get availableTools(): string[];
     get messages(): import("openai/resources/index.mjs").ChatCompletionMessageParam[];
     /** Whether the assistant has been started and is ready to receive questions. */
@@ -1943,8 +1957,8 @@ export declare class BrowserUse extends Feature<BrowserUseState, BrowserUseOptio
             description: string;
             schema: z.ZodObject<{
                 direction: z.ZodDefault<z.ZodEnum<{
-                    up: "up";
                     down: "down";
+                    up: "up";
                 }>>;
                 amount: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>;
@@ -4259,12 +4273,41 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     get model(): string;
     /** Returns the active completion API mode after resolving auto/local behavior. */
     get apiMode(): 'responses' | 'chat';
+    /** Cached container-default provider id: undefined = not computed yet, null = none (or the legacy OpenAI path). */
+    private _defaultProviderId;
+    /**
+     * The provider this conversation actually uses: the explicitly configured
+     * \`provider\` option, or — when no explicit connection is configured at all —
+     * the container's default provider from modelProviders (e.g. \`local\` backed
+     * by llama-server on a machine with no OPENAI_API_KEY).
+     *
+     * An \`openai\` default returns undefined so those conversations keep the
+     * battle-tested legacy OpenAI path (responses API, native loops). Explicit
+     * \`local: true\` or \`clientOptions\` also keep the legacy path — they encode a
+     * deliberate connection choice.
+     */
+    private get effectiveProvider();
     /**
      * The apiMode of the explicitly configured \`provider\` option, resolved
      * synchronously through the modelProviders profile registry. Undefined when
      * no provider is configured (the default OpenAI-compatible behavior).
      */
     private get configuredProviderApiMode();
+    /**
+     * The named provider/preset id this conversation is configured to use, if the
+     * \`provider\` option references one by name. Inline provider objects (which
+     * carry their own apiMode/baseURL) return undefined — they resolve without a
+     * registry lookup.
+     */
+    private get configuredProviderName();
+    /**
+     * Fail loudly when \`provider\` names a backend that isn't registered. Called at
+     * ask-time (not construction, so register-after-construct still works). Without
+     * this, an unresolved named provider silently fell through to the default
+     * OpenAI client, surfacing a confusing "OPENAI_API_KEY is missing" error
+     * instead of naming the real problem — the configured provider.
+     */
+    private assertConfiguredProviderResolvable;
     /**
      * The default model of the explicitly configured \`provider\`, resolved
      * synchronously through the modelProviders registry. Lets the conversation
@@ -5454,6 +5497,8 @@ export declare class ModelProviders extends Feature {
     hasProfile(id: string): boolean;
     /** Returns true when a transport is registered for this API mode. */
     hasTransport(apiMode: ModelProviderApiMode): boolean;
+    /** The transport registered for this API mode, if any. */
+    getTransport(apiMode: ModelProviderApiMode): ModelTransport | undefined;
     get(id: string): ModelProviderProfile | undefined;
     list(): ModelProviderProfile[];
     /** Provider profile ids available for \`provider: "..."\` lookups. */
@@ -5481,6 +5526,36 @@ export declare class ModelProviders extends Feature {
     setBaseURL(providerId: string, baseURL: string): this;
     /** Remove a registered provider profile. */
     removeProfile(id: string): boolean;
+    /**
+     * Pin the default provider explicitly, overriding the automatic selection.
+     * Pass a registered profile id; clear with \`setDefault(undefined)\`.
+     *
+     * @example
+     * \`\`\`typescript
+     * container.feature('modelProviders').setDefault('anthropic')
+     * \`\`\`
+     */
+    setDefault(id: string | undefined): this;
+    /**
+     * The provider a blank assistant/conversation uses when no \`provider\` option
+     * is configured, or undefined when nothing usable is available. Selection
+     * order, designed around a brand-new user of the framework:
+     *
+     *   1. An explicit \`setDefault(id)\` or the LUCA_DEFAULT_PROVIDER env var
+     *   2. \`openai\` when OPENAI_API_KEY is set
+     *   3. \`local\` when the llama-server binary and a chat model are installed (\`luca setup\`)
+     *   4. \`anthropic\` when ANTHROPIC_API_KEY is set
+     *   5. The first user-registered custom profile whose auth is satisfied
+     */
+    resolveDefaultId(): string | undefined;
+    /**
+     * Like resolveDefaultId(), but throws an actionable error when no provider
+     * is available — a brand-new user with no API key and no local model gets
+     * told exactly how to fix it instead of a downstream auth failure.
+     */
+    requireDefaultId(): string;
+    /** Whether the local llama-server stack (binary + chat model weights) is installed on this machine. */
+    get localChatReady(): boolean;
     resolve(options?: ModelProviderResolveOptions): Promise<ResolvedModelProvider>;
     private profileFromInput;
     private resolveApiKey;
@@ -10000,6 +10075,7 @@ export declare const argsSchema: z.ZodObject<{
     }>>;
     yes: z.ZodDefault<z.ZodBoolean>;
     'local-embeddings': z.ZodDefault<z.ZodBoolean>;
+    'chat-model': z.ZodDefault<z.ZodBoolean>;
     'skip-models': z.ZodDefault<z.ZodBoolean>;
     types: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
@@ -10847,7 +10923,7 @@ export declare function sanitizeFtsQuery(query: string): string;
  * is deliberately not \`needsReindex()\` (see module docblock).
  */
 export declare function embeddingsStale(ss: SemanticSearch, doc: DocumentInput): boolean;
-/** Is the local embedding stack (native addon + model weights) installed? */
+/** Is the local embedding stack (llama-server binary + model weights) installed? */
 export declare function localEmbeddingReadiness(): Promise<'ready' | 'deps-missing'>;
 /**
  * Build/refresh the embedding index for the describe catalog
@@ -10878,22 +10954,32 @@ export declare function queryDescribeIndex(container: any, query: string, opts?:
 /** Does a built (embedded) describe index exist? Used by \`luca setup\`'s state report. */
 export declare function hasDescribeEmbeddings(): boolean;
 //# sourceMappingURL=describe-search.d.ts.map`,
-  "embeddings/client.d.ts": `export declare function daemonSocketPath(model: string, home?: string): string;
-/** Locate an external \`bun\` (required to run the worker — the luca binary can't self-host it). */
-export declare function findBun(): string | null;
+  "embeddings/client.d.ts": `/**
+ * Client for the resident local embedding server. Local embeddings are served
+ * by a \`llama-server --embedding\` process (see the llamaServer feature) that
+ * loads the model once and is shared by every luca process on the machine via
+ * a fixed localhost port. This module ensures that server is healthy and
+ * speaks its OpenAI-compatible /v1/embeddings endpoint.
+ *
+ * Historically this was a bun worker daemon wrapping the node-llama-cpp native
+ * addon (the compiled luca binary can't load native addons from external
+ * node_modules). llama-server removed that constraint: it's a self-contained
+ * binary downloaded by \`luca setup\`, so no external bun, no native addon, no
+ * unix-socket protocol.
+ */
 export interface EnsureDaemonOptions {
     model: string;
     modelPath: string;
-    home?: string;
-    idleMs?: number;
-    /** Max time to wait for the model to load and the daemon to answer ping (default 180s). */
+    /** Port the embedding server listens on (default 8144). */
+    port?: number;
+    /** Max time to wait for the model to load and /health to answer (default 180s). */
     readyTimeoutMs?: number;
 }
-/** Ensure a daemon is serving on the model's socket, spawning one if needed. Returns the socket path. */
+/** Ensure the embedding server is healthy, spawning it if needed. Returns its OpenAI-compatible base URL. */
 export declare function ensureDaemon(opts: EnsureDaemonOptions): Promise<string>;
-/** Embed texts via the resident daemon, spawning it if necessary. */
+/** Embed texts via the resident embedding server, spawning it if necessary. */
 export declare function embedViaDaemon(model: string, modelPath: string, texts: string[], opts?: Partial<EnsureDaemonOptions>): Promise<number[][]>;
-/** Drop cached connections (does not stop the daemon — it idles out on its own). */
+/** Back-compat no-op: the HTTP client keeps no persistent connections to dispose. */
 export declare function disposeEmbeddingClients(): void;
 //# sourceMappingURL=client.d.ts.map`,
   "embeddings/generated.d.ts": `export declare const embeddingWorkerScript = "/**\\n * Embedding worker daemon \\u2014 runs under an EXTERNAL \`bun\`, not the compiled luca binary.\\n *\\n * Why it exists: the compiled luca single-file executable cannot resolve an external\\n * node_modules tree (its module resolver is rooted at $bunfs). node-llama-cpp is a\\n * platform-specific native addon installed into ~/.luca/node_modules by \`luca setup\`,\\n * so it can only be loaded by a plain \`bun\` process. This worker is that process: the\\n * luca binary embeds this script (see src/embeddings/generated.ts), materializes it to\\n * disk, and spawns \`bun worker.ts\`, then talks to it over a unix socket as a pure client.\\n *\\n * The model loads once and stays resident, shared by every luca process on the machine.\\n *\\n * Protocol: newline-delimited JSON, one request/response per line.\\n *   \\u2192 {\\"id\\",\\"type\\":\\"embed\\",\\"texts\\":[...]}   \\u2190 {\\"id\\",\\"embeddings\\":[[...]]}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"ping\\"}                    \\u2190 {\\"id\\",\\"ready\\":true,\\"model\\",\\"dims\\"}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"shutdown\\"}                \\u2190 {\\"id\\",\\"ok\\":true}  (then exits)\\n *\\n * This file is SOURCE ONLY \\u2014 it is never imported by the luca module graph. It is read\\n * as text by \`luca build-embedding-worker\` and embedded as a string constant.\\n */\\nimport net from 'node:net'\\nimport { existsSync, unlinkSync } from 'node:fs'\\nimport { join } from 'node:path'\\n\\ninterface Args {\\n\\tsocket: string\\n\\tmodel: string\\n\\tmodelPath: string\\n\\thome: string\\n\\tidleMs: number\\n}\\n\\nfunction parseArgs(argv: string[]): Args {\\n\\tconst get = (flag: string, def = '') => {\\n\\t\\tconst i = argv.indexOf(flag)\\n\\t\\treturn i >= 0 && i + 1 < argv.length ? argv[i + 1]! : def\\n\\t}\\n\\treturn {\\n\\t\\tsocket: get('--socket'),\\n\\t\\tmodel: get('--model'),\\n\\t\\tmodelPath: get('--model-path'),\\n\\t\\thome: get('--home'),\\n\\t\\tidleMs: Number(get('--idle-ms', String(5 * 60 * 1000))),\\n\\t}\\n}\\n\\nconst out = (obj: any) => process.stdout.write(JSON.stringify(obj) + '\\\\n')\\n\\n/** True if something is actively listening on the socket (vs a stale leftover file). */\\nfunction probeSocket(path: string): Promise<boolean> {\\n\\treturn new Promise((resolve) => {\\n\\t\\tconst sock = net.connect(path)\\n\\t\\tconst done = (alive: boolean) => { try { sock.destroy() } catch {}; resolve(alive) }\\n\\t\\tsock.once('connect', () => done(true))\\n\\t\\tsock.once('error', () => done(false))\\n\\t})\\n}\\n\\nasync function loadLlama(home: string): Promise<any> {\\n\\t// Bare specifier resolves from cwd (set to ~/.luca by the spawner); the absolute\\n\\t// path is a fallback. Both work under plain bun; neither works under $bunfs.\\n\\tconst candidates = ['node-llama-cpp', join(home, 'node_modules', 'node-llama-cpp')]\\n\\tfor (const c of candidates) {\\n\\t\\ttry {\\n\\t\\t\\tconst mod = await import(c)\\n\\t\\t\\tif (mod?.getLlama) return mod.getLlama\\n\\t\\t} catch {\\n\\t\\t\\tcontinue\\n\\t\\t}\\n\\t}\\n\\tthrow new Error(\`Could not load node-llama-cpp from \${home}/node_modules \\u2014 run \\\\\`luca setup --local-embeddings\\\\\`\`)\\n}\\n\\nasync function main() {\\n\\tconst args = parseArgs(process.argv.slice(2))\\n\\tif (!args.socket || !args.modelPath) {\\n\\t\\tout({ event: 'error', error: 'missing --socket or --model-path' })\\n\\t\\tprocess.exit(2)\\n\\t}\\n\\n\\tlet context: any\\n\\tlet dimensions = 0\\n\\ttry {\\n\\t\\tconst getLlama = await loadLlama(args.home)\\n\\t\\tconst llama = await getLlama()\\n\\t\\tconst model = await llama.loadModel({ modelPath: args.modelPath })\\n\\t\\tcontext = await model.createEmbeddingContext({ contextSize: 2048 })\\n\\t\\t// Probe dimensionality once so ping can report it\\n\\t\\tconst probe = await context.getEmbeddingFor('probe')\\n\\t\\tdimensions = probe.vector.length\\n\\t} catch (err: any) {\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tprocess.exit(1)\\n\\t}\\n\\n\\tasync function embedOne(text: string): Promise<number[]> {\\n\\t\\ttry {\\n\\t\\t\\tconst e = await context.getEmbeddingFor(text)\\n\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t} catch {\\n\\t\\t\\t// Retry with a word-truncated version before giving up on a zero vector\\n\\t\\t\\tconst truncated = text.split(/\\\\s+/).slice(0, 300).join(' ')\\n\\t\\t\\ttry {\\n\\t\\t\\t\\tconst e = await context.getEmbeddingFor(truncated)\\n\\t\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t\\t} catch {\\n\\t\\t\\t\\treturn new Array(dimensions).fill(0)\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\n\\tlet idleTimer: ReturnType<typeof setTimeout> | null = null\\n\\tlet activeConnections = 0\\n\\tconst cleanupAndExit = (code = 0) => {\\n\\t\\ttry { server.close() } catch {}\\n\\t\\ttry { if (existsSync(args.socket)) unlinkSync(args.socket) } catch {}\\n\\t\\tprocess.exit(code)\\n\\t}\\n\\tconst resetIdle = () => {\\n\\t\\tif (idleTimer) clearTimeout(idleTimer)\\n\\t\\tif (args.idleMs <= 0) return\\n\\t\\tidleTimer = setTimeout(() => {\\n\\t\\t\\tif (activeConnections === 0) cleanupAndExit(0)\\n\\t\\t\\telse resetIdle()\\n\\t\\t}, args.idleMs)\\n\\t}\\n\\n\\tconst server = net.createServer((sock) => {\\n\\t\\tactiveConnections++\\n\\t\\tlet buffer = ''\\n\\t\\tsock.on('data', async (chunk) => {\\n\\t\\t\\tbuffer += chunk.toString()\\n\\t\\t\\tlet nl: number\\n\\t\\t\\twhile ((nl = buffer.indexOf('\\\\n')) >= 0) {\\n\\t\\t\\t\\tconst line = buffer.slice(0, nl).trim()\\n\\t\\t\\t\\tbuffer = buffer.slice(nl + 1)\\n\\t\\t\\t\\tif (!line) continue\\n\\t\\t\\t\\tresetIdle()\\n\\t\\t\\t\\tlet req: any\\n\\t\\t\\t\\ttry { req = JSON.parse(line) } catch { continue }\\n\\t\\t\\t\\ttry {\\n\\t\\t\\t\\t\\tif (req.type === 'ping') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ready: true, model: args.model, dims: dimensions }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else if (req.type === 'shutdown') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ok: true }) + '\\\\n')\\n\\t\\t\\t\\t\\t\\tcleanupAndExit(0)\\n\\t\\t\\t\\t\\t} else if (req.type === 'embed') {\\n\\t\\t\\t\\t\\t\\tconst texts: string[] = Array.isArray(req.texts) ? req.texts : []\\n\\t\\t\\t\\t\\t\\tconst embeddings: number[][] = []\\n\\t\\t\\t\\t\\t\\tfor (const t of texts) embeddings.push(await embedOne(String(t)))\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, embeddings }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: \`unknown type: \${req.type}\` }) + '\\\\n')\\n\\t\\t\\t\\t\\t}\\n\\t\\t\\t\\t} catch (err: any) {\\n\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: err?.message ?? String(err) }) + '\\\\n')\\n\\t\\t\\t\\t}\\n\\t\\t\\t}\\n\\t\\t})\\n\\t\\tsock.on('close', () => { activeConnections--; resetIdle() })\\n\\t\\tsock.on('error', () => { /* client vanished \\u2014 ignore */ })\\n\\t})\\n\\n\\tserver.on('error', (err: any) => {\\n\\t\\t// Another daemon won the bind race \\u2014 exit quietly and let the client use the winner\\n\\t\\tif (err?.code === 'EADDRINUSE') { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tcleanupAndExit(1)\\n\\t})\\n\\n\\t// Before binding: if a live daemon already owns the socket, defer to it; only\\n\\t// remove the file if it's a stale leftover from a crashed daemon.\\n\\tif (existsSync(args.socket)) {\\n\\t\\tif (await probeSocket(args.socket)) { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\ttry { unlinkSync(args.socket) } catch {}\\n\\t}\\n\\n\\tserver.listen(args.socket, () => {\\n\\t\\tout({ event: 'ready', model: args.model, dims: dimensions, socket: args.socket })\\n\\t\\tresetIdle()\\n\\t})\\n\\n\\tfor (const sig of ['SIGINT', 'SIGTERM'] as const) {\\n\\t\\tprocess.on(sig, () => cleanupAndExit(0))\\n\\t}\\n}\\n\\nmain().catch((err) => {\\n\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\tprocess.exit(1)\\n})\\n";
@@ -12070,6 +12156,7 @@ import "./features/helpers";
 import "./features/ink";
 import "./features/ipc-socket";
 import "./features/json-tree";
+import "./features/llama-server";
 import "./features/networking";
 import "./features/nlp";
 import "./features/opener";
@@ -12119,6 +12206,7 @@ import type { Helpers } from "./features/helpers";
 import type { Ink } from "./features/ink";
 import type { IpcSocket } from "./features/ipc-socket";
 import type { JsonTree } from "./features/json-tree";
+import type { LlamaServer } from "./features/llama-server";
 import type { Networking } from "./features/networking";
 import type { NLP } from "./features/nlp";
 import type { Opener } from "./features/opener";
@@ -12168,6 +12256,7 @@ export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
+export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaServer } from "./features/llama-server";
 export type { LocalNetwork, ArpEntry, DiscoverHost, PortScanResult, LocalNetworkScanHost, NetworkSnapshot, NetworkingState, NetworkingOptions, Networking } from "./features/networking";
 export type { ParsedCommand, Analysis, NLP } from "./features/nlp";
 export type { Opener } from "./features/opener";
@@ -12218,6 +12307,7 @@ export interface GeneratedNodeFeatures extends AvailableFeatures {
     ink: typeof Ink;
     ipcSocket: typeof IpcSocket;
     jsonTree: typeof JsonTree;
+    llamaServer: typeof LlamaServer;
     networking: typeof Networking;
     nlp: typeof NLP;
     opener: typeof Opener;
@@ -18948,6 +19038,249 @@ export declare class JsonTree<T extends JsonTreeState = JsonTreeState> extends F
 }
 export default JsonTree;
 //# sourceMappingURL=json-tree.d.ts.map`,
+  "node/features/llama-server.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+declare module 'luca/feature' {
+    interface AvailableFeatures {
+        llamaServer: typeof LlamaServer;
+    }
+}
+export declare const LlamaServerOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    releaseTag: z.ZodOptional<z.ZodString>;
+    chatModel: z.ZodOptional<z.ZodString>;
+    chatPort: z.ZodDefault<z.ZodNumber>;
+    embeddingPort: z.ZodDefault<z.ZodNumber>;
+    contextSize: z.ZodDefault<z.ZodNumber>;
+    readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const LlamaServerStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    chatServerRunning: z.ZodDefault<z.ZodBoolean>;
+    embeddingServerRunning: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export declare const LlamaServerEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    serverStarted: z.ZodTuple<[z.ZodObject<{
+        port: z.ZodNumber;
+        modelPath: z.ZodString;
+        embedding: z.ZodBoolean;
+    }, z.core.$strip>], null>;
+    serverStopped: z.ZodTuple<[z.ZodObject<{
+        port: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    downloadProgress: z.ZodTuple<[z.ZodObject<{
+        received: z.ZodNumber;
+        total: z.ZodNumber;
+        target: z.ZodString;
+    }, z.core.$strip>], null>;
+}, z.core.$strip>;
+export type LlamaServerOptions = z.infer<typeof LlamaServerOptionsSchema>;
+export type LlamaServerState = z.infer<typeof LlamaServerStateSchema>;
+/** Known-good llama.cpp release tag. Override per-instance with the releaseTag option or the LUCA_LLAMA_RELEASE env var. */
+export declare const PINNED_LLAMA_RELEASE = "b10076";
+/** Default local chat model — Gemma 4 E2B instruction-tuned, Q4_K_M (~3.1GB). */
+export declare const DEFAULT_CHAT_MODEL = "gemma-4-E2B-it-Q4_K_M";
+/** Where the .gguf weights for each supported local chat model can be downloaded. */
+export declare const CHAT_MODEL_SOURCES: Record<string, {
+    url: string;
+    filename: string;
+    approxSize: string;
+}>;
+/** Model weights live in the same cache dir the embedding weights use. */
+export declare function chatModelPath(modelName: string): string;
+/** Default port of the local chat inference server. */
+export declare const DEFAULT_CHAT_PORT = 8143;
+/** Default port of the local embedding server. */
+export declare const DEFAULT_EMBEDDING_PORT = 8144;
+/** The llama.cpp release tag in effect: env override, else the pinned build. */
+export declare function resolvedReleaseTag(tag?: string): string;
+/** Absolute path to the installed llama-server binary for a release tag, or null. */
+export declare function installedBinaryPath(tag?: string): string | null;
+export interface EnsureServerProcessOptions {
+    /** Absolute path of the GGUF to serve. */
+    modelPath: string;
+    /** Port to serve on. */
+    port: number;
+    /** Run as an embedding server (--embedding) instead of a chat server. */
+    embedding?: boolean;
+    /** Context size for chat servers (-c). */
+    contextSize?: number;
+    /** Max time to wait for /health to answer ok (model load can be slow). */
+    readyTimeoutMs?: number;
+    /** llama.cpp release tag override. */
+    releaseTag?: string;
+    /** Called once when this call actually spawned (rather than reused) a server. */
+    onStarted?: (info: {
+        port: number;
+        modelPath: string;
+        embedding: boolean;
+    }) => void;
+}
+/**
+ * Ensure a llama-server process is healthy on a port, spawning a detached one
+ * if needed. Reuses a server another luca process already started (first
+ * healthy listener wins). Returns the OpenAI-compatible base URL.
+ */
+export declare function ensureServerProcess(opts: EnsureServerProcessOptions): Promise<string>;
+/** One /health round trip. llama-server answers 200 when the model is loaded, 503 while loading. */
+export declare function probeHealth(port: number, timeoutMs?: number): Promise<'ok' | 'loading' | 'down'>;
+/**
+ * Downloads, supervises, and health-checks local \`llama-server\` processes —
+ * luca's local inference substrate. The llama.cpp server binary installs once
+ * per machine into \`~/.luca/llama-cpp/<tag>/\` and serves GGUF models over an
+ * OpenAI-compatible HTTP API on localhost. Chat and embedding models run as
+ * separate server processes on separate ports, spawned on demand and shared by
+ * every luca process on the machine.
+ *
+ * This is what backs the \`local\` model provider: a blank assistant with no
+ * provider configured and no OPENAI_API_KEY resolves to \`local\`, which calls
+ * \`ensureChatServer()\` here before the first request.
+ *
+ * @example
+ * \`\`\`typescript
+ * const llama = container.feature('llamaServer')
+ * if (!llama.binaryInstalled) await llama.downloadBinary()
+ * if (!llama.chatModelInstalled) await llama.downloadChatModel()
+ * const baseURL = await llama.ensureChatServer() // http://127.0.0.1:8143/v1
+ * \`\`\`
+ */
+export declare class LlamaServer extends Feature<LlamaServerState, LlamaServerOptions> {
+    static description: string;
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        chatServerRunning: z.ZodDefault<z.ZodBoolean>;
+        embeddingServerRunning: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        releaseTag: z.ZodOptional<z.ZodString>;
+        chatModel: z.ZodOptional<z.ZodString>;
+        chatPort: z.ZodDefault<z.ZodNumber>;
+        embeddingPort: z.ZodDefault<z.ZodNumber>;
+        contextSize: z.ZodDefault<z.ZodNumber>;
+        readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        serverStarted: z.ZodTuple<[z.ZodObject<{
+            port: z.ZodNumber;
+            modelPath: z.ZodString;
+            embedding: z.ZodBoolean;
+        }, z.core.$strip>], null>;
+        serverStopped: z.ZodTuple<[z.ZodObject<{
+            port: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        downloadProgress: z.ZodTuple<[z.ZodObject<{
+            received: z.ZodNumber;
+            total: z.ZodNumber;
+            target: z.ZodString;
+        }, z.core.$strip>], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.llamaServer";
+    static stability: "experimental";
+    static category: "ai-assistants";
+    /** The llama.cpp release tag this instance installs and runs. */
+    get releaseTag(): string;
+    /** The configured local chat model name. */
+    get chatModel(): string;
+    /** Directory the release archive is extracted into (binary + its shared libraries). */
+    get installDir(): string;
+    /** Absolute path to the llama-server binary, or null when not installed. */
+    get binaryPath(): string | null;
+    /** Whether the llama-server binary is installed for the pinned release. */
+    get binaryInstalled(): boolean;
+    /** Absolute path where the configured chat model's weights live (whether or not downloaded yet). */
+    get chatModelPath(): string;
+    /** Whether the configured chat model's weights are downloaded. */
+    get chatModelInstalled(): boolean;
+    /** Whether local chat inference is fully installed (binary + chat model weights). */
+    get chatReady(): boolean;
+    /** The OpenAI-compatible base URL of the chat server. */
+    get chatBaseURL(): string;
+    /** The OpenAI-compatible base URL of the embedding server. */
+    get embeddingBaseURL(): string;
+    /**
+     * Download and extract the pinned llama.cpp release into ~/.luca/llama-cpp/<tag>/.
+     * Skips when the binary is already installed. Emits downloadProgress events.
+     *
+     * @returns The absolute path to the installed llama-server binary
+     *
+     * @example
+     * \`\`\`typescript
+     * const path = await container.feature('llamaServer').downloadBinary()
+     * \`\`\`
+     */
+    downloadBinary(): Promise<string>;
+    /**
+     * Download the configured chat model's GGUF weights into the shared model
+     * cache. Streams to a temp file and renames atomically; skips when already
+     * present. Emits downloadProgress events (these files are large — the
+     * default model is ~3.1GB).
+     *
+     * @param modelName - Chat model to fetch (default: the configured chatModel)
+     * @returns The absolute path to the weights file
+     *
+     * @example
+     * \`\`\`typescript
+     * const llama = container.feature('llamaServer')
+     * llama.on('downloadProgress', ({ received, total }) => console.log(received, '/', total))
+     * await llama.downloadChatModel()
+     * \`\`\`
+     */
+    downloadChatModel(modelName?: string): Promise<string>;
+    /**
+     * Ensure a llama-server is healthy on the chat port, spawning one if needed.
+     * Reuses a server another luca process already started. Throws with setup
+     * guidance when the binary or model weights are missing.
+     *
+     * @returns The OpenAI-compatible base URL of the chat server
+     */
+    ensureChatServer(): Promise<string>;
+    /**
+     * Ensure a llama-server with --embedding is healthy on the embedding port,
+     * spawning one if needed.
+     *
+     * @param modelPath - Absolute path to the embedding GGUF to serve
+     * @returns The OpenAI-compatible base URL of the embedding server
+     */
+    ensureEmbeddingServer(modelPath: string): Promise<string>;
+    /**
+     * Stop the server on a port by pid file. No-op when no pid file exists.
+     *
+     * @param port - Port of the server to stop (default: the chat port)
+     */
+    stopServer(port?: number): boolean;
+    /**
+     * Install/runtime status snapshot — what's downloaded and what's answering
+     * health probes right now.
+     */
+    status(): Promise<{
+        releaseTag: string;
+        binaryInstalled: boolean;
+        binaryPath: string | null;
+        chatModel: string;
+        chatModelInstalled: boolean;
+        chatModelPath: string;
+        chatServer: 'ok' | 'loading' | 'down';
+        embeddingServer: 'ok' | 'loading' | 'down';
+    }>;
+    private requireChatInstalled;
+    private pidFilePath;
+    private ensureServer;
+    /** Stream a URL to disk with progress events and an atomic rename. */
+    private downloadFile;
+}
+export default LlamaServer;
+//# sourceMappingURL=llama-server.d.ts.map`,
   "node/features/networking.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 export declare const LocalNetworkSchema: z.ZodObject<{
@@ -23292,6 +23625,8 @@ export declare const SemanticSearchOptionsSchema: z.ZodObject<{
         local: "local";
         openai: "openai";
     }>>;
+    embeddingBaseURL: z.ZodOptional<z.ZodString>;
+    embeddingApiKey: z.ZodOptional<z.ZodString>;
     chunkStrategy: z.ZodDefault<z.ZodEnum<{
         fixed: "fixed";
         section: "section";
@@ -23385,8 +23720,8 @@ export declare function resolveModelPath(modelName: string): string;
  *
  * Embedding models default per provider: \`openai\` → text-embedding-3-small,
  * \`local\` → embedding-gemma-300M-Q8_0 (the only supported local model). Local
- * embeddings are NOT turnkey until you run \`installLocalEmbeddings(cwd)\` once —
- * it installs the node-llama-cpp addon and downloads the .gguf weights to
+ * embeddings are NOT turnkey until you run \`installLocalEmbeddings()\` once —
+ * it downloads the llama-server binary and the .gguf weights to
  * ~/.cache/luca/models/.
  *
  * @extends Feature
@@ -23423,6 +23758,8 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
             local: "local";
             openai: "openai";
         }>>;
+        embeddingBaseURL: z.ZodOptional<z.ZodString>;
+        embeddingApiKey: z.ZodOptional<z.ZodString>;
         chunkStrategy: z.ZodDefault<z.ZodEnum<{
             fixed: "fixed";
             section: "section";
@@ -23472,12 +23809,11 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
     private _embedOpenAI;
     ensureModel(): Promise<void>;
     /**
-     * Ensure the local embedding daemon is up and return the model weights path.
+     * Ensure the local embedding server is up and return the model weights path.
      *
-     * node-llama-cpp can't be loaded by the compiled luca binary (its $bunfs
-     * resolver can't reach ~/.luca/node_modules), so embeddings run in a resident
-     * \`bun\` worker daemon spawned on demand. This verifies the weights exist
-     * (fast, clear error) then ensures the daemon is serving.
+     * Local embeddings are served by a resident \`llama-server --embedding\`
+     * process shared machine-wide (see the llamaServer feature). This verifies
+     * the weights exist (fast, clear error) then ensures the server is healthy.
      */
     private _ensureLocalModel;
     disposeModel(): Promise<void>;
@@ -23500,7 +23836,6 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
     removeStale(currentPathIds: string[]): void;
     needsReindex(doc: DocumentInput): boolean;
     status(): IndexStatus;
-    static readonly PINNED_LLAMA_VERSION = "3.17.1";
     /**
      * Download the .gguf weights for a supported local embedding model into
      * ~/.cache/luca/models/. Skips the download when the weights already exist.
@@ -23517,10 +23852,9 @@ export declare class SemanticSearch extends Feature<SemanticSearchState, Semanti
      */
     downloadModelWeights(modelName?: string): Promise<string>;
     /**
-     * Install node-llama-cpp into the per-machine \`~/.luca/node_modules\` for
-     * local embedding support, then download the embedding model weights so
-     * local embeddings work turnkey. Runs once per machine, never touches the
-     * project. Same as \`luca setup --local-embeddings\`.
+     * Download the llama-server binary into \`~/.luca/llama-cpp/\` and the
+     * embedding model weights so local embeddings work turnkey. Runs once per
+     * machine, never touches the project. Same as \`luca setup --local-embeddings\`.
      *
      * @param _cwd - unused, accepted for backward compatibility (older versions installed into the project's node_modules)
      */
