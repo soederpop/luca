@@ -399,7 +399,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			conv = this.container.feature('conversation', {
 				// Only default the model for the OpenAI path; when a provider is
 				// configured (or defaulted), leave it unset so the provider's default model wins.
-				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4' : undefined),
+				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4-mini' : undefined),
 				local: !!this.effectiveOptions.local,
 				tools: this.tools,
 				api: 'chat',

@@ -298,7 +298,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			...super.initialState,
 			id: this.options.id || this.uuid,
 			thread: this.options.thread || 'default',
-			model: this.options.model || this.configuredProviderDefaultModel || 'gpt-5',
+			model: this.options.model || this.configuredProviderDefaultModel || 'gpt-5.4-mini',
 			messages: this.options.history || [],
 			streaming: false,
 			lastResponse: '',
@@ -310,7 +310,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			cost: { inputCost: 0, outputCost: 0, totalCost: 0 },
 			estimatedInputTokens: 0,
 			compactionCount: 0,
-			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5'),
+			contextWindow: this.options.contextWindow || getContextWindow(this.options.model || 'gpt-5.4-mini'),
 			tools: (this.options.tools || {}) as Record<string, ConversationTool>,
 			callMaxTokens: null,
 			temperature: this.options.temperature ?? null,
@@ -614,8 +614,8 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * The default model of the explicitly configured `provider`, resolved
 	 * synchronously through the modelProviders registry. Lets the conversation
 	 * seed `state.model` with the provider's own default (e.g. a local endpoint's
-	 * model) instead of the OpenAI 'gpt-5' fallback, so native OpenAI loops don't
-	 * override the provider's model with 'gpt-5'. Undefined when no provider is set.
+	 * model) instead of the OpenAI 'gpt-5.4-mini' fallback, so native OpenAI loops don't
+	 * override the provider's model with 'gpt-5.4-mini'. Undefined when no provider is set.
 	 */
 	private get configuredProviderDefaultModel(): string | undefined {
 		const provider = this.effectiveProvider
@@ -960,7 +960,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		}
 
 		return (this.container as any).client('openai', {
-			defaultModel: this.model || (this.options.local ? this.model || "qwen/qwen3-coder-30b" : "gpt-5"),
+			defaultModel: this.model || (this.options.local ? this.model || "qwen/qwen3-coder-30b" : "gpt-5.4-mini"),
 			...this.options.clientOptions,
 			...(baseURL ? { baseURL } : {}),
 		}) as OpenAIClient

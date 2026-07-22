@@ -162,7 +162,7 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     auth: 'apiKey',
     baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-5.4-mini',
   },
   {
     id: 'openai-responses',
@@ -171,7 +171,7 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     auth: 'apiKey',
     baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-5.4-mini',
   },
   {
     id: 'openai-chat',
@@ -180,7 +180,7 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     auth: 'apiKey',
     baseURL: 'https://api.openai.com/v1',
     apiKeyEnv: 'OPENAI_API_KEY',
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-5.4-mini',
   },
   {
     id: 'openai-compatible',
@@ -1059,7 +1059,7 @@ export class ModelProviders extends Feature {
       ...profile,
       apiKey,
       providerOptions,
-      model: options.model ?? (typeof input === 'object' && input && 'model' in input ? input.model : undefined) ?? profile.defaultModel ?? 'gpt-5',
+      model: options.model ?? (typeof input === 'object' && input && 'model' in input ? input.model : undefined) ?? profile.defaultModel ?? 'gpt-5.4-mini',
       transport,
     }
   }

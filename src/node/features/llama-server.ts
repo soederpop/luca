@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync, rmSync, r
 import { rename, rm } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { lucaHome } from '../../setup/paths.js'
 
@@ -25,6 +25,7 @@ export const LlamaServerOptionsSchema = FeatureOptionsSchema.extend({
 	embeddingPort: z.number().default(8144).describe('Port the embedding server listens on'),
 	contextSize: z.number().default(8192).describe('Context size (-c) passed to the chat server'),
 	readyTimeoutMs: z.number().default(180_000).describe('Max time to wait for a spawned server to answer /health (model load can be slow)'),
+	idleTimeoutMs: z.number().default(900_000).describe('Idle shutdown: a detached watchdog stops the server after this long with no requests, so it does not hog memory (default 15 minutes; 0 disables)'),
 })
 
 export const LlamaServerStateSchema = FeatureStateSchema.extend({
@@ -130,9 +131,14 @@ export interface EnsureServerProcessOptions {
 	readyTimeoutMs?: number
 	/** llama.cpp release tag override. */
 	releaseTag?: string
+	/** Idle shutdown window enforced by the detached watchdog (default 15 minutes; 0 disables). */
+	idleTimeoutMs?: number
 	/** Called once when this call actually spawned (rather than reused) a server. */
 	onStarted?: (info: { port: number; modelPath: string; embedding: boolean }) => void
 }
+
+/** Default idle window before an unused llama-server is stopped (15 minutes). */
+export const DEFAULT_IDLE_TIMEOUT_MS = 900_000
 
 /**
  * Ensure a llama-server process is healthy on a port, spawning a detached one
@@ -141,7 +147,12 @@ export interface EnsureServerProcessOptions {
  */
 export async function ensureServerProcess(opts: EnsureServerProcessOptions): Promise<string> {
 	const baseURL = `http://127.0.0.1:${opts.port}/v1`
-	if (await probeHealth(opts.port) === 'ok') return baseURL
+	const idleMs = opts.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
+	if (await probeHealth(opts.port) === 'ok') {
+		// Revive the idle watchdog if it died while the server kept running
+		ensureWatchdog(opts.port, idleMs)
+		return baseURL
+	}
 
 	const binary = installedBinaryPath(opts.releaseTag)
 	if (!binary) throw new Error('The llama-server binary is not installed. Run `luca setup` to download it.')
@@ -156,6 +167,8 @@ export async function ensureServerProcess(opts: EnsureServerProcessOptions): Pro
 		'-m', opts.modelPath,
 		'--host', '127.0.0.1',
 		'--port', String(opts.port),
+		// The idle watchdog reads request counters from /metrics to detect activity
+		'--metrics',
 		...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(opts.contextSize ?? 8192)]),
 	]
 	const child = spawn(binary, args, {
@@ -171,6 +184,7 @@ export async function ensureServerProcess(opts: EnsureServerProcessOptions): Pro
 		await sleep(400)
 		const health = await probeHealth(opts.port)
 		if (health === 'ok') {
+			ensureWatchdog(opts.port, idleMs)
 			opts.onStarted?.({ port: opts.port, modelPath: opts.modelPath, embedding: !!opts.embedding })
 			return baseURL
 		}
@@ -183,6 +197,153 @@ export async function ensureServerProcess(opts: EnsureServerProcessOptions): Pro
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// ── Idle watchdog ───────────────────────────────────────────────────
+//
+// llama-server has no idle-shutdown of its own, and a resident chat model can
+// hold several GB of memory. Every ensureServerProcess() therefore also
+// ensures a tiny detached `luca llama-watchdog` process that polls the
+// server's /metrics request counters and stops the server once they've been
+// still for the idle window. Any request — chat or embedding, from any luca
+// process — moves the counters and resets the clock.
+
+/** How the luca CLI re-invokes itself: the compiled binary directly, or `bun <cli.ts>` in dev. */
+function lucaLauncher(): string[] {
+	const entry = process.argv[1]
+	// The watchdog is spawned with a different cwd, so the dev entry must be absolute
+	if (entry && entry.endsWith('.ts') && existsSync(entry)) return [process.execPath, resolve(entry)]
+	return [process.execPath]
+}
+
+function watchdogPidFile(port: number): string {
+	return join(lucaHome(), `llama-watchdog-${port}.pid`)
+}
+
+/** True when the pid in a pid file refers to a live process. */
+function pidFileAlive(pidFile: string): boolean {
+	if (!existsSync(pidFile)) return false
+	try {
+		const pid = Number(readFileSync(pidFile, 'utf8').trim())
+		if (!(pid > 0)) return false
+		process.kill(pid, 0)
+		return true
+	} catch {
+		return false
+	}
+}
+
+/** Spawn the detached idle watchdog for a port unless one is already running. */
+export function ensureWatchdog(port: number, idleMs: number): void {
+	if (idleMs <= 0) return
+	if (pidFileAlive(watchdogPidFile(port))) return
+	const [cmd, ...preArgs] = lucaLauncher()
+	const logFd = openSync(join(lucaHome(), `llama-watchdog-${port}.log`), 'a')
+	const child = spawn(cmd!, [...preArgs, 'llama-watchdog', '--port', String(port), '--idle-ms', String(idleMs)], {
+		cwd: lucaHome(),
+		detached: true,
+		stdio: ['ignore', logFd, logFd],
+	})
+	child.unref()
+}
+
+/** Activity snapshot parsed from llama-server's Prometheus /metrics output. */
+export interface LlamaMetricsActivity {
+	/** Sum of all monotonically increasing `*_total` counters — moves on every request. */
+	counterSum: number
+	/** Requests currently being processed — nonzero mid-generation. */
+	processing: number
+}
+
+/** Parse llama-server /metrics text into an activity snapshot. */
+export function parseMetricsActivity(text: string): LlamaMetricsActivity {
+	let counterSum = 0
+	let processing = 0
+	for (const line of text.split('\n')) {
+		if (!line || line.startsWith('#')) continue
+		const match = line.match(/^([^\s{]+)(?:\{[^}]*\})?\s+([-+0-9.eE]+)/)
+		if (!match) continue
+		const [, name, raw] = match
+		const value = Number(raw)
+		if (!Number.isFinite(value)) continue
+		if (name!.endsWith('_total')) counterSum += value
+		if (name!.includes('requests_processing')) processing += value
+	}
+	return { counterSum, processing }
+}
+
+/** Stop the llama-server on a port via its pid file. Returns whether a kill was attempted. */
+export function stopServerOnPort(port: number): boolean {
+	const pidFile = join(lucaHome(), `llama-server-${port}.pid`)
+	if (!existsSync(pidFile)) return false
+	try {
+		const pid = Number(readFileSync(pidFile, 'utf8').trim())
+		if (pid > 0) process.kill(pid, 'SIGTERM')
+	} catch { /* already gone */ }
+	rmSync(pidFile, { force: true })
+	return true
+}
+
+export interface WatchdogOptions {
+	port: number
+	idleMs: number
+	/** Poll interval (default 30s). */
+	pollMs?: number
+	log?: (message: string) => void
+}
+
+/**
+ * The idle-watchdog loop run by `luca llama-watchdog`. Polls /metrics; any
+ * counter movement or in-flight request resets the idle clock. Returns when
+ * the server has been stopped for idleness or is discovered already gone.
+ */
+export async function runWatchdog(opts: WatchdogOptions): Promise<'stopped-idle' | 'server-gone' | 'already-watched'> {
+	const { port, idleMs } = opts
+	const pollMs = opts.pollMs ?? 30_000
+	const log = opts.log ?? (() => {})
+	const pidFile = watchdogPidFile(port)
+
+	if (pidFileAlive(pidFile)) return 'already-watched'
+	mkdirSync(lucaHome(), { recursive: true })
+	writeFileSync(pidFile, String(process.pid))
+
+	let lastCounterSum: number | null = null
+	let lastActivity = Date.now()
+	let downMisses = 0
+
+	const cleanup = () => rmSync(pidFile, { force: true })
+	try {
+		log(`watchdog for port ${port} started (idle window ${idleMs}ms, poll ${pollMs}ms)`)
+		while (true) {
+			await sleep(pollMs)
+
+			let activity: LlamaMetricsActivity | null = null
+			try {
+				const res = await fetch(`http://127.0.0.1:${port}/metrics`, { signal: AbortSignal.timeout(3000) })
+				// A server without --metrics (started by an older luca) answers 404:
+				// no activity signal, so the idle window runs from watchdog start.
+				activity = res.ok ? parseMetricsActivity(await res.text()) : null
+				downMisses = 0
+			} catch {
+				// Two consecutive failed polls = the server is gone; stop watching.
+				if (++downMisses >= 2) { log('server no longer answering — exiting'); return 'server-gone' }
+				continue
+			}
+
+			if (activity && (activity.processing > 0 || activity.counterSum !== lastCounterSum)) {
+				lastCounterSum = activity?.counterSum ?? lastCounterSum
+				lastActivity = Date.now()
+			}
+
+			if (Date.now() - lastActivity >= idleMs) {
+				log(`idle for ${idleMs}ms — stopping llama-server on port ${port}`)
+				stopServerOnPort(port)
+				return 'stopped-idle'
+			}
+		}
+	} finally {
+		cleanup()
+	}
+}
 
 /** One /health round trip. llama-server answers 200 when the model is loaded, 503 while loading. */
 export async function probeHealth(port: number, timeoutMs = 2000): Promise<'ok' | 'loading' | 'down'> {
@@ -449,6 +610,7 @@ export class LlamaServer extends Feature<LlamaServerState, LlamaServerOptions> {
 			contextSize: this.options.contextSize,
 			readyTimeoutMs: this.options.readyTimeoutMs,
 			releaseTag: this.options.releaseTag,
+			idleTimeoutMs: this.options.idleTimeoutMs,
 			onStarted: (info) => this.emit('serverStarted', info),
 		})
 	}
