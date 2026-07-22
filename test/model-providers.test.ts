@@ -111,7 +111,7 @@ describe('ModelProviders', () => {
     expect(providers.profileIds).toContain('claude-code')
     expect(providers.transportsAvailable).toContain('openai-chat-completions')
     expect(providers.apiModes).toContain('claude-session')
-    expect(providers.defaults.openai).toBe('gpt-5')
+    expect(providers.defaults.openai).toBe('gpt-5.4-mini')
     expect(providers.hasProfile('ollama')).toBe(true)
     expect(providers.hasTransport('openai-responses')).toBe(true)
   })
@@ -122,7 +122,7 @@ describe('ModelProviders', () => {
 
     profiles.openai!.defaultModel = 'mutated'
 
-    expect(providers.get('openai')?.defaultModel).toBe('gpt-5')
+    expect(providers.get('openai')?.defaultModel).toBe('gpt-5.4-mini')
   })
 
   it('summarizes providers without exposing raw API keys', () => {

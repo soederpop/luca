@@ -133,7 +133,7 @@ export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
-export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaServer } from "./features/llama-server";
+export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";
 export type { LocalNetwork, ArpEntry, DiscoverHost, PortScanResult, LocalNetworkScanHost, NetworkSnapshot, NetworkingState, NetworkingOptions, Networking } from "./features/networking";
 export type { ParsedCommand, Analysis, NLP } from "./features/nlp";
 export type { Opener } from "./features/opener";
