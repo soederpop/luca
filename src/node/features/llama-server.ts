@@ -207,11 +207,19 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 // still for the idle window. Any request — chat or embedding, from any luca
 // process — moves the counters and resets the clock.
 
-/** How the luca CLI re-invokes itself: the compiled binary directly, or `bun <cli.ts>` in dev. */
-function lucaLauncher(): string[] {
+/**
+ * How the luca CLI re-invokes itself: the compiled binary directly, or
+ * `bun <cli.ts>` in dev. Returns null when the current process is not the
+ * luca CLI (e.g. a bun test file or a user script) — re-spawning argv there
+ * would re-run that script, not luca.
+ */
+function lucaLauncher(): string[] | null {
 	const entry = process.argv[1]
-	// The watchdog is spawned with a different cwd, so the dev entry must be absolute
-	if (entry && entry.endsWith('.ts') && existsSync(entry)) return [process.execPath, resolve(entry)]
+	if (entry && entry.endsWith('.ts')) {
+		// The watchdog is spawned with a different cwd, so the dev entry must be absolute
+		if (entry.endsWith('cli.ts') && existsSync(entry)) return [process.execPath, resolve(entry)]
+		return null
+	}
 	return [process.execPath]
 }
 
@@ -235,13 +243,26 @@ function pidFileAlive(pidFile: string): boolean {
 /** Spawn the detached idle watchdog for a port unless one is already running. */
 export function ensureWatchdog(port: number, idleMs: number): void {
 	if (idleMs <= 0) return
+	// Never from inside a watchdog, and never under bun test (a respawn there
+	// would re-run the test file, not luca)
+	if (process.env.LUCA_INTERNAL || process.env.NODE_ENV === 'test') return
 	if (pidFileAlive(watchdogPidFile(port))) return
-	const [cmd, ...preArgs] = lucaLauncher()
+	const launcher = lucaLauncher()
+	if (!launcher) return // not running as the luca CLI — no reliable way to respawn
+	const [cmd, ...preArgs] = launcher
 	const logFd = openSync(join(lucaHome(), `llama-watchdog-${port}.log`), 'a')
-	const child = spawn(cmd!, [...preArgs, 'llama-watchdog', '--port', String(port), '--idle-ms', String(idleMs)], {
+	// Re-invoke luca through the LUCA_INTERNAL entrypoint (see src/cli/cli.ts)
+	// rather than a user-visible CLI command.
+	const child = spawn(cmd!, preArgs, {
 		cwd: lucaHome(),
 		detached: true,
 		stdio: ['ignore', logFd, logFd],
+		env: {
+			...process.env,
+			LUCA_INTERNAL: 'llama-watchdog',
+			LUCA_WATCHDOG_PORT: String(port),
+			LUCA_WATCHDOG_IDLE_MS: String(idleMs),
+		},
 	})
 	child.unref()
 }

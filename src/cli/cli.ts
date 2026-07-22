@@ -12,6 +12,21 @@ if (args.includes('--version') || args.includes('-v')) {
 	process.exit(0)
 }
 
+// Internal entrypoint: the llama-server idle watchdog re-invokes luca with
+// LUCA_INTERNAL set instead of exposing a CLI command. See ensureWatchdog()
+// in src/node/features/llama-server.ts, which spawns this.
+if (process.env.LUCA_INTERNAL === 'llama-watchdog') {
+	const { runWatchdog } = await import('../node/features/llama-server.js')
+	const outcome = await runWatchdog({
+		port: Number(process.env.LUCA_WATCHDOG_PORT),
+		idleMs: Number(process.env.LUCA_WATCHDOG_IDLE_MS || 900_000),
+		pollMs: Number(process.env.LUCA_WATCHDOG_POLL_MS || 30_000),
+		log: (message) => console.log(`[llama-watchdog] ${new Date().toISOString()} ${message}`),
+	})
+	console.log(`[llama-watchdog] exiting: ${outcome}`)
+	process.exit(0)
+}
+
 import container from 'luca/agi'
 import '@/commands/index.js'
 import { runCli } from './runner.js'
