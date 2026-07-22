@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'bun:test'
 import { AGIContainer } from '../src/agi/container.server'
 import type { Conversation } from '../src/agi/features/conversation'
 
@@ -117,6 +117,20 @@ describe('Conversation', () => {
 	})
 
 	describe('modelProviders transport routing', () => {
+		// These tests exercise the legacy default-OpenAI routing with injected
+		// transports. Pin the default provider so a developer machine with the
+		// local llama-server stack installed doesn't flip blank conversations to
+		// the (real!) local provider.
+		let savedDefault: string | undefined
+		beforeAll(() => {
+			savedDefault = process.env.LUCA_DEFAULT_PROVIDER
+			process.env.LUCA_DEFAULT_PROVIDER = 'openai'
+		})
+		afterAll(() => {
+			if (savedDefault === undefined) delete process.env.LUCA_DEFAULT_PROVIDER
+			else process.env.LUCA_DEFAULT_PROVIDER = savedDefault
+		})
+
 		function makeContainerAndConversation(opts: Record<string, any> = {}) {
 			const container = new AGIContainer()
 			const providers = container.feature('modelProviders')
