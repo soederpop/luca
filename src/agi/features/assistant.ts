@@ -390,10 +390,16 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 		if (!conv) {
 			const provider = this.effectiveOptions.provider
 			const callerProviderOptions = this.effectiveOptions.providerOptions ?? {}
+			// With no provider configured, the conversation resolves the container's
+			// default provider (openai when OPENAI_API_KEY is set, else a local
+			// llama-server, else a registered custom endpoint). Only force the
+			// OpenAI model default when that default IS the OpenAI path — any other
+			// default must keep its own model.
+			const defaultsToOpenAI = !provider && !this.effectiveOptions.local && this.resolveDefaultProviderId() === 'openai'
 			conv = this.container.feature('conversation', {
 				// Only default the model for the OpenAI path; when a provider is
-				// configured, leave it unset so the provider's default model wins.
-				model: this.effectiveOptions.model || (provider ? undefined : 'gpt-5.4'),
+				// configured (or defaulted), leave it unset so the provider's default model wins.
+				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4' : undefined),
 				local: !!this.effectiveOptions.local,
 				tools: this.tools,
 				api: 'chat',
@@ -422,6 +428,15 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			this.state.set('conversation', conv)
 		}
 		return conv
+	}
+
+	/** The container's default provider id (via modelProviders), or undefined when none is available. */
+	private resolveDefaultProviderId(): string | undefined {
+		try {
+			return (this.container.feature('modelProviders') as any).resolveDefaultId()
+		} catch {
+			return undefined
+		}
 	}
 
 	get availableTools() {

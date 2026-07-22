@@ -409,3 +409,85 @@ describe('Conversation', () => {
 		})
 	})
 })
+
+describe('Conversation default provider', () => {
+	const ENV_KEYS = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'LUCA_DEFAULT_PROVIDER', 'LUCA_HOME', 'XDG_CACHE_HOME'] as const
+
+	async function scrubbed(fn: () => Promise<void>) {
+		const { mkdtempSync } = require('node:fs')
+		const { tmpdir } = require('node:os')
+		const { join } = require('node:path')
+		const saved: Record<string, string | undefined> = {}
+		for (const key of ENV_KEYS) { saved[key] = process.env[key]; delete process.env[key] }
+		// Point local-install discovery at an empty temp dir so a developer's real
+		// ~/.luca install doesn't make these tests machine-dependent.
+		const tmp = mkdtempSync(join(tmpdir(), 'luca-conv-test-'))
+		process.env.LUCA_HOME = join(tmp, 'luca-home')
+		process.env.XDG_CACHE_HOME = join(tmp, 'cache')
+		try {
+			await fn()
+		} finally {
+			for (const key of ENV_KEYS) {
+				if (saved[key] === undefined) delete process.env[key]
+				else process.env[key] = saved[key]!
+			}
+		}
+	}
+
+	it('a blank conversation with no provider anywhere fails with setup guidance at ask()', async () => {
+		await scrubbed(async () => {
+			const conv = makeConversation()
+			await expect(conv.ask('hello')).rejects.toThrow(/No model provider is available/)
+		})
+	})
+
+	it('a blank conversation routes through the default custom provider', async () => {
+		await scrubbed(async () => {
+			const container = new AGIContainer()
+			const providers = container.feature('modelProviders')
+			providers.registerLocal('mybox', 'http://mybox:9999/v1', 'mybox-model')
+
+			let seen: any = null
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any, provider: any) {
+					seen = { request, provider }
+					yield { type: 'response', response: { content: 'ok', toolCalls: [] } } as const
+				},
+			})
+
+			// No provider, no model, no clientOptions — a truly blank conversation.
+			const conv = container.feature('conversation') as Conversation
+			const answer = await conv.ask('Ping')
+
+			expect(answer).toBe('ok')
+			expect(seen.provider.id).toBe('mybox')
+			expect(seen.provider.baseURL).toBe('http://mybox:9999/v1')
+			// The default provider's own model wins — never a gpt-* fallback.
+			expect(seen.request.model ?? seen.provider.model).toBe('mybox-model')
+		})
+	})
+
+	it('an explicit provider option still beats the default', async () => {
+		await scrubbed(async () => {
+			const container = new AGIContainer()
+			const providers = container.feature('modelProviders')
+			providers.registerLocal('default-box', 'http://default:1111/v1', 'default-model')
+			providers.registerLocal('chosen-box', 'http://chosen:2222/v1', 'chosen-model')
+			providers.setDefault('default-box')
+
+			let seen: any = null
+			providers.registerTransport('openai-chat-completions', {
+				apiMode: 'openai-chat-completions',
+				async *stream(request: any, provider: any) {
+					seen = { request, provider }
+					yield { type: 'response', response: { content: 'ok', toolCalls: [] } } as const
+				},
+			})
+
+			const conv = container.feature('conversation', { provider: 'chosen-box' }) as Conversation
+			await conv.ask('Ping')
+			expect(seen.provider.id).toBe('chosen-box')
+		})
+	})
+})

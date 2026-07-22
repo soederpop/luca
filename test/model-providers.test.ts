@@ -446,3 +446,142 @@ describe('ModelProviders', () => {
     expect(runs[1].options.resumeSessionId).toBe('sess-abc')
   })
 })
+
+describe('ModelProviders default provider selection', () => {
+  const ENV_KEYS = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'LUCA_DEFAULT_PROVIDER', 'LUCA_HOME', 'XDG_CACHE_HOME'] as const
+
+  function withEnv(overrides: Partial<Record<(typeof ENV_KEYS)[number], string>>, fn: () => void | Promise<void>) {
+    const saved: Record<string, string | undefined> = {}
+    for (const key of ENV_KEYS) {
+      saved[key] = process.env[key]
+      delete process.env[key]
+    }
+    for (const [key, value] of Object.entries(overrides)) process.env[key] = value
+    const restore = () => {
+      for (const key of ENV_KEYS) {
+        if (saved[key] === undefined) delete process.env[key]
+        else process.env[key] = saved[key]!
+      }
+    }
+    try {
+      const result = fn()
+      if (result instanceof Promise) return result.finally(restore)
+      restore()
+    } catch (err) {
+      restore()
+      throw err
+    }
+  }
+
+  /** Point LUCA_HOME/XDG_CACHE_HOME at a temp dir, optionally faking an installed local stack. */
+  function fakeLocalInstall(tmp: string, installed: boolean) {
+    const { mkdirSync, writeFileSync } = require('node:fs')
+    const { join } = require('node:path')
+    if (!installed) return
+    const binDir = join(tmp, 'luca-home', 'llama-cpp', 'b10076', 'build', 'bin')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(join(binDir, 'llama-server'), '#!/bin/sh\n')
+    const modelDir = join(tmp, 'cache', 'luca', 'models')
+    mkdirSync(modelDir, { recursive: true })
+    writeFileSync(join(modelDir, 'hf_unsloth_gemma-4-E2B-it-Q4_K_M.gguf'), 'fake-gguf')
+  }
+
+  function tmpDir(): string {
+    const { mkdtempSync } = require('node:fs')
+    const { tmpdir } = require('node:os')
+    const { join } = require('node:path')
+    return mkdtempSync(join(tmpdir(), 'luca-mp-test-'))
+  }
+
+  it('prefers openai when OPENAI_API_KEY is set', () => {
+    return withEnv({ OPENAI_API_KEY: 'sk-test' }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      expect(providers.resolveDefaultId()).toBe('openai')
+    })
+  })
+
+  it('falls back to local when no API key but the local stack is installed', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    fakeLocalInstall(tmp, true)
+    return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      expect(providers.resolveDefaultId()).toBe('local')
+    })
+  })
+
+  it('openai still wins over an installed local stack', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    fakeLocalInstall(tmp, true)
+    return withEnv({ OPENAI_API_KEY: 'sk-test', LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      expect(providers.resolveDefaultId()).toBe('openai')
+    })
+  })
+
+  it('falls back to anthropic only when an anthropic-messages transport is registered', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    return withEnv({ ANTHROPIC_API_KEY: 'sk-ant', LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      // No transport registered for anthropic-messages out of the box — never
+      // pick a default that would route into NotImplementedTransport.
+      expect(providers.resolveDefaultId()).toBeUndefined()
+      providers.registerTransport('anthropic-messages', { apiMode: 'anthropic-messages', stream: async function* () {} } as any)
+      expect(providers.resolveDefaultId()).toBe('anthropic')
+    })
+  })
+
+  it('falls back to a user-registered custom provider', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
+      expect(providers.resolveDefaultId()).toBe('chief')
+    })
+  })
+
+  it('returns undefined / throws actionably when nothing is available', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, async () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      expect(providers.resolveDefaultId()).toBeUndefined()
+      expect(() => providers.requireDefaultId()).toThrow(/No model provider is available/)
+      expect(() => providers.requireDefaultId()).toThrow(/luca setup/)
+      await expect(providers.resolve()).rejects.toThrow(/No model provider is available/)
+    })
+  })
+
+  it('setDefault pins the default over the automatic selection', () => {
+    return withEnv({ OPENAI_API_KEY: 'sk-test' }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
+      providers.setDefault('chief')
+      expect(providers.resolveDefaultId()).toBe('chief')
+      providers.setDefault(undefined)
+      expect(providers.resolveDefaultId()).toBe('openai')
+    })
+  })
+
+  it('LUCA_DEFAULT_PROVIDER env var pins the default', () => {
+    return withEnv({ OPENAI_API_KEY: 'sk-test', LUCA_DEFAULT_PROVIDER: 'ollama' }, () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      expect(providers.resolveDefaultId()).toBe('ollama')
+    })
+  })
+
+  it('resolve() with no provider routes through the default', () => {
+    const tmp = tmpDir()
+    const { join } = require('node:path')
+    return withEnv({ LUCA_HOME: join(tmp, 'luca-home'), XDG_CACHE_HOME: join(tmp, 'cache') }, async () => {
+      const providers = new AGIContainer().feature('modelProviders')
+      providers.registerLocal('chief', 'http://chief:1234/v1', 'qwen2.5-32b')
+      const resolved = await providers.resolve()
+      expect(resolved.id).toBe('chief')
+      expect(resolved.model).toBe('qwen2.5-32b')
+    })
+  })
+})

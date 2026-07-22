@@ -6,7 +6,7 @@ import type { OpenAIClient } from '../../clients/openai';
 import type OpenAI from 'openai';
 import type { ConversationHistory } from './conversation-history';
 import { countMessageTokens, getContextWindow, calculateCost } from '../lib/token-counter.js';
-import { toResponsesUserMessage, messagesToResponsesInput, type ModelTool, type ModelToolCall, type ResolvedModelProvider } from './model-providers';
+import { toResponsesUserMessage, messagesToResponsesInput, OpenAIChatCompletionsTransport, OpenAIResponsesTransport, type ModelTool, type ModelToolCall, type ResolvedModelProvider } from './model-providers';
 
 declare module 'luca/feature' {
 	interface AvailableFeatures {
@@ -530,13 +530,41 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return this.options.local ? 'chat' : 'responses'
 	}
 
+	/** Cached container-default provider id: undefined = not computed yet, null = none (or the legacy OpenAI path). */
+	private _defaultProviderId: string | null | undefined
+
+	/**
+	 * The provider this conversation actually uses: the explicitly configured
+	 * `provider` option, or — when no explicit connection is configured at all —
+	 * the container's default provider from modelProviders (e.g. `local` backed
+	 * by llama-server on a machine with no OPENAI_API_KEY).
+	 *
+	 * An `openai` default returns undefined so those conversations keep the
+	 * battle-tested legacy OpenAI path (responses API, native loops). Explicit
+	 * `local: true` or `clientOptions` also keep the legacy path — they encode a
+	 * deliberate connection choice.
+	 */
+	private get effectiveProvider(): any {
+		if (this.options.provider) return this.options.provider
+		if (this.options.local || this.options.clientOptions) return undefined
+		if (this._defaultProviderId === undefined) {
+			try {
+				const id = this.container.feature('modelProviders').resolveDefaultId()
+				this._defaultProviderId = id && id !== 'openai' ? id : null
+			} catch {
+				this._defaultProviderId = null
+			}
+		}
+		return this._defaultProviderId ?? undefined
+	}
+
 	/**
 	 * The apiMode of the explicitly configured `provider` option, resolved
 	 * synchronously through the modelProviders profile registry. Undefined when
 	 * no provider is configured (the default OpenAI-compatible behavior).
 	 */
 	private get configuredProviderApiMode(): string | undefined {
-		const provider = this.options.provider
+		const provider = this.effectiveProvider
 		if (!provider) return undefined
 		if (typeof provider === 'string') {
 			return this.container.feature('modelProviders').get(provider)?.apiMode
@@ -557,7 +585,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * registry lookup.
 	 */
 	private get configuredProviderName(): string | undefined {
-		const provider = this.options.provider
+		const provider = this.effectiveProvider
 		if (typeof provider === 'string') return provider
 		if (provider && typeof provider === 'object' && !provider.apiMode && provider.preset) return provider.preset
 		return undefined
@@ -590,7 +618,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * override the provider's model with 'gpt-5'. Undefined when no provider is set.
 	 */
 	private get configuredProviderDefaultModel(): string | undefined {
-		const provider = this.options.provider
+		const provider = this.effectiveProvider
 		if (!provider) return undefined
 		const modelProviders = this.container.feature('modelProviders')
 		if (typeof provider === 'string') {
@@ -825,6 +853,20 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			// rather than silently routing to the default OpenAI client below.
 			this.assertConfiguredProviderResolvable()
 
+			// A conversation with no provider, no explicit connection, and no
+			// OPENAI_API_KEY has nothing to talk to — surface the setup guidance
+			// now instead of a downstream auth error from the OpenAI client. Only
+			// when the request would hit the builtin OpenAI transports, though: a
+			// replacement transport brings its own connection and needs no key.
+			if (!this.effectiveProvider && !this.options.local && !this.options.clientOptions && !process.env.OPENAI_API_KEY) {
+				const modelProviders = this.container.feature('modelProviders')
+				const mode = this.apiMode === 'responses' ? 'openai-responses' : 'openai-chat-completions'
+				const transport = modelProviders.getTransport(mode)
+				if (transport instanceof OpenAIChatCompletionsTransport || transport instanceof OpenAIResponsesTransport) {
+					modelProviders.requireDefaultId()
+				}
+			}
+
 			if (this.usesGenericTransportLoop) {
 				// Non-OpenAI providers (codex, claude-code) run through the
 				// provider-agnostic turn loop driven by ModelStreamEvents.
@@ -972,7 +1014,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	private resolveConfiguredProvider(apiMode?: 'openai-responses' | 'openai-chat-completions'): Promise<ResolvedModelProvider> {
 		const previousProviderData = this.state.get('lastProviderData')
 		return this.container.feature('modelProviders').resolve({
-			provider: this.options.provider,
+			provider: this.effectiveProvider,
 			model: this.options.model,
 			providerOptions: {
 				// Preserve the native OpenAI-loop hints when a configured provider

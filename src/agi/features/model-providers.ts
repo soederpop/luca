@@ -148,6 +148,14 @@ export interface ResolvedModelProvider extends ModelProviderProfile {
 
 const BUILTIN_PROFILES: ModelProviderProfile[] = [
   {
+    id: 'local',
+    label: 'Local llama-server',
+    apiMode: 'openai-chat-completions',
+    auth: 'none',
+    baseURL: 'http://127.0.0.1:8143/v1',
+    defaultModel: 'gemma-4-E2B-it-Q4_K_M',
+  },
+  {
     id: 'openai',
     label: 'OpenAI',
     apiMode: 'openai-chat-completions',
@@ -227,6 +235,8 @@ const BUILTIN_PROFILES: ModelProviderProfile[] = [
     defaultModel: 'claude-code',
   },
 ]
+
+const BUILTIN_PROFILE_IDS = new Set(BUILTIN_PROFILES.map(profile => profile.id))
 
 function cloneProfile(profile: ModelProviderProfile): ModelProviderProfile {
   return {
@@ -879,6 +889,11 @@ export class ModelProviders extends Feature {
     return this.transports.has(apiMode)
   }
 
+  /** The transport registered for this API mode, if any. */
+  getTransport(apiMode: ModelProviderApiMode): ModelTransport | undefined {
+    return this.transports.get(apiMode)
+  }
+
   get(id: string): ModelProviderProfile | undefined {
     const profile = this.profileMap.get(id)
     return profile ? cloneProfile(profile) : undefined
@@ -956,9 +971,86 @@ export class ModelProviders extends Feature {
     return removed
   }
 
+  /**
+   * Pin the default provider explicitly, overriding the automatic selection.
+   * Pass a registered profile id; clear with `setDefault(undefined)`.
+   *
+   * @example
+   * ```typescript
+   * container.feature('modelProviders').setDefault('anthropic')
+   * ```
+   */
+  setDefault(id: string | undefined) {
+    if (id && !this.hasProfile(id)) throw new Error(`Unknown model provider: ${id}`)
+    this.state.set('defaultProvider' as any, id as any)
+    return this
+  }
+
+  /**
+   * The provider a blank assistant/conversation uses when no `provider` option
+   * is configured, or undefined when nothing usable is available. Selection
+   * order, designed around a brand-new user of the framework:
+   *
+   *   1. An explicit `setDefault(id)` or the LUCA_DEFAULT_PROVIDER env var
+   *   2. `openai` when OPENAI_API_KEY is set
+   *   3. `local` when the llama-server binary and a chat model are installed (`luca setup`)
+   *   4. `anthropic` when ANTHROPIC_API_KEY is set
+   *   5. The first user-registered custom profile whose auth is satisfied
+   */
+  resolveDefaultId(): string | undefined {
+    const pinned = (this.state.get('defaultProvider' as any) as string | undefined) || process.env.LUCA_DEFAULT_PROVIDER
+    if (pinned && this.hasProfile(pinned)) return pinned
+
+    if (process.env.OPENAI_API_KEY) return 'openai'
+    if (this.localChatReady) return 'local'
+    // Only a default candidate when an anthropic-messages transport has been registered
+    if (process.env.ANTHROPIC_API_KEY && this.hasTransport('anthropic-messages')) return 'anthropic'
+
+    for (const profile of this.list()) {
+      if (BUILTIN_PROFILE_IDS.has(profile.id)) continue
+      const keySatisfied = profile.auth === 'none' || !!this.resolveApiKey(profile)
+      if (profile.baseURL && keySatisfied && this.hasTransport(profile.apiMode)) return profile.id
+    }
+    return undefined
+  }
+
+  /**
+   * Like resolveDefaultId(), but throws an actionable error when no provider
+   * is available — a brand-new user with no API key and no local model gets
+   * told exactly how to fix it instead of a downstream auth failure.
+   */
+  requireDefaultId(): string {
+    const id = this.resolveDefaultId()
+    if (id) return id
+    throw new Error(
+      'No model provider is available. Luca needs at least one of:\n' +
+      '  • OPENAI_API_KEY set in the environment (uses OpenAI)\n' +
+      '  • a local model — run `luca setup` to download llama-server and a local chat model\n' +
+      "  • a custom provider registered in luca.cli.ts, e.g. container.feature('modelProviders').registerLocal('mybox', 'http://host:port/v1', 'model-name')"
+    )
+  }
+
+  /** Whether the local llama-server stack (binary + chat model weights) is installed on this machine. */
+  get localChatReady(): boolean {
+    try {
+      return (this.container.feature('llamaServer') as any).chatReady === true
+    } catch {
+      return false
+    }
+  }
+
   async resolve(options: ModelProviderResolveOptions = {}): Promise<ResolvedModelProvider> {
-    const input = options.provider ?? 'openai'
+    const input = options.provider ?? this.requireDefaultId()
     const profile = this.profileFromInput(input)
+
+    // The `local` provider is backed by a llama-server this machine may not have
+    // running yet — make sure it is healthy (spawning it on first use) and let the
+    // llamaServer feature's configuration win over the static profile defaults.
+    if (profile.id === 'local') {
+      const llama = this.container.feature('llamaServer') as any
+      profile.baseURL = await llama.ensureChatServer()
+      profile.defaultModel = llama.chatModel
+    }
     const providerOptions = { ...(profile.providerOptions ?? {}), ...(options.providerOptions ?? {}) }
     const apiKey = this.resolveApiKey(profile)
     const transport = this.transports.get(profile.apiMode) ?? new NotImplementedTransport(profile.apiMode)
