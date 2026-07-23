@@ -23,7 +23,7 @@ export const LlamaServerOptionsSchema = FeatureOptionsSchema.extend({
 	chatModel: z.string().optional().describe('Local chat model name (defaults to the pinned default chat model)'),
 	chatPort: z.number().default(8143).describe('Port the chat inference server listens on'),
 	embeddingPort: z.number().default(8144).describe('Port the embedding server listens on'),
-	contextSize: z.number().default(8192).describe('Context size (-c) passed to the chat server'),
+	contextSize: z.number().default(16384).describe('Context size (-c) passed to the chat server'),
 	readyTimeoutMs: z.number().default(180_000).describe('Max time to wait for a spawned server to answer /health (model load can be slow)'),
 	idleTimeoutMs: z.number().default(900_000).describe('Idle shutdown: a detached watchdog stops the server after this long with no requests, so it does not hog memory (default 15 minutes; 0 disables)'),
 })
@@ -169,7 +169,7 @@ export async function ensureServerProcess(opts: EnsureServerProcessOptions): Pro
 		'--port', String(opts.port),
 		// The idle watchdog reads request counters from /metrics to detect activity
 		'--metrics',
-		...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(opts.contextSize ?? 8192)]),
+		...(opts.embedding ? ['--embedding'] : ['--jinja', '-c', String(opts.contextSize ?? 16384)]),
 	]
 	const child = spawn(binary, args, {
 		cwd: dirname(binary),

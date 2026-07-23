@@ -111,9 +111,8 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 		}
 
 		const cacheKey = this.calculateCacheKeyForQuestion(question)
-		const cached = await this.answerCache.get(cacheKey)
-		if (cached) {
-			return cached
+		if (await this.answerCache.has(cacheKey)) {
+			return this.answerCache.get(cacheKey)
 		}
 
 		const answer = await this.assistant.ask(question)
