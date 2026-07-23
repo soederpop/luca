@@ -1001,7 +1001,9 @@ export class ModelProviders extends Feature {
     const pinned = (this.state.get('defaultProvider' as any) as string | undefined) || process.env.LUCA_DEFAULT_PROVIDER
     if (pinned && this.hasProfile(pinned)) return pinned
 
-    if (process.env.OPENAI_API_KEY) return 'openai'
+    // Older `luca bootstrap` wrote a live `OPENAI_API_KEY=set-your-own` into
+    // .env; treat that placeholder as no key so those projects fall back to local.
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'set-your-own') return 'openai'
     if (this.localChatReady) return 'local'
     // Only a default candidate when an anthropic-messages transport has been registered
     if (process.env.ANTHROPIC_API_KEY && this.hasTransport('anthropic-messages')) return 'anthropic'

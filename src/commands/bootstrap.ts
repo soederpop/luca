@@ -303,7 +303,15 @@ async function writeFile(fs: any, ui: any, path: string, content: string, label:
 	await fs.writeFileAsync(path, content)
 }
 
-export const DEFAULT_ENV = 'OPENAI_API_KEY=set-your-own\n'
+// The key must stay commented out: the CLI loads .env into process.env, and a
+// live placeholder value makes the default-provider chain pick openai (and then
+// fail auth) instead of falling back to the local model.
+export const DEFAULT_ENV = [
+	'# Uncomment to use OpenAI as the default model provider.',
+	'# Without a key, luca falls back to a local model when installed (run `luca setup`).',
+	'# OPENAI_API_KEY=sk-...',
+	'',
+].join('\n')
 
 export const GITIGNORE_ENTRIES = ['.env', 'tmp', '*.log', 'node_modules', '.luca']
 
