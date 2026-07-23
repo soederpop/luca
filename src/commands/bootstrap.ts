@@ -119,6 +119,12 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	await fs.ensureFolder(mkPath('public'))
 	await writeFile(fs, ui, mkPath('public', 'index.html'), bootstrapTemplates['public-index'] || '', 'public/index.html')
 
+	// ── 7c. assistants/default/ (chat via `luca chat`) ─────────────
+	const assistantDir = mkPath('assistants', 'default')
+	await fs.ensureFolder(assistantDir)
+	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'CORE.md'), bootstrapTemplates['assistant-core'] || '', 'assistants/default/CORE.md')
+	await writeFile(fs, ui, container.paths.resolve(assistantDir, 'tools.ts'), bootstrapTemplates['assistant-tools'] || '', 'assistants/default/tools.ts')
+
 	// ── 8. luca.cli.ts ─────────────────────────────────────────────
 	await writeFile(fs, ui, mkPath('luca.cli.ts'), bootstrapTemplates['luca-cli'] || '', 'luca.cli.ts')
 
@@ -174,6 +180,7 @@ async function bootstrap(options: z.infer<typeof argsSchema>, context: Container
 	ui.print('    luca about            — project info + discovered helpers')
 	ui.print('    luca describe fs      — learn about any built-in feature')
 	ui.print('    luca RUNME            — run the interactive markdown demo')
+	ui.print('    luca chat             — chat with your project assistant')
 	ui.print('')
 	ui.print('  Need to build something? Use scaffold:\n')
 	ui.print('    luca scaffold command deploy    — add a CLI command')

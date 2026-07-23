@@ -454,7 +454,7 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 |----------|----------|--------------|
 | **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
 | **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`autoAssistant\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`autoAssistant\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
 | **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`lucaCoder\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
@@ -592,6 +592,7 @@ The \`luca\` binary is available in the path. Key commands:
 - \`commands/\` — custom CLI commands, run via \`luca <commandName>\` (auto-discovered)
 - \`endpoints/\` — file-based HTTP routes, served via \`luca serve\` (auto-discovered)
 - \`features/\`, \`clients/\`, \`servers/\` — custom container helpers, auto-discovered before any \`luca <command>\` dispatch (so commands can use project features directly). Opt out with \`LUCA_COMMAND_DISCOVERY=commands-only\`; for non-CLI entry points (scripts, embedded containers), call \`await container.helpers.discoverAll()\` yourself.
+- \`assistants/\` — AI chat assistants, run via \`luca chat <name>\` (auto-discovered; any folder with a CORE.md). The bootstrapped \`default\` assistant can answer luca framework questions (docsReader over \`.claude/skills/luca-framework\`) and run commands/processes (processManager) via the \`use\` export in its tools.ts.
 - \`docs/\` — content documents managed by the \`contentDb\` feature (\`container.docs\`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
 - \`luca.cli.ts\` — optional project-level CLI customization (runs before any command)
 
@@ -1604,6 +1605,52 @@ Then I can use the Blocks in code.
 \`\`\`ts
 await render('Greeting', { name: 'Jon', role: 'Humble Servant' })
 \`\`\`
+`,
+  "assistant-tools": `// The luca container is a global inside tools.ts — no import needed.
+declare const container: any
+
+// Attach container features as tools:
+// - docsReader answers questions about the luca framework using the bundled
+//   skill docs in .claude/skills/luca-framework (askDocs tool)
+// - processManager runs shell commands and manages background processes
+//   (runCommand, spawnProcess, listProcesses, getProcessOutput, killProcess)
+export const use = [
+	container.feature('docsReader', {
+		contentDb: container.paths.resolve('.claude', 'skills', 'luca-framework'),
+	}),
+	container.feature('processManager'),
+]
+
+// Add your own tools by exporting functions plus a matching \`schemas\` object:
+//
+// import { z } from 'zod'
+// export const schemas = {
+// 	greet: z.object({ name: z.string().describe('Who to greet') }).describe('Say hello'),
+// }
+// export function greet(options: { name: string }) {
+// 	return \`Hello, \${options.name}!\`
+// }
+`,
+  "assistant-core": `---
+description: Default project assistant — knows the luca framework and can run commands on your behalf
+---
+# Project Assistant
+
+You are the default assistant for this luca project. You get things done for the user through chat.
+
+## Your tools
+
+- **askDocs** — answers questions about the luca framework from the bundled documentation. Use it whenever the user asks how something in luca works, or when you are unsure yourself.
+- **runCommand** — run a shell command to completion (builds, tests, scripts, and any \`luca\` CLI command).
+- **spawnProcess / listProcesses / getProcessOutput / killProcess** — start and manage long-running background processes like servers and watchers.
+
+## How to behave
+
+- Be brief and direct.
+- When asked to do something, do it with your tools rather than telling the user how.
+- Prefer the \`luca\` CLI: \`luca describe <name>\`, \`luca serve\`, \`luca run <script>\`, \`luca scaffold <type> <name>\`.
+- After running a command, check its output for errors before reporting success.
+- For anything that runs indefinitely (like \`luca serve\`), use spawnProcess with a tag, then verify it started with getProcessOutput.
 `
 }
 
@@ -11391,6 +11438,7 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`introspectionScanner\` | feature | system | core | Scans TypeScript files for Helper classes and generates introspection data using AST analysis |
 | \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
 | \`jsonTree\` | feature | content-nlp | stable | JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. |
+| \`llamaServer\` | feature | ai-assistants | experimental | Downloads, supervises, and health-checks local \`llama-server\` processes — luca's local inference substrate. |
 | \`lucaCoder\` | feature | agent-wrappers | experimental | A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. |
 | \`mcpBridge\` | feature | ai-assistants | stable | Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
 | \`memory\` | feature | ai-assistants | stable | Semantic memory storage and retrieval for AI agents. |

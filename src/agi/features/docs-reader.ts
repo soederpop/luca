@@ -20,7 +20,7 @@ export const DocsReaderOptionsSchema = FeatureOptionsSchema.extend({
 		z.string(),
 		z.any()
 	]).describe('Either the contentDb instance or the path to the contentDb you want to load'),
-	model: z.string().describe('The model to use for the conversation').default("gpt-5.4"),
+	model: z.string().optional().describe('The model to use for the conversation. Omit to use the container default provider chain (openai when OPENAI_API_KEY is set, else local llama-server).'),
 	local: z.boolean().default(false).describe('Whether to use a local model for the conversation')
 }).loose()
 
@@ -46,6 +46,18 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 	static override category = 'content-nlp' as const
 
 	static { Feature.register(this, 'docsReader') }
+
+	/** Tools an assistant gains when it calls `assistant.use(docsReader)`. */
+	static override tools: Record<string, { schema: z.ZodType; handler?: Function }> = {
+		askDocs: {
+			schema: z.object({
+				question: z.string().describe('A natural-language question about the documentation collection'),
+			}).describe(
+				'Ask a question about the documentation collection and get an answer synthesized from the documents. Answers are cached per question.'
+			),
+			handler: (args: { question: string }, docsReader: DocsReader) => docsReader.askCached(args.question),
+		},
+	}
 
 	/** @returns Default state with started=false. */
 	override get initialState(): DocsReaderState {
@@ -144,7 +156,7 @@ export class DocsReader extends Feature<DocsReaderState, DocsReaderOptions> {
 
 		this.assistant = this.container.feature('assistant', {
 			systemPrompt: [CONTENT_DB_SYSTEM_PROMPT, this.generateSpecificCollectionExplainer()].filter(Boolean).join('\n\n'),
-			model: this.options.model,
+			...(this.options.model ? { model: this.options.model } : {}),
 			local: this.options.local,
 		}).use(contentDb)
 

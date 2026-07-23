@@ -39,6 +39,7 @@ The `luca` binary is available in the path. Key commands:
 - `commands/` — custom CLI commands, run via `luca <commandName>` (auto-discovered)
 - `endpoints/` — file-based HTTP routes, served via `luca serve` (auto-discovered)
 - `features/`, `clients/`, `servers/` — custom container helpers, auto-discovered before any `luca <command>` dispatch (so commands can use project features directly). Opt out with `LUCA_COMMAND_DISCOVERY=commands-only`; for non-CLI entry points (scripts, embedded containers), call `await container.helpers.discoverAll()` yourself.
+- `assistants/` — AI chat assistants, run via `luca chat <name>` (auto-discovered; any folder with a CORE.md). The bootstrapped `default` assistant can answer luca framework questions (docsReader over `.claude/skills/luca-framework`) and run commands/processes (processManager) via the `use` export in its tools.ts.
 - `docs/` — content documents managed by the `contentDb` feature (`container.docs`). See [contentbase](https://github.com/soederpop/contentbase) for the document model system.
 - `luca.cli.ts` — optional project-level CLI customization (runs before any command)
 

@@ -4312,8 +4312,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      * The default model of the explicitly configured \`provider\`, resolved
      * synchronously through the modelProviders registry. Lets the conversation
      * seed \`state.model\` with the provider's own default (e.g. a local endpoint's
-     * model) instead of the OpenAI 'gpt-5' fallback, so native OpenAI loops don't
-     * override the provider's model with 'gpt-5'. Undefined when no provider is set.
+     * model) instead of the OpenAI 'gpt-5.4-mini' fallback, so native OpenAI loops don't
+     * override the provider's model with 'gpt-5.4-mini'. Undefined when no provider is set.
      */
     private get configuredProviderDefaultModel();
     /**
@@ -4514,7 +4514,7 @@ export declare const DocsReaderOptionsSchema: z.ZodObject<{
     cached: z.ZodOptional<z.ZodBoolean>;
     enable: z.ZodOptional<z.ZodBoolean>;
     contentDb: z.ZodUnion<readonly [z.ZodString, z.ZodAny]>;
-    model: z.ZodDefault<z.ZodString>;
+    model: z.ZodOptional<z.ZodString>;
     local: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$loose>;
 export declare const DocsReaderEventsSchema: z.ZodObject<{
@@ -4541,7 +4541,7 @@ export declare class DocsReader extends Feature<DocsReaderState, DocsReaderOptio
         cached: z.ZodOptional<z.ZodBoolean>;
         enable: z.ZodOptional<z.ZodBoolean>;
         contentDb: z.ZodUnion<readonly [z.ZodString, z.ZodAny]>;
-        model: z.ZodDefault<z.ZodString>;
+        model: z.ZodOptional<z.ZodString>;
         local: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
     static eventsSchema: z.ZodObject<{
@@ -4552,6 +4552,11 @@ export declare class DocsReader extends Feature<DocsReaderState, DocsReaderOptio
     static shortcut: "features.docsReader";
     static stability: "stable";
     static category: "content-nlp";
+    /** Tools an assistant gains when it calls \`assistant.use(docsReader)\`. */
+    static tools: Record<string, {
+        schema: z.ZodType;
+        handler?: Function;
+    }>;
     /** @returns Default state with started=false. */
     get initialState(): DocsReaderState;
     /** Whether the docs reader has been started. */
@@ -12256,7 +12261,7 @@ export type { HelpersState, HelpersOptions, Helpers } from "./features/helpers";
 export type { Ink } from "./features/ink";
 export type { IpcState, IpcSocket } from "./features/ipc-socket";
 export type { JsonTreeState, JsonTree } from "./features/json-tree";
-export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaServer } from "./features/llama-server";
+export type { LlamaServerOptions, LlamaServerState, EnsureServerProcessOptions, LlamaMetricsActivity, WatchdogOptions, LlamaServer } from "./features/llama-server";
 export type { LocalNetwork, ArpEntry, DiscoverHost, PortScanResult, LocalNetworkScanHost, NetworkSnapshot, NetworkingState, NetworkingOptions, Networking } from "./features/networking";
 export type { ParsedCommand, Analysis, NLP } from "./features/nlp";
 export type { Opener } from "./features/opener";
@@ -19056,6 +19061,7 @@ export declare const LlamaServerOptionsSchema: z.ZodObject<{
     embeddingPort: z.ZodDefault<z.ZodNumber>;
     contextSize: z.ZodDefault<z.ZodNumber>;
     readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+    idleTimeoutMs: z.ZodDefault<z.ZodNumber>;
 }, z.core.$strip>;
 export declare const LlamaServerStateSchema: z.ZodObject<{
     enabled: z.ZodDefault<z.ZodBoolean>;
@@ -19114,6 +19120,8 @@ export interface EnsureServerProcessOptions {
     readyTimeoutMs?: number;
     /** llama.cpp release tag override. */
     releaseTag?: string;
+    /** Idle shutdown window enforced by the detached watchdog (default 15 minutes; 0 disables). */
+    idleTimeoutMs?: number;
     /** Called once when this call actually spawned (rather than reused) a server. */
     onStarted?: (info: {
         port: number;
@@ -19121,12 +19129,40 @@ export interface EnsureServerProcessOptions {
         embedding: boolean;
     }) => void;
 }
+/** Default idle window before an unused llama-server is stopped (15 minutes). */
+export declare const DEFAULT_IDLE_TIMEOUT_MS = 900000;
 /**
  * Ensure a llama-server process is healthy on a port, spawning a detached one
  * if needed. Reuses a server another luca process already started (first
  * healthy listener wins). Returns the OpenAI-compatible base URL.
  */
 export declare function ensureServerProcess(opts: EnsureServerProcessOptions): Promise<string>;
+/** Spawn the detached idle watchdog for a port unless one is already running. */
+export declare function ensureWatchdog(port: number, idleMs: number): void;
+/** Activity snapshot parsed from llama-server's Prometheus /metrics output. */
+export interface LlamaMetricsActivity {
+    /** Sum of all monotonically increasing \`*_total\` counters — moves on every request. */
+    counterSum: number;
+    /** Requests currently being processed — nonzero mid-generation. */
+    processing: number;
+}
+/** Parse llama-server /metrics text into an activity snapshot. */
+export declare function parseMetricsActivity(text: string): LlamaMetricsActivity;
+/** Stop the llama-server on a port via its pid file. Returns whether a kill was attempted. */
+export declare function stopServerOnPort(port: number): boolean;
+export interface WatchdogOptions {
+    port: number;
+    idleMs: number;
+    /** Poll interval (default 30s). */
+    pollMs?: number;
+    log?: (message: string) => void;
+}
+/**
+ * The idle-watchdog loop run by \`luca llama-watchdog\`. Polls /metrics; any
+ * counter movement or in-flight request resets the idle clock. Returns when
+ * the server has been stopped for idleness or is discovered already gone.
+ */
+export declare function runWatchdog(opts: WatchdogOptions): Promise<'stopped-idle' | 'server-gone' | 'already-watched'>;
 /** One /health round trip. llama-server answers 200 when the model is loaded, 503 while loading. */
 export declare function probeHealth(port: number, timeoutMs?: number): Promise<'ok' | 'loading' | 'down'>;
 /**
@@ -19167,6 +19203,7 @@ export declare class LlamaServer extends Feature<LlamaServerState, LlamaServerOp
         embeddingPort: z.ZodDefault<z.ZodNumber>;
         contextSize: z.ZodDefault<z.ZodNumber>;
         readyTimeoutMs: z.ZodDefault<z.ZodNumber>;
+        idleTimeoutMs: z.ZodDefault<z.ZodNumber>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -28911,7 +28948,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.2";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.4";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
