@@ -78,7 +78,7 @@ async function getLoopy(container: any) {
 	console.log(ui.colors.cyan('  Setting up assistants...'))
 	const assistantsDir = container.paths.resolve('assistants')
 	fs.ensureFolder(assistantsDir)
-	for (const assistant of ['lucaCoder', 'chiefOfStaff', 'rocket', 'researcher']) {
+	for (const assistant of ['chiefOfStaff', 'rocket', 'researcher']) {
 		const src = container.paths.resolve(appDir, 'assistants', assistant)
 		const dest = container.paths.resolve(assistantsDir, assistant)
 		if (fs.existsSync(src) && !fs.existsSync(dest)) {

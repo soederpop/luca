@@ -19,7 +19,7 @@ Coverage state: **file** = has an example doc; **describe-only** = introspection
 | **Data & storage** | sqlite, postgres, diskCache, contentDb, yaml, jsonTree, yamlTree | **redis**, memory |
 | **Networking** | networking | dns |
 | **HTTP clients/servers** | websocket (client+server), — | **rest client**, **express server**, mcp server, elevenlabs, graph, openai, socketio, voicebox |
-| **AI / assistants** | assistant (+hooks, +process-manager, +structured-output), claudeController | assistantsManager, conversation, conversationHistory, **conversationv2**, **modelProviders**, claudeCode, openaiCodex, lucaCoder, codingTools, mcpBridge, telnyxAssistantConnector, voiceMode |
+| **AI / assistants** | assistant (+hooks, +process-manager, +structured-output), claudeController | assistantsManager, conversation, conversationHistory, **conversationv2**, **modelProviders**, claudeCode, openaiCodex, codingTools, mcpBridge, telnyxAssistantConnector, voiceMode |
 | **Content & NLP** | nlp | **docsReader**, **semanticSearch**, skillsLibrary, memory |
 | **Google** | googleAuth, googleCalendar, googleDocs, googleDrive, googleSheets | googleMail |
 | **UI** | ui, ink (+blocks, +renderer) | — |

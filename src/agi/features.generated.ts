@@ -12,7 +12,6 @@
 import { Memory } from "./features/agent-memory";
 import { Assistant } from "./features/assistant";
 import { AssistantsManager } from "./features/assistants-manager";
-import { AutonomousAssistant } from "./features/autonomous-assistant";
 import { BrowserUse } from "./features/browser-use";
 import { ClaudeCode } from "./features/claude-code";
 import { ClaudeController } from "./features/claude-controller";
@@ -21,7 +20,6 @@ import { ConversationHistory } from "./features/conversation-history";
 import { Conversation } from "./features/conversation";
 import { DocsReader } from "./features/docs-reader";
 import { FileTools } from "./features/file-tools";
-import { LucaCoder } from "./features/luca-coder";
 import { McpBridge } from "./features/mcp-bridge";
 import { ModelProviders } from "./features/model-providers";
 import { OpenAICodex } from "./features/openai-codex";
@@ -35,8 +33,6 @@ export { Assistant } from "./features/assistant";
 export type { AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
 export type { AssistantEntry, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
-export { AutonomousAssistant } from "./features/autonomous-assistant";
-export type { AutoAssistantPermissionLevel, AutoAssistantPendingApproval, AutoAssistantToolBundleSpec, AutonomousAssistantState, AutonomousAssistantOptions } from "./features/autonomous-assistant";
 export { BrowserUse } from "./features/browser-use";
 export type { BrowserUseState, BrowserUseOptions } from "./features/browser-use";
 export { ClaudeCode } from "./features/claude-code";
@@ -51,8 +47,6 @@ export type { Message, ContentPart, ConversationTool, ConversationMCPServer, Con
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
-export { LucaCoder } from "./features/luca-coder";
-export type { PermissionLevel, PendingApproval, ToolBundleSpec, LucaCoderState, LucaCoderOptions } from "./features/luca-coder";
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
@@ -69,7 +63,6 @@ export type { VoiceModeOptions, VoiceModeState, VoiceConfig } from "./features/v
 export interface GeneratedAGIFeatures {
   assistant: typeof Assistant;
   assistantsManager: typeof AssistantsManager;
-  autoAssistant: typeof AutonomousAssistant;
   browserUse: typeof BrowserUse;
   claudeCode: typeof ClaudeCode;
   claudeController: typeof ClaudeController;
@@ -78,7 +71,6 @@ export interface GeneratedAGIFeatures {
   conversationHistory: typeof ConversationHistory;
   docsReader: typeof DocsReader;
   fileTools: typeof FileTools;
-  lucaCoder: typeof LucaCoder;
   mcpBridge: typeof McpBridge;
   memory: typeof Memory;
   modelProviders: typeof ModelProviders;
@@ -92,7 +84,6 @@ export interface GeneratedAGIFeatures {
 export const generatedAgiFeatureExports = {
   Assistant,
   AssistantsManager,
-  AutonomousAssistant,
   BrowserUse,
   ClaudeCode,
   ClaudeController,
@@ -101,7 +92,6 @@ export const generatedAgiFeatureExports = {
   ConversationHistory,
   DocsReader,
   FileTools,
-  LucaCoder,
   McpBridge,
   Memory,
   ModelProviders,

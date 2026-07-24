@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.5.0"
+export const typesBundleVersion = "3.5.1"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -75,7 +75,6 @@ export declare class Feature<T extends FeatureState = FeatureState, K extends Fe
 import { Memory } from "./features/agent-memory";
 import { Assistant } from "./features/assistant";
 import { AssistantsManager } from "./features/assistants-manager";
-import { AutonomousAssistant } from "./features/autonomous-assistant";
 import { BrowserUse } from "./features/browser-use";
 import { ClaudeCode } from "./features/claude-code";
 import { ClaudeController } from "./features/claude-controller";
@@ -84,7 +83,6 @@ import { ConversationHistory } from "./features/conversation-history";
 import { Conversation } from "./features/conversation";
 import { DocsReader } from "./features/docs-reader";
 import { FileTools } from "./features/file-tools";
-import { LucaCoder } from "./features/luca-coder";
 import { McpBridge } from "./features/mcp-bridge";
 import { ModelProviders } from "./features/model-providers";
 import { OpenAICodex } from "./features/openai-codex";
@@ -97,8 +95,6 @@ export { Assistant } from "./features/assistant";
 export type { AssistantState, AssistantOptions, AssistantForkOptions, ResearchJobState, ResearchJobOptions, ResearchJobEvents, ResearchJob } from "./features/assistant";
 export { AssistantsManager } from "./features/assistants-manager";
 export type { AssistantEntry, AssistantsManagerState, AssistantsManagerOptions } from "./features/assistants-manager";
-export { AutonomousAssistant } from "./features/autonomous-assistant";
-export type { AutoAssistantPermissionLevel, AutoAssistantPendingApproval, AutoAssistantToolBundleSpec, AutonomousAssistantState, AutonomousAssistantOptions } from "./features/autonomous-assistant";
 export { BrowserUse } from "./features/browser-use";
 export type { BrowserUseState, BrowserUseOptions } from "./features/browser-use";
 export { ClaudeCode } from "./features/claude-code";
@@ -113,8 +109,6 @@ export type { Message, ContentPart, ConversationTool, ConversationMCPServer, Con
 export { DocsReader } from "./features/docs-reader";
 export type { DocsReaderState, DocsReaderOptions } from "./features/docs-reader";
 export { FileTools } from "./features/file-tools";
-export { LucaCoder } from "./features/luca-coder";
-export type { PermissionLevel, PendingApproval, ToolBundleSpec, LucaCoderState, LucaCoderOptions } from "./features/luca-coder";
 export { McpBridge } from "./features/mcp-bridge";
 export type { McpServerConfig, McpBridgeOptions, McpBridgeState } from "./features/mcp-bridge";
 export { ModelProviders } from "./features/model-providers";
@@ -130,7 +124,6 @@ export type { VoiceModeOptions, VoiceModeState, VoiceConfig } from "./features/v
 export interface GeneratedAGIFeatures {
     assistant: typeof Assistant;
     assistantsManager: typeof AssistantsManager;
-    autoAssistant: typeof AutonomousAssistant;
     browserUse: typeof BrowserUse;
     claudeCode: typeof ClaudeCode;
     claudeController: typeof ClaudeController;
@@ -139,7 +132,6 @@ export interface GeneratedAGIFeatures {
     conversationHistory: typeof ConversationHistory;
     docsReader: typeof DocsReader;
     fileTools: typeof FileTools;
-    lucaCoder: typeof LucaCoder;
     mcpBridge: typeof McpBridge;
     memory: typeof Memory;
     modelProviders: typeof ModelProviders;
@@ -152,7 +144,6 @@ export interface GeneratedAGIFeatures {
 export declare const generatedAgiFeatureExports: {
     readonly Assistant: typeof Assistant;
     readonly AssistantsManager: typeof AssistantsManager;
-    readonly AutonomousAssistant: typeof AutonomousAssistant;
     readonly BrowserUse: typeof BrowserUse;
     readonly ClaudeCode: typeof ClaudeCode;
     readonly ClaudeController: typeof ClaudeController;
@@ -161,7 +152,6 @@ export declare const generatedAgiFeatureExports: {
     readonly ConversationHistory: typeof ConversationHistory;
     readonly DocsReader: typeof DocsReader;
     readonly FileTools: typeof FileTools;
-    readonly LucaCoder: typeof LucaCoder;
     readonly McpBridge: typeof McpBridge;
     readonly Memory: typeof Memory;
     readonly ModelProviders: typeof ModelProviders;
@@ -1533,289 +1523,6 @@ export declare class AssistantsManager extends Feature<AssistantsManagerState, A
 }
 export default AssistantsManager;
 //# sourceMappingURL=assistants-manager.d.ts.map`,
-  "agi/features/autonomous-assistant.d.ts": `import { z } from 'zod';
-import { Feature } from '../feature.js';
-import type { Assistant } from './assistant.js';
-declare module 'luca/feature' {
-    interface AvailableFeatures {
-        autoAssistant: typeof AutonomousAssistant;
-    }
-}
-/** Permission level for a tool. 'allow' runs immediately, 'ask' blocks for user approval, 'deny' rejects. */
-export type AutoAssistantPermissionLevel = 'allow' | 'ask' | 'deny';
-/** A pending approval awaiting user decision. */
-export interface AutoAssistantPendingApproval {
-    id: string;
-    toolName: string;
-    args: Record<string, any>;
-    timestamp: number;
-    resolve: (decision: 'approve' | 'deny') => void;
-}
-/** Tool bundle spec — either a feature name string, or an object with filtering. */
-export type AutoAssistantToolBundleSpec = string | {
-    feature: string;
-    only?: string[];
-    except?: string[];
-};
-export declare const AutonomousAssistantEventsSchema: z.ZodObject<{
-    stateChange: z.ZodTuple<[z.ZodAny], null>;
-    enabled: z.ZodTuple<[], null>;
-    started: z.ZodTuple<[], null>;
-    permissionRequest: z.ZodTuple<[z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        args: z.ZodRecord<z.ZodString, z.ZodAny>;
-    }, z.core.$strip>], null>;
-    permissionGranted: z.ZodTuple<[z.ZodString], null>;
-    permissionDenied: z.ZodTuple<[z.ZodString], null>;
-    toolBlocked: z.ZodTuple<[z.ZodString, z.ZodString], null>;
-    chunk: z.ZodTuple<[z.ZodString], null>;
-    response: z.ZodTuple<[z.ZodString], null>;
-    toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-}, z.core.$strip>;
-export declare const AutonomousAssistantStateSchema: z.ZodObject<{
-    enabled: z.ZodDefault<z.ZodBoolean>;
-    started: z.ZodBoolean;
-    permissions: z.ZodRecord<z.ZodString, z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>;
-    defaultPermission: z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>;
-    pendingApprovals: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        args: z.ZodRecord<z.ZodString, z.ZodAny>;
-        timestamp: z.ZodNumber;
-    }, z.core.$strip>>;
-    approvalHistory: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        decision: z.ZodEnum<{
-            approve: "approve";
-            deny: "deny";
-        }>;
-        timestamp: z.ZodNumber;
-    }, z.core.$strip>>;
-}, z.core.$loose>;
-export declare const AutonomousAssistantOptionsSchema: z.ZodObject<{
-    name: z.ZodOptional<z.ZodString>;
-    _cacheKey: z.ZodOptional<z.ZodString>;
-    cached: z.ZodOptional<z.ZodBoolean>;
-    enable: z.ZodOptional<z.ZodBoolean>;
-    tools: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
-        feature: z.ZodString;
-        only: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        except: z.ZodOptional<z.ZodArray<z.ZodString>>;
-    }, z.core.$strip>]>>>;
-    permissions: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>>;
-    defaultPermission: z.ZodDefault<z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>;
-    systemPrompt: z.ZodOptional<z.ZodString>;
-    model: z.ZodOptional<z.ZodString>;
-    historyMode: z.ZodOptional<z.ZodEnum<{
-        persistent: "persistent";
-        lifecycle: "lifecycle";
-        session: "session";
-        daily: "daily";
-    }>>;
-    folder: z.ZodOptional<z.ZodString>;
-}, z.core.$strip>;
-export type AutonomousAssistantState = z.infer<typeof AutonomousAssistantStateSchema>;
-export type AutonomousAssistantOptions = z.infer<typeof AutonomousAssistantOptionsSchema>;
-/**
- * An autonomous assistant that owns a lower-level Assistant instance and
- * gates all tool calls through a permission system.
- *
- * Tools are stacked from feature bundles (fileTools, processManager, etc.)
- * and each tool can be set to 'allow' (runs immediately), 'ask' (blocks
- * until user approves/denies), or 'deny' (always rejected).
- *
- * @example
- * \`\`\`typescript
- * const auto = container.feature('autoAssistant', {
- *   tools: ['fileTools', { feature: 'processManager', except: ['killAllProcesses'] }],
- *   permissions: {
- *     readFile: 'allow',
- *     searchFiles: 'allow',
- *     writeFile: 'ask',
- *     editFile: 'ask',
- *     deleteFile: 'deny',
- *   },
- *   defaultPermission: 'ask',
- *   systemPrompt: 'You are a coding assistant.',
- * })
- *
- * auto.on('permissionRequest', ({ id, toolName, args }) => {
- *   console.log(\`Tool "\${toolName}" wants to run with\`, args)
- *   // Show UI, then:
- *   auto.approve(id)  // or auto.deny(id)
- * })
- *
- * await auto.ask('Refactor the auth module to use async/await')
- * \`\`\`
- *
- * @extends Feature
- */
-export declare class AutonomousAssistant extends Feature<AutonomousAssistantState, AutonomousAssistantOptions> {
-    static shortcut: "features.autoAssistant";
-    static stability: "experimental";
-    static category: "ai-assistants";
-    static stateSchema: z.ZodObject<{
-        enabled: z.ZodDefault<z.ZodBoolean>;
-        started: z.ZodBoolean;
-        permissions: z.ZodRecord<z.ZodString, z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>;
-        defaultPermission: z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>;
-        pendingApprovals: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            args: z.ZodRecord<z.ZodString, z.ZodAny>;
-            timestamp: z.ZodNumber;
-        }, z.core.$strip>>;
-        approvalHistory: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            decision: z.ZodEnum<{
-                approve: "approve";
-                deny: "deny";
-            }>;
-            timestamp: z.ZodNumber;
-        }, z.core.$strip>>;
-    }, z.core.$loose>;
-    static optionsSchema: z.ZodObject<{
-        name: z.ZodOptional<z.ZodString>;
-        _cacheKey: z.ZodOptional<z.ZodString>;
-        cached: z.ZodOptional<z.ZodBoolean>;
-        enable: z.ZodOptional<z.ZodBoolean>;
-        tools: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
-            feature: z.ZodString;
-            only: z.ZodOptional<z.ZodArray<z.ZodString>>;
-            except: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        }, z.core.$strip>]>>>;
-        permissions: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>>;
-        defaultPermission: z.ZodDefault<z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>;
-        systemPrompt: z.ZodOptional<z.ZodString>;
-        model: z.ZodOptional<z.ZodString>;
-        historyMode: z.ZodOptional<z.ZodEnum<{
-            persistent: "persistent";
-            lifecycle: "lifecycle";
-            session: "session";
-            daily: "daily";
-        }>>;
-        folder: z.ZodOptional<z.ZodString>;
-    }, z.core.$strip>;
-    static eventsSchema: z.ZodObject<{
-        stateChange: z.ZodTuple<[z.ZodAny], null>;
-        enabled: z.ZodTuple<[], null>;
-        started: z.ZodTuple<[], null>;
-        permissionRequest: z.ZodTuple<[z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            args: z.ZodRecord<z.ZodString, z.ZodAny>;
-        }, z.core.$strip>], null>;
-        permissionGranted: z.ZodTuple<[z.ZodString], null>;
-        permissionDenied: z.ZodTuple<[z.ZodString], null>;
-        toolBlocked: z.ZodTuple<[z.ZodString, z.ZodString], null>;
-        chunk: z.ZodTuple<[z.ZodString], null>;
-        response: z.ZodTuple<[z.ZodString], null>;
-        toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-        toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-        toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    }, z.core.$strip>;
-    /** The inner assistant instance. Created during start(). */
-    private _assistant;
-    /** Map of pending approval promises keyed by ID. */
-    private _pendingResolvers;
-    get initialState(): AutonomousAssistantState;
-    /** The inner assistant. Throws if not started. */
-    get assistant(): Assistant;
-    /** Current permission map from state. */
-    get permissions(): Record<string, AutoAssistantPermissionLevel>;
-    /** Current pending approvals. */
-    get pendingApprovals(): AutoAssistantPendingApproval[];
-    /** Whether the assistant is started and ready. */
-    get isStarted(): boolean;
-    /** The tools registered on the inner assistant. */
-    get tools(): Record<string, any>;
-    /** The conversation on the inner assistant (if started). */
-    get conversation(): import("./conversation.js").Conversation | undefined;
-    /** Messages from the inner assistant's conversation. */
-    get messages(): import("openai/resources/index.mjs").ChatCompletionMessageParam[];
-    /** Get the effective permission level for a tool. */
-    getPermission(toolName: string): AutoAssistantPermissionLevel;
-    /** Set permission level for one or more tools. */
-    setPermission(toolName: string | string[], level: AutoAssistantPermissionLevel): this;
-    /** Set the default permission level for unconfigured tools. */
-    setDefaultPermission(level: AutoAssistantPermissionLevel): this;
-    /** Allow a tool (or tools) to run without approval. */
-    permitTool(...toolNames: string[]): this;
-    /** Require approval before a tool (or tools) can run. */
-    gateTool(...toolNames: string[]): this;
-    /** Block a tool (or tools) from ever running. */
-    blockTool(...toolNames: string[]): this;
-    /** Approve a pending tool call by ID. The tool will execute. */
-    approve(id: string): this;
-    /** Deny a pending tool call by ID. The tool call will be skipped. */
-    deny(id: string): this;
-    /** Approve all pending tool calls. */
-    approveAll(): this;
-    /** Deny all pending tool calls. */
-    denyAll(): this;
-    /**
-     * Initialize the inner assistant, stack tool bundles, and wire up
-     * the permission interceptor.
-     */
-    start(): Promise<this>;
-    /**
-     * Ask the autonomous assistant a question. Auto-starts if needed.
-     * Tool calls will be gated by the permission system.
-     */
-    ask(question: string, options?: Record<string, any>): Promise<string>;
-    /**
-     * Add a tool bundle after initialization. Useful for dynamically
-     * extending the assistant's capabilities.
-     */
-    use(spec: AutoAssistantToolBundleSpec): this;
-    /** Resolve a tool bundle spec and register its tools on the inner assistant. */
-    private _stackToolBundle;
-    /** Create a pending approval, emit the event, and return a promise that resolves with the decision. */
-    private _requestApproval;
-    /** Remove a pending approval from state. */
-    private _removePending;
-    /** Record a decision in the approval history. */
-    private _recordDecision;
-}
-export default AutonomousAssistant;
-//# sourceMappingURL=autonomous-assistant.d.ts.map`,
   "agi/features/browser-use.d.ts": `import { z } from 'zod';
 import { Feature } from '../feature.js';
 import type { Helper } from '../../helper.js';
@@ -4686,329 +4393,6 @@ export declare class FileTools extends Feature {
 }
 export default FileTools;
 //# sourceMappingURL=file-tools.d.ts.map`,
-  "agi/features/luca-coder.d.ts": `import { z } from 'zod';
-import { Feature } from '../feature.js';
-import type { Assistant } from './assistant.js';
-declare module 'luca/feature' {
-    interface AvailableFeatures {
-        lucaCoder: typeof LucaCoder;
-    }
-}
-/** Permission level for a tool. 'allow' runs immediately, 'ask' blocks for user approval, 'deny' rejects. */
-export type PermissionLevel = 'allow' | 'ask' | 'deny';
-/** A pending approval awaiting user decision. */
-export interface PendingApproval {
-    id: string;
-    toolName: string;
-    args: Record<string, any>;
-    timestamp: number;
-    resolve: (decision: 'approve' | 'deny') => void;
-}
-/** Tool bundle spec — either a feature name string, or an object with filtering. */
-export type ToolBundleSpec = string | {
-    feature: string;
-    only?: string[];
-    except?: string[];
-};
-export declare const LucaCoderEventsSchema: z.ZodObject<{
-    stateChange: z.ZodTuple<[z.ZodAny], null>;
-    enabled: z.ZodTuple<[], null>;
-    started: z.ZodTuple<[], null>;
-    permissionRequest: z.ZodTuple<[z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        args: z.ZodRecord<z.ZodString, z.ZodAny>;
-    }, z.core.$strip>], null>;
-    permissionGranted: z.ZodTuple<[z.ZodString], null>;
-    permissionDenied: z.ZodTuple<[z.ZodString], null>;
-    toolBlocked: z.ZodTuple<[z.ZodString, z.ZodString], null>;
-    chunk: z.ZodTuple<[z.ZodString], null>;
-    response: z.ZodTuple<[z.ZodString], null>;
-    toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-}, z.core.$strip>;
-export declare const LucaCoderStateSchema: z.ZodObject<{
-    enabled: z.ZodDefault<z.ZodBoolean>;
-    started: z.ZodBoolean;
-    permissions: z.ZodRecord<z.ZodString, z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>;
-    defaultPermission: z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>;
-    pendingApprovals: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        args: z.ZodRecord<z.ZodString, z.ZodAny>;
-        timestamp: z.ZodNumber;
-    }, z.core.$strip>>;
-    approvalHistory: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        toolName: z.ZodString;
-        decision: z.ZodEnum<{
-            approve: "approve";
-            deny: "deny";
-        }>;
-        timestamp: z.ZodNumber;
-    }, z.core.$strip>>;
-    loadedSkills: z.ZodArray<z.ZodString>;
-}, z.core.$loose>;
-export declare const LucaCoderOptionsSchema: z.ZodObject<{
-    name: z.ZodOptional<z.ZodString>;
-    _cacheKey: z.ZodOptional<z.ZodString>;
-    cached: z.ZodOptional<z.ZodBoolean>;
-    enable: z.ZodOptional<z.ZodBoolean>;
-    tools: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
-        feature: z.ZodString;
-        only: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        except: z.ZodOptional<z.ZodArray<z.ZodString>>;
-    }, z.core.$strip>]>>>;
-    permissions: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>>;
-    defaultPermission: z.ZodDefault<z.ZodEnum<{
-        ask: "ask";
-        deny: "deny";
-        allow: "allow";
-    }>>;
-    systemPrompt: z.ZodOptional<z.ZodString>;
-    model: z.ZodOptional<z.ZodString>;
-    maxTokens: z.ZodDefault<z.ZodNumber>;
-    historyMode: z.ZodOptional<z.ZodEnum<{
-        persistent: "persistent";
-        lifecycle: "lifecycle";
-        session: "session";
-        daily: "daily";
-    }>>;
-    folder: z.ZodOptional<z.ZodString>;
-    skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
-    autoLoadLucaSkill: z.ZodDefault<z.ZodBoolean>;
-}, z.core.$strip>;
-export type LucaCoderState = z.infer<typeof LucaCoderStateSchema>;
-export type LucaCoderOptions = z.infer<typeof LucaCoderOptionsSchema>;
-/**
- * A coding assistant that owns a lower-level Assistant instance and
- * gates all tool calls through a permission system.
- *
- * Comes with built-in Bash tool (via proc.execAndCapture) and auto-loads
- * the luca-framework skill when found in conventional agent skill folders (.claude/skills or .agents/skills).
- *
- * Tools are stacked from feature bundles (fileTools, etc.)
- * and each tool can be set to 'allow' (runs immediately), 'ask' (blocks
- * until user approves/denies), or 'deny' (always rejected).
- *
- * @example
- * \`\`\`typescript
- * const coder = container.feature('lucaCoder', {
- *   tools: ['fileTools'],
- *   permissions: {
- *     readFile: 'allow',
- *     searchFiles: 'allow',
- *     writeFile: 'ask',
- *     bash: 'ask',
- *   },
- *   defaultPermission: 'ask',
- *   systemPrompt: 'You are a coding assistant.',
- * })
- *
- * coder.on('permissionRequest', ({ id, toolName, args }) => {
- *   console.log(\`Tool "\${toolName}" wants to run with\`, args)
- *   coder.approve(id)  // or coder.deny(id)
- * })
- *
- * await coder.ask('Refactor the auth module to use async/await')
- * \`\`\`
- *
- * @extends Feature
- */
-export declare class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
-    static shortcut: "features.lucaCoder";
-    static stability: "experimental";
-    static category: "agent-wrappers";
-    static stateSchema: z.ZodObject<{
-        enabled: z.ZodDefault<z.ZodBoolean>;
-        started: z.ZodBoolean;
-        permissions: z.ZodRecord<z.ZodString, z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>;
-        defaultPermission: z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>;
-        pendingApprovals: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            args: z.ZodRecord<z.ZodString, z.ZodAny>;
-            timestamp: z.ZodNumber;
-        }, z.core.$strip>>;
-        approvalHistory: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            decision: z.ZodEnum<{
-                approve: "approve";
-                deny: "deny";
-            }>;
-            timestamp: z.ZodNumber;
-        }, z.core.$strip>>;
-        loadedSkills: z.ZodArray<z.ZodString>;
-    }, z.core.$loose>;
-    static optionsSchema: z.ZodObject<{
-        name: z.ZodOptional<z.ZodString>;
-        _cacheKey: z.ZodOptional<z.ZodString>;
-        cached: z.ZodOptional<z.ZodBoolean>;
-        enable: z.ZodOptional<z.ZodBoolean>;
-        tools: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
-            feature: z.ZodString;
-            only: z.ZodOptional<z.ZodArray<z.ZodString>>;
-            except: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        }, z.core.$strip>]>>>;
-        permissions: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>>;
-        defaultPermission: z.ZodDefault<z.ZodEnum<{
-            ask: "ask";
-            deny: "deny";
-            allow: "allow";
-        }>>;
-        systemPrompt: z.ZodOptional<z.ZodString>;
-        model: z.ZodOptional<z.ZodString>;
-        maxTokens: z.ZodDefault<z.ZodNumber>;
-        historyMode: z.ZodOptional<z.ZodEnum<{
-            persistent: "persistent";
-            lifecycle: "lifecycle";
-            session: "session";
-            daily: "daily";
-        }>>;
-        folder: z.ZodOptional<z.ZodString>;
-        skills: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        autoLoadLucaSkill: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$strip>;
-    static eventsSchema: z.ZodObject<{
-        stateChange: z.ZodTuple<[z.ZodAny], null>;
-        enabled: z.ZodTuple<[], null>;
-        started: z.ZodTuple<[], null>;
-        permissionRequest: z.ZodTuple<[z.ZodObject<{
-            id: z.ZodString;
-            toolName: z.ZodString;
-            args: z.ZodRecord<z.ZodString, z.ZodAny>;
-        }, z.core.$strip>], null>;
-        permissionGranted: z.ZodTuple<[z.ZodString], null>;
-        permissionDenied: z.ZodTuple<[z.ZodString], null>;
-        toolBlocked: z.ZodTuple<[z.ZodString, z.ZodString], null>;
-        chunk: z.ZodTuple<[z.ZodString], null>;
-        response: z.ZodTuple<[z.ZodString], null>;
-        toolCall: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-        toolResult: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-        toolError: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
-    }, z.core.$strip>;
-    /**
-     * Default system prompt that establishes baseline coding assistant identity
-     * and luca framework knowledge. Project-specific CLAUDE.md and loaded skills
-     * are appended below this — the skill will reinforce and expand on these
-     * fundamentals without conflicting.
-     */
-    static defaultSystemPrompt: string;
-    /** The inner assistant instance. Created during start(). */
-    private _assistant;
-    /** Map of pending approval promises keyed by ID. */
-    private _pendingResolvers;
-    get initialState(): LucaCoderState;
-    /** The inner assistant. Throws if not started. */
-    get assistant(): Assistant;
-    /** Current permission map from state. */
-    get permissions(): Record<string, PermissionLevel>;
-    /** Current pending approvals. */
-    get pendingApprovals(): PendingApproval[];
-    /** Whether the assistant is started and ready. */
-    get isStarted(): boolean;
-    /** The tools registered on the inner assistant. */
-    get tools(): Record<string, any>;
-    /** The conversation on the inner assistant (if started). */
-    get conversation(): import("./conversation.js").Conversation | undefined;
-    /** Messages from the inner assistant's conversation. */
-    get messages(): import("openai/resources/index.mjs").ChatCompletionMessageParam[];
-    /** Get the effective permission level for a tool. */
-    getPermission(toolName: string): PermissionLevel;
-    /** Set permission level for one or more tools. */
-    setPermission(toolName: string | string[], level: PermissionLevel): this;
-    /** Set the default permission level for unconfigured tools. */
-    setDefaultPermission(level: PermissionLevel): this;
-    /** Allow a tool (or tools) to run without approval. */
-    permitTool(...toolNames: string[]): this;
-    /** Require approval before a tool (or tools) can run. */
-    gateTool(...toolNames: string[]): this;
-    /** Block a tool (or tools) from ever running. */
-    blockTool(...toolNames: string[]): this;
-    /** Approve a pending tool call by ID. The tool will execute. */
-    approve(id: string): this;
-    /** Deny a pending tool call by ID. The tool call will be skipped. */
-    deny(id: string): this;
-    /** Approve all pending tool calls. */
-    approveAll(): this;
-    /** Deny all pending tool calls. */
-    denyAll(): this;
-    /**
-     * Execute a shell command string and return its output.
-     * Uses proc.execAndCapture under the hood — runs \`sh -c <command>\`.
-     */
-    bash({ command, cwd, timeout }: {
-        command: string;
-        cwd?: string;
-        timeout?: number;
-    }): Promise<{
-        exitCode: number;
-        stdout: string;
-        stderr: string;
-        success: boolean;
-    }>;
-    /**
-     * Read project instruction files (CLAUDE.md, AGENTS.md, LUCA.md) from the
-     * project root if they exist, and return their combined content.
-     */
-    private _loadProjectInstructions;
-    /**
-     * Detect and load skills into the system prompt context.
-     * Auto-loads luca-framework if found and autoLoadLucaSkill is true.
-     */
-    private _loadSkillsIntoContext;
-    /**
-     * Initialize the inner assistant, register the bash tool, stack tool bundles,
-     * auto-load skills, and wire up the permission interceptor.
-     */
-    start(): Promise<this>;
-    /**
-     * Ask the coder a question. Auto-starts if needed.
-     * Tool calls will be gated by the permission system.
-     */
-    ask(question: string, options?: Record<string, any>): Promise<string>;
-    /**
-     * Add a tool bundle after initialization. Useful for dynamically
-     * extending the assistant's capabilities.
-     */
-    use(spec: ToolBundleSpec): this;
-    /** Resolve a tool bundle spec and register its tools on the inner assistant. */
-    private _stackToolBundle;
-    /** Create a pending approval, emit the event, and return a promise that resolves with the decision. */
-    private _requestApproval;
-    /** Remove a pending approval from state. */
-    private _removePending;
-    /** Record a decision in the approval history. */
-    private _recordDecision;
-}
-export default LucaCoder;
-//# sourceMappingURL=luca-coder.d.ts.map`,
   "agi/features/mcp-bridge.d.ts": `import { z } from 'zod';
 import { Feature } from '../../feature';
 import type { Helper } from '../../helper';
@@ -9547,36 +8931,6 @@ export declare const examples: (string | {
     description: string;
 })[];
 //# sourceMappingURL=chat.d.ts.map`,
-  "commands/code.d.ts": `import { z } from 'zod';
-import type { ContainerContext } from '../container.js';
-import type { AGIFeatures } from '../agi/container.server.js';
-declare module '../command.js' {
-    interface AvailableCommands {
-        code: ReturnType<typeof commands.registerHandler>;
-    }
-}
-export declare const argsSchema: z.ZodObject<{
-    name: z.ZodOptional<z.ZodString>;
-    _cacheKey: z.ZodOptional<z.ZodString>;
-    _: z.ZodDefault<z.ZodArray<z.ZodString>>;
-    dispatchSource: z.ZodDefault<z.ZodEnum<{
-        cli: "cli";
-        headless: "headless";
-        mcp: "mcp";
-        rpc: "rpc";
-    }>>;
-    model: z.ZodOptional<z.ZodString>;
-    prompt: z.ZodOptional<z.ZodString>;
-    allowAll: z.ZodDefault<z.ZodBoolean>;
-    denyWrites: z.ZodDefault<z.ZodBoolean>;
-    skills: z.ZodOptional<z.ZodString>;
-}, z.core.$strip>;
-export declare const examples: (string | {
-    command: string;
-    description: string;
-})[];
-export default function code(options: z.infer<typeof argsSchema>, context: ContainerContext<AGIFeatures>): Promise<void>;
-//# sourceMappingURL=code.d.ts.map`,
   "commands/console.d.ts": `import { z } from 'zod';
 import type { ContainerContext } from '../container.js';
 declare module '../command.js' {
@@ -9748,7 +9102,6 @@ import './save-api-docs.js';
 import './bootstrap.js';
 import './setup.js';
 import './select.js';
-import './code.js';
 import './social.js';
 import './bundle.js';
 import './assistant.js';
@@ -28958,7 +28311,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.5.0";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.5.1";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';

@@ -24,7 +24,7 @@ const DEFAULT_SKIP = new Set([
 	'telegram', 'runpod', 'tts', 'opener', 'downloader', 'docker', 'postgres', 'redis',
 	'secureShell', 'tmux', 'browser', 'repl', 'python',
 	'openai', 'elevenlabs', 'voicebox', 'graph', 'socketio',
-	'assistant', 'assistantsManager', 'claudeCode', 'openaiCodex', 'lucaCoder',
+	'assistant', 'assistantsManager', 'claudeCode', 'openaiCodex',
 	'conversation', 'conversationHistory', 'conversationv2', 'memory', 'semanticSearch', 'mcpBridge',
 	'mcp', 'containerLink', 'dns', 'skillsLibrary', 'docsReader', 'codingTools', 'fileTools', 'openapi',
 	'browserUse', 'cipherSocial', 'claudeController', 'modelProviders', 'telnyxAssistantConnector', 'voiceMode', 'socketRepl',

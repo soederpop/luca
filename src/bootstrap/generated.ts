@@ -454,8 +454,8 @@ A table of contents for the container. **Run \`luca describe <name>\` for full d
 |----------|----------|--------------|
 | **File System & Code** | \`fileManager\`, \`fs\`, \`grep\` | Read/write files, search code, watch for changes |
 | **Process & Shell** | \`proc\`, \`processManager\`, \`scheduler\`, \`secureShell\`, \`tmux\` | Run commands, manage long-running processes, SSH |
-| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`autoAssistant\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
-| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`lucaCoder\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
+| **AI Assistants** | \`assistant\`, \`assistantsManager\`, \`codingTools\`, \`conversation\`, \`conversationHistory\`, \`fileTools\`, \`llamaServer\`, \`mcpBridge\`, \`memory\`, \`modelProviders\`, \`openapi\`, \`telnyxAssistantConnector\`, \`voiceMode\` | Build AI assistants, manage conversations, tool calling |
+| **AI Agent Wrappers** | \`claudeCode\`, \`claudeController\`, \`openaiCodex\` | Spawn and manage external AI agent CLIs as subprocesses |
 | **Data & Storage** | \`contentDb\`, \`diskCache\`, \`postgres\`, \`redis\`, \`sqlite\`, \`store\` | Cross-process state, databases, caching, document management |
 | **Networking** | \`dns\`, \`ipcSocket\`, \`networking\` | HTTP clients and servers, sockets, DNS, network utilities |
 | **Google Workspace** | \`googleAuth\`, \`googleCalendar\`, \`googleDocs\`, \`googleDrive\`, \`googleMail\`, \`googleSheets\` | OAuth and Google service wrappers |
@@ -11454,7 +11454,6 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 |------|------|----------|-----------|-------------|
 | \`assistant\` | feature | ai-assistants | core | An Assistant is a combination of a system prompt and tool calls that has a conversation with an LLM. |
 | \`assistantsManager\` | feature | ai-assistants | core | Discovers and manages assistant definitions by looking for subdirectories in two locations: ~/.luca/assistants/ and cwd/assistants/. |
-| \`autoAssistant\` | feature | ai-assistants | experimental | An autonomous assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. |
 | \`browserUse\` | feature | media-browser | experimental | Browser automation feature wrapping the browser-use CLI. |
 | \`cipherSocial\` | feature | media-browser | experimental | Cipher P2P feature — connects a Luca agent to the Cipher encrypted social network. |
 | \`claudeCode\` | feature | agent-wrappers | stable | Claude Code CLI wrapper feature. |
@@ -11486,7 +11485,6 @@ Every built-in helper in the luca container. Run \`luca describe <name>\` for fu
 | \`ipcSocket\` | feature | networking | stable | IpcSocket Feature - Inter-Process Communication via Unix Domain Sockets This feature provides robust IPC (Inter-Process Communication) capabilities using Unix domain sockets. |
 | \`jsonTree\` | feature | content-nlp | stable | JsonTree Feature - A powerful JSON file tree loader and processor This feature provides functionality to recursively load JSON files from a directory structure and build a hierarchical tree representation. |
 | \`llamaServer\` | feature | ai-assistants | experimental | Downloads, supervises, and health-checks local \`llama-server\` processes — luca's local inference substrate. |
-| \`lucaCoder\` | feature | agent-wrappers | experimental | A coding assistant that owns a lower-level Assistant instance and gates all tool calls through a permission system. |
 | \`mcpBridge\` | feature | ai-assistants | stable | Bridges local stdio MCP servers to Luca assistants by discovering their tools and exposing them as first-class assistant tool calls. |
 | \`memory\` | feature | ai-assistants | stable | Semantic memory storage and retrieval for AI agents. |
 | \`modelProviders\` | feature | ai-assistants | core | Resolve model provider profiles and route requests to provider transports. |
