@@ -19,10 +19,10 @@ declare module 'luca/feature' {
 
 export const SemanticSearchOptionsSchema = FeatureOptionsSchema.extend({
 	dbPath: z.string().default('.contentbase/search.sqlite').describe('Path to the SQLite database file'),
-	embeddingModel: z.string().optional().describe('Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())'),
+	embeddingModel: z.string().optional().describe('Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings()). For the openai provider, falls back to the LUCA_EMBEDDING_MODEL env var'),
 	embeddingProvider: z.enum(['local', 'openai']).default('openai').describe('Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server — run installLocalEmbeddings() once to download the binary and the model weights'),
-	embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var, then the official API. Only used when embeddingProvider is "openai"'),
-	embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"'),
+	embeddingBaseURL: z.string().optional().describe('Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the LUCA_EMBEDDING_BASE_URL env var, then OPENAI_BASE_URL, then the official API. Only used when embeddingProvider is "openai"'),
+	embeddingApiKey: z.string().optional().describe('API key for the embedding endpoint. Falls back to the LUCA_EMBEDDING_API_KEY env var, then OPENAI_API_KEY. Only used when embeddingProvider is "openai"'),
 	chunkStrategy: z.enum(['section', 'fixed', 'document']).default('section').describe('How to split documents'),
 	chunkSize: z.number().default(900).describe('Token limit per chunk for fixed strategy'),
 	chunkOverlap: z.number().default(0.15).describe('Overlap ratio for fixed strategy'),
@@ -355,7 +355,14 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 	 * local → embedding-gemma-300M-Q8_0).
 	 */
 	get embeddingModel(): string {
-		return this.options.embeddingModel ?? PROVIDER_DEFAULT_MODELS[this.options.embeddingProvider]
+		if (this.options.embeddingModel) return this.options.embeddingModel
+		// LUCA_EMBEDDING_MODEL only applies to the openai provider — the local
+		// provider validates against a fixed weight set and must not be steered
+		// into an openai model name by a stray env var.
+		if (this.options.embeddingProvider === 'openai' && process.env.LUCA_EMBEDDING_MODEL) {
+			return process.env.LUCA_EMBEDDING_MODEL
+		}
+		return PROVIDER_DEFAULT_MODELS[this.options.embeddingProvider]
 	}
 
 	// ── Database path ───────────────────────────────────────────────
@@ -566,13 +573,15 @@ export class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchO
 
 	private async _embedOpenAI(texts: string[]): Promise<number[][]> {
 		// Pass baseURL/apiKey through so an OpenAI-compatible endpoint can be
-		// targeted per-instance. Both undefined by default, which keeps the
-		// client on its env-var fallbacks (OPENAI_BASE_URL / OPENAI_API_KEY).
-		// Creating the client *with* options also gives a distinct baseURL its
-		// own cached instance instead of colliding with the env-configured default.
+		// targeted per-instance. When the option is unset, fall back to the
+		// embedding-specific env vars (so embeddings can point at a different
+		// host/key than chat), then to the openai client's own OPENAI_BASE_URL /
+		// OPENAI_API_KEY fallbacks. Creating the client *with* options also gives
+		// a distinct baseURL its own cached instance instead of colliding with
+		// the env-configured default.
 		const openai = (this.container as any).client('openai', {
-			baseURL: this.options.embeddingBaseURL,
-			apiKey: this.options.embeddingApiKey,
+			baseURL: this.options.embeddingBaseURL ?? process.env.LUCA_EMBEDDING_BASE_URL,
+			apiKey: this.options.embeddingApiKey ?? process.env.LUCA_EMBEDDING_API_KEY,
 		}) as any
 		const results: number[][] = []
 
