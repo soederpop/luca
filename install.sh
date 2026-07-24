@@ -4,7 +4,7 @@
 set -euo pipefail
 
 REPO="soederpop/luca"
-INSTALL_DIR="${LUCA_INSTALL_DIR:-/usr/local/bin}"
+INSTALL_DIR="${LUCA_INSTALL_DIR:-$HOME/.luca/bin}"
 
 # Colors
 reset="\033[0m"
@@ -56,13 +56,8 @@ fi
 chmod +x "$TMP"
 
 # Install
-if [ -w "$INSTALL_DIR" ]; then
-  mv "$TMP" "${INSTALL_DIR}/luca"
-else
-  info "Writing to ${INSTALL_DIR} requires sudo"
-  sudo mv "$TMP" "${INSTALL_DIR}/luca"
-  sudo chmod +x "${INSTALL_DIR}/luca"
-fi
+mkdir -p "$INSTALL_DIR"
+mv "$TMP" "${INSTALL_DIR}/luca"
 
 # macOS quarantine
 if [ "$OS" = "darwin" ]; then
@@ -72,12 +67,43 @@ fi
 printf "\n"
 ok "Installed luca to ${INSTALL_DIR}/luca"
 
-# Verify
-if command -v luca &>/dev/null; then
-  printf "${dim}"
-  luca --version 2>/dev/null || true
-  printf "${reset}"
-fi
+printf "${dim}"
+"${INSTALL_DIR}/luca" --version 2>/dev/null || true
+printf "${reset}"
+
+# PATH setup
+case ":$PATH:" in
+  *":${INSTALL_DIR}:"*)
+    ;;
+  *)
+    printf "\n"
+    info "Add ${INSTALL_DIR} to your PATH:"
+    printf "\n"
+    SHELL_NAME="$(basename "${SHELL:-}")"
+    case "$SHELL_NAME" in
+      zsh)
+        printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.zshrc${reset}\n"
+        printf "    ${bold}source ~/.zshrc${reset}\n"
+        ;;
+      bash)
+        if [ "$OS" = "darwin" ]; then
+          printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.bash_profile${reset}\n"
+          printf "    ${bold}source ~/.bash_profile${reset}\n"
+        else
+          printf "    ${bold}echo 'export PATH=\"${INSTALL_DIR}:\$PATH\"' >> ~/.bashrc${reset}\n"
+          printf "    ${bold}source ~/.bashrc${reset}\n"
+        fi
+        ;;
+      fish)
+        printf "    ${bold}fish_add_path ${INSTALL_DIR}${reset}\n"
+        ;;
+      *)
+        printf "    ${bold}export PATH=\"${INSTALL_DIR}:\$PATH\"${reset}\n"
+        printf "    ${dim}(add this to your shell's startup file)${reset}\n"
+        ;;
+    esac
+    ;;
+esac
 
 printf "\n"
 printf "  Run ${bold}luca${reset} to get started.\n"
