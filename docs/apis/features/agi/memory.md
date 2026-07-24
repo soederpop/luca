@@ -10,8 +10,14 @@ Semantic memory storage and retrieval for AI agents. Provides categorized memory
 container.feature('memory', {
   // Path to SQLite database file. Defaults to .luca/agent-memory/<hash>.db in home dir
   dbPath,
-  // OpenAI embedding model to use
+  // Embedding model to use. When omitted, defaults to text-embedding-3-large for the openai provider, or the provider default for local. Note: changing this for an existing memory database mixes vector dimensions and breaks similarity search — wipe and re-index to switch models
   embeddingModel,
+  // Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server (fully offline, run `luca setup --local-embeddings` once); "openai" hits an OpenAI-compatible endpoint
+  embeddingProvider,
+  // Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var. Only used when embeddingProvider is "openai"
+  embeddingBaseURL,
+  // API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai"
+  embeddingApiKey,
   // Namespace to isolate memory sets (e.g. per-assistant)
   namespace,
 })
@@ -22,7 +28,10 @@ container.feature('memory', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `dbPath` | `string` | Path to SQLite database file. Defaults to .luca/agent-memory/<hash>.db in home dir |
-| `embeddingModel` | `string` | OpenAI embedding model to use |
+| `embeddingModel` | `string` | Embedding model to use. When omitted, defaults to text-embedding-3-large for the openai provider, or the provider default for local. Note: changing this for an existing memory database mixes vector dimensions and breaks similarity search — wipe and re-index to switch models |
+| `embeddingProvider` | `string` | Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server (fully offline, run `luca setup --local-embeddings` once); "openai" hits an OpenAI-compatible endpoint |
+| `embeddingBaseURL` | `string` | Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the OPENAI_BASE_URL env var. Only used when embeddingProvider is "openai" |
+| `embeddingApiKey` | `string` | API key for the embedding endpoint. Falls back to the OPENAI_API_KEY env var. Only used when embeddingProvider is "openai" |
 | `namespace` | `string` | Namespace to isolate memory sets (e.g. per-assistant) |
 
 ## Methods

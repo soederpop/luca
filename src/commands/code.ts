@@ -13,7 +13,6 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model'),
-	local: z.boolean().default(false).describe('Use a local API server'),
 	prompt: z.string().optional().describe('Path to a markdown file or inline text for the system prompt'),
 	allowAll: z.boolean().default(false).describe('Start with all permissions set to allow (fully autonomous)'),
 	denyWrites: z.boolean().default(false).describe('Deny all write/delete/move operations'),
@@ -83,7 +82,6 @@ export default async function code(options: z.infer<typeof argsSchema>, context:
 		defaultPermission: 'ask',
 		systemPrompt,
 		model: options.model,
-		local: options.local,
 		skills: extraSkills,
 		maxTokens: 2048,
 		autoLoadLucaSkill: true,

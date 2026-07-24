@@ -22,7 +22,7 @@ container.feature('conversation', {
   tools,
   // Remote MCP servers keyed by server label
   mcpServers,
-  // Completion API mode. auto uses Responses unless local=true
+  // Completion API mode. auto uses the Responses API; set to "chat" for OpenAI-compatible chat-completions endpoints (LM Studio, Ollama, vLLM, etc.)
   api,
   // Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior
   provider,
@@ -34,10 +34,8 @@ container.feature('conversation', {
   tags,
   // Arbitrary metadata to attach to this conversation
   metadata,
-  // Options for the OpenAI client
+  // Options for the OpenAI client (e.g. baseURL, apiKey). Point baseURL at any OpenAI-compatible server — local or remote — to override the default connection.
   clientOptions,
-  // Whether to use the local ollama models instead of the remote OpenAI models
-  local,
   // Maximum number of output tokens per completion (default 512)
   maxTokens,
   // Sampling temperature (0-2). Higher = more random, lower = more deterministic
@@ -76,14 +74,13 @@ container.feature('conversation', {
 | `history` | `array` | Initial message history to seed the conversation |
 | `tools` | `object` | Tools the model can call during conversation |
 | `mcpServers` | `object` | Remote MCP servers keyed by server label |
-| `api` | `string` | Completion API mode. auto uses Responses unless local=true |
+| `api` | `string` | Completion API mode. auto uses the Responses API; set to "chat" for OpenAI-compatible chat-completions endpoints (LM Studio, Ollama, vLLM, etc.) |
 | `provider` | `any` | Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior |
 | `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
 | `maxTurns` | `number` | Maximum provider/tool turns for non-OpenAI providers (default 8) |
 | `tags` | `array` | Tags for categorizing and searching this conversation |
 | `metadata` | `object` | Arbitrary metadata to attach to this conversation |
-| `clientOptions` | `object` | Options for the OpenAI client |
-| `local` | `boolean` | Whether to use the local ollama models instead of the remote OpenAI models |
+| `clientOptions` | `object` | Options for the OpenAI client (e.g. baseURL, apiKey). Point baseURL at any OpenAI-compatible server — local or remote — to override the default connection. |
 | `maxTokens` | `number` | Maximum number of output tokens per completion (default 512) |
 | `temperature` | `number` | Sampling temperature (0-2). Higher = more random, lower = more deterministic |
 | `topP` | `number` | Nucleus sampling cutoff (0-1). Lower = more focused |
@@ -316,7 +313,7 @@ Append a message to the conversation state.
 | `mcpServers` | `Record<string, ConversationMCPServer>` | Returns configured remote MCP servers keyed by server label. |
 | `messages` | `Message[]` | Returns the full message history of the conversation. |
 | `model` | `string` | Returns the OpenAI model name being used for completions. |
-| `apiMode` | `'responses' | 'chat'` | Returns the active completion API mode after resolving auto/local behavior. |
+| `apiMode` | `'responses' | 'chat'` | Returns the active completion API mode after resolving auto behavior. |
 | `isStreaming` | `boolean` | Whether a streaming response is currently in progress. |
 | `contextWindow` | `number` | The context window size for the current model (from options override or auto-detected). |
 | `isNearContextLimit` | `boolean` | Whether the conversation is approaching the context limit. |

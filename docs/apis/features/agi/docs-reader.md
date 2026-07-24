@@ -10,10 +10,8 @@ The DocsReader feature is an AI Assisted wrapper around a ContentDB feature. You
 container.feature('docsReader', {
   // Either the contentDb instance or the path to the contentDb you want to load
   contentDb,
-  // The model to use for the conversation
+  // The model to use for the conversation. Omit to use the container default provider chain (openai when OPENAI_API_KEY is set, else the local default).
   model,
-  // Whether to use a local model for the conversation
-  local,
 })
 ```
 
@@ -22,8 +20,7 @@ container.feature('docsReader', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `contentDb` | `any` | Either the contentDb instance or the path to the contentDb you want to load |
-| `model` | `string` | The model to use for the conversation |
-| `local` | `boolean` | Whether to use a local model for the conversation |
+| `model` | `string` | The model to use for the conversation. Omit to use the container default provider chain (openai when OPENAI_API_KEY is set, else the local default). |
 
 ## Methods
 

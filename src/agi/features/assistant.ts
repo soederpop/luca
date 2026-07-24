@@ -92,6 +92,9 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum number of output tokens per completion */
 
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion'),
+
+	/** The model's total context window in tokens. Drives auto-compaction thresholds — set this to your model's real limit (e.g. 16384 for the default local llama-server) so history compacts before the request overflows. Inferred from the model name when omitted. */
+	contextWindow: z.number().optional().describe("The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted."),
 	/** Sampling temperature (0-2). Higher = more random, lower = more deterministic. */
 	temperature: z.number().min(0).max(2).optional().describe('Sampling temperature (0-2)'),
 	/** Nucleus sampling cutoff (0-1). */
@@ -104,8 +107,6 @@ export const AssistantOptionsSchema = FeatureOptionsSchema.extend({
 	presencePenalty: z.number().min(-2).max(2).optional().describe('Presence penalty (-2 to 2)'),
 	/** Stop sequences. */
 	stop: z.array(z.string()).optional().describe('Stop sequences'),
-
-	local: z.boolean().default(false).describe('Whether to use our local models for this'),
 
 	/** History persistence mode: lifecycle (ephemeral), daily (auto-resume per day), persistent (single long-running thread), session (unique per run, resumable) */
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
@@ -395,12 +396,11 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			// llama-server, else a registered custom endpoint). Only force the
 			// OpenAI model default when that default IS the OpenAI path — any other
 			// default must keep its own model.
-			const defaultsToOpenAI = !provider && !this.effectiveOptions.local && this.resolveDefaultProviderId() === 'openai'
+			const defaultsToOpenAI = !provider && this.resolveDefaultProviderId() === 'openai'
 			conv = this.container.feature('conversation', {
 				// Only default the model for the OpenAI path; when a provider is
 				// configured (or defaulted), leave it unset so the provider's default model wins.
 				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4-mini' : undefined),
-				local: !!this.effectiveOptions.local,
 				tools: this.tools,
 				api: 'chat',
 				// When a provider is configured, thread it through. The `assistant`
@@ -414,6 +414,7 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 					},
 				} : {}),
 				...(this.effectiveOptions.maxTokens ? { maxTokens: this.effectiveOptions.maxTokens } : {}),
+				...(this.effectiveOptions.contextWindow ? { contextWindow: this.effectiveOptions.contextWindow } : {}),
 				...(this.effectiveOptions.temperature != null ? { temperature: this.effectiveOptions.temperature } : {}),
 				...(this.effectiveOptions.topP != null ? { topP: this.effectiveOptions.topP } : {}),
 				...(this.effectiveOptions.topK != null ? { topK: this.effectiveOptions.topK } : {}),

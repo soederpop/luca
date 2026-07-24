@@ -92,9 +92,6 @@ export const LucaCoderOptionsSchema = FeatureOptionsSchema.extend({
 	/** Maximum output tokens per completion. */
 	maxTokens: z.number().default(2048).describe('Maximum number of output tokens per completion'),
 
-	/** Whether to use a local API server. */
-	local: z.boolean().default(false).describe('Use a local API server for the inner assistant'),
-
 	/** History mode for the inner assistant. */
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Conversation history persistence mode'),
 
@@ -484,7 +481,6 @@ export class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions> {
 		if (systemPrompt) assistantOpts.systemPrompt = systemPrompt
 		if (this.options.model) assistantOpts.model = this.options.model
 		if (this.options.maxTokens) assistantOpts.maxTokens = this.options.maxTokens
-		if (this.options.local) assistantOpts.local = this.options.local
 		if (this.options.historyMode) assistantOpts.historyMode = this.options.historyMode
 		if (this.options.folder) assistantOpts.folder = this.options.folder
 

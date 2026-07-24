@@ -3,7 +3,7 @@
 //
 // Do not edit manually. Run: bun run build:types && luca build-types-bundle
 
-export const typesBundleVersion = "3.4.4"
+export const typesBundleVersion = "3.5.0"
 
 export const typesBundle: Record<string, string> = {
   "agi/container.server.d.ts": `import type { ContainerState } from '../container';
@@ -614,13 +614,13 @@ export declare const AssistantOptionsSchema: z.ZodObject<{
     providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     model: z.ZodOptional<z.ZodString>;
     maxTokens: z.ZodOptional<z.ZodNumber>;
+    contextWindow: z.ZodOptional<z.ZodNumber>;
     temperature: z.ZodOptional<z.ZodNumber>;
     topP: z.ZodOptional<z.ZodNumber>;
     topK: z.ZodOptional<z.ZodNumber>;
     frequencyPenalty: z.ZodOptional<z.ZodNumber>;
     presencePenalty: z.ZodOptional<z.ZodNumber>;
     stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
-    local: z.ZodDefault<z.ZodBoolean>;
     historyMode: z.ZodOptional<z.ZodEnum<{
         persistent: "persistent";
         lifecycle: "lifecycle";
@@ -724,13 +724,13 @@ export declare class Assistant extends Feature<AssistantState, AssistantOptions>
         providerOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         model: z.ZodOptional<z.ZodString>;
         maxTokens: z.ZodOptional<z.ZodNumber>;
+        contextWindow: z.ZodOptional<z.ZodNumber>;
         temperature: z.ZodOptional<z.ZodNumber>;
         topP: z.ZodOptional<z.ZodNumber>;
         topK: z.ZodOptional<z.ZodNumber>;
         frequencyPenalty: z.ZodOptional<z.ZodNumber>;
         presencePenalty: z.ZodOptional<z.ZodNumber>;
         stop: z.ZodOptional<z.ZodArray<z.ZodString>>;
-        local: z.ZodDefault<z.ZodBoolean>;
         historyMode: z.ZodOptional<z.ZodEnum<{
             persistent: "persistent";
             lifecycle: "lifecycle";
@@ -2494,7 +2494,6 @@ export declare const ClaudeCodeOptionsSchema: z.ZodObject<{
     chrome: z.ZodOptional<z.ZodBoolean>;
     baseURL: z.ZodOptional<z.ZodString>;
     authToken: z.ZodOptional<z.ZodString>;
-    local: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
 export declare const ClaudeCodeEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -2620,8 +2619,6 @@ export interface RunOptions {
     baseURL?: string;
     /** Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. */
     authToken?: string;
-    /** Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). */
-    local?: boolean;
 }
 /**
  * Claude Code CLI wrapper feature. Spawns and manages Claude Code sessions
@@ -2700,7 +2697,6 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
         chrome: z.ZodOptional<z.ZodBoolean>;
         baseURL: z.ZodOptional<z.ZodString>;
         authToken: z.ZodOptional<z.ZodString>;
-        local: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -2854,8 +2850,7 @@ export declare class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptio
     private buildArgs;
     /**
      * Build the environment object for a claude CLI invocation.
-     * Injects ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN when baseURL/authToken are set,
-     * or when local mode is enabled.
+     * Injects ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN when baseURL/authToken are set.
      *
      * @param {RunOptions} options - Session options
      * @returns {Record<string, string>} Environment variables
@@ -3888,7 +3883,6 @@ export declare const ConversationOptionsSchema: z.ZodObject<{
     tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
     metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
     clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
-    local: z.ZodOptional<z.ZodBoolean>;
     maxTokens: z.ZodOptional<z.ZodNumber>;
     temperature: z.ZodOptional<z.ZodNumber>;
     topP: z.ZodOptional<z.ZodNumber>;
@@ -4095,7 +4089,6 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
         tags: z.ZodOptional<z.ZodArray<z.ZodString>>;
         metadata: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
         clientOptions: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
-        local: z.ZodOptional<z.ZodBoolean>;
         maxTokens: z.ZodOptional<z.ZodNumber>;
         temperature: z.ZodOptional<z.ZodNumber>;
         topP: z.ZodOptional<z.ZodNumber>;
@@ -4271,7 +4264,7 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
     })[], defaults?: ForkOptions): Promise<string[]>;
     /** Returns the OpenAI model name being used for completions. */
     get model(): string;
-    /** Returns the active completion API mode after resolving auto/local behavior. */
+    /** Returns the active completion API mode after resolving auto behavior. */
     get apiMode(): 'responses' | 'chat';
     /** Cached container-default provider id: undefined = not computed yet, null = none (or the legacy OpenAI path). */
     private _defaultProviderId;
@@ -4283,8 +4276,8 @@ export declare class Conversation extends Feature<ConversationState, Conversatio
      *
      * An \`openai\` default returns undefined so those conversations keep the
      * battle-tested legacy OpenAI path (responses API, native loops). Explicit
-     * \`local: true\` or \`clientOptions\` also keep the legacy path — they encode a
-     * deliberate connection choice.
+     * \`clientOptions\` also keep the legacy path — a custom baseURL/apiKey encodes
+     * a deliberate connection choice.
      */
     private get effectiveProvider();
     /**
@@ -4515,7 +4508,6 @@ export declare const DocsReaderOptionsSchema: z.ZodObject<{
     enable: z.ZodOptional<z.ZodBoolean>;
     contentDb: z.ZodUnion<readonly [z.ZodString, z.ZodAny]>;
     model: z.ZodOptional<z.ZodString>;
-    local: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$loose>;
 export declare const DocsReaderEventsSchema: z.ZodObject<{
     stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -4542,7 +4534,6 @@ export declare class DocsReader extends Feature<DocsReaderState, DocsReaderOptio
         enable: z.ZodOptional<z.ZodBoolean>;
         contentDb: z.ZodUnion<readonly [z.ZodString, z.ZodAny]>;
         model: z.ZodOptional<z.ZodString>;
-        local: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$loose>;
     static eventsSchema: z.ZodObject<{
         stateChange: z.ZodTuple<[z.ZodAny], null>;
@@ -4790,7 +4781,6 @@ export declare const LucaCoderOptionsSchema: z.ZodObject<{
     systemPrompt: z.ZodOptional<z.ZodString>;
     model: z.ZodOptional<z.ZodString>;
     maxTokens: z.ZodDefault<z.ZodNumber>;
-    local: z.ZodDefault<z.ZodBoolean>;
     historyMode: z.ZodOptional<z.ZodEnum<{
         persistent: "persistent";
         lifecycle: "lifecycle";
@@ -4895,7 +4885,6 @@ export declare class LucaCoder extends Feature<LucaCoderState, LucaCoderOptions>
         systemPrompt: z.ZodOptional<z.ZodString>;
         model: z.ZodOptional<z.ZodString>;
         maxTokens: z.ZodDefault<z.ZodNumber>;
-        local: z.ZodDefault<z.ZodBoolean>;
         historyMode: z.ZodOptional<z.ZodEnum<{
             persistent: "persistent";
             lifecycle: "lifecycle";
@@ -9531,7 +9520,6 @@ export declare const argsSchema: z.ZodObject<{
         rpc: "rpc";
     }>>;
     model: z.ZodOptional<z.ZodString>;
-    local: z.ZodDefault<z.ZodBoolean>;
     resume: z.ZodOptional<z.ZodString>;
     list: z.ZodOptional<z.ZodBoolean>;
     historyMode: z.ZodOptional<z.ZodEnum<{
@@ -9578,7 +9566,6 @@ export declare const argsSchema: z.ZodObject<{
         rpc: "rpc";
     }>>;
     model: z.ZodOptional<z.ZodString>;
-    local: z.ZodDefault<z.ZodBoolean>;
     prompt: z.ZodOptional<z.ZodString>;
     allowAll: z.ZodDefault<z.ZodBoolean>;
     denyWrites: z.ZodDefault<z.ZodBoolean>;
@@ -9862,7 +9849,6 @@ export declare const argsSchema: z.ZodObject<{
     'exclude-sections': z.ZodOptional<z.ZodString>;
     chrome: z.ZodDefault<z.ZodBoolean>;
     'dry-run': z.ZodDefault<z.ZodBoolean>;
-    local: z.ZodDefault<z.ZodBoolean>;
     'base-url': z.ZodOptional<z.ZodString>;
     'auth-token': z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
@@ -10901,6 +10887,21 @@ export declare function allHelperInstances<T extends Helper>(FilterClass: new (.
 /** Where the shared describe index lives. The catalog is a property of the binary (not the project), so all projects share one index. */
 export declare function describeIndexDir(): string;
 /**
+ * Embedding config for the describe index, resolved from the environment.
+ * Defaults to the local (llama-server) provider so \`luca setup\` works out of
+ * the box; set LUCA_EMBEDDING_PROVIDER=openai to route embeddings through an
+ * OpenAI-compatible endpoint instead (host/key/model come from the other
+ * LUCA_EMBEDDING_* vars, then the generic OPENAI_* vars).
+ */
+export interface DescribeEmbeddingConfig {
+    provider: 'local' | 'openai';
+    /** Effective model name (already resolved to the per-provider default). */
+    model: string;
+    baseURL?: string;
+    apiKey?: string;
+}
+export declare function describeEmbeddingConfig(): DescribeEmbeddingConfig;
+/**
  * Build one DocumentInput per registered helper (from in-memory introspection,
  * zero I/O) plus one per bundled example and tutorial.
  */
@@ -10930,6 +10931,13 @@ export declare function sanitizeFtsQuery(query: string): string;
 export declare function embeddingsStale(ss: SemanticSearch, doc: DocumentInput): boolean;
 /** Is the local embedding stack (llama-server binary + model weights) installed? */
 export declare function localEmbeddingReadiness(): Promise<'ready' | 'deps-missing'>;
+/**
+ * Whether the configured embedding provider is ready to generate embeddings.
+ * For local, this is the llama-server binary + weights. For openai, it's enough
+ * to have a key or base URL configured (via LUCA_EMBEDDING_* or OPENAI_*) — an
+ * unauthenticated hit against the official API would otherwise fail at call time.
+ */
+export declare function describeEmbeddingReadiness(cfg?: DescribeEmbeddingConfig): Promise<'ready' | 'deps-missing'>;
 /**
  * Build/refresh the embedding index for the describe catalog
  * (\`luca describe --calculate-embeddings\`). Only re-embeds documents whose
@@ -23745,6 +23753,8 @@ export interface DocumentInput {
         level: number;
     }>;
 }
+/** Default embedding model per provider — a local provider must never fall back to an OpenAI model name */
+export declare const PROVIDER_DEFAULT_MODELS: Record<'local' | 'openai', string>;
 /** The default local embedding model, exported for \`luca setup\` and other tooling. */
 export declare const DEFAULT_LOCAL_MODEL: string;
 export declare function resolveModelPath(modelName: string): string;
@@ -28948,7 +28958,7 @@ export declare class WebsocketServer<T extends ServerState = ServerState, K exte
 }
 export default WebsocketServer;
 //# sourceMappingURL=socket.d.ts.map`,
-  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.4.4";
+  "setup/generated-types.d.ts": `export declare const typesBundleVersion = "3.5.0";
 export declare const typesBundle: Record<string, string>;
 //# sourceMappingURL=generated-types.d.ts.map`,
   "setup/native-install.d.ts": `import { lucaHome, lucaHomeNodeModules } from './paths.js';
@@ -36653,7 +36663,9 @@ export declare const commands: {
 //# sourceMappingURL=registry.d.ts.map`,
   "deps/contentbase/dist/collection.d.ts": `import { Document } from "./document";
 import { CollectionQuery } from "./query/collection-query";
-import type { ModelDefinition, CollectionItem, CollectionOptions, InferModelInstance } from "./types";
+import { type DefineModelConfig } from "./define-model";
+import type { z } from "zod";
+import type { ModelDefinition, CollectionItem, CollectionOptions, InferModelInstance, RelationshipDefinition, SectionDefinition } from "./types";
 export interface FieldInfo {
     name: string;
     type: string;
@@ -36673,6 +36685,11 @@ export declare class Collection {
      * Accepts the output of defineModel().
      */
     register<TDef extends ModelDefinition<any, any, any, any, any>>(definition: TDef): this;
+    /**
+     * Define a model and register it with this collection in one call.
+     * Returns the ModelDefinition (with full type inference), not the collection.
+     */
+    defineModel<TName extends string, TMeta extends z.ZodType = z.ZodObject<{}, z.core.$loose>, TSections extends Record<string, SectionDefinition<any>> = Record<string, never>, TRelationships extends Record<string, RelationshipDefinition<any>> = Record<string, never>, TComputed extends Record<string, (self: any) => any> = Record<string, never>>(name: TName, config?: DefineModelConfig<TMeta, TSections, TRelationships, TComputed>): ModelDefinition<TName, TMeta, TSections, TRelationships, TComputed>;
     /** Get a model definition by name */
     getModelDefinition(name: string): ModelDefinition<any, any, any, any, any> | undefined;
     get modelDefinitions(): ModelDefinition<any, any, any, any, any>[];
@@ -37345,6 +37362,2282 @@ export type { HasManyDefinition, BelongsToDefinition, RelationshipDefinition, } 
 //# sourceMappingURL=index.d.ts.map`,
   "deps/contentbase/dist/relationships/types.d.ts": `export type { HasManyDefinition, BelongsToDefinition, RelationshipDefinition, HasManyAccessor, BelongsToAccessor, } from "../types";
 //# sourceMappingURL=types.d.ts.map`,
+  "deps/contentbase/dist/runtime/bus.d.ts": `export type EventMap = Record<string, any[]>;
+type WildcardListener = (event: string, ...args: any[]) => void;
+export interface EventStats {
+    event: string;
+    fireCount: number;
+    lastFiredAt: number | null;
+    timestamps: number[];
+    firesPerMinute: number;
+}
+export declare class Bus<T extends EventMap = EventMap> {
+    private events;
+    private wildcardListeners;
+    private stats;
+    constructor();
+    private recordEmit;
+    private computeFiresPerMinute;
+    getEventStats<E extends string & keyof T>(event: E): EventStats;
+    get history(): EventStats[];
+    get firedEvents(): string[];
+    waitFor<E extends string & keyof T>(event: E): Promise<T[E]>;
+    emit<E extends string & keyof T>(event: E, ...args: T[E]): void;
+    on(event: '*', listener: WildcardListener): void;
+    on<E extends string & keyof T>(event: E, listener: (...args: T[E]) => void): void;
+    once<E extends string & keyof T>(event: E, listener: (...args: T[E]) => void): void;
+    off(event: '*', listener?: WildcardListener): void;
+    off<E extends string & keyof T>(event: E, listener?: (...args: T[E]) => void): void;
+}
+export {};
+//# sourceMappingURL=bus.d.ts.map`,
+  "deps/contentbase/dist/runtime/container.d.ts": `import { basename, parse } from 'node:path';
+import { State } from './state.js';
+import './features/grep.js';
+import './features/transpiler.js';
+import './features/vm.js';
+import './features/ui.js';
+import './features/opener.js';
+import './features/repl.js';
+import './features/file-manager.js';
+import './features/semantic-search.js';
+import './servers/express.js';
+import './servers/mcp.js';
+export interface ContainerContext {
+    container: Container;
+}
+/** Parse process argv into a minimist-like shape: \`_\` positionals + camelCased flags. */
+export declare function parseArgv(argv: string[]): Record<string, any> & {
+    _: string[];
+};
+/** Minimal debounce — trailing-edge only, mirroring the lodash calls contentbase makes. */
+declare function debounce<T extends (...args: any[]) => any>(fn: T, wait?: number): T & {
+    cancel: () => void;
+};
+/**
+ * A bare-bones dependency container for the contentbase CLI, replacing the
+ * luca framework container. It provides only what contentbase actually uses:
+ * feature()/server() factories, parsed argv, cwd-scoped path helpers, a few
+ * process/network utilities, and a shared context for VM-executed code.
+ */
+export declare class Container {
+    readonly options: Record<string, any> & {
+        _: string[];
+    };
+    readonly state: State<any>;
+    /** Shared context injected into VM scopes and helper constructors. Always includes \`container\`. */
+    context: ContainerContext & Record<string, any>;
+    private _bus;
+    private _instances;
+    constructor(options?: Record<string, any>);
+    get cwd(): string;
+    get argv(): Record<string, any> & {
+        _: string[];
+    };
+    get isProduction(): boolean;
+    get isBun(): boolean;
+    addContext(key: string, value: any): this;
+    emit(event: string, ...args: any[]): this;
+    on(event: string, listener: (...args: any[]) => void): this;
+    get features(): {
+        readonly available: string[];
+        has(id: string): boolean;
+    };
+    get servers(): import("./server.js").ServersRegistry;
+    private get _plainFeatureIds();
+    feature(name: string, options?: Record<string, any>): any;
+    server(name: string, options?: Record<string, any>): any;
+    private _createInstance;
+    private _fs?;
+    get fs(): any;
+    private _proc?;
+    get proc(): any;
+    private _os?;
+    get os(): any;
+    private _networking?;
+    get networking(): any;
+    get utils(): {
+        lodash: {
+            debounce: typeof debounce;
+        };
+        debounce: typeof debounce;
+    };
+    /** Parsed package.json manifest for the cwd, with a safe fallback. */
+    get manifest(): Record<string, any>;
+    /** Path utility functions scoped to the current working directory. */
+    get paths(): {
+        dirname(path: string): string;
+        join(...paths: string[]): string;
+        resolve(...paths: string[]): string;
+        relative(...paths: string[]): string;
+        basename: typeof basename;
+        parse: typeof parse;
+    };
+    /** Keep the process alive until SIGINT/SIGTERM, then run cleanup and exit. */
+    private _shutdownState?;
+    runUntilShutdown(cleanup?: () => void | Promise<void>): Promise<void>;
+}
+/** The shared container singleton used by the cnotes CLI. */
+export declare function getContainer(): Container;
+export default getContainer;
+//# sourceMappingURL=container.d.ts.map`,
+  "deps/contentbase/dist/runtime/embeddings/client.d.ts": `export declare function daemonSocketPath(model: string, home?: string): string;
+/** Locate an external \`bun\` (required to run the worker — the luca binary can't self-host it). */
+export declare function findBun(): string | null;
+export interface EnsureDaemonOptions {
+    model: string;
+    modelPath: string;
+    home?: string;
+    idleMs?: number;
+    /** Max time to wait for the model to load and the daemon to answer ping (default 180s). */
+    readyTimeoutMs?: number;
+}
+/** Ensure a daemon is serving on the model's socket, spawning one if needed. Returns the socket path. */
+export declare function ensureDaemon(opts: EnsureDaemonOptions): Promise<string>;
+/** Embed texts via the resident daemon, spawning it if necessary. */
+export declare function embedViaDaemon(model: string, modelPath: string, texts: string[], opts?: Partial<EnsureDaemonOptions>): Promise<number[][]>;
+/** Drop cached connections (does not stop the daemon — it idles out on its own). */
+export declare function disposeEmbeddingClients(): void;
+//# sourceMappingURL=client.d.ts.map`,
+  "deps/contentbase/dist/runtime/embeddings/generated.d.ts": `export declare const embeddingWorkerScript = "/**\\n * Embedding worker daemon \\u2014 runs under an EXTERNAL \`bun\`, not the compiled luca binary.\\n *\\n * Why it exists: the compiled luca single-file executable cannot resolve an external\\n * node_modules tree (its module resolver is rooted at $bunfs). node-llama-cpp is a\\n * platform-specific native addon installed into ~/.luca/node_modules by \`luca setup\`,\\n * so it can only be loaded by a plain \`bun\` process. This worker is that process: the\\n * luca binary embeds this script (see src/embeddings/generated.ts), materializes it to\\n * disk, and spawns \`bun worker.ts\`, then talks to it over a unix socket as a pure client.\\n *\\n * The model loads once and stays resident, shared by every luca process on the machine.\\n *\\n * Protocol: newline-delimited JSON, one request/response per line.\\n *   \\u2192 {\\"id\\",\\"type\\":\\"embed\\",\\"texts\\":[...]}   \\u2190 {\\"id\\",\\"embeddings\\":[[...]]}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"ping\\"}                    \\u2190 {\\"id\\",\\"ready\\":true,\\"model\\",\\"dims\\"}\\n *   \\u2192 {\\"id\\",\\"type\\":\\"shutdown\\"}                \\u2190 {\\"id\\",\\"ok\\":true}  (then exits)\\n *\\n * This file is SOURCE ONLY \\u2014 it is never imported by the luca module graph. It is read\\n * as text by \`luca build-embedding-worker\` and embedded as a string constant.\\n */\\nimport net from 'node:net'\\nimport { existsSync, unlinkSync } from 'node:fs'\\nimport { join } from 'node:path'\\n\\ninterface Args {\\n\\tsocket: string\\n\\tmodel: string\\n\\tmodelPath: string\\n\\thome: string\\n\\tidleMs: number\\n}\\n\\nfunction parseArgs(argv: string[]): Args {\\n\\tconst get = (flag: string, def = '') => {\\n\\t\\tconst i = argv.indexOf(flag)\\n\\t\\treturn i >= 0 && i + 1 < argv.length ? argv[i + 1]! : def\\n\\t}\\n\\treturn {\\n\\t\\tsocket: get('--socket'),\\n\\t\\tmodel: get('--model'),\\n\\t\\tmodelPath: get('--model-path'),\\n\\t\\thome: get('--home'),\\n\\t\\tidleMs: Number(get('--idle-ms', String(5 * 60 * 1000))),\\n\\t}\\n}\\n\\nconst out = (obj: any) => process.stdout.write(JSON.stringify(obj) + '\\\\n')\\n\\n/** True if something is actively listening on the socket (vs a stale leftover file). */\\nfunction probeSocket(path: string): Promise<boolean> {\\n\\treturn new Promise((resolve) => {\\n\\t\\tconst sock = net.connect(path)\\n\\t\\tconst done = (alive: boolean) => { try { sock.destroy() } catch {}; resolve(alive) }\\n\\t\\tsock.once('connect', () => done(true))\\n\\t\\tsock.once('error', () => done(false))\\n\\t})\\n}\\n\\nasync function loadLlama(home: string): Promise<any> {\\n\\t// Bare specifier resolves from cwd (set to ~/.luca by the spawner); the absolute\\n\\t// path is a fallback. Both work under plain bun; neither works under $bunfs.\\n\\tconst candidates = ['node-llama-cpp', join(home, 'node_modules', 'node-llama-cpp')]\\n\\tfor (const c of candidates) {\\n\\t\\ttry {\\n\\t\\t\\tconst mod = await import(c)\\n\\t\\t\\tif (mod?.getLlama) return mod.getLlama\\n\\t\\t} catch {\\n\\t\\t\\tcontinue\\n\\t\\t}\\n\\t}\\n\\tthrow new Error(\`Could not load node-llama-cpp from \${home}/node_modules \\u2014 run installLocalEmbeddings() first\`)\\n}\\n\\nasync function main() {\\n\\tconst args = parseArgs(process.argv.slice(2))\\n\\tif (!args.socket || !args.modelPath) {\\n\\t\\tout({ event: 'error', error: 'missing --socket or --model-path' })\\n\\t\\tprocess.exit(2)\\n\\t}\\n\\n\\tlet context: any\\n\\tlet dimensions = 0\\n\\ttry {\\n\\t\\tconst getLlama = await loadLlama(args.home)\\n\\t\\tconst llama = await getLlama()\\n\\t\\tconst model = await llama.loadModel({ modelPath: args.modelPath })\\n\\t\\tcontext = await model.createEmbeddingContext({ contextSize: 2048 })\\n\\t\\t// Probe dimensionality once so ping can report it\\n\\t\\tconst probe = await context.getEmbeddingFor('probe')\\n\\t\\tdimensions = probe.vector.length\\n\\t} catch (err: any) {\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tprocess.exit(1)\\n\\t}\\n\\n\\tasync function embedOne(text: string): Promise<number[]> {\\n\\t\\ttry {\\n\\t\\t\\tconst e = await context.getEmbeddingFor(text)\\n\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t} catch {\\n\\t\\t\\t// Retry with a word-truncated version before giving up on a zero vector\\n\\t\\t\\tconst truncated = text.split(/\\\\s+/).slice(0, 300).join(' ')\\n\\t\\t\\ttry {\\n\\t\\t\\t\\tconst e = await context.getEmbeddingFor(truncated)\\n\\t\\t\\t\\treturn Array.from(new Float32Array(e.vector))\\n\\t\\t\\t} catch {\\n\\t\\t\\t\\treturn new Array(dimensions).fill(0)\\n\\t\\t\\t}\\n\\t\\t}\\n\\t}\\n\\n\\tlet idleTimer: ReturnType<typeof setTimeout> | null = null\\n\\tlet activeConnections = 0\\n\\tconst cleanupAndExit = (code = 0) => {\\n\\t\\ttry { server.close() } catch {}\\n\\t\\ttry { if (existsSync(args.socket)) unlinkSync(args.socket) } catch {}\\n\\t\\tprocess.exit(code)\\n\\t}\\n\\tconst resetIdle = () => {\\n\\t\\tif (idleTimer) clearTimeout(idleTimer)\\n\\t\\tif (args.idleMs <= 0) return\\n\\t\\tidleTimer = setTimeout(() => {\\n\\t\\t\\tif (activeConnections === 0) cleanupAndExit(0)\\n\\t\\t\\telse resetIdle()\\n\\t\\t}, args.idleMs)\\n\\t}\\n\\n\\tconst server = net.createServer((sock) => {\\n\\t\\tactiveConnections++\\n\\t\\tlet buffer = ''\\n\\t\\tsock.on('data', async (chunk) => {\\n\\t\\t\\tbuffer += chunk.toString()\\n\\t\\t\\tlet nl: number\\n\\t\\t\\twhile ((nl = buffer.indexOf('\\\\n')) >= 0) {\\n\\t\\t\\t\\tconst line = buffer.slice(0, nl).trim()\\n\\t\\t\\t\\tbuffer = buffer.slice(nl + 1)\\n\\t\\t\\t\\tif (!line) continue\\n\\t\\t\\t\\tresetIdle()\\n\\t\\t\\t\\tlet req: any\\n\\t\\t\\t\\ttry { req = JSON.parse(line) } catch { continue }\\n\\t\\t\\t\\ttry {\\n\\t\\t\\t\\t\\tif (req.type === 'ping') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ready: true, model: args.model, dims: dimensions }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else if (req.type === 'shutdown') {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, ok: true }) + '\\\\n')\\n\\t\\t\\t\\t\\t\\tcleanupAndExit(0)\\n\\t\\t\\t\\t\\t} else if (req.type === 'embed') {\\n\\t\\t\\t\\t\\t\\tconst texts: string[] = Array.isArray(req.texts) ? req.texts : []\\n\\t\\t\\t\\t\\t\\tconst embeddings: number[][] = []\\n\\t\\t\\t\\t\\t\\tfor (const t of texts) embeddings.push(await embedOne(String(t)))\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, embeddings }) + '\\\\n')\\n\\t\\t\\t\\t\\t} else {\\n\\t\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: \`unknown type: \${req.type}\` }) + '\\\\n')\\n\\t\\t\\t\\t\\t}\\n\\t\\t\\t\\t} catch (err: any) {\\n\\t\\t\\t\\t\\tsock.write(JSON.stringify({ id: req.id, error: err?.message ?? String(err) }) + '\\\\n')\\n\\t\\t\\t\\t}\\n\\t\\t\\t}\\n\\t\\t})\\n\\t\\tsock.on('close', () => { activeConnections--; resetIdle() })\\n\\t\\tsock.on('error', () => { /* client vanished \\u2014 ignore */ })\\n\\t})\\n\\n\\tserver.on('error', (err: any) => {\\n\\t\\t// Another daemon won the bind race \\u2014 exit quietly and let the client use the winner\\n\\t\\tif (err?.code === 'EADDRINUSE') { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\t\\tcleanupAndExit(1)\\n\\t})\\n\\n\\t// Before binding: if a live daemon already owns the socket, defer to it; only\\n\\t// remove the file if it's a stale leftover from a crashed daemon.\\n\\tif (existsSync(args.socket)) {\\n\\t\\tif (await probeSocket(args.socket)) { out({ event: 'exists', socket: args.socket }); process.exit(0) }\\n\\t\\ttry { unlinkSync(args.socket) } catch {}\\n\\t}\\n\\n\\tserver.listen(args.socket, () => {\\n\\t\\tout({ event: 'ready', model: args.model, dims: dimensions, socket: args.socket })\\n\\t\\tresetIdle()\\n\\t})\\n\\n\\tfor (const sig of ['SIGINT', 'SIGTERM'] as const) {\\n\\t\\tprocess.on(sig, () => cleanupAndExit(0))\\n\\t}\\n}\\n\\nmain().catch((err) => {\\n\\tout({ event: 'error', error: err?.message ?? String(err) })\\n\\tprocess.exit(1)\\n})\\n";
+//# sourceMappingURL=generated.d.ts.map`,
+  "deps/contentbase/dist/runtime/endpoint.d.ts": `import { Helper } from './helper.js';
+import type { Container } from './container.js';
+import { Registry } from './registry.js';
+import { z } from 'zod';
+import { EndpointStateSchema, EndpointOptionsSchema } from './schemas.js';
+export interface AvailableEndpoints {
+}
+export type EndpointState = z.infer<typeof EndpointStateSchema>;
+export type EndpointOptions = z.infer<typeof EndpointOptionsSchema>;
+export type EndpointHandler = (parameters: Record<string, any>, context: EndpointContext) => Promise<any> | any;
+export type EndpointContext = {
+    container: Container;
+    request: any;
+    response: any;
+    query: Record<string, any>;
+    body: Record<string, any>;
+    params: Record<string, any>;
+};
+export interface EndpointRateLimit {
+    /** Maximum requests allowed per window */
+    maxRequests: number;
+    /** Window size in seconds (default: 1) */
+    windowSeconds?: number;
+}
+export interface EndpointModule {
+    path: string;
+    get?: EndpointHandler;
+    post?: EndpointHandler;
+    put?: EndpointHandler;
+    patch?: EndpointHandler;
+    delete?: EndpointHandler;
+    getSchema?: z.ZodType;
+    postSchema?: z.ZodType;
+    putSchema?: z.ZodType;
+    patchSchema?: z.ZodType;
+    deleteSchema?: z.ZodType;
+    /** Rate limit applied to all methods on this endpoint */
+    rateLimit?: EndpointRateLimit;
+    /** Per-method rate limits (overrides the endpoint-level rateLimit) */
+    getRateLimit?: EndpointRateLimit;
+    postRateLimit?: EndpointRateLimit;
+    putRateLimit?: EndpointRateLimit;
+    patchRateLimit?: EndpointRateLimit;
+    deleteRateLimit?: EndpointRateLimit;
+    description?: string;
+    tags?: string[];
+}
+/**
+ * Sliding-window rate limiter keyed by IP address.
+ * Tracks timestamps of requests and prunes entries older than the window.
+ */
+declare class RateLimiter {
+    private _windows;
+    /** Returns true if the request is allowed, false if rate-limited. */
+    allow(key: string, maxRequests: number, windowMs: number): boolean;
+    /** Clear all tracking state */
+    reset(): void;
+}
+export type EndpointFactory = <T extends keyof AvailableEndpoints>(key: T, options?: ConstructorParameters<AvailableEndpoints[T]>[0]) => NonNullable<InstanceType<AvailableEndpoints[T]>>;
+export interface EndpointsInterface {
+    endpoints: EndpointsRegistry;
+    endpoint: EndpointFactory;
+}
+export declare class Endpoint<T extends EndpointState = EndpointState, K extends EndpointOptions = EndpointOptions> extends Helper<T, K> {
+    static shortcut: string;
+    static description: string;
+    static stateSchema: z.ZodObject<{
+        mounted: z.ZodDefault<z.ZodBoolean>;
+        path: z.ZodDefault<z.ZodString>;
+        methods: z.ZodDefault<z.ZodArray<z.ZodString>>;
+        requestCount: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        path: z.ZodString;
+        filePath: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        loaded: z.ZodTuple<[z.ZodAny], null>;
+        mounted: z.ZodTuple<[z.ZodString], null>;
+        request: z.ZodTuple<[z.ZodString, z.ZodString, z.ZodAny], null>;
+        error: z.ZodTuple<[z.ZodAny], null>;
+    }, z.core.$strip>;
+    private _module;
+    private _rateLimiter;
+    get initialState(): T;
+    get path(): string;
+    get module(): EndpointModule | null;
+    get methods(): string[];
+    get isMounted(): boolean;
+    load(mod?: EndpointModule): Promise<this>;
+    reload(): Promise<this>;
+    handler(method: string): EndpointHandler | undefined;
+    schema(method: string): z.ZodType | undefined;
+    /** Returns the rate limit config for a given method, or undefined if none. */
+    rateLimitFor(method: string): EndpointRateLimit | undefined;
+    /** Access the rate limiter instance (useful for testing or manual resets) */
+    get rateLimiter(): RateLimiter;
+    mount(app: any): this;
+    toOpenAPIPathItem(): Record<string, any>;
+}
+export declare function warnUnknownExports(mod: Record<string, any>, filePath: string): void;
+export declare class EndpointsRegistry extends Registry<Endpoint<any>> {
+    scope: string;
+    baseClass: typeof Endpoint;
+}
+export declare const endpoints: EndpointsRegistry;
+export declare const helperCache: Map<any, any>;
+export default Endpoint;
+//# sourceMappingURL=endpoint.d.ts.map`,
+  "deps/contentbase/dist/runtime/feature.d.ts": `import { Helper } from './helper.js';
+import { Registry } from './registry.js';
+import type { ContainerContext } from './container.js';
+import { z } from 'zod';
+import { FeatureStateSchema, FeatureOptionsSchema } from './schemas.js';
+export type FeatureOptions = z.infer<typeof FeatureOptionsSchema>;
+export type FeatureState = z.infer<typeof FeatureStateSchema>;
+export declare abstract class Feature<T extends FeatureState = FeatureState, K extends FeatureOptions = FeatureOptions> extends Helper<T, K> {
+    static stateSchema: z.ZodObject<any>;
+    static optionsSchema: z.ZodObject<any>;
+    static eventsSchema: z.ZodObject<any>;
+    /** Self-register a Feature subclass from a static initialization block. */
+    static register: (SubClass: abstract new (options: any, context: any) => Feature, id?: string) => abstract new (options: any, context: any) => Feature;
+    get shortcut(): string;
+    get isEnabled(): T["enabled"] | undefined;
+    constructor(options: K, context: ContainerContext);
+    /** Attach this feature instance as a named property on the container. */
+    protected attachToContainer(): void;
+    enable(_options?: any): Promise<this>;
+}
+export declare class FeaturesRegistry extends Registry<Feature<any, any>> {
+    scope: string;
+    baseClass: any;
+}
+export declare const features: FeaturesRegistry;
+//# sourceMappingURL=feature.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/display-result.d.ts": `export declare function displayResult(value: any): void;
+//# sourceMappingURL=display-result.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/file-manager.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+export declare const FileManagerOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    rootPath: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type FileManagerOptions = z.infer<typeof FileManagerOptionsSchema>;
+/**
+ * Recursive file watcher emitting \`file:change\` events.
+ * A minimal port of luca's fileManager — only the watch surface contentbase uses.
+ */
+export declare class FileManager extends Feature<any, FileManagerOptions> {
+    static shortcut: "features.fileManager";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        rootPath: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    private _rootPath?;
+    private _watcher?;
+    start(options?: {
+        rootPath?: string;
+    }): Promise<this>;
+    watch(): Promise<this>;
+    stop(): Promise<this>;
+}
+export default FileManager;
+//# sourceMappingURL=file-manager.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/grep.d.ts": `import { Feature } from '../feature.js';
+export type GrepMatch = {
+    file: string;
+    line: number;
+    column?: number;
+    content: string;
+};
+export type GrepOptions = {
+    /** Pattern to search for (string or regex) */
+    pattern: string;
+    /** Directory or file to search in (defaults to container cwd) */
+    path?: string;
+    /** Glob patterns to include (e.g. '*.ts') */
+    include?: string | string[];
+    /** Glob patterns to exclude (e.g. 'node_modules') */
+    exclude?: string | string[];
+    /** Case insensitive search */
+    ignoreCase?: boolean;
+    /** Treat pattern as a fixed string, not regex */
+    fixedStrings?: boolean;
+    /** Search recursively (default: true) */
+    recursive?: boolean;
+    /** Include hidden files */
+    hidden?: boolean;
+    /** Max number of results to return */
+    maxResults?: number;
+    /** Number of context lines before match */
+    before?: number;
+    /** Number of context lines after match */
+    after?: number;
+    /** Only return filenames, not match details */
+    filesOnly?: boolean;
+    /** Invert match (return lines that don't match) */
+    invert?: boolean;
+    /** Match whole words only */
+    wordMatch?: boolean;
+    /** Additional raw flags to pass to grep/ripgrep */
+    rawFlags?: string[];
+};
+/**
+ * The Grep feature provides utilities for searching file contents using ripgrep (rg) or grep.
+ *
+ * Returns structured results as arrays of \`{ file, line, column, content }\` objects
+ * with paths relative to the container cwd. Also provides convenience methods for
+ * common search patterns.
+ *
+ * @example
+ * \`\`\`typescript
+ * const grep = container.feature('grep')
+ *
+ * // Basic search
+ * const results = await grep.search({ pattern: 'TODO' })
+ * // [{ file: 'src/index.ts', line: 42, column: 5, content: '// TODO: fix this' }, ...]
+ *
+ * // Find all imports of a module
+ * const imports = await grep.imports('lodash')
+ *
+ * // Find function/class/variable definitions
+ * const defs = await grep.definitions('MyClass')
+ *
+ * // Just get filenames containing a pattern
+ * const files = await grep.filesContaining('API_KEY')
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class Grep extends Feature {
+    static shortcut: "features.grep";
+    static stability: "core";
+    static category: "filesystem";
+    static stateSchema: import("zod").ZodObject<{
+        enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$loose>;
+    static optionsSchema: import("zod").ZodObject<{
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        _cacheKey: import("zod").ZodOptional<import("zod").ZodString>;
+        cached: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        enable: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$strip>;
+    private _hasRipgrep;
+    private _rgPath;
+    private _grepPath;
+    /** Whether ripgrep (rg) is available on this system */
+    get hasRipgrep(): boolean;
+    /** Resolved path to the rg binary */
+    get rgPath(): string;
+    /** Resolved path to the grep binary */
+    get grepPath(): string;
+    /**
+     * Search for a pattern in files and return structured results.
+     *
+     * @param {GrepOptions} options - Search options
+     * @returns {Promise<GrepMatch[]>} Array of match objects with relative file paths
+     *
+     * @example
+     * \`\`\`typescript
+     * // Search for a pattern in TypeScript files
+     * const results = await grep.search({
+     *   pattern: 'useState',
+     *   include: '*.tsx',
+     *   exclude: 'node_modules'
+     * })
+     *
+     * // Case insensitive search with context
+     * const withContext = await grep.search({
+     *   pattern: 'error',
+     *   ignoreCase: true,
+     *   before: 2,
+     *   after: 2
+     * })
+     *
+     * // Cap the number of results
+     * const firstFive = await grep.search({ pattern: 'container', include: '*.ts', maxResults: 5 })
+     * \`\`\`
+     */
+    search(options: GrepOptions): Promise<GrepMatch[]>;
+    /**
+     * Find files containing a pattern. Returns just the relative file paths.
+     *
+     * @param {string} pattern - The pattern to search for
+     * @param {Omit<GrepOptions, 'pattern' | 'filesOnly'>} [options] - Additional search options
+     * @returns {Promise<string[]>} Array of relative file paths
+     *
+     * @example
+     * \`\`\`typescript
+     * const files = await grep.filesContaining('TODO')
+     * // ['src/index.ts', 'src/utils.ts']
+     * \`\`\`
+     */
+    filesContaining(pattern: string, options?: Omit<GrepOptions, 'pattern' | 'filesOnly'>): Promise<string[]>;
+    /**
+     * Find import/require statements for a module or path.
+     *
+     * @param {string} moduleOrPath - The module name or path to search for in imports
+     * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
+     * @returns {Promise<GrepMatch[]>} Array of matches
+     *
+     * @example
+     * \`\`\`typescript
+     * const lodashImports = await grep.imports('lodash')
+     * const localImports = await grep.imports('./utils')
+     * \`\`\`
+     */
+    imports(moduleOrPath: string, options?: Omit<GrepOptions, 'pattern'>): Promise<GrepMatch[]>;
+    /**
+     * Find function, class, type, or variable definitions matching a name.
+     *
+     * @param {string} name - The identifier name to search for definitions of
+     * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
+     * @returns {Promise<GrepMatch[]>} Array of matches
+     *
+     * @example
+     * \`\`\`typescript
+     * const defs = await grep.definitions('MyComponent')
+     * const classDefs = await grep.definitions('UserService')
+     * \`\`\`
+     */
+    definitions(name: string, options?: Omit<GrepOptions, 'pattern'>): Promise<GrepMatch[]>;
+    /**
+     * Find lines containing TODO, FIXME, HACK, or XXX.
+     *
+     * NOTE: this is a plain substring/regex match against the whole line — it does
+     * NOT parse comments. Any occurrence of these words matches, including inside
+     * string literals, markdown prose, and documentation. In particular, a command
+     * or script that generates a report about TODOs will match its own source
+     * (e.g. \`console.log('TODO report')\`), so filter out the reporting file itself
+     * or exclude string-literal matches when post-processing results.
+     *
+     * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
+     * @returns {Promise<GrepMatch[]>} Array of matches
+     *
+     * @example
+     * \`\`\`typescript
+     * const todos = await grep.todos()
+     * const fixmes = await grep.todos({ include: '*.ts' })
+     *
+     * // A report generator should exclude itself from the results
+     * const filtered = todos.filter(m => !m.file.endsWith('commands/todo-report.ts'))
+     * \`\`\`
+     */
+    todos(options?: Omit<GrepOptions, 'pattern'>): Promise<GrepMatch[]>;
+    /**
+     * Count the number of matches for a pattern.
+     *
+     * @param {string} pattern - The pattern to count
+     * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
+     * @returns {Promise<number>} Total number of matching lines
+     *
+     * @example
+     * \`\`\`typescript
+     * const count = await grep.count('console.log')
+     * console.log(\`Found \${count} console.log statements\`)
+     * \`\`\`
+     */
+    count(pattern: string, options?: Omit<GrepOptions, 'pattern'>): Promise<number>;
+    /**
+     * Search and replace across files. Returns the list of files that would be affected.
+     * Does NOT modify files — use the returned file list to do the replacement yourself.
+     *
+     * @param {string} pattern - The pattern to search for
+     * @param {Omit<GrepOptions, 'pattern'>} [options] - Additional search options
+     * @returns {Promise<{ file: string, matches: GrepMatch[] }[]>} Array of files with their matches, grouped by file
+     *
+     * @example
+     * \`\`\`typescript
+     * const affected = await grep.findForReplace('oldFunctionName')
+     * // [{ file: 'src/a.ts', matches: [...] }, { file: 'src/b.ts', matches: [...] }]
+     * \`\`\`
+     */
+    findForReplace(pattern: string, options?: Omit<GrepOptions, 'pattern'>): Promise<{
+        file: string;
+        matches: GrepMatch[];
+    }[]>;
+    /** Build the grep/rg command from options */
+    private buildCommand;
+    /** Parse raw grep/rg output into structured results */
+    private parseResults;
+    /** Make a path relative to cwd */
+    private relativize;
+}
+export default Grep;
+//# sourceMappingURL=grep.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/opener.d.ts": `import { Feature } from '../feature.js';
+/**
+ * Open URLs and files with the platform's default application.
+ * A minimal port of luca's opener feature.
+ */
+export declare class Opener extends Feature {
+    static shortcut: "features.opener";
+    static stateSchema: import("zod").ZodObject<{
+        enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$loose>;
+    static optionsSchema: import("zod").ZodObject<{
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        _cacheKey: import("zod").ZodOptional<import("zod").ZodString>;
+        cached: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        enable: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$strip>;
+    open(target: string): Promise<void>;
+}
+export default Opener;
+//# sourceMappingURL=opener.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/repl.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import vm from 'vm';
+import readline from 'readline';
+export declare const ReplStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    started: z.ZodOptional<z.ZodBoolean>;
+}, z.core.$loose>;
+export type ReplState = z.infer<typeof ReplStateSchema>;
+export declare const ReplOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    prompt: z.ZodOptional<z.ZodString>;
+    historyPath: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export type ReplOptions = z.infer<typeof ReplOptionsSchema>;
+/**
+ * REPL feature — interactive read-eval-print loop with tab completion and history.
+ * A port of luca's readline+vm REPL (Bun does not implement node:repl).
+ *
+ * Evaluates expressions in a VM context seeded with \`container.context\` plus
+ * whatever is passed via \`context\`. Supports dot-notation tab completion,
+ * per-project history under ~/.cache/contentbase, and top-level await. The
+ * last evaluated result is bound to \`_\`. Type \`.exit\` or \`exit\` to quit.
+ */
+export declare class Repl<T extends ReplState = ReplState, K extends ReplOptions = ReplOptions> extends Feature<T, K> {
+    static shortcut: "features.repl";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        started: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        prompt: z.ZodOptional<z.ZodString>;
+        historyPath: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    get isStarted(): boolean;
+    _rl?: readline.Interface;
+    _vmContext?: vm.Context;
+    _history: string[];
+    _historyPath?: string;
+    get vmContext(): vm.Context | undefined;
+    start(options?: {
+        historyPath?: string;
+        context?: any;
+    }): Promise<this>;
+    /** Open a fresh readline and enter the REPL loop using the existing VM context. */
+    private _resume;
+    private _saveHistory;
+}
+export default Repl;
+//# sourceMappingURL=repl.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/semantic-search.d.ts": `import { z } from 'zod';
+import { Feature } from '../feature.js';
+import { Database } from 'bun:sqlite';
+export declare const SemanticSearchOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    dbPath: z.ZodDefault<z.ZodString>;
+    embeddingModel: z.ZodOptional<z.ZodString>;
+    embeddingProvider: z.ZodDefault<z.ZodEnum<{
+        local: "local";
+        openai: "openai";
+    }>>;
+    chunkStrategy: z.ZodDefault<z.ZodEnum<{
+        document: "document";
+        fixed: "fixed";
+        section: "section";
+    }>>;
+    chunkSize: z.ZodDefault<z.ZodNumber>;
+    chunkOverlap: z.ZodDefault<z.ZodNumber>;
+}, z.core.$strip>;
+export declare const SemanticSearchStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+    indexed: z.ZodDefault<z.ZodNumber>;
+    embedded: z.ZodDefault<z.ZodNumber>;
+    lastIndexedAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    dbReady: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export type SemanticSearchOptions = z.infer<typeof SemanticSearchOptionsSchema>;
+export type SemanticSearchState = z.infer<typeof SemanticSearchStateSchema>;
+export declare const SemanticSearchEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+    modelLoaded: z.ZodTuple<[], null>;
+    dbReady: z.ZodTuple<[], null>;
+    indexed: z.ZodTuple<[z.ZodObject<{
+        documents: z.ZodNumber;
+        chunks: z.ZodNumber;
+    }, z.core.$strip>], null>;
+    modelDisposed: z.ZodTuple<[], null>;
+}, z.core.$strip>;
+export interface Chunk {
+    pathId: string;
+    section?: string;
+    headingPath?: string;
+    seq: number;
+    content: string;
+    contentHash: string;
+}
+export interface SearchResult {
+    pathId: string;
+    model: string;
+    title: string;
+    meta: Record<string, any>;
+    score: number;
+    snippet: string;
+    matchedSection?: string;
+    headingPath?: string;
+}
+export interface SemanticSearchQueryOptions {
+    limit?: number;
+    model?: string;
+    where?: Record<string, any>;
+}
+export interface HybridSearchOptions extends SemanticSearchQueryOptions {
+    ftsWeight?: number;
+    vecWeight?: number;
+    /** Override the query used for the BM25/FTS5 leg (e.g. a sanitized version of a natural-language query). The vector leg still embeds the raw query. */
+    ftsQuery?: string;
+}
+export interface IndexStatus {
+    documentCount: number;
+    chunkCount: number;
+    embeddingCount: number;
+    lastIndexedAt: string | null;
+    provider: string;
+    model: string;
+    dimensions: number;
+    dbSizeBytes: number;
+}
+export interface DocumentInput {
+    pathId: string;
+    model?: string;
+    title?: string;
+    slug?: string;
+    meta?: Record<string, any>;
+    content: string;
+    sections?: Array<{
+        heading: string;
+        headingPath: string;
+        content: string;
+        level: number;
+    }>;
+}
+/** The default local embedding model, exported for \`luca setup\` and other tooling. */
+export declare const DEFAULT_LOCAL_MODEL: string;
+export declare function resolveModelPath(modelName: string): string;
+/**
+ * Semantic search feature providing BM25 keyword search, vector similarity search,
+ * and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index.
+ *
+ * Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with
+ * JavaScript cosine similarity for vector search.
+ *
+ * Embedding models default per provider: \`openai\` → text-embedding-3-small,
+ * \`local\` → embedding-gemma-300M-Q8_0 (the only supported local model). Local
+ * embeddings are NOT turnkey until you run \`installLocalEmbeddings(cwd)\` once —
+ * it installs the node-llama-cpp addon and downloads the .gguf weights to
+ * ~/.cache/luca/models/.
+ *
+ * @extends Feature
+ *
+ * @example
+ * \`\`\`typescript
+ * // Offline/local embeddings — one-time setup, then fully local
+ * const search = container.feature('semanticSearch', {
+ *   dbPath: '.contentbase/search.sqlite',
+ *   embeddingProvider: 'local',
+ * })
+ * await search.installLocalEmbeddings(process.cwd()) // installs addon + downloads weights
+ * await search.initDb()
+ * await search.indexDocuments(docs)
+ * const results = await search.hybridSearch('how does authentication work')
+ * \`\`\`
+ */
+export declare class SemanticSearch extends Feature<SemanticSearchState, SemanticSearchOptions> {
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+        indexed: z.ZodDefault<z.ZodNumber>;
+        embedded: z.ZodDefault<z.ZodNumber>;
+        lastIndexedAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        dbReady: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        dbPath: z.ZodDefault<z.ZodString>;
+        embeddingModel: z.ZodOptional<z.ZodString>;
+        embeddingProvider: z.ZodDefault<z.ZodEnum<{
+            local: "local";
+            openai: "openai";
+        }>>;
+        chunkStrategy: z.ZodDefault<z.ZodEnum<{
+            document: "document";
+            fixed: "fixed";
+            section: "section";
+        }>>;
+        chunkSize: z.ZodDefault<z.ZodNumber>;
+        chunkOverlap: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        enabled: z.ZodTuple<[], null>;
+        modelLoaded: z.ZodTuple<[], null>;
+        dbReady: z.ZodTuple<[], null>;
+        indexed: z.ZodTuple<[z.ZodObject<{
+            documents: z.ZodNumber;
+            chunks: z.ZodNumber;
+        }, z.core.$strip>], null>;
+        modelDisposed: z.ZodTuple<[], null>;
+    }, z.core.$strip>;
+    static shortcut: "features.semanticSearch";
+    static stability: "experimental";
+    static category: "content-nlp";
+    private _db;
+    private _daemonReady;
+    private _dimensions;
+    get initialState(): SemanticSearchState;
+    constructor(options: SemanticSearchOptions, context: any);
+    /**
+     * The embedding model in effect, resolved per provider when no explicit
+     * embeddingModel option was given (openai → text-embedding-3-small,
+     * local → embedding-gemma-300M-Q8_0).
+     */
+    get embeddingModel(): string;
+    private get resolvedDbPath();
+    get db(): Database;
+    get dimensions(): number;
+    initDb(): Promise<void>;
+    private _createTables;
+    private _writeMeta;
+    private _verifyMeta;
+    insertDocument(doc: DocumentInput): void;
+    insertChunk(chunk: Chunk, embedding: Float32Array): void;
+    removeDocument(pathId: string): void;
+    getStats(): IndexStatus;
+    embed(texts: string[]): Promise<number[][]>;
+    private _embedLocal;
+    private _embedOpenAI;
+    ensureModel(): Promise<void>;
+    /**
+     * Ensure the local embedding daemon is up and return the model weights path.
+     *
+     * node-llama-cpp can't be loaded by the compiled luca binary (its $bunfs
+     * resolver can't reach ~/.luca/node_modules), so embeddings run in a resident
+     * \`bun\` worker daemon spawned on demand. This verifies the weights exist
+     * (fast, clear error) then ensures the daemon is serving.
+     */
+    private _ensureLocalModel;
+    disposeModel(): Promise<void>;
+    getDimensions(): number;
+    chunkDocument(doc: DocumentInput, strategy?: 'section' | 'fixed' | 'document'): Chunk[];
+    search(query: string, options?: SemanticSearchQueryOptions): Promise<SearchResult[]>;
+    vectorSearch(query: string, options?: SemanticSearchQueryOptions): Promise<SearchResult[]>;
+    hybridSearch(query: string, options?: HybridSearchOptions): Promise<SearchResult[]>;
+    deepSearch(_query: string, _options?: SemanticSearchQueryOptions): Promise<SearchResult[]>;
+    private _fuseRRF;
+    /**
+     * Build the optional model/meta filter as parameterized SQL. Both the meta
+     * keys and the values are bound as parameters (the json path is assembled
+     * with \`'$.' || ?\`), so untrusted filter input can't inject SQL.
+     */
+    private _buildWhereClause;
+    private _matchesFilters;
+    indexDocuments(docs: DocumentInput[]): Promise<void>;
+    reindex(pathIds?: string[]): Promise<void>;
+    removeStale(currentPathIds: string[]): void;
+    needsReindex(doc: DocumentInput): boolean;
+    status(): IndexStatus;
+    static readonly PINNED_LLAMA_VERSION = "3.17.1";
+    /**
+     * Download the .gguf weights for a supported local embedding model into
+     * ~/.cache/luca/models/. Skips the download when the weights already exist.
+     * Downloads to a temp file first, then renames atomically.
+     *
+     * @param modelName - Local model to fetch (default: the resolved embeddingModel)
+     * @returns The absolute path to the weights file
+     *
+     * @example
+     * \`\`\`typescript
+     * const search = container.feature('semanticSearch', { embeddingProvider: 'local' })
+     * await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if missing
+     * \`\`\`
+     */
+    downloadModelWeights(modelName?: string): Promise<string>;
+    /**
+     * Install node-llama-cpp into the per-machine \`~/.luca/node_modules\` for
+     * local embedding support, then download the embedding model weights so
+     * local embeddings work turnkey. Runs once per machine, never touches the
+     * project. Same as \`luca setup --local-embeddings\`.
+     *
+     * @param _cwd - unused, accepted for backward compatibility (older versions installed into the project's node_modules)
+     */
+    installLocalEmbeddings(_cwd?: string): Promise<void>;
+    close(): Promise<void>;
+}
+export default SemanticSearch;
+//# sourceMappingURL=semantic-search.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/transpiler.d.ts": `import { Feature } from '../feature.js';
+export interface TransformOptions {
+    loader?: 'ts' | 'tsx' | 'jsx' | 'js';
+    format?: 'esm' | 'cjs';
+    minify?: boolean;
+}
+export interface TransformResult {
+    code: string;
+    map: string;
+    warnings: any[];
+}
+/**
+ * Compute a mask over \`code\` marking every offset that sits inside a string
+ * literal, template literal, or comment. Template interpolation bodies
+ * (\`\${ ... }\`) count as code; the surrounding template text does not.
+ * Used so the line-anchored esmToCjs regexes never fire on lines that merely
+ * LOOK like import/export statements inside string content.
+ */
+export declare function computeNonCodeMask(code: string): Uint8Array;
+/**
+ * Convert ESM import/export statements to CJS require/module.exports
+ * so the code can run in a vm context that provides \`require\`.
+ *
+ * NOTE: whitespace between tokens is optional (\`\\s*\`) wherever a brace or
+ * quote provides the token boundary. Bun's transpiler emits side-effect
+ * imports without a space (\`import"./x.ts";\`) — a \`\\s+\` there silently
+ * leaves the statement untransformed, which then blows up in the VM with
+ * \`SyntaxError: ... import call expects one or two arguments.\`
+ *
+ * Statements are only rewritten at genuine code positions: lines that merely
+ * look like import/export inside template literals, strings, or comments are
+ * left verbatim (they used to get mangled, and the phantom appended
+ * \`exports['x'] = x\` crashed the vm with "exports is not defined").
+ */
+export declare function esmToCjs(code: string): string;
+/**
+ * Transpile TypeScript, TSX, and JSX to JavaScript at runtime using Bun's
+ * built-in transpiler. Compile code strings on the fly without touching the
+ * filesystem or spawning external processes.
+ *
+ * @example
+ * \`\`\`typescript
+ * const transpiler = container.feature('transpiler')
+ * const result = transpiler.transformSync('const x: number = 1')
+ * console.log(result.code) // 'const x = 1;\\n'
+ * \`\`\`
+ */
+export declare class Transpiler extends Feature {
+    static shortcut: "features.transpiler";
+    static stability: "core";
+    static category: "dev-tools";
+    static stateSchema: import("zod").ZodObject<{
+        enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$loose>;
+    static optionsSchema: import("zod").ZodObject<{
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        _cacheKey: import("zod").ZodOptional<import("zod").ZodString>;
+        cached: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        enable: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$strip>;
+    /**
+     * Transform code synchronously
+     * @param code - The code to transform
+     * @param options - Transform options (loader, format, minify)
+     * @returns The transformed code as { code, map, warnings }
+     */
+    transformSync(code: string, options?: TransformOptions): TransformResult;
+    /**
+     * Transform code asynchronously
+     * @param code - The code to transform
+     * @param options - Transform options (loader, format, minify)
+     * @returns The transformed code as { code, map, warnings }
+     */
+    transform(code: string, options?: TransformOptions): Promise<TransformResult>;
+    /**
+     * Bundle a file using Bun.build, inlining all imports except those marked external.
+     * Returns CJS code ready for VM execution.
+     *
+     * @param filePath - Absolute path to the entrypoint file
+     * @param external - Module IDs to leave as require() calls (e.g. virtual modules)
+     * @returns The bundled CJS code string
+     */
+    bundle(filePath: string, external?: string[]): Promise<string>;
+}
+export default Transpiler;
+//# sourceMappingURL=transpiler.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/ui.d.ts": `import { Feature } from '../feature.js';
+import colors from 'chalk';
+/**
+ * Terminal UI helpers: chalk colors and markdown rendering.
+ * A minimal port of luca's UI feature — only the surface contentbase uses.
+ */
+export declare class UI extends Feature {
+    static shortcut: "features.ui";
+    static stateSchema: import("zod").ZodObject<{
+        enabled: import("zod").ZodDefault<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$loose>;
+    static optionsSchema: import("zod").ZodObject<{
+        name: import("zod").ZodOptional<import("zod").ZodString>;
+        _cacheKey: import("zod").ZodOptional<import("zod").ZodString>;
+        cached: import("zod").ZodOptional<import("zod").ZodBoolean>;
+        enable: import("zod").ZodOptional<import("zod").ZodBoolean>;
+    }, import("zod/v4/core").$strip>;
+    private _markedConfigured;
+    /** The chalk instance — ui.colors.cyan('text'), ui.colors.dim('text'), etc. */
+    get colors(): typeof colors;
+    /**
+     * Parse markdown text and render it for terminal display using marked-terminal.
+     */
+    markdown(text: string): string;
+}
+export default UI;
+//# sourceMappingURL=ui.d.ts.map`,
+  "deps/contentbase/dist/runtime/features/vm.d.ts": `import { z } from 'zod';
+import vm from 'vm';
+import { Feature } from "../feature.js";
+export declare const VMStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export type VMState = z.infer<typeof VMStateSchema>;
+export declare const VMOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+    context: z.ZodAny;
+}, z.core.$strip>;
+export type VMOptions = z.infer<typeof VMOptionsSchema>;
+/** Per-run options accepted by \`run\`, \`runSync\`, \`perform\`, \`performSync\`, and \`runCaptured\`. */
+export interface VMRunOptions {
+    /**
+     * The file the code came from, used as the referrer for dynamic \`import()\`:
+     * relative specifiers resolve against its directory, and bare specifiers
+     * fall back to its \`node_modules\` resolution. Defaults to a synthetic file
+     * in \`container.cwd\`, so eval-style snippets resolve relative to the cwd.
+     */
+    filePath?: string;
+}
+/**
+ * The VM feature provides Node.js virtual machine capabilities for executing JavaScript code.
+ *
+ * This feature wraps Node.js's built-in \`vm\` module to provide secure code execution
+ * in isolated contexts. It is how ALL user code runs under the luca binary — commands,
+ * endpoints, \`luca eval\` snippets, \`luca run\` scripts, and runnable markdown blocks all
+ * execute through it, which is why a bare folder of .ts files needs no install step.
+ *
+ * Three capabilities compose the module system:
+ * - \`run(code, ctx)\` — execute a snippet; top-level \`await\` is auto-wrapped and the
+ *   final expression's value is returned.
+ * - \`loadModule(filePath)\` — load a .ts/.js file as a CommonJS module (ESM syntax is
+ *   transpiled; \`export default\` becomes \`module.exports.default\`).
+ * - \`defineModule(id, exports)\` — register a virtual module that \`require()\`/\`import\`
+ *   resolve BEFORE Node's native resolution. The runtime seeds \`'luca'\`, its subpaths,
+ *   and \`'zod'\` this way, so user code can \`import { z } from 'zod'\` with zero installs.
+ *
+ * Contexts start near-empty by design: JS built-ins (Promise, Date, Math, JSON) come
+ * free from the realm, and luca injects console, timers, process, Buffer, fetch and
+ * friends, crypto, TextEncoder/TextDecoder, plus every enabled container helper.
+ *
+ * @example
+ * \`\`\`typescript
+ * const vm = container.feature('vm')
+ *
+ * // Execute simple code
+ * const result = await vm.run('1 + 2 + 3')
+ * console.log(result) // 6
+ *
+ * // Execute code with custom context
+ * const result2 = await vm.run('greeting + " " + name', {
+ *   greeting: 'Hello',
+ *   name: 'World'
+ * })
+ * console.log(result2) // 'Hello World'
+ *
+ * // Virtual modules take precedence over native require
+ * vm.defineModule('answers', { magic: 42 })
+ * \`\`\`
+ *
+ * @extends Feature
+ */
+export declare class VM<T extends VMState = VMState, K extends VMOptions = VMOptions> extends Feature<T, K> {
+    static shortcut: "features.vm";
+    static stability: "core";
+    static category: "dev-tools";
+    static stateSchema: z.ZodObject<{
+        enabled: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        cached: z.ZodOptional<z.ZodBoolean>;
+        enable: z.ZodOptional<z.ZodBoolean>;
+        context: z.ZodAny;
+    }, z.core.$strip>;
+    /** Map of virtual module IDs to their exports, consulted before Node's native require */
+    modules: Map<string, any>;
+    /** Map of lazy virtual module IDs to loader functions, invoked on first require */
+    lazyModules: Map<string, () => any>;
+    /**
+     * Register a virtual module that will be available to \`require()\` inside VM-executed code.
+     * Modules registered here take precedence over Node's native resolution.
+     *
+     * @param id - The module specifier (e.g. \`'luca'\`, \`'zod'\`)
+     * @param exports - The module's exports object
+     *
+     * @example
+     * \`\`\`typescript
+     * const vm = container.feature('vm')
+     *
+     * // Expose container helpers (or anything else) under a virtual module id
+     * vm.defineModule('luca', { fs: container.fs, proc: container.feature('proc') })
+     * vm.defineModule('answers', { magic: 42 })
+     *
+     * // Now loadModule can resolve these in user code:
+     * // const { magic } = require('answers')  → works
+     * \`\`\`
+     */
+    defineModule(id: string, exports: any): void;
+    /**
+     * Register a virtual module whose exports are produced on first \`require()\`.
+     *
+     * Like {@link defineModule}, the id is treated as external during bundling and
+     * resolves before Node's native require — but the loader only runs when (and if)
+     * VM-executed code actually requires the module, and its result is cached.
+     *
+     * This is how the runtime bridges \`react\` and \`ink\` into user code: registering
+     * them lazily keeps CLI startup free of their import cost, while guaranteeing
+     * that code which does \`import React from 'react'\` receives the SAME module
+     * instance the container's ink feature renders with. (A second React copy —
+     * e.g. inlined from a stray \`node_modules\` at bundle time — breaks all ink
+     * hooks with "Invalid hook call" / raw-mode errors.)
+     *
+     * @param id - The module specifier (e.g. \`'react'\`)
+     * @param loader - Synchronous function returning the module's exports; called once, then cached
+     *
+     * @example
+     * \`\`\`typescript
+     * const vm = container.feature('vm')
+     *
+     * let built = 0
+     * vm.defineLazyModule('expensive', () => ({ builds: ++built }))
+     *
+     * // The loader hasn't run yet — only code that requires 'expensive' triggers it
+     * console.log(built) // 0
+     * \`\`\`
+     */
+    defineLazyModule(id: string, loader: () => any): void;
+    /** @internal All virtual module ids (eager + lazy) — the external list for bundling. */
+    get virtualModuleIds(): string[];
+    /**
+     * Build a require function that resolves from the virtual modules map first,
+     * falling back to Node's native \`createRequire\` for everything else.
+     *
+     * @param filePath - The file path to scope native require resolution to
+     * @returns A require function with \`.resolve\` preserved from the native require
+     */
+    createRequireFor(filePath: string): ((id: string) => any) & {
+        resolve: RequireResolve;
+    };
+    /**
+     * @internal Convert a virtual module's exports into an import-namespace-shaped
+     * object. Property descriptors are copied (preserving getters and member
+     * identity — critical for modules like React where hook identity matters),
+     * and \`default\` points at the original exports object when it isn't already
+     * defined, matching how \`require('x').default ?? require('x')\` behaves in
+     * the static-import rewrite.
+     */
+    private _toNamespace;
+    /**
+     * @internal Referrer path for dynamic import resolution. Falls back to a
+     * synthetic file directly inside \`container.cwd\` so \`dirname()\` of it is
+     * the cwd — eval snippets then resolve \`./x\` relative to the project.
+     */
+    private _referrerPath;
+    /**
+     * @internal Build the \`importModuleDynamically\` callback for a script.
+     *
+     * Mirrors {@link createRequireFor} resolution order so \`await import(x)\`
+     * and \`require(x)\` see the same module graph:
+     * 1. virtual modules (eager, then lazy — lazy results are cached)
+     * 2. relative/absolute specifiers, resolved against the referrer's directory
+     * 3. native \`import()\`, falling back to the referrer's \`node_modules\`
+     *    resolution when the host realm can't resolve the bare specifier
+     *    (the compiled binary's own realm has no user node_modules).
+     */
+    private _createImportModuleDynamically;
+    /** @internal Script options carrying the dynamic-import callback for the given run options. */
+    private _scriptOptions;
+    /**
+     * Creates a new VM script from the provided code.
+     *
+     * This method compiles JavaScript code into a VM script that can be executed
+     * multiple times in different contexts. The script is pre-compiled for better
+     * performance when executing the same code repeatedly.
+     *
+     * @param {string} code - The JavaScript code to compile into a script
+     * @param {vm.ScriptOptions} [options] - Options for script compilation
+     * @returns {vm.Script} A compiled VM script ready for execution
+     *
+     * @example
+     * \`\`\`typescript
+     * const script = vm.createScript('Math.max(a, b)')
+     *
+     * // Execute the script multiple times with different contexts
+     * const result1 = script.runInContext(vm.createContext({ a: 5, b: 3 }))
+     * const result2 = script.runInContext(vm.createContext({ a: 10, b: 20 }))
+     * \`\`\`
+     */
+    createScript(code: string, options?: vm.ScriptOptions): vm.Script;
+    /**
+     * Check whether an object has already been contextified by \`vm.createContext()\`.
+     *
+     * Useful to avoid double-contextifying when you're not sure if the caller
+     * passed a plain object or an existing context.
+     *
+     * @param ctx - The object to check
+     * @returns True if the object is a VM context
+     *
+     * @example
+     * \`\`\`typescript
+     * const ctx = vm.createContext({ x: 1 })
+     * vm.isContext(ctx)   // true
+     * vm.isContext({ x: 1 }) // false
+     * \`\`\`
+     */
+    isContext(ctx: unknown): ctx is vm.Context;
+    /**
+     * Create an isolated JavaScript execution context.
+     *
+     * Combines the container's context with any additional variables provided.
+     * If the input is already a VM context, it is returned as-is.
+     *
+     * @param ctx - Additional context variables to include
+     * @returns A VM context ready for script execution
+     *
+     * @example
+     * \`\`\`typescript
+     * const context = vm.createContext({ user: { name: 'John' } })
+     * const result = vm.runSync('user.name', context)
+     *
+     * // Reuse the same context to share state across runs — variables accumulate
+     * const ctx = vm.createContext({ counter: 0 })
+     * vm.runSync('counter += 1', ctx)
+     * vm.runSync('counter += 10', ctx)
+     * vm.runSync('counter', ctx) // 11
+     * \`\`\`
+     */
+    createContext(ctx?: any): vm.Context;
+    /**
+     * Wrap code containing top-level \`await\` in an async IIFE, injecting
+     * \`return\` before the final expression so its value is not lost.
+     *
+     * Resolution order:
+     * 1. No \`await\` substring, or code already starts with an async wrapper →
+     *    returned unchanged (native \`vm.Script\` completion-value semantics apply).
+     * 2. Code parses as a plain (non-async) function body via \`new Function\` →
+     *    the \`await\` is inside a string, comment, or nested async function, not
+     *    at the top level → returned unchanged.
+     * 3. Otherwise the code is scanned for top-level statement boundaries
+     *    (string/comment-aware via {@link computeNonCodeMask}, depth-tracked) and,
+     *    working from the last boundary backwards, the first \`head / tail\` split
+     *    whose wrapped form parses gets \`return (tail)\` injected.
+     * 4. If no boundary yields a returnable tail (code ends in a declaration,
+     *    loop, etc.), the whole body is wrapped with no injected return and the
+     *    run resolves \`undefined\` — matching native completion semantics for
+     *    declaration-final programs.
+     *
+     * \`new Function\` is used for *parsing only* — it is never invoked. Under bun,
+     * \`new vm.Script\` compiles lazily, so it cannot serve as an eager parse probe.
+     */
+    wrapTopLevelAwait(code: string): string;
+    /**
+     * True when an unmasked (non-string/comment) \`await\` is immediately followed
+     * by \`(\`, \`[\`, or a backtick — the forms where sloppy-mode parsing would
+     * silently treat \`await\` as an identifier instead of the keyword. Used by
+     * {@link wrapTopLevelAwait} to bypass its parse-first fast path.
+     */
+    private _hasAmbiguousAwait;
+    /**
+     * Scan \`code\` for top-level statement boundaries: positions immediately
+     * after a \`;\` or newline that sits at combined \`(){}[]\` depth 0 and outside
+     * strings, template literals, and comments. Each boundary is a candidate
+     * split point for \`return\` injection in {@link wrapTopLevelAwait}.
+     */
+    private _topLevelBoundaries;
+    /**
+     * Executes JavaScript code asynchronously in a controlled environment.
+     *
+     * This method creates a script from the provided code, sets up an execution context
+     * with the specified variables, and runs the code. Code containing top-level \`await\`
+     * is automatically wrapped in an async IIFE so the final expression's value is returned.
+     *
+     * Dynamic \`import()\` is supported: virtual modules resolve first (same as \`require\`),
+     * relative specifiers resolve against \`opts.filePath\` (or \`container.cwd\` when omitted),
+     * and everything else falls through to native import.
+     *
+     * Errors thrown by the evaluated code propagate to the caller — wrap the call in
+     * try/catch if the snippet might throw.
+     *
+     * @param {string} code - The JavaScript code to execute
+     * @param {any} [ctx={}] - Context variables to make available to the executing code
+     * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer \`filePath\` for dynamic imports
+     * @returns {Promise<any>} A promise resolving to the result of the code execution
+     *
+     * @example
+     * \`\`\`typescript
+     * // Simple calculation
+     * const result = await vm.run('2 + 3 * 4')
+     * console.log(result) // 14
+     *
+     * // Using context variables
+     * const greeting = await vm.run('\`Hello \${name}!\`', { name: 'Alice' })
+     * console.log(greeting) // 'Hello Alice!'
+     *
+     * // Array operations — any JS value can be passed through the context
+     * const sum = await vm.run('numbers.reduce((a, b) => a + b, 0)', {
+     *   numbers: [10, 20, 30, 40]
+     * })
+     * console.log(sum) // 100
+     *
+     * // Error handling — a throwing snippet rejects, so catch it
+     * try {
+     *   await vm.run('undefinedFunction()')
+     * } catch (err) {
+     *   console.log('Execution failed:', err.message)
+     * }
+     * \`\`\`
+     */
+    run<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<T>;
+    /**
+     * Execute code and capture all console output as structured JSON.
+     *
+     * Returns both the execution result and an array of every \`console.*\` call
+     * made during execution, each entry recording the method name and arguments.
+     *
+     * @param code - The JavaScript code to execute
+     * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
+     * @returns The result, an array of captured console calls, and the context
+     *
+     * @example
+     * \`\`\`typescript
+     * const snippet = 'console.log("hi")\\nconsole.warn("oh")\\n42'
+     * const { result, console: calls } = await vm.runCaptured(snippet)
+     * // result === 42
+     * // calls === [{ method: 'log', args: ['hi'] }, { method: 'warn', args: ['oh'] }]
+     * \`\`\`
+     */
+    runCaptured<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<{
+        result: T;
+        console: Array<{
+            method: string;
+            args: any[];
+        }>;
+        context: vm.Context;
+    }>;
+    /**
+     * Execute JavaScript code synchronously in a controlled environment.
+     *
+     * @param code - The JavaScript code to execute
+     * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
+     * @returns The result of the code execution
+     *
+     * @example
+     * \`\`\`typescript
+     * const sum = vm.runSync('a + b', { a: 2, b: 3 })
+     * console.log(sum) // 5
+     * \`\`\`
+     */
+    runSync<T extends any = any>(code: string, ctx?: any, opts?: VMRunOptions): T;
+    /**
+     * Execute code asynchronously and return both the result and the execution context.
+     *
+     * Unlike \`run\`, this method also returns the context object, allowing you to inspect
+     * variables set during execution.
+     *
+     * @param code - The JavaScript code to execute
+     * @param ctx - Context variables to make available to the executing code
+     * @param opts - Run options, e.g. the referrer \`filePath\` for dynamic imports
+     * @returns The execution result and the context object
+     *
+     * @example
+     * \`\`\`typescript
+     * const { result, context } = await vm.perform('x = 42; x * 2', { x: 0 })
+     * console.log(result)     // 84
+     * console.log(context.x)  // 42
+     * \`\`\`
+     */
+    perform<T extends any>(code: string, ctx?: any, opts?: VMRunOptions): Promise<{
+        result: T;
+        context: vm.Context;
+    }>;
+    /**
+     * Executes JavaScript code synchronously and returns both the result and the execution context.
+     *
+     * Unlike \`runSync\`, this method also returns the context object, allowing you to inspect
+     * variables set during execution (e.g. \`module.exports\`). This is the synchronous equivalent
+     * of \`perform()\`.
+     *
+     * @param {string} code - The JavaScript code to execute
+     * @param {any} [ctx={}] - Context variables to make available to the executing code
+     * @param {VMRunOptions} [opts={}] - Run options, e.g. the referrer \`filePath\` for dynamic imports
+     * @returns {{ result: T, context: vm.Context }} The execution result and the context object
+     *
+     * @example
+     * \`\`\`typescript
+     * const code = 'module.exports = { double: (n) => n * 2 }'
+     * const { result, context } = vm.performSync(code, {
+     *   exports: {},
+     *   module: { exports: {} },
+     * })
+     * const moduleExports = context.module?.exports || context.exports
+     * console.log(moduleExports.double(21)) // 42
+     * \`\`\`
+     */
+    performSync<T extends any = any>(code: string, ctx?: any, opts?: VMRunOptions): {
+        result: T;
+        context: vm.Context;
+    };
+    /**
+     * Synchronously loads a JavaScript/TypeScript module from a file path, executing it
+     * in an isolated VM context and returning its exports. The module gets \`require\`,
+     * \`exports\`, and \`module\` globals automatically, plus any additional context you provide.
+     *
+     * @param {string} filePath - Absolute path to the module file to load
+     * @param {any} [ctx={}] - Additional context variables to inject into the module's execution environment
+     * @returns {Record<string, any>} The module's exports (from \`module.exports\` or \`exports\`)
+     *
+     * @example
+     * \`\`\`typescript
+     * const vm = container.feature('vm')
+     *
+     * // Write a module to disk, then load it with extra context injected
+     * container.fs.writeFile('tools.ts', 'module.exports = { greet: (name) => "hi " + name }')
+     * const tools = vm.loadModule(container.paths.resolve('tools.ts'), { container })
+     * console.log(tools.greet('luca')) // 'hi luca'
+     * \`\`\`
+     */
+    loadModule(filePath: string, ctx?: any): Record<string, any>;
+    /** @internal Bundle a file with Bun.build, keeping virtual modules external, then execute it. */
+    private _loadModuleBundled;
+    /** @internal Execute CJS code in a VM context and return its exports. */
+    private _execModule;
+}
+export default VM;
+//# sourceMappingURL=vm.d.ts.map`,
+  "deps/contentbase/dist/runtime/helper.d.ts": `import { Bus, type EventMap } from './bus.js';
+import { State, type SetStateValue } from './state.js';
+import type { Container, ContainerContext } from './container.js';
+import { z } from 'zod';
+import { HelperStateSchema, HelperOptionsSchema } from './schemas.js';
+export type HelperState = z.infer<typeof HelperStateSchema>;
+export type HelperOptions = z.infer<typeof HelperOptionsSchema>;
+/**
+ * Minimal Helper base — a slimmed-down port of luca's Helper that keeps
+ * only what the contentbase runtime needs: zod-validated options, a State
+ * store, an event bus, and the container reference. All introspection and
+ * tooling machinery from luca is intentionally dropped.
+ */
+export declare abstract class Helper<T extends HelperState = HelperState, K extends HelperOptions = any, E extends EventMap = EventMap> {
+    static shortcut: string;
+    static description: string;
+    static stability?: string;
+    static category?: string;
+    static stateSchema: z.ZodType;
+    static optionsSchema: z.ZodType;
+    static eventsSchema: z.ZodType;
+    protected readonly _context: ContainerContext;
+    protected readonly _events: Bus<E>;
+    protected readonly _options: K;
+    readonly state: State<T>;
+    get initialState(): T;
+    constructor(options: K, context: ContainerContext);
+    protected _afterInitializeHasRun: boolean;
+    runAfterInitialize(): this;
+    get shortcut(): string;
+    get cacheKey(): any;
+    /** Override in subclasses for post-construction setup. Return value is not awaited. */
+    afterInitialize(): void | Promise<void>;
+    setState(newState: SetStateValue<T>): this;
+    /** Make properties non-enumerable (REPL friendliness). */
+    hide(...propNames: string[]): this;
+    get options(): K;
+    get context(): ContainerContext;
+    get container(): Container;
+    emit<Ev extends string & keyof E>(event: Ev, ...args: E[Ev]): this;
+    on(event: '*', listener: (event: string, ...args: any[]) => void): this;
+    on<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void): this;
+    off(event: '*', listener?: (event: string, ...args: any[]) => void): this;
+    off<Ev extends string & keyof E>(event: Ev, listener?: (...args: E[Ev]) => void): this;
+    once<Ev extends string & keyof E>(event: Ev, listener: (...args: E[Ev]) => void): this;
+    waitFor<Ev extends string & keyof E>(event: Ev): Promise<E[Ev]>;
+}
+//# sourceMappingURL=helper.d.ts.map`,
+  "deps/contentbase/dist/runtime/registry.d.ts": `/**
+ * Minimal class registry: maps string ids to helper classes.
+ * A slim stand-in for luca's Registry, keeping only what the
+ * contentbase runtime needs (register, lookup, has, available).
+ */
+export declare class Registry<T = any> {
+    scope: string;
+    baseClass: any;
+    private entries;
+    register(id: string, cls: any): any;
+    lookup(id: string): any;
+    has(id: string): boolean;
+    get available(): string[];
+}
+//# sourceMappingURL=registry.d.ts.map`,
+  "deps/contentbase/dist/runtime/schemas.d.ts": `import { z } from 'zod';
+export declare const HelperStateSchema: z.ZodObject<{}, z.core.$loose>;
+export declare const HelperOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const FeatureStateSchema: z.ZodObject<{
+    enabled: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export declare const FeatureOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    cached: z.ZodOptional<z.ZodBoolean>;
+    enable: z.ZodOptional<z.ZodBoolean>;
+}, z.core.$strip>;
+export declare const ServerStateSchema: z.ZodObject<{
+    port: z.ZodOptional<z.ZodNumber>;
+    listening: z.ZodDefault<z.ZodBoolean>;
+    configured: z.ZodDefault<z.ZodBoolean>;
+    stopped: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$loose>;
+export declare const ServerOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    host: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const HelperEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+}, z.core.$strip>;
+export declare const FeatureEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    enabled: z.ZodTuple<[], null>;
+}, z.core.$strip>;
+export declare const ServerEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+}, z.core.$strip>;
+export declare const MCPServerOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    host: z.ZodOptional<z.ZodString>;
+    transport: z.ZodOptional<z.ZodEnum<{
+        stdio: "stdio";
+        http: "http";
+    }>>;
+    serverName: z.ZodOptional<z.ZodString>;
+    serverVersion: z.ZodOptional<z.ZodString>;
+    mcpCompat: z.ZodOptional<z.ZodEnum<{
+        standard: "standard";
+        codex: "codex";
+    }>>;
+    stdioCompat: z.ZodOptional<z.ZodEnum<{
+        standard: "standard";
+        codex: "codex";
+        auto: "auto";
+    }>>;
+}, z.core.$strip>;
+export declare const MCPServerStateSchema: z.ZodObject<{
+    port: z.ZodOptional<z.ZodNumber>;
+    listening: z.ZodDefault<z.ZodBoolean>;
+    configured: z.ZodDefault<z.ZodBoolean>;
+    stopped: z.ZodDefault<z.ZodBoolean>;
+    transport: z.ZodOptional<z.ZodString>;
+    toolCount: z.ZodDefault<z.ZodNumber>;
+    resourceCount: z.ZodDefault<z.ZodNumber>;
+    promptCount: z.ZodDefault<z.ZodNumber>;
+}, z.core.$loose>;
+export declare const MCPServerEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    toolRegistered: z.ZodTuple<[z.ZodString], null>;
+    resourceRegistered: z.ZodTuple<[z.ZodString], null>;
+    promptRegistered: z.ZodTuple<[z.ZodString], null>;
+    toolCalled: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+}, z.core.$strip>;
+export declare const EndpointStateSchema: z.ZodObject<{
+    mounted: z.ZodDefault<z.ZodBoolean>;
+    path: z.ZodDefault<z.ZodString>;
+    methods: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    requestCount: z.ZodDefault<z.ZodNumber>;
+}, z.core.$loose>;
+export declare const EndpointOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    path: z.ZodString;
+    filePath: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>;
+export declare const EndpointEventsSchema: z.ZodObject<{
+    stateChange: z.ZodTuple<[z.ZodAny], null>;
+    loaded: z.ZodTuple<[z.ZodAny], null>;
+    mounted: z.ZodTuple<[z.ZodString], null>;
+    request: z.ZodTuple<[z.ZodString, z.ZodString, z.ZodAny], null>;
+    error: z.ZodTuple<[z.ZodAny], null>;
+}, z.core.$strip>;
+//# sourceMappingURL=schemas.d.ts.map`,
+  "deps/contentbase/dist/runtime/server.d.ts": `import { Helper } from './helper.js';
+import { Registry } from './registry.js';
+import { z } from 'zod';
+import { ServerStateSchema, ServerOptionsSchema } from './schemas.js';
+export type ServerState = z.infer<typeof ServerStateSchema>;
+export type ServerOptions = z.infer<typeof ServerOptionsSchema>;
+export type StartOptions = {
+    port?: number;
+    host?: string;
+};
+/** Augmented by server modules via \`declare module\` for typed container.server() lookups. */
+export interface AvailableServers {
+}
+export declare class Server<T extends ServerState = ServerState, K extends ServerOptions = ServerOptions> extends Helper<T, K> {
+    static stateSchema: z.ZodObject<{
+        port: z.ZodOptional<z.ZodNumber>;
+        listening: z.ZodDefault<z.ZodBoolean>;
+        configured: z.ZodDefault<z.ZodBoolean>;
+        stopped: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        port: z.ZodOptional<z.ZodNumber>;
+        host: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+    }, z.core.$strip>;
+    /** Self-register a Server subclass from a static initialization block. */
+    static register: (SubClass: abstract new (options: any, context: any) => Server, id?: string) => abstract new (options: any, context: any) => Server;
+    get initialState(): T;
+    get options(): K;
+    /** Async functions passed to \`.use()\` before \`start()\` — drained in \`start()\`. */
+    _pendingPlugins: Promise<void>[];
+    use(fn: (server: this) => void | Promise<void>): this;
+    protected _drainPendingPlugins(): Promise<void>;
+    get isListening(): boolean;
+    get isConfigured(): boolean;
+    get isStopped(): boolean;
+    get port(): number;
+    stop(): Promise<this>;
+    start(options?: StartOptions): Promise<this>;
+    configure(): Promise<this>;
+}
+export declare class ServersRegistry extends Registry<Server<any>> {
+    scope: string;
+    baseClass: typeof Server;
+}
+export declare const servers: ServersRegistry;
+//# sourceMappingURL=server.d.ts.map`,
+  "deps/contentbase/dist/runtime/servers/express.d.ts": `import express from 'express';
+import type { Express } from 'express';
+import { z } from 'zod';
+import { type StartOptions, Server, type ServerState } from '../server.js';
+import { Endpoint, type EndpointModule } from '../endpoint.js';
+declare module '../server' {
+    interface AvailableServers {
+        express: typeof ExpressServer;
+    }
+}
+export declare const ExpressServerOptionsSchema: z.ZodObject<{
+    name: z.ZodOptional<z.ZodString>;
+    _cacheKey: z.ZodOptional<z.ZodString>;
+    port: z.ZodOptional<z.ZodNumber>;
+    host: z.ZodOptional<z.ZodString>;
+    cors: z.ZodOptional<z.ZodBoolean>;
+    static: z.ZodOptional<z.ZodString>;
+    historyFallback: z.ZodOptional<z.ZodBoolean>;
+    create: z.ZodOptional<z.ZodAny>;
+    beforeStart: z.ZodOptional<z.ZodAny>;
+}, z.core.$strip>;
+export type ExpressServerOptions = z.infer<typeof ExpressServerOptionsSchema>;
+/**
+ * Express.js HTTP server with automatic endpoint mounting, CORS, and SPA history fallback.
+ *
+ * Wraps an Express application with convention-based endpoint discovery. Endpoint
+ * modules (files exporting \`path\` plus \`get\`/\`post\`/\`put\`/\`patch\`/\`delete\` handlers)
+ * are mounted as routes — this is what \`luca serve\` does with your project's
+ * \`endpoints/\` folder via \`useEndpoints(dir)\`. Supports static file serving, CORS,
+ * and single-page app history fallback out of the box.
+ *
+ * @extends Server
+ *
+ * Behavioral contracts worth knowing:
+ * - **CORS is ON by default** — pass \`cors: false\` to disable it, not just omit the option.
+ * - JSON and urlencoded body parsers are pre-installed (500mb limit).
+ * - Endpoint handlers receive \`(params, ctx)\` where \`params\` merges query + body +
+ *   route params; the return value is sent as JSON. Thrown ZodErrors become 400s,
+ *   other errors become 500s.
+ * - Endpoint modules can declare built-in IP-keyed sliding-window rate limiting by
+ *   exporting \`rateLimit: { maxRequests, windowSeconds }\` (all methods) or per-method
+ *   variants like \`getRateLimit\` — no need to hand-roll one. Over-limit requests get 429.
+ * - \`historyFallback: true\` (requires \`static\`) serves \`index.html\` for unmatched
+ *   GET routes, wired up during \`start()\`.
+ *
+ * For raw custom routes there are three doors: the \`create: (app, server) => app\`
+ * option hook (runs when the app is first built, before endpoints mount),
+ * \`server.app.use(...)\` after creation, or \`luca serve --setup setup.ts\` from the
+ * CLI (your setup file receives the app).
+ *
+ * @example
+ * \`\`\`typescript
+ * const server = container.server('express', { static: './public' })
+ *
+ * // custom routes on the underlying Express app, before or after start
+ * server.app.get('/health', (req, res) => res.json({ ok: true }))
+ *
+ * // mount endpoint modules — useEndpoints(dir) does the same for a folder
+ * // of endpoint files (that's what \`luca serve\` does with endpoints/)
+ * await server.useEndpointModules([
+ *   { path: '/status', get: async () => ({ ok: true }) },
+ * ])
+ *
+ * // grab a free port so the example runs anywhere; a fixed port works too
+ * const port = await container.feature('networking').findOpenPort(3400)
+ * await server.start({ port })
+ * console.log(server.port === port)       // true
+ *
+ * const api = container.client('rest', { baseURL: \`http://localhost:\${server.port}\` })
+ * console.log(await api.get('/health'))   // { ok: true }
+ * await server.stop()
+ * \`\`\`
+ *
+ * @example
+ * \`\`\`typescript
+ * // endpoints/status.ts — a rate-limited endpoint module, mounted by \`luca serve\`:
+ * //   export const path = '/status'
+ * //   export const rateLimit = { maxRequests: 10, windowSeconds: 60 } // all methods
+ * //   export async function get() { return { ok: true } }
+ *
+ * // Custom middleware via the create hook (runs before endpoints mount)
+ * const seen = []
+ * const server = container.server('express', {
+ *   create: (app, server) => {
+ *     app.use((req, res, next) => { seen.push(req.path); next() })
+ *     return app
+ *   },
+ * })
+ * server.app.get('/ping', (req, res) => res.json({ pong: true }))
+ *
+ * const port = await container.feature('networking').findOpenPort(3410)
+ * await server.start({ port })
+ * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+ * console.log(await api.get('/ping'))   // { pong: true }
+ * console.log(seen)                     // ['/ping']
+ * await server.stop()
+ * \`\`\`
+ */
+export declare class ExpressServer<T extends ServerState = ServerState, K extends ExpressServerOptions = ExpressServerOptions> extends Server<T, K> {
+    static shortcut: "servers.express";
+    static stability: "core";
+    static category: "networking";
+    static stateSchema: z.ZodObject<{
+        port: z.ZodOptional<z.ZodNumber>;
+        listening: z.ZodDefault<z.ZodBoolean>;
+        configured: z.ZodDefault<z.ZodBoolean>;
+        stopped: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        port: z.ZodOptional<z.ZodNumber>;
+        host: z.ZodOptional<z.ZodString>;
+        cors: z.ZodOptional<z.ZodBoolean>;
+        static: z.ZodOptional<z.ZodString>;
+        historyFallback: z.ZodOptional<z.ZodBoolean>;
+        create: z.ZodOptional<z.ZodAny>;
+        beforeStart: z.ZodOptional<z.ZodAny>;
+    }, z.core.$strip>;
+    _app?: Express;
+    _listener?: any;
+    _mountedEndpoints: Endpoint[];
+    /** The raw express module itself — handy for \`server.express.static(...)\`, \`server.express.Router()\`, etc. */
+    get express(): typeof express;
+    /**
+     * The underlying Node http.Server, available once the app is listening
+     * (\`undefined\` before \`start()\`). Pass it — or this express server itself —
+     * to \`container.server('websocket', { server })\` to run a WebSocket on the
+     * same port via the Upgrade handshake.
+     */
+    get httpServer(): any;
+    /** The lifecycle hooks resolved from options: \`create(app, server)\` runs when the app is first built (before endpoints mount); \`beforeStart(startOptions, server)\` runs inside start() before listening. Both default to no-ops. */
+    get hooks(): {
+        create: (app: Express, server: Server) => Express;
+        beforeStart: (options: any, server: Server) => any;
+    };
+    /**
+     * The underlying Express application, built lazily on first access:
+     * CORS (unless \`cors: false\`), JSON + urlencoded body parsers, optional
+     * static file serving, then the \`create\` hook. Use it to register raw
+     * routes and middleware directly.
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * server.app.use((req, res, next) => { console.log(req.method, req.path); next() })
+     * server.app.get('/health', (req, res) => res.json({ ok: true }))
+     *
+     * const port = await container.feature('networking').findOpenPort(3420)
+     * await server.start({ port })
+     * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+     * console.log(await api.get('/health'))   // { ok: true }
+     * await server.stop()
+     * \`\`\`
+     */
+    get app(): Express;
+    /**
+     * Start the Express HTTP server. A runtime \`port\` overrides the constructor
+     * option and is written to state so \`server.port\` always reflects reality.
+     * Runs the \`beforeStart\` hook, wires the SPA history fallback (when
+     * \`historyFallback\` + \`static\` are set), then listens. Resolves once the
+     * server is accepting connections; calling start() while already listening
+     * is a no-op.
+     *
+     * @param options - Optional runtime overrides for port and host (host defaults to '0.0.0.0')
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * server.app.get('/ping', (req, res) => res.json({ pong: true }))
+     *
+     * // findOpenPort keeps the example collision-free; start({ port: 3000 }) works the same
+     * const port = await container.feature('networking').findOpenPort(3430)
+     * await server.start({ port })
+     * console.log(server.isListening)    // true
+     * console.log(server.port === port)  // true — runtime port wins over options
+     * await server.stop()
+     * \`\`\`
+     */
+    start(options?: StartOptions): Promise<this>;
+    /**
+     * Stop the HTTP listener. Waits up to 500ms for the underlying server to
+     * close (open keep-alive connections can hold it), then marks the server
+     * stopped either way — so stop() never hangs a CLI command.
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * const port = await container.feature('networking').findOpenPort(3440)
+     * await server.start({ port })
+     * // ... handle requests ...
+     * await server.stop()
+     * console.log(server.isListening)   // false
+     * \`\`\`
+     */
+    stop(): Promise<this>;
+    configure(): Promise<this>;
+    /**
+     * Mount an already-constructed Endpoint instance onto the Express app and
+     * track it (mounted endpoints power reloadEndpoint and the OpenAPI spec).
+     * Most callers want useEndpoints(dir) or useEndpointModules(mods) instead,
+     * which build the Endpoint for you.
+     *
+     * @param endpoint - A loaded Endpoint instance
+     *
+     * @example
+     * \`\`\`typescript
+     * // The Endpoint class is on the endpoints registry — no import needed
+     * const Endpoint = container.endpoints.baseClass
+     *
+     * const server = container.server('express')
+     * const endpoint = new Endpoint({ path: '/hello' }, container.context)
+     * await endpoint.load({
+     *   path: '/hello',
+     *   get: async (params) => ({ hello: params.name || 'world' }),
+     * })
+     * server.useEndpoint(endpoint)
+     *
+     * const port = await container.feature('networking').findOpenPort(3450)
+     * await server.start({ port })
+     * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+     * console.log(await api.get('/hello', { name: 'luca' }))   // { hello: 'luca' }
+     * await server.stop()
+     * \`\`\`
+     */
+    useEndpoint(endpoint: Endpoint): this;
+    /**
+     * Discover and mount every endpoint module in a directory (recursive
+     * \`**\\/*.ts\` scan). This is how \`luca serve\` wires up a project's
+     * \`endpoints/\` folder. Each file must export a \`path\` string (files
+     * without one are silently skipped) plus handler functions named after
+     * HTTP methods. Modules are loaded through the helpers feature's VM-aware
+     * loader, so this works from the compiled binary too. A file that fails
+     * to load logs an error and is skipped — it does not abort the others.
+     *
+     * @param dir - Absolute path to the directory containing endpoint modules
+     *
+     * @example
+     * \`\`\`typescript
+     * // Given an endpoints/users.ts file like this (written here so the example runs):
+     * const fs = container.feature('fs')
+     * fs.ensureFile(container.paths.join('endpoints', 'users.ts'), [
+     *   "export const path = '/users/:id'",
+     *   "export async function get(params) { return { id: params.id } }",
+     * ].join('\\n'))
+     *
+     * const server = container.server('express')
+     * await server.useEndpoints(container.paths.join('endpoints'))
+     *
+     * const port = await container.feature('networking').findOpenPort(3460)
+     * await server.start({ port })
+     * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+     * console.log(await api.get('/users/42'))   // { id: '42' } — params merges query + body + route params
+     * await server.stop()
+     * \`\`\`
+     */
+    useEndpoints(dir: string): Promise<this>;
+    /**
+     * Reload a mounted endpoint by its file path. Re-reads the module through
+     * the helpers VM loader so the next request picks up the new handlers.
+     *
+     * @param filePath - Absolute path to the endpoint file
+     * @returns The reloaded Endpoint, or null if no mounted endpoint matches
+     *
+     * @example
+     * \`\`\`typescript
+     * const fs = container.feature('fs')
+     * const file = container.paths.join('endpoints', 'users.ts')
+     * fs.ensureFile(file, "export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id } }")
+     *
+     * const server = container.server('express')
+     * await server.useEndpoints(container.paths.join('endpoints'))
+     *
+     * // after editing endpoints/users.ts on disk (e.g. from a file watcher):
+     * fs.ensureFile(file, "export const path = '/users/:id'\\nexport async function get(params) { return { id: params.id, v: 2 } }", true)
+     * const reloaded = await server.reloadEndpoint(file)
+     * console.log(reloaded ? 'hot-reloaded' : 'not a mounted endpoint')
+     * \`\`\`
+     */
+    reloadEndpoint(filePath: string): Promise<Endpoint | null>;
+    /**
+     * Load an endpoint module from disk. When the container VM has virtual
+     * modules seeded (e.g. running from a compiled binary where \`contentbase\`
+     * isn't installable), route through the VM loader; otherwise use a plain
+     * dynamic import, falling back to the VM loader on failure.
+     */
+    private _loadEndpointModule;
+    /**
+     * Mount endpoint modules you already have in memory (imported or inline
+     * objects) instead of scanning a directory. Same module contract as
+     * useEndpoints: each needs a \`path\` plus HTTP-method handlers; modules
+     * without a \`path\` are skipped, and a module that fails to load logs an
+     * error without aborting the rest.
+     *
+     * @param modules - Array of endpoint modules (or their \`import()\` results)
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * await server.useEndpointModules([
+     *   {
+     *     path: '/status',
+     *     get: async () => ({ ok: true }),
+     *   },
+     *   {
+     *     path: '/echo',
+     *     post: async (params) => ({ received: params }),
+     *   },
+     * ])
+     *
+     * const port = await container.feature('networking').findOpenPort(3480)
+     * await server.start({ port })
+     * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+     * console.log(await api.post('/echo', { hello: 'world' }))   // { received: { hello: 'world' } }
+     * await server.stop()
+     * \`\`\`
+     */
+    useEndpointModules(modules: EndpointModule[]): Promise<this>;
+    /**
+     * Register a GET /openapi.json route that serves the OpenAPI 3.1 spec
+     * generated from all mounted endpoints (regenerated per request, so
+     * endpoints mounted later still show up).
+     *
+     * @param options - Optional info-block overrides (title, version, description)
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * await server.useEndpointModules([
+     *   { path: '/status', get: async () => ({ ok: true }) },
+     * ])
+     * server.serveOpenAPISpec({ title: 'My API', version: '2.0.0' })
+     *
+     * const port = await container.feature('networking').findOpenPort(3470)
+     * await server.start({ port })
+     * const api = container.client('rest', { baseURL: \`http://localhost:\${port}\` })
+     * const spec = await api.get('/openapi.json')
+     * console.log(spec.info.title, Object.keys(spec.paths))   // My API [ '/status' ]
+     * await server.stop()
+     * \`\`\`
+     */
+    serveOpenAPISpec(options?: {
+        title?: string;
+        version?: string;
+        description?: string;
+    }): this;
+    /**
+     * Build an OpenAPI 3.1 document describing every mounted endpoint —
+     * paths come from the endpoint modules, parameter schemas from their
+     * zod method schemas (e.g. \`getSchema\`), and the server URL from the
+     * current port.
+     *
+     * @param options - Optional info-block overrides (title, version, description)
+     * @returns The OpenAPI spec as a plain object
+     *
+     * @example
+     * \`\`\`typescript
+     * const server = container.server('express')
+     * await server.useEndpointModules([
+     *   { path: '/status', get: async () => ({ ok: true }) },
+     * ])
+     * const spec = server.generateOpenAPISpec({ title: 'My API' })
+     * console.log(spec.info.title)          // 'My API'
+     * console.log(Object.keys(spec.paths))  // ['/status']
+     * \`\`\`
+     */
+    generateOpenAPISpec(options?: {
+        title?: string;
+        version?: string;
+        description?: string;
+    }): Record<string, any>;
+}
+export default ExpressServer;
+//# sourceMappingURL=express.d.ts.map`,
+  "deps/contentbase/dist/runtime/servers/mcp.d.ts": `import type { Container } from '../container.js';
+import { z } from 'zod';
+import { MCPServerStateSchema, MCPServerOptionsSchema } from '../schemas.js';
+import { Server } from '../server.js';
+import { Server as MCPProtocolServer } from '@modelcontextprotocol/sdk/server/index.js';
+declare module '../server' {
+    interface AvailableServers {
+        mcp: typeof MCPServer;
+    }
+}
+export type MCPServerOptions = z.infer<typeof MCPServerOptionsSchema>;
+export type MCPServerState = z.infer<typeof MCPServerStateSchema>;
+/** Context object passed to all MCP tool, resource, and prompt handlers. */
+export type MCPContext = {
+    container: Container;
+};
+/** A registered MCP tool with its schema, handler, and pre-computed JSON Schema. */
+export interface RegisteredTool {
+    name: string;
+    description?: string;
+    schema?: z.ZodType;
+    jsonSchema?: Record<string, any>;
+    handler: Function;
+}
+/** A registered MCP resource with its URI, metadata, and handler. */
+export interface RegisteredResource {
+    uri: string;
+    name?: string;
+    description?: string;
+    mimeType?: string;
+    handler: (uri: string, ctx: MCPContext) => Promise<string> | string;
+}
+/** A registered MCP prompt with its argument schemas and handler. */
+export interface RegisteredPrompt {
+    name: string;
+    description?: string;
+    args?: Record<string, z.ZodType>;
+    handler: (args: Record<string, string | undefined>, ctx: MCPContext) => Promise<PromptMessage[]> | PromptMessage[];
+}
+export type PromptMessage = {
+    role: 'user' | 'assistant';
+    content: string;
+};
+type ToolRegistrationOptions = {
+    schema?: z.ZodType;
+    description?: string;
+    handler?: Function | ((args: any, ctx: any) => any);
+};
+type ResourceRegistrationOptions = {
+    name?: string;
+    description?: string;
+    mimeType?: string;
+    handler: (uri: string, ctx: MCPContext) => Promise<string> | string;
+};
+type PromptRegistrationOptions = {
+    description?: string;
+    args?: Record<string, z.ZodType>;
+    handler: (args: Record<string, string | undefined>, ctx: MCPContext) => Promise<PromptMessage[]> | PromptMessage[];
+};
+type MCPCompatMode = 'standard' | 'codex';
+type StdioCompatMode = 'standard' | 'codex' | 'auto';
+/**
+ * MCP (Model Context Protocol) server for exposing tools, resources, and prompts
+ * to AI clients like Claude Code. Uses the low-level MCP SDK Server class directly
+ * with Zod 4 native JSON Schema conversion.
+ *
+ * Register tools, resources, and prompts programmatically, then start the server
+ * over stdio (for CLI integration) or HTTP (for remote access).
+ *
+ * @example
+ * \`\`\`ts
+ * const mcp = container.server('mcp', { serverName: 'my-server', serverVersion: '1.0.0' })
+ *
+ * mcp.tool('search_files', {
+ *   schema: z.object({ pattern: z.string() }),
+ *   description: 'Search for files',
+ *   handler: async (args, ctx) => {
+ *     return ctx.container.feature('fs').walk('.', { include: [args.pattern] }).files.join('\\n')
+ *   }
+ * })
+ *
+ * await mcp.start()
+ * \`\`\`
+ */
+export declare class MCPServer extends Server<MCPServerState, MCPServerOptions> {
+    static shortcut: "servers.mcp";
+    static stability: "core";
+    static category: "ai-assistants";
+    static stateSchema: z.ZodObject<{
+        port: z.ZodOptional<z.ZodNumber>;
+        listening: z.ZodDefault<z.ZodBoolean>;
+        configured: z.ZodDefault<z.ZodBoolean>;
+        stopped: z.ZodDefault<z.ZodBoolean>;
+        transport: z.ZodOptional<z.ZodString>;
+        toolCount: z.ZodDefault<z.ZodNumber>;
+        resourceCount: z.ZodDefault<z.ZodNumber>;
+        promptCount: z.ZodDefault<z.ZodNumber>;
+    }, z.core.$loose>;
+    static optionsSchema: z.ZodObject<{
+        name: z.ZodOptional<z.ZodString>;
+        _cacheKey: z.ZodOptional<z.ZodString>;
+        port: z.ZodOptional<z.ZodNumber>;
+        host: z.ZodOptional<z.ZodString>;
+        transport: z.ZodOptional<z.ZodEnum<{
+            stdio: "stdio";
+            http: "http";
+        }>>;
+        serverName: z.ZodOptional<z.ZodString>;
+        serverVersion: z.ZodOptional<z.ZodString>;
+        mcpCompat: z.ZodOptional<z.ZodEnum<{
+            standard: "standard";
+            codex: "codex";
+        }>>;
+        stdioCompat: z.ZodOptional<z.ZodEnum<{
+            standard: "standard";
+            codex: "codex";
+            auto: "auto";
+        }>>;
+    }, z.core.$strip>;
+    static eventsSchema: z.ZodObject<{
+        stateChange: z.ZodTuple<[z.ZodAny], null>;
+        toolRegistered: z.ZodTuple<[z.ZodString], null>;
+        resourceRegistered: z.ZodTuple<[z.ZodString], null>;
+        promptRegistered: z.ZodTuple<[z.ZodString], null>;
+        toolCalled: z.ZodTuple<[z.ZodString, z.ZodAny], null>;
+    }, z.core.$strip>;
+    _mcpServer?: MCPProtocolServer;
+    _tools: Map<string, RegisteredTool>;
+    _resources: Map<string, RegisteredResource>;
+    _prompts: Map<string, RegisteredPrompt>;
+    get initialState(): MCPServerState;
+    /** The underlying MCP protocol server instance. Created during configure(). */
+    get mcpServer(): MCPProtocolServer;
+    /** The handler context passed to all tool, resource, and prompt handlers. */
+    get handlerContext(): MCPContext;
+    /**
+     * Register an MCP tool. The tool's Zod schema is converted to JSON Schema
+     * for the protocol listing, and used for runtime argument validation.
+     *
+     * Tool handlers can return a string (auto-wrapped as text content) or a
+     * full CallToolResult object for advanced responses (images, errors, etc).
+     *
+     * @param name - Unique tool name
+     * @param options - Tool schema, description, and handler
+     */
+    tool(name: string, options: ToolRegistrationOptions): this;
+    /**
+     * Register an MCP resource. Resources expose data (files, configs, etc)
+     * that AI clients can read by URI.
+     *
+     * Accepts either a handler function directly or an options object with
+     * additional metadata (name, description, mimeType).
+     *
+     * @param uri - Unique resource URI (e.g. "project://readme")
+     * @param handlerOrOptions - Handler function or options object with handler
+     */
+    resource(uri: string, handlerOrOptions: ResourceRegistrationOptions['handler'] | ResourceRegistrationOptions): this;
+    /**
+     * Register an MCP prompt. Prompts are reusable message templates that
+     * AI clients can invoke with optional string arguments.
+     *
+     * @param name - Unique prompt name
+     * @param options - Prompt handler, optional args schema, and description
+     */
+    prompt(name: string, options: PromptRegistrationOptions): this;
+    /**
+     * Configure the MCP protocol server and register all protocol handlers.
+     * Called automatically before start() if not already configured.
+     */
+    configure(): Promise<this>;
+    /**
+     * Start the MCP server with the specified transport.
+     *
+     * @param options - Transport configuration. Defaults to stdio.
+     * @param options.transport - 'stdio' for CLI integration, 'http' for remote access
+     * @param options.port - Port for HTTP transport (default 3001)
+     */
+    start(options?: {
+        transport?: 'stdio' | 'http';
+        port?: number;
+        host?: string;
+        mcpCompat?: MCPCompatMode;
+        stdioCompat?: StdioCompatMode;
+    }): Promise<this>;
+    /**
+     * Stop the MCP server and close all connections.
+     */
+    stop(): Promise<this>;
+    /** Register tools/list and tools/call protocol handlers on a given MCP protocol server. */
+    private _registerToolHandlers;
+    /** Register resources/list and resources/read protocol handlers on a given MCP protocol server. */
+    private _registerResourceHandlers;
+    /** Register prompts/list and prompts/get protocol handlers on a given MCP protocol server. */
+    private _registerPromptHandlers;
+    /**
+     * Create a fresh MCPProtocolServer with all registered handlers wired up.
+     * Used by the HTTP transport to give each client session its own server instance,
+     * avoiding the "Server already initialized" rejection on reconnects.
+     */
+    private _createSessionServer;
+    /** Start an HTTP transport using StreamableHTTPServerTransport. */
+    private _startHTTPTransport;
+    private _resolveMCPCompat;
+    private _resolveStdioCompat;
+    private _normalizeCodexRequest;
+    private _ensureJSONContentType;
+}
+export default MCPServer;
+//# sourceMappingURL=mcp.d.ts.map`,
+  "deps/contentbase/dist/runtime/setup/native-install.d.ts": `import { contentbaseHome, contentbaseHomeNodeModules } from './paths.js';
+export interface PackageManagerAvailability {
+    bun: boolean;
+    npm: boolean;
+}
+/**
+ * Pick the install command for adding a package to the shared \`~/.luca\`
+ * node_modules. The compiled luca binary cannot act as a package manager
+ * itself, so one must be present on the PATH — bun preferred, npm fallback.
+ *
+ * Returns null when no supported package manager is available.
+ */
+export declare function selectInstallCommand(pkgSpec: string, available: PackageManagerAvailability): string | null;
+/** Detect which supported package managers are on the PATH. */
+export declare function detectPackageManagers(): Promise<PackageManagerAvailability>;
+/** Ensure \`~/.luca\` exists and holds a minimal package.json manifest. */
+export declare function ensureHomeManifest(home?: string): Promise<string>;
+/** Absolute path where a shared native module would live, e.g. \`~/.luca/node_modules/node-llama-cpp\`. */
+export declare function sharedModulePath(moduleName: string, home?: string): string;
+/**
+ * True when the shared module appears installed and usable.
+ *
+ * In dev (plain bun) this verifies via a real import. In the compiled luca binary
+ * a native import() can't reach ~/.luca/node_modules at all (the $bunfs resolver
+ * limitation this whole subsystem exists for), so a successful-import can't be the
+ * signal — we fall back to an on-disk presence check. This is a status probe, so
+ * it stays side-effect-free (no process spawn); the deep load-verify runs at
+ * install time in installSharedModule.
+ */
+export declare function sharedModuleLoads(moduleName: string, home?: string): Promise<boolean>;
+/**
+ * Install a package into the per-machine \`~/.luca/node_modules\` and verify
+ * the module loads afterwards. Throws with actionable guidance on failure.
+ */
+export declare function installSharedModule(pkgSpec: string, home?: string): Promise<string>;
+export { contentbaseHome, contentbaseHomeNodeModules };
+//# sourceMappingURL=native-install.d.ts.map`,
+  "deps/contentbase/dist/runtime/setup/paths.d.ts": `/**
+ * The per-machine contentbase home directory (\`~/.contentbase\` by default).
+ *
+ * Holds the shared \`node_modules\` where native addons that can't be compiled
+ * into the cnotes binary get installed once per machine, plus embedding
+ * daemon sockets and logs. Override with the \`CONTENTBASE_HOME\` env variable.
+ */
+export declare function contentbaseHome(): string;
+/** The shared per-machine node_modules directory under the contentbase home. */
+export declare function contentbaseHomeNodeModules(): string;
+//# sourceMappingURL=paths.d.ts.map`,
+  "deps/contentbase/dist/runtime/state.d.ts": `export type StateChangeType = 'add' | 'update' | 'delete';
+export type StateChangeCallback<K extends keyof any, V> = (changeType: StateChangeType, key: K, value?: V) => void;
+export type SetStateValue<T extends object> = Partial<T> | ((current: T, state: State<T>) => Partial<T>);
+export declare class State<T extends object = any> {
+    private state;
+    private observers;
+    private _version;
+    constructor(options?: {
+        initialState: Partial<T>;
+    });
+    get version(): number;
+    observe(callback: StateChangeCallback<keyof T, T[keyof T]>): () => void;
+    keys(): string[];
+    get<K extends keyof T>(key: K): T[K] | undefined;
+    set<K extends keyof T>(key: K, value: T[K]): this;
+    delete<K extends keyof T>(key: K): this;
+    has<K extends keyof T>(key: K): boolean;
+    get current(): T;
+    clear(): void;
+    entries(): [keyof T, T[keyof T]][];
+    values(): T[keyof T][];
+    setState(value: SetStateValue<T>): void;
+}
+//# sourceMappingURL=state.d.ts.map`,
   "deps/contentbase/dist/search/document-inputs.d.ts": `export interface SearchDocumentSection {
     heading: string;
     headingPath: string;
@@ -37375,7 +39668,7 @@ export interface SearchCollectionLike {
 export declare function collectDocumentInputs(collection: SearchCollectionLike): SearchDocumentInput[];
 export declare function collectH2Sections(content: string): SearchDocumentSection[];
 //# sourceMappingURL=document-inputs.d.ts.map`,
-  "deps/contentbase/dist/search/luca-semantic-search.d.ts": `export type EmbeddingProvider = 'local' | 'openai';
+  "deps/contentbase/dist/search/semantic-search.d.ts": `export type EmbeddingProvider = 'local' | 'openai';
 export type ChunkStrategy = 'section' | 'fixed' | 'document';
 export interface SemanticSearchConfig {
     dbPath: string;
@@ -37398,10 +39691,14 @@ export declare function getSearchDbPath(rootPath: string): string;
 export declare function hasSearchIndex(rootPath: string): boolean;
 export declare function buildSemanticSearchConfig(rootPath: string, options?: SemanticSearchOptions): SemanticSearchConfig;
 export declare function loadSemanticSearchClass(): Promise<any>;
-export declare function ensureSemanticSearchAttached(container: any, SemanticSearchClass?: any): Promise<any>;
+/**
+ * The runtime container registers the semanticSearch feature automatically,
+ * so attaching is a no-op kept for API compatibility.
+ */
+export declare function ensureSemanticSearchAttached(_container: any, SemanticSearchClass?: any): Promise<any>;
 export declare function createSemanticSearch(container: any, rootPath: string, options?: SemanticSearchOptions): Promise<any>;
 export declare function getInitializedSemanticSearch(container: any, rootPath: string, options?: SemanticSearchOptions): Promise<any>;
-//# sourceMappingURL=luca-semantic-search.d.ts.map`,
+//# sourceMappingURL=semantic-search.d.ts.map`,
   "deps/contentbase/dist/section.d.ts": `import type { z } from "zod";
 import type { AstQuery } from "./ast-query";
 import type { SectionDefinition } from "./types";
@@ -37671,6 +39968,11 @@ export declare function readDirectory(dirPath: string, match?: RegExp, recursive
   "deps/contentbase/dist/utils/stringify-ast.d.ts": `import type { Root } from "mdast";
 /**
  * Convert an MDAST tree back to a markdown string.
+ *
+ * The parse pipeline uses remark-gfm, so ASTs routinely contain GFM nodes
+ * (tables, strikethrough, task lists, footnotes). The serializer must carry
+ * the matching extensions or toMarkdown throws "Cannot handle unknown node"
+ * on any GFM content.
  */
 export declare function stringifyAst(ast: Root): string;
 //# sourceMappingURL=stringify-ast.d.ts.map`,
@@ -37697,7 +39999,7 @@ export declare function validateDocument(document: Document, definition: ModelDe
 //# sourceMappingURL=validator.d.ts.map`,
   "deps/contentbase/package.json": `{
   "name": "contentbase",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "repository": "https://github.com/soederpop/contentbase",
   "website": "https://contentbase.soederpop.com",
   "type": "module",
@@ -37718,8 +40020,13 @@ export declare function validateDocument(document: Document, definition: ModelDe
     "release": "./scripts/release.sh"
   },
   "dependencies": {
-    "luca": ">= 3.0.2",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "chalk": "^5.4.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "gray-matter": "^4.0.3",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
     "js-yaml": "^4.1.0",
     "mdast-util-gfm": "^3.1.0",
     "mdast-util-mdxjs-esm": "^2.0.1",
@@ -37741,20 +40048,14 @@ export declare function validateDocument(document: Document, definition: ModelDe
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
     "@types/js-yaml": "^4.0.9",
     "@types/mdast": "^4.0.4",
     "@types/picomatch": "^4.0.2",
     "bun-types": "^1.1.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
-  },
-  "luca": {
-    "aliases": [
-      "contentbase",
-      "content base",
-      "content",
-      "the orm"
-    ]
   }
 }
 `,

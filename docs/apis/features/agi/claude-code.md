@@ -60,8 +60,6 @@ container.feature('claudeCode', {
   baseURL,
   // Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN
   authToken,
-  // Use local models, sets baseURL to LOCAL_CHAT_ENDPOINT and model to LOCAL_CODER_MODEL
-  local,
 })
 ```
 
@@ -95,7 +93,6 @@ container.feature('claudeCode', {
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool |
 | `baseURL` | `string` | Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL |
 | `authToken` | `string` | Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN |
-| `local` | `boolean` | Use local models, sets baseURL to LOCAL_CHAT_ENDPOINT and model to LOCAL_CODER_MODEL |
 
 ## Methods
 
@@ -197,7 +194,6 @@ Run a prompt in a new Claude Code session. Spawns a subprocess, streams NDJSON e
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
 | `baseURL` | `string` | Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env. |
 | `authToken` | `string` | Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. |
-| `local` | `boolean` | Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). |
 
 **Returns:** `Promise<ClaudeSession>`
 
@@ -279,7 +275,6 @@ Run a prompt without waiting for completion. Returns the session ID immediately 
 | `chrome` | `boolean` | Launch Claude Code with a Chrome browser tool. |
 | `baseURL` | `string` | Base URL for the Anthropic API. Injected as ANTHROPIC_BASE_URL in the subprocess env. |
 | `authToken` | `string` | Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. |
-| `local` | `boolean` | Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). |
 
 **Returns:** `Promise<string>`
 

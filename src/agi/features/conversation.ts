@@ -68,7 +68,7 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Remote MCP servers to expose as tools when using the OpenAI Responses API */
 	mcpServers: z.record(z.string(), z.any()).optional().describe('Remote MCP servers keyed by server label'),
 	/** Which OpenAI API to use for completions */
-	api: z.enum(['auto', 'responses', 'chat']).optional().describe('Completion API mode. auto uses Responses unless local=true'),
+	api: z.enum(['auto', 'responses', 'chat']).optional().describe('Completion API mode. auto uses the Responses API; set to "chat" for OpenAI-compatible chat-completions endpoints (LM Studio, Ollama, vLLM, etc.)'),
 
 	/** Model provider preset id or inline provider config, resolved through the modelProviders feature. Omit for the default OpenAI-compatible behavior. Set to 'codex' or 'claude-code' to route turns through those backends. */
 	provider: z.any().optional().describe("Model provider preset id (e.g. 'codex', 'claude-code') or inline provider config. Omit for default OpenAI-compatible behavior"),
@@ -81,9 +81,7 @@ export const ConversationOptionsSchema = FeatureOptionsSchema.extend({
 	/** Arbitrary metadata to attach to this conversation */
 	metadata: z.record(z.string(), z.any()).optional().describe('Arbitrary metadata to attach to this conversation'),
 
-	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client'), // the type of options for OpenAI client
-
-	local: z.boolean().optional().describe('Whether to use the local ollama models instead of the remote OpenAI models'),
+	clientOptions: z.record(z.string(), z.any()).optional().describe('Options for the OpenAI client (e.g. baseURL, apiKey). Point baseURL at any OpenAI-compatible server — local or remote — to override the default connection.'), // the type of options for OpenAI client
 
 	/** Maximum number of output tokens per completion */
 	maxTokens: z.number().optional().describe('Maximum number of output tokens per completion (default 512)'),
@@ -518,7 +516,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 		return this.state.get('model')!
 	}
 
-	/** Returns the active completion API mode after resolving auto/local behavior. */
+	/** Returns the active completion API mode after resolving auto behavior. */
 	get apiMode(): 'responses' | 'chat' {
 		// An explicitly configured OpenAI-family provider selects the dialect.
 		const configured = this.configuredProviderApiMode
@@ -527,7 +525,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 		const mode = this.options.api || 'auto'
 		if (mode === 'chat' || mode === 'responses') return mode
-		return this.options.local ? 'chat' : 'responses'
+		// `auto` defaults to the Responses API. OpenAI-compatible endpoints
+		// (LM Studio, Ollama, …) only speak chat completions — pass `api: 'chat'`.
+		return 'responses'
 	}
 
 	/** Cached container-default provider id: undefined = not computed yet, null = none (or the legacy OpenAI path). */
@@ -541,12 +541,12 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 *
 	 * An `openai` default returns undefined so those conversations keep the
 	 * battle-tested legacy OpenAI path (responses API, native loops). Explicit
-	 * `local: true` or `clientOptions` also keep the legacy path — they encode a
-	 * deliberate connection choice.
+	 * `clientOptions` also keep the legacy path — a custom baseURL/apiKey encodes
+	 * a deliberate connection choice.
 	 */
 	private get effectiveProvider(): any {
 		if (this.options.provider) return this.options.provider
-		if (this.options.local || this.options.clientOptions) return undefined
+		if (this.options.clientOptions) return undefined
 		if (this._defaultProviderId === undefined) {
 			try {
 				const id = this.container.feature('modelProviders').resolveDefaultId()
@@ -661,8 +661,6 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 	 * Newer OpenAI models (gpt-4o+, gpt-4.1, gpt-5, o1, o3, o4) require max_completion_tokens.
 	 */
 	private get maxTokensParam(): 'max_tokens' | 'max_completion_tokens' {
-		if (this.options.local) return 'max_tokens'
-
 		const model = this.model
 		const needsCompletionTokens = [
 			'gpt-4o', 'gpt-4.1', 'gpt-5', 'o1', 'o3', 'o4',
@@ -858,7 +856,7 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			// now instead of a downstream auth error from the OpenAI client. Only
 			// when the request would hit the builtin OpenAI transports, though: a
 			// replacement transport brings its own connection and needs no key.
-			if (!this.effectiveProvider && !this.options.local && !this.options.clientOptions && !process.env.OPENAI_API_KEY) {
+			if (!this.effectiveProvider && !this.options.clientOptions && !process.env.OPENAI_API_KEY) {
 				const modelProviders = this.container.feature('modelProviders')
 				const mode = this.apiMode === 'responses' ? 'openai-responses' : 'openai-chat-completions'
 				const transport = modelProviders.getTransport(mode)
@@ -953,14 +951,10 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 
 	/** Returns the OpenAI client instance from the container. */
 	get openai() {
-		let baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
-
-		if (this.options.local) {
-			baseURL = "http://localhost:1234/v1"
-		}
+		const baseURL = this.options.clientOptions?.baseURL ? this.options.clientOptions.baseURL : undefined
 
 		return (this.container as any).client('openai', {
-			defaultModel: this.model || (this.options.local ? this.model || "qwen/qwen3-coder-30b" : "gpt-5.4-mini"),
+			defaultModel: this.model || "gpt-5.4-mini",
 			...this.options.clientOptions,
 			...(baseURL ? { baseURL } : {}),
 		}) as OpenAIClient

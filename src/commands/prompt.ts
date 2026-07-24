@@ -23,8 +23,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'exclude-sections': z.string().optional().describe('Comma-separated list of section headings to exclude from the prompt'),
 	'chrome': z.boolean().default(false).describe('Launch Claude Code with a Chrome browser tool'),
 	'dry-run': z.boolean().default(false).describe('Display the resolved prompt and options without running the assistant'),
-	'local': z.boolean().default(false).describe('Use local models (sets ANTHROPIC_BASE_URL and model for claudeCode, or local flag for assistants)'),
-	'base-url': z.string().optional().describe('Override ANTHROPIC_BASE_URL for the claudeCode CLI subprocess (point at a custom/network endpoint)'),
+	'base-url': z.string().optional().describe('Override ANTHROPIC_BASE_URL for the claudeCode CLI subprocess (point at a custom/network endpoint — e.g. a local OpenAI-compatible server)'),
 	'auth-token': z.string().optional().describe('Override ANTHROPIC_AUTH_TOKEN for the claudeCode CLI subprocess'),
 })
 
@@ -155,7 +154,6 @@ async function runClaudeOrCodex(target: 'claude' | 'codex', promptContent: strin
 	if (target === 'claude') {
 		runOptions.permissionMode = options['permission-mode']
 		if (options.chrome) runOptions.chrome = true
-		if (options.local) runOptions.local = true
 		if (options['base-url']) {
 			runOptions.baseURL = options['base-url']
 			runOptions.authToken = options['auth-token'] || 'sk-local'
@@ -197,7 +195,6 @@ async function runAssistant(name: string, promptContent: string, options: z.infe
 	const createOptions: Record<string, any> = { ...agentOptions }
 	// CLI flags override agentOptions from frontmatter
 	if (options.model) createOptions.model = options.model
-	if (options.local) createOptions.local = true
 
 	const assistant = manager.create(name, createOptions)
 	let isFirstChunk = true
@@ -323,7 +320,6 @@ async function runParallel(
 		if (target === 'claude') {
 			runOptions.permissionMode = options['permission-mode']
 			if (options.chrome) runOptions.chrome = true
-			if (options.local) runOptions.local = true
 			if (options['base-url']) {
 				runOptions.baseURL = options['base-url']
 				runOptions.authToken = options['auth-token'] || 'sk-local'
@@ -415,7 +411,6 @@ async function runParallel(
 		const assistants = prepared.map((p, i) => {
 			const createOptions: Record<string, any> = { ...p.agentOptions }
 			if (options.model) createOptions.model = options.model
-			if (options.local) createOptions.local = true
 			const assistant = manager.create(target, createOptions)
 
 			assistant.on('chunk', (text: string) => {
@@ -991,7 +986,6 @@ export default async function prompt(options: z.infer<typeof argsSchema>, contex
 			if (options.chrome) runOptions.chrome = true
 		}
 		if (target === 'claude') {
-			if (options.local) runOptions.local = true
 			if (options['base-url']) {
 				runOptions.baseURL = options['base-url']
 				runOptions.authToken = options['auth-token'] || 'sk-local'

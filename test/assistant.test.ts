@@ -18,7 +18,6 @@ describe('Assistant', () => {
 		it('loads tools from codingTools feature after start', async () => {
 			const assistant = container.feature('assistant', {
 				folder: 'assistants/codingAssistant',
-				local: true,
 				model: 'qwen/qwen3-8b',
 			})
 			await assistant.start()
@@ -32,7 +31,6 @@ describe('Assistant', () => {
 		it('tools have descriptions and parameter schemas', async () => {
 			const assistant = container.feature('assistant', {
 				folder: 'assistants/codingAssistant',
-				local: true,
 				model: 'qwen/qwen3-8b',
 			})
 			await assistant.start()
@@ -54,7 +52,6 @@ describe('Assistant', () => {
 		it('hooks fire when the assistant starts', async () => {
 			const assistant = container.feature('assistant', {
 				folder: 'assistants/codingAssistant',
-				local: true,
 				model: 'qwen/qwen3-8b',
 			})
 
@@ -69,7 +66,6 @@ describe('Assistant', () => {
 		it('tools are wired into the conversation after start', async () => {
 			const assistant = container.feature('assistant', {
 				folder: 'assistants/codingAssistant',
-				local: true,
 				model: 'qwen/qwen3-8b',
 			})
 			await assistant.start()

@@ -20,8 +20,6 @@ container.feature('lucaCoder', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
-  // Use a local API server for the inner assistant
-  local,
   // Conversation history persistence mode
   historyMode,
   // Assistant folder for disk-based definitions
@@ -43,7 +41,6 @@ container.feature('lucaCoder', {
 | `systemPrompt` | `string` | System prompt for the inner assistant |
 | `model` | `string` | OpenAI model override |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
-| `local` | `boolean` | Use a local API server for the inner assistant |
 | `historyMode` | `string` | Conversation history persistence mode |
 | `folder` | `string` | Assistant folder for disk-based definitions |
 | `skills` | `array` | Skill names to auto-load into the system prompt |

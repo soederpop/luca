@@ -4318,10 +4318,6 @@ setBuildTimeData('features.claudeCode', {
             "authToken": {
               "type": "string",
               "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
-            },
-            "local": {
-              "type": "boolean",
-              "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
             }
           }
         }
@@ -4483,10 +4479,6 @@ setBuildTimeData('features.claudeCode', {
             "authToken": {
               "type": "string",
               "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
-            },
-            "local": {
-              "type": "boolean",
-              "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
             }
           }
         }
@@ -4947,11 +4939,6 @@ setBuildTimeData('features.claudeCode', {
         "authToken": {
           "type": "string",
           "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env.",
-          "optional": true
-        },
-        "local": {
-          "type": "boolean",
-          "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b).",
           "optional": true
         }
       }
@@ -6269,7 +6256,7 @@ setBuildTimeData('features.conversation', {
       "returns": "string"
     },
     "apiMode": {
-      "description": "Returns the active completion API mode after resolving auto/local behavior.",
+      "description": "Returns the active completion API mode after resolving auto behavior.",
       "returns": "'responses' | 'chat'"
     },
     "isStreaming": {
@@ -29179,10 +29166,6 @@ export const introspectionData: Record<string, any>[] = [
               "authToken": {
                 "type": "string",
                 "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
-              },
-              "local": {
-                "type": "boolean",
-                "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
               }
             }
           }
@@ -29344,10 +29327,6 @@ export const introspectionData: Record<string, any>[] = [
               "authToken": {
                 "type": "string",
                 "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env."
-              },
-              "local": {
-                "type": "boolean",
-                "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b)."
               }
             }
           }
@@ -29808,11 +29787,6 @@ export const introspectionData: Record<string, any>[] = [
           "authToken": {
             "type": "string",
             "description": "Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env.",
-            "optional": true
-          },
-          "local": {
-            "type": "boolean",
-            "description": "Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b).",
             "optional": true
           }
         }
@@ -31125,7 +31099,7 @@ export const introspectionData: Record<string, any>[] = [
         "returns": "string"
       },
       "apiMode": {
-        "description": "Returns the active completion API mode after resolving auto/local behavior.",
+        "description": "Returns the active completion API mode after resolving auto behavior.",
         "returns": "'responses' | 'chat'"
       },
       "isStreaming": {

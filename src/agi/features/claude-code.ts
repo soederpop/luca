@@ -188,8 +188,6 @@ export const ClaudeCodeOptionsSchema = FeatureOptionsSchema.extend({
   baseURL: z.string().optional().describe('Base URL for the Anthropic API, injected as ANTHROPIC_BASE_URL'),
   /** Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN env var. */
   authToken: z.string().optional().describe('Auth token for the Anthropic API, injected as ANTHROPIC_AUTH_TOKEN'),
-  /** Use local models. Sets baseURL and model from LOCAL_CHAT_ENDPOINT and LOCAL_CODER_MODEL env vars. */
-  local: z.boolean().optional().describe('Use local models, sets baseURL to LOCAL_CHAT_ENDPOINT and model to LOCAL_CODER_MODEL'),
 })
 
 export const ClaudeCodeEventsSchema = FeatureEventsSchema.extend({
@@ -279,8 +277,6 @@ export interface RunOptions {
   baseURL?: string
   /** Auth token for the Anthropic API. Injected as ANTHROPIC_AUTH_TOKEN in the subprocess env. */
   authToken?: string
-  /** Use local models. Sets baseURL to LOCAL_CHAT_ENDPOINT (or http://localhost:1234) and model to LOCAL_CODER_MODEL (or qwen/qwen3.6-27b). */
-  local?: boolean
 }
 
 /**
@@ -520,8 +516,7 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
       args.push('--include-partial-messages')
     }
 
-    const isLocal = options.local ?? this.options.local
-    const model = options.model ?? this.options.model ?? (isLocal ? (process.env.LOCAL_CODER_MODEL || 'qwen/qwen3.6-27b') : undefined)
+    const model = options.model ?? this.options.model
     if (model) args.push('--model', model)
 
     const systemPrompt = options.systemPrompt ?? this.options.systemPrompt
@@ -630,23 +625,13 @@ export class ClaudeCode extends Feature<ClaudeCodeState, ClaudeCodeOptions> {
 
   /**
    * Build the environment object for a claude CLI invocation.
-   * Injects ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN when baseURL/authToken are set,
-   * or when local mode is enabled.
+   * Injects ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN when baseURL/authToken are set.
    *
    * @param {RunOptions} options - Session options
    * @returns {Record<string, string>} Environment variables
    */
   private buildEnv(options: RunOptions = {}): Record<string, string> {
     const env = { ...process.env }
-    const isLocal = options.local ?? this.options.local
-
-    if (isLocal) {
-      const baseURL = process.env.LOCAL_CHAT_ENDPOINT || 'http://localhost:1234'
-      env.ANTHROPIC_BASE_URL = baseURL
-      if (!options.authToken) {
-        env.ANTHROPIC_AUTH_TOKEN = process.env.LOCAL_CHAT_AUTH_TOKEN || 'sk-anticropic-00000000000000000000001'
-      }
-    }
 
     const baseURL = options.baseURL
     if (baseURL) {

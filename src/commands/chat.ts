@@ -12,7 +12,6 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model for the assistant'),
-	local: z.boolean().default(false).describe('Whether to use a local API server'),
 	resume: z.string().optional().describe('Thread ID or conversation ID to resume'),
 	list: z.boolean().optional().describe('List recent conversations and exit'),
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
@@ -74,7 +73,6 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 
 	const createOptions: Record<string, any> = { historyMode, injectTimestamps: true }
 	if (options.model) createOptions.model = options.model
-	if (options.local) createOptions.local = options.local
 	if (options.forbidTool) createOptions.forbidTools = Array.isArray(options.forbidTool) ? options.forbidTool : [options.forbidTool]
 	if (options.allowTool) createOptions.allowTools = Array.isArray(options.allowTool) ? options.allowTool : [options.allowTool]
 

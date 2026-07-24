@@ -32,6 +32,8 @@ container.feature('assistant', {
   model,
   // Maximum number of output tokens per completion
   maxTokens,
+  // The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted.
+  contextWindow,
   // Sampling temperature (0-2)
   temperature,
   // Nucleus sampling cutoff (0-1)
@@ -44,8 +46,6 @@ container.feature('assistant', {
   presencePenalty,
   // Stop sequences
   stop,
-  // Whether to use our local models for this
-  local,
   // Conversation history persistence mode
   historyMode,
   // Prepend timestamps to user messages so the assistant can perceive time passing between sessions
@@ -77,13 +77,13 @@ container.feature('assistant', {
 | `providerOptions` | `object` | Provider-specific transport options passed to the resolved provider |
 | `model` | `string` | OpenAI model to use |
 | `maxTokens` | `number` | Maximum number of output tokens per completion |
+| `contextWindow` | `number` | The model's total context window in tokens. Drives auto-compaction; set to your model's real limit so history compacts before the request overflows. Inferred from the model name when omitted. |
 | `temperature` | `number` | Sampling temperature (0-2) |
 | `topP` | `number` | Nucleus sampling cutoff (0-1) |
 | `topK` | `number` | Top-K sampling. Only supported by local/Anthropic models |
 | `frequencyPenalty` | `number` | Frequency penalty (-2 to 2) |
 | `presencePenalty` | `number` | Presence penalty (-2 to 2) |
 | `stop` | `array` | Stop sequences |
-| `local` | `boolean` | Whether to use our local models for this |
 | `historyMode` | `string` | Conversation history persistence mode |
 | `injectTimestamps` | `boolean` | Prepend timestamps to user messages so the assistant can perceive time passing between sessions |
 | `allowTools` | `array` | Strict allowlist of tool name patterns. Only matching tools are available. Supports * glob matching. |

@@ -2,7 +2,7 @@
 
 > Stability: `experimental`
 
-Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings(cwd)` once — it installs the node-llama-cpp addon and downloads the .gguf weights to ~/.cache/luca/models/.
+Semantic search feature providing BM25 keyword search, vector similarity search, and hybrid search with Reciprocal Rank Fusion over a SQLite-backed index. Uses bun:sqlite for FTS5 keyword search and BLOB-stored embeddings with JavaScript cosine similarity for vector search. Embedding models default per provider: `openai` → text-embedding-3-small, `local` → embedding-gemma-300M-Q8_0 (the only supported local model). Local embeddings are NOT turnkey until you run `installLocalEmbeddings()` once — it downloads the llama-server binary and the .gguf weights to ~/.cache/luca/models/.
 
 ## Usage
 
@@ -10,10 +10,14 @@ Semantic search feature providing BM25 keyword search, vector similarity search,
 container.feature('semanticSearch', {
   // Path to the SQLite database file
   dbPath,
-  // Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings())
+  // Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings()). For the openai provider, falls back to the LUCA_EMBEDDING_MODEL env var
   embeddingModel,
-  // Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights
+  // Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server — run installLocalEmbeddings() once to download the binary and the model weights
   embeddingProvider,
+  // Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the LUCA_EMBEDDING_BASE_URL env var, then OPENAI_BASE_URL, then the official API. Only used when embeddingProvider is "openai"
+  embeddingBaseURL,
+  // API key for the embedding endpoint. Falls back to the LUCA_EMBEDDING_API_KEY env var, then OPENAI_API_KEY. Only used when embeddingProvider is "openai"
+  embeddingApiKey,
   // How to split documents
   chunkStrategy,
   // Token limit per chunk for fixed strategy
@@ -28,8 +32,10 @@ container.feature('semanticSearch', {
 | Property | Type | Description |
 |----------|------|-------------|
 | `dbPath` | `string` | Path to the SQLite database file |
-| `embeddingModel` | `string` | Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings()) |
-| `embeddingProvider` | `string` | Where to generate embeddings. "local" runs embedding-gemma via node-llama-cpp — run installLocalEmbeddings() once to install the addon and download the model weights |
+| `embeddingModel` | `string` | Embedding model name. Defaults per provider — openai: text-embedding-3-small (also valid: text-embedding-3-large); local: embedding-gemma-300M-Q8_0 (the only supported local model; weights are downloaded by installLocalEmbeddings()). For the openai provider, falls back to the LUCA_EMBEDDING_MODEL env var |
+| `embeddingProvider` | `string` | Where to generate embeddings. "local" serves embedding-gemma via a resident llama-server — run installLocalEmbeddings() once to download the binary and the model weights |
+| `embeddingBaseURL` | `string` | Override the OpenAI-compatible base URL for embeddings (Ollama, vLLM, LiteLLM, etc.). Falls back to the LUCA_EMBEDDING_BASE_URL env var, then OPENAI_BASE_URL, then the official API. Only used when embeddingProvider is "openai" |
+| `embeddingApiKey` | `string` | API key for the embedding endpoint. Falls back to the LUCA_EMBEDDING_API_KEY env var, then OPENAI_API_KEY. Only used when embeddingProvider is "openai" |
 | `chunkStrategy` | `string` | How to split documents |
 | `chunkSize` | `number` | Token limit per chunk for fixed strategy |
 | `chunkOverlap` | `number` | Overlap ratio for fixed strategy |
@@ -346,7 +352,7 @@ await search.downloadModelWeights() // fetches embedding-gemma-300M-Q8_0 if miss
 
 ### installLocalEmbeddings
 
-Install node-llama-cpp into the per-machine `~/.luca/node_modules` for local embedding support, then download the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.
+Download the llama-server binary into `~/.luca/llama-cpp/` and the embedding model weights so local embeddings work turnkey. Runs once per machine, never touches the project. Same as `luca setup --local-embeddings`.
 
 **Parameters:**
 
