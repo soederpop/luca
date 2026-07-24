@@ -122,7 +122,7 @@ function getDimensions(provider: string, model: string): number {
 // ── Model path resolution ───────────────────────────────────────────
 
 /** Default embedding model per provider — a local provider must never fall back to an OpenAI model name */
-const PROVIDER_DEFAULT_MODELS: Record<'local' | 'openai', string> = {
+export const PROVIDER_DEFAULT_MODELS: Record<'local' | 'openai', string> = {
 	openai: 'text-embedding-3-small',
 	local: 'embedding-gemma-300M-Q8_0',
 }

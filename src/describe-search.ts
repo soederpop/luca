@@ -24,7 +24,7 @@ import { Database } from 'bun:sqlite'
 import { lucaHome } from './setup/paths.js'
 import { installedBinaryPath } from './node/features/llama-server.js'
 import type { DocumentInput, SearchResult, SemanticSearch } from './node/features/semantic-search.js'
-import { DEFAULT_LOCAL_MODEL, resolveModelPath } from './node/features/semantic-search.js'
+import { DEFAULT_LOCAL_MODEL, PROVIDER_DEFAULT_MODELS, resolveModelPath } from './node/features/semantic-search.js'
 
 /** Where the shared describe index lives. The catalog is a property of the binary (not the project), so all projects share one index. */
 export function describeIndexDir(): string {
@@ -33,14 +33,43 @@ export function describeIndexDir(): string {
 
 const DB_BASENAME = 'search.sqlite'
 
-/** The provider/model-namespaced sqlite file semanticSearch will actually create for our options. */
-function resolvedDbFile(): string {
-	return join(describeIndexDir(), `search.local-${DEFAULT_LOCAL_MODEL}.sqlite`)
+/**
+ * Embedding config for the describe index, resolved from the environment.
+ * Defaults to the local (llama-server) provider so `luca setup` works out of
+ * the box; set LUCA_EMBEDDING_PROVIDER=openai to route embeddings through an
+ * OpenAI-compatible endpoint instead (host/key/model come from the other
+ * LUCA_EMBEDDING_* vars, then the generic OPENAI_* vars).
+ */
+export interface DescribeEmbeddingConfig {
+	provider: 'local' | 'openai'
+	/** Effective model name (already resolved to the per-provider default). */
+	model: string
+	baseURL?: string
+	apiKey?: string
+}
+
+export function describeEmbeddingConfig(): DescribeEmbeddingConfig {
+	const provider = process.env.LUCA_EMBEDDING_PROVIDER === 'openai' ? 'openai' : 'local'
+	if (provider === 'openai') {
+		return {
+			provider,
+			model: process.env.LUCA_EMBEDDING_MODEL || PROVIDER_DEFAULT_MODELS.openai,
+			baseURL: process.env.LUCA_EMBEDDING_BASE_URL,
+			apiKey: process.env.LUCA_EMBEDDING_API_KEY,
+		}
+	}
+	return { provider: 'local', model: DEFAULT_LOCAL_MODEL }
+}
+
+/** The provider/model-namespaced sqlite file semanticSearch will actually create for the resolved config. */
+function resolvedDbFile(cfg: DescribeEmbeddingConfig = describeEmbeddingConfig()): string {
+	return join(describeIndexDir(), `search.${cfg.provider}-${cfg.model}.sqlite`)
 }
 
 const HINTS = {
 	buildIndex: 'Semantic ranking is off — keyword (BM25) matches only. Run: luca describe --calculate-embeddings',
-	installDeps: 'Semantic ranking is off — keyword (BM25) matches only. Run: luca setup --local-embeddings, then: luca describe --calculate-embeddings',
+	installDepsLocal: 'Semantic ranking is off — keyword (BM25) matches only. Run: luca setup --local-embeddings, then: luca describe --calculate-embeddings',
+	installDepsOpenAI: 'Semantic ranking is off — keyword (BM25) matches only. Set LUCA_EMBEDDING_API_KEY (or OPENAI_API_KEY / LUCA_EMBEDDING_BASE_URL), then: luca describe --calculate-embeddings',
 	stale: (n: number) => `Embedding index is stale for ${n} entr${n === 1 ? 'y' : 'ies'} — re-run: luca describe --calculate-embeddings`,
 }
 
@@ -199,9 +228,15 @@ export async function getDescribeSearch(container: any): Promise<SemanticSearch>
 	}
 
 	mkdirSync(describeIndexDir(), { recursive: true })
+	const cfg = describeEmbeddingConfig()
 	const ss = container.feature('semanticSearch', {
 		dbPath: join(describeIndexDir(), DB_BASENAME),
-		embeddingProvider: 'local',
+		embeddingProvider: cfg.provider,
+		// Only pass an explicit model for openai — the local provider must resolve
+		// its own fixed default (passing it is harmless, but keeps intent clear).
+		...(cfg.provider === 'openai' ? { embeddingModel: cfg.model } : {}),
+		embeddingBaseURL: cfg.baseURL,
+		embeddingApiKey: cfg.apiKey,
 		chunkStrategy: 'section',
 	}) as SemanticSearch
 
@@ -213,7 +248,7 @@ export async function getDescribeSearch(container: any): Promise<SemanticSearch>
 		if (String(err?.message || '').includes('mismatch')) {
 			// A previous luca version wrote this index with different settings —
 			// it's a pure cache, so recreate it.
-			try { rmSync(resolvedDbFile(), { force: true }) } catch {}
+			try { rmSync(resolvedDbFile(cfg), { force: true }) } catch {}
 			await ss.initDb()
 		} else {
 			throw err
@@ -272,6 +307,20 @@ export async function localEmbeddingReadiness(): Promise<'ready' | 'deps-missing
 	const binaryReady = installedBinaryPath() !== null
 	const weightsReady = existsSync(resolveModelPath(DEFAULT_LOCAL_MODEL))
 	return binaryReady && weightsReady ? 'ready' : 'deps-missing'
+}
+
+/**
+ * Whether the configured embedding provider is ready to generate embeddings.
+ * For local, this is the llama-server binary + weights. For openai, it's enough
+ * to have a key or base URL configured (via LUCA_EMBEDDING_* or OPENAI_*) — an
+ * unauthenticated hit against the official API would otherwise fail at call time.
+ */
+export async function describeEmbeddingReadiness(
+	cfg: DescribeEmbeddingConfig = describeEmbeddingConfig(),
+): Promise<'ready' | 'deps-missing'> {
+	if (cfg.provider === 'local') return localEmbeddingReadiness()
+	const configured = Boolean(cfg.apiKey || cfg.baseURL || process.env.OPENAI_API_KEY || process.env.OPENAI_BASE_URL)
+	return configured ? 'ready' : 'deps-missing'
 }
 
 /**
@@ -374,11 +423,13 @@ export async function queryDescribeIndex(
 	}
 
 	const results = await searchWithHelperQuota(o => ss.search(sanitized, o), limit)
-	const readiness = await localEmbeddingReadiness()
+	const cfg = describeEmbeddingConfig()
+	const readiness = await describeEmbeddingReadiness(cfg)
+	const installHint = cfg.provider === 'openai' ? HINTS.installDepsOpenAI : HINTS.installDepsLocal
 	return {
 		mode: 'keyword',
 		results,
-		hint: readiness === 'ready' ? HINTS.buildIndex : HINTS.installDeps,
+		hint: readiness === 'ready' ? HINTS.buildIndex : installHint,
 	}
 }
 

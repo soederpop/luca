@@ -43,7 +43,7 @@ export const argsSchema = CommandOptionsSchema.extend({
 	'only-examples': z.boolean().default(false).describe('Show only the examples section'),
 	platform: z.enum(['browser', 'web', 'server', 'node', 'all']).default('all').describe('Which platform features to show: browser/web, server/node, or all'),
 	query: z.string().optional().describe('Search helpers, examples, and tutorials by meaning or keywords (e.g. --query "how do I build a rest server?")'),
-	'calculate-embeddings': z.boolean().default(false).describe('Build/refresh the local embedding index used by --query for semantic ranking (requires `luca setup --local-embeddings`)'),
+	'calculate-embeddings': z.boolean().default(false).describe('Build/refresh the embedding index used by --query for semantic ranking. Uses the local model by default (requires `luca setup --local-embeddings`), or an OpenAI-compatible endpoint when LUCA_EMBEDDING_PROVIDER=openai'),
 	limit: z.number().default(8).describe('Maximum results for --query'),
 })
 
@@ -296,10 +296,15 @@ async function runQuery(container: any, options: z.infer<typeof argsSchema>) {
 }
 
 async function calculateEmbeddings(container: any, options: z.infer<typeof argsSchema>) {
-	const { buildDescribeEmbeddings, localEmbeddingReadiness } = await import('../describe-search.js')
+	const { buildDescribeEmbeddings, describeEmbeddingConfig, describeEmbeddingReadiness } = await import('../describe-search.js')
 
-	if (await localEmbeddingReadiness() === 'deps-missing') {
-		console.error('Local embeddings are not installed. Run: luca setup --local-embeddings, then re-run: luca describe --calculate-embeddings')
+	const cfg = describeEmbeddingConfig()
+	if (await describeEmbeddingReadiness(cfg) === 'deps-missing') {
+		if (cfg.provider === 'openai') {
+			console.error('No embedding endpoint configured. Set LUCA_EMBEDDING_API_KEY (or OPENAI_API_KEY / LUCA_EMBEDDING_BASE_URL), then re-run: luca describe --calculate-embeddings')
+		} else {
+			console.error('Local embeddings are not installed. Run: luca setup --local-embeddings, then re-run: luca describe --calculate-embeddings')
+		}
 		process.exitCode = 1
 		return
 	}
