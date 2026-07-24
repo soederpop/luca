@@ -9470,7 +9470,7 @@ export declare const argsSchema: z.ZodObject<{
     'update-skill': z.ZodDefault<z.ZodBoolean>;
     setup: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;
-export declare const DEFAULT_ENV = "OPENAI_API_KEY=set-your-own\\n";
+export declare const DEFAULT_ENV: string;
 export declare const GITIGNORE_ENTRIES: string[];
 /** Create .gitignore with the standard entries, or append only the ones missing from an existing file. */
 export declare function ensureGitignore(fs: any, ui: any, path: string): Promise<void>;
