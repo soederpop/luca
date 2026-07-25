@@ -110,7 +110,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
         query: z.string().describe('A natural language question or topic description. Example: "how does the authentication flow work?" or "deployment configuration options"'),
         limit: z.number().optional().describe('Maximum results to return. Default: 10.'),
       }).describe(
-        'Search documents using natural language — combines keyword matching with semantic similarity. Best for questions and topic exploration. Falls back to text search if no vector index exists. For exact pattern matching, use searchContent instead.'
+        'Search documents using natural language — combines keyword matching with semantic similarity. Best for questions and topic exploration. The search index (including embeddings) is built automatically on first use; falls back to text search only if no embedding provider is available. For exact pattern matching, use searchContent instead.'
       ),
     },
   }
@@ -406,6 +406,8 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /** Force-reload the collection from disk, picking up new/changed/deleted documents. */
   async reload(): Promise<ContentDb> {
     await this.collection.load({ refresh: true })
+    // New/changed documents may need (re-)embedding on the next search
+    this._indexEnsured = false
     this.emit('reloaded')
     return this
   }
@@ -575,6 +577,62 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   // ── Search Integration ─────────────────────────────────────────────
 
   private _semanticSearch: any = null
+  private _indexEnsured = false
+
+  /**
+   * Resolve which embedding provider to use when none was explicitly configured.
+   * Order: LUCA_EMBEDDING_PROVIDER env var → the provider an existing index for
+   * this collection was built with → local if the llama-server stack (binary +
+   * weights) is installed → openai.
+   */
+  private async _resolveEmbeddingProvider(): Promise<'local' | 'openai'> {
+    const env = process.env.LUCA_EMBEDDING_PROVIDER
+    if (env === 'local' || env === 'openai') return env
+
+    // Reuse the provider an existing index was built with so we open the same
+    // db file (the sqlite filename is namespaced by provider-model)
+    const existing = this._existingIndexProvider()
+    if (existing) return existing
+
+    const { resolveModelPath, DEFAULT_LOCAL_MODEL } = await import('./semantic-search.js')
+    const { installedBinaryPath } = await import('./llama-server.js')
+    const localReady = installedBinaryPath() !== null && this.container.fs.exists(resolveModelPath(DEFAULT_LOCAL_MODEL))
+    return localReady ? 'local' : 'openai'
+  }
+
+  /** Whether the given provider can actually generate embeddings right now. */
+  private async _embeddingProviderReady(provider: 'local' | 'openai'): Promise<boolean> {
+    if (provider === 'local') {
+      const { resolveModelPath, DEFAULT_LOCAL_MODEL } = await import('./semantic-search.js')
+      const { installedBinaryPath } = await import('./llama-server.js')
+      return installedBinaryPath() !== null && this.container.fs.exists(resolveModelPath(DEFAULT_LOCAL_MODEL))
+    }
+    return Boolean(
+      process.env.LUCA_EMBEDDING_API_KEY || process.env.OPENAI_API_KEY ||
+      process.env.LUCA_EMBEDDING_BASE_URL || process.env.OPENAI_BASE_URL
+    )
+  }
+
+  /** The directory where this collection's search index lives. */
+  private _searchIndexDir(): string {
+    const realPath = realpathSync(this.collectionPath)
+    const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
+    return this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash)
+  }
+
+  /** Infer the provider of an existing index from its `search.{provider}-{model}.sqlite` filename. */
+  private _existingIndexProvider(): 'local' | 'openai' | null {
+    const dbDir = this._searchIndexDir()
+    if (!this.container.fs.exists(dbDir)) return null
+    try {
+      const files: string[] = this.container.fs.readdirSync(dbDir)
+      for (const f of files) {
+        const match = f.match(/^search\.(local|openai)-.+\.sqlite$/)
+        if (match) return match[1] as 'local' | 'openai'
+      }
+    } catch {}
+    return null
+  }
 
   /**
    * Lazily initialize the semanticSearch feature, attaching it to the container if needed.
@@ -590,12 +648,11 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     }
 
     // Store search index in ~/.luca/contentbase/{hash}/ keyed by the real (symlink-resolved) collection path
-    const realPath = realpathSync(this.collectionPath)
-    const pathHash = this.container.utils.hashObject(realPath).slice(0, 12)
-    const dbPath = options?.dbPath ?? this.container.paths.resolve(this.container.os.homedir, '.luca', 'contentbase', pathHash, 'search.sqlite')
+    const dbPath = options?.dbPath ?? this.container.paths.resolve(this._searchIndexDir(), 'search.sqlite')
+    const embeddingProvider = options?.embeddingProvider ?? await this._resolveEmbeddingProvider()
     this._semanticSearch = (this.container as any).feature('semanticSearch', {
       dbPath,
-      ...(options?.embeddingProvider ? { embeddingProvider: options.embeddingProvider } : {}),
+      embeddingProvider,
       ...(options?.embeddingModel ? { embeddingModel: options.embeddingModel } : {}),
     })
 
@@ -622,13 +679,44 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   }
 
   /**
+   * Ensure the search index exists and is up to date, generating embeddings
+   * in-process via the semanticSearch feature. Called automatically by the
+   * search methods — no external `cbase embed` step is required.
+   *
+   * Runs at most once per feature instance (subsequent searches skip the
+   * staleness scan). If no embedding provider is available but an index
+   * already exists on disk, the existing (possibly stale) index is used.
+   * With no provider and no index, this throws with setup instructions.
+   */
+  async ensureSearchIndex(options?: { embeddingProvider?: string; embeddingModel?: string; onProgress?: (indexed: number, total: number) => void }): Promise<{ indexed: number; total: number }> {
+    if (this._indexEnsured) return { indexed: 0, total: 0 }
+
+    const provider = (options?.embeddingProvider as 'local' | 'openai' | undefined) ?? await this._resolveEmbeddingProvider()
+    if (!await this._embeddingProviderReady(provider)) {
+      if (this._hasSearchIndex()) {
+        // Can't refresh embeddings, but the existing index is still searchable
+        this._indexEnsured = true
+        return { indexed: 0, total: 0 }
+      }
+      throw new Error(
+        'No search index exists and no embedding provider is available to build one.\n' +
+        'To fix, either:\n' +
+        '  1. Run: luca setup --local-embeddings — installs the local embedding stack (llama-server + weights)\n' +
+        '  2. Set OPENAI_API_KEY (or LUCA_EMBEDDING_API_KEY / LUCA_EMBEDDING_BASE_URL) to use an OpenAI-compatible endpoint'
+      )
+    }
+
+    const result = await this.buildSearchIndex({ ...options, embeddingProvider: provider })
+    this._indexEnsured = true
+    return result
+  }
+
+  /**
    * BM25 keyword search across indexed documents.
-   * If no search index exists, throws with an actionable message.
+   * Builds the search index automatically if it doesn't exist yet.
    */
   async search(query: string, options?: { limit?: number; model?: string; where?: Record<string, any> }) {
-    if (!this._hasSearchIndex() && !this._semanticSearch) {
-      throw new Error('No search index found. Run: cbase embed')
-    }
+    await this.ensureSearchIndex()
     const ss = await this._getSemanticSearch()
     return ss.search(query, options)
   }
@@ -636,11 +724,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /**
    * Vector similarity search using embeddings.
    * Finds conceptually related documents even without keyword matches.
+   * Builds the search index automatically if it doesn't exist yet.
    */
   async vectorSearch(query: string, options?: { limit?: number; model?: string; where?: Record<string, any> }) {
-    if (!this._hasSearchIndex() && !this._semanticSearch) {
-      throw new Error('No search index found. Run: cbase embed')
-    }
+    await this.ensureSearchIndex()
     const ss = await this._getSemanticSearch()
     return ss.vectorSearch(query, options)
   }
@@ -648,11 +735,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
   /**
    * Combined keyword + semantic search with Reciprocal Rank Fusion.
    * Best for general questions about the collection.
+   * Builds the search index automatically if it doesn't exist yet.
    */
   async hybridSearch(query: string, options?: { limit?: number; model?: string; where?: Record<string, any>; ftsWeight?: number; vecWeight?: number }) {
-    if (!this._hasSearchIndex() && !this._semanticSearch) {
-      throw new Error('No search index found. Run: cbase embed')
-    }
+    await this.ensureSearchIndex()
     const ss = await this._getSemanticSearch()
     return ss.hybridSearch(query, options)
   }
@@ -672,7 +758,10 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
     const docs = this._collectDocumentInputs()
     const toIndex = options?.force ? docs : docs.filter((doc: any) => ss.needsReindex(doc))
 
-    if (toIndex.length === 0) return { indexed: 0, total: docs.length }
+    if (toIndex.length === 0) {
+      this._indexEnsured = true
+      return { indexed: 0, total: docs.length }
+    }
 
     // Remove stale documents
     ss.removeStale(docs.map((d: any) => d.pathId))
@@ -687,6 +776,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       options?.onProgress?.(indexed, toIndex.length)
     }
 
+    this._indexEnsured = true
     return { indexed, total: docs.length }
   }
 
@@ -917,7 +1007,7 @@ export class ContentDb extends Feature<ContentDbState, ContentDbOptions> {
       const grepResults = await this.grep({ pattern: args.query })
       return {
         results: grepResults,
-        note: 'No search index available — fell back to text search. Run `cbase embed` to enable semantic search.',
+        note: 'Semantic search unavailable (no embedding provider) — fell back to text search. Run `luca setup --local-embeddings` or set OPENAI_API_KEY to enable it.',
       }
     }
   }
