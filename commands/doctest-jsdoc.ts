@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { ContainerContext } from '../src/node'
-import { CommandOptionsSchema } from '../src/schemas/base'
+import type { ContainerContext } from 'luca'
+import { CommandOptionsSchema } from 'luca'
 import { spawn } from 'child_process'
 import * as os from 'os'
 import * as nodePath from 'path'

@@ -1,9 +1,13 @@
 import { z } from 'zod'
-import type { ContainerContext } from '../src/node'
-import { CommandOptionsSchema } from '../src/schemas/base'
-import { AGIContainer } from '../src/agi/container.server.js'
-import { __INTROSPECTION__ } from '../src/introspection/index.js'
-import { presentIntrospectionAsMarkdown } from '../src/helper.js'
+import type { ContainerContext } from 'luca'
+import { CommandOptionsSchema } from 'luca'
+
+// Framework-source imports are loaded lazily with non-literal specifiers so
+// the VM bundler doesn't try to inline the entire framework (ink/yoga's
+// top-level await breaks CJS bundling). This command only runs under lucadev.
+async function importSource(specifier: string): Promise<any> {
+  return import(specifier)
+}
 
 export const argsSchema = CommandOptionsSchema.extend({
   clean: z.boolean().default(false).describe('Remove existing docs/apis folder before generating'),
@@ -26,6 +30,10 @@ function parseGeneratedIds(content: string): { features: string[]; servers: stri
 }
 
 async function generateApiDocs(options: z.infer<typeof argsSchema>, context: ContainerContext) {
+  const { AGIContainer } = await importSource('../src/agi/container.server.js')
+  const { __INTROSPECTION__ } = await importSource('../src/introspection/index.js')
+  const { presentIntrospectionAsMarkdown } = await importSource('../src/helper.js')
+
   const fs = context.container.feature('fs')
   const baseDir = 'docs/apis'
 
@@ -47,7 +55,7 @@ async function generateApiDocs(options: z.infer<typeof argsSchema>, context: Con
   const agiOnlyFeatures = agiIds.features.filter(f => !nodeFeatureSet.has(f))
 
   // Load web build-time data so __INTROSPECTION__ has web entries
-  await import('../src/introspection/generated.web.js')
+  await importSource('../src/introspection/generated.web.js')
 
   // Use AGIContainer for rendering — it has all node+agi registries loaded
   const agiContainer = new AGIContainer()

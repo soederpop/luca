@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { commands, CommandOptionsSchema } from '../src/node'
-import type { ContainerContext } from '../src/node'
+import { commands, CommandOptionsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 
 declare module 'luca' {
   interface AvailableCommands {

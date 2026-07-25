@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { CommandOptionsSchema } from '../src/node'
-import type { ContainerContext } from '../src/node'
+import { CommandOptionsSchema } from 'luca'
+import type { ContainerContext } from 'luca'
 
 export const argsSchema = CommandOptionsSchema.extend({
   name: z.string().default('luca-agent').describe('Agent name / identity to use'),
