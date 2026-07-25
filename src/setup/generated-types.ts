@@ -5594,10 +5594,11 @@ export type SkillsLibraryOptions = z.infer<typeof SkillsLibraryOptionsSchema>;
  * Each skill folder can be opened as a DocsReader for AI-assisted Q&A.
  * Exposes tools for assistant integration via assistant.use(skillsLibrary).
  *
- * No paths are scanned by default — callers must explicitly provide locations
- * via the \`locations\` option or \`addLocation()\`. Set \`useAgentsFolders: true\`
- * to automatically scan conventional agent skill folders (.claude/skills and
- * .agents/skills in both $HOME and cwd).
+ * A local \`skills/\` folder in the project cwd is scanned automatically when it
+ * exists. Beyond that, callers must explicitly provide locations via the
+ * \`locations\` option or \`addLocation()\`. Set \`useAgentsFolders: true\` to also
+ * scan conventional agent skill folders (.claude/skills and .agents/skills in
+ * both $HOME and cwd).
  *
  * @extends Feature
  * @example
@@ -9236,7 +9237,6 @@ export declare const argsSchema: z.ZodObject<{
     safe: z.ZodDefault<z.ZodBoolean>;
     console: z.ZodDefault<z.ZodBoolean>;
     onlySections: z.ZodOptional<z.ZodString>;
-    dontInjectContext: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 export default function run(options: z.infer<typeof argsSchema>, context: ContainerContext): Promise<void>;
 export declare const positionals: {
