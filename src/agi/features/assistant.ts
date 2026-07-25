@@ -398,6 +398,10 @@ export class Assistant extends Feature<AssistantState, AssistantOptions> {
 			// default must keep its own model.
 			const defaultsToOpenAI = !provider && this.resolveDefaultProviderId() === 'openai'
 			conv = this.container.feature('conversation', {
+				// A conversation is per-assistant mutable state — never share a cached
+				// instance between assistants whose initial options happen to match,
+				// or history loads in one session would corrupt every other session.
+				cached: false,
 				// Only default the model for the OpenAI path; when a provider is
 				// configured (or defaulted), leave it unset so the provider's default model wins.
 				model: this.effectiveOptions.model || (defaultsToOpenAI ? 'gpt-5.4-mini' : undefined),

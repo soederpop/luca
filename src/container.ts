@@ -512,7 +512,7 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
 
   /** @internal */
   buildHelperCacheKey(type: string, id: string, options: any, omitOptionKeys: string[] = []) {
-    const hashableOptions = omit(options || {}, uniq(['_cacheKey', ...omitOptionKeys]))
+    const hashableOptions = omit(options || {}, uniq(['_cacheKey', 'cached', ...omitOptionKeys]))
 
     return hashObject({
       __type: type,
@@ -544,10 +544,17 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
   }) {
     const normalizedOptions = this.normalizeHelperOptions(BaseClass, options, fallbackName || id)
     const cacheKey = this.buildHelperCacheKey(type, id, normalizedOptions, omitOptionKeys)
-    const cached = cache.get(cacheKey)
+    // `cached: false` opts out of instance caching entirely — every call builds a
+    // fresh instance. Check the raw options too, since a helper's optionsSchema may
+    // strip keys it doesn't declare.
+    const skipCache = options?.cached === false || normalizedOptions?.cached === false
 
-    if (cached) {
-      return cached
+    if (!skipCache) {
+      const cached = cache.get(cacheKey)
+
+      if (cached) {
+        return cached
+      }
     }
 
     const helperOptions = {
@@ -566,7 +573,9 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
       instance.runAfterInitialize()
     }
 
-    cache.set(cacheKey, instance)
+    if (!skipCache) {
+      cache.set(cacheKey, instance)
+    }
     uuidCache.set(instance.uuid, instance)
     return instance
   }
@@ -576,8 +585,12 @@ export class Container<Features extends AvailableFeatures = AvailableFeatures, C
    * 
    * If you pass the same arguments, it will return the same instance as last time you created that.
    * 
-   * If you need the ability to create fresh instances, it is up to you how you define your options to support that.
-   * 
+   * If you need the ability to create fresh instances, pass `cached: false` in the
+   * options — the call will always construct a new instance and never store it in
+   * (or read it from) the helper cache. Use this for inherently stateful helpers
+   * (e.g. a `conversation`) where sharing an instance because the *initial* options
+   * matched is never what you want.
+   *
    * @param id - The id of the feature to create.
    * @param options - The options to pass to the feature constructor.
    * @returns The new feature instance.

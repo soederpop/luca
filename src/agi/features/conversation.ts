@@ -461,6 +461,9 @@ export class Conversation extends Feature<ConversationState, ConversationOptions
 			history,
 			tools: { ...this.tools },
 			...convOverrides,
+			// Forks must always be fresh instances — two forks with identical
+			// history (e.g. parallel() fan-out) must never share cached state.
+			cached: false,
 		})
 
 		// Copy stubs so forked conversations match the same patterns
