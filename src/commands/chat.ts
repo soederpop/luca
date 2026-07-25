@@ -12,6 +12,7 @@ declare module '../command.js' {
 
 export const argsSchema = CommandOptionsSchema.extend({
 	model: z.string().optional().describe('Override the LLM model for the assistant'),
+	provider: z.string().optional().describe("Model provider preset id (e.g. 'openai', 'local', 'codex', 'claude-code')"),
 	resume: z.string().optional().describe('Thread ID or conversation ID to resume'),
 	list: z.boolean().optional().describe('List recent conversations and exit'),
 	historyMode: z.enum(['lifecycle', 'daily', 'persistent', 'session']).optional().describe('Override history persistence mode'),
@@ -73,6 +74,7 @@ export default async function chat(options: z.infer<typeof argsSchema>, context:
 
 	const createOptions: Record<string, any> = { historyMode, injectTimestamps: true }
 	if (options.model) createOptions.model = options.model
+	if (options.provider) createOptions.provider = options.provider
 	if (options.forbidTool) createOptions.forbidTools = Array.isArray(options.forbidTool) ? options.forbidTool : [options.forbidTool]
 	if (options.allowTool) createOptions.allowTools = Array.isArray(options.allowTool) ? options.allowTool : [options.allowTool]
 
@@ -309,6 +311,7 @@ export const examples = [
 	{ command: 'luca chat --list', description: 'List recent conversations' },
 	{ command: 'luca chat researcher --resume <threadId>', description: 'Resume a previous conversation' },
 	{ command: 'luca chat researcher --use "contentDb:rootPath=./docs"', description: 'Inject a feature into the assistant' },
+	{ command: 'luca chat researcher --provider claude-code', description: 'Route the assistant through a specific model provider' },
 ]
 
 commands.registerHandler('chat', {
