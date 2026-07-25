@@ -14,7 +14,6 @@ export const argsSchema = CommandOptionsSchema.extend({
 	safe: z.boolean().default(false).describe('Require approval before each code block (markdown mode)'),
 	console: z.boolean().default(false).describe('Start an interactive REPL after executing a markdown file, with all accumulated context'),
 	onlySections: z.string().optional().describe('Comma-separated list of section headings to run (case-insensitive, markdown only)'),
-	dontInjectContext: z.boolean().default(false).describe('Skip auto-injecting container context into scripts (run with plain bun instead)'),
 })
 
 
@@ -210,23 +209,8 @@ async function runMarkdown(scriptPath: string, options: z.infer<typeof argsSchem
 	return shared
 }
 
-async function runScript(scriptPath: string, context: ContainerContext, options: { dontInjectContext?: boolean } = {}) {
+async function runScript(scriptPath: string, context: ContainerContext) {
 	const container = context.container as any
-
-	if (options.dontInjectContext) {
-		const { exitCode, stderr } = await container.proc.execAndCapture(`bun run ${scriptPath}`, {
-			onOutput: (data: string) => process.stdout.write(data),
-			onError: (data: string) => process.stderr.write(data),
-		})
-
-		if (exitCode === 0) return
-
-		console.error(`\nScript failed with exit code ${exitCode}.\n`)
-		if (stderr.length) {
-			console.error(stderr)
-		}
-		return
-	}
 
 	const vm = container.feature('vm')
 	const transpiler = container.feature('transpiler')
@@ -318,7 +302,7 @@ export default async function run(options: z.infer<typeof argsSchema>, context: 
 				})
 			}
 		} else {
-			await runScript(scriptPath, context, { dontInjectContext: options.dontInjectContext })
+			await runScript(scriptPath, context)
 		}
 	} catch (err: any) {
 		await diagnoseError(scriptPath, err instanceof Error ? err : new Error(String(err)), context)
